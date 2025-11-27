@@ -181,18 +181,7 @@ class BoardWidget(QWidget):
             print(f"Error drawing overlay: {e}")
 
     def _get_class_icon(self, classification):
-        icons = {
-            "Brilliant": "!!",
-            "Great": "!",
-            "Best": "★",
-            "Excellent": "✓",
-            "Good": "✓",
-            "Inaccuracy": "?!",
-            "Mistake": "?",
-            "Blunder": "??",
-            "Miss": "∅"
-        }
-        return icons.get(classification, "")
+        return Styles.get_class_icon(classification)
 
     def update_board(self):
         # Render board to SVG with custom colors

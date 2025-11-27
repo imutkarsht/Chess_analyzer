@@ -26,6 +26,7 @@ class Styles:
     COLOR_MISTAKE = "#E6912C"
     COLOR_BLUNDER = "#CC3333"
     COLOR_MISS = "#E6912C"
+    COLOR_BOOK = "#A88865"
     
     # QSS Stylesheet
     DARK_THEME = f"""
@@ -166,9 +167,27 @@ class Styles:
             "Best": Styles.COLOR_BEST,
             "Excellent": Styles.COLOR_EXCELLENT,
             "Good": Styles.COLOR_GOOD,
+            "Book": Styles.COLOR_BOOK,
             "Inaccuracy": Styles.COLOR_INACCURACY,
             "Mistake": Styles.COLOR_MISTAKE,
             "Blunder": Styles.COLOR_BLUNDER,
             "Miss": Styles.COLOR_MISS,
         }
         return mapping.get(classification, Styles.COLOR_TEXT_PRIMARY)
+
+    @staticmethod
+    def get_class_icon(classification: str) -> str:
+        return Styles.MOVE_ICONS.get(classification, "")
+
+    MOVE_ICONS = {
+        "Brilliant": "!!",
+        "Great": "!",
+        "Best": "★",
+        "Excellent": "👍",
+        "Good": "✓",
+        "Book": "📖",
+        "Inaccuracy": "?!",
+        "Mistake": "?",
+        "Miss": "⨯",
+        "Blunder": "??",
+    }

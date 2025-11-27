@@ -246,7 +246,6 @@ class AnalysisViewWidget(QWidget):
         self.controls.next_clicked.connect(self.next_clicked)
         self.controls.last_clicked.connect(self.last_clicked)
         self.controls.flip_clicked.connect(self.flip_clicked)
-        self.controls.flip_clicked.connect(self.flip_clicked)
         self.layout.addWidget(self.controls)
         
         # 6. Settings (Cache Toggle)
@@ -355,27 +354,44 @@ class AnalysisViewWidget(QWidget):
         lbl_w.setStyleSheet("font-weight: bold;")
         self.stats_layout.addWidget(lbl_w, 0, 1)
         
+        self.stats_layout.addWidget(QLabel(""), 0, 2) # Icon column
+        
         lbl_b = QLabel("Black")
         lbl_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_b.setStyleSheet("font-weight: bold;")
-        self.stats_layout.addWidget(lbl_b, 0, 2)
+        self.stats_layout.addWidget(lbl_b, 0, 3)
         
-        types = ["Brilliant", "Great", "Best", "Blunder", "Mistake", "Inaccuracy"]
+        # Use all types from Styles
+        types = ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "Inaccuracy", "Mistake", "Miss", "Blunder"]
+        
         for i, type_name in enumerate(types):
             color = Styles.get_class_color(type_name)
+            icon = Styles.get_class_icon(type_name)
+            
+            # Label
             lbl_type = QLabel(type_name)
             lbl_type.setStyleSheet(f"color: {color}; font-weight: bold;")
             self.stats_layout.addWidget(lbl_type, i+1, 0)
             
+            # White Value
             val_w = summary['white'].get(type_name, 0)
             lbl_val_w = QLabel(str(val_w))
             lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_val_w.setStyleSheet(f"color: {color}; font-weight: bold;")
             self.stats_layout.addWidget(lbl_val_w, i+1, 1)
             
+            # Icon
+            lbl_icon = QLabel(icon)
+            lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_icon.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 16px;")
+            self.stats_layout.addWidget(lbl_icon, i+1, 2)
+            
+            # Black Value
             val_b = summary['black'].get(type_name, 0)
             lbl_val_b = QLabel(str(val_b))
             lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.stats_layout.addWidget(lbl_val_b, i+1, 2)
+            lbl_val_b.setStyleSheet(f"color: {color}; font-weight: bold;")
+            self.stats_layout.addWidget(lbl_val_b, i+1, 3)
 
     def on_cell_clicked(self, row, col):
         item = self.table.item(row, col)
