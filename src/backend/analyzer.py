@@ -14,7 +14,8 @@ class Analyzer:
         self.config = {
             "time_per_move": 0.1,
             "depth": None,
-            "multi_pv": 1
+            "multi_pv": 1,
+            "use_cache": True
         }
         # Thresholds (centipawns) - NOT USED directly for classification anymore, but kept for reference
         self.thresholds = {
@@ -98,7 +99,9 @@ class Analyzer:
                 is_white_turn = board.turn
                 
                 # Check cache
-                cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
+                cached_result = None
+                if self.config.get("use_cache", True):
+                    cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
                 
                 if cached_result:
                     info = cached_result
@@ -124,7 +127,8 @@ class Analyzer:
                     pv = info.get("pv", [])
                     serializable_info["pv"] = [m.uci() for m in pv]
                     
-                    self.cache.save_analysis(move_data.fen_before, self.config, serializable_info)
+                    if self.config.get("use_cache", True):
+                        self.cache.save_analysis(move_data.fen_before, self.config, serializable_info)
                 
                 # Normalize info
                 best_pv_uci = []

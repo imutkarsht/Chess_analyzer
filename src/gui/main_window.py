@@ -67,7 +67,9 @@ class MainWindow(QMainWindow):
         self.analysis_view.prev_clicked.connect(self.go_prev)
         self.analysis_view.next_clicked.connect(self.go_next)
         self.analysis_view.last_clicked.connect(self.go_last)
+        self.analysis_view.last_clicked.connect(self.go_last)
         self.analysis_view.flip_clicked.connect(self.flip_board)
+        self.analysis_view.cache_toggled.connect(self.on_cache_toggled)
         
         # Analysis Layout (Graph + Table)
         analysis_container = QWidget()
@@ -326,3 +328,7 @@ class MainWindow(QMainWindow):
 
     def flip_board(self):
         self.board_widget.flip_board()
+
+    def on_cache_toggled(self, checked):
+        self.analyzer.config["use_cache"] = checked
+

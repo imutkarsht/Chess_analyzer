@@ -52,57 +52,45 @@ class ChessComAPI:
     @staticmethod
     def get_game_by_id(game_id: str, url: str = None) -> Optional[Dict]:
         """
-        Fetches a specific game by its ID using a hybrid approach:
-        1. If URL is provided, scrape it for metadata (username, date).
-        2. Use the official Pub API to fetch the archive for that month.
-        3. Find the game in the archive.
+        Fetches a specific game by its ID.
+        Prioritizes the callback API for live games as it's most reliable for recent games.
+        Falls back to scraping or archive search if needed.
         """
+        # 1. Try callback API first (fastest and most reliable for live games)
+        game = ChessComAPI._get_game_via_callback(game_id)
+        if game:
+            return game
+
         if not url:
-            # Try to construct a URL if only ID is given? 
-            # Without username, we can't easily guess the URL for live games reliably without redirection.
-            # But we can try the callback method as a fallback if URL is missing.
-            return ChessComAPI._get_game_via_callback(game_id)
+            return None
 
         try:
-            # Step 1: Fetch HTML to get metadata
+            # 2. If callback failed, try scraping metadata from URL to find archive
             response = requests.get(url, headers=ChessComAPI.HEADERS)
             response.raise_for_status()
             html = response.text
             
-            # Step 2: Extract username and date
-            # We look for the game date and one of the players.
-            # Usually there is a link to the archive or metadata.
-            # Let's look for the "Date" header in PGN or specific meta tags.
-            # Actually, simpler: The URL itself might not have it, but the page content does.
-            
-            # Extract usernames from description meta tag
-            # <meta name="description" content="White (Rating) vs Black (Rating). Result..." />
+            # Extract username
             import re
-            desc_match = re.search(r'<meta name="description" content="([^"]+)"', html)
+            # Try finding "username":"name" pattern in JSON blobs in HTML
+            user_match = re.search(r'"username":"([^"]+)"', html)
             username = None
-            if desc_match:
-                content = desc_match.group(1)
-                # "User1 (1000) vs User2 (1200)"
-                # Extract first username
-                parts = content.split(' vs ')
-                if len(parts) > 0:
-                    # "User1 (1000)" -> "User1"
-                    username = parts[0].split(' (')[0].strip()
+            if user_match:
+                username = user_match.group(1)
             
             if not username:
-                # Fallback: try to find "username" in JSON
-                user_match = re.search(r'"username":"([^"]+)"', html)
-                if user_match:
-                    username = user_match.group(1)
+                # Try meta description
+                desc_match = re.search(r'<meta name="description" content="([^"]+)"', html)
+                if desc_match:
+                    content = desc_match.group(1)
+                    parts = content.split(' vs ')
+                    if len(parts) > 0:
+                        username = parts[0].split(' (')[0].strip()
             
             if username:
-                # We have a username. We don't have the date, so we have to search archives.
-                # Start from the latest archive and go back.
                 return ChessComAPI._find_game_in_archives(username, game_id)
             
-            # Fallback to callback if scraping fails
-            print("Metadata scraping failed, falling back to callback API.")
-            return ChessComAPI._get_game_via_callback(game_id)
+            return None
             
         except Exception as e:
             print(f"Error fetching game {game_id}: {e}")

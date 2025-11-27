@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QLabel, QGridLayout, QFrame, QHBoxLayout, 
-                             QPushButton, QAbstractItemView)
+                             QPushButton, QAbstractItemView, QCheckBox)
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
@@ -173,7 +173,9 @@ class AnalysisViewWidget(QWidget):
     prev_clicked = pyqtSignal()
     next_clicked = pyqtSignal()
     last_clicked = pyqtSignal()
+    last_clicked = pyqtSignal()
     flip_clicked = pyqtSignal()
+    cache_toggled = pyqtSignal(bool)
 
     def __init__(self):
         super().__init__()
@@ -244,7 +246,14 @@ class AnalysisViewWidget(QWidget):
         self.controls.next_clicked.connect(self.next_clicked)
         self.controls.last_clicked.connect(self.last_clicked)
         self.controls.flip_clicked.connect(self.flip_clicked)
+        self.controls.flip_clicked.connect(self.flip_clicked)
         self.layout.addWidget(self.controls)
+        
+        # 6. Settings (Cache Toggle)
+        self.cache_checkbox = QCheckBox("Use Analysis Cache")
+        self.cache_checkbox.setChecked(True)
+        self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
+        self.layout.addWidget(self.cache_checkbox)
         
         self.current_game = None
 
