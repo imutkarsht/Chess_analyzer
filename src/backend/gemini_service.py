@@ -1,4 +1,5 @@
 import os
+import sys
 import google.generativeai as genai
 from dotenv import load_dotenv
 from ..utils.logger import logger
@@ -11,7 +12,14 @@ class GeminiService:
         # Try to load from .env if not provided
         if not self.api_key:
             try:
-                load_dotenv()
+                if getattr(sys, 'frozen', False):
+                    # If running as executable, load from bundled env.sample
+                    base_path = sys._MEIPASS
+                    load_dotenv(dotenv_path=os.path.join(base_path, '.env.sample'))
+                else:
+                    # If running from source, load from local .env
+                    load_dotenv()
+                
                 self.api_key = os.getenv("GEMINI_KEY")
             except Exception:
                 pass

@@ -6,7 +6,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=[('assets', 'assets'), ('.env.sample', '.')],
     hiddenimports=['chess', 'PyQt6'],
     hookspath=[],
     hooksconfig={},

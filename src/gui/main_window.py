@@ -3,7 +3,7 @@ import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QSplitter, QFileDialog, QMenuBar, QMenu,
                              QToolBar, QStatusBar, QMessageBox, QInputDialog, QDialog,
-                             QListWidget, QListWidgetItem, QPushButton)
+                             QListWidget, QListWidgetItem, QPushButton, QLineEdit)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QIcon
 
@@ -144,9 +144,14 @@ class MainWindow(QMainWindow):
         
         # Settings Menu
         settings_menu = menubar.addMenu("Settings")
+        
         config_action = QAction("Configure Engine...", self)
         config_action.triggered.connect(self.configure_engine)
         settings_menu.addAction(config_action)
+        
+        gemini_action = QAction("Configure Gemini API...", self)
+        gemini_action.triggered.connect(self.configure_gemini)
+        settings_menu.addAction(gemini_action)
 
     def open_pgn(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open PGN File", "", "PGN Files (*.pgn);;All Files (*)")
@@ -313,6 +318,17 @@ class MainWindow(QMainWindow):
             # Update MoveListPanel engine
             self.move_list_panel.update_engine_path(self.engine_path)
             QMessageBox.information(self, "Settings", f"Engine path set to: {path}")
+
+    def configure_gemini(self):
+        current_key = self.config_manager.get("gemini_api_key", "")
+        key, ok = QInputDialog.getText(self, "Configure Gemini API", 
+                                     "Enter your Google Gemini API Key:\n(Get one at aistudio.google.com)",
+                                     QLineEdit.EchoMode.Password, current_key)
+        if ok:
+            self.config_manager.set("gemini_api_key", key)
+            # Update AnalysisPanel service
+            self.analysis_panel.gemini_service.configure(key)
+            QMessageBox.information(self, "Settings", "Gemini API Key saved.")
 
     def keyPressEvent(self, event):
         if not self.current_game:
