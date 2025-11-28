@@ -17,7 +17,7 @@ class Analyzer:
         self.config = {
             "time_per_move": 0.1,
             "depth": None,
-            "multi_pv": 1,
+            "multi_pv": 3,
             "use_cache": True
         }
         # Thresholds (centipawns) - NOT USED directly for classification anymore, but kept for reference
@@ -112,52 +112,122 @@ class Analyzer:
                     cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
                 
                 if cached_result:
-                    info = cached_result
+                    info_list = cached_result
                 else:
-                    info = self.engine_manager.analyze_position(
+                    info_list = self.engine_manager.analyze_position(
                         board, 
                         time_limit=self.config["time_per_move"],
                         depth=self.config["depth"],
                         multi_pv=self.config["multi_pv"]
                     )
                     
-                    if isinstance(info, list):
-                        info = info[0] if info else {}
+                    # Ensure it's a list
+                    if not isinstance(info_list, list):
+                        info_list = [info_list]
                     
-                    serializable_info = {}
-                    score = info.get("score")
-                    if score:
-                        if score.is_mate():
-                            serializable_info["mate"] = score.relative.mate()
-                        else:
-                            serializable_info["cp"] = score.relative.score(mate_score=10000)
-                    
-                    pv = info.get("pv", [])
-                    serializable_info["pv"] = [m.uci() for m in pv]
+                    # Serialize for cache
+                    serializable_list = []
+                    for info in info_list:
+                        s_info = {}
+                        score = info.get("score")
+                        if score:
+                            if score.is_mate():
+                                s_info["mate"] = score.relative.mate()
+                            else:
+                                s_info["cp"] = score.relative.score(mate_score=10000)
+                        
+                        pv = info.get("pv", [])
+                        s_info["pv"] = [m.uci() for m in pv]
+                        serializable_list.append(s_info)
                     
                     if self.config.get("use_cache", True):
-                        self.cache.save_analysis(move_data.fen_before, self.config, serializable_info)
+                        self.cache.save_analysis(move_data.fen_before, self.config, serializable_list)
                 
                 # Normalize info
                 best_pv_uci = []
                 score_cp = None
                 score_mate = None
                 
-                if isinstance(info, dict) and "pv" in info and isinstance(info["pv"], list) and len(info["pv"]) > 0 and isinstance(info["pv"][0], str):
-                    # Cached format
-                    best_pv_uci = info.get("pv", [])
-                    score_cp = info.get("cp")
-                    score_mate = info.get("mate")
-                else:
-                    # Engine format
-                    pv_moves = info.get("pv", [])
-                    best_pv_uci = [m.uci() for m in pv_moves]
-                    score = info.get("score")
-                    if score:
-                        if score.is_mate():
-                            score_mate = score.relative.mate()
-                        else:
-                            score_cp = score.relative.score(mate_score=10000)
+                # Process Multi-PVs
+                move_data.multi_pvs = []
+                
+                # If cached, it's already a list of dicts. If fresh, it's a list of InfoDicts.
+                # We need to unify this.
+                
+                # Let's assume info_list contains the data we need.
+                # If it came from cache, it's list[dict].
+                # If it came from engine, it's list[InfoDict].
+                
+                primary_info = None
+                
+                for idx, item in enumerate(info_list):
+                    pv_data = {}
+                    
+                    if isinstance(item, dict) and "pv" in item and isinstance(item["pv"], list) and len(item["pv"]) > 0 and isinstance(item["pv"][0], str):
+                        # Cached format
+                        pv_uci = item.get("pv", [])
+                        cp = item.get("cp")
+                        mate = item.get("mate")
+                    else:
+                        # Engine format
+                        pv_moves = item.get("pv", [])
+                        pv_uci = [m.uci() for m in pv_moves]
+                        score = item.get("score")
+                        cp = None
+                        mate = None
+                        if score:
+                            if score.is_mate():
+                                mate = score.relative.mate()
+                            else:
+                                cp = score.relative.score(mate_score=10000)
+                                
+                    pv_data["pv"] = pv_uci
+                    pv_data["cp"] = cp
+                    pv_data["mate"] = mate
+                    
+                    # Convert PV to SAN
+                    # We need to use the board state to generate SAN
+                    # The board is currently at the position BEFORE the move.
+                    # But for Multi-PV, the lines are variations from this position.
+                    # So board.variation_san(pv_moves) should work if pv_moves are Move objects.
+                    
+                    san_pv = ""
+                    try:
+                        # Re-parse UCI moves to Move objects for this board state
+                        # Note: pv_moves from engine might be Move objects or strings depending on library version/usage
+                        # In our code above: pv_moves = item.get("pv", [])
+                        # If from engine (python-chess), they are Move objects.
+                        # If from cache (dict), they are UCI strings.
+                        
+                        real_pv_moves = []
+                        for m in pv_moves:
+                            if isinstance(m, str):
+                                real_pv_moves.append(chess.Move.from_uci(m))
+                            else:
+                                real_pv_moves.append(m)
+                                
+                        san_pv = board.variation_san(real_pv_moves)
+                    except Exception as e:
+                        # Fallback to UCI if SAN generation fails
+                        san_pv = " ".join(pv_uci)
+                        
+                    pv_data["pv_san"] = san_pv
+                    
+                    # Normalize score to White perspective for display/storage if needed?
+                    # Actually, for MoveAnalysis.multi_pvs, we usually want relative to side to move, 
+                    # OR we store it as is and UI handles it.
+                    # The existing logic stores eval_before_cp relative to side to move (then normalized later).
+                    
+                    # Let's store RAW relative score in multi_pvs
+                    pv_data["score_value"] = f"M{mate}" if mate is not None else f"{cp/100:.2f}" if cp is not None else "?"
+                    
+                    move_data.multi_pvs.append(pv_data)
+                    
+                    if idx == 0:
+                        primary_info = pv_data
+                        best_pv_uci = pv_uci
+                        score_cp = cp
+                        score_mate = mate
 
                 # Store RAW engine score (relative to side to move)
                 
@@ -176,9 +246,13 @@ class Analyzer:
             # Analyze FINAL position
             board.set_fen(game_analysis.moves[-1].fen_before)
             board.push_uci(game_analysis.moves[-1].uci)
-            final_info = self.engine_manager.analyze_position(board, time_limit=self.config["time_per_move"])
-            if isinstance(final_info, list):
-                final_info = final_info[0] if final_info else {}
+            final_info_list = self.engine_manager.analyze_position(board, time_limit=self.config["time_per_move"])
+            
+            if isinstance(final_info_list, list):
+                final_info = final_info_list[0] if final_info_list else {}
+            else:
+                final_info = final_info_list
+                
             final_score = final_info.get("score")
             
             # Now iterate and classify

@@ -12,7 +12,8 @@ src/
 │   ├── pgn_parser.py   # PGN parsing utilities
 │   ├── models.py       # Data models (GameAnalysis, MoveAnalysis)
 │   ├── cache.py        # Analysis caching mechanism
-│   └── chess_com_api.py# Chess.com API integration
+│   ├── chess_com_api.py# Chess.com API integration
+│   └── book.py         # Opening book manager (Lichess API)
 ├── gui/                # User Interface (PyQt6)
 │   ├── main_window.py  # Main application window
 │   ├── board_widget.py # Chess board rendering (SVG)
@@ -21,7 +22,14 @@ src/
 │   ├── game_list.py    # List of loaded games
 │   ├── graph_widget.py # Evaluation graph
 │   └── styles.py       # QSS Stylesheets (Dark Theme)
+├── utils/              # Utilities
+│   ├── resources.py    # Resource manager (Sound, Images)
+│   └── logger.py       # Logging configuration
 └── main.py             # Entry point
+
+assets/                 # Static assets
+├── images/             # Piece themes and icons
+└── sounds/             # Game sound effects
 ```
 
 ## Key Components
@@ -42,6 +50,12 @@ Wraps the `python-chess` engine communication. It handles starting the UCI engin
 
 #### `PGNParser` (`src/backend/pgn_parser.py`)
 Parses PGN files or text strings into `GameAnalysis` objects. It extracts metadata (players, result) and the move list.
+
+#### `BookManager` (`src/backend/book.py`)
+Identifies openings by querying the Lichess Masters database API or checking a local cache. It helps label the opening phase of the game.
+
+#### `ResourceManager` (`src/utils/resources.py`)
+Handles loading and access to static assets like images and sound effects. It ensures assets are found whether running from source or a frozen executable.
 
 ### Frontend (GUI)
 
@@ -89,17 +103,19 @@ Here are some ideas for extending the application:
 
 ### Analysis & Engine
 -   **Cloud Analysis**: Integrate Lichess or Chess.com API to run analysis on their servers.
--   **Opening Explorer**: Show opening stats (Master/Lichess DB) for the current position.
 -   **Multi-PV Support**: Show multiple best moves/lines in the UI.
 -   **Engine Tournaments**: Allow running engine vs engine matches.
+-   **Batch Analysis**: Analyze an entire PGN file of games in the background and generate a summary report.
+-   **Interactive Training**: "Guess the Move" feature where users play through a game and get feedback.
 
 ### User Interface
 -   **Piece Sets & Board Themes**: Allow users to customize the look of the board.
--   **Sound Effects**: Add move sounds, capture sounds, and check/mate alerts.
 -   **Dark/Light Mode Toggle**: Add a switch to toggle between themes.
 -   **Resizable Layout**: Allow users to drag and resize the panels (partially implemented with Splitter).
+-   **Game Annotations**: Allow users to add their own comments and variations to the game.
 
 ### Data & Export
 -   **PDF Export**: Generate a printable PDF report of the analysis.
 -   **Game Database**: Store analyzed games in a local SQLite database for quick retrieval.
 -   **PGN Export**: Export the analyzed game with annotations to a PGN file.
+-   **Statistics Dashboard**: Show user stats (accuracy over time, common openings played, win rates).

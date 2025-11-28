@@ -21,6 +21,7 @@ class MoveAnalysis:
     win_chance_after: float = 0.5
     classification: str = "Book" # Brilliant, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss, Book
     explanation: str = ""
+    multi_pvs: List[Dict[str, Any]] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass

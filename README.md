@@ -4,9 +4,12 @@ A full-stack Python desktop application that accepts chess games as PGN, analyze
 
 ## Features
 - **PGN Support**: Load single or multiple games from PGN files.
+- **Chess.com Integration**: Import games directly from Chess.com users or URLs.
 - **Stockfish Analysis**: Integrates with Stockfish engine for deep analysis.
+- **Opening Explorer**: Identifies openings using Lichess API and local cache.
 - **Move Classification**: Automatically classifies moves (Best, Brilliant, Blunder, Mistake, etc.).
 - **Evaluation Graph**: Visualizes the game's evaluation swing.
+- **Sound Effects**: Immersive audio feedback for moves, captures, checks, and game end.
 - **Caching**: Caches analysis results to avoid re-computation.
 - **Responsive UI**: Built with PyQt6, ensuring a smooth experience.
 
@@ -23,7 +26,7 @@ A full-stack Python desktop application that accepts chess games as PGN, analyze
 
 3. **Run the Application**:
    ```bash
-   python run_app.py
+   python main.py
    ```
 
 4. **Configure Engine**:

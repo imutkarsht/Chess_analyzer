@@ -6,7 +6,13 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
 from ..utils.resources import ResourceManager
+from ..utils.resources import ResourceManager
 from ..utils.logger import logger
+from ..utils.resources import ResourceManager
+from ..utils.logger import logger
+import chess
+from .live_analysis import LiveAnalysisWorker
+from PyQt6.QtCore import QTimer
 
 class StatCard(QFrame):
     def __init__(self, title, value, color=None):
@@ -137,6 +143,96 @@ class CapturedPiecesWidget(QFrame):
             if child.widget():
                 child.widget().deleteLater()
 
+class AnalysisLinesWidget(QFrame):
+    def __init__(self):
+        super().__init__()
+        self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                padding: 10px;
+            }}
+            QLabel {{ border: none; background: transparent; }}
+        """)
+        
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(5)
+        self.layout.setContentsMargins(5, 5, 5, 5)
+        
+        self.lines_layout = QVBoxLayout()
+        self.layout.addLayout(self.lines_layout)
+        
+    def update_lines(self, multi_pvs, turn_color):
+        self._clear_layout(self.lines_layout)
+        
+        if not multi_pvs:
+            lbl = QLabel("No analysis available")
+            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-style: italic;")
+            self.lines_layout.addWidget(lbl)
+            return
+            
+        # Sort by multipv id if available, or score?
+        # Usually sorted by score descending (for White) or ascending (for Black)
+        # But engine usually returns them in order of multipv id (1 is best).
+        
+        # If live analysis, we might get partial updates.
+        # We should probably store the lines and update them individually?
+        # For now, full redraw is fine.
+        
+        for i, pv_data in enumerate(multi_pvs):
+            # Create a row for each line
+            row_widget = QWidget()
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(10)
+            
+            # Depth (if available)
+            depth = pv_data.get("depth", "?")
+            lbl_depth = QLabel(f"d{depth}")
+            lbl_depth.setFixedWidth(30)
+            lbl_depth.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 10px;")
+            row_layout.addWidget(lbl_depth)
+            
+            # Eval
+            score_val = pv_data.get("score_value", "?")
+            
+            display_score = score_val
+            
+            try:
+                if not score_val.startswith("M"):
+                    val = float(score_val)
+                    if turn_color == chess.BLACK:
+                        val = -val
+                    display_score = f"{val:+.2f}"
+            except:
+                pass
+
+            lbl_eval = QLabel(display_score)
+            lbl_eval.setFixedWidth(50)
+            lbl_eval.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
+            row_layout.addWidget(lbl_eval)
+            
+            # PV (SAN preferred)
+            pv_text = pv_data.get("pv_san", "")
+            if not pv_text:
+                pv_moves = pv_data.get("pv", [])
+                pv_text = " ".join(pv_moves[:5]) # Fallback to UCI
+            
+            lbl_pv = QLabel(pv_text)
+            lbl_pv.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY};")
+            lbl_pv.setWordWrap(True)
+            row_layout.addWidget(lbl_pv)
+            
+            self.lines_layout.addWidget(row_widget)
+
+    def _clear_layout(self, layout):
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
 class GameControlsWidget(QWidget):
     first_clicked = pyqtSignal()
     prev_clicked = pyqtSignal()
@@ -187,6 +283,22 @@ class AnalysisViewWidget(QWidget):
         self.layout.setContentsMargins(10, 10, 10, 10)
         
         self.resource_manager = ResourceManager()
+        
+        # Live Analysis
+        # We need engine path. Assuming default 'stockfish' for now or passed from main window?
+        # Ideally passed in init or set later.
+        self.live_worker = LiveAnalysisWorker("stockfish") # Default
+        self.live_worker.info_ready.connect(self.on_live_analysis_update)
+        self.live_worker.start()
+        
+        self.live_data = {} # multipv_id -> info
+        self.current_turn = chess.WHITE
+        
+        # Timer to delay live analysis start
+        self.analysis_timer = QTimer()
+        self.analysis_timer.setSingleShot(True)
+        self.analysis_timer.setInterval(300) # 300ms delay
+        self.analysis_timer.timeout.connect(self.start_live_analysis)
         
         # Tabs
         self.tabs = QTabWidget()
@@ -240,9 +352,14 @@ class AnalysisViewWidget(QWidget):
         
         self.moves_layout.addWidget(self.table)
         
-        # Set stretch: Graph 1, Table 2
+        # Analysis Lines Widget
+        self.lines_widget = AnalysisLinesWidget()
+        self.moves_layout.addWidget(self.lines_widget)
+        
+        # Set stretch: Graph 1, Table 2, Lines 1
         self.moves_layout.setStretch(0, 1)
         self.moves_layout.setStretch(1, 2)
+        self.moves_layout.setStretch(2, 1)
         
         self.tabs.addTab(self.tab_moves, "Moves")
         
@@ -287,6 +404,11 @@ class AnalysisViewWidget(QWidget):
     def set_game(self, game_analysis):
         logger.debug(f"Setting game in AnalysisView: {game_analysis.game_id}")
         self.current_game = game_analysis
+        
+        # Update engine path if available in analyzer (hacky access)
+        # Better: pass engine path to AnalysisView
+        # For now, let's assume stockfish is in path or we use the one from analyzer if we could access it.
+        
         self.refresh()
         
     def refresh(self):
@@ -325,6 +447,12 @@ class AnalysisViewWidget(QWidget):
                 self.opening_label.setText(f"Opening: {opening}")
             else:
                 self.opening_label.setText("Opening: Unknown")
+                
+            # Update Lines for current selection (or start)
+            # If no selection, maybe show start position analysis?
+            # We don't have start pos analysis in moves list usually (unless we add a dummy).
+            # Let's default to empty.
+            self.lines_widget.update_lines([], chess.WHITE)
                 
         except Exception as e:
             logger.error(f"Error refreshing AnalysisView: {e}", exc_info=True)
@@ -426,9 +554,15 @@ class AnalysisViewWidget(QWidget):
 
     def select_move(self, index):
         # Find row and col for this index
-        if not self.current_game or index < 0 or index >= len(self.current_game.moves):
+        if not self.current_game:
+            return
+            
+        if index < 0:
             self.table.clearSelection()
-            # Reset captured pieces to start position?
+            self.lines_widget.update_lines([], chess.WHITE)
+            return
+            
+        if index >= len(self.current_game.moves):
             return
             
         row = index // 2
@@ -437,3 +571,47 @@ class AnalysisViewWidget(QWidget):
         # Select the item
         self.table.setCurrentCell(row, col)
         self.table.scrollToItem(self.table.item(row, col))
+        
+        # Update Lines
+        move = self.current_game.moves[index]
+        # We need the turn color BEFORE this move was made to interpret evaluation correctly?
+        # The analysis stored in `move` is for the position BEFORE the move.
+        # So we need the turn of that position.
+        # We can deduce it from move index: even = White, odd = Black.
+        turn = chess.WHITE if index % 2 == 0 else chess.BLACK
+        
+        self.lines_widget.update_lines(move.multi_pvs, turn)
+        
+        # Trigger Live Analysis
+        self.current_turn = turn
+        self.live_data = {} # Clear live data
+        self.analysis_timer.start()
+
+    def start_live_analysis(self):
+        if not self.current_game:
+            return
+            
+        # Get FEN
+        index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
+        # Check if valid
+        if index < 0 or index >= len(self.current_game.moves):
+            return
+            
+        move = self.current_game.moves[index]
+        fen = move.fen_before
+        
+        self.live_worker.set_position(fen)
+        
+    def on_live_analysis_update(self, info):
+        # Update live data
+        multipv_id = info.get("multipv", 1)
+        self.live_data[multipv_id] = info
+        
+        # Convert dict to list sorted by multipv
+        sorted_lines = sorted(self.live_data.values(), key=lambda x: x.get("multipv", 1))
+        
+        self.lines_widget.update_lines(sorted_lines, self.current_turn)
+        
+    def closeEvent(self, event):
+        self.live_worker.stop()
+        super().closeEvent(event)
