@@ -3,6 +3,7 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtMultimedia import QSoundEffect
 from PyQt6.QtCore import QUrl
 from .logger import logger
+from .path_utils import get_resource_path
 
 class ResourceManager:
     _instance = None
@@ -19,8 +20,7 @@ class ResourceManager:
         self._initialized = True
         
         # Base paths
-        self.base_path = os.getcwd()
-        self.assets_dir = os.path.join(self.base_path, "assets")
+        self.assets_dir = get_resource_path("assets")
         self.images_path = os.path.join(self.assets_dir, "images")
         self.sounds_path = os.path.join(self.assets_dir, "sounds")
         

@@ -14,7 +14,8 @@ import chess
 from .live_analysis import LiveAnalysisWorker
 from PyQt6.QtCore import QTimer, QThread
 from ..backend.gemini_service import GeminiService
-from PyQt6.QtWidgets import QTextEdit, QMessageBox
+from PyQt6.QtWidgets import QTextEdit, QMessageBox, QInputDialog, QLineEdit
+from ..utils.config import ConfigManager
 
 class StatCard(QFrame):
     def __init__(self, title, value, color=None):
@@ -457,7 +458,9 @@ class AnalysisPanel(QWidget):
         self.layout.setContentsMargins(5, 5, 5, 5)
         
         self.resource_manager = ResourceManager()
-        self.gemini_service = GeminiService()
+        self.config_manager = ConfigManager()
+        api_key = self.config_manager.get("gemini_api_key")
+        self.gemini_service = GeminiService(api_key)
         self.current_game = None
         
         # Graph
@@ -626,8 +629,20 @@ class AnalysisPanel(QWidget):
         if not self.current_game:
             return
         if not self.gemini_service.model:
-            QMessageBox.warning(self, "Gemini Not Configured", "Please add GEMINI_KEY to .env file.")
-            return
+            # Prompt user for key
+            key, ok = QInputDialog.getText(self, "Gemini API Key Required", 
+                                         "To use AI Summary, please enter your Google Gemini API Key:\n(Get one at aistudio.google.com)",
+                                         QLineEdit.EchoMode.Password)
+            if ok and key:
+                self.gemini_service.configure(key)
+                if self.gemini_service.model:
+                    self.config_manager.set("gemini_api_key", key)
+                    QMessageBox.information(self, "Success", "API Key saved and Gemini configured!")
+                else:
+                    QMessageBox.critical(self, "Error", "Invalid API Key or configuration failed.")
+                    return
+            else:
+                return
         self.btn_generate_summary.setEnabled(False)
         self.btn_generate_summary.setText("Generating...")
         self.summary_thread = GenerateSummaryThread(self.gemini_service, self.current_game)

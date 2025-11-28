@@ -20,6 +20,7 @@ from ..backend.engine import EngineManager
 from ..backend.chess_com_api import ChessComAPI
 from .styles import Styles
 from ..backend.models import MoveAnalysis
+from ..utils.path_utils import get_resource_path
 import chess
 
 class MainWindow(QMainWindow):
@@ -37,7 +38,7 @@ class MainWindow(QMainWindow):
         self.resource_manager = ResourceManager()
         
         # Set Window Icon
-        icon_path = os.path.join(os.getcwd(), "assets", "images", "logo.png")
+        icon_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 

@@ -4,19 +4,29 @@ from dotenv import load_dotenv
 from ..utils.logger import logger
 
 class GeminiService:
-    def __init__(self):
-        load_dotenv()
-        self.api_key = os.getenv("GEMINI_KEY")
+    def __init__(self, api_key=None):
+        self.model = None
+        self.api_key = api_key
+        
+        # Try to load from .env if not provided
         if not self.api_key:
-            logger.warning("GEMINI_KEY not found in .env")
-            self.model = None
-        else:
             try:
-                genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel('gemini-flash-latest')
-            except Exception as e:
-                logger.error(f"Failed to configure Gemini: {e}")
-                self.model = None
+                load_dotenv()
+                self.api_key = os.getenv("GEMINI_KEY")
+            except Exception:
+                pass
+                
+        if self.api_key:
+            self.configure(self.api_key)
+
+    def configure(self, api_key):
+        self.api_key = api_key
+        try:
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel('gemini-flash-latest')
+        except Exception as e:
+            logger.error(f"Failed to configure Gemini: {e}")
+            self.model = None
 
     def generate_summary(self, pgn_text, analysis_summary):
         """
