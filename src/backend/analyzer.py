@@ -3,6 +3,7 @@ import chess.engine
 from .models import GameAnalysis, MoveAnalysis
 from .engine import EngineManager
 from .cache import AnalysisCache
+from .book import BookManager
 from typing import Optional, Tuple, List
 import math
 import statistics
@@ -11,6 +12,7 @@ class Analyzer:
     def __init__(self, engine_manager: EngineManager):
         self.engine_manager = engine_manager
         self.cache = AnalysisCache()
+        self.book_manager = BookManager()
         self.config = {
             "time_per_move": 0.1,
             "depth": None,
@@ -192,8 +194,17 @@ class Analyzer:
                 }
             }
             
+            # Create a board for move verification
+            temp_board = chess.Board()
+            
+            # Track opening
+            opening_name = "Unknown Opening"
+            in_book = True
+
             for i, move in enumerate(game_analysis.moves):
-                side = "white" if i % 2 == 0 else "black"
+                # Determine side from FEN for robustness
+                temp_board.set_fen(move.fen_before)
+                side = "white" if temp_board.turn == chess.WHITE else "black"
                 
                 # Get S1 (Eval before) - already normalized to White perspective
                 s1_cp = move.eval_before_cp
@@ -263,6 +274,19 @@ class Analyzer:
                 
                 if cp_loss > 0:
                     summary_counts[side]["acpl"] += cp_loss
+                
+                # Book Move Check
+                if in_book:
+                    name = self.book_manager.get_opening_name(move.fen_before, move.uci)
+                    if name:
+                        move.classification = "Book"
+                        opening_name = name
+                        # Book moves are perfect
+                        summary_counts[side]["Book"] += 1
+                    else:
+                        in_book = False
+                        
+                # Accuracy Calculation
 
                 # Accuracy Calculation
                 # Pass win probs from player perspective
@@ -278,38 +302,22 @@ class Analyzer:
                 if mc > 0:
                     summary_counts[side]["acpl"] /= mc
                     
-                    accuracies = summary_counts[side]["accuracies"]
-                    if not accuracies:
-                        summary_counts[side]["accuracy"] = 0
-                        continue
-                        
-                    # Harmonic Mean
-                    # mean = n / sum(1/x)
-                    # Add small epsilon to avoid div by zero
-                    sum_inv = sum(1.0 / (a + 0.001) for a in accuracies)
-                    harmonic_mean = len(accuracies) / sum_inv
-                    
-                    # Power Mean / Weighted Mean (simplified Lichess approach)
-                    # Lichess uses standard deviation of win% as weights.
-                    # Here we'll just use arithmetic mean for the second component for simplicity,
-                    # or standard deviation if possible.
-                    
-                    arithmetic_mean = statistics.mean(accuracies)
-                    
-                    # Lichess combines them. Let's use (Harmonic + Arithmetic) / 2 as a robust metric
-                    # or just Harmonic mean which punishes blunders heavily.
-                    # Let's use Harmonic Mean primarily but blend it to be less harsh.
-                    
-                    summary_counts[side]["accuracy"] = (harmonic_mean + arithmetic_mean) / 2.0
+                    # ACPL-based Accuracy
+                    # Formula: 100 * exp(-0.004 * acpl)
+                    # This ensures better play (lower ACPL) always gives higher accuracy.
+                    acpl = summary_counts[side]["acpl"]
+                    accuracy = 100 * math.exp(-0.004 * acpl)
+                    summary_counts[side]["accuracy"] = accuracy
                     
                 else:
                     summary_counts[side]["accuracy"] = 0
                 
                 # Clean up temp list
-                del summary_counts[side]["accuracies"]
+                # del summary_counts[side]["accuracies"] # Keep for debugging
 
             # Populate summary
             game_analysis.summary = summary_counts
+            game_analysis.metadata.opening = opening_name
 
         finally:
             self.engine_manager.stop_engine()
@@ -322,6 +330,12 @@ class Analyzer:
         if move.uci == move.best_move:
             move.classification = "Best"
             return
+            
+        # Check Book Move (handled in analyze_game loop now, but good to have helper check if needed)
+        # Actually, classification is overwritten in analyze_game loop if Book.
+        # But we should probably check it here if we want clean logic.
+        # However, we don't have access to book_manager here easily unless we pass it or use self.
+        # Let's rely on the loop check for Book.
             
         # Thresholds for WPL
         if wpl >= 0.20:

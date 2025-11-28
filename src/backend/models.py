@@ -21,6 +21,7 @@ class MoveAnalysis:
     win_chance_after: float = 0.5
     classification: str = "Book" # Brilliant, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss, Book
     explanation: str = ""
+    summary: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class GameMetadata:
@@ -30,6 +31,7 @@ class GameMetadata:
     date: str = "?"
     result: str = "*"
     headers: Dict[str, str] = field(default_factory=dict)
+    opening: Optional[str] = None
 
 @dataclass
 class GameAnalysis:

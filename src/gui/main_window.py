@@ -9,8 +9,7 @@ from PyQt6.QtGui import QAction, QIcon
 
 from .board_widget import BoardWidget
 from .game_list import GameListWidget
-from .analysis_view import AnalysisViewWidget
-from .graph_widget import GraphWidget
+from .analysis_view import AnalysisViewWidget, CapturedPiecesWidget, GameControlsWidget
 from .analysis_worker import AnalysisWorker
 from ..backend.pgn_parser import PGNParser
 from ..backend.analyzer import Analyzer
@@ -54,41 +53,50 @@ class MainWindow(QMainWindow):
         self.game_list.game_selected.connect(self.load_game)
         splitter.addWidget(self.game_list)
         
-        # Center Pane: Board
+        # Center Pane: Board Area
+        center_widget = QWidget()
+        center_layout = QVBoxLayout(center_widget)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setSpacing(10)
+        
+        # Captured Pieces (Top)
+        self.captured_widget = CapturedPiecesWidget()
+        center_layout.addWidget(self.captured_widget)
+        
+        # Board (Center)
         self.board_widget = BoardWidget()
-        splitter.addWidget(self.board_widget)
+        center_layout.addWidget(self.board_widget)
+        
+        # Controls (Bottom)
+        self.controls = GameControlsWidget()
+        self.controls.first_clicked.connect(self.go_first)
+        self.controls.prev_clicked.connect(self.go_prev)
+        self.controls.next_clicked.connect(self.go_next)
+        self.controls.last_clicked.connect(self.go_last)
+        self.controls.flip_clicked.connect(self.flip_board)
+        center_layout.addWidget(self.controls)
+        
+        splitter.addWidget(center_widget)
         
         # Right Pane: Analysis
         self.analysis_view = AnalysisViewWidget()
-        self.analysis_view.move_selected.connect(self.board_widget.set_position)
+        self.analysis_view.move_selected.connect(self.on_move_selected)
         
-        # Connect Control Signals
+        # Connect Control Signals (Forwarded from AnalysisView? No, now direct from controls)
+        # But AnalysisView also has keyboard nav which calls go_prev etc.
+        # So we keep those connections if AnalysisView emits them?
+        # AnalysisView emits them based on keyboard events.
         self.analysis_view.first_clicked.connect(self.go_first)
         self.analysis_view.prev_clicked.connect(self.go_prev)
         self.analysis_view.next_clicked.connect(self.go_next)
         self.analysis_view.last_clicked.connect(self.go_last)
-        self.analysis_view.last_clicked.connect(self.go_last)
         self.analysis_view.flip_clicked.connect(self.flip_board)
         self.analysis_view.cache_toggled.connect(self.on_cache_toggled)
         
-        # Analysis Layout (Graph + Table)
-        analysis_container = QWidget()
-        analysis_layout = QVBoxLayout(analysis_container)
-        analysis_layout.setContentsMargins(0, 0, 0, 0)
-        analysis_layout.setSpacing(0)
-        
-        self.graph_widget = GraphWidget()
-        analysis_layout.addWidget(self.graph_widget)
-        analysis_layout.addWidget(self.analysis_view)
-        
-        # Set stretch factors for analysis layout
-        analysis_layout.setStretch(0, 1) # Graph
-        analysis_layout.setStretch(1, 2) # Table
-        
-        splitter.addWidget(analysis_container)
+        splitter.addWidget(self.analysis_view)
         
         # Set initial sizes
-        splitter.setSizes([250, 650, 400])
+        splitter.setSizes([200, 500, 500])
 
     def setup_menu(self):
         menubar = self.menuBar()
@@ -219,7 +227,10 @@ class MainWindow(QMainWindow):
         self.current_game = game
         self.board_widget.load_game(game)
         self.analysis_view.set_game(game)
-        self.graph_widget.clear()
+        self.board_widget.load_game(game)
+        self.analysis_view.set_game(game)
+        # self.graph_widget.clear() # Handled in analysis_view
+        self.captured_widget.update_captured(None) # Reset captured
 
     def start_analysis(self):
         if not self.current_game:
@@ -260,7 +271,9 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Analysis complete.")
         self.current_game = game
         self.analysis_view.refresh()
-        self.graph_widget.plot_game(game)
+        self.current_game = game
+        self.analysis_view.refresh()
+        # self.graph_widget.plot_game(game) # Handled in analysis_view.refresh()
 
     def on_analysis_error(self, error_msg):
         self.statusBar().showMessage(f"Analysis failed: {error_msg}")
@@ -300,31 +313,57 @@ class MainWindow(QMainWindow):
         else:
             super().keyPressEvent(event)
 
+    def on_move_selected(self, index):
+        self.board_widget.set_position(index)
+        self.analysis_view.select_move(index)
+        
+        # Update captured pieces
+        if self.current_game:
+            moves = self.current_game.moves
+            fen = None
+            if index == -1:
+                # Start position? Need initial FEN or empty board logic
+                # Assuming standard start for now or game's initial FEN if available
+                # But captured widget handles None as clear.
+                # Actually, we want to show captured pieces at start (none).
+                fen = None 
+            elif 0 <= index < len(moves):
+                # We want FEN AFTER the move.
+                # If index+1 exists, use its fen_before.
+                if index + 1 < len(moves):
+                    fen = moves[index+1].fen_before
+                else:
+                    # Last move. We don't have fen_after stored directly.
+                    # But we can get it from board_widget if it exposes it, or re-simulate.
+                    # For now, let's just use fen_before of current move as approximation or leave it.
+                    # Better: PGNParser could store fen_after.
+                    # Or we can use board_widget.board.fen() if accessible.
+                    if hasattr(self.board_widget, 'board'):
+                        fen = self.board_widget.board.fen()
+            
+            self.captured_widget.update_captured(fen)
+
     def go_first(self):
         if self.current_game:
-            self.board_widget.set_position(-1)
-            self.analysis_view.select_move(-1)
+            self.on_move_selected(-1)
 
     def go_prev(self):
         if self.current_game:
             current = self.board_widget.current_move_index
             new_index = max(-1, current - 1)
-            self.board_widget.set_position(new_index)
-            self.analysis_view.select_move(new_index)
+            self.on_move_selected(new_index)
 
     def go_next(self):
         if self.current_game:
             current = self.board_widget.current_move_index
             total = len(self.current_game.moves)
             new_index = min(total - 1, current + 1)
-            self.board_widget.set_position(new_index)
-            self.analysis_view.select_move(new_index)
+            self.on_move_selected(new_index)
 
     def go_last(self):
         if self.current_game:
             total = len(self.current_game.moves)
-            self.board_widget.set_position(total - 1)
-            self.analysis_view.select_move(total - 1)
+            self.on_move_selected(total - 1)
 
     def flip_board(self):
         self.board_widget.flip_board()

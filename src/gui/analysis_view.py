@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QLabel, QGridLayout, QFrame, QHBoxLayout, 
-                             QPushButton, QAbstractItemView, QCheckBox)
+                             QPushButton, QAbstractItemView, QCheckBox, QTabWidget)
+from .graph_widget import GraphWidget
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
@@ -183,24 +184,20 @@ class AnalysisViewWidget(QWidget):
         self.layout.setSpacing(10)
         self.layout.setContentsMargins(10, 10, 10, 10)
         
-        # 1. Accuracy Section
-        self.accuracy_frame = QFrame()
-        self.accuracy_layout = QHBoxLayout(self.accuracy_frame)
-        self.accuracy_layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.addWidget(self.accuracy_frame)
+        # Tabs
+        self.tabs = QTabWidget()
+        self.layout.addWidget(self.tabs)
         
-        # 2. Stats Grid
-        self.stats_frame = QFrame()
-        self.stats_layout = QGridLayout(self.stats_frame)
-        self.stats_layout.setSpacing(10)
-        self.stats_layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.addWidget(self.stats_frame)
+        # --- Tab 1: Moves ---
+        self.tab_moves = QWidget()
+        self.moves_layout = QVBoxLayout(self.tab_moves)
+        self.moves_layout.setContentsMargins(5, 5, 5, 5)
         
-        # 3. Captured Pieces
-        self.captured_widget = CapturedPiecesWidget()
-        self.layout.addWidget(self.captured_widget)
+        # Graph
+        self.graph_widget = GraphWidget()
+        self.moves_layout.addWidget(self.graph_widget)
         
-        # 4. Move List
+        # Move List Table (Existing code, just moving to tab)
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["#", "White", "Black"])
@@ -215,7 +212,7 @@ class AnalysisViewWidget(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems) # Select individual cells
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.cellClicked.connect(self.on_cell_clicked)
         
@@ -237,18 +234,45 @@ class AnalysisViewWidget(QWidget):
             }}
         """)
         
-        self.layout.addWidget(self.table)
+        self.moves_layout.addWidget(self.table)
         
-        # 5. Game Controls
-        self.controls = GameControlsWidget()
-        self.controls.first_clicked.connect(self.first_clicked)
-        self.controls.prev_clicked.connect(self.prev_clicked)
-        self.controls.next_clicked.connect(self.next_clicked)
-        self.controls.last_clicked.connect(self.last_clicked)
-        self.controls.flip_clicked.connect(self.flip_clicked)
-        self.layout.addWidget(self.controls)
+        # Set stretch: Graph 1, Table 2
+        self.moves_layout.setStretch(0, 1)
+        self.moves_layout.setStretch(1, 2)
         
-        # 6. Settings (Cache Toggle)
+        self.tabs.addTab(self.tab_moves, "Moves")
+        
+        # --- Tab 2: Report ---
+        self.tab_report = QWidget()
+        self.report_layout = QVBoxLayout(self.tab_report)
+        self.report_layout.setContentsMargins(10, 10, 10, 10)
+        self.report_layout.setSpacing(15)
+        
+        # Opening Label
+        self.opening_label = QLabel("Opening: -")
+        self.opening_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: bold;")
+        self.opening_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.report_layout.addWidget(self.opening_label)
+
+        # Accuracy Section
+        self.accuracy_frame = QFrame()
+        self.accuracy_layout = QHBoxLayout(self.accuracy_frame)
+        self.accuracy_layout.setContentsMargins(0, 0, 0, 0)
+        self.report_layout.addWidget(self.accuracy_frame)
+        
+        # Stats Grid
+        self.stats_frame = QFrame()
+        self.stats_layout = QGridLayout(self.stats_frame)
+        self.stats_layout.setSpacing(10)
+        self.stats_layout.setContentsMargins(0, 0, 0, 0)
+        self.report_layout.addWidget(self.stats_frame)
+        
+        self.report_layout.addStretch() # Push everything up
+        
+        self.tabs.addTab(self.tab_report, "Report")
+        
+        # 6. Settings (Cache Toggle) - Keep outside tabs or put in Report?
+        # Let's keep it at the bottom of the main widget
         self.cache_checkbox = QCheckBox("Use Analysis Cache")
         self.cache_checkbox.setChecked(True)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
@@ -265,11 +289,15 @@ class AnalysisViewWidget(QWidget):
             self.table.setRowCount(0)
             self._clear_layout(self.accuracy_layout)
             self._clear_layout(self.stats_layout)
-            self.captured_widget.update_captured(None)
+            self.graph_widget.clear()
+            # self.captured_widget.update_captured(None) # Removed
             return
 
         # 1. Update Summary (Accuracy & Stats)
         self._update_summary()
+        
+        # Update Graph
+        self.graph_widget.plot_game(self.current_game)
 
         # 2. Update Move List
         moves = self.current_game.moves
@@ -294,12 +322,10 @@ class AnalysisViewWidget(QWidget):
             if b_idx < len(moves):
                 self._set_move_item(i, 2, moves[b_idx], b_idx)
                 
-        # Update captured pieces based on last move or initial
+            # Update captured pieces based on last move or initial
         # Ideally this updates on move selection, but here we set initial state
         if moves:
-            self.captured_widget.update_captured(moves[-1].fen_before) # Actually we want FEN AFTER the move?
-            # The move object has fen_before. To get current state we might need to look at next move's fen_before or game end?
-            # Let's just use the last move's fen_before for now or handle in select_move
+            # self.captured_widget.update_captured(moves[-1].fen_before) # Removed
             pass
 
     def _set_move_item(self, row, col, move, index):
@@ -337,7 +363,15 @@ class AnalysisViewWidget(QWidget):
         
         summary = self.current_game.summary
         if not summary or "white" not in summary:
+            self.opening_label.setText("Opening: -")
             return
+            
+        # Opening Name
+        opening = self.current_game.metadata.opening
+        if opening:
+            self.opening_label.setText(f"Opening: {opening}")
+        else:
+            self.opening_label.setText("Opening: Unknown")
 
         # Accuracy Cards
         w_acc = summary['white'].get('accuracy', 0)
@@ -441,4 +475,5 @@ class AnalysisViewWidget(QWidget):
             pass
             
         if fen:
-            self.captured_widget.update_captured(fen)
+            # self.captured_widget.update_captured(fen) # Removed
+            pass

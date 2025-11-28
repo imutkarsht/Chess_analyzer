@@ -83,4 +83,23 @@ Visualizes the current evaluation. It uses a `QTimer` for smooth animations when
 -   `matplotlib`: (Optional) Used for graph widget (if enabled).
 
 ## Running Tests
-Run `pytest` in the root directory to execute unit tests (if available).
+
+## Future Features and Improvements
+Here are some ideas for extending the application:
+
+### Analysis & Engine
+-   **Cloud Analysis**: Integrate Lichess or Chess.com API to run analysis on their servers.
+-   **Opening Explorer**: Show opening stats (Master/Lichess DB) for the current position.
+-   **Multi-PV Support**: Show multiple best moves/lines in the UI.
+-   **Engine Tournaments**: Allow running engine vs engine matches.
+
+### User Interface
+-   **Piece Sets & Board Themes**: Allow users to customize the look of the board.
+-   **Sound Effects**: Add move sounds, capture sounds, and check/mate alerts.
+-   **Dark/Light Mode Toggle**: Add a switch to toggle between themes.
+-   **Resizable Layout**: Allow users to drag and resize the panels (partially implemented with Splitter).
+
+### Data & Export
+-   **PDF Export**: Generate a printable PDF report of the analysis.
+-   **Game Database**: Store analyzed games in a local SQLite database for quick retrieval.
+-   **PGN Export**: Export the analyzed game with annotations to a PGN file.
