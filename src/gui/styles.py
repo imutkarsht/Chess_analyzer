@@ -58,8 +58,9 @@ class Styles:
         QHeaderView::section {{
             background-color: {COLOR_SURFACE_LIGHT};
             color: {COLOR_TEXT_PRIMARY};
-            padding: 4px;
+            padding: 2px;
             border: 1px solid {COLOR_BORDER};
+            font-size: 12px;
         }}
         
         /* Lists */
@@ -79,7 +80,7 @@ class Styles:
             background-color: {COLOR_ACCENT};
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 4px;
             font-weight: bold;
         }}
@@ -96,13 +97,13 @@ class Styles:
         QScrollBar:vertical {{
             border: none;
             background: {COLOR_BACKGROUND};
-            width: 10px;
+            width: 8px;
             margin: 0px 0px 0px 0px;
         }}
         QScrollBar::handle:vertical {{
             background: {COLOR_SURFACE_LIGHT};
             min-height: 20px;
-            border-radius: 5px;
+            border-radius: 4px;
         }}
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
             height: 0px;

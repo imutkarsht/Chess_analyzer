@@ -1,6 +1,6 @@
 import os
 from PyQt6.QtGui import QIcon
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtMultimedia import QSoundEffect
 from PyQt6.QtCore import QUrl
 from .logger import logger
 
@@ -26,8 +26,7 @@ class ResourceManager:
         
         # Cache
         self._icon_cache = {}
-        self.players = {} # Cache players to avoid recreation
-        self.audio_outputs = {}
+        self.sounds = {} # Cache QSoundEffect objects
         
         # Mappings
         self.icon_map = {
@@ -44,18 +43,32 @@ class ResourceManager:
         }
         
         self.sound_map = {
-            "move": "move-self.webm",
-            "capture": "capture.webm",
-            "check": "move-self.webm", # Fallback as no specific check sound
-            "castle": "castle.webm",
-            "game_end": "game-end.webm",
-            "notify": "game-start.webm" # Use game-start for notify/start
+            "move": "move.wav",
+            "capture": "capture.wav",
+            "check": "check.wav",
+            "castle": "castle.wav",
+            "game_end": "game_end.wav",
+            "notify": "game_start.wav"
         }
+        
+        # Pre-load sounds
+        self._preload_sounds()
+
+    def _preload_sounds(self):
+        """Pre-loads all sounds for low latency."""
+        for name, filename in self.sound_map.items():
+            path = os.path.join(self.sounds_path, filename)
+            if os.path.exists(path):
+                effect = QSoundEffect()
+                effect.setSource(QUrl.fromLocalFile(path))
+                effect.setVolume(0.5)
+                self.sounds[name] = effect
+            else:
+                logger.warning(f"Sound file not found: {path}")
 
     def get_icon(self, name: str) -> QIcon:
         """Returns QIcon for the given classification name."""
         if name not in self.icon_map:
-            # logger.warning(f"Icon name '{name}' not found in icon_map.")
             return QIcon()
             
         if name in self._icon_cache:
@@ -72,40 +85,15 @@ class ResourceManager:
         if icon.isNull():
              logger.error(f"Failed to load icon from {path}")
         else:
-             # logger.debug(f"Loaded icon '{name}' from {path}")
              pass
              
         self._icon_cache[name] = icon
         return icon
 
     def play_sound(self, name: str):
-        """Plays the sound for the given event name using QMediaPlayer."""
-        if name not in self.sound_map:
-            return
-            
-        filename = self.sound_map[name]
-        path = os.path.join(self.sounds_path, filename)
-        
-        if not os.path.exists(path):
-            logger.warning(f"Sound file not found: {path}")
-            return
-
-        try:
-            # Create player if not exists
-            if name not in self.players:
-                player = QMediaPlayer()
-                audio_output = QAudioOutput()
-                player.setAudioOutput(audio_output)
-                audio_output.setVolume(1.0) # 100% volume
-                player.setSource(QUrl.fromLocalFile(path))
-                
-                self.players[name] = player
-                self.audio_outputs[name] = audio_output
-            
-            player = self.players[name]
-            if player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
-                player.stop()
-            player.play()
-            
-        except Exception as e:
-            logger.error(f"Error playing sound '{name}': {e}")
+        """Plays the sound for the given event name using QSoundEffect."""
+        if name in self.sounds:
+            self.sounds[name].play()
+        else:
+            # logger.warning(f"Sound '{name}' not loaded.")
+            pass

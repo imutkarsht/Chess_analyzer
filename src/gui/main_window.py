@@ -9,7 +9,7 @@ from PyQt6.QtGui import QAction, QIcon
 
 from .board_widget import BoardWidget
 from .game_list import GameListWidget
-from .analysis_view import AnalysisViewWidget, CapturedPiecesWidget, GameControlsWidget
+from .analysis_view import MoveListPanel, AnalysisPanel, CapturedPiecesWidget, GameControlsWidget
 from .analysis_worker import AnalysisWorker
 from ..backend.pgn_parser import PGNParser
 from ..backend.analyzer import Analyzer
@@ -26,17 +26,20 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Chess Analyzer Pro")
-        self.resize(1200, 800)
+        self.resize(1300, 850) # Increased size for better layout
         
         # State
-        self.games = []
-        self.current_game = None
         self.games = []
         self.current_game = None
         self.config_manager = ConfigManager()
         self.engine_path = self.config_manager.get("engine_path", "stockfish")
         self.analyzer = Analyzer(EngineManager(self.engine_path))
         self.resource_manager = ResourceManager()
+        
+        # Set Window Icon
+        icon_path = os.path.join(os.getcwd(), "assets", "images", "logo.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         # UI Setup
         self.setup_ui()
@@ -57,15 +60,28 @@ class MainWindow(QMainWindow):
         splitter.setHandleWidth(2)
         main_layout.addWidget(splitter)
         
-        # Left Pane: Game List
+        # --- Left Pane: Game List + Move List ---
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(0)
+        
+        # Game List (Top)
         self.game_list = GameListWidget()
         self.game_list.game_selected.connect(self.load_game)
-        splitter.addWidget(self.game_list)
+        left_layout.addWidget(self.game_list, stretch=1)
         
-        # Center Pane: Board Area
+        # Move List Panel (Bottom)
+        self.move_list_panel = MoveListPanel(self.engine_path)
+        self.move_list_panel.move_selected.connect(self.on_move_selected)
+        left_layout.addWidget(self.move_list_panel, stretch=2)
+        
+        splitter.addWidget(left_widget)
+        
+        # --- Center Pane: Board Area ---
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
-        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setContentsMargins(10, 10, 10, 10) # Reduced margins
         center_layout.setSpacing(10)
         
         # Captured Pieces (Top)
@@ -87,22 +103,15 @@ class MainWindow(QMainWindow):
         
         splitter.addWidget(center_widget)
         
-        # Right Pane: Analysis
-        self.analysis_view = AnalysisViewWidget(self.engine_path)
-        self.analysis_view.move_selected.connect(self.on_move_selected)
+        # --- Right Pane: Analysis (Graph + Report) ---
+        self.analysis_panel = AnalysisPanel()
+        self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
         
-        # Connect Control Signals
-        self.analysis_view.first_clicked.connect(self.go_first)
-        self.analysis_view.prev_clicked.connect(self.go_prev)
-        self.analysis_view.next_clicked.connect(self.go_next)
-        self.analysis_view.last_clicked.connect(self.go_last)
-        self.analysis_view.flip_clicked.connect(self.flip_board)
-        self.analysis_view.cache_toggled.connect(self.on_cache_toggled)
+        splitter.addWidget(self.analysis_panel)
         
-        splitter.addWidget(self.analysis_view)
-        
-        # Set initial sizes
-        splitter.setSizes([200, 500, 500])
+        # Set initial sizes (Left, Center, Right)
+        # Give Center (Board) the most space
+        splitter.setSizes([250, 600, 350])
 
     def setup_menu(self):
         menubar = self.menuBar()
@@ -239,7 +248,8 @@ class MainWindow(QMainWindow):
     def load_game(self, game):
         self.current_game = game
         self.board_widget.load_game(game)
-        self.analysis_view.set_game(game)
+        self.move_list_panel.set_game(game)
+        self.analysis_panel.set_game(game)
         self.captured_widget.update_captured(None) # Reset captured
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
 
@@ -283,7 +293,8 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Analysis complete.")
         logger.info("Analysis finished successfully.")
         self.current_game = game
-        self.analysis_view.refresh()
+        self.move_list_panel.refresh()
+        self.analysis_panel.refresh()
 
     def on_analysis_error(self, error_msg):
         self.statusBar().showMessage(f"Analysis failed: {error_msg}")
@@ -298,8 +309,8 @@ class MainWindow(QMainWindow):
             self.engine_path = path
             self.config_manager.set("engine_path", path)
             self.analyzer = Analyzer(EngineManager(self.engine_path))
-            # Update AnalysisView engine
-            self.analysis_view.update_engine_path(self.engine_path)
+            # Update MoveListPanel engine
+            self.move_list_panel.update_engine_path(self.engine_path)
             QMessageBox.information(self, "Settings", f"Engine path set to: {path}")
 
     def keyPressEvent(self, event):
@@ -315,21 +326,21 @@ class MainWindow(QMainWindow):
             new_index = max(-1, current_index - 1)
             if new_index != current_index:
                 self.board_widget.set_position(new_index)
-                self.analysis_view.select_move(new_index)
+                self.move_list_panel.select_move(new_index)
         
         elif event.key() == Qt.Key.Key_Right:
             # Go forward
             new_index = min(total_moves - 1, current_index + 1)
             if new_index != current_index:
                 self.board_widget.set_position(new_index)
-                self.analysis_view.select_move(new_index)
+                self.move_list_panel.select_move(new_index)
         
         else:
             super().keyPressEvent(event)
 
     def on_move_selected(self, index):
         self.board_widget.set_position(index)
-        self.analysis_view.select_move(index)
+        self.move_list_panel.select_move(index)
         
         # Update captured pieces
         if self.current_game:
