@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QLabel, QGridLayout, QFrame, QHBoxLayout, 
-                             QPushButton, QAbstractItemView, QCheckBox, QTabWidget)
+                             QPushButton, QAbstractItemView, QCheckBox, QTabWidget, QSizePolicy)
 from .graph_widget import GraphWidget
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
@@ -12,7 +12,9 @@ from ..utils.resources import ResourceManager
 from ..utils.logger import logger
 import chess
 from .live_analysis import LiveAnalysisWorker
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, QThread
+from ..backend.gemini_service import GeminiService
+from PyQt6.QtWidgets import QTextEdit, QMessageBox
 
 class StatCard(QFrame):
     def __init__(self, title, value, color=None):
@@ -276,18 +278,18 @@ class AnalysisViewWidget(QWidget):
     flip_clicked = pyqtSignal()
     cache_toggled = pyqtSignal(bool)
 
-    def __init__(self):
+    def __init__(self, engine_path="stockfish"):
         super().__init__()
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(10)
         self.layout.setContentsMargins(10, 10, 10, 10)
         
         self.resource_manager = ResourceManager()
+        self.gemini_service = GeminiService()
         
         # Live Analysis
-        # We need engine path. Assuming default 'stockfish' for now or passed from main window?
-        # Ideally passed in init or set later.
-        self.live_worker = LiveAnalysisWorker("stockfish") # Default
+        self.engine_path = engine_path
+        self.live_worker = LiveAnalysisWorker(self.engine_path)
         self.live_worker.info_ready.connect(self.on_live_analysis_update)
         self.live_worker.start()
         
@@ -388,7 +390,37 @@ class AnalysisViewWidget(QWidget):
         self.stats_layout.setContentsMargins(0, 0, 0, 0)
         self.report_layout.addWidget(self.stats_frame)
         
-        self.report_layout.addStretch() # Push everything up
+        # AI Summary Section
+        self.ai_summary_frame = QFrame()
+        self.ai_summary_layout = QVBoxLayout(self.ai_summary_frame)
+        self.ai_summary_layout.setContentsMargins(0, 10, 0, 0)
+        
+        self.btn_generate_summary = QPushButton("Generate AI Summary")
+        self.btn_generate_summary.setStyleSheet(Styles.BUTTON_STYLE)
+        self.btn_generate_summary.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_generate_summary.clicked.connect(self.generate_ai_summary)
+        self.ai_summary_layout.addWidget(self.btn_generate_summary)
+        
+        self.txt_ai_summary = QTextEdit()
+        self.txt_ai_summary.setReadOnly(True)
+        self.txt_ai_summary.setPlaceholderText("AI Summary will appear here...")
+        self.txt_ai_summary.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                padding: 10px;
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+        """)
+        # Remove fixed height and allow expanding
+        self.txt_ai_summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.ai_summary_layout.addWidget(self.txt_ai_summary)
+        
+        self.report_layout.addWidget(self.ai_summary_frame)
+        
+        # Set stretch factor for AI summary frame to take up remaining space
+        self.report_layout.setStretchFactor(self.ai_summary_frame, 1)
         
         self.tabs.addTab(self.tab_report, "Report")
         
@@ -447,6 +479,16 @@ class AnalysisViewWidget(QWidget):
                 self.opening_label.setText(f"Opening: {opening}")
             else:
                 self.opening_label.setText("Opening: Unknown")
+                
+            # Update AI Summary
+            if self.current_game.ai_summary:
+                self.txt_ai_summary.setText(self.current_game.ai_summary)
+                self.btn_generate_summary.setVisible(False)
+                self.txt_ai_summary.setVisible(True)
+            else:
+                self.txt_ai_summary.clear()
+                self.btn_generate_summary.setVisible(True)
+                self.txt_ai_summary.setVisible(False)
                 
             # Update Lines for current selection (or start)
             # If no selection, maybe show start position analysis?
@@ -615,3 +657,56 @@ class AnalysisViewWidget(QWidget):
     def closeEvent(self, event):
         self.live_worker.stop()
         super().closeEvent(event)
+
+    def update_engine_path(self, path):
+        self.engine_path = path
+        # Restart worker
+        self.live_worker.stop()
+        self.live_worker = LiveAnalysisWorker(self.engine_path)
+        self.live_worker.info_ready.connect(self.on_live_analysis_update)
+        self.live_worker.start()
+
+    def generate_ai_summary(self):
+        if not self.current_game:
+            return
+            
+        if not self.gemini_service.model:
+            QMessageBox.warning(self, "Gemini Not Configured", "Please add GEMINI_KEY to .env file.")
+            return
+            
+        self.btn_generate_summary.setEnabled(False)
+        self.btn_generate_summary.setText("Generating...")
+        
+        # Run in thread to avoid freezing UI
+        # Quick inline thread
+        self.summary_thread = GenerateSummaryThread(self.gemini_service, self.current_game)
+        self.summary_thread.finished.connect(self.on_summary_generated)
+        self.summary_thread.start()
+        
+    def on_summary_generated(self, summary):
+        self.current_game.ai_summary = summary
+        self.txt_ai_summary.setText(summary)
+        self.txt_ai_summary.setVisible(True)
+        self.btn_generate_summary.setVisible(False)
+        self.btn_generate_summary.setEnabled(True)
+        self.btn_generate_summary.setText("Generate AI Summary")
+
+class GenerateSummaryThread(QThread):
+    finished = pyqtSignal(str)
+    
+    def __init__(self, service, game):
+        super().__init__()
+        self.service = service
+        self.game = game
+        
+    def run(self):
+        # Construct PGN text
+        pgn_text = ""
+        for move in self.game.moves:
+            if move.move_number % 1 == 0 and move.ply % 2 != 0: # White
+                 pgn_text += f"{move.move_number}. {move.san} "
+            else:
+                 pgn_text += f"{move.san} "
+        
+        summary = self.service.generate_summary(pgn_text, str(self.game.summary))
+        self.finished.emit(summary)

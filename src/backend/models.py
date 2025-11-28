@@ -40,3 +40,4 @@ class GameAnalysis:
     metadata: GameMetadata
     moves: List[MoveAnalysis] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
+    ai_summary: Optional[str] = None

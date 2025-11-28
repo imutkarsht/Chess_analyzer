@@ -15,6 +15,7 @@ from ..backend.pgn_parser import PGNParser
 from ..backend.analyzer import Analyzer
 from ..utils.resources import ResourceManager
 from ..utils.logger import logger
+from ..utils.config import ConfigManager
 from ..backend.engine import EngineManager
 from ..backend.chess_com_api import ChessComAPI
 from .styles import Styles
@@ -30,7 +31,10 @@ class MainWindow(QMainWindow):
         # State
         self.games = []
         self.current_game = None
-        self.engine_path = "stockfish" # Default, needs config
+        self.games = []
+        self.current_game = None
+        self.config_manager = ConfigManager()
+        self.engine_path = self.config_manager.get("engine_path", "stockfish")
         self.analyzer = Analyzer(EngineManager(self.engine_path))
         self.resource_manager = ResourceManager()
 
@@ -84,7 +88,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(center_widget)
         
         # Right Pane: Analysis
-        self.analysis_view = AnalysisViewWidget()
+        self.analysis_view = AnalysisViewWidget(self.engine_path)
         self.analysis_view.move_selected.connect(self.on_move_selected)
         
         # Connect Control Signals
@@ -292,7 +296,10 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, "Select Stockfish Binary", "", filter_str)
         if path:
             self.engine_path = path
+            self.config_manager.set("engine_path", path)
             self.analyzer = Analyzer(EngineManager(self.engine_path))
+            # Update AnalysisView engine
+            self.analysis_view.update_engine_path(self.engine_path)
             QMessageBox.information(self, "Settings", f"Engine path set to: {path}")
 
     def keyPressEvent(self, event):

@@ -159,6 +159,28 @@ class Styles:
         }}
     """
     
+    BUTTON_STYLE = f"""
+        QPushButton {{
+            background-color: {COLOR_ACCENT};
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 14px;
+        }}
+        QPushButton:hover {{
+            background-color: {COLOR_ACCENT_HOVER};
+        }}
+        QPushButton:pressed {{
+            background-color: {COLOR_ACCENT};
+        }}
+        QPushButton:disabled {{
+            background-color: {COLOR_SURFACE_LIGHT};
+            color: {COLOR_TEXT_SECONDARY};
+        }}
+    """
+    
     @staticmethod
     def get_class_color(classification: str) -> str:
         mapping = {
