@@ -111,76 +111,48 @@ class BoardWidget(QWidget):
             return
             
         # Get icon for classification
-        icon_text = self._get_class_icon(move.classification)
-        if not icon_text:
+        # Import here to avoid circular import issues if any, or just use the one from main_window passed down?
+        # Better: Use ResourceManager singleton
+        from ..utils.resources import ResourceManager
+        icon = ResourceManager().get_icon(move.classification)
+        
+        if icon.isNull():
             return
             
         # Calculate grid position
-        # 0,0 is top-left (a8 for White, h1 for Black)
-        
-        # Target square (to_square)
-        # We need to parse UCI or use move object if it has to_square
-        # MoveAnalysis has uci, e.g., "e2e4"
-        # chess.parse_square is useful
-        
         try:
             to_sq = chess.parse_square(move.uci[2:4])
             
-            # Convert square (0-63) to row/col
-            # Rank: 0-7 (1-8), File: 0-7 (a-h)
             rank = chess.square_rank(to_sq)
             file = chess.square_file(to_sq)
             
             # Adjust for orientation
             if self.is_flipped:
-                # Black bottom: a1 is top-right (0,7)? No.
-                # Standard: a1 is (7,0).
-                # Flipped: h8 is (7,0), a1 is (0,7).
-                # Actually:
-                # White bottom: Row 0 is Rank 8. Col 0 is File a.
-                # Black bottom: Row 0 is Rank 1. Col 0 is File h.
-                
-                row = rank # Rank 0 (1) -> Row 0 (Top)
-                col = 7 - file # File 0 (a) -> Col 7 (Right)
+                row = rank 
+                col = 7 - file 
             else:
-                # White bottom
-                row = 7 - rank # Rank 7 (8) -> Row 0 (Top)
-                col = file     # File 0 (a) -> Col 0 (Left)
+                row = 7 - rank 
+                col = file     
                 
-            # Create label
-            lbl = QLabel(icon_text)
+            # Create label with icon
+            lbl = QLabel()
+            lbl.setPixmap(icon.pixmap(32, 32)) # Size 32x32
             lbl.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-            lbl.setStyleSheet(f"""
-                color: {Styles.get_class_color(move.classification)};
-                font-weight: bold;
-                font-size: 24px;
-                background: transparent;
-                padding: 2px;
-            """)
+            lbl.setStyleSheet("background: transparent;")
             
-            # Add to grid
-            # We want it to overlay the specific square.
-            # But QGridLayout stretches. We need 8x8 grid.
-            # To ensure 8x8, we can add dummy widgets or set row/col stretch.
-            
-            # Better: Use a dedicated 8x8 grid of transparent widgets?
-            # Or just add to the specific cell?
-            # If we only add one widget, it might take up the whole space or be centered.
-            # We need to enforce the grid structure.
-            
-            # Let's add the label to the specific row/col.
-            # And set stretch for all rows/cols to be equal.
+            # Ensure grid is 8x8
             for r in range(8):
                 self.overlay_layout.setRowStretch(r, 1)
             for c in range(8):
                 self.overlay_layout.setColumnStretch(c, 1)
                 
-            self.overlay_layout.addWidget(lbl, row, col)
+            self.overlay_layout.addWidget(lbl, row, col, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
             
         except Exception as e:
             print(f"Error drawing overlay: {e}")
 
     def _get_class_icon(self, classification):
+        # Deprecated, using ResourceManager
         return Styles.get_class_icon(classification)
 
     def update_board(self):

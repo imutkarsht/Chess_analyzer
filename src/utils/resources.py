@@ -1,6 +1,6 @@
 import os
 from PyQt6.QtGui import QIcon
-from PyQt6.QtMultimedia import QSoundEffect
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtCore import QUrl
 from .logger import logger
 
@@ -26,7 +26,8 @@ class ResourceManager:
         
         # Cache
         self._icon_cache = {}
-        self.sounds = {}
+        self.players = {} # Cache players to avoid recreation
+        self.audio_outputs = {}
         
         # Mappings
         self.icon_map = {
@@ -54,7 +55,7 @@ class ResourceManager:
     def get_icon(self, name: str) -> QIcon:
         """Returns QIcon for the given classification name."""
         if name not in self.icon_map:
-            logger.warning(f"Icon name '{name}' not found in icon_map.")
+            # logger.warning(f"Icon name '{name}' not found in icon_map.")
             return QIcon()
             
         if name in self._icon_cache:
@@ -71,13 +72,14 @@ class ResourceManager:
         if icon.isNull():
              logger.error(f"Failed to load icon from {path}")
         else:
-             logger.debug(f"Loaded icon '{name}' from {path}")
+             # logger.debug(f"Loaded icon '{name}' from {path}")
+             pass
              
         self._icon_cache[name] = icon
         return icon
 
     def play_sound(self, name: str):
-        """Plays the sound for the given event name."""
+        """Plays the sound for the given event name using QMediaPlayer."""
         if name not in self.sound_map:
             return
             
@@ -88,10 +90,22 @@ class ResourceManager:
             logger.warning(f"Sound file not found: {path}")
             return
 
-        # QSoundEffect is better for short UI sounds
-        if name not in self.sounds:
-            effect = QSoundEffect()
-            effect.setSource(QUrl.fromLocalFile(path))
-            self.sounds[name] = effect
-        
-        self.sounds[name].play()
+        try:
+            # Create player if not exists
+            if name not in self.players:
+                player = QMediaPlayer()
+                audio_output = QAudioOutput()
+                player.setAudioOutput(audio_output)
+                audio_output.setVolume(1.0) # 100% volume
+                player.setSource(QUrl.fromLocalFile(path))
+                
+                self.players[name] = player
+                self.audio_outputs[name] = audio_output
+            
+            player = self.players[name]
+            if player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+                player.stop()
+            player.play()
+            
+        except Exception as e:
+            logger.error(f"Error playing sound '{name}': {e}")

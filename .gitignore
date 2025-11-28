@@ -1,3 +1,4 @@
+*.db
 /venv
-__pycache__
-/stockfish
+__pycache__/
+/stockfish/
