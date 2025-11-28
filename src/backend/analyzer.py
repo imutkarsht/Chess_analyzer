@@ -93,14 +93,15 @@ class Analyzer:
             board = chess.Board()
             
             # We need to replay the game to get board states
+            total_moves = len(game_analysis.moves)
             
             for i, move_data in enumerate(game_analysis.moves):
                 if callback:
-                    callback(i, len(game_analysis.moves))
+                    callback(i, total_moves)
                 
-                # Log progress every 10 moves
-                if i % 10 == 0:
-                    logger.debug(f"Analyzing move {i+1}/{len(game_analysis.moves)}")
+                # Log progress less frequently
+                if i % 20 == 0:
+                    logger.debug(f"Analyzing move {i+1}/{total_moves}")
                 
                 # 1. Analyze position BEFORE move
                 board.set_fen(move_data.fen_before)
@@ -151,13 +152,6 @@ class Analyzer:
                 # Process Multi-PVs
                 move_data.multi_pvs = []
                 
-                # If cached, it's already a list of dicts. If fresh, it's a list of InfoDicts.
-                # We need to unify this.
-                
-                # Let's assume info_list contains the data we need.
-                # If it came from cache, it's list[dict].
-                # If it came from engine, it's list[InfoDict].
-                
                 primary_info = None
                 
                 for idx, item in enumerate(info_list):
@@ -186,39 +180,20 @@ class Analyzer:
                     pv_data["mate"] = mate
                     
                     # Convert PV to SAN
-                    # We need to use the board state to generate SAN
-                    # The board is currently at the position BEFORE the move.
-                    # But for Multi-PV, the lines are variations from this position.
-                    # So board.variation_san(pv_moves) should work if pv_moves are Move objects.
-                    
                     san_pv = ""
                     try:
-                        # Re-parse UCI moves to Move objects for this board state
-                        # Note: pv_moves from engine might be Move objects or strings depending on library version/usage
-                        # In our code above: pv_moves = item.get("pv", [])
-                        # If from engine (python-chess), they are Move objects.
-                        # If from cache (dict), they are UCI strings.
-                        
+                        # Optimization: Only convert if needed or use lighter method?
+                        # For now, keep as is but catch errors silently
                         real_pv_moves = []
-                        for m in pv_moves:
-                            if isinstance(m, str):
-                                real_pv_moves.append(chess.Move.from_uci(m))
-                            else:
-                                real_pv_moves.append(m)
+                        for m in pv_uci: # Use UCI strings which are available in both cases
+                             real_pv_moves.append(chess.Move.from_uci(m))
                                 
                         san_pv = board.variation_san(real_pv_moves)
-                    except Exception as e:
-                        # Fallback to UCI if SAN generation fails
+                    except Exception:
                         san_pv = " ".join(pv_uci)
                         
                     pv_data["pv_san"] = san_pv
                     
-                    # Normalize score to White perspective for display/storage if needed?
-                    # Actually, for MoveAnalysis.multi_pvs, we usually want relative to side to move, 
-                    # OR we store it as is and UI handles it.
-                    # The existing logic stores eval_before_cp relative to side to move (then normalized later).
-                    
-                    # Let's store RAW relative score in multi_pvs
                     pv_data["score_value"] = f"M{mate}" if mate is not None else f"{cp/100:.2f}" if cp is not None else "?"
                     
                     move_data.multi_pvs.append(pv_data)
@@ -244,16 +219,19 @@ class Analyzer:
                 move_data.pv = best_pv_uci
                 
             # Analyze FINAL position
-            board.set_fen(game_analysis.moves[-1].fen_before)
-            board.push_uci(game_analysis.moves[-1].uci)
-            final_info_list = self.engine_manager.analyze_position(board, time_limit=self.config["time_per_move"])
-            
-            if isinstance(final_info_list, list):
-                final_info = final_info_list[0] if final_info_list else {}
-            else:
-                final_info = final_info_list
+            if game_analysis.moves:
+                board.set_fen(game_analysis.moves[-1].fen_before)
+                board.push_uci(game_analysis.moves[-1].uci)
+                final_info_list = self.engine_manager.analyze_position(board, time_limit=self.config["time_per_move"])
                 
-            final_score = final_info.get("score")
+                if isinstance(final_info_list, list):
+                    final_info = final_info_list[0] if final_info_list else {}
+                else:
+                    final_info = final_info_list
+                    
+                final_score = final_info.get("score")
+            else:
+                final_score = None
             
             # Now iterate and classify
             summary_counts = {
@@ -362,8 +340,6 @@ class Analyzer:
                         in_book = False
                         
                 # Accuracy Calculation
-
-                # Accuracy Calculation
                 # Pass win probs from player perspective
                 player_wp_before = wp_before if side == "white" else (1.0 - wp_before)
                 player_wp_after = wp_after if side == "white" else (1.0 - wp_after)
@@ -387,9 +363,6 @@ class Analyzer:
                 else:
                     summary_counts[side]["accuracy"] = 0
                 
-                # Clean up temp list
-                # del summary_counts[side]["accuracies"] # Keep for debugging
-
             # Populate summary
             game_analysis.summary = summary_counts
             game_analysis.metadata.opening = opening_name

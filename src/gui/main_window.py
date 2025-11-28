@@ -325,15 +325,13 @@ class MainWindow(QMainWindow):
             # Go back
             new_index = max(-1, current_index - 1)
             if new_index != current_index:
-                self.board_widget.set_position(new_index)
-                self.move_list_panel.select_move(new_index)
+                self.on_move_selected(new_index)
         
         elif event.key() == Qt.Key.Key_Right:
             # Go forward
             new_index = min(total_moves - 1, current_index + 1)
             if new_index != current_index:
-                self.board_widget.set_position(new_index)
-                self.move_list_panel.select_move(new_index)
+                self.on_move_selected(new_index)
         
         else:
             super().keyPressEvent(event)
