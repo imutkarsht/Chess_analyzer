@@ -13,9 +13,13 @@ from .analysis_view import AnalysisViewWidget, CapturedPiecesWidget, GameControl
 from .analysis_worker import AnalysisWorker
 from ..backend.pgn_parser import PGNParser
 from ..backend.analyzer import Analyzer
+from ..utils.resources import ResourceManager
+from ..utils.logger import logger
 from ..backend.engine import EngineManager
 from ..backend.chess_com_api import ChessComAPI
 from .styles import Styles
+from ..backend.models import MoveAnalysis
+import chess
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -28,6 +32,7 @@ class MainWindow(QMainWindow):
         self.current_game = None
         self.engine_path = "stockfish" # Default, needs config
         self.analyzer = Analyzer(EngineManager(self.engine_path))
+        self.resource_manager = ResourceManager()
 
         # UI Setup
         self.setup_ui()
@@ -82,10 +87,7 @@ class MainWindow(QMainWindow):
         self.analysis_view = AnalysisViewWidget()
         self.analysis_view.move_selected.connect(self.on_move_selected)
         
-        # Connect Control Signals (Forwarded from AnalysisView? No, now direct from controls)
-        # But AnalysisView also has keyboard nav which calls go_prev etc.
-        # So we keep those connections if AnalysisView emits them?
-        # AnalysisView emits them based on keyboard events.
+        # Connect Control Signals
         self.analysis_view.first_clicked.connect(self.go_first)
         self.analysis_view.prev_clicked.connect(self.go_prev)
         self.analysis_view.next_clicked.connect(self.go_next)
@@ -135,12 +137,17 @@ class MainWindow(QMainWindow):
     def open_pgn(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open PGN File", "", "PGN Files (*.pgn);;All Files (*)")
         if file_name:
+            logger.info(f"Loading PGN file: {file_name}")
             try:
                 self.games = PGNParser.parse_pgn_file(file_name)
                 self.game_list.set_games(self.games)
                 if self.games:
                     self.load_game(self.games[0])
+                    logger.info(f"Loaded {len(self.games)} games.")
+                else:
+                    logger.warning("No games found in PGN file.")
             except Exception as e:
+                logger.error(f"Failed to parse PGN: {e}", exc_info=True)
                 QMessageBox.critical(self, "Error", f"Failed to parse PGN: {e}")
 
     def load_from_chess_com(self):
@@ -194,6 +201,7 @@ class MainWindow(QMainWindow):
                             if self.games:
                                 self.load_game(self.games[0])
             except Exception as e:
+                logger.error(f"Failed to load games from Chess.com: {e}", exc_info=True)
                 QMessageBox.critical(self, "Error", f"Failed to load games: {e}")
                 self.statusBar().showMessage("Error fetching games.")
 
@@ -220,6 +228,7 @@ class MainWindow(QMainWindow):
                     self.statusBar().showMessage("Error fetching game.")
                     
             except Exception as e:
+                logger.error(f"Failed to load game from URL: {e}", exc_info=True)
                 QMessageBox.critical(self, "Error", f"Failed to load game: {e}")
                 self.statusBar().showMessage("Error fetching game.")
 
@@ -227,10 +236,8 @@ class MainWindow(QMainWindow):
         self.current_game = game
         self.board_widget.load_game(game)
         self.analysis_view.set_game(game)
-        self.board_widget.load_game(game)
-        self.analysis_view.set_game(game)
-        # self.graph_widget.clear() # Handled in analysis_view
         self.captured_widget.update_captured(None) # Reset captured
+        logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
 
     def start_analysis(self):
         if not self.current_game:
@@ -256,6 +263,7 @@ class MainWindow(QMainWindow):
              else:
                  return
 
+        logger.info("Starting analysis...")
         self.worker = AnalysisWorker(self.analyzer, self.current_game)
         self.worker.progress.connect(self.on_analysis_progress)
         self.worker.finished.connect(self.on_analysis_finished)
@@ -269,14 +277,13 @@ class MainWindow(QMainWindow):
 
     def on_analysis_finished(self, game):
         self.statusBar().showMessage("Analysis complete.")
+        logger.info("Analysis finished successfully.")
         self.current_game = game
         self.analysis_view.refresh()
-        self.current_game = game
-        self.analysis_view.refresh()
-        # self.graph_widget.plot_game(game) # Handled in analysis_view.refresh()
 
     def on_analysis_error(self, error_msg):
         self.statusBar().showMessage(f"Analysis failed: {error_msg}")
+        logger.error(f"Analysis error: {error_msg}")
         QMessageBox.critical(self, "Analysis Error", error_msg)
 
     def configure_engine(self):
@@ -322,26 +329,32 @@ class MainWindow(QMainWindow):
             moves = self.current_game.moves
             fen = None
             if index == -1:
-                # Start position? Need initial FEN or empty board logic
-                # Assuming standard start for now or game's initial FEN if available
-                # But captured widget handles None as clear.
-                # Actually, we want to show captured pieces at start (none).
                 fen = None 
             elif 0 <= index < len(moves):
-                # We want FEN AFTER the move.
-                # If index+1 exists, use its fen_before.
                 if index + 1 < len(moves):
                     fen = moves[index+1].fen_before
                 else:
-                    # Last move. We don't have fen_after stored directly.
-                    # But we can get it from board_widget if it exposes it, or re-simulate.
-                    # For now, let's just use fen_before of current move as approximation or leave it.
-                    # Better: PGNParser could store fen_after.
-                    # Or we can use board_widget.board.fen() if accessible.
                     if hasattr(self.board_widget, 'board'):
                         fen = self.board_widget.board.fen()
             
             self.captured_widget.update_captured(fen)
+            
+            # Play Sound
+            if 0 <= index < len(moves):
+                move = moves[index]
+                san = move.san
+                if "#" in san or "mate" in san.lower(): # Mate
+                    self.resource_manager.play_sound("game_end")
+                elif "+" in san: # Check
+                    self.resource_manager.play_sound("check")
+                elif "x" in san: # Capture
+                    self.resource_manager.play_sound("capture")
+                elif "O-O" in san: # Castle (Short or Long)
+                    self.resource_manager.play_sound("castle")
+                else:
+                    self.resource_manager.play_sound("move")
+            elif index == -1:
+                pass
 
     def go_first(self):
         if self.current_game:
@@ -370,4 +383,3 @@ class MainWindow(QMainWindow):
 
     def on_cache_toggled(self, checked):
         self.analyzer.config["use_cache"] = checked
-

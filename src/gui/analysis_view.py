@@ -5,6 +5,8 @@ from .graph_widget import GraphWidget
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
+from ..utils.resources import ResourceManager
+from ..utils.logger import logger
 
 class StatCard(QFrame):
     def __init__(self, title, value, color=None):
@@ -105,28 +107,30 @@ class CapturedPiecesWidget(QFrame):
             if count > 0:
                 self._add_pieces(self.black_captured_layout, p, count, Styles.COLOR_PIECE_WHITE)
                 black_score += count * piece_values[p.lower()]
-
-        # Add material difference
+                
+        # Add score difference
         diff = white_score - black_score
         if diff > 0:
-            self._add_score(self.white_captured_layout, f"+{diff}")
+            lbl = QLabel(f"+{diff}")
+            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
+            self.white_captured_layout.addWidget(lbl)
         elif diff < 0:
-            self._add_score(self.black_captured_layout, f"+{abs(diff)}")
+            lbl = QLabel(f"+{-diff}")
+            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
+            self.black_captured_layout.addWidget(lbl)
 
-    def _add_pieces(self, layout, piece_char, count, color):
-        # Simple text representation for now, could use icons later
-        piece_map = {'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛',
-                     'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛'}
+    def _add_pieces(self, layout, piece, count, color):
+        # Using unicode pieces for now, could use icons
+        piece_map = {
+            'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛',
+            'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛'
+        }
         
-        lbl = QLabel(piece_map.get(piece_char, '?') * count)
-        lbl.setStyleSheet(f"color: {color}; font-size: 18px;")
-        layout.addWidget(lbl)
-        
-    def _add_score(self, layout, score_text):
-        lbl = QLabel(score_text)
-        lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; margin-left: 5px;")
-        layout.addWidget(lbl)
-
+        for _ in range(count):
+            lbl = QLabel(piece_map.get(piece, '?'))
+            lbl.setStyleSheet(f"color: {color}; font-size: 18px;")
+            layout.addWidget(lbl)
+            
     def _clear_layout(self, layout):
         while layout.count():
             child = layout.takeAt(0)
@@ -134,7 +138,6 @@ class CapturedPiecesWidget(QFrame):
                 child.widget().deleteLater()
 
 class GameControlsWidget(QWidget):
-    # Signals for navigation
     first_clicked = pyqtSignal()
     prev_clicked = pyqtSignal()
     next_clicked = pyqtSignal()
@@ -174,7 +177,6 @@ class AnalysisViewWidget(QWidget):
     prev_clicked = pyqtSignal()
     next_clicked = pyqtSignal()
     last_clicked = pyqtSignal()
-    last_clicked = pyqtSignal()
     flip_clicked = pyqtSignal()
     cache_toggled = pyqtSignal(bool)
 
@@ -183,6 +185,8 @@ class AnalysisViewWidget(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(10)
         self.layout.setContentsMargins(10, 10, 10, 10)
+        
+        self.resource_manager = ResourceManager()
         
         # Tabs
         self.tabs = QTabWidget()
@@ -280,75 +284,66 @@ class AnalysisViewWidget(QWidget):
         
         self.current_game = None
 
-    def set_game(self, game):
-        self.current_game = game
+    def set_game(self, game_analysis):
+        logger.debug(f"Setting game in AnalysisView: {game_analysis.game_id}")
+        self.current_game = game_analysis
         self.refresh()
-
+        
     def refresh(self):
         if not self.current_game:
-            self.table.setRowCount(0)
-            self._clear_layout(self.accuracy_layout)
-            self._clear_layout(self.stats_layout)
-            self.graph_widget.clear()
-            # self.captured_widget.update_captured(None) # Removed
             return
-
-        # 1. Update Summary (Accuracy & Stats)
-        self._update_summary()
-        
-        # Update Graph
-        self.graph_widget.plot_game(self.current_game)
-
-        # 2. Update Move List
-        moves = self.current_game.moves
-        num_rows = (len(moves) + 1) // 2
-        self.table.setRowCount(num_rows)
-        
-        for i in range(num_rows):
-            # Move Number
-            move_num = i + 1
-            item_num = QTableWidgetItem(str(move_num))
-            item_num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item_num.setFlags(Qt.ItemFlag.ItemIsEnabled) # Not selectable
-            self.table.setItem(i, 0, item_num)
             
-            # White Move (Index 2*i)
-            w_idx = 2 * i
-            if w_idx < len(moves):
-                self._set_move_item(i, 1, moves[w_idx], w_idx)
+        logger.debug("Refreshing AnalysisView UI")
+        try:
+            # Update Graph
+            self.graph_widget.plot_game(self.current_game)
             
-            # Black Move (Index 2*i + 1)
-            b_idx = 2 * i + 1
-            if b_idx < len(moves):
-                self._set_move_item(i, 2, moves[b_idx], b_idx)
+            # Update Move List
+            self.table.setRowCount(0)
+            moves = self.current_game.moves
+            
+            # We need to group moves by fullmove number
+            # Assuming moves are ordered and sequential
+            if not moves:
+                return
                 
-            # Update captured pieces based on last move or initial
-        # Ideally this updates on move selection, but here we set initial state
-        if moves:
-            # self.captured_widget.update_captured(moves[-1].fen_before) # Removed
-            pass
+            last_move_num = moves[-1].move_number
+            self.table.setRowCount(last_move_num)
+            
+            for i, move in enumerate(moves):
+                row = move.move_number - 1
+                col = 1 if i % 2 == 0 else 2 # White or Black
+                
+                self._set_move_item(row, col, move, i)
+                
+            # Update Stats
+            self._update_summary(self.current_game.summary)
+            
+            # Update Opening
+            opening = self.current_game.metadata.opening
+            if opening:
+                self.opening_label.setText(f"Opening: {opening}")
+            else:
+                self.opening_label.setText("Opening: Unknown")
+                
+        except Exception as e:
+            logger.error(f"Error refreshing AnalysisView: {e}", exc_info=True)
 
     def _set_move_item(self, row, col, move, index):
-        # Format: "e4 {icon}"
-        # We can use the classification to color the text or add an icon
-        text = move.san
-        
-        # Add eval if available
-        # if move.eval_after_cp:
-        #     text += f" ({move.eval_after_cp/100:.1f})"
-            
-        item = QTableWidgetItem(text)
+        item = QTableWidgetItem(move.san)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         item.setData(Qt.ItemDataRole.UserRole, index)
         
-        # Color based on classification
+        # Set Icon if available
         if move.classification:
-            color = Styles.get_class_color(move.classification)
-            item.setForeground(QBrush(QColor(color)))
-            font = QFont()
-            font.setBold(True)
-            item.setFont(font)
-            
+            icon = self.resource_manager.get_icon(move.classification)
+            if not icon.isNull():
+                item.setIcon(icon)
+        
+        color = Styles.get_class_color(move.classification)
+        if color:
+             item.setForeground(QBrush(QColor(color)))
+             
         self.table.setItem(row, col, item)
 
     def _clear_layout(self, layout):
@@ -357,22 +352,13 @@ class AnalysisViewWidget(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
-    def _update_summary(self):
+    def _update_summary(self, summary):
         self._clear_layout(self.accuracy_layout)
         self._clear_layout(self.stats_layout)
         
-        summary = self.current_game.summary
         if not summary or "white" not in summary:
-            self.opening_label.setText("Opening: -")
             return
             
-        # Opening Name
-        opening = self.current_game.metadata.opening
-        if opening:
-            self.opening_label.setText(f"Opening: {opening}")
-        else:
-            self.opening_label.setText("Opening: Unknown")
-
         # Accuracy Cards
         w_acc = summary['white'].get('accuracy', 0)
         b_acc = summary['black'].get('accuracy', 0)
@@ -400,7 +386,6 @@ class AnalysisViewWidget(QWidget):
         
         for i, type_name in enumerate(types):
             color = Styles.get_class_color(type_name)
-            icon = Styles.get_class_icon(type_name)
             
             # Label
             lbl_type = QLabel(type_name)
@@ -415,10 +400,15 @@ class AnalysisViewWidget(QWidget):
             self.stats_layout.addWidget(lbl_val_w, i+1, 1)
             
             # Icon
-            lbl_icon = QLabel(icon)
-            lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_icon.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 16px;")
-            self.stats_layout.addWidget(lbl_icon, i+1, 2)
+            icon_label = QLabel()
+            icon = self.resource_manager.get_icon(type_name)
+            if not icon.isNull():
+                icon_label.setPixmap(icon.pixmap(24, 24))
+                icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            else:
+                icon_label.setText("-")
+                
+            self.stats_layout.addWidget(icon_label, i+1, 2)
             
             # Black Value
             val_b = summary['black'].get(type_name, 0)
@@ -447,33 +437,3 @@ class AnalysisViewWidget(QWidget):
         # Select the item
         self.table.setCurrentCell(row, col)
         self.table.scrollToItem(self.table.item(row, col))
-        
-        # Update captured pieces
-        # We need the FEN AFTER this move.
-        # The move object has fen_before.
-        # So we look at the NEXT move's fen_before, or if it's the last move, we need to calculate it or store it.
-        # Actually, let's just use the board state from the move itself if we had it, but we only have fen_before.
-        # Wait, PGNParser stores fen_before.
-        # If index + 1 < len(moves), moves[index+1].fen_before is the state after moves[index].
-        # If index is the last move, we don't have the resulting FEN stored in MoveAnalysis easily unless we add it.
-        # BUT, the BoardWidget has the current board state!
-        # However, AnalysisView should be independent.
-        # Let's try to get it from the next move.
-        
-        fen = None
-        moves = self.current_game.moves
-        if index + 1 < len(moves):
-            fen = moves[index+1].fen_before
-        else:
-            # Last move. We can re-simulate or just ignore for now?
-            # Or we can modify PGNParser to store fen_after.
-            # For now, let's just use fen_before of the current move as an approximation (shows state BEFORE the move)
-            # No, that's wrong.
-            # Let's use fen_before for now, it's better than nothing, but it will be one move behind.
-            # Actually, let's just leave it for now and fix if user complains.
-            # Better: use board logic if available.
-            pass
-            
-        if fen:
-            # self.captured_widget.update_captured(fen) # Removed
-            pass

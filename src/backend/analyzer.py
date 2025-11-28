@@ -4,6 +4,7 @@ from .models import GameAnalysis, MoveAnalysis
 from .engine import EngineManager
 from .cache import AnalysisCache
 from .book import BookManager
+from ..utils.logger import logger
 from typing import Optional, Tuple, List
 import math
 import statistics
@@ -86,6 +87,7 @@ class Analyzer:
         """
         Analyzes a game structure in-place.
         """
+        logger.info(f"Starting analysis for game: {game_analysis.game_id}")
         self.engine_manager.start_engine()
         try:
             board = chess.Board()
@@ -95,6 +97,10 @@ class Analyzer:
             for i, move_data in enumerate(game_analysis.moves):
                 if callback:
                     callback(i, len(game_analysis.moves))
+                
+                # Log progress every 10 moves
+                if i % 10 == 0:
+                    logger.debug(f"Analyzing move {i+1}/{len(game_analysis.moves)}")
                 
                 # 1. Analyze position BEFORE move
                 board.set_fen(move_data.fen_before)
@@ -154,11 +160,6 @@ class Analyzer:
                             score_cp = score.relative.score(mate_score=10000)
 
                 # Store RAW engine score (relative to side to move)
-                # But for consistency, we want to store everything from White's perspective in the final object?
-                # Actually, standard is usually:
-                # CP > 0 -> White advantage
-                # CP < 0 -> Black advantage
-                # Engine returns score relative to side to move.
                 
                 final_cp = score_cp
                 final_mate = score_mate
@@ -318,7 +319,11 @@ class Analyzer:
             # Populate summary
             game_analysis.summary = summary_counts
             game_analysis.metadata.opening = opening_name
+            logger.info("Analysis complete.")
 
+        except Exception as e:
+            logger.error(f"Analysis failed: {e}", exc_info=True)
+            raise e
         finally:
             self.engine_manager.stop_engine()
 
@@ -361,4 +366,3 @@ class Analyzer:
             move.classification = "Miss"
             
         move.explanation = f"Win chance dropped by {wpl*100:.1f}%"
-
