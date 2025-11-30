@@ -2,24 +2,17 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetIte
                              QHeaderView, QLabel, QGridLayout, QFrame, QHBoxLayout, 
                              QPushButton, QAbstractItemView, QCheckBox, QTabWidget, QSizePolicy)
 from .graph_widget import GraphWidget
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
-from ..utils.resources import ResourceManager
-from ..utils.resources import ResourceManager
-from ..utils.logger import logger
 from ..utils.resources import ResourceManager
 from ..utils.logger import logger
 import chess
 from .live_analysis import LiveAnalysisWorker
-from PyQt6.QtCore import QTimer, QThread
 from ..backend.gemini_service import GeminiService
 from PyQt6.QtWidgets import QTextEdit, QMessageBox, QInputDialog, QLineEdit
 from ..utils.config import ConfigManager
 from .loading_widget import LoadingOverlay
-import logging
-
-logger = logging.getLogger(__name__)
 
 class StatCard(QFrame):
     def __init__(self, title, value, color=None):

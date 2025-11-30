@@ -31,13 +31,12 @@ class GraphWidget(QWidget):
         for i, move in enumerate(game_analysis.moves):
             val = 0
             if move.eval_after_mate is not None:
-                # Cap mate at +/- 3000 (visual)
-                val = 3000 if move.eval_after_mate > 0 else -3000
+                # Cap mate at +/- 200 (2.00) for visual consistency with CP
+                val = 200 if move.eval_after_mate > 0 else -200
             elif move.eval_after_cp is not None:
                 val = move.eval_after_cp
-                # Clamp for graph readability (e.g. +/- 1500 is fine, but view might be zoomed)
-                # We will set ylim later.
-                pass
+                # Clamp for graph readability to +/- 200 (2.00)
+                val = max(-200, min(200, val))
             
             evals.append(val)
             moves.append(i + 1)
@@ -87,11 +86,21 @@ class GraphWidget(QWidget):
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
         self.figure.patch.set_facecolor(Styles.COLOR_SURFACE)
         
-        # Set Y-axis limits to focus on normal play (e.g. +/- 3 pawns = +/- 300 cp)
-        # But we also want to see spikes.
-        # Maybe dynamic? Or fixed as requested "upto 3 nodes on top and 3 below only" -> implies +/- 3.
-        # Let's try +/- 400 CP (4 pawns) to give a bit of room, or strict +/- 300.
-        self.ax.set_ylim(-400, 400)
+        # Set Y-axis limits
+        # We want to expand up to 2 units (200 CP) max.
+        # But if the game is drawish (e.g. max 50 CP), we don't want to show 200.
+        # So we find the max absolute value in the data.
+        max_val = 0
+        if evals:
+             max_val = max(abs(e) for e in evals)
+        
+        # Floor at 100 (1.00) so we don't zoom in too much on empty/drawish games
+        limit = max(100, max_val)
+        
+        # Cap at 200 (2.00) as requested
+        limit = min(200, limit)
+        
+        self.ax.set_ylim(-limit, limit)
         
         # Remove spines/ticks for cleaner look
         self.ax.spines['top'].set_visible(False)

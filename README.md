@@ -1,14 +1,26 @@
 # Chess Analyzer Pro
 
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+
 ![Chess Analyzer Pro Logo](assets/images/logo.png)
 
 **Chess Analyzer Pro** is a powerful, full-stack Python desktop application designed to bring professional-grade chess analysis to your local machine. Inspired by platforms like Chess.com, it combines the robust analysis capabilities of Stockfish with a sleek, responsive PyQt6 interface.
+
+## 📸 Screenshots
+
+*(Add screenshots of the application here)*
+
+| Main Interface | Analysis View |
+|:---:|:---:|
+| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/portfolio/Main_window.png) | ![Analysis View](https://ik.imagekit.io/hghxc7q4v/portfolio/analysis.jpg) |
 
 ## 🚀 Features
 
 ### Core Analysis
 - **Stockfish Integration**: Leverages the world's strongest chess engine for deep, move-by-move analysis.
-- **Move Classification**: automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss).
+- **Move Classification**: Automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss).
 - **Win Probability**: Calculates and displays win probability swings for every move.
 - **Opening Explorer**: Identifies openings and variations using a built-in book and online APIs.
 
@@ -19,7 +31,7 @@
 - **Move List**: Detailed move history with classification icons and evaluation scores.
 
 ### Import & Export
-- **PGN Support**: robust parsing for single and multi-game PGN files.
+- **PGN Support**: Robust parsing for single and multi-game PGN files.
 - **Chess.com Import**: Directly import games from Chess.com users or specific game URLs.
 
 ### Audio & Visuals
@@ -28,20 +40,34 @@
 
 ## 🛠️ Installation
 
+### Prerequisites
+- Python 3.8 or higher
+- [Stockfish Engine](https://stockfishchess.org/download/)
+
+### Steps
+
 1.  **Clone the Repository**
     ```bash
     git clone https://github.com/yourusername/chess-analyzer-pro.git
     cd chess-analyzer-pro
     ```
 
-2.  **Install Dependencies**
-    Ensure you have Python 3.8+ installed.
+2.  **Create a Virtual Environment (Recommended)**
+    ```bash
+    python -m venv venv
+    # Windows
+    venv\Scripts\activate
+    # macOS/Linux
+    source venv/bin/activate
+    ```
+
+3.  **Install Dependencies**
     ```bash
     pip install -r requirements.txt
     ```
 
-3.  **Setup Stockfish**
-    - Download the Stockfish engine for your OS from [stockfishchess.org](https://stockfishchess.org/download/).
+4.  **Setup Stockfish**
+    - Download the Stockfish engine for your OS.
     - Extract the executable to a known location (e.g., inside a `stockfish/` folder in the project root).
 
 ## 🎮 Usage
@@ -52,7 +78,8 @@
     ```
 
 2.  **Configure Engine**
-    - Upon first launch, or via `Settings > Configure Engine...`, select your Stockfish executable.
+    - Go to `Settings > Configure Engine...`.
+    - Select your Stockfish executable path.
 
 3.  **Load a Game**
     - **File > Open PGN...**: Load a local `.pgn` file.
@@ -72,17 +99,32 @@ Run the test suite to ensure everything is working correctly:
 python -m pytest tests/
 ```
 
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1.  Fork the repository.
+2.  Create a new branch (`git checkout -b feature/YourFeature`).
+3.  Commit your changes (`git commit -m 'Add some feature'`).
+4.  Push to the branch (`git push origin feature/YourFeature`).
+5.  Open a Pull Request.
+
 ## 🔮 Roadmap (Version 2.0)
 
-We are constantly improving Chess Analyzer Pro. Here is what's coming in the next major release:
-
-- [ ] **Cloud Analysis**: Offload heavy analysis to cloud servers for faster results on lower-end hardware.
-- [ ] **PDF Export**: Generate professional PDF reports of your games with diagrams and annotations.
-- [ ] **Coach Mode**: AI-powered natural language explanations for *why* a move was good or bad.
-- [ ] **Opening Repertoire Builder**: Tools to build and practice your opening repertoire.
-- [ ] **Endgame Tablebases**: Integration with Syzygy tablebases for perfect endgame play.
-- [ ] **Multi-Engine Support**: Compare analysis from different engines (e.g., Leela Chess Zero).
+- [ ] **Cloud Analysis**: Offload heavy analysis to cloud servers.
+- [ ] **PDF Export**: Generate professional PDF reports.
+- [ ] **Coach Mode**: AI-powered natural language explanations.
+- [ ] **Opening Repertoire Builder**: Tools to build and practice openings.
+- [ ] **Endgame Tablebases**: Integration with Syzygy tablebases.
+- [ ] **Multi-Engine Support**: Compare analysis from different engines.
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgements
+
+- [Stockfish](https://stockfishchess.org/) for the powerful chess engine.
+- [Python-Chess](https://python-chess.readthedocs.io/) for the chess library.
+- [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) for the GUI framework.
+

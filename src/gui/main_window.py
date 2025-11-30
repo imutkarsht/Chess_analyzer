@@ -1,8 +1,7 @@
-import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QSplitter, QFileDialog, QMenuBar, QMenu,
-                             QToolBar, QStatusBar, QMessageBox, QInputDialog, QDialog,
+                             QHBoxLayout, QSplitter, QFileDialog, QMenuBar,
+                             QStatusBar, QMessageBox, QInputDialog, QDialog,
                              QListWidget, QListWidgetItem, QPushButton, QLineEdit)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QIcon
@@ -21,7 +20,6 @@ from ..backend.chess_com_api import ChessComAPI
 from .styles import Styles
 from ..backend.models import MoveAnalysis
 from ..utils.path_utils import get_resource_path
-import chess
 
 class MainWindow(QMainWindow):
     def __init__(self):

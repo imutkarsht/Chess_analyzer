@@ -5,9 +5,8 @@ from .engine import EngineManager
 from .cache import AnalysisCache
 from .book import BookManager
 from ..utils.logger import logger
-from typing import Optional, Tuple, List
+from typing import Optional, List
 import math
-import statistics
 
 class Analyzer:
     def __init__(self, engine_manager: EngineManager):
@@ -397,15 +396,7 @@ class Analyzer:
         else:
             move.classification = "Best"
 
-        # "Great" Move Heuristic:
-        # If it's "Best" (handled at start), we might upgrade it to "Great"
-        # if it was the ONLY good move (others were bad).
-        # We don't have other moves' scores here easily without looking at multi_pv list.
-        # For now, let's just stick to standard classifications.
-        
-        # Re-check "Best" for "Great" upgrade?
-        # We returned early for Best. Let's modify that structure.
-        pass
+
 
     def _classify_move(self, move: MoveAnalysis, wpl: float, side: str):
         """
