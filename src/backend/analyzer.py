@@ -15,8 +15,8 @@ class Analyzer:
         self.cache = AnalysisCache()
         self.book_manager = BookManager()
         self.config = {
-            "time_per_move": 0.1,
-            "depth": None,
+            "time_per_move": None,
+            "depth": 18,
             "multi_pv": 3,
             "use_cache": True
         }
@@ -222,7 +222,12 @@ class Analyzer:
             if game_analysis.moves:
                 board.set_fen(game_analysis.moves[-1].fen_before)
                 board.push_uci(game_analysis.moves[-1].uci)
-                final_info_list = self.engine_manager.analyze_position(board, time_limit=self.config["time_per_move"])
+                final_info_list = self.engine_manager.analyze_position(
+                    board, 
+                    time_limit=self.config["time_per_move"],
+                    depth=self.config["depth"],
+                    multi_pv=self.config["multi_pv"]
+                )
                 
                 if isinstance(final_info_list, list):
                     final_info = final_info_list[0] if final_info_list else {}
@@ -374,42 +379,65 @@ class Analyzer:
         finally:
             self.engine_manager.stop_engine()
 
+        # Thresholds for WPL (tuned for Chess.com-like feel)
+        if wpl >= 0.20:
+            move.classification = "Blunder"
+        elif wpl >= 0.09:
+            move.classification = "Mistake"
+        elif wpl >= 0.04:
+            move.classification = "Inaccuracy"
+        elif wpl >= 0.01:
+            move.classification = "Good"
+        elif wpl >= 0.00:
+            # If it's effectively 0 loss but not the absolute best move (engine nuance), it's Excellent
+            # If it is the best move (checked above), it returns early.
+            # But wait, we return early for "Best".
+            # So here we are strictly worse than Best.
+            move.classification = "Excellent"
+        else:
+            move.classification = "Best"
+
+        # "Great" Move Heuristic:
+        # If it's "Best" (handled at start), we might upgrade it to "Great"
+        # if it was the ONLY good move (others were bad).
+        # We don't have other moves' scores here easily without looking at multi_pv list.
+        # For now, let's just stick to standard classifications.
+        
+        # Re-check "Best" for "Great" upgrade?
+        # We returned early for Best. Let's modify that structure.
+        pass
+
     def _classify_move(self, move: MoveAnalysis, wpl: float, side: str):
         """
         Classifies a move based on Win Probability Loss (WPL).
         """
-        # If it's the best move (or mate in same number of moves), it's Best
-        if move.uci == move.best_move:
-            move.classification = "Best"
-            return
-            
-        # Check Book Move (handled in analyze_game loop now, but good to have helper check if needed)
-        # Actually, classification is overwritten in analyze_game loop if Book.
-        # But we should probably check it here if we want clean logic.
-        # However, we don't have access to book_manager here easily unless we pass it or use self.
-        # Let's rely on the loop check for Book.
-            
-        # Thresholds for WPL
-        if wpl >= 0.20:
-            move.classification = "Blunder"
-        elif wpl >= 0.10:
-            move.classification = "Mistake"
-        elif wpl >= 0.05:
-            move.classification = "Inaccuracy"
-        elif wpl >= 0.02:
-            move.classification = "Good"
-        elif wpl >= 0.005:
-            move.classification = "Excellent"
-        else:
-            move.classification = "Best"
-            
         # Special Case: Missed Win
         # If we had a winning position (> 80%) and dropped to Drawish or Losing (< 60%)
-        # Need player perspective win chance
         player_wc_before = move.win_chance_before if side == "white" else (1.0 - move.win_chance_before)
         player_wc_after = move.win_chance_after if side == "white" else (1.0 - move.win_chance_after)
         
         if player_wc_before > 0.80 and player_wc_after < 0.60:
             move.classification = "Miss"
+            move.explanation = f"Missed win (Win chance dropped by {wpl*100:.1f}%)"
+            return
+
+        # If it's the best move
+        if move.uci == move.best_move:
+            # Simple heuristic for "Great": If it's a best move in a critical position?
+            # For now, just call it Best.
+            move.classification = "Best"
+            return
+            
+        # Thresholds for WPL
+        if wpl >= 0.20:
+            move.classification = "Blunder"
+        elif wpl >= 0.09:
+            move.classification = "Mistake"
+        elif wpl >= 0.04:
+            move.classification = "Inaccuracy"
+        elif wpl >= 0.01:
+            move.classification = "Good"
+        else:
+            move.classification = "Excellent"
             
         move.explanation = f"Win chance dropped by {wpl*100:.1f}%"

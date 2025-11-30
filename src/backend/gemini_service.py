@@ -43,11 +43,23 @@ class GeminiService:
         if not self.model:
             return "Error: Gemini API key not configured or invalid."
 
+        # Limit PGN length to prevent token limits/crashes
+        if len(pgn_text) > 10000:
+            pgn_text = pgn_text[:10000] + "... (truncated)"
+
         try:
             prompt = f"""
             You are a chess expert. Analyze the following chess game and the provided analysis summary.
-            Provide a concise, insightful summary of the match (max 200 words).
+            
+            First, provide a short "Game Comment" (e.g., Sharp, Tactical, Brilliant, Chaotic, Positional Masterpiece, etc.) that captures the essence of the game.
+            Then, provide a concise, insightful summary of the match (max 200 words).
             Highlight key turning points, brilliant moves, and major mistakes.
+            
+            Format:
+            Game Comment: [Your Comment]
+            
+            Summary:
+            [Your Summary]
             
             Analysis Summary:
             {analysis_summary}
@@ -57,7 +69,10 @@ class GeminiService:
             """
             
             response = self.model.generate_content(prompt)
-            return response.text
+            if response and response.text:
+                return response.text
+            else:
+                return "Error: Empty response from Gemini."
         except Exception as e:
-            logger.error(f"Gemini generation failed: {e}")
+            logger.error(f"Gemini generation failed: {e}", exc_info=True)
             return f"Error generating summary: {e}"

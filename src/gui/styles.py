@@ -55,6 +55,11 @@ class Styles:
             selection-color: white;
         }}
         
+        QTableWidget::item {{
+            color: {COLOR_TEXT_PRIMARY};
+            padding: 5px;
+        }}
+        
         QHeaderView::section {{
             background-color: {COLOR_SURFACE_LIGHT};
             color: {COLOR_TEXT_PRIMARY};
@@ -73,40 +78,6 @@ class Styles:
         QListWidget::item:selected {{
             background-color: {COLOR_ACCENT};
             color: white;
-        }}
-        
-        /* Buttons */
-        QPushButton {{
-            background-color: {COLOR_ACCENT};
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-weight: bold;
-        }}
-        
-        QPushButton:hover {{
-            background-color: {COLOR_ACCENT_HOVER};
-        }}
-        
-        QPushButton:pressed {{
-            background-color: {COLOR_ACCENT};
-        }}
-        
-        /* Scrollbars */
-        QScrollBar:vertical {{
-            border: none;
-            background: {COLOR_BACKGROUND};
-            width: 8px;
-            margin: 0px 0px 0px 0px;
-        }}
-        QScrollBar::handle:vertical {{
-            background: {COLOR_SURFACE_LIGHT};
-            min-height: 20px;
-            border-radius: 4px;
-        }}
-        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-            height: 0px;
         }}
         
         /* Labels */

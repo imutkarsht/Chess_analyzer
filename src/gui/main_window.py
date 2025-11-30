@@ -108,6 +108,9 @@ class MainWindow(QMainWindow):
         self.analysis_panel = AnalysisPanel()
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
         
+        # Connect MoveListPanel lines update to AnalysisPanel
+        self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
+        
         splitter.addWidget(self.analysis_panel)
         
         # Set initial sizes (Left, Center, Right)

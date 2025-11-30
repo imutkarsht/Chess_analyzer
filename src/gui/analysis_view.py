@@ -16,6 +16,10 @@ from PyQt6.QtCore import QTimer, QThread
 from ..backend.gemini_service import GeminiService
 from PyQt6.QtWidgets import QTextEdit, QMessageBox, QInputDialog, QLineEdit
 from ..utils.config import ConfigManager
+from .loading_widget import LoadingOverlay
+import logging
+
+logger = logging.getLogger(__name__)
 
 class StatCard(QFrame):
     def __init__(self, title, value, color=None):
@@ -221,7 +225,12 @@ class AnalysisLinesWidget(QFrame):
             pv_text = pv_data.get("pv_san", "")
             if not pv_text:
                 pv_moves = pv_data.get("pv", [])
-                pv_text = " ".join(pv_moves[:5]) # Fallback to UCI
+                pv_text = " ".join(pv_moves[:3]) # Fallback to UCI, truncated
+            else:
+                # Truncate SAN PV to 3 full moves (approx 9 tokens: 1. w b 2. w b 3. w b)
+                tokens = pv_text.split()
+                if len(tokens) > 9:
+                    pv_text = " ".join(tokens[:9]) + " ..."
             
             lbl_pv = QLabel(pv_text)
             lbl_pv.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY};")
@@ -271,6 +280,7 @@ class GameControlsWidget(QWidget):
 
 class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)
+    lines_updated = pyqtSignal(list, bool) # lines, is_white_turn
     
     def __init__(self, engine_path="stockfish"):
         super().__init__()
@@ -333,13 +343,8 @@ class MoveListPanel(QWidget):
         
         self.layout.addWidget(self.table)
         
-        # Analysis Lines
-        self.lines_widget = AnalysisLinesWidget()
-        self.layout.addWidget(self.lines_widget)
-        
         # Stretch factors
-        self.layout.setStretch(0, 3) # Table
-        self.layout.setStretch(1, 1) # Lines
+        self.layout.setStretch(0, 1) # Table
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
@@ -347,36 +352,46 @@ class MoveListPanel(QWidget):
         
     def refresh(self):
         if not self.current_game:
+            self.table.setRowCount(0)
             return
             
-        self.table.setRowCount(0)
-        moves = self.current_game.moves
-        if not moves:
-            return
+        try:
+            # Set row count
+            num_rows = (len(self.current_game.moves) + 1) // 2
+            self.table.setRowCount(num_rows)
             
-        last_move_num = moves[-1].move_number
-        self.table.setRowCount(last_move_num)
-        
-        for i, move in enumerate(moves):
-            row = move.move_number - 1
-            col = 1 if i % 2 == 0 else 2
+            # Update vertical header labels (Move numbers)
+            labels = [str(i+1) for i in range(num_rows)]
+            self.table.setVerticalHeaderLabels(labels)
             
-            # Set Move Number
-            if col == 1:
-                num_item = QTableWidgetItem(str(move.move_number))
-                num_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                num_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                num_item.setForeground(QBrush(QColor(Styles.COLOR_TEXT_SECONDARY)))
-                self.table.setItem(row, 0, num_item)
+            for i, move in enumerate(self.current_game.moves):
+                row = i // 2
+                col = (i % 2) + 1 # 0->1 (White), 1->2 (Black)
+                
+                # Set Move Number for White moves
+                if col == 1:
+                    num_item = QTableWidgetItem(str(move.move_number))
+                    num_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    num_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                    num_item.setForeground(QBrush(QColor(Styles.COLOR_TEXT_SECONDARY)))
+                    self.table.setItem(row, 0, num_item)
+                    
+                    # Clear Black cell (optional, but good for safety)
+                    self.table.setItem(row, 2, None)
+                
+                self._set_move_item(row, col, move, i)
             
-            self._set_move_item(row, col, move, i)
+            self.table.viewport().update()
             
-        self.lines_widget.update_lines([], chess.WHITE)
+        except Exception as e:
+            logger.error(f"Error refreshing move list: {e}", exc_info=True)
 
     def _set_move_item(self, row, col, move, index):
         item = QTableWidgetItem(move.san)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         item.setData(Qt.ItemDataRole.UserRole, index)
+        
+        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
         
         if move.classification:
             icon = self.resource_manager.get_icon(move.classification)
@@ -384,8 +399,10 @@ class MoveListPanel(QWidget):
                 item.setIcon(icon)
         
         color = Styles.get_class_color(move.classification)
-        if color:
-             item.setForeground(QBrush(QColor(color)))
+        if not color:
+            color = Styles.COLOR_TEXT_PRIMARY
+            
+        item.setForeground(QBrush(QColor(color)))
              
         self.table.setItem(row, col, item)
 
@@ -402,7 +419,7 @@ class MoveListPanel(QWidget):
             
         if index < 0:
             self.table.clearSelection()
-            self.lines_widget.update_lines([], chess.WHITE)
+            # self.lines_widget.update_lines([], chess.WHITE) # Moved
             return
             
         if index >= len(self.current_game.moves):
@@ -416,7 +433,9 @@ class MoveListPanel(QWidget):
         
         move = self.current_game.moves[index]
         turn = chess.WHITE if index % 2 == 0 else chess.BLACK
-        self.lines_widget.update_lines(move.multi_pvs, turn)
+        
+        # Emit signal instead of updating directly
+        self.lines_updated.emit(move.multi_pvs, turn == chess.WHITE)
         
         self.current_turn = turn
         self.live_data = {}
@@ -435,7 +454,9 @@ class MoveListPanel(QWidget):
         multipv_id = info.get("multipv", 1)
         self.live_data[multipv_id] = info
         sorted_lines = sorted(self.live_data.values(), key=lambda x: x.get("multipv", 1))
-        self.lines_widget.update_lines(sorted_lines, self.current_turn)
+        
+        # Emit signal
+        self.lines_updated.emit(sorted_lines, self.current_turn == chess.WHITE)
 
     def closeEvent(self, event):
         self.live_worker.stop()
@@ -463,20 +484,30 @@ class AnalysisPanel(QWidget):
         self.gemini_service = GeminiService(api_key)
         self.current_game = None
         
+        # Tabs
+        self.tabs = QTabWidget()
+        self.layout.addWidget(self.tabs)
+        
+        # --- Tab 1: Evaluation ---
+        self.eval_tab = QWidget()
+        self.eval_layout = QVBoxLayout(self.eval_tab)
+        self.eval_layout.setContentsMargins(5, 5, 5, 5)
+        
         # Graph
         self.graph_widget = GraphWidget()
         self.graph_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.layout.addWidget(self.graph_widget, stretch=2) # Give graph more space
+        self.eval_layout.addWidget(self.graph_widget, stretch=2)
         
-        # Report Area (Tabs or just layout?)
-        # User asked for split content properly.
-        # Let's use tabs for Report vs Stats if needed, or just vertical layout.
-        # User mentioned "Split the right content properly (Moves / Report) so they don’t overlap visually."
-        # Since Moves are now on left, Right is Graph + Report.
+        # Analysis Lines (Moved here)
+        self.lines_widget = AnalysisLinesWidget()
+        self.eval_layout.addWidget(self.lines_widget, stretch=1)
         
-        self.report_widget = QWidget()
-        self.report_layout = QVBoxLayout(self.report_widget)
-        self.report_layout.setContentsMargins(0, 0, 0, 0)
+        self.tabs.addTab(self.eval_tab, "Evaluation")
+        
+        # --- Tab 2: Report ---
+        self.report_tab = QWidget()
+        self.report_layout = QVBoxLayout(self.report_tab)
+        self.report_layout.setContentsMargins(5, 5, 5, 5)
         self.report_layout.setSpacing(10)
         
         # Opening
@@ -494,7 +525,7 @@ class AnalysisPanel(QWidget):
         # Stats Grid
         self.stats_frame = QFrame()
         self.stats_layout = QGridLayout(self.stats_frame)
-        self.stats_layout.setSpacing(5) # Reduced spacing
+        self.stats_layout.setSpacing(5)
         self.stats_layout.setContentsMargins(0, 0, 0, 0)
         self.report_layout.addWidget(self.stats_frame)
         
@@ -527,13 +558,16 @@ class AnalysisPanel(QWidget):
         self.report_layout.addWidget(self.ai_summary_frame)
         self.report_layout.setStretchFactor(self.ai_summary_frame, 1)
         
-        self.layout.addWidget(self.report_widget, stretch=3)
+        self.tabs.addTab(self.report_tab, "Report")
         
         # Cache Checkbox
         self.cache_checkbox = QCheckBox("Use Analysis Cache")
         self.cache_checkbox.setChecked(True)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         self.layout.addWidget(self.cache_checkbox)
+        
+        # Loading Overlay
+        self.loading_overlay = LoadingOverlay(self)
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
@@ -644,18 +678,26 @@ class AnalysisPanel(QWidget):
             else:
                 return
         self.btn_generate_summary.setEnabled(False)
-        self.btn_generate_summary.setText("Generating...")
+        self.loading_overlay.start("Generating AI Summary...")
         self.summary_thread = GenerateSummaryThread(self.gemini_service, self.current_game)
         self.summary_thread.finished.connect(self.on_summary_generated)
         self.summary_thread.start()
         
     def on_summary_generated(self, summary):
+        self.loading_overlay.stop()
         self.current_game.ai_summary = summary
         self.txt_ai_summary.setText(summary)
         self.txt_ai_summary.setVisible(True)
         self.btn_generate_summary.setVisible(False)
         self.btn_generate_summary.setEnabled(True)
         self.btn_generate_summary.setText("Generate AI Summary")
+        
+    def resizeEvent(self, event):
+        self.loading_overlay.resize(self.size())
+        super().resizeEvent(event)
+
+    def update_lines(self, lines, is_white):
+        self.lines_widget.update_lines(lines, chess.WHITE if is_white else chess.BLACK)
 
 class GenerateSummaryThread(QThread):
     finished = pyqtSignal(str)
@@ -666,11 +708,15 @@ class GenerateSummaryThread(QThread):
         self.game = game
         
     def run(self):
-        pgn_text = ""
-        for move in self.game.moves:
-            if move.move_number % 1 == 0 and move.ply % 2 != 0:
-                 pgn_text += f"{move.move_number}. {move.san} "
-            else:
-                 pgn_text += f"{move.san} "
-        summary = self.service.generate_summary(pgn_text, str(self.game.summary))
-        self.finished.emit(summary)
+        try:
+            pgn_text = ""
+            for move in self.game.moves:
+                if move.move_number % 1 == 0 and move.ply % 2 != 0:
+                     pgn_text += f"{move.move_number}. {move.san} "
+                else:
+                     pgn_text += f"{move.san} "
+            summary = self.service.generate_summary(pgn_text, str(self.game.summary))
+            self.finished.emit(summary)
+        except Exception as e:
+            logger.error(f"GenerateSummaryThread failed: {e}", exc_info=True)
+            self.finished.emit(f"Error: {e}")
