@@ -8,14 +8,14 @@ class GameListItemWidget(QWidget):
     def __init__(self, game):
         super().__init__()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(5)
+        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setSpacing(8)
         
         # Header: Players and Result
         header_layout = QHBoxLayout()
         
         players_label = QLabel(f"<b>{game.metadata.white}</b> vs <b>{game.metadata.black}</b>")
-        players_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px;")
+        players_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px;")
         header_layout.addWidget(players_label)
         
         header_layout.addStretch()
@@ -30,7 +30,7 @@ class GameListItemWidget(QWidget):
             result_color = Styles.COLOR_TEXT_SECONDARY # Grey
             
         result_label = QLabel(result_text)
-        result_label.setStyleSheet(f"color: {result_color}; font-weight: bold;")
+        result_label.setStyleSheet(f"color: {result_color}; font-weight: bold; font-size: 14px;")
         header_layout.addWidget(result_label)
         
         layout.addLayout(header_layout)
@@ -38,8 +38,14 @@ class GameListItemWidget(QWidget):
         # Details: Date, Event
         details_text = f"{game.metadata.date} • {game.metadata.event}"
         details_label = QLabel(details_text)
-        details_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px;")
+        details_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
         layout.addWidget(details_label)
+        
+        # Enforce minimum height
+        self.setMinimumHeight(80)
+
+    def sizeHint(self):
+        return self.minimumSizeHint()
 
 class GameListWidget(QWidget):
     game_selected = pyqtSignal(object) # Emits GameAnalysis object

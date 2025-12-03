@@ -159,7 +159,7 @@ class BoardWidget(QWidget):
             self.board,
             colors={
                 "square light": "#E0E0E0",
-                "square dark": "#769656", # Lichess-like green
+                "square dark": Styles.COLOR_ACCENT, # Use dynamic accent color
                 "margin": Styles.COLOR_BACKGROUND,
                 "coord": Styles.COLOR_TEXT_SECONDARY
             },

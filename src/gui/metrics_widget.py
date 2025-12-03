@@ -30,6 +30,14 @@ class MetricsWidget(QWidget):
         tabs.addTab(self.create_quality_tab(), "Move Quality")
         tabs.addTab(self.create_openings_tab(), "Openings")
         layout.addWidget(tabs)
+        self.tabs = tabs
+
+    def refresh(self, games):
+        self.games = games
+        self.tabs.clear()
+        self.tabs.addTab(self.create_overview_tab(), "Overview")
+        self.tabs.addTab(self.create_quality_tab(), "Move Quality")
+        self.tabs.addTab(self.create_openings_tab(), "Openings")
 
     def create_overview_tab(self):
         widget = QWidget()

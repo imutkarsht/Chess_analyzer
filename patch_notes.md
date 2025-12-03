@@ -1,5 +1,28 @@
 # Patch Notes
 
+## v1.2 - UI Overhaul & Metrics Dashboard
+
+### New Features
+- **Metrics Dashboard**: 
+    - Added a new **Stats** page providing comprehensive insights into your chess performance.
+    - **Overview Tab**: View total games analyzed, win/loss/draw rates, and average accuracy across all games.
+    - **Move Quality Tab**: Visual breakdown of move classifications (Brilliant, Great, Blunder, etc.) using interactive pie charts.
+    - **Openings Tab**: Analyze your most frequent openings with a bar chart display.
+- **Enhanced Navigation & Aesthetics**:
+    - **Modern Sidebar UI**: Replaced the traditional top menu bar with a sleek, integrated sidebar for seamless navigation between Analyze, History, Stats, and Settings views.
+    - **Visual Consistency**: Unified the application's look and feel with a consistent design language, improved icon set, and refined accent color usage across all panels.
+    - **Consolidated Load Menu**: Unified game loading options into a single "Load Game" button with a dropdown menu for PGN, User, and Link imports.
+- **Chess.com Integration**:
+    - **Game Selection Dialog**: When loading from a Chess.com user, a new dialog now appears listing the last 5 games with details (Date, Opponent, Rating), allowing you to choose exactly which game to analyze.
+
+### User Interface Refinements
+- **Layout Optimization**: 
+    - Improved the spacing and arrangement of the analysis panel to prevent UI squeezing.
+    - Made the "Analyze Game" button more prominent for better accessibility.
+- **Visual Polish**:
+    - Fixed `QFont` warnings that were cluttering the logs, ensuring smoother font rendering in the Evaluation Bar.
+    - Added a new "Exit" button to the sidebar for quick application closure.
+
 ## v1.1 - Analysis Refinements & UI Fixes
 
 ### New Features

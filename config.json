@@ -1,4 +1,5 @@
 {
     "engine_path": "D:/Coding/Major Projects/Chess_analyzer/stockfish/stockfish-windows-x86-64-avx2.exe",
-    "theme": "dark"
+    "theme": "dark",
+    "accent_color": "#4b7399"
 }

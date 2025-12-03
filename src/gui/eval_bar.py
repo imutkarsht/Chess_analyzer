@@ -75,7 +75,8 @@ class EvalBarWidget(QWidget):
         # Draw numeric label if space permits
         if height > 50:
              font = painter.font()
-             font.setPixelSize(10)
+             # Use setPointSize to avoid "Point size <= 0" warnings on some systems
+             font.setPointSize(8) 
              font.setBold(True)
              painter.setFont(font)
              

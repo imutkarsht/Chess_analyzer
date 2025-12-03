@@ -266,7 +266,7 @@ class GameControlsWidget(QWidget):
         
     def _create_btn(self, text, signal):
         btn = QPushButton(text)
-        btn.setStyleSheet(Styles.CONTROL_BUTTON_STYLE)
+        btn.setStyleSheet(Styles.get_control_button_style())
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(signal.emit)
         return btn
@@ -529,7 +529,7 @@ class AnalysisPanel(QWidget):
         self.ai_summary_layout.setContentsMargins(0, 5, 0, 0)
         
         self.btn_generate_summary = QPushButton("Generate AI Summary")
-        self.btn_generate_summary.setStyleSheet(Styles.BUTTON_STYLE)
+        self.btn_generate_summary.setStyleSheet(Styles.get_button_style())
         self.btn_generate_summary.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_generate_summary.clicked.connect(self.generate_ai_summary)
         self.ai_summary_layout.addWidget(self.btn_generate_summary)
@@ -677,6 +677,26 @@ class AnalysisPanel(QWidget):
         self.summary_thread.finished.connect(self.on_summary_generated)
         self.summary_thread.start()
         
+    def refresh_styles(self):
+        """Re-applies styles to widgets."""
+        if hasattr(self, 'btn_generate_summary'):
+            self.btn_generate_summary.setStyleSheet(Styles.get_button_style())
+            
+        if hasattr(self, 'txt_ai_summary'):
+            self.txt_ai_summary.setStyleSheet(f"""
+                QTextEdit {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 8px;
+                    padding: 10px;
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                }}
+            """)
+        
+        # Refresh summary stats colors if game is loaded
+        if self.current_game:
+            self._update_summary(self.current_game.summary)
+
     def on_summary_generated(self, summary):
         self.loading_overlay.stop()
         self.current_game.ai_summary = summary
