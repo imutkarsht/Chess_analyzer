@@ -168,20 +168,3 @@ class Styles:
             "Miss": Styles.COLOR_MISS,
         }
         return mapping.get(classification, Styles.COLOR_TEXT_PRIMARY)
-
-    @staticmethod
-    def get_class_icon(classification: str) -> str:
-        return Styles.MOVE_ICONS.get(classification, "")
-
-    MOVE_ICONS = {
-        "Brilliant": "!!",
-        "Great": "!",
-        "Best": "★",
-        "Excellent": "👍",
-        "Good": "✓",
-        "Book": "📖",
-        "Inaccuracy": "?!",
-        "Mistake": "?",
-        "Miss": "⨯",
-        "Blunder": "??",
-    }

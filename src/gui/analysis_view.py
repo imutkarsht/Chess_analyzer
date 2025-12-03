@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetIte
                              QHeaderView, QLabel, QGridLayout, QFrame, QHBoxLayout, 
                              QPushButton, QAbstractItemView, QCheckBox, QTabWidget, QSizePolicy)
 from .graph_widget import GraphWidget
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread
+from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread, QSize
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
 from ..utils.resources import ResourceManager
@@ -315,6 +315,7 @@ class MoveListPanel(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.cellClicked.connect(self.on_cell_clicked)
+        self.table.setIconSize(QSize(20, 20))
         
         # Tighter table styling
         self.table.setStyleSheet(f"""

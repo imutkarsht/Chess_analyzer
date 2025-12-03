@@ -1,14 +1,16 @@
 import os
+import json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QSplitter, QFileDialog, QMenuBar,
                              QStatusBar, QMessageBox, QInputDialog, QDialog,
-                             QListWidget, QListWidgetItem, QPushButton, QLineEdit)
+                             QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction, QIcon
 
 from .board_widget import BoardWidget
 from .game_list import GameListWidget
 from .analysis_view import MoveListPanel, AnalysisPanel, CapturedPiecesWidget, GameControlsWidget
+from .metrics_widget import MetricsWidget
 from .analysis_worker import AnalysisWorker
 from ..backend.pgn_parser import PGNParser
 from ..backend.analyzer import Analyzer
@@ -18,7 +20,8 @@ from ..utils.config import ConfigManager
 from ..backend.engine import EngineManager
 from ..backend.chess_com_api import ChessComAPI
 from .styles import Styles
-from ..backend.models import MoveAnalysis
+from ..backend.models import MoveAnalysis, GameAnalysis, GameMetadata
+from ..backend.game_history import GameHistoryManager
 from ..utils.path_utils import get_resource_path
 
 class MainWindow(QMainWindow):
@@ -33,6 +36,7 @@ class MainWindow(QMainWindow):
         self.config_manager = ConfigManager()
         self.engine_path = self.config_manager.get("engine_path", "stockfish")
         self.analyzer = Analyzer(EngineManager(self.engine_path))
+        self.history_manager = GameHistoryManager()
         self.resource_manager = ResourceManager()
         
         # Set Window Icon
@@ -46,6 +50,9 @@ class MainWindow(QMainWindow):
         
         # Apply Theme
         self.setStyleSheet(Styles.DARK_THEME)
+        
+        # Load History
+        self.load_history()
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -65,10 +72,10 @@ class MainWindow(QMainWindow):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
         
-        # Game List (Top)
-        self.game_list = GameListWidget()
-        self.game_list.game_selected.connect(self.load_game)
-        left_layout.addWidget(self.game_list, stretch=1)
+        # Game List (Top) - REMOVED
+        # self.game_list = GameListWidget()
+        # self.game_list.game_selected.connect(self.load_game)
+        # left_layout.addWidget(self.game_list, stretch=1)
         
         # Move List Panel (Bottom)
         self.move_list_panel = MoveListPanel(self.engine_path)
@@ -83,7 +90,13 @@ class MainWindow(QMainWindow):
         center_layout.setContentsMargins(10, 10, 10, 10) # Reduced margins
         center_layout.setSpacing(10)
         
-        # Captured Pieces (Top)
+        # Game Info Label (Top)
+        self.game_info_label = QLabel("No Game Loaded")
+        self.game_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px;")
+        center_layout.addWidget(self.game_info_label)
+        
+        # Captured Pieces (Below Info)
         self.captured_widget = CapturedPiecesWidget()
         center_layout.addWidget(self.captured_widget)
         
@@ -133,6 +146,10 @@ class MainWindow(QMainWindow):
         url_action.triggered.connect(self.load_from_url)
         file_menu.addAction(url_action)
         
+        history_action = QAction("History...", self)
+        history_action.triggered.connect(self.show_history)
+        file_menu.addAction(history_action)
+        
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
@@ -142,6 +159,10 @@ class MainWindow(QMainWindow):
         analyze_action = QAction("Analyze Game", self)
         analyze_action.triggered.connect(self.start_analysis)
         analysis_menu.addAction(analyze_action)
+        
+        metrics_action = QAction("Show Metrics", self)
+        metrics_action.triggered.connect(self.show_metrics)
+        analysis_menu.addAction(metrics_action)
         
         # Settings Menu
         settings_menu = menubar.addMenu("Settings")
@@ -153,6 +174,119 @@ class MainWindow(QMainWindow):
         gemini_action = QAction("Configure Gemini API...", self)
         gemini_action.triggered.connect(self.configure_gemini)
         settings_menu.addAction(gemini_action)
+        
+        clear_cache_action = QAction("Clear Analysis Cache", self)
+        clear_cache_action.triggered.connect(self.clear_cache)
+        settings_menu.addAction(clear_cache_action)
+        
+        clear_all_action = QAction("Clear All Data", self)
+        clear_all_action.triggered.connect(self.clear_all_data)
+        settings_menu.addAction(clear_all_action)
+
+    def load_history(self):
+        """Loads games from history database."""
+        try:
+            history_games = self.history_manager.get_all_games()
+            self.games = []
+            for g_dict in history_games:
+                metadata = GameMetadata(
+                    white=g_dict["white"],
+                    black=g_dict["black"],
+                    result=g_dict["result"],
+                    date=g_dict["date"],
+                    event=g_dict["event"]
+                )
+                
+                summary = {}
+                if g_dict["summary_json"]:
+                    try:
+                        summary = json.loads(g_dict["summary_json"])
+                    except:
+                        pass
+                        
+                game = GameAnalysis(
+                    game_id=g_dict["id"],
+                    metadata=metadata,
+                    pgn_content=g_dict["pgn"],
+                    summary=summary
+                )
+                self.games.append(game)
+                
+            # self.game_list.set_games(self.games)
+            if self.games:
+                logger.info(f"Loaded {len(self.games)} games from history.")
+        except Exception as e:
+            logger.error(f"Failed to load history: {e}", exc_info=True)
+
+    def show_history(self):
+        """Shows the game history in a dialog."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Game History")
+        dialog.resize(500, 600)
+        layout = QVBoxLayout(dialog)
+        
+        # Re-use GameListWidget
+        game_list = GameListWidget()
+        game_list.set_games(self.games)
+        
+        def on_game_selected(game):
+            self.load_game(game)
+            dialog.accept()
+            
+        game_list.game_selected.connect(on_game_selected)
+        layout.addWidget(game_list)
+        
+        btn_layout = QHBoxLayout()
+        
+        clear_btn = QPushButton("Clear History")
+        clear_btn.setStyleSheet(f"background-color: {Styles.COLOR_BLUNDER}; color: white;")
+        clear_btn.clicked.connect(lambda: self.clear_history_data(game_list))
+        btn_layout.addWidget(clear_btn)
+        
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        btn_layout.addWidget(close_btn)
+        
+        layout.addLayout(btn_layout)
+        
+        dialog.exec()
+
+    def clear_history_data(self, game_list_widget):
+        reply = QMessageBox.question(
+            self, 
+            "Clear History", 
+            "Are you sure you want to clear all game history? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.history_manager.clear_history()
+            self.games = []
+            game_list_widget.set_games([])
+            QMessageBox.information(self, "Success", "Game history cleared.")
+
+    def clear_all_data(self):
+        reply = QMessageBox.question(
+            self, 
+            "Clear All Data", 
+            "Are you sure you want to clear ALL data (History + Analysis Cache)? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.history_manager.clear_history()
+            self.analyzer.cache.clear_cache()
+            self.games = []
+            QMessageBox.information(self, "Success", "All data cleared.")
+
+    def clear_cache(self):
+        reply = QMessageBox.question(
+            self, 
+            "Clear Cache", 
+            "Are you sure you want to clear the analysis cache? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.analyzer.cache.clear_cache()
+            QMessageBox.information(self, "Success", "Analysis cache cleared.")
 
     def open_pgn(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open PGN File", "", "PGN Files (*.pgn);;All Files (*)")
@@ -160,7 +294,7 @@ class MainWindow(QMainWindow):
             logger.info(f"Loading PGN file: {file_name}")
             try:
                 self.games = PGNParser.parse_pgn_file(file_name)
-                self.game_list.set_games(self.games)
+                # self.game_list.set_games(self.games)
                 if self.games:
                     self.load_game(self.games[0])
                     logger.info(f"Loaded {len(self.games)} games.")
@@ -217,7 +351,7 @@ class MainWindow(QMainWindow):
                         if pgn_text:
                             # Parse PGN string
                             self.games = PGNParser.parse_pgn_text(pgn_text)
-                            self.game_list.set_games(self.games)
+                            # self.game_list.set_games(self.games)
                             if self.games:
                                 self.load_game(self.games[0])
             except Exception as e:
@@ -239,7 +373,7 @@ class MainWindow(QMainWindow):
                 
                 if game_data and "pgn" in game_data:
                     self.games = PGNParser.parse_pgn_text(game_data["pgn"])
-                    self.game_list.set_games(self.games)
+                    # self.game_list.set_games(self.games)
                     if self.games:
                         self.load_game(self.games[0])
                     self.statusBar().showMessage("Game loaded.")
@@ -253,7 +387,33 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage("Error fetching game.")
 
     def load_game(self, game):
+        # If game has no moves but has PGN content (loaded from history), parse it
+        if not game.moves and game.pgn_content:
+            try:
+                parsed_games = PGNParser.parse_pgn_text(game.pgn_content)
+                if parsed_games:
+                    # Update moves from parsed game
+                    game.moves = parsed_games[0].moves
+                    # Keep the original summary and metadata if they are better? 
+                    # Actually parsed game metadata might be better or same.
+                    # But we want to keep the ID and Summary from DB.
+            except Exception as e:
+                logger.error(f"Failed to parse PGN for history game: {e}")
+                QMessageBox.warning(self, "Error", "Failed to load game moves.")
+                return
+
         self.current_game = game
+        
+        # Update Game Info Label
+        white = game.metadata.white
+        black = game.metadata.black
+        result = game.metadata.result
+        w_elo = game.metadata.headers.get("WhiteElo", "?")
+        b_elo = game.metadata.headers.get("BlackElo", "?")
+        
+        info_text = f"{white} ({w_elo}) vs {black} ({b_elo})  [{result}]"
+        self.game_info_label.setText(info_text)
+        
         self.board_widget.load_game(game)
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
@@ -307,6 +467,26 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Analysis failed: {error_msg}")
         logger.error(f"Analysis error: {error_msg}")
         QMessageBox.critical(self, "Analysis Error", error_msg)
+
+    def show_metrics(self):
+        if not self.games:
+            QMessageBox.information(self, "Metrics", "No games available for analysis.")
+            return
+            
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Analysis Metrics")
+        dialog.resize(900, 700)
+        layout = QVBoxLayout(dialog)
+        
+        metrics_widget = MetricsWidget(self.games)
+        
+        layout.addWidget(metrics_widget)
+        
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
 
     def configure_engine(self):
         # Cross-platform filter: Executables on Windows, all files on Linux (since they don't always have extensions)

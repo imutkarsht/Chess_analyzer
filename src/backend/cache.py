@@ -50,3 +50,14 @@ class AnalysisCache:
         """, (key, fen, json.dumps(engine_params, sort_keys=True), json.dumps(result)))
         conn.commit()
         conn.close()
+
+    def clear_cache(self):
+        """Clears all cached analysis."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM analysis")
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Failed to clear cache: {e}")

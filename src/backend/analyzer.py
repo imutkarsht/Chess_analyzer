@@ -4,8 +4,9 @@ from .models import GameAnalysis, MoveAnalysis
 from .engine import EngineManager
 from .cache import AnalysisCache
 from .book import BookManager
+from .game_history import GameHistoryManager
 from ..utils.logger import logger
-from typing import Optional, List
+from typing import Optional, List, Dict
 import math
 
 class Analyzer:
@@ -13,6 +14,7 @@ class Analyzer:
         self.engine_manager = engine_manager
         self.cache = AnalysisCache()
         self.book_manager = BookManager()
+        self.history_manager = GameHistoryManager()
         self.config = {
             "time_per_move": None,
             "depth": 18,
@@ -37,14 +39,13 @@ class Analyzer:
         Returns value between 0.0 and 1.0.
         Formula based on Lichess: 50 + 50 * (2 / (1 + exp(-0.00368208 * cp)) - 1)
         """
-        if mate is not None:
+        if mate is not None and mate != 0:
             # Mate in X. 
             if mate > 0:
                 return 1.0
             elif mate < 0:
                 return 0.0
-            else:
-                return 0.5 
+            # If mate is 0, fall through to cp logic (which will have large value)
 
         if cp is None:
             return 0.5
@@ -171,8 +172,9 @@ class Analyzer:
                         if score:
                             if score.is_mate():
                                 mate = score.relative.mate()
+                                cp = score.relative.score(mate_score=100000)
                             else:
-                                cp = score.relative.score(mate_score=10000)
+                                cp = score.relative.score(mate_score=100000)
                                 
                     pv_data["pv"] = pv_uci
                     pv_data["cp"] = cp
@@ -314,7 +316,7 @@ class Analyzer:
                 
                 if wpl < 0: wpl = 0 # Improvement
                 
-                self._classify_move(move, wpl, side)
+                self._classify_move(move, wpl, side, move_data.multi_pvs)
                 
                 # Update stats
                 summary_counts[side][move.classification] += 1
@@ -323,14 +325,30 @@ class Analyzer:
                 # ACPL
                 # CP Loss relative to player
                 cp_loss = 0
-                if s1_cp is not None and s2_cp is not None:
-                    if side == "white":
-                        cp_loss = s1_cp - s2_cp
-                    else:
-                        cp_loss = s2_cp - s1_cp
                 
-                if cp_loss > 0:
-                    summary_counts[side]["acpl"] += cp_loss
+                # Helper to convert score to CP
+                def get_cp(cp, mate):
+                    if mate is not None:
+                        # Mate in X. Positive mate = Winning.
+                        # We cap at 2000 CP for calculation
+                        return 2000 if mate > 0 else -2000
+                    return cp if cp is not None else 0
+
+                val_s1 = get_cp(s1_cp, s1_mate)
+                val_s2 = get_cp(s2_cp, s2_mate)
+                
+                if side == "white":
+                    cp_loss = val_s1 - val_s2
+                else:
+                    cp_loss = val_s2 - val_s1
+                
+                # Clamp loss to 0 (we don't count improvements as negative loss for ACPL)
+                if cp_loss < 0: cp_loss = 0
+                
+                # Cap single move loss to avoid skewing (e.g. 1000)
+                if cp_loss > 1000: cp_loss = 1000
+                
+                summary_counts[side]["acpl"] += cp_loss
                 
                 # Book Move Check
                 if in_book:
@@ -358,11 +376,12 @@ class Analyzer:
                     summary_counts[side]["acpl"] /= mc
                     
                     # ACPL-based Accuracy
-                    # Formula: 100 * exp(-0.004 * acpl)
+                    # Formula: 100 * exp(-0.005 * acpl)
                     # This ensures better play (lower ACPL) always gives higher accuracy.
                     acpl = summary_counts[side]["acpl"]
                     accuracy = 100 * math.exp(-0.004 * acpl)
                     summary_counts[side]["accuracy"] = accuracy
+                    logger.debug(f"Side: {side}, Avg ACPL: {acpl}, Accuracy: {accuracy}")
                     
                 else:
                     summary_counts[side]["accuracy"] = 0
@@ -370,6 +389,11 @@ class Analyzer:
             # Populate summary
             game_analysis.summary = summary_counts
             game_analysis.metadata.opening = opening_name
+            
+            # Save to history
+            if game_analysis.pgn_content:
+                self.history_manager.save_game(game_analysis, game_analysis.pgn_content)
+            
             logger.info("Analysis complete.")
 
         except Exception as e:
@@ -398,7 +422,7 @@ class Analyzer:
 
 
 
-    def _classify_move(self, move: MoveAnalysis, wpl: float, side: str):
+    def _classify_move(self, move: MoveAnalysis, wpl: float, side: str, multi_pvs: List[Dict] = None):
         """
         Classifies a move based on Win Probability Loss (WPL).
         """
@@ -411,15 +435,89 @@ class Analyzer:
             move.classification = "Miss"
             move.explanation = f"Missed win (Win chance dropped by {wpl*100:.1f}%)"
             return
+            
+        # Checkmate Check
+        # If this move delivers checkmate (win chance after is 1.0 and mate is detected)
+        # We need to check if the move itself is a mate.
+        # The engine analysis for THIS move (s2) should show mate.
+        if move.eval_after_mate is not None and move.eval_after_mate > 0:
+             # It is a winning mate for the side that moved
+             move.classification = "Best" # Or Brilliant if it was hard to find?
+             return
 
         # If it's the best move
         if move.uci == move.best_move:
-            # Simple heuristic for "Great": If it's a best move in a critical position?
-            # For now, just call it Best.
+            # Check for "Great" move
+            # If this is the only good move (second best move is significantly worse)
+            if multi_pvs and len(multi_pvs) > 1:
+                # Calculate WPL for second best move
+                # We need s1 (current position) and s2 (second best move)
+                # s1 is already known implicitly, but we need to recalculate or pass it?
+                # Actually, we can just compare win probabilities of best vs second best.
+                # wp_best = move.win_chance_after
+                
+                # Get second best score
+                sb_data = multi_pvs[1]
+                sb_cp = sb_data.get("cp")
+                sb_mate = sb_data.get("mate")
+                
+                # If sb_cp is None and sb_mate is None, we can't judge.
+                if sb_cp is not None or sb_mate is not None:
+                    # Calculate wp for second best
+                    # Note: These scores are from engine, so they are relative to side to move (which is 'side')
+                    # We need to convert to white perspective for get_win_probability?
+                    # No, get_win_probability takes raw cp/mate.
+                    # Wait, get_win_probability expects absolute CP? 
+                    # No, the formula uses CP. If CP is positive, win% > 50.
+                    # So we should pass CP relative to the side to move?
+                    # In analyze_game loop:
+                    # s2_cp = next_move.eval_before_cp (Normalized to White)
+                    # Here sb_cp is from multi_pvs, which is usually relative to side to move.
+                    # Let's normalize to White perspective.
+                    
+                    norm_sb_cp = sb_cp
+                    norm_sb_mate = sb_mate
+                    
+                    if side == "black":
+                        if norm_sb_cp is not None: norm_sb_cp = -norm_sb_cp
+                        if norm_sb_mate is not None: norm_sb_mate = -norm_sb_mate
+                        
+                    sb_wp = self.get_win_probability(norm_sb_cp, norm_sb_mate)
+                    
+                    # Win prob relative to player
+                    player_sb_wp = sb_wp if side == "white" else (1.0 - sb_wp)
+                    player_best_wp = move.win_chance_after if side == "white" else (1.0 - move.win_chance_after)
+                    
+                    # Difference
+                    diff = player_best_wp - player_sb_wp
+                    
+                    # If difference is significant (e.g. > 15%) and best move is winning/good
+                    if diff > 0.15:
+                        move.classification = "Great"
+                        return
+
             move.classification = "Best"
             return
             
         # Thresholds for WPL
+        
+        # Missed Mate
+        # If we had a forced mate and lost it
+        if move.eval_before_mate is not None and move.eval_before_mate > 0:
+            if move.eval_after_mate is None or move.eval_after_mate <= 0:
+                move.classification = "Miss"
+                move.explanation = "Missed a forced checkmate."
+                return
+
+        # Missed Win (Miss)
+        # If we were winning (>80%) and now we are not (<60%)
+        # Or if we were winning (>70%) and lost significant advantage (>20%)
+        if (move.win_chance_before > 0.8 and move.win_chance_after < 0.6) or \
+           (move.win_chance_before > 0.7 and wpl > 0.20):
+            move.classification = "Miss"
+            move.explanation = "Missed a winning opportunity."
+            return
+
         if wpl >= 0.20:
             move.classification = "Blunder"
         elif wpl >= 0.09:

@@ -13,14 +13,36 @@
 [EndTime "6:51:55 GMT+0000"]
 [Link "https://www.chess.com/game/live/145018126490"]
 
-1. d4 Nf6 2. Bf4 e6 3. e3 Nc6 4. c3 d5 5. Nf3 Bd6 6. Bg3 Bxg3 7. hxg3 Ne4 8. Bd3
-f5 9. Nbd2 Bd7 10. Nb3 a5 11. Nc5 b6 12. Nxe4 fxe4 13. Bb5 exf3 14. Qxf3 Ne5 15.
-Bxd7+ Nxd7 16. Qh5+ g6 17. Qh6 Qe7 18. Qf4 O-O-O 19. b4 Qd6 20. Qxd6 cxd6 21.
-bxa5 bxa5 22. O-O Nb6 23. Rfb1 Kb7 24. a4 h5 25. Rb5 Rb8 26. Rab1 Ka6 27. Kf1 h4
-28. gxh4 Rxh4 29. Ke2 Rh2 30. Kf3 g5 31. Kg3 Rh6 32. Kg4 Rg6 33. Kh5 Rgg8 34.
-Kg4 e5 35. dxe5 dxe5 36. Kf5 e4 37. Ke5 Rge8+ 38. Kd4 Rf8 39. Ke5 Rxf2 40. Rxd5
-Nxd5 41. Rxb8 Nxc3 42. Kd6 Rxg2 43. Kc6 Ka7 44. Rb7+ Ka8 45. Kb6 Nxa4+ 46. Kxa5
-Kxb7 47. Kxa4 Rg3 48. Kb4 Rxe3 49. Kc4 g4 50. Kd4 g3 51. Kxe3 g2 52. Kf2 Kc6 53.
-Kxg2 Kd5 54. Kf2 Kd4 55. Ke2 Ke5 56. Ke3 Kf5 57. Ke2 Kf4 58. Ke1 Kf3 59. Kf1 Ke3
-60. Ke1 Kf3 61. Kf1 e3 62. Ke1 Ke4 63. Ke2 Kf4 64. Ke1 Kf3 65. Kf1 e2+ 66. Ke1
-Ke3 1/2-1/2
+[Event "XTX Markets London Chess Classic 2025"]
+[Site "Chess.com"]
+[Date "2025.11.28"]
+[Round "04"]
+[White "Adams, Michael"]
+[Black "Abdusattorov, Nodirbek"]
+[Result "0-1"]
+[WhiteElo "2635"]
+[BlackElo "2750"]
+[TimeControl "5400+30"]
+[Link "https://www.chess.com/events/2025-xtx-markets-london-chess-classic-elite/04/Adams_Michael-Abdusattorov_Nodirbek"]
+
+1. e4 {[%clk 1:30:57]} 1... c5 {[%clk 1:30:39]} 2. Nf3 {[%clk 1:31:19]} 2... Nc6
+{[%clk 1:30:34]} 3. Bb5 {[%clk 1:31:32]} 3... e6 {[%clk 1:30:56]} 4. c3 {[%clk
+1:30:57]} 4... d5 {[%clk 1:28:52]} 5. d3 {[%clk 1:31:16]} 5... Bd7 {[%clk
+1:24:01]} 6. Bf4 {[%clk 1:29:55]} 6... Nge7 {[%clk 1:17:47]} 7. O-O {[%clk
+1:26:26]} 7... Ng6 {[%clk 1:12:13]} 8. exd5 {[%clk 1:19:21]} 8... exd5 {[%clk
+1:11:12]} 9. Re1+ {[%clk 1:18:15]} 9... Be7 {[%clk 1:11:09]} 10. Bd6 {[%clk
+1:18:33]} 10... O-O {[%clk 1:10:29]} 11. Bxc6 {[%clk 1:18:53]} 11... Bxd6 {[%clk
+1:05:02]} 12. Bxd7 {[%clk 0:57:53]} 12... Qxd7 {[%clk 1:05:26]} 13. Na3 {[%clk
+0:52:51]} 13... Rae8 {[%clk 0:59:59]} 14. Nc2 {[%clk 0:51:09]} 14... Qb5 {[%clk
+0:59:16]} 15. b3 {[%clk 0:42:49]} 15... Nf4 {[%clk 0:56:35]} 16. Re3 {[%clk
+0:37:13]} 16... Qc6 {[%clk 0:48:02]} 17. g3 {[%clk 0:35:28]} 17... Nh5 {[%clk
+0:47:42]} 18. Nh4 {[%clk 0:30:26]} 18... Nf6 {[%clk 0:45:37]} 19. Nf5 {[%clk
+0:29:58]} 19... Re6 {[%clk 0:39:35]} 20. Qf3 {[%clk 0:25:58]} 20... Rfe8 {[%clk
+0:36:41]} 21. Rae1 {[%clk 0:22:27]} 21... Bf8 {[%clk 0:34:24]} 22. Rxe6 {[%clk
+0:19:13]} 22... fxe6 {[%clk 0:34:08]} 23. Nh4 {[%clk 0:14:16]} 23... Qa6 {[%clk
+0:31:14]} 24. a4 {[%clk 0:14:08]} 24... Qa5 {[%clk 0:28:32]} 25. d4 {[%clk
+0:09:49]} 25... Ne4 {[%clk 0:28:24]} 26. c4 {[%clk 0:08:40]} 26... cxd4 {[%clk
+0:22:23]} 27. cxd5 {[%clk 0:08:50]} 27... Ng5 {[%clk 0:20:03]} 28. Qh5 {[%clk
+0:05:57]} 28... d3 {[%clk 0:16:45]} 29. Qxg5 {[%clk 0:03:49]} 29... dxc2 {[%clk
+0:16:20]} 30. Rc1 {[%clk 0:03:31]} 30... Ba3 {[%clk 0:15:21]} 31. Qh5 {[%clk
+0:02:44]} 31... Rf8 {[%clk 0:13:38]} 0-1

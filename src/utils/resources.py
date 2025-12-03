@@ -32,7 +32,7 @@ class ResourceManager:
         self.icon_map = {
             "Brilliant": "brilliant.svg",
             "Great": "great_find.svg",
-            "Best": "best.svg",
+            "Best": "best_v2.svg",
             "Excellent": "excellent.svg",
             "Good": "good.svg",
             "Book": "book.svg",

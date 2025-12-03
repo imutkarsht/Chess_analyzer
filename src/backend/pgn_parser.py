@@ -63,5 +63,6 @@ class PGNParser:
         return GameAnalysis(
             game_id=str(uuid.uuid4()),
             metadata=metadata,
-            moves=moves
+            moves=moves,
+            pgn_content=str(game)
         )

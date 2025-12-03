@@ -151,9 +151,6 @@ class BoardWidget(QWidget):
         except Exception as e:
             print(f"Error drawing overlay: {e}")
 
-    def _get_class_icon(self, classification):
-        # Deprecated, using ResourceManager
-        return Styles.get_class_icon(classification)
 
     def update_board(self):
         # Render board to SVG with custom colors
