@@ -43,8 +43,6 @@ class ChessComAPI:
             
             return all_games[:limit]
             
-            return all_games[:limit]
-            
         except Exception as e:
             print(f"Error fetching games from Chess.com: {e}")
             return []
@@ -137,10 +135,6 @@ class ChessComAPI:
         except:
             return None
 
-    @staticmethod
-    def _fetch_from_archive(username: str, year: str, month: str, game_id: str) -> Optional[Dict]:
-        # Deprecated in favor of _find_game_in_archives but kept for compatibility if needed
-        return ChessComAPI._find_game_in_archives(username, game_id)
 
     @staticmethod
     def extract_game_id(url: str) -> Optional[str]:

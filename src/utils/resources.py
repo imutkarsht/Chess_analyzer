@@ -20,9 +20,22 @@ class ResourceManager:
         self._initialized = True
         
         # Base paths
+        # Base paths
         self.assets_dir = get_resource_path("assets")
+        logger.info(f"ResourceManager: Assets dir resolved to: {self.assets_dir}")
+        
         self.images_path = os.path.join(self.assets_dir, "images")
         self.sounds_path = os.path.join(self.assets_dir, "sounds")
+        
+        logger.info(f"ResourceManager: Images path: {self.images_path}")
+        if not os.path.exists(self.images_path):
+            logger.error(f"ResourceManager: Images path does not exist!")
+        else:
+            try:
+                files = os.listdir(self.images_path)
+                logger.info(f"ResourceManager: Found {len(files)} files in images path: {files}")
+            except Exception as e:
+                logger.error(f"ResourceManager: Failed to list images path: {e}")
         
         # Cache
         self._icon_cache = {}

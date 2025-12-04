@@ -34,9 +34,6 @@ class Styles:
     @classmethod
     def set_accent_color(cls, color_hex):
         cls.COLOR_ACCENT = color_hex
-        # Simple hover logic: lighter version? 
-        # For now just keep it same or slightly adjusted if we had a color util.
-        # Let's just use the same color for hover but maybe we can rely on opacity or just set it same.
         cls.COLOR_ACCENT_HOVER = color_hex 
 
     @classmethod

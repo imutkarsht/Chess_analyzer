@@ -1,12 +1,14 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                              QLineEdit, QFileDialog, QGroupBox, QFormLayout, QMessageBox)
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from .styles import Styles
 from ..utils.config import ConfigManager
 import os
 
 class SettingsView(QWidget):
+    engine_path_changed = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.config_manager = ConfigManager()
@@ -155,6 +157,7 @@ class SettingsView(QWidget):
         path = self.path_input.text()
         if path:
             self.config_manager.set("engine_path", path)
+            self.engine_path_changed.emit(path)
             QMessageBox.information(self, "Saved", "Engine path saved successfully.")
         else:
             QMessageBox.warning(self, "Error", "Please enter a valid path.")

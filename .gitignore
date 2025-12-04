@@ -5,3 +5,5 @@ __pycache__/
 .env
 /dist
 /build
+chess_analyzer.log
+analysis_cache.db

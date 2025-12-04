@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QApplicat
 from PyQt6.QtCore import pyqtSignal, Qt, QSize
 from PyQt6.QtGui import QIcon
 from .styles import Styles
+from ..utils.path_utils import get_resource_path
 import os
 
 class Sidebar(QWidget):
@@ -51,7 +52,7 @@ class Sidebar(QWidget):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Load icon
-        icon_path = os.path.join("assets", "icons", icon_name)
+        icon_path = get_resource_path(os.path.join("assets", "icons", icon_name))
         if os.path.exists(icon_path):
             btn.setIcon(QIcon(icon_path))
             btn.setIconSize(QSize(24, 24))

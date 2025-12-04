@@ -92,7 +92,22 @@ class MainWindow(QMainWindow):
         
         # --- Page 3: Settings View ---
         self.settings_view = SettingsView()
+        self.settings_view.engine_path_changed.connect(self.update_engine_path)
         self.stack.addWidget(self.settings_view)
+
+    def update_engine_path(self, new_path):
+        """Updates the engine path and re-initializes the analyzer."""
+        logger.info(f"Updating engine path to: {new_path}")
+        self.engine_path = new_path
+        # Re-initialize analyzer with new engine
+        try:
+            self.analyzer = Analyzer(EngineManager(self.engine_path))
+            # Also update worker if it exists? 
+            # Worker is created per analysis, so next analysis will use new analyzer/engine.
+            QMessageBox.information(self, "Success", "Engine path updated. Future analyses will use the new engine.")
+        except Exception as e:
+            logger.error(f"Failed to update engine: {e}")
+            QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
 
     def refresh_theme(self):
         """Re-applies the theme and updates widgets that need manual refresh."""
