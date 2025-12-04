@@ -75,6 +75,43 @@ class SettingsView(QWidget):
         api_layout.addRow(btn_wrapper)
         
         self.layout.addWidget(self.api_group)
+
+        # Username Settings
+        self.username_group = QGroupBox("Player Usernames")
+        self.username_group.setStyleSheet(f"QGroupBox {{ font-weight: bold; font-size: 16px; color: {Styles.COLOR_ACCENT}; border: 1px solid {Styles.COLOR_BORDER}; margin-top: 10px; }} QGroupBox::title {{ subcontrol-origin: margin; left: 10px; padding: 0 5px; }}")
+        username_layout = QFormLayout(self.username_group)
+        username_layout.setSpacing(15)
+
+        self.chesscom_input = QLineEdit()
+        self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
+        self.chesscom_input.setPlaceholderText("Chess.com Username")
+        self.chesscom_input.setStyleSheet(f"padding: 8px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+        
+        self.lichess_input = QLineEdit()
+        self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
+        self.lichess_input.setPlaceholderText("Lichess.org Username")
+        self.lichess_input.setStyleSheet(f"padding: 8px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+
+        lbl_chesscom = QLabel("Chess.com:")
+        lbl_chesscom.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
+        
+        lbl_lichess = QLabel("Lichess.org:")
+        lbl_lichess.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
+
+        username_layout.addRow(lbl_chesscom, self.chesscom_input)
+        username_layout.addRow(lbl_lichess, self.lichess_input)
+
+        self.save_usernames_btn = QPushButton("Save Usernames")
+        self.save_usernames_btn.setStyleSheet(Styles.get_button_style())
+        self.save_usernames_btn.clicked.connect(self.save_usernames)
+
+        # Wrapper for button
+        btn_wrapper_user = QHBoxLayout()
+        btn_wrapper_user.addStretch()
+        btn_wrapper_user.addWidget(self.save_usernames_btn)
+        username_layout.addRow(btn_wrapper_user)
+
+        self.layout.addWidget(self.username_group)
         
         # Appearance Settings
         self.appearance_group = QGroupBox("Appearance")
@@ -120,12 +157,14 @@ class SettingsView(QWidget):
         group_style = f"QGroupBox {{ font-weight: bold; font-size: 16px; color: {Styles.COLOR_ACCENT}; border: 1px solid {Styles.COLOR_BORDER}; margin-top: 10px; }} QGroupBox::title {{ subcontrol-origin: margin; left: 10px; padding: 0 5px; }}"
         self.engine_group.setStyleSheet(group_style)
         self.api_group.setStyleSheet(group_style)
+        self.username_group.setStyleSheet(group_style)
         self.appearance_group.setStyleSheet(group_style)
         self.data_group.setStyleSheet(group_style)
         
         self.browse_btn.setStyleSheet(Styles.get_control_button_style())
         self.save_engine_btn.setStyleSheet(Styles.get_button_style())
         self.save_api_btn.setStyleSheet(Styles.get_button_style())
+        self.save_usernames_btn.setStyleSheet(Styles.get_button_style())
         self.color_btn.setStyleSheet(Styles.get_control_button_style())
         self.clear_cache_btn.setStyleSheet(Styles.get_control_button_style())
         self.clear_data_btn.setStyleSheet(Styles.get_control_button_style())
@@ -166,6 +205,13 @@ class SettingsView(QWidget):
         key = self.gemini_input.text()
         self.config_manager.set("gemini_api_key", key)
         QMessageBox.information(self, "Saved", "Gemini API Key saved successfully.")
+
+    def save_usernames(self):
+        chesscom = self.chesscom_input.text()
+        lichess = self.lichess_input.text()
+        self.config_manager.set("chesscom_username", chesscom)
+        self.config_manager.set("lichess_username", lichess)
+        QMessageBox.information(self, "Saved", "Usernames saved successfully.")
 
     def clear_cache(self):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear the analysis cache? This will not delete your game history.",

@@ -264,7 +264,8 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to parse PGN: {e}")
 
     def load_from_chesscom(self):
-        username, ok = QInputDialog.getText(self, "Load from Chess.com", "Enter Chess.com Username:")
+        default_user = self.config_manager.get("chesscom_username", "")
+        username, ok = QInputDialog.getText(self, "Load from Chess.com", "Enter Chess.com Username:", text=default_user)
         if ok and username:
             try:
                 self.statusBar().showMessage(f"Fetching games for {username}...")
@@ -358,7 +359,8 @@ class MainWindow(QMainWindow):
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
     
     def load_from_lichess(self):
-        username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:")
+        default_user = self.config_manager.get("lichess_username", "")
+        username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:", text=default_user)
         if ok and username:
             try:
                 self.statusBar().showMessage(f"Fetching games for {username}...")
