@@ -21,6 +21,7 @@ from ..utils.logger import logger
 from ..utils.config import ConfigManager
 from ..backend.engine import EngineManager
 from ..backend.chess_com_api import ChessComAPI
+from ..backend.lichess_api import LichessAPI
 from .styles import Styles
 from ..backend.models import MoveAnalysis, GameAnalysis, GameMetadata
 from ..backend.game_history import GameHistoryManager
@@ -228,6 +229,10 @@ class MainWindow(QMainWindow):
         action_link = QAction("From Chess.com Link", self)
         action_link.triggered.connect(self.load_from_link)
         load_menu.addAction(action_link)
+
+        action_lichess = QAction("From Lichess Username", self)
+        action_lichess.triggered.connect(self.load_from_lichess)
+        load_menu.addAction(action_lichess)
         
         self.btn_load.setMenu(load_menu)
         btn_layout.addWidget(self.btn_load)
@@ -351,6 +356,39 @@ class MainWindow(QMainWindow):
         self.analysis_panel.set_game(game)
         self.captured_widget.update_captured(None)
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
+    
+    def load_from_lichess(self):
+        username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:")
+        if ok and username:
+            try:
+                self.statusBar().showMessage(f"Fetching games for {username}...")
+                api = LichessAPI()
+                # Use get_last_games instead of get_player_games_pgn
+                games_data = api.get_user_games(username, max_games=2)
+                if games_data:
+                    from .game_selection_dialog import GameSelectionDialog
+                    dialog = GameSelectionDialog(games_data, self)
+                    if dialog.exec():
+                        selected_game = dialog.selected_game_data
+                        if selected_game and "pgn" in selected_game:
+                            pgn_text = selected_game["pgn"]
+                            self.games = PGNParser.parse_pgn_text(pgn_text)
+                            if self.games:
+                                self.load_game(self.games[0])
+                                self.statusBar().showMessage(f"Loaded game for {username}.")
+                            else:
+                                QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
+                        else:
+                            QMessageBox.warning(self, "Error", "Selected game has no PGN data.")
+                    else:
+                        self.statusBar().showMessage("Game selection cancelled.")
+                else:
+                    QMessageBox.warning(self, "No Games", "No games found for this user.")
+                    self.statusBar().clearMessage()
+            except Exception as e:
+                logger.error(f"Lichess.org load error: {e}")
+                QMessageBox.critical(self, "Error", f"Failed to load from Lichess.org: {e}")
+                self.statusBar().clearMessage()
 
     def start_analysis(self):
         if not self.current_game:

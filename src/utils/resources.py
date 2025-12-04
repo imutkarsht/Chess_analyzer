@@ -33,7 +33,7 @@ class ResourceManager:
         else:
             try:
                 files = os.listdir(self.images_path)
-                logger.info(f"ResourceManager: Found {len(files)} files in images path: {files}")
+                logger.info(f"ResourceManager: Found {len(files)} files in images path")
             except Exception as e:
                 logger.error(f"ResourceManager: Failed to list images path: {e}")
         
