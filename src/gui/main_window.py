@@ -88,7 +88,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.history_view)
         
         # --- Page 2: Metrics View ---
-        self.metrics_view = MetricsWidget(self.games)
+        self.metrics_view = MetricsWidget(self.config_manager, self.history_manager)
         self.stack.addWidget(self.metrics_view)
         
         # --- Page 3: Settings View ---
@@ -131,7 +131,7 @@ class MainWindow(QMainWindow):
             
         # Update Metrics View
         if hasattr(self, 'metrics_view'):
-            self.metrics_view.refresh(self.games)
+            self.metrics_view.refresh()
             
         # Update MainWindow Buttons
         if hasattr(self, 'btn_load'):
@@ -145,7 +145,7 @@ class MainWindow(QMainWindow):
     def switch_page(self, index):
         self.stack.setCurrentIndex(index)
         if index == 2: # Stats page
-            self.metrics_view.refresh(self.games)
+            self.metrics_view.refresh()
 
     def load_game_from_history(self, game):
         self.load_game(game)
@@ -366,7 +366,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f"Fetching games for {username}...")
                 api = LichessAPI()
                 # Use get_last_games instead of get_player_games_pgn
-                games_data = api.get_user_games(username, max_games=2)
+                games_data = api.get_user_games(username, max_games=5)
                 if games_data:
                     from .game_selection_dialog import GameSelectionDialog
                     dialog = GameSelectionDialog(games_data, self)

@@ -86,6 +86,42 @@ class GameHistoryManager:
             logger.error(f"Failed to fetch games from history: {e}")
             
         return games
+            
+    def get_games_for_users(self, usernames: List[str]) -> List[Dict[str, Any]]:
+        """Returns games where either white or black player matches one of the usernames."""
+        if not usernames:
+            return []
+            
+        games = []
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # Case-insensitive matching
+            placeholders = ','.join(['?'] * len(usernames))
+            query = f"""
+                SELECT * FROM games 
+                WHERE LOWER(white) IN ({placeholders}) 
+                   OR LOWER(black) IN ({placeholders})
+                ORDER BY timestamp DESC
+            """
+            
+            # Duplicate params for both IN clauses
+            lower_usernames = [u.lower() for u in usernames]
+            params = lower_usernames + lower_usernames
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                games.append(dict(row))
+                
+            conn.close()
+        except Exception as e:
+            logger.error(f"Failed to fetch user games: {e}")
+            
+        return games
 
     def delete_game(self, game_id: str):
         """Deletes a game from history."""
