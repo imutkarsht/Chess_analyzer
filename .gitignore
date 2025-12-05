@@ -1,5 +1,6 @@
 *.db
 /venv
+/.venv
 __pycache__/
 /stockfish/
 .env

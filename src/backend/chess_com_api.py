@@ -1,6 +1,7 @@
 import requests
 import datetime
 from typing import List, Dict, Optional
+from ..utils.logger import logger
 
 class ChessComAPI:
     BASE_URL = "https://api.chess.com/pub"
@@ -17,6 +18,7 @@ class ChessComAPI:
         try:
             # 1. Get archives to find the latest month with games
             archives_url = f"{ChessComAPI.BASE_URL}/player/{username}/games/archives"
+            logger.debug(f"Fetching archives from: {archives_url}")
             response = requests.get(archives_url, headers=ChessComAPI.HEADERS)
             response.raise_for_status()
             archives = response.json().get("archives", [])
@@ -44,7 +46,7 @@ class ChessComAPI:
             return all_games[:limit]
             
         except Exception as e:
-            print(f"Error fetching games from Chess.com: {e}")
+            logger.error(f"Error fetching games from Chess.com: {e}", exc_info=True)
             return []
 
     @staticmethod
@@ -91,7 +93,7 @@ class ChessComAPI:
             return None
             
         except Exception as e:
-            print(f"Error fetching game {game_id}: {e}")
+            logger.error(f"Error fetching game {game_id}: {e}", exc_info=True)
             return None
 
     @staticmethod
@@ -118,7 +120,7 @@ class ChessComAPI:
                             
             return None
         except Exception as e:
-            print(f"Error searching archives: {e}")
+            logger.error(f"Error searching archives: {e}")
             return None
 
     @staticmethod

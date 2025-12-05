@@ -2,7 +2,9 @@ from PyQt6.QtWidgets import (QListWidget, QListWidgetItem, QVBoxLayout, QWidget,
                              QHBoxLayout, QFrame)
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor
 from .styles import Styles
+from ..utils.logger import logger
 
 class GameListItemWidget(QWidget):
     def __init__(self, game):
@@ -91,4 +93,5 @@ class GameListWidget(QWidget):
     def on_item_clicked(self, item):
         index = self.list_widget.row(item)
         if 0 <= index < len(self.games):
+            logger.debug(f"Game selected from list at index: {index}")
             self.game_selected.emit(self.games[index])

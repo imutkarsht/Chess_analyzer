@@ -111,6 +111,10 @@ class Analyzer:
                 cached_result = None
                 if self.config.get("use_cache", True):
                     cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
+                    if cached_result:
+                        logger.debug("Analysis cache hit.")
+                    else:
+                        logger.debug("Analysis cache miss.")
                 
                 if cached_result:
                     info_list = cached_result

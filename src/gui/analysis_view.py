@@ -673,6 +673,7 @@ class AnalysisPanel(QWidget):
                 return
         self.btn_generate_summary.setEnabled(False)
         self.loading_overlay.start("Generating AI Summary...")
+        logger.info("Starting AI summary generation...")
         self.summary_thread = GenerateSummaryThread(self.gemini_service, self.current_game)
         self.summary_thread.finished.connect(self.on_summary_generated)
         self.summary_thread.start()
@@ -699,6 +700,10 @@ class AnalysisPanel(QWidget):
 
     def on_summary_generated(self, summary):
         self.loading_overlay.stop()
+        if summary.startswith("Error"):
+            logger.error(f"AI Summary generation failed: {summary}")
+        else:
+            logger.info("AI Summary generated successfully.")
         self.current_game.ai_summary = summary
         self.txt_ai_summary.setText(summary)
         self.txt_ai_summary.setVisible(True)

@@ -26,10 +26,9 @@ def setup_logging():
         f_handler.setLevel(logging.DEBUG)
         
         # Create formatters and add it to handlers
-        c_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        f_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        c_handler.setFormatter(c_format)
-        f_handler.setFormatter(f_format)
+        log_fmt = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s', datefmt='%H:%M:%S')
+        c_handler.setFormatter(log_fmt)
+        f_handler.setFormatter(log_fmt)
         
         # Add handlers to the logger
         if not logger.handlers:

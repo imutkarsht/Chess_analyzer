@@ -10,11 +10,12 @@
 
 ## 📸 Screenshots
 
-*(Add screenshots of the application here)*
 
-| Main Interface | Analysis View |
-|:---:|:---:|
-| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/portfolio/Main_window.png) | ![Analysis View](https://ik.imagekit.io/hghxc7q4v/portfolio/analysis.jpg) |
+
+| Analysis View | Settings Tab | Stats Tab |  |
+|:-------------:|:------------:|:---------:|:---:|
+| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/portfolio/cahpv1p2.png) | ![Settings](https://ik.imagekit.io/hghxc7q4v/portfolio/casetv1p2.png) | ![Stats Tab](https://ik.imagekit.io/hghxc7q4v/portfolio/castatsv1p2.png) |  |
+
 
 ## 🚀 Features
 
@@ -53,17 +54,24 @@
     ```
 
 2.  **Create a Virtual Environment (Recommended)**
+    Using [uv](https://github.com/astral-sh/uv) (faster and more reliable):
     ```bash
-    python -m venv venv
+    # Install uv if you haven't already
+    pip install uv
+
+    # Create virtual environment
+    uv venv .venv
+
+    # Activate
     # Windows
-    venv\Scripts\activate
+    .venv\Scripts\activate
     # macOS/Linux
-    source venv/bin/activate
+    source .venv/bin/activate
     ```
 
 3.  **Install Dependencies**
     ```bash
-    pip install -r requirements.txt
+    uv pip install -r requirements.txt
     ```
 
 4.  **Setup Stockfish**
@@ -74,7 +82,7 @@
 
 1.  **Run the Application**
     ```bash
-    python main.py
+    uv main.py
     ```
 
 2.  **Configure Engine**

@@ -41,11 +41,16 @@ def main():
         if os.path.exists(logo_path):
             from PyQt6.QtGui import QIcon
             app.setWindowIcon(QIcon(logo_path))
+            logger.debug(f"App icon set from: {logo_path}")
+        else:
+            logger.warning(f"App icon not found at: {logo_path}")
         
         window = MainWindow()
         window.show()
-        logger.info("MainWindow shown.")
-        sys.exit(app.exec())
+        logger.info("MainWindow shown. Application ready.")
+        exit_code = app.exec()
+        logger.info(f"Application exiting with code: {exit_code}")
+        sys.exit(exit_code)
     except Exception as e:
         logger.critical(f"Unhandled exception: {e}", exc_info=True)
         sys.exit(1)

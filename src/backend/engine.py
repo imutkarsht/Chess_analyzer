@@ -1,7 +1,7 @@
 import chess.engine
 import chess
 from typing import Optional, Dict, Any, Tuple
-import logging
+from ..utils.logger import logger
 
 class EngineManager:
     def __init__(self, engine_path: str):
@@ -19,7 +19,7 @@ class EngineManager:
                 self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
                 self.configure_engine(self.options)
             except Exception as e:
-                logging.error(f"Failed to start engine at {self.engine_path}: {e}")
+                logger.error(f"Failed to start engine at {self.engine_path}: {e}")
                 raise
 
     def stop_engine(self):
@@ -34,7 +34,7 @@ class EngineManager:
                 try:
                     self.engine.configure({name: value})
                 except Exception as e:
-                    logging.warning(f"Could not configure {name}: {e}")
+                    logger.warning(f"Could not configure {name}: {e}")
 
     def analyze_position(self, board: chess.Board, time_limit: float = 0.1, depth: Optional[int] = None, multi_pv: int = 1) -> chess.engine.InfoDict:
         if not self.engine:

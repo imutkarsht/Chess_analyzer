@@ -143,6 +143,7 @@ class MainWindow(QMainWindow):
         self.update()
 
     def switch_page(self, index):
+        logger.debug(f"Switching to page index: {index}")
         self.stack.setCurrentIndex(index)
         if index == 2: # Stats page
             self.metrics_view.refresh()
@@ -262,11 +263,14 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Failed to parse PGN: {e}", exc_info=True)
                 QMessageBox.critical(self, "Error", f"Failed to parse PGN: {e}")
+        else:
+            logger.info("PGN file selection cancelled.")
 
     def load_from_chesscom(self):
         default_user = self.config_manager.get("chesscom_username", "")
         username, ok = QInputDialog.getText(self, "Load from Chess.com", "Enter Chess.com Username:", text=default_user)
         if ok and username:
+            logger.info(f"Attempting to load games for Chess.com user: {username}")
             try:
                 self.statusBar().showMessage(f"Fetching games for {username}...")
                 api = ChessComAPI()
@@ -362,6 +366,7 @@ class MainWindow(QMainWindow):
         default_user = self.config_manager.get("lichess_username", "")
         username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:", text=default_user)
         if ok and username:
+            logger.info(f"Attempting to load games for Lichess user: {username}")
             try:
                 self.statusBar().showMessage(f"Fetching games for {username}...")
                 api = LichessAPI()
@@ -402,6 +407,7 @@ class MainWindow(QMainWindow):
         is_file = os.path.exists(self.engine_path) and os.path.isfile(self.engine_path)
         
         if not (is_in_path or is_file):
+             logger.warning(f"Engine not found at: {self.engine_path}")
              QMessageBox.warning(self, "Engine Not Found", "Please configure the engine path in Settings.")
              self.sidebar.set_active(2) # Go to settings
              self.stack.setCurrentIndex(2)
