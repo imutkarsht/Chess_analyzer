@@ -36,7 +36,14 @@ class PGNParser:
             event=headers.get("Event", "?"),
             date=headers.get("Date", "?"),
             result=headers.get("Result", "*"),
-            headers=headers
+            headers=headers,
+            white_elo=headers.get("WhiteElo"),
+            black_elo=headers.get("BlackElo"),
+            time_control=headers.get("TimeControl"),
+            eco=headers.get("ECO"),
+            termination=headers.get("Termination"),
+            opening=headers.get("Opening"), # Some sites provide this
+            starting_fen=headers.get("FEN")  # If started from position
         )
         
         moves = []

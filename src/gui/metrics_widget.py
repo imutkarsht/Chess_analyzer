@@ -477,7 +477,22 @@ class MetricsWidget(QWidget):
                         acc_count += 1
                 except:
                     pass
+            # Check Best Win
+            is_win = False
+            opponent_elo = 0
             
+            if res == '1-0' and user_color == 'white':
+                is_win = True
+                try: opponent_elo = int(game.get('black_elo', 0))
+                except: opponent_elo = 0
+            elif res == '0-1' and user_color == 'black':
+                is_win = True
+                try: opponent_elo = int(game.get('white_elo', 0))
+                except: opponent_elo = 0
+                
+            if is_win and opponent_elo > best_win_rating:
+                best_win_rating = opponent_elo
+                
         return {
             'total': total,
             'wins': wins,
@@ -485,7 +500,7 @@ class MetricsWidget(QWidget):
             'draws': draws,
             'win_rate': (wins / total * 100) if total else 0,
             'avg_accuracy': (total_acc / acc_count) if acc_count else 0,
-            'best_win': "N/A" # Placeholder
+            'best_win': str(best_win_rating) if best_win_rating > 0 else "N/A"
         }
 
     def _create_result_donut(self, stats):
@@ -578,26 +593,33 @@ class MetricsWidget(QWidget):
         opening_wins = {}
         # ... (same parsing logic)
         for game in self.games_data:
-            pgn = game['pgn']
-            if 'Opening "' in pgn:
-                import re
-                match = re.search(r'\[Opening "([^"]+)"\]', pgn)
-                if match:
-                    op = match.group(1)
-                    # Simplify name
-                    main_name = op.split(":")[0].split(",")[0].strip()
-                    openings[main_name] = openings.get(main_name, 0) + 1
-                    
-                    # Check win
-                    res = game['result']
-                    white = game['white'].lower()
-                    user_color = 'white' if white in [u.lower() for u in self.usernames] else 'black'
-                    win = False
-                    if res == '1-0' and user_color == 'white': win = True
-                    elif res == '0-1' and user_color == 'black': win = True
-                    
-                    if win:
-                        opening_wins[main_name] = opening_wins.get(main_name, 0) + 1
+            # Try to get opening from DB first
+            op_name = game.get("opening")
+            
+            # Fallback to PGN parsing for legacy data
+            if not op_name:
+                pgn = game['pgn']
+                if 'Opening "' in pgn:
+                    import re
+                    match = re.search(r'\[Opening "([^"]+)"\]', pgn)
+                    if match:
+                        op_name = match.group(1)
+            
+            if op_name:
+                # Simplify name
+                main_name = op_name.split(":")[0].split(",")[0].strip()
+                openings[main_name] = openings.get(main_name, 0) + 1
+                
+                # Check win
+                res = game['result']
+                white = game['white'].lower()
+                user_color = 'white' if white in [u.lower() for u in self.usernames] else 'black'
+                win = False
+                if res == '1-0' and user_color == 'white': win = True
+                elif res == '0-1' and user_color == 'black': win = True
+                
+                if win:
+                    opening_wins[main_name] = opening_wins.get(main_name, 0) + 1
                     
         sorted_ops = sorted(openings.items(), key=lambda x: x[1], reverse=True) 
         

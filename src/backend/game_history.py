@@ -16,6 +16,8 @@ class GameHistoryManager:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
+            
+            # 1. Create table with basic schema if not exists
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS games (
                     id TEXT PRIMARY KEY,
@@ -29,6 +31,31 @@ class GameHistoryManager:
                     timestamp REAL
                 )
             """)
+            
+            # 2. Schema Migration: Ensure new columns exist
+            # List of (column_name, column_type)
+            new_columns = [
+                ("white_elo", "TEXT"),
+                ("black_elo", "TEXT"),
+                ("time_control", "TEXT"),
+                ("eco", "TEXT"),
+                ("termination", "TEXT"),
+                ("opening", "TEXT"),
+                ("starting_fen", "TEXT")
+            ]
+            
+            # Check existing columns
+            cursor.execute("PRAGMA table_info(games)")
+            existing_cols = {row[1] for row in cursor.fetchall()}
+            
+            for col_name, col_type in new_columns:
+                if col_name not in existing_cols:
+                    try:
+                        logger.info(f"Migrating DB: Adding column {col_name}")
+                        cursor.execute(f"ALTER TABLE games ADD COLUMN {col_name} {col_type}")
+                    except Exception as e:
+                        logger.error(f"Failed to add column {col_name}: {e}")
+            
             conn.commit()
             conn.close()
         except Exception as e:
@@ -47,8 +74,11 @@ class GameHistoryManager:
             summary_json = json.dumps(game_analysis.summary)
             
             cursor.execute("""
-                INSERT OR REPLACE INTO games (id, white, black, result, date, event, pgn, summary_json, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO games (
+                    id, white, black, result, date, event, pgn, summary_json, timestamp,
+                    white_elo, black_elo, time_control, eco, termination, opening, starting_fen
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 game_id,
                 game_analysis.metadata.white,
@@ -58,7 +88,14 @@ class GameHistoryManager:
                 game_analysis.metadata.event,
                 pgn_content,
                 summary_json,
-                time.time()
+                time.time(),
+                game_analysis.metadata.white_elo,
+                game_analysis.metadata.black_elo,
+                game_analysis.metadata.time_control,
+                game_analysis.metadata.eco,
+                game_analysis.metadata.termination,
+                game_analysis.metadata.opening,
+                game_analysis.metadata.starting_fen
             ))
             
             conn.commit()

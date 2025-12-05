@@ -16,7 +16,10 @@ class GameListItemWidget(QWidget):
         # Header: Players and Result
         header_layout = QHBoxLayout()
         
-        players_label = QLabel(f"<b>{game.metadata.white}</b> vs <b>{game.metadata.black}</b>")
+        w_elo = f" ({game.metadata.white_elo})" if game.metadata.white_elo else ""
+        b_elo = f" ({game.metadata.black_elo})" if game.metadata.black_elo else ""
+        
+        players_label = QLabel(f"<b>{game.metadata.white}{w_elo}</b> vs <b>{game.metadata.black}{b_elo}</b>")
         players_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px;")
         header_layout.addWidget(players_label)
         

@@ -69,10 +69,12 @@ class GeminiService:
             """
             
             response = self.model.generate_content(prompt)
-            if response and response.text:
-                return response.text
-            else:
-                return "Error: Empty response from Gemini."
+            try:
+                if response.text:
+                    return response.text
+                return "No summary generated."
+            except ValueError:
+                return "Summary blocked by safety settings or returned no content."
         except Exception as e:
             logger.error(f"Gemini generation failed: {e}", exc_info=True)
             return f"Error generating summary: {e}"
@@ -101,10 +103,20 @@ class GeminiService:
             """
             
             response = self.model.generate_content(prompt)
-            if response and response.text:
-                return response.text
-            else:
-                return "Error: Empty response from Gemini."
+            try:
+                # Accessing text can raise ValueError if response was blocked/empty
+                if response.text:
+                    return response.text
+                return "No insights generated."
+            except ValueError:
+                error_msg = "No insights generated."
+                try:
+                    # Try to get more info
+                    if response.prompt_feedback and response.prompt_feedback.block_reason:
+                        error_msg = f"Insights blocked by safety filter ({response.prompt_feedback.block_reason.name})."
+                except:
+                    pass
+                return error_msg
         except Exception as e:
             logger.error(f"Gemini insight generation failed: {e}", exc_info=True)
             return f"Error generating insights: {e}"

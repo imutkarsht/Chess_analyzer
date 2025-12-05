@@ -1,7 +1,7 @@
 {
     "engine_path": "D:/Coding/Major Projects/Chess_analyzer/stockfish/stockfish-windows-x86-64-avx2.exe",
     "theme": "dark",
-    "accent_color": "#007ec2",
+    "accent_color": "#c2521b",
     "chesscom_username": "utchess2308",
     "lichess_username": "ImutKarsht"
 }

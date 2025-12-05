@@ -32,6 +32,12 @@ class GameMetadata:
     date: str = "?"
     result: str = "*"
     headers: Dict[str, str] = field(default_factory=dict)
+    starting_fen: Optional[str] = None
+    white_elo: Optional[str] = None
+    black_elo: Optional[str] = None
+    time_control: Optional[str] = None
+    eco: Optional[str] = None
+    termination: Optional[str] = None
     opening: Optional[str] = None
 
 @dataclass

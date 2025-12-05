@@ -60,7 +60,13 @@ class HistoryView(QWidget):
                     black=g_dict["black"],
                     result=g_dict["result"],
                     date=g_dict["date"],
-                    event=g_dict["event"]
+                    event=g_dict["event"],
+                    white_elo=g_dict.get("white_elo"),
+                    black_elo=g_dict.get("black_elo"),
+                    time_control=g_dict.get("time_control"),
+                    eco=g_dict.get("eco"),
+                    opening=g_dict.get("opening"),
+                    termination=g_dict.get("termination")
                 )
                 
                 summary = {}
