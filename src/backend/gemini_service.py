@@ -76,3 +76,35 @@ class GeminiService:
         except Exception as e:
             logger.error(f"Gemini generation failed: {e}", exc_info=True)
             return f"Error generating summary: {e}"
+    def generate_coach_insights(self, stats_text):
+        """
+        Generates coaching insights based on player statistics.
+        """
+        if not self.model:
+            return "Error: Gemini API key not configured."
+
+        try:
+            prompt = f"""
+            You are a chess coach. Analyze the following statistics for your student:
+            
+            {stats_text}
+            
+            Provide 3 specific, actionable, and encouraging insights or tips based on this data.
+            Focus on their win rate, accuracy, and any opening or phase-specific trends implied (e.g., if they win more as clear white, etc).
+            Keep it concise (bullet points).
+            Use emojis where appropriate.
+            
+            Format:
+            1. [Insight 1]
+            2. [Insight 2]
+            3. [Insight 3]
+            """
+            
+            response = self.model.generate_content(prompt)
+            if response and response.text:
+                return response.text
+            else:
+                return "Error: Empty response from Gemini."
+        except Exception as e:
+            logger.error(f"Gemini insight generation failed: {e}", exc_info=True)
+            return f"Error generating insights: {e}"
