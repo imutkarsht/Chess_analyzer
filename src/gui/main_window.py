@@ -83,7 +83,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.analysis_page)
         
         # --- Page 1: History View ---
-        self.history_view = HistoryView()
+        self.history_view = HistoryView(self.config_manager)
         self.history_view.game_selected.connect(self.load_game_from_history)
         self.stack.addWidget(self.history_view)
         

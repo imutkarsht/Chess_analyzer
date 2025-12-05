@@ -25,7 +25,7 @@ class StatCard(QFrame):
         layout.setContentsMargins(10, 10, 10, 10)
         
         lbl_title = QLabel(title)
-        lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px;")
+        lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px;")
         layout.addWidget(lbl_title)
         
         lbl_value = QLabel(value)
@@ -252,12 +252,6 @@ class MetricsWidget(QWidget):
                         acc_count += 1
                 except:
                     pass
-                    
-            # Best Win
-            # Need rating info which might not be in DB columns explicitly but in summary or raw PGN?
-            # Current DB schema has limited columns. We might need to parse PGN or rely on what we have.
-            # For now, let's skip rating parsing to keep it simple or try to extract from PGN if needed.
-            # Actually, let's just show "N/A" if we can't easily get it, or parse PGN headers.
             
         return {
             'total': total,
@@ -333,10 +327,6 @@ class MetricsWidget(QWidget):
         # Similar to before but using self.games_data
         openings = {}
         for game in self.games_data:
-            # We don't have opening in DB columns except 'event'? 
-            # Wait, DB has 'pgn'. We might need to parse PGN or add opening to DB.
-            # Current DB schema: id, white, black, result, date, event, pgn, summary_json, timestamp
-            # We can try to extract from PGN headers in a simple way
             pgn = game['pgn']
             if 'Opening "' in pgn:
                 import re
@@ -348,20 +338,24 @@ class MetricsWidget(QWidget):
                     
         sorted_ops = sorted(openings.items(), key=lambda x: x[1], reverse=True)[:5]
         
-        fig = Figure(figsize=(4, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
+        fig = Figure(figsize=(5, 4), dpi=100, facecolor=Styles.COLOR_SURFACE)
         ax = fig.add_subplot(111)
         ax.set_facecolor(Styles.COLOR_SURFACE)
         
         if sorted_ops:
             names = [x[0] for x in sorted_ops]
             counts = [x[1] for x in sorted_ops]
-            ax.barh(names, counts, color=Styles.COLOR_ACCENT)
+            y_pos = range(len(names))
+            ax.barh(y_pos, counts, color=Styles.COLOR_ACCENT)
+            ax.set_yticks(y_pos)
+            ax.set_yticklabels(names)
             ax.invert_yaxis()
             
         ax.tick_params(colors=Styles.COLOR_TEXT_SECONDARY)
         for spine in ax.spines.values():
             spine.set_visible(False)
             
+        fig.tight_layout()
         canvas = FigureCanvasQTAgg(fig)
         return canvas
 

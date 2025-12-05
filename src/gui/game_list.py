@@ -7,7 +7,7 @@ from .styles import Styles
 from ..utils.logger import logger
 
 class GameListItemWidget(QWidget):
-    def __init__(self, game):
+    def __init__(self, game, usernames=None):
         super().__init__()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 15, 20, 15)
@@ -24,12 +24,40 @@ class GameListItemWidget(QWidget):
         
         result_text = game.metadata.result
         result_color = Styles.COLOR_TEXT_SECONDARY
-        if result_text == "1-0":
-            result_color = Styles.COLOR_BEST # Green
-        elif result_text == "0-1":
-            result_color = Styles.COLOR_BLUNDER # Red
-        elif result_text == "1/2-1/2":
-            result_color = Styles.COLOR_TEXT_SECONDARY # Grey
+        
+        # Determine user color and win/loss
+        user_color = None
+        if usernames:
+            white = game.metadata.white.lower()
+            black = game.metadata.black.lower()
+            known_users = [u.lower() for u in usernames]
+            
+            if white in known_users:
+                user_color = 'white'
+            elif black in known_users:
+                user_color = 'black'
+        
+        if user_color:
+            if result_text == "1-0":
+                if user_color == 'white':
+                    result_color = Styles.COLOR_BEST # Green (Win)
+                else:
+                    result_color = Styles.COLOR_BLUNDER # Red (Loss)
+            elif result_text == "0-1":
+                if user_color == 'black':
+                    result_color = Styles.COLOR_BEST # Green (Win)
+                else:
+                    result_color = Styles.COLOR_BLUNDER # Red (Loss)
+            elif result_text == "1/2-1/2":
+                result_color = Styles.COLOR_TEXT_SECONDARY # Grey
+        else:
+            # Fallback if user not identified
+            if result_text == "1-0":
+                result_color = Styles.COLOR_BEST 
+            elif result_text == "0-1":
+                result_color = Styles.COLOR_BLUNDER 
+            elif result_text == "1/2-1/2":
+                result_color = Styles.COLOR_TEXT_SECONDARY
             
         result_label = QLabel(result_text)
         result_label.setStyleSheet(f"color: {result_color}; font-weight: bold; font-size: 14px;")
@@ -79,13 +107,17 @@ class GameListWidget(QWidget):
         self.list_widget.itemClicked.connect(self.on_item_clicked)
         self.layout.addWidget(self.list_widget)
         self.games = []
+        self.usernames = []
 
-    def set_games(self, games):
+    def set_games(self, games, usernames=None):
         self.games = games
+        if usernames:
+            self.usernames = usernames
+            
         self.list_widget.clear()
         for game in games:
             item = QListWidgetItem(self.list_widget)
-            widget = GameListItemWidget(game)
+            widget = GameListItemWidget(game, self.usernames)
             item.setSizeHint(widget.sizeHint())
             self.list_widget.addItem(item)
             self.list_widget.setItemWidget(item, widget)

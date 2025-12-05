@@ -10,8 +10,9 @@ import logging
 class HistoryView(QWidget):
     game_selected = pyqtSignal(object) # Emits GameAnalysis object
 
-    def __init__(self):
+    def __init__(self, config_manager=None):
         super().__init__()
+        self.config_manager = config_manager
         self.history_manager = GameHistoryManager()
         self.games = []
         
@@ -77,7 +78,13 @@ class HistoryView(QWidget):
                 )
                 self.games.append(game)
             
-            self.game_list.set_games(self.games)
+            usernames = []
+            if self.config_manager:
+                chesscom = self.config_manager.get("chesscom_username", "")
+                lichess = self.config_manager.get("lichess_username", "")
+                usernames = [u for u in [chesscom, lichess] if u]
+                
+            self.game_list.set_games(self.games, usernames)
         except Exception as e:
             logging.error(f"Failed to load history: {e}")
 
