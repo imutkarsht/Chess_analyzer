@@ -61,8 +61,11 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 | **`engine.py`** | **Stockfish Wrapper.** Manages the Stockfish process. Handles starting/stopping the engine and sending UCI commands via `python-chess`. |
 | **`models.py`** | **Data Structures.** Defines `GameAnalysis`, `MoveAnalysis`, and `GameMetadata` dataclasses. These objects are passed around the entire app. |
 | **`pgn_parser.py`** | **PGN Handling.** Reads and parses `.pgn` files or text into `GameAnalysis` objects. |
+
 | **`chess_com_api.py`** | **Chess.com Integration.** Fetches recent games or specific games from Chess.com using their public API. |
+| **`lichess_api.py`** | **Lichess Integration.** Fetches recent games from Lichess.org users. |
 | **`gemini_service.py`** | **AI Summaries.** Connects to Google's Gemini API to generate text summaries of the game based on the analysis data. |
+
 | **`cache.py`** | **Performance.** Caches engine analysis results to avoid re-analyzing known positions. |
 
 ### `src/gui/` (The Face)
@@ -110,12 +113,13 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 4.  The app uses these constants to generate the QSS strings.
 
 ### Scenario D: I want to add a new API (e.g., Lichess).
+> **Note:** Lichess support was added in v1.3! You can check `src/backend/lichess_api.py` for the implementation.
 **Files to create/modify:**
-1.  **Create** `src/backend/lichess_api.py` (copy structure from `chess_com_api.py`).
+1.  **Create** `src/backend/your_new_api.py` (copy structure from `chess_com_api.py`).
 2.  **Modify** `src/gui/main_window.py`:
     *   Import your new API class.
     *   Add a new action to the "Load Game" menu.
-    *   Connect the action to a new method (e.g., `load_from_lichess`) that uses your API class.
+    *   Connect the action to a new method.
 
 ---
 

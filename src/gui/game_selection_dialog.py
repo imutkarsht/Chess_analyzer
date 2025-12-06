@@ -73,9 +73,16 @@ class GameSelectionDialog(QDialog):
             
             # Result
             # result is usually in pgn headers, but here we might have it in game dict
-            # or we can parse it from PGN if needed, but let's just use what we have
-            # Chess.com API returns 'white': {'result': 'win'}, etc.
+            w_res = game.get("white", {}).get("result", "")
+            b_res = game.get("black", {}).get("result", "")
             
+            result_str = ""
+            if w_res == "win": result_str = "1-0"
+            elif b_res == "win": result_str = "0-1"
+            elif any(x in w_res for x in ["agreed", "repetition", "stalemate", "insufficient"]) or \
+                 any(x in b_res for x in ["agreed", "repetition", "stalemate", "insufficient"]):
+                result_str = "1/2-1/2"
+                
             # Time class
             time_class = game.get("time_class", "").capitalize()
             
@@ -83,7 +90,7 @@ class GameSelectionDialog(QDialog):
             end_time = game.get("end_time", 0)
             date_str = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M')
             
-            text = f"{date_str} | {time_class}\n{white} ({white_rating}) vs {black} ({black_rating})"
+            text = f"{date_str} | {time_class} | {result_str}\n{white} ({white_rating}) vs {black} ({black_rating})"
             
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, i)

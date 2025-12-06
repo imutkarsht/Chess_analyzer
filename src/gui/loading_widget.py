@@ -16,20 +16,37 @@ class LoadingOverlay(QWidget):
         self.timer.timeout.connect(self.rotate)
         
         # Layout for optional text
+        # Layout for text
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout.setSpacing(10)
+        
         self.text_label = QLabel("")
-        self.text_label.setStyleSheet("color: white; font-weight: bold; font-size: 14px; background: transparent;")
+        self.text_label.setStyleSheet("color: white; font-weight: bold; font-size: 18px; background: transparent;")
+        
+        self.sub_label = QLabel("")
+        self.sub_label.setStyleSheet("color: #cccccc; font-size: 14px; background: transparent;")
+        
+        from .styles import Styles
+        # Add a central card-like look if desired, or just keep it minimal
+        # For now, minimal is fine, just better typography
+        
         self.layout.addStretch()
-        self.layout.addWidget(self.text_label)
+        self.layout.addSpacing(60) # Space for spinner
+        self.layout.addWidget(self.text_label, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.layout.addWidget(self.sub_label, alignment=Qt.AlignmentFlag.AlignCenter)
         self.layout.addStretch()
 
-    def start(self, text="Loading..."):
+    def start(self, text="Loading...", sub_text=""):
         self.text_label.setText(text)
+        self.sub_label.setText(sub_text)
+        self.sub_label.setVisible(bool(sub_text))
         self.setVisible(True)
         self.raise_()
         self.timer.start(50)
-        self.resize(self.parent().size())
+        parent = self.parent()
+        if parent:
+            self.resize(parent.size())
 
     def stop(self):
         self.timer.stop()
@@ -68,7 +85,7 @@ class LoadingOverlay(QWidget):
             color.setAlphaF(opacity)
             pen.setColor(color)
             painter.setPen(pen)
-            painter.drawLine(radius, 0, radius + 10, 0)
+            painter.drawLine(radius + 5, 0, radius + 15, 0)
 
     def resizeEvent(self, event):
         self.resize(self.parent().size())

@@ -39,13 +39,21 @@ class Analyzer:
         Returns value between 0.0 and 1.0.
         Formula based on Lichess: 50 + 50 * (2 / (1 + exp(-0.00368208 * cp)) - 1)
         """
-        if mate is not None and mate != 0:
+        if mate is not None:
             # Mate in X. 
             if mate > 0:
                 return 1.0
             elif mate < 0:
                 return 0.0
-            # If mate is 0, fall through to cp logic (which will have large value)
+            else:
+                # Mate is 0 (Immediate checkmate).
+                # This should physically imply the game is over.
+                # If we are strictly evaluating a position where someone HAS been checkmated, 
+                # the side whose turn it is loses.
+                # The score is usually relative to side to move (which is the loser).
+                # So relative mate is -0 (or 0 but implies loss).
+                # We return 0.0 (Win prob for side to move is 0).
+                return 0.0
 
         if cp is None:
             return 0.5
@@ -358,6 +366,8 @@ class Analyzer:
                 if in_book:
                     name = self.book_manager.get_opening_name(move.fen_before, move.uci)
                     if name:
+                        # Decrement the count for the move's previous classification
+                        summary_counts[side][move.classification] -= 1
                         move.classification = "Book"
                         opening_name = name
                         # Book moves are perfect
@@ -407,22 +417,7 @@ class Analyzer:
             self.engine_manager.stop_engine()
 
         # Thresholds for WPL (tuned for Chess.com-like feel)
-        if wpl >= 0.20:
-            move.classification = "Blunder"
-        elif wpl >= 0.09:
-            move.classification = "Mistake"
-        elif wpl >= 0.04:
-            move.classification = "Inaccuracy"
-        elif wpl >= 0.01:
-            move.classification = "Good"
-        elif wpl >= 0.00:
-            # If it's effectively 0 loss but not the absolute best move (engine nuance), it's Excellent
-            # If it is the best move (checked above), it returns early.
-            # But wait, we return early for "Best".
-            # So here we are strictly worse than Best.
-            move.classification = "Excellent"
-        else:
-            move.classification = "Best"
+
 
 
 

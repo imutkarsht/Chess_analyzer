@@ -383,6 +383,8 @@ class MetricsWidget(QWidget):
         # Consistent Card Styling for wrappers
         # Result Distribution
         charts_layout.addWidget(self._create_card("Result Distribution", self._create_result_donut(stats), 1))
+        # Win/Ending Type
+        charts_layout.addWidget(self._create_card("Ending Distribution", self._create_termination_donut(), 1))
         # Accuracy Trend
         charts_layout.addWidget(self._create_card("Accuracy Trend", self._create_accuracy_chart(), 2))
         # Move Quality
@@ -398,14 +400,34 @@ class MetricsWidget(QWidget):
         bottom_layout.addWidget(self._create_card("Top Openings", self._create_openings_list(), 1))
         
         # Insights
-        bottom_layout.addWidget(self._create_card("AI Coach Insights", self._create_insights_panel(), 1)) 
+        # Create refresh button for the card header
+        btn_refresh_insights = QPushButton("↻")
+        btn_refresh_insights.setFixedSize(32, 32)
+        btn_refresh_insights.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_refresh_insights.setToolTip("Refresh AI Insights")
+        btn_refresh_insights.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_ACCENT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border-radius: 16px;
+                border: none;
+                font-size: 18px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_ACCENT_HOVER};
+            }}
+        """)
+        btn_refresh_insights.clicked.connect(self._generate_insights)
+        
+        bottom_layout.addWidget(self._create_card("AI Coach Insights", self._create_insights_panel(), 1, action_widget=btn_refresh_insights)) 
         
         layout.addLayout(bottom_layout)
         
         scroll.setWidget(dashboard)
         self.content_layout.addWidget(scroll)
 
-    def _create_card(self, title, widget, stretch=0):
+    def _create_card(self, title, widget, stretch=0, action_widget=None):
         # Professional Dashboard Card
         card = QFrame()
         card.setStyleSheet(f"""
@@ -423,14 +445,20 @@ class MetricsWidget(QWidget):
         layout.setSpacing(15)
         
         if title:
+            header_layout = QHBoxLayout()
             lbl = QLabel(title)
             # Distinct title style matching StatCard
             lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: 600; border: none; background: transparent;")
-            layout.addWidget(lbl)
+            header_layout.addWidget(lbl)
+            
+            header_layout.addStretch()
+            
+            if action_widget:
+                header_layout.addWidget(action_widget)
+                
+            layout.addLayout(header_layout)
             
         layout.addWidget(widget)
-        # Apply stretch to wrapping layout if possible, but here we return card
-        # wrapper HBox handles stretch
         return card
 
     def _calculate_stats(self):
@@ -538,6 +566,129 @@ class MetricsWidget(QWidget):
         canvas = FigureCanvasQTAgg(fig)
         canvas.setStyleSheet("background: transparent;")
         return canvas
+
+    def _create_termination_donut(self):
+        # Categorize games by ending type: Time, Resignation, Checkmate, Abandon
+        
+        counts = {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0, "Draw": 0}
+        
+        for game in self.games_data:
+            term = (game.get("termination") or "").lower()
+            res = game.get("result", "*")
+            
+            # 1. Draws
+            if res == "1/2-1/2":
+                counts["Draw"] += 1
+                continue
+            
+            # 2. Decisive Games
+            # Check termination string first
+            if "time" in term:
+                counts["Time"] += 1
+            elif "resign" in term:
+                counts["Resignation"] += 1
+            elif "abandon" in term:
+                counts["Abandon"] += 1
+            elif "mate" in term:
+                counts["Checkmate"] += 1
+            else:
+                # Fallback heuristics if termination is missing/vague (e.g. "Normal")
+                # Check PGN for checkmate symbol #
+                pgn = game.get("pgn", "")
+                if "#" in pgn:
+                    counts["Checkmate"] += 1
+                else:
+                    # If decisive but no clear reason, usually resignation in online chess
+                    # But could be "Normal" -> Resignation
+                    counts["Resignation"] += 1 
+
+        fig = Figure(figsize=(3, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
+        ax = fig.add_subplot(111)
+        ax.set_facecolor(Styles.COLOR_SURFACE)
+        
+        labels = []
+        sizes = []
+        colors = []
+        
+        # Define colors for ending types
+        type_colors = {
+            "Checkmate": Styles.COLOR_BEST,    # Greenish
+            "Resignation": Styles.COLOR_ACCENT, # Blue
+            "Time": "#e67e22",                 # Orange
+            "Abandon": Styles.COLOR_BLUNDER,    # Red
+            "Draw": "#888888"                  # Grey
+        }
+        
+        # Order: Mate, Resign, Time, Abandon, Draw
+        for k in ["Checkmate", "Resignation", "Time", "Abandon", "Draw"]:
+            v = counts.get(k, 0)
+            if v > 0:
+                labels.append(k)
+                sizes.append(v)
+                colors.append(type_colors.get(k, '#888'))
+        
+        if sizes:
+            wedges, texts, autotexts = ax.pie(sizes, labels=None, autopct='%1.0f%%', 
+                                              startangle=90, colors=colors, pctdistance=0.85,
+                                              textprops=dict(color=Styles.COLOR_TEXT_PRIMARY))
+            
+            # Donut hole
+            centre_circle = matplotlib.patches.Circle((0,0),0.70,fc=Styles.COLOR_SURFACE)
+            fig.gca().add_artist(centre_circle)
+            
+            # Center Text (Total Won/Decisive?)
+            total = sum(sizes)
+            ax.text(0, 0, str(total), ha='center', va='center', fontsize=12, color=Styles.COLOR_TEXT_PRIMARY, weight='bold')
+            
+        else:
+             ax.text(0, 0, "No Data", ha='center', va='center', color=Styles.COLOR_TEXT_SECONDARY)
+
+        canvas = FigureCanvasQTAgg(fig)
+        canvas.setStyleSheet("background: transparent;")
+        
+        # Return container with legend (Re-using Result Donut style implies simple wrapper)
+        # But wait, Result Donut returned just canvas. 
+        # Move Quality returned Container with Legend.
+        # User wants "Along with move distribution metric", likely wants Legend too.
+        
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Canvas
+        layout.addWidget(canvas, stretch=3)
+        
+        # Legend
+        legend_widget = QWidget()
+        legend_layout = QVBoxLayout(legend_widget)
+        legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        legend_layout.setSpacing(8)
+        
+        for i, label in enumerate(labels):
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            
+            # Dot
+            dot = QLabel("●")
+            dot.setStyleSheet(f"color: {colors[i]}; font-size: 16px; border: none; background: transparent;")
+            row.addWidget(dot)
+            
+            # Label
+            lbl_name = QLabel(label)
+            lbl_name.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; border: none; background: transparent;")
+            row.addWidget(lbl_name)
+            
+            # Value
+            lbl_val = QLabel(str(sizes[i]))
+            lbl_val.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 12px; border: none; background: transparent;")
+            row.addWidget(lbl_val)
+            
+            row.addStretch()
+            legend_layout.addLayout(row)
+            
+        layout.addWidget(legend_widget, stretch=2)
+        
+        return container
 
     def _create_accuracy_chart(self):
         fig = Figure(figsize=(5, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
@@ -717,18 +868,21 @@ class MetricsWidget(QWidget):
         self.insights_layout.setContentsMargins(10, 10, 10, 10)
         self.insights_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        # Initial State: Button
-        self.btn_generate = QPushButton("Generate AI Insights (Gemini)")
-        self.btn_generate.setStyleSheet(Styles.get_button_style())
-        self.btn_generate.setCursor(Qt.CursorShape.PointingHandCursor) # Visual cue
-        self.btn_generate.clicked.connect(self._generate_insights)
-        self.insights_layout.addWidget(self.btn_generate, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Initial State: Placeholder Text / Skeleton
+        # Removed the big generate button as we now have a header button
         
-        lbl_placeholder = QLabel("Click to get your coach's summary")
-        lbl_placeholder.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-style: italic; margin-top: 10px;")
+        lbl_placeholder = QLabel("Analysis ready. Click refresh to get insights.")
+        lbl_placeholder.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-style: italic;")
         lbl_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.insights_layout.addWidget(lbl_placeholder)
         
+        # Add a few placeholder lines
+        for _ in range(3):
+            line = QFrame()
+            line.setFixedHeight(12)
+            line.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE_LIGHT}; border-radius: 6px;")
+            self.insights_layout.addWidget(line)
+            
         return self.insights_container
         
     def _generate_insights(self):
@@ -767,46 +921,69 @@ class MetricsWidget(QWidget):
     def _populate_insights(self, insight_text):
         self._clear_layout(self.insights_layout)
         
+        import re
+        
         # Helper to create insight item
         def add_insight(icon, text):
             row = QHBoxLayout()
-            row.setSpacing(10)
+            row.setSpacing(15)
+            row.setAlignment(Qt.AlignmentFlag.AlignTop) # Align top for multi-line text
             
             # Use robust resolve_asset
-            icon_path = resolve_asset(f"{icon}.png")
-            # If not found as png, try svg just in case
-            if not icon_path:
-                 icon_path = resolve_asset(f"{icon}.svg")
+            icon_path = None
+            
+            # Smart icon mapping if string provided
+            if icon.endswith(".png") or icon.endswith(".svg"):
+                 icon_path = resolve_asset(icon)
+            else:
+                 icon_path = resolve_asset(f"{icon}.png")
+                 if not icon_path: icon_path = resolve_asset(f"{icon}.svg")
             
             if icon_path and os.path.exists(icon_path):
                 lbl_icon = QLabel()
                 pixmap = QPixmap(icon_path)
                 if not pixmap.isNull():
-                    pixmap = pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                    # 24x24 for better visibility
+                    pixmap = pixmap.scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                     lbl_icon.setPixmap(pixmap)
                     lbl_icon.setStyleSheet("border: none; background: transparent;")
-                    row.addWidget(lbl_icon)
+                    # Add fixed width container for alignment
+                    icon_container = QWidget()
+                    icon_container.setFixedWidth(30)
+                    icon_layout = QVBoxLayout(icon_container)
+                    icon_layout.setContentsMargins(0,0,0,0)
+                    icon_layout.addWidget(lbl_icon, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+                    row.addWidget(icon_container)
                 else:
                     # Fallback
                     lbl_icon = QLabel("💡") 
-                    lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 16px; border: none; background: transparent;")
+                    lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; border: none; background: transparent;")
                     row.addWidget(lbl_icon)
             else:
                 lbl_icon = QLabel("💡") # Fallback
-                lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 16px; border: none; background: transparent;")
+                lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; border: none; background: transparent;")
                 row.addWidget(lbl_icon)
 
-            lbl_text = QLabel(text)
+            # Clean text: Remove markdown bold (**text**) -> text
+            clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+            # Remove leading/trailing quotes if commonly added by LLM
+            clean_text = clean_text.strip('"').strip("'")
+            # Remove emojis (Basic range)
+            # This regex matches many common emoji ranges and symbols
+            clean_text = re.sub(r'[^\x00-\x7F]+', '', clean_text).strip()
+            
+            # Ensure it starts with capital letter
+            if clean_text and clean_text[0].islower():
+                clean_text = clean_text[0].upper() + clean_text[1:]
+
+            lbl_text = QLabel(clean_text)
             lbl_text.setWordWrap(True)
-            # Basic markdown-like parsing for bolding if needed, but for now just text
-            lbl_text.setText(text) 
-            lbl_text.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; border: none; background: transparent;")
+            lbl_text.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; line-height: 1.4; border: none; background: transparent;")
             row.addWidget(lbl_text, stretch=1)
             
             self.insights_layout.addLayout(row)
 
         # Parse the response (Expect prompt format)
-        # ... (rest of parsing logic)
         
         lines = insight_text.split('\n')
         count = 0
@@ -814,19 +991,35 @@ class MetricsWidget(QWidget):
             line = line.strip()
             if not line: continue
             
-            # Heuristic parsing
-            if line[0].isdigit() and ('.' in line or ')' in line):
-                 # It's an insight point
-                 clean_text = line.split('.', 1)[-1].strip()
-                 if not clean_text: clean_text = line.split(')', 1)[-1].strip()
+            # Heuristic parsing for bullet points or numbered lists
+            # Logic: If it looks like a list item, extract text and guess icon
+            
+            is_item = False
+            content = line
+            
+            # Check for "1. ", "- ", "* "
+            if line[0].isdigit() and ('.' in line[:4] or ')' in line[:4]):
+                parts = line.split('.', 1)
+                if len(parts) > 1: content = parts[1].strip()
+                else: content = line.split(')', 1)[-1].strip()
+                is_item = True
+            elif line.startswith('- ') or line.startswith('* '):
+                content = line[2:].strip()
+                is_item = True
+            
+            # Even if not strict list, if it's substantial text, treat as insight
+            if len(content) > 20: 
+                 # Heuristic Icon Selection
+                 lower_text = content.lower()
+                 icon = "idea" # Default
                  
-                 icon = "idea" # Generic icon
-                 if "opening" in clean_text.lower(): icon = "opening_icon"
-                 elif "endgame" in clean_text.lower(): icon = "phase_icon"
-                 elif "accuracy" in clean_text.lower(): icon = "accuracy" # Re-mapped to accuracy.png
-                 elif "win" in clean_text.lower(): icon = "win_rate"
+                 if "opening" in lower_text: icon = "opening_icon.png"
+                 elif any(x in lower_text for x in ["endgame", "mate", "queen"]): icon = "phase_icon.png"
+                 elif any(x in lower_text for x in ["accuracy", "precision", "blunder"]): icon = "accuracy.png"
+                 elif any(x in lower_text for x in ["win", "momentum", "streak", "victory"]): icon = "win_rate.png"
+                 elif any(x in lower_text for x in ["best", "great", "brilliant"]): icon = "best_v2.svg"
                  
-                 add_insight(icon, clean_text)
+                 add_insight(icon, content)
                  count += 1
         
         if count == 0:

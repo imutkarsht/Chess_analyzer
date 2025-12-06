@@ -1,5 +1,35 @@
 # Patch Notes
 
+## v1.3 - Data, UI Polish & AI Coach
+
+### New Features
+- **Lichess Support**: 
+    - Added ability to load games directly from **Lichess.org** usernames.
+    - Application now remembers your last used Lichess username.
+- **Loading Experience**:
+    - Implemented a **Beautiful UI Loader** that displays a non-blocking overlay while fetching games from online APIs (Chess.com/Lichess).
+- **Ending Distribution**:
+    - Added a new **Ending Distribution** chart to the Metrics Dashboard, visualizing game outcomes by type (Checkmate, Resignation, Time, Abandon).
+
+### Improvements
+- **AI Coach Insights**:
+    - Completely refreshed the **AI Coach** section with a cleaner UI.
+    - Added a specific **Refresh Button** for generating insights.
+    - Improved text processing to remove markdown/emojis for a professional look.
+    - Added "Placeholder" state for better UX before analysis.
+- **Metrics Dashboard**:
+    - Enhanced visual styling of the Saved Games section.
+- **Game List**:
+    - Game results (1-0, 0-1, etc.) are now clearly visible in the "Select Game" dialog list.
+- **Data Enrichment**:
+    - Database now stores richer metadata including **Opening**, **Player Ratings**, **Termination**, and **FEN**.
+    - Added support for saving usernames to `config.json` for convenience.
+
+### Bug Fixes
+- **Analysis Accuracy**:
+    - Fixed a critical bug where **Checkmates** were sometimes incorrectly classified as **Blunders**.
+    - Fixed a **Move Count Mismatch** where "Book" moves were being double-counted in summaries.
+
 ## v1.2 - UI Overhaul & Metrics Dashboard
 
 ### New Features

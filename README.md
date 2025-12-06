@@ -12,9 +12,9 @@
 
 
 
-| Analysis View | Settings Tab | Stats Tab |  |
+| Analysis View | Stats Tab | Settings Tab | History Tab |
 |:-------------:|:------------:|:---------:|:---:|
-| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/portfolio/cahpv1p2.png) | ![Settings](https://ik.imagekit.io/hghxc7q4v/portfolio/casetv1p2.png) | ![Stats Tab](https://ik.imagekit.io/hghxc7q4v/portfolio/castatsv1p2.png) |  |
+| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/home.png) | ![Stats Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/stats.png) | ![Settings Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/settings.png) | ![History Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/history.png) |
 
 
 ## 🚀 Features
@@ -23,7 +23,9 @@
 - **Stockfish Integration**: Leverages the world's strongest chess engine for deep, move-by-move analysis.
 - **Move Classification**: Automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss).
 - **Win Probability**: Calculates and displays win probability swings for every move.
+
 - **Opening Explorer**: Identifies openings and variations using a built-in book and online APIs.
+- **Ending Analysis**: Charts game outcomes by type (Checkmate, Time, Resignation).
 
 ### User Interface
 - **Interactive Board**: Fully functional chessboard with drag-and-drop support and visual move indicators.
@@ -34,6 +36,7 @@
 ### Import & Export
 - **PGN Support**: Robust parsing for single and multi-game PGN files.
 - **Chess.com Import**: Directly import games from Chess.com users or specific game URLs.
+- **Lichess Import**: Import games directly from Lichess.org usernames.
 
 ### Audio & Visuals
 - **Sound Effects**: Immersive audio feedback for moves, captures, checks, castles, and game completion.
@@ -92,6 +95,8 @@
 3.  **Load a Game**
     - **File > Open PGN...**: Load a local `.pgn` file.
     - **File > Load from Chess.com User...**: Fetch recent games for a specific user.
+
+    - **File > Load from Lichess User...**: Fetch recent games for a Lichess user.
     - **File > Load from Chess.com URL...**: Analyze a specific game URL.
 
 4.  **Analyze**
