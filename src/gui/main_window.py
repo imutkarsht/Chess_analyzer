@@ -415,6 +415,22 @@ class MainWindow(QMainWindow):
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
     
     def load_from_lichess(self):
+        # Check for token first
+        token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
+        if not token:
+            reply = QMessageBox.question(
+                self, 
+                "Lichess Token Missing", 
+                "Lichess API token is not configured. You need a token to load games.\n\nWould you like to configure it in Settings now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.sidebar.set_active(3) # Settings
+                self.stack.setCurrentIndex(3)
+                if hasattr(self, 'settings_view') and hasattr(self.settings_view, 'lichess_token_input'):
+                    self.settings_view.lichess_token_input.setFocus()
+            return
+
         default_user = self.config_manager.get("lichess_username", "")
         username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:", text=default_user)
         if ok and username:

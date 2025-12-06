@@ -60,9 +60,19 @@ class SettingsView(QWidget):
         self.gemini_input.setText(self.config_manager.get("gemini_api_key", ""))
         self.gemini_input.setStyleSheet(f"padding: 8px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
         
+        self.lichess_token_input = QLineEdit()
+        self.lichess_token_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.lichess_token_input.setStyleSheet(f"padding: 8px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+
         lbl = QLabel("Gemini API Key:")
         lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
+        
+        lbl_lichess = QLabel("Lichess API Token:")
+        lbl_lichess.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
+        
         api_layout.addRow(lbl, self.gemini_input)
+        api_layout.addRow(lbl_lichess, self.lichess_token_input)
         
         self.save_api_btn = QPushButton("Save API Key")
         self.save_api_btn.setStyleSheet(Styles.get_button_style())
@@ -203,8 +213,10 @@ class SettingsView(QWidget):
 
     def save_api_key(self):
         key = self.gemini_input.text()
+        lichess_token = self.lichess_token_input.text()
         self.config_manager.set("gemini_api_key", key)
-        QMessageBox.information(self, "Saved", "Gemini API Key saved successfully.")
+        self.config_manager.set("lichess_token", lichess_token)
+        QMessageBox.information(self, "Saved", "API Keys saved successfully.")
 
     def save_usernames(self):
         chesscom = self.chesscom_input.text()

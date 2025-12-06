@@ -5,7 +5,10 @@ block_cipher = None
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=[
+        (r'C:\Users\Utkarsh Tiwari\AppData\Roaming\uv\python\cpython-3.13.9-windows-x86_64-none\DLLs\libssl-3-x64.dll', '.'),
+        (r'C:\Users\Utkarsh Tiwari\AppData\Roaming\uv\python\cpython-3.13.9-windows-x86_64-none\DLLs\libcrypto-3-x64.dll', '.')
+    ],
     datas=[('assets', 'assets'), ('.env.sample', '.')],
     hiddenimports=['chess', 'PyQt6', 'google.generativeai', 'dotenv', 'PyQt6.QtSvg'],
     hookspath=[],
