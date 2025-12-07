@@ -10,3 +10,4 @@ chess_analyzer.log
 analysis_cache.db
 /diagrams
 upcoming_changes.md
+*.csv

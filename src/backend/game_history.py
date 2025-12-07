@@ -189,6 +189,19 @@ class GameHistoryManager:
             logger.error(f"Failed to get game {game_id}: {e}")
             return None
 
+    def game_exists(self, game_id: str) -> bool:
+        """Checks if a game with the given ID already exists."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 FROM games WHERE id = ?", (game_id,))
+            exists = cursor.fetchone() is not None
+            conn.close()
+            return exists
+        except Exception as e:
+            logger.error(f"Failed to check game existence: {e}")
+            return False
+
     def clear_history(self):
         """Clears all games from history."""
         try:

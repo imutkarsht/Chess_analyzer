@@ -145,6 +145,46 @@ class Styles:
                 background-color: {cls.COLOR_ACCENT};
             }}
         """
+
+    @classmethod
+    def get_export_button_style(cls):
+        return f"""
+            QPushButton {{
+                background-color: #2D5A27; /* Dark Green */
+                color: white;
+                border: 1px solid {cls.COLOR_BORDER};
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #387030;
+            }}
+            QPushButton:pressed {{
+                background-color: #1E3C1A;
+            }}
+        """
+
+    @classmethod
+    def get_import_button_style(cls):
+        return f"""
+            QPushButton {{
+                background-color: #2D4059; /* Dark Blue */
+                color: white;
+                border: 1px solid {cls.COLOR_BORDER};
+                border-radius: 4px;
+                padding: 6px 12px;
+                font-size: 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #3A5375;
+            }}
+            QPushButton:pressed {{
+                background-color: #1F2D3F;
+            }}
+        """
     
     @classmethod
     def get_button_style(cls):

@@ -20,26 +20,50 @@ class HistoryView(QWidget):
         self.layout.setContentsMargins(20, 20, 20, 20)
         self.layout.setSpacing(20)
         
-        # Header
-        header = QLabel("Game History")
-        header.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};")
-        self.layout.addWidget(header)
+        # Header Row
+        header_layout = QHBoxLayout()
+        
+        # Title
+        header_lbl = QLabel("Game History")
+        header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};")
+        header_layout.addWidget(header_lbl)
+        
+        header_layout.addStretch()
+        
+        # Refresh Button (Top-Right)
+        self.btn_refresh = QPushButton("Refresh")
+        self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
+        self.btn_refresh.clicked.connect(self.load_history)
+        header_layout.addWidget(self.btn_refresh)
+        
+        self.layout.addLayout(header_layout)
         
         # Game List
         self.game_list = GameListWidget()
         self.game_list.game_selected.connect(self.on_game_selected)
         self.layout.addWidget(self.game_list)
         
-        # Buttons
+        # Bottom Buttons
         btn_layout = QHBoxLayout()
         
-        self.btn_refresh = QPushButton("Refresh")
-        self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
-        self.btn_refresh.clicked.connect(self.load_history)
-        btn_layout.addWidget(self.btn_refresh)
+        # Import/Export (Bottom-Left)
+        from PyQt6.QtWidgets import QStyle
+        
+        self.btn_export = QPushButton(" Export Games")
+        self.btn_export.setStyleSheet(Styles.get_export_button_style())
+        self.btn_export.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
+        self.btn_export.clicked.connect(self.export_games)
+        btn_layout.addWidget(self.btn_export)
+        
+        self.btn_import = QPushButton(" Import Games")
+        self.btn_import.setStyleSheet(Styles.get_import_button_style())
+        self.btn_import.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton))
+        self.btn_import.clicked.connect(self.import_games)
+        btn_layout.addWidget(self.btn_import)
         
         btn_layout.addStretch()
         
+        # Clear History (Bottom-Right)
         self.btn_clear = QPushButton("Clear History")
         self.btn_clear.setStyleSheet(f"background-color: {Styles.COLOR_BLUNDER}; color: white; border: none; padding: 8px 16px; border-radius: 4px;")
         self.btn_clear.clicked.connect(self.clear_history)
@@ -107,3 +131,104 @@ class HistoryView(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             self.history_manager.clear_history()
             self.load_history()
+
+    def export_games(self):
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            import csv
+            
+            file_name, _ = QFileDialog.getSaveFileName(self, "Export Games", "games.csv", "CSV Files (*.csv)")
+            if not file_name:
+                return
+                
+            history_games = self.history_manager.get_all_games()
+            if not history_games:
+                QMessageBox.information(self, "No Games", "No games to export.")
+                return
+
+            # Determine fields. We'll use database keys as headers.
+            # Sample first game to get keys, but ensure consistent order
+            fieldnames = ["id", "white", "black", "result", "date", "event", "white_elo", "black_elo", 
+                          "time_control", "eco", "termination", "opening", "pgn", "summary_json", "timestamp", "starting_fen"]
+            
+            with open(file_name, mode='w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                
+                for game_dict in history_games:
+                    # Filter dict to only fieldnames (in case of extras)
+                    row = {k: game_dict.get(k) for k in fieldnames}
+                    writer.writerow(row)
+                    
+            QMessageBox.information(self, "Success", f"Exported {len(history_games)} games to {file_name}.")
+            
+        except Exception as e:
+            logging.error(f"Export failed: {e}")
+            QMessageBox.critical(self, "Export Error", f"Failed to export games: {e}")
+
+    def import_games(self):
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+            import csv
+            import time
+            
+            file_name, _ = QFileDialog.getOpenFileName(self, "Import Games", "", "CSV Files (*.csv)")
+            if not file_name:
+                return
+                
+            imported_count = 0
+            skipped_count = 0
+            
+            with open(file_name, mode='r', newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                
+                for row in reader:
+                    game_id = row.get("id")
+                    if not game_id:
+                        continue # Skip invalid rows
+                        
+                    # Check existence
+                    if self.history_manager.game_exists(game_id):
+                        skipped_count += 1
+                        continue
+                        
+                    
+                    try:
+                        summary = {}
+                        if row.get("summary_json"):
+                            summary = json.loads(row.get("summary_json"))
+                            
+                        metadata = GameMetadata(
+                            white=row.get("white"),
+                            black=row.get("black"),
+                            result=row.get("result"),
+                            date=row.get("date"),
+                            event=row.get("event"),
+                            white_elo=row.get("white_elo"),
+                            black_elo=row.get("black_elo"),
+                            time_control=row.get("time_control"),
+                            eco=row.get("eco"),
+                            termination=row.get("termination"),
+                            opening=row.get("opening"),
+                            starting_fen=row.get("starting_fen")
+                        )
+                        
+                        game = GameAnalysis(
+                            game_id=game_id,
+                            metadata=metadata,
+                            pgn_content=row.get("pgn"),
+                            summary=summary
+                        )
+                        
+                        self.history_manager.save_game(game, row.get("pgn"))
+                        imported_count += 1
+                        
+                    except Exception as row_e:
+                        logging.warning(f"Failed to parse row {game_id}: {row_e}")
+                        
+            self.load_history()
+            QMessageBox.information(self, "Import Complete", f"Imported: {imported_count}\nSkipped (Existing): {skipped_count}")
+            
+        except Exception as e:
+            logging.error(f"Import failed: {e}")
+            QMessageBox.critical(self, "Import Error", f"Failed to import games: {e}")
