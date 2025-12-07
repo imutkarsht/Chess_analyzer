@@ -158,47 +158,47 @@ class AnalysisLinesWidget(QFrame):
         """)
         
         self.layout = QVBoxLayout(self)
-        self.layout.setSpacing(5)
-        self.layout.setContentsMargins(5, 5, 5, 5)
+        self.layout.setSpacing(8)
+        self.layout.setContentsMargins(10, 10, 10, 10)
         
+        self.rows = [] # List of (widget, lbl_depth, lbl_eval, lbl_pv) tuples
         self.lines_layout = QVBoxLayout()
+        self.lines_layout.setSpacing(8)
         self.layout.addLayout(self.lines_layout)
+        self.layout.addStretch() # Push lines to top
+
+    def clear(self):
+        """Clears all analysis lines."""
+        for row_data in self.rows:
+            row_data[0].hide()
+        # We keep the widgets in self.rows to reuse them later, just hide them.
         
+        # Or if we want to show a "No analysis" message
+        # For now, just hiding is fine.
+
     def update_lines(self, multi_pvs, turn_color):
-        self._clear_layout(self.lines_layout)
         
         if not multi_pvs:
-            lbl = QLabel("No analysis available")
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-style: italic;")
-            self.lines_layout.addWidget(lbl)
+            self.clear()
             return
+
+        # Ensure we have enough rows
+        while len(self.rows) < len(multi_pvs):
+            self._create_row()
             
-        # Sort by multipv id if available, or score?
-        # Usually sorted by score descending (for White) or ascending (for Black)
-        # But engine usually returns them in order of multipv id (1 is best).
-        
-        # If live analysis, we might get partial updates.
-        # We should probably store the lines and update them individually?
-        # For now, full redraw is fine.
-        
+        # Update rows
         for i, pv_data in enumerate(multi_pvs):
-            # Create a row for each line
-            row_widget = QWidget()
-            row_layout = QHBoxLayout(row_widget)
-            row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(10)
+            row_widget, lbl_depth, lbl_eval, lbl_pv = self.rows[i]
+            row_widget.show()
             
-            # Depth (if available)
+            # Depth
             depth = pv_data.get("depth", "?")
-            lbl_depth = QLabel(f"d{depth}")
-            lbl_depth.setFixedWidth(30)
-            lbl_depth.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 10px;")
-            row_layout.addWidget(lbl_depth)
+            lbl_depth.setText(f"d{depth}")
             
             # Eval
             score_val = pv_data.get("score_value", "?")
-            
             display_score = score_val
+            score_color = Styles.COLOR_TEXT_PRIMARY
             
             try:
                 if not score_val.startswith("M"):
@@ -206,37 +206,65 @@ class AnalysisLinesWidget(QFrame):
                     if turn_color == chess.BLACK:
                         val = -val
                     display_score = f"{val:+.2f}"
+                    
+                    # Color coding
+                    if val > 0.5: score_color = Styles.COLOR_BEST     # Greenish
+                    elif val < -0.5: score_color = Styles.COLOR_BLUNDER # Redish
+                    
             except:
                 pass
-
-            lbl_eval = QLabel(display_score)
-            lbl_eval.setFixedWidth(50)
-            lbl_eval.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
-            row_layout.addWidget(lbl_eval)
+                
+            lbl_eval.setText(display_score)
+            lbl_eval.setStyleSheet(f"color: {score_color}; font-weight: bold; font-family: monospace;")
             
-            # PV (SAN preferred)
+            # PV
             pv_text = pv_data.get("pv_san", "")
             if not pv_text:
                 pv_moves = pv_data.get("pv", [])
-                pv_text = " ".join(pv_moves[:3]) # Fallback to UCI, truncated
+                pv_text = " ".join(pv_moves[:5]) 
             else:
-                # Truncate SAN PV to 3 full moves (approx 9 tokens: 1. w b 2. w b 3. w b)
-                tokens = pv_text.split()
-                if len(tokens) > 9:
-                    pv_text = " ".join(tokens[:9]) + " ..."
+                # Better truncation or wrapping
+                # Just show as much as possible for now
+                pass
             
-            lbl_pv = QLabel(pv_text)
-            lbl_pv.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY};")
-            lbl_pv.setWordWrap(True)
-            row_layout.addWidget(lbl_pv)
-            
-            self.lines_layout.addWidget(row_widget)
+            lbl_pv.setText(pv_text)
+
+        # Hide unused rows
+        for i in range(len(multi_pvs), len(self.rows)):
+            self.rows[i][0].hide()
+
+    def _create_row(self):
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(10)
+        
+        # Depth
+        lbl_depth = QLabel("d0")
+        lbl_depth.setFixedWidth(40)
+        lbl_depth.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px;")
+        row_layout.addWidget(lbl_depth)
+        
+        # Eval
+        lbl_eval = QLabel("+0.00")
+        lbl_eval.setFixedWidth(60)
+        lbl_eval.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
+        lbl_eval.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        row_layout.addWidget(lbl_eval)
+        
+        # PV
+        lbl_pv = QLabel("")
+        lbl_pv.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_pv.setWordWrap(True) # Wrap text
+        lbl_pv.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        row_layout.addWidget(lbl_pv)
+        
+        self.lines_layout.addWidget(row_widget)
+        self.rows.append((row_widget, lbl_depth, lbl_eval, lbl_pv))
 
     def _clear_layout(self, layout):
-        while layout.count():
-            child = layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        # Deprecated, not used in optimized version
+        pass
 
 class GameControlsWidget(QWidget):
     first_clicked = pyqtSignal()
@@ -569,9 +597,11 @@ class AnalysisPanel(QWidget):
         
     def refresh(self):
         if not self.current_game:
+            self.lines_widget.clear()
             return
             
         try:
+            self.lines_widget.clear() # Clear old lines initially or let live analysis fill them
             self.graph_widget.plot_game(self.current_game)
             self._update_summary(self.current_game.summary)
             
