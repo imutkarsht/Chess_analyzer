@@ -248,6 +248,10 @@ class MainWindow(QMainWindow):
         action_pgn = QAction("From PGN File", self)
         action_pgn.triggered.connect(self.open_pgn)
         load_menu.addAction(action_pgn)
+
+        action_pgn_text = QAction("From PGN text", self)
+        action_pgn_text.triggered.connect(self.load_from_pgn_text)
+        load_menu.addAction(action_pgn_text)
         
         action_user = QAction("From Chess.com User", self)
         action_user.triggered.connect(self.load_from_chesscom)
@@ -274,6 +278,37 @@ class MainWindow(QMainWindow):
         
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 600, 350])
+
+    def load_from_pgn_text(self):
+        text, ok = QInputDialog.getMultiLineText(
+            self,
+            "Load PGN",
+            "Paste your PGN below:"
+        )
+        if ok and text.strip():
+            logger.info("PGN obtained from textline entry...")
+            try:
+                parsed_games = PGNParser.parse_pgn_text(text)
+                
+                # Validation: A valid game must have moves OR a starting FEN (position setup)
+                valid_games = []
+                for game in parsed_games:
+                    if game.moves or game.metadata.starting_fen:
+                        valid_games.append(game)
+                
+                if valid_games:
+                    self.games = valid_games
+                    self.load_game(self.games[0])
+                    logger.info(f"Loaded {len(self.games)} valid games.")
+                else:
+                    logger.warning("No valid games found in PGN text (no moves or setup).")
+                    QMessageBox.warning(self, "Invalid PGN", "No valid games found in the provided text.\nPlease ensure it contains moves or a FEN setup.")
+            except Exception as e:
+                logger.error(f"Failed to parse PGN: {e}", exc_info=True)
+                QMessageBox.critical(self, "Error", f"Failed to parse PGN: {e}")
+        else:
+            logger.info("PGN text entry cancelled or empty.")
+
 
     def open_pgn(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open PGN File", "", "PGN Files (*.pgn);;All Files (*)")

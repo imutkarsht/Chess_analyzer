@@ -67,9 +67,14 @@ class PGNParser:
             moves.append(move_analysis)
             board.push(move)
             
+        # Use hash of PGN content as ID to prevent duplicates
+        import hashlib
+        pgn_content = str(game)
+        game_id = hashlib.md5(pgn_content.encode('utf-8')).hexdigest()
+
         return GameAnalysis(
-            game_id=str(uuid.uuid4()),
+            game_id=game_id,
             metadata=metadata,
             moves=moves,
-            pgn_content=str(game)
+            pgn_content=pgn_content
         )
