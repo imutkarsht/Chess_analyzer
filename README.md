@@ -6,6 +6,9 @@
 
 ![Chess Analyzer Pro Logo](assets/images/logo.png)
 
+> 🌐 **Official Website:** [chess-analyzer-ut.vercel.app](https://chess-analyzer-ut.vercel.app/)  
+> Visit the official site for detailed documentation, latest updates, and to report bugs or request features.
+
 **Chess Analyzer Pro** is a powerful, full-stack Python desktop application designed to bring professional-grade chess analysis to your local machine. Inspired by platforms like Chess.com, it combines the robust analysis capabilities of Stockfish with a sleek, responsive PyQt6 interface.
 
 ## 📸 Screenshots
@@ -41,6 +44,23 @@
 ### Audio & Visuals
 - **Sound Effects**: Immersive audio feedback for moves, captures, checks, castles, and game completion.
 - **Themes**: Modern dark theme for reduced eye strain during long analysis sessions.
+
+## 💻 Tech Stack
+- **Core**: Python 3.10+
+- **GUI**: PyQt6 (Modern, responsive desktop interface)
+- **Engine**: Stockfish (Via UCI protocol for world-class analysis)
+- **Database**: **SQLite** references locally (`analysis_cache.db`) to cache analysis results, ensuring instant loading for previously analyzed games.
+- **Config**: Local `config.json` for persistent user settings.
+- **Integrations**: 
+  - **Google Gemini**: AI-powered natural language game summaries.
+  - **Lichess & Chess.com**: Direct game import APIs.
+
+## 🔒 Data Privacy & Local Storage
+We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" application.
+
+- **Local Database**: All analysis data and game history are stored in a local SQLite database (`analysis_cache.db`).
+- **No Cloud Uploads**: Your games and moves are **never** uploaded to our servers. Analysis happens entirely on your machine using the bundled Stockfish engine.
+- **Secure Config**: API keys (Gemini, Lichess) are stored locally in `config.json` and are never shared.
 
 ## 🛠️ Installation
 
