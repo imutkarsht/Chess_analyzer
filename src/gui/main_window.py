@@ -115,6 +115,7 @@ class MainWindow(QMainWindow):
         
         # --- Page 2: Metrics View ---
         self.metrics_view = MetricsWidget(self.config_manager, self.history_manager)
+        self.metrics_view.request_settings.connect(lambda: (self.sidebar.set_active(3), self.stack.setCurrentIndex(3)))
         self.stack.addWidget(self.metrics_view)
         
         # --- Page 3: Settings View ---
@@ -639,8 +640,8 @@ class MainWindow(QMainWindow):
         if not (is_in_path or is_file):
              logger.warning(f"Engine not found at: {self.engine_path}")
              QMessageBox.warning(self, "Engine Not Found", "Please configure the engine path in Settings.")
-             self.sidebar.set_active(2) # Go to settings
-             self.stack.setCurrentIndex(2)
+             self.sidebar.set_active(3) # Go to settings
+             self.stack.setCurrentIndex(3)
              return
 
         logger.info("Starting analysis...")

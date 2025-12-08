@@ -1159,10 +1159,7 @@ class MetricsWidget(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
+    request_settings = pyqtSignal()
+
     def go_to_settings(self):
-        # Find main window and switch tab
-        window = self.window()
-        if hasattr(window, "sidebar"):
-            window.sidebar.set_active(2) # Settings index
-        if hasattr(window, "stack"):
-            window.stack.setCurrentIndex(2)
+        self.request_settings.emit()
