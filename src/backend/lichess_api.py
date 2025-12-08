@@ -5,6 +5,7 @@ import sys
 import json
 from typing import List, Dict
 from ..utils.config import ConfigManager
+from ..utils.logger import logger
 
 class LichessAPI:
     BASE_URL = "https://lichess.org/api/games/user"
@@ -79,7 +80,7 @@ class LichessAPI:
 
 
         except Exception as e:
-            print("Error fetching games:", e)
+            logger.error(f"Error fetching games: {e}")
             return []
 
     def extract_game_id(self, url: str) -> str:
@@ -145,7 +146,7 @@ class LichessAPI:
             }
             
         except Exception as e:
-            print(f"Error fetching game {game_id}: {e}")
+            logger.error(f"Error fetching game {game_id}: {e}")
             return {}
 
 

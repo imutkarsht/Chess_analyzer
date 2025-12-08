@@ -57,7 +57,6 @@ class PGNParser:
         
         moves = []
         board = game.board()
-        move_number = 1
         
         for i, node in enumerate(game.mainline()):
             move = node.move

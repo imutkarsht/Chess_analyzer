@@ -1,4 +1,3 @@
-from PyQt6.QtGui import QColor
 
 class Styles:
     # Color Palette

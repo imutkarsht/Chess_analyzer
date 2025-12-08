@@ -1,8 +1,9 @@
+import os
+import sys
 from PyQt6.QtWidgets import (QListWidget, QListWidgetItem, QVBoxLayout, QWidget, QLabel, 
                              QHBoxLayout, QFrame)
 from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtGui import QColor
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QPixmap
 from .styles import Styles
 from ..utils.logger import logger
 
@@ -17,10 +18,6 @@ class GameListItemWidget(QWidget):
         header_layout = QHBoxLayout()
 
         # Source Icon
-        # Source Icon
-        import os
-        import sys
-        
         source = getattr(game.metadata, "source", "file")
         
         # Robust path finding
@@ -55,7 +52,6 @@ class GameListItemWidget(QWidget):
             
         icon_label = QLabel()
         icon_pixmap = None
-        from PyQt6.QtGui import QPixmap
         
         if os.path.exists(icon_path):
              icon_pixmap = QPixmap(icon_path)

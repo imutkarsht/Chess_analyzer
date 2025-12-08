@@ -6,6 +6,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtWidgets import QMenu
+import shutil
 
 from .board_widget import BoardWidget
 from .analysis_view import MoveListPanel, AnalysisPanel, CapturedPiecesWidget, GameControlsWidget
@@ -24,7 +26,6 @@ from ..backend.chess_com_api import ChessComAPI
 from ..backend.lichess_api import LichessAPI
 from .styles import Styles
 from ..backend.models import MoveAnalysis, GameAnalysis, GameMetadata
-from ..backend.game_history import GameHistoryManager
 from ..backend.game_history import GameHistoryManager
 from ..utils.path_utils import get_resource_path
 from .loading_widget import LoadingOverlay
@@ -234,15 +235,12 @@ class MainWindow(QMainWindow):
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
         
         # Buttons
-        # Buttons
         btn_layout = QHBoxLayout()
         
         # Load Game Button with Menu
         self.btn_load = QPushButton("Load Game")
         self.btn_load.setStyleSheet(Styles.get_control_button_style())
         
-        from PyQt6.QtWidgets import QMenu
-        from PyQt6.QtGui import QAction
         load_menu = QMenu(self)
         menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
         load_menu.setStyleSheet(menu_style)
@@ -355,36 +353,43 @@ class MainWindow(QMainWindow):
         default_user = self.config_manager.get("chesscom_username", "")
         username, ok = QInputDialog.getText(self, "Load from Chess.com", "Enter Chess.com Username:", text=default_user)
         if ok and username:
-            logger.info(f"Attempting to load games for Chess.com user: {username}")
-            
-            self.loading_overlay.start("Fetching games...", f"Getting recent games for {username}")
-            self.statusBar().showMessage(f"Fetching games for {username}...")
-            
-            # Create worker
-            api = ChessComAPI()
-            self.api_worker = APILoaderWorker(api.get_last_games, username, limit=5)
-            self.api_worker.finished.connect(lambda games: self.on_games_loaded(games, username, "Chess.com"))
-            self.api_worker.error.connect(self.on_api_error)
-            self.api_worker.finished.connect(self.loading_overlay.stop)
-            self.api_worker.error.connect(lambda _: self.loading_overlay.stop())
-            self.api_worker.start()
+            self._load_games_from_api(
+                ChessComAPI().get_last_games, 
+                username, 
+                "Chess.com", 
+                limit=5
+            )
 
-    def load_from_lichess(self):
-        default_user = self.config_manager.get("lichess_username", "")
-        username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:", text=default_user)
-        if ok and username:
-            logger.info(f"Attempting to load games for Lichess user: {username}")
-            
-            self.loading_overlay.start("Fetching games...", f"Getting recent games for {username}")
-            self.statusBar().showMessage(f"Fetching games for {username}...")
-            
-            api = LichessAPI()
-            self.api_worker = APILoaderWorker(api.get_user_games, username, max_games=5)
-            self.api_worker.finished.connect(lambda games: self.on_games_loaded(games, username, "Lichess"))
-            self.api_worker.error.connect(self.on_api_error)
-            self.api_worker.finished.connect(self.loading_overlay.stop)
-            self.api_worker.error.connect(lambda _: self.loading_overlay.stop())
-            self.api_worker.start()
+    def _load_games_from_api(self, api_func, username, source, **kwargs):
+        """Common pattern for loading games from API with worker thread."""
+        logger.info(f"Attempting to load games for {source} user: {username}")
+        self.loading_overlay.start("Fetching games...", f"Getting recent games for {username}")
+        self.statusBar().showMessage(f"Fetching games for {username}...")
+        
+        self.api_worker = APILoaderWorker(api_func, username, **kwargs)
+        self.api_worker.finished.connect(lambda games: self.on_games_loaded(games, username, source))
+        self.api_worker.error.connect(self.on_api_error)
+        self.api_worker.finished.connect(self.loading_overlay.stop)
+        self.api_worker.error.connect(lambda _: self.loading_overlay.stop())
+        self.api_worker.start()
+
+    def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
+        """
+        Common pattern: Parse PGN text, attach source data, load first game.
+        Returns True on success, False on failure.
+        """
+        self.games = PGNParser.parse_pgn_text(pgn_text)
+        if self.games:
+            if source_data:
+                for g in self.games:
+                    g.source_data = source_data
+            self.load_game(self.games[0])
+            if status_msg:
+                self.statusBar().showMessage(status_msg)
+            return True
+        else:
+            QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
+            return False
 
     def on_games_loaded(self, games_data, username, source):
         self.statusBar().clearMessage()
@@ -394,16 +399,11 @@ class MainWindow(QMainWindow):
             if dialog.exec():
                 selected_game = dialog.selected_game_data
                 if selected_game and "pgn" in selected_game:
-                    pgn_text = selected_game["pgn"]
-                    self.games = PGNParser.parse_pgn_text(pgn_text)
-                    if self.games:
-                        # Attach source data
-                        for g in self.games:
-                            g.source_data = selected_game
-                        self.load_game(self.games[0])
-                        self.statusBar().showMessage(f"Loaded game for {username} from {source}.")
-                    else:
-                        QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
+                    self._parse_and_load_game(
+                        selected_game["pgn"], 
+                        source_data=selected_game, 
+                        status_msg=f"Loaded game for {username} from {source}."
+                    )
                 else:
                     QMessageBox.warning(self, "Error", "Selected game has no PGN data.")
             else:
@@ -422,23 +422,11 @@ class MainWindow(QMainWindow):
             try:
                 self.statusBar().showMessage("Fetching game from link...")
                 api = ChessComAPI()
-                
-                # Extract ID and fetch game
                 game_id = api.extract_game_id(url)
                 if game_id:
                     game_data = api.get_game_by_id(game_id, url)
                     if game_data and "pgn" in game_data:
-                        pgn_text = game_data["pgn"]
-                        self.games = PGNParser.parse_pgn_text(pgn_text)
-                        if self.games:
-                             # Attach source data
-                            for g in self.games:
-                                g.source_data = game_data
-                            self.load_game(self.games[0])
-                            self.statusBar().showMessage("Game loaded from link.")
-                        else:
-                            QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
-                            self.statusBar().clearMessage()
+                        self._parse_and_load_game(game_data["pgn"], game_data, "Game loaded from link.")
                     else:
                         QMessageBox.warning(self, "Error", "Failed to fetch game data.")
                         self.statusBar().clearMessage()
@@ -540,7 +528,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply == QMessageBox.StandardButton.Yes:
-                self.sidebar.set_active(3) # Settings
+                self.sidebar.set_active(3)
                 self.stack.setCurrentIndex(3)
                 if hasattr(self, 'settings_view') and hasattr(self.settings_view, 'lichess_token_input'):
                     self.settings_view.lichess_token_input.setFocus()
@@ -549,39 +537,12 @@ class MainWindow(QMainWindow):
         default_user = self.config_manager.get("lichess_username", "")
         username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:", text=default_user)
         if ok and username:
-            logger.info(f"Attempting to load games for Lichess user: {username}")
-            try:
-                self.statusBar().showMessage(f"Fetching games for {username}...")
-                api = LichessAPI()
-                # Use get_last_games instead of get_player_games_pgn
-                games_data = api.get_user_games(username, max_games=5)
-                if games_data:
-                    from .game_selection_dialog import GameSelectionDialog
-                    dialog = GameSelectionDialog(games_data, self)
-                    if dialog.exec():
-                        selected_game = dialog.selected_game_data
-                        if selected_game and "pgn" in selected_game:
-                            pgn_text = selected_game["pgn"]
-                            self.games = PGNParser.parse_pgn_text(pgn_text)
-                            if self.games:
-                                # Attach source data
-                                for g in self.games:
-                                    g.source_data = selected_game
-                                self.load_game(self.games[0])
-                                self.statusBar().showMessage(f"Loaded game for {username}.")
-                            else:
-                                QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
-                        else:
-                            QMessageBox.warning(self, "Error", "Selected game has no PGN data.")
-                    else:
-                        self.statusBar().showMessage("Game selection cancelled.")
-                else:
-                    QMessageBox.warning(self, "No Games", "No games found for this user.")
-                    self.statusBar().clearMessage()
-            except Exception as e:
-                logger.error(f"Lichess.org load error: {e}")
-                QMessageBox.critical(self, "Error", f"Failed to load from Lichess.org: {e}")
-                self.statusBar().clearMessage()
+            self._load_games_from_api(
+                LichessAPI().get_user_games, 
+                username, 
+                "Lichess", 
+                max_games=5
+            )
 
     def load_from_lichess_link(self):
         url, ok = QInputDialog.getText(self, "Load from Lichess Link", "Enter Lichess.org Game URL:")
@@ -589,37 +550,13 @@ class MainWindow(QMainWindow):
             try:
                 self.statusBar().showMessage("Fetching game from Lichess link...")
                 api = LichessAPI()
-                
                 game_id = api.extract_game_id(url)
                 if game_id:
-                     # Use APILoaderWorker to avoid freezing UI
                     self.loading_overlay.start("Fetching game...", f"Getting game {game_id}")
                     self.api_worker = APILoaderWorker(api.get_game_by_id, game_id)
-                    
-                    def on_link_game_loaded(game_data):
-                        self.loading_overlay.stop()
-                        if game_data and "pgn" in game_data:
-                            pgn_text = game_data["pgn"]
-                            self.games = PGNParser.parse_pgn_text(pgn_text)
-                            if self.games:
-                                # Attach source data
-                                for g in self.games:
-                                    g.source_data = game_data
-                                self.load_game(self.games[0])
-                                self.statusBar().showMessage(f"Loaded game {game_id} from Lichess.")
-                            else:
-                                QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
-                        else:
-                             QMessageBox.warning(self, "Error", "Failed to fetch game data or invalid ID.")
-
-                    def on_link_error(error_msg):
-                        self.loading_overlay.stop()
-                        self.on_api_error(error_msg)
-
-                    self.api_worker.finished.connect(on_link_game_loaded)
-                    self.api_worker.error.connect(on_link_error)
+                    self.api_worker.finished.connect(lambda data: self._on_link_game_loaded(data, game_id, "Lichess"))
+                    self.api_worker.error.connect(lambda e: (self.loading_overlay.stop(), self.on_api_error(e)))
                     self.api_worker.start()
-
                 else:
                     QMessageBox.warning(self, "Error", "Invalid Lichess URL.")
                     self.statusBar().clearMessage()
@@ -628,19 +565,26 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Failed to load from link: {e}")
                 self.statusBar().clearMessage()
 
+    def _on_link_game_loaded(self, game_data, game_id, source):
+        """Common handler for link-based game loading."""
+        self.loading_overlay.stop()
+        if game_data and "pgn" in game_data:
+            self._parse_and_load_game(game_data["pgn"], game_data, f"Loaded game {game_id} from {source}.")
+        else:
+            QMessageBox.warning(self, "Error", "Failed to fetch game data or invalid ID.")
+
     def start_analysis(self):
         if not self.current_game:
             return
         
         # Check if engine exists
-        import shutil
         is_in_path = shutil.which(self.engine_path) is not None
         is_file = os.path.exists(self.engine_path) and os.path.isfile(self.engine_path)
         
         if not (is_in_path or is_file):
              logger.warning(f"Engine not found at: {self.engine_path}")
              QMessageBox.warning(self, "Engine Not Found", "Please configure the engine path in Settings.")
-             self.sidebar.set_active(3) # Go to settings
+             self.sidebar.set_active(3)
              self.stack.setCurrentIndex(3)
              return
 

@@ -3,7 +3,6 @@ import json
 import uuid
 import time
 from typing import List, Optional, Dict, Any
-from dataclasses import asdict
 from .models import GameAnalysis, GameMetadata, MoveAnalysis
 from ..utils.logger import logger
 

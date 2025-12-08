@@ -12,6 +12,7 @@ from .styles import Styles
 from ..utils.logger import logger
 from ..backend.gemini_service import GeminiService
 from ..utils.path_utils import get_resource_path
+import re
 
 def resolve_asset(filename):
     """
@@ -127,139 +128,6 @@ class StatCard(QFrame):
             lbl_sub.setWordWrap(True)
             layout.addWidget(lbl_sub)
 
-# ... (MetricsWidget class remains) ...
-
-    def _create_quality_donut(self):
-        # Container for Chart + Legend
-        container = QWidget()
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 1. Calculate Data
-        counts = {"Best": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0}
-        total_moves = 0
-        
-        for game in self.games_data:
-            try:
-                if game['summary_json']:
-                    summary = json.loads(game['summary_json'])
-                    white = game['white'].lower()
-                    user_color = 'white' if white in [u.lower() for u in self.usernames] else 'black'
-                    
-                    s_data = summary.get(user_color, {})
-                    # Map to categories
-                    counts["Best"] += s_data.get("Best", 0) + s_data.get("Brilliant", 0) + s_data.get("Great", 0)
-                    counts["Inaccuracy"] += s_data.get("Inaccuracy", 0)
-                    counts["Mistake"] += s_data.get("Mistake", 0)
-                    counts["Blunder"] += s_data.get("Blunder", 0)
-            except:
-                pass
-        
-        total_moves = sum(counts.values())
-
-        # 2. Setup Chart
-        fig = Figure(figsize=(3, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
-        ax = fig.add_subplot(111)
-        ax.set_facecolor(Styles.COLOR_SURFACE)
-        
-        labels = []
-        sizes = []
-        colors = []
-        # Specific order for consistency
-        order = ["Best", "Inaccuracy", "Mistake", "Blunder"]
-        color_map = {
-            "Best": Styles.COLOR_BEST, 
-            "Inaccuracy": Styles.COLOR_INACCURACY, 
-            "Mistake": Styles.COLOR_MISTAKE, 
-            "Blunder": Styles.COLOR_BLUNDER
-        }
-        
-        for k in order:
-            v = counts.get(k, 0)
-            if v > 0:
-                labels.append(k)
-                sizes.append(v)
-                colors.append(color_map.get(k, '#888'))
-                
-        if sizes:
-            wedges, texts, autotexts = ax.pie(sizes, labels=None, autopct=None, colors=colors, 
-                                              startangle=90, counterclock=False)
-            
-            # Donut hole
-            centre_circle = matplotlib.patches.Circle((0,0), 0.75, fc=Styles.COLOR_SURFACE)
-            fig.gca().add_artist(centre_circle)
-        else:
-             ax.text(0, 0, "No Data", ha='center', va='center', color=Styles.COLOR_TEXT_SECONDARY)
-            
-        canvas = FigureCanvasQTAgg(fig)
-        canvas.setStyleSheet("background: transparent;")
-        canvas.setSizePolicy(Qt.QSizePolicy.Policy.Expanding, Qt.QSizePolicy.Policy.Expanding)
-        layout.addWidget(canvas, stretch=3)
-        
-        # 3. Custom Legend
-        legend_widget = QWidget()
-        legend_layout = QVBoxLayout(legend_widget)
-        legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        legend_layout.setSpacing(12)
-        
-        for k in order:
-            v = counts.get(k, 0)
-            if v == 0 and total_moves > 0: continue 
-            
-            row = QHBoxLayout()
-            row.setSpacing(8)
-            
-            # Icon
-            icon_name = k.lower() 
-            if icon_name == "best": icon_name = "best_v2" # User preference
-            
-            # Check SVG first, then PNG
-            icon_path = self._get_asset_path(f"{icon_name}.svg")
-            if not icon_path:
-                icon_path = self._get_asset_path(f"{icon_name}.png")
-            
-            if icon_path and os.path.exists(icon_path):
-                lbl_icon = QLabel()
-                pixmap = QPixmap(icon_path)
-                if not pixmap.isNull():
-                    pixmap = pixmap.scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                    lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet("border: none; background: transparent;")
-                    row.addWidget(lbl_icon)
-                else:
-                    # Fallback
-                    dot = QLabel("●") 
-                    dot.setStyleSheet(f"color: {color_map[k]}; font-size: 14px; border: none;")
-                    row.addWidget(dot) 
-            else:
-                # Color dot fallback
-                dot = QLabel("●") 
-                dot.setStyleSheet(f"color: {color_map[k]}; font-size: 14px; border: none;")
-                row.addWidget(dot)
-            
-            # Label
-            lbl_name = QLabel(k)
-            lbl_name.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; font-weight: 500; border: none;")
-            row.addWidget(lbl_name)
-            
-            row.addStretch()
-            
-            # Percentage/Count
-            pct = (v / total_moves * 100) if total_moves > 0 else 0
-            lbl_stat = QLabel(f"{v} ({pct:.0f}%)")
-            lbl_stat.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: bold; border: none;")
-            row.addWidget(lbl_stat)
-            
-            legend_layout.addLayout(row)
-            
-        if total_moves == 0:
-            lbl_no_data = QLabel("No analyzed moves")
-            lbl_no_data.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-style: italic;")
-            legend_layout.addWidget(lbl_no_data)
-
-        layout.addWidget(legend_widget, stretch=2)
-        
-        return container
 
 class MetricsWidget(QWidget):
     def __init__(self, config_manager, history_manager):
@@ -272,6 +140,34 @@ class MetricsWidget(QWidget):
         
         self.setup_ui()
         self.refresh()
+
+    def _get_user_color(self, game):
+        """Returns 'white' or 'black' based on which player matches configured usernames."""
+        white = game['white'].lower()
+        if white in [u.lower() for u in self.usernames]:
+            return 'white'
+        return 'black'
+
+    def _create_icon_label(self, icon_name, size=24, fallback_color=None):
+        """Creates a QLabel with icon, with fallback to colored dot."""
+        # Try SVG first, then PNG
+        icon_path = resolve_asset(f"{icon_name}.svg")
+        if not icon_path:
+            icon_path = resolve_asset(f"{icon_name}.png")
+        
+        lbl = QLabel()
+        if icon_path and os.path.exists(icon_path):
+            pixmap = QPixmap(icon_path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                lbl.setPixmap(pixmap)
+                lbl.setStyleSheet("border: none; background: transparent;")
+                return lbl
+        # Fallback to colored dot
+        lbl.setText("●")
+        color = fallback_color or Styles.COLOR_ACCENT
+        lbl.setStyleSheet(f"color: {color}; font-size: {size}px; border: none; background: transparent;")
+        return lbl
 
     def setup_ui(self):
         self.main_layout = QVBoxLayout(self)
@@ -701,8 +597,7 @@ class MetricsWidget(QWidget):
             try:
                 if game['summary_json']:
                     summary = json.loads(game['summary_json'])
-                    white = game['white'].lower()
-                    user_color = 'white' if white in [u.lower() for u in self.usernames] else 'black'
+                    user_color = self._get_user_color(game)
                     acc = summary.get(user_color, {}).get('accuracy', 0)
                     if acc > 0:
                         accuracies.append(acc)
@@ -763,8 +658,7 @@ class MetricsWidget(QWidget):
                 
                 # Check win
                 res = game['result']
-                white = game['white'].lower()
-                user_color = 'white' if white in [u.lower() for u in self.usernames] else 'black'
+                user_color = self._get_user_color(game)
                 win = False
                 if res == '1-0' and user_color == 'white': win = True
                 elif res == '0-1' and user_color == 'black': win = True
@@ -921,8 +815,6 @@ class MetricsWidget(QWidget):
     def _populate_insights(self, insight_text):
         self._clear_layout(self.insights_layout)
         
-        import re
-        
         # Helper to create insight item
         def add_insight(icon, text):
             row = QHBoxLayout()
@@ -1034,8 +926,7 @@ class MetricsWidget(QWidget):
             try:
                 if game['summary_json']:
                     summary = json.loads(game['summary_json'])
-                    white = game['white'].lower()
-                    user_color = 'white' if white in [u.lower() for u in self.usernames] else 'black'
+                    user_color = self._get_user_color(game)
                     
                     s_data = summary.get(user_color, {})
                     # Map to simpler categories if needed or use existing

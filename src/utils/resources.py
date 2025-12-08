@@ -20,7 +20,6 @@ class ResourceManager:
         self._initialized = True
         
         # Base paths
-        # Base paths
         self.assets_dir = get_resource_path("assets")
         logger.info(f"ResourceManager: Assets dir resolved to: {self.assets_dir}")
         
@@ -97,8 +96,6 @@ class ResourceManager:
         icon = QIcon(path)
         if icon.isNull():
              logger.error(f"Failed to load icon from {path}")
-        else:
-             pass
              
         self._icon_cache[name] = icon
         return icon

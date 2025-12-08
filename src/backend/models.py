@@ -38,7 +38,6 @@ class GameMetadata:
     time_control: Optional[str] = None
     eco: Optional[str] = None
     termination: Optional[str] = None
-    termination: Optional[str] = None
     opening: Optional[str] = None
     source: str = "file" # file, chesscom, lichess
 
