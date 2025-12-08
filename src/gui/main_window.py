@@ -396,6 +396,9 @@ class MainWindow(QMainWindow):
                     pgn_text = selected_game["pgn"]
                     self.games = PGNParser.parse_pgn_text(pgn_text)
                     if self.games:
+                        # Attach source data
+                        for g in self.games:
+                            g.source_data = selected_game
                         self.load_game(self.games[0])
                         self.statusBar().showMessage(f"Loaded game for {username} from {source}.")
                     else:
@@ -427,6 +430,9 @@ class MainWindow(QMainWindow):
                         pgn_text = game_data["pgn"]
                         self.games = PGNParser.parse_pgn_text(pgn_text)
                         if self.games:
+                             # Attach source data
+                            for g in self.games:
+                                g.source_data = game_data
                             self.load_game(self.games[0])
                             self.statusBar().showMessage("Game loaded from link.")
                         else:
@@ -454,23 +460,73 @@ class MainWindow(QMainWindow):
                 logger.error(f"Failed to parse PGN for history game: {e}")
                 QMessageBox.warning(self, "Error", "Failed to load game moves.")
                 return
+        
+        # Metadata Enrichment from source data if available
+        if hasattr(game, "source_data") and game.source_data:
+            self.enrich_game_metadata(game, game.source_data)
 
         self.current_game = game
         
         white = game.metadata.white
         black = game.metadata.black
         result = game.metadata.result
-        w_elo = game.metadata.headers.get("WhiteElo", "?")
-        b_elo = game.metadata.headers.get("BlackElo", "?")
+        w_elo = game.metadata.white_elo or game.metadata.headers.get("WhiteElo", "?")
+        b_elo = game.metadata.black_elo or game.metadata.headers.get("BlackElo", "?")
         
         info_text = f"{white} ({w_elo}) vs {black} ({b_elo})  [{result}]"
         self.game_info_label.setText(info_text)
         
         self.board_widget.load_game(game)
+        # self.move_list_panel.load_game(game) # REMOVED: Method does not exist
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
         self.captured_widget.update_captured(None)
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
+
+    def enrich_game_metadata(self, game, source_data):
+        """
+        Enriches game metadata with information from API source data 
+        if the PGN parsing yielded missing or placeholder values.
+        """
+        md = game.metadata
+        
+        # Helper to get rating from diverse source structures
+        def get_rating(data, color):
+            # Structure 1: Nested (Chess.com / Lichess User Games) -> data['white']['rating']
+            if color in data and isinstance(data[color], dict):
+                return data[color].get("rating")
+            # Structure 2: Flat (Lichess ID export) -> data['white_rating']
+            flat_key = f"{color}_rating"
+            if flat_key in data:
+                return data[flat_key]
+            return None
+
+        # White Elo
+        if not md.white_elo or md.white_elo == "?" or md.white_elo == "None":
+            r = get_rating(source_data, "white")
+            if r: 
+                md.white_elo = str(r)
+                md.headers["WhiteElo"] = str(r)
+
+        # Black Elo
+        if not md.black_elo or md.black_elo == "?" or md.black_elo == "None":
+            r = get_rating(source_data, "black")
+            if r: 
+                md.black_elo = str(r)
+                md.headers["BlackElo"] = str(r)
+                    
+        # Update source
+        # If we loaded from API, we can set source if not already set
+        if not getattr(md, "source", None) or md.source == "file":
+             # Infer source?
+             if "url" in source_data and "chess.com" in source_data["url"]:
+                 md.source = "chesscom"
+             elif "url" in source_data and "lichess.org" in source_data["url"]:
+                 md.source = "lichess"
+             # Or check keys
+             elif "white_rating" in source_data: # Lichess ID structure
+                 md.source = "lichess"
+                 
     
     def load_from_lichess(self):
         # Check for token first
@@ -507,6 +563,9 @@ class MainWindow(QMainWindow):
                             pgn_text = selected_game["pgn"]
                             self.games = PGNParser.parse_pgn_text(pgn_text)
                             if self.games:
+                                # Attach source data
+                                for g in self.games:
+                                    g.source_data = selected_game
                                 self.load_game(self.games[0])
                                 self.statusBar().showMessage(f"Loaded game for {username}.")
                             else:
@@ -542,6 +601,9 @@ class MainWindow(QMainWindow):
                             pgn_text = game_data["pgn"]
                             self.games = PGNParser.parse_pgn_text(pgn_text)
                             if self.games:
+                                # Attach source data
+                                for g in self.games:
+                                    g.source_data = game_data
                                 self.load_game(self.games[0])
                                 self.statusBar().showMessage(f"Loaded game {game_id} from Lichess.")
                             else:

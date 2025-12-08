@@ -15,6 +15,61 @@ class GameListItemWidget(QWidget):
         
         # Header: Players and Result
         header_layout = QHBoxLayout()
+
+        # Source Icon
+        # Source Icon
+        import os
+        import sys
+        
+        source = getattr(game.metadata, "source", "file")
+        
+        # Robust path finding
+        # 1. Try relative to this file (development)
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        assets_dir = os.path.join(base_dir, "assets")
+        
+        # 2. Try relative to CWD (fallback)
+        if not os.path.exists(assets_dir):
+             assets_dir = os.path.join(os.getcwd(), "assets")
+             
+        # Check assets/icons first, then assets/
+        icons_dir = os.path.join(assets_dir, "icons")
+        if os.path.exists(icons_dir):
+            icon_path = os.path.join(icons_dir, f"{source}.png")
+        else:
+            icon_path = os.path.join(assets_dir, f"{source}.png")
+        
+        # Fallback to file.png if specific source icon missing
+        if not os.path.exists(icon_path):
+            # Try finding file.png in icons dir too
+            if os.path.exists(icons_dir):
+                fallback_path = os.path.join(icons_dir, "file.png")
+                if os.path.exists(fallback_path):
+                    icon_path = fallback_path
+                else:
+                    icon_path = os.path.join(assets_dir, "file.png")
+            else:
+                icon_path = os.path.join(assets_dir, "file.png")
+            
+            logger.debug(f"Icon not found for {source}, falling back to {icon_path}")
+            
+        icon_label = QLabel()
+        icon_pixmap = None
+        from PyQt6.QtGui import QPixmap
+        
+        if os.path.exists(icon_path):
+             icon_pixmap = QPixmap(icon_path)
+        else:
+            logger.warning(f"No icon found for source {source}. Searched at {assets_dir}")
+        
+        if icon_pixmap:
+            icon_label.setPixmap(icon_pixmap.scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            header_layout.addWidget(icon_label)
+        else:
+            # Text fallback if icon missing
+            fallback_label = QLabel(f"[{source}]")
+            fallback_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; font-weight: bold;")
+            header_layout.addWidget(fallback_label)
         
         w_elo = f" ({game.metadata.white_elo})" if game.metadata.white_elo else ""
         b_elo = f" ({game.metadata.black_elo})" if game.metadata.black_elo else ""

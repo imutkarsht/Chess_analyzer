@@ -46,6 +46,15 @@ class PGNParser:
             starting_fen=headers.get("FEN")  # If started from position
         )
         
+        # Infer source from Site header if present
+        site = headers.get("Site", "").lower()
+        if "chess.com" in site:
+            metadata.source = "chesscom"
+        elif "lichess.org" in site:
+            metadata.source = "lichess"
+        else:
+            metadata.source = "file"
+        
         moves = []
         board = game.board()
         move_number = 1

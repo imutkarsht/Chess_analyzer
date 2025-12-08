@@ -139,7 +139,9 @@ class LichessAPI:
                 "pgn": game_data.get("pgn", ""),
                 "id": game_data.get("id"),
                 "white": game_data.get("players", {}).get("white", {}).get("user", {}).get("name", "?"),
-                "black": game_data.get("players", {}).get("black", {}).get("user", {}).get("name", "?")
+                "black": game_data.get("players", {}).get("black", {}).get("user", {}).get("name", "?"),
+                "white_rating": game_data.get("players", {}).get("white", {}).get("rating"),
+                "black_rating": game_data.get("players", {}).get("black", {}).get("rating")
             }
             
         except Exception as e:
