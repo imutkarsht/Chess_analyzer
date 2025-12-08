@@ -77,8 +77,73 @@ class LichessAPI:
                         continue
             return games
 
+
         except Exception as e:
             print("Error fetching games:", e)
             return []
+
+    def extract_game_id(self, url: str) -> str:
+        """
+        Extracts game ID from Lichess URL.
+        Supported formats:
+        - https://lichess.org/HuUq2G3x
+        - https://lichess.org/HuUq2G3x/white
+        """
+        try:
+            # Remove trailing slash
+            if url.endswith("/"):
+                url = url[:-1]
+                
+            # Split by /
+            parts = url.split("/")
+            possible_id = parts[-1]
+            
+            # Lichess IDs are 8 or 12 chars usually. 
+            # If "white" or "black" is at the end, go back one
+            if possible_id.lower() in ["white", "black"] and len(parts) > 1:
+                possible_id = parts[-2]
+                
+            # Basic validation: alphanumeric, length 8 or 12
+            if len(possible_id) >= 8:
+                 return possible_id[:8] # First 8 chars are the game ID (remainder is for export/download auth sometimes or analysis)
+            
+            return ""
+        except Exception:
+            return ""
+
+    def get_game_by_id(self, game_id: str) -> dict:
+        """
+        Fetches PGN for a specific game ID
+        """
+        try:
+            url = f"https://lichess.org/game/export/{game_id}"
+            
+            
+            headers = self.get_headers()
+            headers["Accept"] = "application/json" # Enforce JSON to get metadata + PGN easily if needed
+            
+            params = {
+                "moves": "true",
+                "pgnInJson": "true",
+                "clocks": "true",
+                "evals": "true",
+            }
+
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            game_data = response.json()
+            
+            # Normalize to return dict with "pgn"
+            return {
+                "pgn": game_data.get("pgn", ""),
+                "id": game_data.get("id"),
+                "white": game_data.get("players", {}).get("white", {}).get("user", {}).get("name", "?"),
+                "black": game_data.get("players", {}).get("black", {}).get("user", {}).get("name", "?")
+            }
+            
+        except Exception as e:
+            print(f"Error fetching game {game_id}: {e}")
+            return {}
 
 

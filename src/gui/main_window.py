@@ -30,7 +30,7 @@ from ..utils.path_utils import get_resource_path
 from .loading_widget import LoadingOverlay
 
 class APILoaderWorker(QThread):
-    finished = pyqtSignal(list)
+    finished = pyqtSignal(object)
     error = pyqtSignal(str)
 
     def __init__(self, api_func, *args, **kwargs):
@@ -42,7 +42,7 @@ class APILoaderWorker(QThread):
     def run(self):
         try:
             result = self.api_func(*self.args, **self.kwargs)
-            # Ensure result is a list, API methods return list
+            # Result can be list (multiple games) or dict (single game)
             if result is None: result = []
             self.finished.emit(result)
         except Exception as e:
@@ -243,27 +243,50 @@ class MainWindow(QMainWindow):
         from PyQt6.QtWidgets import QMenu
         from PyQt6.QtGui import QAction
         load_menu = QMenu(self)
-        load_menu.setStyleSheet(f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}")
+        menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
+        load_menu.setStyleSheet(menu_style)
         
-        action_pgn = QAction("From PGN File", self)
+        # 1. PGN Submenu
+        menu_pgn = QMenu("Load from PGN", self)
+        menu_pgn.setStyleSheet(menu_style)
+        
+        action_pgn = QAction("From File...", self)
         action_pgn.triggered.connect(self.open_pgn)
-        load_menu.addAction(action_pgn)
+        menu_pgn.addAction(action_pgn)
 
-        action_pgn_text = QAction("From PGN text", self)
+        action_pgn_text = QAction("From Text...", self)
         action_pgn_text.triggered.connect(self.load_from_pgn_text)
-        load_menu.addAction(action_pgn_text)
+        menu_pgn.addAction(action_pgn_text)
         
-        action_user = QAction("From Chess.com User", self)
+        load_menu.addMenu(menu_pgn)
+        
+        # 2. Chess.com Submenu
+        menu_chesscom = QMenu("Load from Chess.com", self)
+        menu_chesscom.setStyleSheet(menu_style)
+        
+        action_user = QAction("By Username...", self)
         action_user.triggered.connect(self.load_from_chesscom)
-        load_menu.addAction(action_user)
+        menu_chesscom.addAction(action_user)
         
-        action_link = QAction("From Chess.com Link", self)
+        action_link = QAction("By Game Link...", self)
         action_link.triggered.connect(self.load_from_link)
-        load_menu.addAction(action_link)
+        menu_chesscom.addAction(action_link)
+        
+        load_menu.addMenu(menu_chesscom)
 
-        action_lichess = QAction("From Lichess Username", self)
+        # 3. Lichess Submenu
+        menu_lichess = QMenu("Load from Lichess", self)
+        menu_lichess.setStyleSheet(menu_style)
+
+        action_lichess = QAction("By Username...", self)
         action_lichess.triggered.connect(self.load_from_lichess)
-        load_menu.addAction(action_lichess)
+        menu_lichess.addAction(action_lichess)
+        
+        action_lichess_link = QAction("By Game Link...", self)
+        action_lichess_link.triggered.connect(self.load_from_lichess_link)
+        menu_lichess.addAction(action_lichess_link)
+        
+        load_menu.addMenu(menu_lichess)
         
         self.btn_load.setMenu(load_menu)
         btn_layout.addWidget(self.btn_load)
@@ -498,6 +521,48 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Lichess.org load error: {e}")
                 QMessageBox.critical(self, "Error", f"Failed to load from Lichess.org: {e}")
+                self.statusBar().clearMessage()
+
+    def load_from_lichess_link(self):
+        url, ok = QInputDialog.getText(self, "Load from Lichess Link", "Enter Lichess.org Game URL:")
+        if ok and url:
+            try:
+                self.statusBar().showMessage("Fetching game from Lichess link...")
+                api = LichessAPI()
+                
+                game_id = api.extract_game_id(url)
+                if game_id:
+                     # Use APILoaderWorker to avoid freezing UI
+                    self.loading_overlay.start("Fetching game...", f"Getting game {game_id}")
+                    self.api_worker = APILoaderWorker(api.get_game_by_id, game_id)
+                    
+                    def on_link_game_loaded(game_data):
+                        self.loading_overlay.stop()
+                        if game_data and "pgn" in game_data:
+                            pgn_text = game_data["pgn"]
+                            self.games = PGNParser.parse_pgn_text(pgn_text)
+                            if self.games:
+                                self.load_game(self.games[0])
+                                self.statusBar().showMessage(f"Loaded game {game_id} from Lichess.")
+                            else:
+                                QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
+                        else:
+                             QMessageBox.warning(self, "Error", "Failed to fetch game data or invalid ID.")
+
+                    def on_link_error(error_msg):
+                        self.loading_overlay.stop()
+                        self.on_api_error(error_msg)
+
+                    self.api_worker.finished.connect(on_link_game_loaded)
+                    self.api_worker.error.connect(on_link_error)
+                    self.api_worker.start()
+
+                else:
+                    QMessageBox.warning(self, "Error", "Invalid Lichess URL.")
+                    self.statusBar().clearMessage()
+            except Exception as e:
+                logger.error(f"Lichess link load error: {e}")
+                QMessageBox.critical(self, "Error", f"Failed to load from link: {e}")
                 self.statusBar().clearMessage()
 
     def start_analysis(self):
