@@ -1,14 +1,27 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
+import os
+import glob
+
+# Dynamically locate the DLLs directory from the Python installation
+dll_source_dir = os.path.join(sys.base_prefix, 'DLLs')
+
+# Find libssl and libcrypto DLLs
+ssl_dlls = glob.glob(os.path.join(dll_source_dir, 'libssl*.dll'))
+crypto_dlls = glob.glob(os.path.join(dll_source_dir, 'libcrypto*.dll'))
+
+# Prepare binaries list
+my_binaries = []
+for dll in ssl_dlls + crypto_dlls:
+    my_binaries.append((dll, '.'))
+    
 block_cipher = None
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[
-        (r'C:\Users\Utkarsh Tiwari\AppData\Roaming\uv\python\cpython-3.13.9-windows-x86_64-none\DLLs\libssl-3-x64.dll', '.'),
-        (r'C:\Users\Utkarsh Tiwari\AppData\Roaming\uv\python\cpython-3.13.9-windows-x86_64-none\DLLs\libcrypto-3-x64.dll', '.')
-    ],
+    binaries=my_binaries,
     datas=[('assets', 'assets'), ('.env.sample', '.')],
     hiddenimports=['chess', 'PyQt6', 'google.generativeai', 'dotenv', 'PyQt6.QtSvg'],
     hookspath=[],

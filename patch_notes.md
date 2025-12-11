@@ -1,5 +1,31 @@
 # Patch Notes
 
+## v1.4 - Load Options, Data Backup & UI Overhaul
+
+### New Features
+- **Enhanced Game Loading**:
+    - **Load from Lichess URL**: Direct support for loading games via Lichess game links.
+    - **Paste PGN**: Quick option to load games by pasting PGN text directly from the clipboard.
+    - **Consolidated Menu**: Grouped all loading options (File, User, URL, Paste) into a cleaner menu structure.
+- **Data Management**:
+    - **CSV Export/Import**: Added functionality to export all your saved games to a CSV file for backup and import them back into your history.
+- **Settings Overhaul**:
+    - **Official Website Links**: Added direct links to the official website and feedback page in the Settings tab.
+    - **UI Redesign**: Completely overhauled the Settings UI for better aesthetics, centered layout, and improved color blending.
+
+### Improvements
+- **Game History**:
+    - Added visual indicators to show the source of the game (Lichess, Chess.com, PGN, etc.) in the history list.
+- **Code Quality**:
+    - Major refactoring to reduce redundancy and improve overall code quality.
+    - Added integrity tests to ensure stability.
+
+### Bug Fixes
+- **Settings Navigation**: Fixed an issue where the "Go to Settings" button was unresponsive.
+- **Engine Lines**: Resolved a graphical glitch where engine evaluation lines would display incorrectly.
+- **Data Consistency**: Fixed a bug where loaded games were occasionally missing ELO ratings.
+- **Game Duplication**: Resolved an issue where importing games could create duplicate entries in the database.
+
 ## v1.3 - Data, UI Polish & AI Coach
 
 ### New Features

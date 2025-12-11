@@ -100,10 +100,15 @@ Your privacy is paramount. **We do not collect any personal data.**
 ## 7. How to Use: A to Z
 
 ### Loading Games
-There are multiple ways to load a game into the analyzer:
+There are several ways to load a game:
 1.  **Open PGN File**: `File > Open PGN...` - Load a game from a local `.pgn` file.
-2.  **Load from Chess.com User**: `File > Load from Chess.com User...` - Fetches the most recent games for the configured username.
-3.  **Load from Lichess User**: `File > Load from Lichess User...` - Fetches recent games from Lichess.
+2.  **Paste PGN**: `File > Paste PGN Text...` - Paste PGN text directly from clipboard.
+3.  **Load from User**: 
+    - `File > Load from Chess.com User...`
+    - `File > Load from Lichess User...`
+4.  **Load from URL**:
+    - `File > Load from Chess.com URL...`
+    - `File > Load from Lichess URL...`
 
 ### Analysis & Features
 Once a game is loaded:
@@ -127,7 +132,11 @@ Once a game is loaded:
 
 ### History & Caching
 *   **History Tab**: Keeps a record of all games you've analyzed. Double-click any entry to reload that game.
-*   **Analysis Cache**: The app remembers every position it has analyzed. If you reload an old game, the analysis will appear *instantly* without running the engine again.
-    *   *Tip: You can clear this cache in Settings if it gets too large.*
+*   **Analysis Cache**: The app remembers every position it has analyzed.
+
+### Data Management
+*   **Export History**: Go to **Settings > Data Management > Export Games to CSV** to backup your game history.
+*   **Import History**: Use **Import Games from CSV** to restore your history (e.g., on a new computer).
+*   **Clear Data**: You can clear the cache or entire history from the Settings tab if needed.
 
 ---

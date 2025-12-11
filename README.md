@@ -17,7 +17,7 @@
 
 | Analysis View | Stats Tab | Settings Tab | History Tab |
 |:-------------:|:------------:|:---------:|:---:|
-| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/home.png) | ![Stats Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/stats.png) | ![Settings Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/settings.png) | ![History Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/history.png) |
+| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/home.png) | ![Stats Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/stats.png) | ![Settings Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/settings.png) | ![History Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/history.png) |
 
 
 ## 🚀 Features
@@ -38,8 +38,11 @@
 
 ### Import & Export
 - **PGN Support**: Robust parsing for single and multi-game PGN files.
-- **Chess.com Import**: Directly import games from Chess.com users or specific game URLs.
-- **Lichess Import**: Import games directly from Lichess.org usernames.
+- **Direct Text Input**: Paste PGN text directly from your clipboard for quick analysis.
+- **Web Imports**:
+    - **Chess.com**: Import from user profiles or specific game URLs.
+    - **Lichess**: Import from usernames or specific game URLs.
+- **Data Backup**: Export your entire game history to CSV for backup or analysis in other tools, and import it back seamlessly.
 
 ### Audio & Visuals
 - **Sound Effects**: Immersive audio feedback for moves, captures, checks, castles, and game completion.
@@ -144,7 +147,6 @@ Contributions are welcome! Please follow these steps:
 
 ## 🔮 Roadmap (Version 2.0)
 
-- [ ] **Cloud Analysis**: Offload heavy analysis to cloud servers.
 - [ ] **PDF Export**: Generate professional PDF reports.
 - [ ] **Coach Mode**: AI-powered natural language explanations.
 - [ ] **Opening Repertoire Builder**: Tools to build and practice openings.
