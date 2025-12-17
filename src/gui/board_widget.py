@@ -153,13 +153,18 @@ class BoardWidget(QWidget):
 
 
     def update_board(self):
+        # Determine colors from configured theme
+        from ..utils.config import ConfigManager
+        config = ConfigManager()
+        theme_name = config.get("board_theme", "Green")
+        colors = Styles.get_board_colors(theme_name)
+        
         # Render board to SVG with custom colors
-        # Using a blue/grey theme that fits the dark mode
         svg_data = chess.svg.board(
             self.board,
             colors={
-                "square light": "#E0E0E0",
-                "square dark": Styles.COLOR_ACCENT, # Use dynamic accent color
+                "square light": colors["light"],
+                "square dark": colors["dark"],
                 "margin": Styles.COLOR_BACKGROUND,
                 "coord": Styles.COLOR_TEXT_SECONDARY
             },

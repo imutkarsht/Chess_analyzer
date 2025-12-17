@@ -30,6 +30,30 @@ class Styles:
     COLOR_MISS = "#E6912C"
     COLOR_BOOK = "#A88865"
 
+    # Board Themes
+    BOARD_THEMES = {
+        "Green": {"dark": "#769656", "light": "#EEEED2"},
+        "Blue": {"dark": "#4B7399", "light": "#E0E0E0"},
+        "Brown": {"dark": "#B58863", "light": "#F0D9B5"},
+        "Gray": {"dark": "#888888", "light": "#E0E0E0"},
+        "Purple": {"dark": "#9b59b6", "light": "#ecf0f1"},
+        "Teal": {"dark": "#1abc9c", "light": "#ffffff"},
+        "Cherry": {"dark": "#c0392b", "light": "#ecf0f1"},
+        "Neon": {"dark": "dynamic", "light": "#E0E0E0"} # Uses current accent
+    }
+
+    @classmethod
+    def get_board_colors(cls, theme_name="Green"):
+        theme = cls.BOARD_THEMES.get(theme_name, cls.BOARD_THEMES["Green"])
+        
+        dark = theme["dark"]
+        light = theme["light"]
+        
+        if dark == "dynamic":
+            dark = cls.COLOR_ACCENT
+            
+        return {"dark": dark, "light": light}
+
     @classmethod
     def set_accent_color(cls, color_hex):
         cls.COLOR_ACCENT = color_hex
