@@ -50,6 +50,158 @@ class InsightWorker(QThread):
         except Exception as e:
             self.error.emit(str(e))
 
+class StatsWorker(QThread):
+    finished = pyqtSignal(dict)
+    
+    def __init__(self, games, usernames):
+        super().__init__()
+        self.games = games
+        self.usernames = usernames
+        
+    def run(self):
+        try:
+            stats = self._calculate_stats()
+            self.finished.emit(stats)
+        except Exception as e:
+            # Handle empty stats or error
+            self.finished.emit({})
+        
+    def _get_user_color(self, game):
+        white = game['white'].lower()
+        if white in [u.lower() for u in self.usernames]:
+            return 'white'
+        return 'black'
+
+    def _calculate_stats(self):
+        total = len(self.games)
+        wins = 0
+        draws = 0
+        losses = 0
+        total_acc = 0
+        acc_count = 0
+        best_win_rating = 0
+        
+        term_counts = {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0, "Draw": 0}
+        quality_counts = {"Best": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0}
+        accuracy_history = []
+        openings = {}
+        opening_wins = {}
+        
+        # New: Color Stats
+        color_stats = {
+            'white': {'wins': 0, 'draws': 0, 'losses': 0, 'total': 0},
+            'black': {'wins': 0, 'draws': 0, 'losses': 0, 'total': 0}
+        }
+
+        for game in self.games:
+            user_color = self._get_user_color(game)
+            if not user_color: continue
+            
+            res = game['result']
+            
+            # Update Color Totals
+            color_stats[user_color]['total'] += 1
+            
+            # 1. Result
+            if res == '1-0':
+                if user_color == 'white': 
+                    wins += 1
+                    color_stats['white']['wins'] += 1
+                else: 
+                    losses += 1
+                    color_stats['black']['losses'] += 1
+            elif res == '0-1':
+                if user_color == 'black': 
+                    wins += 1
+                    color_stats['black']['wins'] += 1
+                else: 
+                    losses += 1
+                    color_stats['white']['losses'] += 1
+            else:
+                draws += 1
+                color_stats[user_color]['draws'] += 1
+                
+            # 2. Termination
+            term = (game.get("termination") or "").lower()
+            if res == "1/2-1/2":
+                term_counts["Draw"] += 1
+            elif "time" in term:
+                term_counts["Time"] += 1
+            elif "resign" in term:
+                term_counts["Resignation"] += 1
+            elif "abandon" in term:
+                term_counts["Abandon"] += 1
+            elif "mate" in term:
+                term_counts["Checkmate"] += 1
+            else:
+                pgn = game.get("pgn", "")
+                if "#" in pgn: term_counts["Checkmate"] += 1
+                else: term_counts["Resignation"] += 1
+
+            # 3. Accuracy / Quality
+            game_acc = 0
+            if game.get('summary_json'):
+                try:
+                    summary = json.loads(game['summary_json'])
+                    s_data = summary.get(user_color, {})
+                    
+                    acc = s_data.get('accuracy', 0)
+                    if acc > 0:
+                        total_acc += acc
+                        acc_count += 1
+                        game_acc = acc
+                        
+                    quality_counts["Best"] += s_data.get("Best", 0) + s_data.get("Brilliant", 0) + s_data.get("Great", 0)
+                    quality_counts["Inaccuracy"] += s_data.get("Inaccuracy", 0)
+                    quality_counts["Mistake"] += s_data.get("Mistake", 0)
+                    quality_counts["Blunder"] += s_data.get("Blunder", 0)
+                except:
+                    pass
+            
+            if game_acc > 0:
+                accuracy_history.append(game_acc)
+            
+            # 4. Best Win
+            is_win = False
+            opponent_elo = 0
+            if (res == '1-0' and user_color == 'white') or (res == '0-1' and user_color == 'black'):
+                is_win = True
+                opp_key = 'black_elo' if user_color == 'white' else 'white_elo'
+                try: opponent_elo = int(game.get(opp_key, 0))
+                except: opponent_elo = 0
+            if is_win and opponent_elo > best_win_rating:
+                best_win_rating = opponent_elo
+                
+            # 5. Openings
+            op_name = game.get("opening")
+            if not op_name:
+                pgn = game.get('pgn', "")
+                if 'Opening "' in pgn:
+                    match = re.search(r'\[Opening "([^"]+)"\]', pgn)
+                    if match: op_name = match.group(1)
+            
+            if op_name:
+                main_name = op_name.split(":")[0].split(",")[0].strip()
+                openings[main_name] = openings.get(main_name, 0) + 1
+                if is_win:
+                    opening_wins[main_name] = opening_wins.get(main_name, 0) + 1
+
+        return {
+            'total': total,
+            'wins': wins,
+            'losses': losses,
+            'draws': draws,
+            'win_rate': (wins / total * 100) if total else 0,
+            'avg_accuracy': (total_acc / acc_count) if acc_count else 0,
+            'best_win': str(best_win_rating) if best_win_rating > 0 else "N/A",
+            'term_counts': term_counts,
+            'quality_counts': quality_counts,
+            'accuracy_history': accuracy_history,
+            'openings': openings,
+            'opening_wins': opening_wins,
+            'color_stats': color_stats
+        }
+
 class StatCard(QFrame):
     def __init__(self, title, value, subtitle=None, icon=None, color=None):
         super().__init__()
@@ -212,7 +364,40 @@ class MetricsWidget(QWidget):
             self.show_no_data()
             return
             
-        self.show_dashboard()
+        # Show Loading
+        loading_widget = QWidget()
+        l_layout = QVBoxLayout(loading_widget)
+        l_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        spinner = QProgressBar()
+        spinner.setRange(0, 0) # Infinite loading
+        spinner.setFixedWidth(200)
+        spinner.setStyleSheet(f"""
+            QProgressBar {{
+                border: 2px solid {Styles.COLOR_BORDER};
+                border-radius: 5px;
+                background-color: {Styles.COLOR_SURFACE};
+            }}
+            QProgressBar::chunk {{
+                background-color: {Styles.COLOR_ACCENT};
+            }}
+        """)
+        l_layout.addWidget(spinner)
+        
+        lbl = QLabel("Calculating Statistics...")
+        lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; margin-top: 10px;")
+        l_layout.addWidget(lbl)
+        
+        self.content_layout.addWidget(loading_widget)
+        
+        # Start Worker
+        self.stats_worker = StatsWorker(self.games_data, self.usernames)
+        self.stats_worker.finished.connect(self.on_stats_ready)
+        self.stats_worker.start()
+
+    def on_stats_ready(self, stats):
+        self._clear_layout(self.content_layout)
+        self.show_dashboard(stats)
 
     def show_setup_required(self):
         self._show_message_view("Setup Required", 
@@ -249,54 +434,73 @@ class MetricsWidget(QWidget):
         
         self.content_layout.addWidget(container)
 
-    def show_dashboard(self):
+    def _fig_to_label(self, fig):
+        """Converts a matplotlib figure to a QPixmap and returns a QLabel."""
+        canvas = FigureCanvasQTAgg(fig)
+        canvas.draw()
+        
+        # Render to pixmap
+        width, height = int(fig.get_figwidth() * fig.get_dpi()), int(fig.get_figheight() * fig.get_dpi())
+        pixmap = QPixmap(width, height)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = pyqtSignal = None # Wait, don't need imports here
+        from PyQt6.QtGui import QPainter
+        
+        painter = QPainter(pixmap)
+                
+        buf = canvas.buffer_rgba()
+        from PyQt6.QtGui import QImage
+        qimg = QImage(buf, width, height, QImage.Format.Format_ARGB32)
+        
+        pixmap = QPixmap.fromImage(qimg)
+        
+        lbl = QLabel()
+        lbl.setPixmap(pixmap)
+        lbl.setStyleSheet("background: transparent; border: none;")
+        return lbl
+
+    def show_dashboard(self, stats):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         
         dashboard = QWidget()
         dashboard.setStyleSheet("background: transparent;")
-        layout = QVBoxLayout(dashboard)
+        
+        # USE GRID LAYOUT
+        layout = QGridLayout(dashboard)
         layout.setSpacing(20)
+        layout.setContentsMargins(10, 10, 10, 10)
         
-        stats = self._calculate_stats()
+        # 1. Key Metrics Row (Row 0)
+        # Stats are passed in
         
-        # 1. Key Metrics Row (2x2 on small, 4x1 on large - using simple hbox for now)
-        metrics_layout = QHBoxLayout()
-        metrics_layout.setSpacing(20)
+        layout.addWidget(StatCard("Total Games", str(stats['total']), "Tracked this week", icon="games"), 0, 0)
+        layout.addWidget(StatCard("Win Rate", f"{stats['win_rate']:.1f}%", f"Vs last {stats['total']} games", icon="win_rate", color=Styles.COLOR_ACCENT), 0, 1)
+        layout.addWidget(StatCard("Avg Accuracy", f"{stats['avg_accuracy']:.1f}%", "Based on engine eval.", icon="accuracy"), 0, 2)
+        layout.addWidget(StatCard("Best Win", str(stats['best_win']), "Keep playing!", icon="best_win"), 0, 3)
         
-        metrics_layout.addWidget(StatCard("Total Games", str(stats['total']), "Tracked this week", icon="games"))
-        metrics_layout.addWidget(StatCard("Win Rate", f"{stats['win_rate']:.1f}%", f"Vs last {stats['total']} games", icon="win_rate", color=Styles.COLOR_ACCENT))
-        metrics_layout.addWidget(StatCard("Avg Accuracy", f"{stats['avg_accuracy']:.1f}%", "Based on engine eval.", icon="accuracy"))
-        metrics_layout.addWidget(StatCard("Best Win", str(stats['best_win']), "Keep playing!", icon="best_win"))
-        
-        layout.addLayout(metrics_layout)
-        
-        # 2. Charts Row
-        charts_layout = QHBoxLayout()
-        charts_layout.setSpacing(20)
-        
-        # Consistent Card Styling for wrappers
+        # 2. Charts Row (Row 1)
         # Result Distribution
-        charts_layout.addWidget(self._create_card("Result Distribution", self._create_result_donut(stats), 1))
-        # Win/Ending Type
-        charts_layout.addWidget(self._create_card("Ending Distribution", self._create_termination_donut(), 1))
-        # Accuracy Trend
-        charts_layout.addWidget(self._create_card("Accuracy Trend", self._create_accuracy_chart(), 2))
+        layout.addWidget(self._create_card("Result Distribution", self._create_result_donut(stats), 1), 1, 0)
+        # Ending Distribution
+        layout.addWidget(self._create_card("Ending Distribution", self._create_termination_donut(stats['term_counts']), 1), 1, 1)
         # Move Quality
-        charts_layout.addWidget(self._create_card("Move Quality Distribution", self._create_quality_donut(), 1))
+        layout.addWidget(self._create_card("Move Quality Distribution", self._create_quality_donut(stats['quality_counts']), 1), 1, 2, 1, 2) # Span 2 cols
         
-        layout.addLayout(charts_layout)
+        # 3. Trends & Openings (Row 2)
+        # Accuracy Trend - Split Width (2 cols)
+        layout.addWidget(self._create_card("Accuracy Trend", self._create_accuracy_chart(stats['accuracy_history']), 2), 2, 0, 1, 2)
         
-        # 3. Insights & Openings
-        bottom_layout = QHBoxLayout()
-        bottom_layout.setSpacing(20)
+        # Color Performance - Split Width (2 cols)
+        layout.addWidget(self._create_card("Performance by Color", self._create_color_chart(stats['color_stats']), 1), 2, 2, 1, 2)
         
+        # 4. Bottom Row (Row 3)
         # Top Openings
-        bottom_layout.addWidget(self._create_card("Top Openings", self._create_openings_list(), 1))
+        layout.addWidget(self._create_card("Top Openings", self._create_openings_list(stats['openings'], stats['opening_wins']), 1), 3, 0, 1, 2)
         
         # Insights
-        # Create refresh button for the card header
         btn_refresh_insights = QPushButton("↻")
         btn_refresh_insights.setFixedSize(32, 32)
         btn_refresh_insights.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -314,11 +518,12 @@ class MetricsWidget(QWidget):
                 background-color: {Styles.COLOR_ACCENT_HOVER};
             }}
         """)
-        btn_refresh_insights.clicked.connect(self._generate_insights)
+        btn_refresh_insights.clicked.connect(lambda: self._generate_insights(stats))
         
-        bottom_layout.addWidget(self._create_card("AI Coach Insights", self._create_insights_panel(), 1, action_widget=btn_refresh_insights)) 
+        layout.addWidget(self._create_card("AI Coach Insights", self._create_insights_panel(), 1, action_widget=btn_refresh_insights), 3, 2, 1, 2) 
         
-        layout.addLayout(bottom_layout)
+        # Row stretches
+        layout.setRowStretch(4, 1) # Push up
         
         scroll.setWidget(dashboard)
         self.content_layout.addWidget(scroll)
@@ -357,75 +562,7 @@ class MetricsWidget(QWidget):
         layout.addWidget(widget)
         return card
 
-    def _calculate_stats(self):
-        total = len(self.games_data)
-        wins = 0
-        draws = 0
-        losses = 0
-        total_acc = 0
-        acc_count = 0
-        best_win_rating = 0
-        
-        for game in self.games_data:
-            # Determine user's color
-            white = game['white'].lower()
-            black = game['black'].lower()
-            user_color = None
-            
-            if white in [u.lower() for u in self.usernames]:
-                user_color = 'white'
-            elif black in [u.lower() for u in self.usernames]:
-                user_color = 'black'
-                
-            if not user_color:
-                continue
-                
-            # Result
-            res = game['result']
-            if res == '1-0':
-                if user_color == 'white': wins += 1
-                else: losses += 1
-            elif res == '0-1':
-                if user_color == 'black': wins += 1
-                else: losses += 1
-            else:
-                draws += 1
-                
-            # Accuracy
-            if game['summary_json']:
-                try:
-                    summary = json.loads(game['summary_json'])
-                    acc = summary.get(user_color, {}).get('accuracy', 0)
-                    if acc > 0:
-                        total_acc += acc
-                        acc_count += 1
-                except:
-                    pass
-            # Check Best Win
-            is_win = False
-            opponent_elo = 0
-            
-            if res == '1-0' and user_color == 'white':
-                is_win = True
-                try: opponent_elo = int(game.get('black_elo', 0))
-                except: opponent_elo = 0
-            elif res == '0-1' and user_color == 'black':
-                is_win = True
-                try: opponent_elo = int(game.get('white_elo', 0))
-                except: opponent_elo = 0
-                
-            if is_win and opponent_elo > best_win_rating:
-                best_win_rating = opponent_elo
-                
-        return {
-            'total': total,
-            'wins': wins,
-            'losses': losses,
-            'draws': draws,
-            'win_rate': (wins / total * 100) if total else 0,
-            'avg_accuracy': (total_acc / acc_count) if acc_count else 0,
-            'best_win': str(best_win_rating) if best_win_rating > 0 else "N/A"
-        }
+
 
     def _create_result_donut(self, stats):
         fig = Figure(figsize=(3, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
@@ -463,40 +600,9 @@ class MetricsWidget(QWidget):
         canvas.setStyleSheet("background: transparent;")
         return canvas
 
-    def _create_termination_donut(self):
-        # Categorize games by ending type: Time, Resignation, Checkmate, Abandon
-        
-        counts = {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0, "Draw": 0}
-        
-        for game in self.games_data:
-            term = (game.get("termination") or "").lower()
-            res = game.get("result", "*")
-            
-            # 1. Draws
-            if res == "1/2-1/2":
-                counts["Draw"] += 1
-                continue
-            
-            # 2. Decisive Games
-            # Check termination string first
-            if "time" in term:
-                counts["Time"] += 1
-            elif "resign" in term:
-                counts["Resignation"] += 1
-            elif "abandon" in term:
-                counts["Abandon"] += 1
-            elif "mate" in term:
-                counts["Checkmate"] += 1
-            else:
-                # Fallback heuristics if termination is missing/vague (e.g. "Normal")
-                # Check PGN for checkmate symbol #
-                pgn = game.get("pgn", "")
-                if "#" in pgn:
-                    counts["Checkmate"] += 1
-                else:
-                    # If decisive but no clear reason, usually resignation in online chess
-                    # But could be "Normal" -> Resignation
-                    counts["Resignation"] += 1 
+    def _create_termination_donut(self, counts):
+        # Counts passed in dictionary
+        # {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0, "Draw": 0} 
 
         fig = Figure(figsize=(3, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
         ax = fig.add_subplot(111)
@@ -541,12 +647,6 @@ class MetricsWidget(QWidget):
 
         canvas = FigureCanvasQTAgg(fig)
         canvas.setStyleSheet("background: transparent;")
-        
-        # Return container with legend (Re-using Result Donut style implies simple wrapper)
-        # But wait, Result Donut returned just canvas. 
-        # Move Quality returned Container with Legend.
-        # User wants "Along with move distribution metric", likely wants Legend too.
-        
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -586,23 +686,12 @@ class MetricsWidget(QWidget):
         
         return container
 
-    def _create_accuracy_chart(self):
+    def _create_accuracy_chart(self, full_history):
         fig = Figure(figsize=(5, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
         ax = fig.add_subplot(111)
         ax.set_facecolor(Styles.COLOR_SURFACE)
         
-        # Get last 20 accuracies
-        accuracies = []
-        for game in self.games_data[:20][::-1]:
-            try:
-                if game['summary_json']:
-                    summary = json.loads(game['summary_json'])
-                    user_color = self._get_user_color(game)
-                    acc = summary.get(user_color, {}).get('accuracy', 0)
-                    if acc > 0:
-                        accuracies.append(acc)
-            except:
-                pass
+        accuracies = full_history[:20][::-1] if full_history else []
                 
         if accuracies:
             # Smooth curve? Matplotlib default plot is fine, just style it better
@@ -626,6 +715,88 @@ class MetricsWidget(QWidget):
         canvas = FigureCanvasQTAgg(fig)
         return canvas
 
+    def _create_color_chart(self, color_stats):
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setSpacing(15)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        
+        # Helper to create a single color bar
+        def create_bar(label, stats):
+            total = stats['total']
+            if total == 0:
+                wins_pct = draws_pct = losses_pct = 0
+            else:
+                wins_pct = stats['wins'] / total * 100
+                draws_pct = stats['draws'] / total * 100
+                losses_pct = stats['losses'] / total * 100
+            
+            wrapper = QWidget()
+            w_layout = QVBoxLayout(wrapper)
+            w_layout.setSpacing(5)
+            w_layout.setContentsMargins(0,0,0,0)
+            
+            # Label Row
+            lbl_row = QHBoxLayout()
+            lbl = QLabel(label)
+            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 13px;")
+            lbl_row.addWidget(lbl)
+            lbl_row.addStretch()
+            val = QLabel(f"{total} Games")
+            val.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px;")
+            lbl_row.addWidget(val)
+            w_layout.addLayout(lbl_row)
+            
+            # Bar Container
+            bar_container = QFrame()
+            bar_container.setFixedHeight(20)
+            bar_container.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE_LIGHT}; border-radius: 10px;")
+            bar_layout = QHBoxLayout(bar_container)
+            bar_layout.setContentsMargins(0, 0, 0, 0)
+            bar_layout.setSpacing(0)
+            
+            # Segments
+            def add_segment(pct, color, tooltip):
+                if pct > 0:
+                    seg = QFrame()
+                    seg.setStyleSheet(f"background-color: {color}; border-right: 1px solid {Styles.COLOR_SURFACE};")
+                    # seg.setToolTip(tooltip) # Tooltip
+                    # Using Fixed size policy relative to parent? No, use stretch
+                    bar_layout.addWidget(seg, stretch=int(pct*10))
+            
+            add_segment(wins_pct, Styles.COLOR_BEST, f"Wins: {stats['wins']}")
+            add_segment(draws_pct, "#888888", f"Draws: {stats['draws']}")
+            add_segment(losses_pct, Styles.COLOR_BLUNDER, f"Losses: {stats['losses']}")
+            
+            if total == 0:
+                empty = QFrame()
+                empty.setStyleSheet("background: transparent;")
+                bar_layout.addWidget(empty)
+                
+            w_layout.addWidget(bar_container)
+            
+            # Stats Row beneath
+            stat_row = QHBoxLayout()
+            stat_row.setSpacing(10)
+            
+            def add_pill(txt, color):
+                l = QLabel(txt)
+                l.setStyleSheet(f"color: {color}; font-size: 10px; font-weight: bold;")
+                stat_row.addWidget(l)
+                
+            add_pill(f"{wins_pct:.0f}% W", Styles.COLOR_BEST)
+            add_pill(f"{draws_pct:.0f}% D", "#888888")
+            add_pill(f"{losses_pct:.0f}% L", Styles.COLOR_BLUNDER)
+            stat_row.addStretch()
+            
+            w_layout.addLayout(stat_row)
+            return wrapper
+
+        layout.addWidget(create_bar("White", color_stats['white']))
+        layout.addWidget(create_bar("Black", color_stats['black']))
+        
+        return container
+
     def _get_asset_path(self, filename):
         """
         Robustly find assets using the project's standard resource resolver.
@@ -633,38 +804,10 @@ class MetricsWidget(QWidget):
         """
         return resolve_asset(filename)
 
-    def _create_openings_list(self):
-        # Data aggregation
-        openings = {}
-        opening_wins = {}
-        # ... (same parsing logic)
-        for game in self.games_data:
-            # Try to get opening from DB first
-            op_name = game.get("opening")
-            
-            # Fallback to PGN parsing for legacy data
-            if not op_name:
-                pgn = game['pgn']
-                if 'Opening "' in pgn:
-                    import re
-                    match = re.search(r'\[Opening "([^"]+)"\]', pgn)
-                    if match:
-                        op_name = match.group(1)
-            
-            if op_name:
-                # Simplify name
-                main_name = op_name.split(":")[0].split(",")[0].strip()
-                openings[main_name] = openings.get(main_name, 0) + 1
-                
-                # Check win
-                res = game['result']
-                user_color = self._get_user_color(game)
-                win = False
-                if res == '1-0' and user_color == 'white': win = True
-                elif res == '0-1' and user_color == 'black': win = True
-                
-                if win:
-                    opening_wins[main_name] = opening_wins.get(main_name, 0) + 1
+    def _create_openings_list(self, openings, opening_wins):
+        sorted_ops = sorted(openings.items(), key=lambda x: x[1], reverse=True) 
+        
+        container = QWidget()
                     
         sorted_ops = sorted(openings.items(), key=lambda x: x[1], reverse=True) 
         
@@ -779,7 +922,7 @@ class MetricsWidget(QWidget):
             
         return self.insights_container
         
-    def _generate_insights(self):
+    def _generate_insights(self, stats):
         # 1. Clear current Layout
         self._clear_layout(self.insights_layout)
         
@@ -790,7 +933,6 @@ class MetricsWidget(QWidget):
         self.insights_layout.addWidget(lbl_loading)
         
         # 3. Call API via Worker
-        stats = self._calculate_stats()
         # Add some context about openings/etc
         stats_str = json.dumps(stats, indent=2)
         
@@ -918,25 +1060,9 @@ class MetricsWidget(QWidget):
             # Fallback if format is weird
             add_insight("idea", insight_text)
 
-    def _create_quality_donut(self):
-        # Aggregate move qualities
-        counts = {"Best": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0}
-        
-        for game in self.games_data:
-            try:
-                if game['summary_json']:
-                    summary = json.loads(game['summary_json'])
-                    user_color = self._get_user_color(game)
-                    
-                    s_data = summary.get(user_color, {})
-                    # Map to simpler categories if needed or use existing
-                    # Assuming standard mapping
-                    counts["Best"] += s_data.get("Best", 0) + s_data.get("Brilliant", 0) + s_data.get("Great", 0)
-                    counts["Inaccuracy"] += s_data.get("Inaccuracy", 0)
-                    counts["Mistake"] += s_data.get("Mistake", 0)
-                    counts["Blunder"] += s_data.get("Blunder", 0)
-            except:
-                pass
+    def _create_quality_donut(self, counts):
+        # counts passed in
+        pass
                 
         fig = Figure(figsize=(4, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
         ax = fig.add_subplot(111)
