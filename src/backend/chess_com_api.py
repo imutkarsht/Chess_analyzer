@@ -2,8 +2,10 @@ import requests
 import datetime
 from typing import List, Dict, Optional
 from ..utils.logger import logger
+from .base_api import BaseChessAPI
 
-class ChessComAPI:
+
+class ChessComAPI(BaseChessAPI):
     BASE_URL = "https://api.chess.com/pub"
     HEADERS = {
         "User-Agent": "ChessAnalyzer/1.0 (contact: your_email@example.com)" 
@@ -16,37 +18,36 @@ class ChessComAPI:
         Returns a list of dictionaries containing game data (pgn, white, black, result, etc).
         """
         try:
-            # 1. Get archives to find the latest month with games
             archives_url = f"{ChessComAPI.BASE_URL}/player/{username}/games/archives"
-            logger.debug(f"Fetching archives from: {archives_url}")
-            response = requests.get(archives_url, headers=ChessComAPI.HEADERS)
-            response.raise_for_status()
-            archives = response.json().get("archives", [])
+            response = BaseChessAPI._make_request(archives_url, ChessComAPI.HEADERS)
+            if not response:
+                return []
+            
+            archives = BaseChessAPI._safe_json(response)
+            if not archives:
+                return []
+            archives = archives.get("archives", [])
             
             if not archives:
                 return []
             
-            # 2. Fetch games from the last archive (current or previous month)
-            # We might need to go back multiple months if the last month has few games, 
-            # but for simplicity let's start with the last one.
             all_games = []
-            
-            # Iterate backwards through archives until we have enough games
             for archive_url in reversed(archives):
-                resp = requests.get(archive_url, headers=ChessComAPI.HEADERS)
-                if resp.status_code == 200:
-                    games_data = resp.json().get("games", [])
-                    # Sort by end_time descending
-                    games_data.sort(key=lambda x: x.get("end_time", 0), reverse=True)
-                    all_games.extend(games_data)
-                    
-                    if len(all_games) >= limit:
-                        break
+                resp = BaseChessAPI._make_request(archive_url, ChessComAPI.HEADERS)
+                if resp:
+                    games_data = BaseChessAPI._safe_json(resp)
+                    if games_data:
+                        games_list = games_data.get("games", [])
+                        games_list.sort(key=lambda x: x.get("end_time", 0), reverse=True)
+                        all_games.extend(games_list)
+                        
+                        if len(all_games) >= limit:
+                            break
             
             return all_games[:limit]
             
         except Exception as e:
-            logger.error(f"Error fetching games from Chess.com: {e}", exc_info=True)
+            BaseChessAPI._log_api_error("Chess.com", "get_last_games", e)
             return []
 
     @staticmethod

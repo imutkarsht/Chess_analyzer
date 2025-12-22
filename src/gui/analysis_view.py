@@ -439,6 +439,7 @@ class AnalysisPanel(QWidget):
         self.loading_overlay = LoadingOverlay(self)
 
     def set_game(self, game_analysis):
+        logger.info(f"AnalysisPanel: Setting game {game_analysis.game_id if game_analysis else 'None'}")
         self.current_game = game_analysis
         self.refresh()
         
@@ -448,8 +449,11 @@ class AnalysisPanel(QWidget):
             return
             
         try:
+            logger.info("AnalysisPanel: Refreshing UI...")
             self.lines_widget.clear() # Clear old lines initially or let live analysis fill them
             self.graph_widget.plot_game(self.current_game)
+            
+            logger.info(f"AnalysisPanel: Updating summary with keys: {self.current_game.summary.keys() if self.current_game.summary else 'None'}")
             self._update_summary(self.current_game.summary)
             
             opening = self.current_game.metadata.opening
@@ -471,7 +475,12 @@ class AnalysisPanel(QWidget):
         clear_layout(self.accuracy_layout)
         clear_layout(self.stats_layout)
         
-        if not summary or "white" not in summary:
+        if not summary:
+            logger.warning("AnalysisPanel: Summary is empty/None")
+            return
+            
+        if "white" not in summary:
+            logger.warning(f"AnalysisPanel: Summary missing 'white' key. Keys: {summary.keys()}")
             return
             
         w_acc = summary['white'].get('accuracy', 0)

@@ -7,7 +7,9 @@ from typing import List, Dict
 from ..utils.config import ConfigManager
 from ..utils.logger import logger
 
-class LichessAPI:
+from .base_api import BaseChessAPI
+
+class LichessAPI(BaseChessAPI):
     BASE_URL = "https://lichess.org/api/games/user"
 
     def __init__(self):
@@ -26,11 +28,13 @@ class LichessAPI:
         
     def get_headers(self):
         token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
-        return {
+        headers = BaseChessAPI.DEFAULT_HEADERS.copy()
+        headers.update({
             "Authorization": f"Bearer {token}",
             "Accept": "application/x-ndjson", 
             "Content-Type": "application/json"
-        }
+        })
+        return headers
 
     def get_user_games(self, username: str, max_games: int = 5) -> List[Dict]:
         """
@@ -45,8 +49,14 @@ class LichessAPI:
                 "pgnInJson": "true",  
             }
 
-            response = requests.get(url, headers=self.get_headers(), params=params)
-            response.raise_for_status()
+            # Use BaseChessAPI helper
+            # Note: Lichess returns NDJSON, so standard .json() might fail if we treated it as single JSON object
+            # But here we iterate lines, so we need the raw response object or a custom handler.
+            # BaseChessAPI._make_request returns response object.
+            
+            response = BaseChessAPI._make_request(url, self.get_headers(), params)
+            if not response:
+                return []
 
             games = []
             for raw_line in response.iter_lines():
@@ -80,7 +90,7 @@ class LichessAPI:
 
 
         except Exception as e:
-            logger.error(f"Error fetching games: {e}")
+            BaseChessAPI._log_api_error("Lichess", "get_user_games", e)
             return []
 
     def extract_game_id(self, url: str) -> str:

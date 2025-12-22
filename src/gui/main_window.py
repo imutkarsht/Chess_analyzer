@@ -602,8 +602,13 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Analysis complete.")
         logger.info("Analysis finished successfully.")
         self.current_game = game
-        self.move_list_panel.refresh()
-        self.analysis_panel.refresh()
+        self.move_list_panel.set_game(game)
+        self.analysis_panel.set_game(game)
+        # Update other views with new data
+        if hasattr(self, 'metrics_view'):
+            self.metrics_view.refresh()
+        if hasattr(self, 'history_view'):
+            self.history_view.load_history()
 
     def on_analysis_error(self, error_msg):
         self.statusBar().showMessage(f"Analysis failed: {error_msg}")
