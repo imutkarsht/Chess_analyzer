@@ -9,13 +9,13 @@ from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QMenu
 import shutil
 
-from .board_widget import BoardWidget
-from .analysis_view import MoveListPanel, AnalysisPanel, CapturedPiecesWidget, GameControlsWidget
+from .board import BoardWidget  # From board package
+from .analysis_view import MoveListPanel, AnalysisPanel
+from .analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
 from .metrics_widget import MetricsWidget
 from .analysis_worker import AnalysisWorker
 from .sidebar import Sidebar
-from .history_view import HistoryView
-from .settings_view import SettingsView
+from .views import HistoryView, SettingsView  # From views package
 from ..backend.pgn_parser import PGNParser
 from ..backend.analyzer import Analyzer
 from ..utils.resources import ResourceManager

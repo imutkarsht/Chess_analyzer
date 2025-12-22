@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QListWidget, QListWidgetItem, 
                              QPushButton, QHBoxLayout, QLabel, QAbstractItemView)
 from PyQt6.QtCore import Qt
-from .styles import Styles
-from .gui_utils import create_button
+from ..styles import Styles
+from ..gui_utils import create_button
 
 class GameSelectionDialog(QDialog):
     def __init__(self, games_data, parent=None):
@@ -102,3 +102,4 @@ class GameSelectionDialog(QDialog):
             index = self.list_widget.item(row).data(Qt.ItemDataRole.UserRole)
             self.selected_game_data = self.games_data[index]
             self.accept()
+

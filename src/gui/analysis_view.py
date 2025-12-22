@@ -6,7 +6,8 @@ from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread, QSize
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
 from .gui_utils import clear_layout, create_button
-from .components import SimpleStatCard as StatCard  # Use shared component
+from .components import SimpleStatCard as StatCard
+from .analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
 from ..utils.resources import ResourceManager
 from ..utils.logger import logger
 import chess
@@ -17,106 +18,7 @@ from ..utils.config import ConfigManager
 from .loading_widget import LoadingOverlay
 
 
-# StatCard imported from .components.stat_card as SimpleStatCard
-
-class CapturedPiecesWidget(QFrame):
-    def __init__(self):
-        super().__init__()
-        self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 5px;
-            }}
-            {Styles.CAPTURED_PIECES_STYLE}
-        """)
-        
-        layout = QVBoxLayout(self)
-        layout.setSpacing(5)
-        layout.setContentsMargins(5, 5, 5, 5)
-        
-        # White captured (pieces lost by Black)
-        self.white_captured_layout = QHBoxLayout()
-        self.white_captured_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        layout.addLayout(self.white_captured_layout)
-        
-        # Black captured (pieces lost by White)
-        self.black_captured_layout = QHBoxLayout()
-        self.black_captured_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        layout.addLayout(self.black_captured_layout)
-        
-    def update_captured(self, fen):
-        # Clear existing
-        clear_layout(self.white_captured_layout)
-        clear_layout(self.black_captured_layout)
-        
-        if not fen:
-            return
-
-        # Standard piece counts
-        starting_pieces = {
-            'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1,
-            'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1
-        }
-        
-        # Count current pieces
-        current_pieces = {}
-        board_part = fen.split(' ')[0]
-        for char in board_part:
-            if char.isalpha():
-                current_pieces[char] = current_pieces.get(char, 0) + 1
-                
-        # Calculate captured (Starting - Current)
-        # Pieces captured by White are Black pieces (lowercase)
-        # Pieces captured by Black are White pieces (uppercase)
-        
-        piece_values = {'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9}
-        
-        white_score = 0
-        black_score = 0
-        
-        # White captured (Black pieces)
-        for p in ['p', 'n', 'b', 'r', 'q']:
-            count = starting_pieces[p] - current_pieces.get(p, 0)
-            if count > 0:
-                self._add_pieces(self.white_captured_layout, p, count, Styles.COLOR_PIECE_BLACK)
-                white_score += count * piece_values[p]
-                
-        # Black captured (White pieces)
-        for p in ['P', 'N', 'B', 'R', 'Q']:
-            count = starting_pieces[p] - current_pieces.get(p, 0)
-            if count > 0:
-                self._add_pieces(self.black_captured_layout, p, count, Styles.COLOR_PIECE_WHITE)
-                black_score += count * piece_values[p.lower()]
-                
-        # Add score difference
-        diff = white_score - black_score
-        if diff > 0:
-            lbl = QLabel(f"+{diff}")
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
-            self.white_captured_layout.addWidget(lbl)
-        elif diff < 0:
-            lbl = QLabel(f"+{-diff}")
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
-            self.black_captured_layout.addWidget(lbl)
-
-    def _add_pieces(self, layout, piece, count, color):
-        # Using unicode pieces for now, could use icons
-        piece_map = {
-            'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛',
-            'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛'
-        }
-        
-        for _ in range(count):
-            lbl = QLabel(piece_map.get(piece, '?'))
-            lbl.setStyleSheet(f"color: {color}; font-size: 18px;")
-            layout.addWidget(lbl)
-            
-    def _clear_layout(self, layout):
-        # Legacy method for backward compatibility - uses shared utility
-        clear_layout(layout)
+# CapturedPiecesWidget and GameControlsWidget imported from .analysis package
 
 class AnalysisLinesWidget(QFrame):
     def __init__(self):
@@ -241,38 +143,8 @@ class AnalysisLinesWidget(QFrame):
         # Deprecated, not used in optimized version
         pass
 
-class GameControlsWidget(QWidget):
-    first_clicked = pyqtSignal()
-    prev_clicked = pyqtSignal()
-    next_clicked = pyqtSignal()
-    last_clicked = pyqtSignal()
-    flip_clicked = pyqtSignal()
-    
-    def __init__(self):
-        super().__init__()
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 10, 0, 10)
-        layout.setSpacing(10)
-        
-        self.btn_first = self._create_btn("<<", self.first_clicked)
-        self.btn_prev = self._create_btn("<", self.prev_clicked)
-        self.btn_next = self._create_btn(">", self.next_clicked)
-        self.btn_last = self._create_btn(">>", self.last_clicked)
-        self.btn_flip = self._create_btn("Flip", self.flip_clicked)
-        
-        layout.addWidget(self.btn_first)
-        layout.addWidget(self.btn_prev)
-        layout.addWidget(self.btn_next)
-        layout.addWidget(self.btn_last)
-        layout.addStretch()
-        layout.addWidget(self.btn_flip)
-        
-    def _create_btn(self, text, signal):
-        btn = QPushButton(text)
-        btn.setStyleSheet(Styles.get_control_button_style())
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.clicked.connect(signal.emit)
-        return btn
+
+# GameControlsWidget class removed - imported from .analysis package
 
 class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)

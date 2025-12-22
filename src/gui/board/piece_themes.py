@@ -60,3 +60,4 @@ def get_piece_theme_names() -> list:
         List of theme name strings
     """
     return list(PIECE_THEMES.keys())
+

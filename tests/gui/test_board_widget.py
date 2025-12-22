@@ -1,5 +1,5 @@
 import pytest
-from src.gui.board_widget import BoardWidget
+from src.gui.board import BoardWidget
 from src.backend.models import GameAnalysis, GameMetadata, MoveAnalysis
 import chess
 

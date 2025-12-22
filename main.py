@@ -49,7 +49,7 @@ def main():
             logger.warning(f"App icon not found at: {logo_path}")
             
         # --- Splash Screen Start ---
-        from src.gui.splash_screen import SplashScreen
+        from src.gui.dialogs import SplashScreen
         from PyQt6.QtCore import QThread, QTimer
         import time
 

@@ -88,3 +88,4 @@ class SplashScreen(QSplashScreen):
         if message:
             self.status_label.setText(message)
         QApplication.processEvents()
+

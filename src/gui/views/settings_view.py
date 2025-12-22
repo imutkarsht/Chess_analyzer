@@ -3,9 +3,9 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLa
                              QScrollArea, QFrame, QComboBox, QGridLayout)
 from PyQt6.QtGui import QColor, QDesktopServices
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl
-from .styles import Styles
-from .gui_utils import create_button
-from ..utils.config import ConfigManager
+from ..styles import Styles
+from ..gui_utils import create_button
+from ...utils.config import ConfigManager
 import os
 
 class SettingsView(QWidget):
@@ -174,7 +174,7 @@ class SettingsView(QWidget):
         appearance_layout.addLayout(theme_layout)
 
         # Piece Style Selector
-        from .piece_themes import get_piece_theme_names
+        from ..board.piece_themes import get_piece_theme_names
         piece_layout = QHBoxLayout()
         piece_lbl = QLabel("Piece Style:")
         piece_lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
@@ -351,7 +351,7 @@ class SettingsView(QWidget):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear the analysis cache? This will not delete your game history.",
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            from ..backend.cache import AnalysisCache
+            from ...backend.cache import AnalysisCache
             cache = AnalysisCache()
             cache.clear_cache()
             QMessageBox.information(self, "Success", "Analysis cache cleared.")
@@ -360,8 +360,8 @@ class SettingsView(QWidget):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear ALL data? This includes game history and analysis cache. This action cannot be undone.",
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            from ..backend.cache import AnalysisCache
-            from ..backend.game_history import GameHistoryManager
+            from ...backend.cache import AnalysisCache
+            from ...backend.game_history import GameHistoryManager
             
             cache = AnalysisCache()
             cache.clear_cache()
@@ -385,3 +385,4 @@ class SettingsView(QWidget):
 
     def open_feedback(self):
         QDesktopServices.openUrl(QUrl("https://chess-analyzer-ut.vercel.app/feedback"))
+

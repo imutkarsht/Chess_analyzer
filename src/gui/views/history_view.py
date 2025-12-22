@@ -1,10 +1,10 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle
 from PyQt6.QtCore import pyqtSignal, Qt
-from .game_list import GameListWidget
-from .styles import Styles
-from .gui_utils import create_button
-from ..backend.game_history import GameHistoryManager
-from ..backend.models import GameAnalysis, GameMetadata
+from ..game_list import GameListWidget
+from ..styles import Styles
+from ..gui_utils import create_button
+from ...backend.game_history import GameHistoryManager
+from ...backend.models import GameAnalysis, GameMetadata
 import json
 import logging
 
@@ -226,3 +226,4 @@ class HistoryView(QWidget):
         except Exception as e:
             logging.error(f"Import failed: {e}")
             QMessageBox.critical(self, "Import Error", f"Failed to import games: {e}")
+
