@@ -155,19 +155,131 @@ class BoardWidget(QWidget):
     def update_board(self):
         # Determine colors from configured theme
         from ..utils.config import ConfigManager
-        config = ConfigManager()
-        theme_name = config.get("board_theme", "Green")
-        colors = Styles.get_board_colors(theme_name)
+        from .piece_themes import PIECE_THEMES
         
-        # Render board to SVG with custom colors
-        svg_data = chess.svg.board(
-            self.board,
-            colors={
-                "square light": colors["light"],
-                "square dark": colors["dark"],
-                "margin": Styles.COLOR_BACKGROUND,
-                "coord": Styles.COLOR_TEXT_SECONDARY
-            },
-            orientation=chess.BLACK if self.is_flipped else chess.WHITE
-        ).encode("utf-8")
+        config = ConfigManager()
+        board_theme_name = config.get("board_theme", "Green")
+        piece_theme_name = config.get("piece_theme", "Standard")
+        colors = Styles.get_board_colors(board_theme_name)
+        
+        # Get the piece definitions for the selected theme
+        piece_defs = PIECE_THEMES.get(piece_theme_name, PIECE_THEMES["Standard"])
+        
+        # Generate custom SVG with our piece definitions
+        svg_data = self._generate_custom_board_svg(colors, piece_defs)
         self.svg_widget.load(svg_data)
+    
+    def _generate_custom_board_svg(self, colors, piece_defs):
+        """
+        Generate a custom SVG board with the given colors and piece definitions.
+        """
+        import xml.etree.ElementTree as ET
+        
+        SQUARE_SIZE = 45
+        MARGIN = 15
+        BOARD_SIZE = 8 * SQUARE_SIZE
+        FULL_SIZE = BOARD_SIZE + 2 * MARGIN
+        
+        orientation = not self.is_flipped  # True = white at bottom
+        
+        # Create SVG root
+        svg = ET.Element("svg", {
+            "xmlns": "http://www.w3.org/2000/svg",
+            "xmlns:xlink": "http://www.w3.org/1999/xlink",
+            "viewBox": f"0 0 {FULL_SIZE} {FULL_SIZE}",
+            "width": str(FULL_SIZE),
+            "height": str(FULL_SIZE),
+        })
+        
+        # Background
+        ET.SubElement(svg, "rect", {
+            "x": "0", "y": "0",
+            "width": str(FULL_SIZE), "height": str(FULL_SIZE),
+            "fill": Styles.COLOR_BACKGROUND
+        })
+        
+        # Add piece definitions to defs section
+        defs = ET.SubElement(svg, "defs")
+        for piece_symbol, piece_svg in piece_defs.items():
+            # Parse the SVG fragment and add to defs
+            try:
+                piece_elem = ET.fromstring(piece_svg)
+                defs.append(piece_elem)
+            except ET.ParseError as e:
+                print(f"Error parsing piece SVG for {piece_symbol}: {e}")
+        
+        # Draw squares
+        for square in chess.SQUARES:
+            file_idx = chess.square_file(square)
+            rank_idx = chess.square_rank(square)
+            
+            # Adjust for orientation
+            if orientation:  # White at bottom
+                x = MARGIN + file_idx * SQUARE_SIZE
+                y = MARGIN + (7 - rank_idx) * SQUARE_SIZE
+            else:  # Black at bottom
+                x = MARGIN + (7 - file_idx) * SQUARE_SIZE
+                y = MARGIN + rank_idx * SQUARE_SIZE
+            
+            # Determine square color
+            is_light = (file_idx + rank_idx) % 2 == 1
+            fill_color = colors["light"] if is_light else colors["dark"]
+            
+            ET.SubElement(svg, "rect", {
+                "x": str(x), "y": str(y),
+                "width": str(SQUARE_SIZE), "height": str(SQUARE_SIZE),
+                "fill": fill_color
+            })
+        
+        # Draw coordinates
+        coord_style = f"font-size:10px;fill:{Styles.COLOR_TEXT_SECONDARY};font-family:sans-serif"
+        
+        for i in range(8):
+            # File letters (a-h)
+            file_letter = chess.FILE_NAMES[i if orientation else 7 - i]
+            file_x = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 - 3
+            ET.SubElement(svg, "text", {
+                "x": str(file_x),
+                "y": str(FULL_SIZE - 3),
+                "style": coord_style
+            }).text = file_letter
+            
+            # Rank numbers (1-8)
+            rank_number = str(8 - i if orientation else i + 1)
+            rank_y = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 + 4
+            ET.SubElement(svg, "text", {
+                "x": "3",
+                "y": str(rank_y),
+                "style": coord_style
+            }).text = rank_number
+        
+        # Draw pieces
+        for square in chess.SQUARES:
+            piece = self.board.piece_at(square)
+            if piece:
+                file_idx = chess.square_file(square)
+                rank_idx = chess.square_rank(square)
+                
+                # Adjust for orientation
+                if orientation:  # White at bottom
+                    x = MARGIN + file_idx * SQUARE_SIZE
+                    y = MARGIN + (7 - rank_idx) * SQUARE_SIZE
+                else:  # Black at bottom
+                    x = MARGIN + (7 - file_idx) * SQUARE_SIZE
+                    y = MARGIN + rank_idx * SQUARE_SIZE
+                
+                # Get piece ID (white pieces uppercase, black lowercase)
+                piece_id = piece.symbol()
+                color_name = "white" if piece.color else "black"
+                piece_type_name = chess.PIECE_NAMES[piece.piece_type]
+                href = f"#{color_name}-{piece_type_name}"
+                
+                ET.SubElement(svg, "use", {
+                    "href": href,
+                    "xlink:href": href,
+                    "transform": f"translate({x}, {y})"
+                })
+        
+        # Convert to string
+        return ET.tostring(svg, encoding="utf-8")
+

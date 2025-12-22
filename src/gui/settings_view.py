@@ -195,6 +195,36 @@ class SettingsView(QWidget):
         theme_layout.addStretch()
         appearance_layout.addLayout(theme_layout)
 
+        # Piece Style Selector
+        from .piece_themes import get_piece_theme_names
+        piece_layout = QHBoxLayout()
+        piece_lbl = QLabel("Piece Style:")
+        piece_lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
+        piece_layout.addWidget(piece_lbl)
+        
+        self.piece_combo = QComboBox()
+        self.piece_combo.addItems(get_piece_theme_names())
+        current_piece_theme = self.config_manager.get("piece_theme", "Standard")
+        self.piece_combo.setCurrentText(current_piece_theme)
+        self.piece_combo.setStyleSheet(f"""
+            QComboBox {{
+                padding: 5px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 4px;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+            }}
+        """)
+        self.piece_combo.currentTextChanged.connect(self.change_piece_theme)
+        piece_layout.addWidget(self.piece_combo)
+        
+        piece_layout.addStretch()
+        appearance_layout.addLayout(piece_layout)
+
+
         # Accent Color
         color_layout = QHBoxLayout()
         color_lbl = QLabel("Accent Color:")
@@ -317,6 +347,14 @@ class SettingsView(QWidget):
 
     def change_board_theme(self, theme_name):
         self.config_manager.set("board_theme", theme_name)
+        
+        # Trigger global refresh
+        window = self.window()
+        if hasattr(window, "refresh_theme"):
+            window.refresh_theme()
+
+    def change_piece_theme(self, theme_name):
+        self.config_manager.set("piece_theme", theme_name)
         
         # Trigger global refresh
         window = self.window()
