@@ -5,7 +5,7 @@ from .graph_widget import GraphWidget
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread, QSize
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
-from .gui_utils import clear_layout
+from .gui_utils import clear_layout, create_button
 from .components import SimpleStatCard as StatCard  # Use shared component
 from ..utils.resources import ResourceManager
 from ..utils.logger import logger

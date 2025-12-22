@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QListWidget, QListWidgetItem,
                              QPushButton, QHBoxLayout, QLabel, QAbstractItemView)
 from PyQt6.QtCore import Qt
 from .styles import Styles
+from .gui_utils import create_button
 
 class GameSelectionDialog(QDialog):
     def __init__(self, games_data, parent=None):
@@ -49,14 +50,10 @@ class GameSelectionDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         
-        self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.setStyleSheet(Styles.get_control_button_style())
-        self.btn_cancel.clicked.connect(self.reject)
+        self.btn_cancel = create_button("Cancel", style="secondary", on_click=self.reject)
         btn_layout.addWidget(self.btn_cancel)
         
-        self.btn_load = QPushButton("Load Game")
-        self.btn_load.setStyleSheet(Styles.get_button_style())
-        self.btn_load.clicked.connect(self.accept_selection)
+        self.btn_load = create_button("Load Game", style="primary", on_click=self.accept_selection)
         btn_layout.addWidget(self.btn_load)
         
         layout.addLayout(btn_layout)

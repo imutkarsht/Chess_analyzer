@@ -1,7 +1,8 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle
 from PyQt6.QtCore import pyqtSignal, Qt
 from .game_list import GameListWidget
 from .styles import Styles
+from .gui_utils import create_button
 from ..backend.game_history import GameHistoryManager
 from ..backend.models import GameAnalysis, GameMetadata
 import json
@@ -31,9 +32,7 @@ class HistoryView(QWidget):
         header_layout.addStretch()
         
         # Refresh Button (Top-Right)
-        self.btn_refresh = QPushButton("Refresh")
-        self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
-        self.btn_refresh.clicked.connect(self.load_history)
+        self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.load_history)
         header_layout.addWidget(self.btn_refresh)
         
         self.layout.addLayout(header_layout)
@@ -47,26 +46,19 @@ class HistoryView(QWidget):
         btn_layout = QHBoxLayout()
         
         # Import/Export (Bottom-Left)
-        from PyQt6.QtWidgets import QStyle
-        
-        self.btn_export = QPushButton(" Export Games")
-        self.btn_export.setStyleSheet(Styles.get_export_button_style())
+        self.btn_export = create_button(" Export Games", style="export", on_click=self.export_games)
         self.btn_export.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
-        self.btn_export.clicked.connect(self.export_games)
         btn_layout.addWidget(self.btn_export)
         
-        self.btn_import = QPushButton(" Import Games")
-        self.btn_import.setStyleSheet(Styles.get_import_button_style())
+        self.btn_import = create_button(" Import Games", style="import", on_click=self.import_games)
         self.btn_import.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton))
-        self.btn_import.clicked.connect(self.import_games)
         btn_layout.addWidget(self.btn_import)
         
         btn_layout.addStretch()
         
         # Clear History (Bottom-Right)
-        self.btn_clear = QPushButton("Clear History")
+        self.btn_clear = create_button("Clear History", style="secondary", on_click=self.clear_history)
         self.btn_clear.setStyleSheet(f"background-color: {Styles.COLOR_BLUNDER}; color: white; border: none; padding: 8px 16px; border-radius: 4px;")
-        self.btn_clear.clicked.connect(self.clear_history)
         btn_layout.addWidget(self.btn_clear)
         
         self.layout.addLayout(btn_layout)

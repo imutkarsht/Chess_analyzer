@@ -1,7 +1,7 @@
 import os
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QFrame, QScrollArea, QPushButton, QGridLayout, QProgressBar, QSizePolicy)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPixmap, QIcon
 import matplotlib
 matplotlib.use('QtAgg')
@@ -9,276 +9,31 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import json
 from .styles import Styles
-from .gui_utils import clear_layout, resolve_asset, get_user_color  # Use shared utilities
+from .gui_utils import clear_layout, resolve_asset, get_user_color, create_button
+from .metrics.workers import InsightWorker, StatsWorker
+from .metrics.charts import (
+    create_donut_figure, create_line_chart_figure,
+    fig_to_canvas, fig_to_label, create_legend_widget
+)
+from .components import StatCard
 from ..utils.logger import logger
 from ..backend.gemini_service import GeminiService
 import re
 
-class InsightWorker(QThread):
-    finished = pyqtSignal(str)
-    error = pyqtSignal(str)
-
-    def __init__(self, service, stats_text):
-        super().__init__()
-        self.service = service
-        self.stats_text = stats_text
-
-    def run(self):
-        try:
-            insight = self.service.generate_coach_insights(self.stats_text)
-            self.finished.emit(insight)
-        except Exception as e:
-            self.error.emit(str(e))
-
-class StatsWorker(QThread):
-    finished = pyqtSignal(dict)
-    
-    def __init__(self, games, usernames):
-        super().__init__()
-        self.games = games
-        self.usernames = usernames
-        
-    def run(self):
-        try:
-            stats = self._calculate_stats()
-            self.finished.emit(stats)
-        except Exception as e:
-            # Handle empty stats or error
-            self.finished.emit({})
-        
-    def _get_user_color(self, game):
-        white = game['white'].lower()
-        if white in [u.lower() for u in self.usernames]:
-            return 'white'
-        return 'black'
-
-    def _calculate_stats(self):
-        total = len(self.games)
-        wins = 0
-        draws = 0
-        losses = 0
-        total_acc = 0
-        acc_count = 0
-        best_win_rating = 0
-        
-        term_counts = {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0, "Draw": 0}
-        quality_counts = {"Best": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0}
-        accuracy_history = []
-        openings = {}
-        opening_wins = {}
-        
-        # New: Color Stats
-        color_stats = {
-            'white': {'wins': 0, 'draws': 0, 'losses': 0, 'total': 0},
-            'black': {'wins': 0, 'draws': 0, 'losses': 0, 'total': 0}
-        }
-
-        for game in self.games:
-            user_color = self._get_user_color(game)
-            if not user_color: continue
-            
-            res = game['result']
-            
-            # Update Color Totals
-            color_stats[user_color]['total'] += 1
-            
-            # 1. Result
-            if res == '1-0':
-                if user_color == 'white': 
-                    wins += 1
-                    color_stats['white']['wins'] += 1
-                else: 
-                    losses += 1
-                    color_stats['black']['losses'] += 1
-            elif res == '0-1':
-                if user_color == 'black': 
-                    wins += 1
-                    color_stats['black']['wins'] += 1
-                else: 
-                    losses += 1
-                    color_stats['white']['losses'] += 1
-            else:
-                draws += 1
-                color_stats[user_color]['draws'] += 1
-                
-            # 2. Termination
-            term = (game.get("termination") or "").lower()
-            if res == "1/2-1/2":
-                term_counts["Draw"] += 1
-            elif "time" in term:
-                term_counts["Time"] += 1
-            elif "resign" in term:
-                term_counts["Resignation"] += 1
-            elif "abandon" in term:
-                term_counts["Abandon"] += 1
-            elif "mate" in term:
-                term_counts["Checkmate"] += 1
-            else:
-                pgn = game.get("pgn", "")
-                if "#" in pgn: term_counts["Checkmate"] += 1
-                else: term_counts["Resignation"] += 1
-
-            # 3. Accuracy / Quality
-            game_acc = 0
-            if game.get('summary_json'):
-                try:
-                    summary = json.loads(game['summary_json'])
-                    s_data = summary.get(user_color, {})
-                    
-                    acc = s_data.get('accuracy', 0)
-                    if acc > 0:
-                        total_acc += acc
-                        acc_count += 1
-                        game_acc = acc
-                        
-                    quality_counts["Best"] += s_data.get("Best", 0) + s_data.get("Brilliant", 0) + s_data.get("Great", 0)
-                    quality_counts["Inaccuracy"] += s_data.get("Inaccuracy", 0)
-                    quality_counts["Mistake"] += s_data.get("Mistake", 0)
-                    quality_counts["Blunder"] += s_data.get("Blunder", 0)
-                except:
-                    pass
-            
-            if game_acc > 0:
-                accuracy_history.append(game_acc)
-            
-            # 4. Best Win
-            is_win = False
-            opponent_elo = 0
-            if (res == '1-0' and user_color == 'white') or (res == '0-1' and user_color == 'black'):
-                is_win = True
-                opp_key = 'black_elo' if user_color == 'white' else 'white_elo'
-                try: opponent_elo = int(game.get(opp_key, 0))
-                except: opponent_elo = 0
-            if is_win and opponent_elo > best_win_rating:
-                best_win_rating = opponent_elo
-                
-            # 5. Openings
-            op_name = game.get("opening")
-            if not op_name:
-                pgn = game.get('pgn', "")
-                if 'Opening "' in pgn:
-                    match = re.search(r'\[Opening "([^"]+)"\]', pgn)
-                    if match: op_name = match.group(1)
-            
-            if op_name:
-                main_name = op_name.split(":")[0].split(",")[0].strip()
-                openings[main_name] = openings.get(main_name, 0) + 1
-                if is_win:
-                    opening_wins[main_name] = opening_wins.get(main_name, 0) + 1
-
-        return {
-            'total': total,
-            'wins': wins,
-            'losses': losses,
-            'draws': draws,
-            'win_rate': (wins / total * 100) if total else 0,
-            'avg_accuracy': (total_acc / acc_count) if acc_count else 0,
-            'best_win': str(best_win_rating) if best_win_rating > 0 else "N/A",
-            'term_counts': term_counts,
-            'quality_counts': quality_counts,
-            'accuracy_history': accuracy_history,
-            'openings': openings,
-            'opening_wins': opening_wins,
-            'color_stats': color_stats
-        }
-
-class StatCard(QFrame):
-    def __init__(self, title, value, subtitle=None, icon=None, color=None):
-        super().__init__()
-        # Distinct border/bg for a cleaner "dashboard" look
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            QFrame:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-        """)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(10)
-        
-        # Header (Title + Icon)
-        header_layout = QHBoxLayout()
-        
-        lbl_title = QLabel(title)
-        lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: 600; border: none; background: transparent;")
-        header_layout.addWidget(lbl_title)
-        
-        if icon:
-            # Use module-level helper
-            # Check SVG first if name doesn't specify ext
-            if not icon.endswith(('.png', '.svg')):
-                # Try both
-                icon_path = resolve_asset(f"{icon}.svg")
-                if not icon_path:
-                    icon_path = resolve_asset(f"{icon}.png")
-            else:
-                icon_path = resolve_asset(icon)
-            
-            if icon_path and os.path.exists(icon_path):
-                lbl_icon = QLabel()
-                pixmap = QPixmap(icon_path)
-                if not pixmap.isNull():
-                    # Increased icon size for better visibility
-                    pixmap = pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                    lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet("border: none; background: transparent;")
-                    header_layout.addStretch()
-                    header_layout.addWidget(lbl_icon)
-                else:
-                     # Fallback text
-                    lbl = QLabel(icon)
-                    lbl.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 16px; border: none; background: transparent;")
-                    header_layout.addStretch()
-                    header_layout.addWidget(lbl)
-            else:
-                lbl_icon = QLabel(icon) # Fallback
-                lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 16px; border: none; background: transparent;")
-                header_layout.addStretch()
-                header_layout.addWidget(lbl_icon)
-        else:
-            header_layout.addStretch()
-            
-        layout.addLayout(header_layout)
-        
-        # Value
-        lbl_value = QLabel(value)
-        value_color = color if color else Styles.COLOR_TEXT_PRIMARY
-        # Larger font for impact
-        lbl_value.setStyleSheet(f"color: {value_color}; font-size: 36px; font-weight: bold; border: none; background: transparent;")
-        layout.addWidget(lbl_value)
-        
-        # Subtitle
-        if subtitle:
-            lbl_sub = QLabel(subtitle)
-            # Slightly lighter text
-            lbl_sub.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; border: none; background: transparent;")
-            lbl_sub.setWordWrap(True)
-            layout.addWidget(lbl_sub)
-
 
 class MetricsWidget(QWidget):
+    request_settings = pyqtSignal()
+    
     def __init__(self, config_manager, history_manager):
         super().__init__()
         self.config_manager = config_manager
         self.history_manager = history_manager
         self.usernames = []
         self.games_data = []
-        self.gemini_service = GeminiService(config_manager.get("gemini_api_key")) # Try config, fallback to env in service
+        self.gemini_service = GeminiService(config_manager.get("gemini_api_key"))
         
         self.setup_ui()
         self.refresh()
-
-    def _get_user_color(self, game):
-        """Returns 'white' or 'black' based on which player matches configured usernames."""
-        white = game['white'].lower()
-        if white in [u.lower() for u in self.usernames]:
-            return 'white'
-        return 'black'
 
     def _create_icon_label(self, icon_name, size=24, fallback_color=None):
         """Creates a QLabel with icon, with fallback to colored dot."""
@@ -314,9 +69,7 @@ class MetricsWidget(QWidget):
         
         header_layout.addStretch()
         
-        self.btn_refresh = QPushButton("Refresh")
-        self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
-        self.btn_refresh.clicked.connect(self.refresh)
+        self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.refresh)
         header_layout.addWidget(self.btn_refresh)
         
         self.main_layout.addLayout(header_layout)
@@ -545,63 +298,27 @@ class MetricsWidget(QWidget):
 
 
     def _create_result_donut(self, stats):
-        fig = Figure(figsize=(3, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
-        ax = fig.add_subplot(111)
-        ax.set_facecolor(Styles.COLOR_SURFACE)
-        
-        labels = ['Wins', 'Losses', 'Draws']
+        """Creates win/loss/draw donut chart using shared chart helper."""
         sizes = [stats['wins'], stats['losses'], stats['draws']]
         colors = [Styles.COLOR_ACCENT, '#ca3431', '#888888']
+        center_text = f"{stats['win_rate']:.0f}%"
         
-        # Filter zeros
-        final_sizes = []
-        final_colors = []
-        for i, size in enumerate(sizes):
-            if size > 0:
-                final_sizes.append(size)
-                final_colors.append(colors[i])
-        
-        if final_sizes:
-            wedges, texts, autotexts = ax.pie(final_sizes, labels=None, autopct='%1.0f%%', 
-                                              startangle=90, colors=final_colors, pctdistance=0.85,
-                                              textprops=dict(color=Styles.COLOR_TEXT_PRIMARY))
-            
-            # Draw circle for donut
-            centre_circle = matplotlib.patches.Circle((0,0),0.70,fc=Styles.COLOR_SURFACE)
-            fig.gca().add_artist(centre_circle)
-            
-            # Add text in center
-            ax.text(0, 0, f"{stats['win_rate']:.0f}%", ha='center', va='center', fontsize=12, color=Styles.COLOR_TEXT_PRIMARY, weight='bold')
-            
-        else:
-             ax.text(0, 0, "No Data", ha='center', va='center', color=Styles.COLOR_TEXT_SECONDARY)
-
-        canvas = FigureCanvasQTAgg(fig)
-        canvas.setStyleSheet("background: transparent;")
-        return canvas
+        fig = create_donut_figure(sizes, colors, center_text)
+        return fig_to_canvas(fig)
 
     def _create_termination_donut(self, counts):
-        # Counts passed in dictionary
-        # {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0, "Draw": 0} 
-
-        fig = Figure(figsize=(3, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
-        ax = fig.add_subplot(111)
-        ax.set_facecolor(Styles.COLOR_SURFACE)
-        
-        labels = []
-        sizes = []
-        colors = []
-        
+        """Creates termination reasons donut chart with legend."""
         # Define colors for ending types
         type_colors = {
-            "Checkmate": Styles.COLOR_BEST,    # Greenish
-            "Resignation": Styles.COLOR_ACCENT, # Blue
-            "Time": "#e67e22",                 # Orange
-            "Abandon": Styles.COLOR_BLUNDER,    # Red
-            "Draw": "#888888"                  # Grey
+            "Checkmate": Styles.COLOR_BEST,
+            "Resignation": Styles.COLOR_ACCENT,
+            "Time": "#e67e22",
+            "Abandon": Styles.COLOR_BLUNDER,
+            "Draw": "#888888"
         }
         
-        # Order: Mate, Resign, Time, Abandon, Draw
+        # Build data lists
+        labels, sizes, colors = [], [], []
         for k in ["Checkmate", "Resignation", "Time", "Abandon", "Draw"]:
             v = counts.get(k, 0)
             if v > 0:
@@ -609,91 +326,25 @@ class MetricsWidget(QWidget):
                 sizes.append(v)
                 colors.append(type_colors.get(k, '#888'))
         
-        if sizes:
-            wedges, texts, autotexts = ax.pie(sizes, labels=None, autopct='%1.0f%%', 
-                                              startangle=90, colors=colors, pctdistance=0.85,
-                                              textprops=dict(color=Styles.COLOR_TEXT_PRIMARY))
-            
-            # Donut hole
-            centre_circle = matplotlib.patches.Circle((0,0),0.70,fc=Styles.COLOR_SURFACE)
-            fig.gca().add_artist(centre_circle)
-            
-            # Center Text (Total Won/Decisive?)
-            total = sum(sizes)
-            ax.text(0, 0, str(total), ha='center', va='center', fontsize=12, color=Styles.COLOR_TEXT_PRIMARY, weight='bold')
-            
-        else:
-             ax.text(0, 0, "No Data", ha='center', va='center', color=Styles.COLOR_TEXT_SECONDARY)
-
-        canvas = FigureCanvasQTAgg(fig)
-        canvas.setStyleSheet("background: transparent;")
+        # Create chart
+        center_text = str(sum(sizes)) if sizes else ""
+        fig = create_donut_figure(sizes, colors, center_text)
+        canvas = fig_to_canvas(fig)
+        
+        # Build container with chart + legend
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Canvas
         layout.addWidget(canvas, stretch=3)
-        
-        # Legend
-        legend_widget = QWidget()
-        legend_layout = QVBoxLayout(legend_widget)
-        legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        legend_layout.setSpacing(8)
-        
-        for i, label in enumerate(labels):
-            row = QHBoxLayout()
-            row.setSpacing(8)
-            
-            # Dot
-            dot = QLabel("●")
-            dot.setStyleSheet(f"color: {colors[i]}; font-size: 16px; border: none; background: transparent;")
-            row.addWidget(dot)
-            
-            # Label
-            lbl_name = QLabel(label)
-            lbl_name.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; border: none; background: transparent;")
-            row.addWidget(lbl_name)
-            
-            # Value
-            lbl_val = QLabel(str(sizes[i]))
-            lbl_val.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 12px; border: none; background: transparent;")
-            row.addWidget(lbl_val)
-            
-            row.addStretch()
-            legend_layout.addLayout(row)
-            
-        layout.addWidget(legend_widget, stretch=2)
+        layout.addWidget(create_legend_widget(labels, colors, sizes), stretch=2)
         
         return container
 
     def _create_accuracy_chart(self, full_history):
-        fig = Figure(figsize=(5, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
-        ax = fig.add_subplot(111)
-        ax.set_facecolor(Styles.COLOR_SURFACE)
-        
+        """Creates accuracy trend line chart using shared helper."""
         accuracies = full_history[:20][::-1] if full_history else []
-                
-        if accuracies:
-            # Smooth curve? Matplotlib default plot is fine, just style it better
-            x = range(len(accuracies))
-            ax.plot(x, accuracies, color=Styles.COLOR_ACCENT, marker='o', linewidth=2, markersize=6)
-            
-            # Fill under area
-            ax.fill_between(x, accuracies, alpha=0.1, color=Styles.COLOR_ACCENT)
-            
-            ax.set_ylim(0, 100)
-            ax.grid(True, color='#444', linestyle=':', alpha=0.3)
-            
-            # Remove spines
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-            ax.spines['bottom'].set_visible(False)
-            
-        ax.tick_params(colors=Styles.COLOR_TEXT_SECONDARY, which='both', length=0)
-            
-        canvas = FigureCanvasQTAgg(fig)
-        return canvas
+        fig = create_line_chart_figure(accuracies, figsize=(5, 3))
+        return fig_to_canvas(fig)
 
     def _create_color_chart(self, color_stats):
         container = QWidget()
@@ -1153,8 +804,6 @@ class MetricsWidget(QWidget):
     def _clear_layout(self, layout):
         # Legacy method for backward compatibility - uses shared utility
         clear_layout(layout)
-
-    request_settings = pyqtSignal()
 
     def go_to_settings(self):
         self.request_settings.emit()

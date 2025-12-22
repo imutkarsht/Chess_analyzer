@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLa
 from PyQt6.QtGui import QColor, QDesktopServices
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl
 from .styles import Styles
+from .gui_utils import create_button
 from ..utils.config import ConfigManager
 import os
 
@@ -56,16 +57,12 @@ class SettingsView(QWidget):
         self.path_input.setStyleSheet(Styles.get_input_style())
         path_layout.addWidget(self.path_input)
         
-        self.browse_btn = QPushButton("Browse")
-        self.browse_btn.setStyleSheet(Styles.get_control_button_style())
-        self.browse_btn.clicked.connect(self.browse_engine)
+        self.browse_btn = create_button("Browse", style="secondary", on_click=self.browse_engine)
         path_layout.addWidget(self.browse_btn)
         
         engine_layout.addLayout(path_layout)
         
-        self.save_engine_btn = QPushButton("Save Engine Path")
-        self.save_engine_btn.setStyleSheet(Styles.get_button_style())
-        self.save_engine_btn.clicked.connect(self.save_engine_path)
+        self.save_engine_btn = create_button("Save Engine Path", style="primary", on_click=self.save_engine_path)
         engine_layout.addWidget(self.save_engine_btn, alignment=Qt.AlignmentFlag.AlignRight)
         
         self.container_layout.addWidget(self.engine_group, 0, 0)
@@ -96,9 +93,7 @@ class SettingsView(QWidget):
         api_layout.addRow(lbl, self.gemini_input)
         api_layout.addRow(lbl_lichess, self.lichess_token_input)
         
-        self.save_api_btn = QPushButton("Save API Key")
-        self.save_api_btn.setStyleSheet(Styles.get_button_style())
-        self.save_api_btn.clicked.connect(self.save_api_key)
+        self.save_api_btn = create_button("Save API Key", style="primary", on_click=self.save_api_key)
         
         btn_wrapper = QHBoxLayout()
         btn_wrapper.addStretch()
@@ -133,9 +128,7 @@ class SettingsView(QWidget):
         username_layout.addRow(lbl_chesscom, self.chesscom_input)
         username_layout.addRow(lbl_lichess, self.lichess_input)
 
-        self.save_usernames_btn = QPushButton("Save Usernames")
-        self.save_usernames_btn.setStyleSheet(Styles.get_button_style())
-        self.save_usernames_btn.clicked.connect(self.save_usernames)
+        self.save_usernames_btn = create_button("Save Usernames", style="primary", on_click=self.save_usernames)
 
         btn_wrapper_user = QHBoxLayout()
         btn_wrapper_user.addStretch()
@@ -216,9 +209,7 @@ class SettingsView(QWidget):
         color_lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
         color_layout.addWidget(color_lbl)
         
-        self.color_btn = QPushButton("Change Color")
-        self.color_btn.setStyleSheet(Styles.get_control_button_style())
-        self.color_btn.clicked.connect(self.change_accent_color)
+        self.color_btn = create_button("Change Color", style="secondary", on_click=self.change_accent_color)
         color_layout.addWidget(self.color_btn)
         
         color_layout.addStretch()
@@ -232,14 +223,10 @@ class SettingsView(QWidget):
         data_layout = QGridLayout(self.data_group)
         data_layout.setContentsMargins(20, 25, 20, 20)
         
-        self.clear_cache_btn = QPushButton("Clear Cache")
-        self.clear_cache_btn.setStyleSheet(Styles.get_control_button_style())
-        self.clear_cache_btn.clicked.connect(self.clear_cache)
+        self.clear_cache_btn = create_button("Clear Cache", style="secondary", on_click=self.clear_cache)
         data_layout.addWidget(self.clear_cache_btn, 0, 0)
         
-        self.clear_data_btn = QPushButton("Reset All Data")
-        self.clear_data_btn.setStyleSheet(Styles.get_control_button_style())
-        self.clear_data_btn.clicked.connect(self.clear_all_data)
+        self.clear_data_btn = create_button("Reset All Data", style="secondary", on_click=self.clear_all_data)
         data_layout.addWidget(self.clear_data_btn, 0, 1)
         
         self.container_layout.addWidget(self.data_group, 1, 1)
@@ -250,14 +237,10 @@ class SettingsView(QWidget):
         website_layout = QHBoxLayout(self.website_group)
         website_layout.setContentsMargins(20, 25, 20, 20)
 
-        self.website_btn = QPushButton("Visit Website")
-        self.website_btn.setStyleSheet(Styles.get_control_button_style())
-        self.website_btn.clicked.connect(self.open_website)
+        self.website_btn = create_button("Visit Website", style="secondary", on_click=self.open_website)
         website_layout.addWidget(self.website_btn)
 
-        self.feedback_btn = QPushButton("Feedback")
-        self.feedback_btn.setStyleSheet(Styles.get_control_button_style())
-        self.feedback_btn.clicked.connect(self.open_feedback)
+        self.feedback_btn = create_button("Feedback", style="secondary", on_click=self.open_feedback)
         website_layout.addWidget(self.feedback_btn)
 
         self.container_layout.addWidget(self.website_group, 2, 1)

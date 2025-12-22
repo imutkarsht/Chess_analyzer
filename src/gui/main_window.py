@@ -25,6 +25,7 @@ from ..backend.engine import EngineManager
 from ..backend.chess_com_api import ChessComAPI
 from ..backend.lichess_api import LichessAPI
 from .styles import Styles
+from .gui_utils import create_button
 from ..backend.models import MoveAnalysis, GameAnalysis, GameMetadata
 from ..backend.game_history import GameHistoryManager
 from ..utils.path_utils import get_resource_path
@@ -238,8 +239,7 @@ class MainWindow(QMainWindow):
         btn_layout = QHBoxLayout()
         
         # Load Game Button with Menu
-        self.btn_load = QPushButton("Load Game")
-        self.btn_load.setStyleSheet(Styles.get_control_button_style())
+        self.btn_load = create_button("Load Game", style="secondary")
         
         load_menu = QMenu(self)
         menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
@@ -291,9 +291,7 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.btn_load)
         
         # Analyze Button
-        self.btn_analyze = QPushButton("Analyze Game")
-        self.btn_analyze.setStyleSheet(Styles.get_button_style())
-        self.btn_analyze.clicked.connect(self.start_analysis)
+        self.btn_analyze = create_button("Analyze Game", style="primary", on_click=self.start_analysis)
         btn_layout.addWidget(self.btn_analyze)
         
         left_layout.insertLayout(0, btn_layout) # Insert at top
