@@ -9,30 +9,10 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import json
 from .styles import Styles
+from .gui_utils import clear_layout, resolve_asset, get_user_color  # Use shared utilities
 from ..utils.logger import logger
 from ..backend.gemini_service import GeminiService
-from ..utils.path_utils import get_resource_path
 import re
-
-def resolve_asset(filename):
-    """
-    Robustly find assets using the project's standard resource resolver.
-    Checks:
-    1. assets/images/ (SVGs)
-    2. assets/icons/ (PNGs)
-    3. assets/ (Root)
-    """
-    candidates = [
-        os.path.join("assets", "images", filename),
-        os.path.join("assets", "icons", filename),
-        os.path.join("assets", filename)
-    ]
-    
-    for rel_path in candidates:
-        full_path = get_resource_path(rel_path)
-        if os.path.exists(full_path):
-            return full_path
-    return None
 
 class InsightWorker(QThread):
     finished = pyqtSignal(str)
@@ -348,7 +328,7 @@ class MetricsWidget(QWidget):
         self.main_layout.addWidget(self.content_widget)
 
     def refresh(self, _=None):
-        self._clear_layout(self.content_layout)
+        clear_layout(self.content_layout)
         
         chesscom = self.config_manager.get("chesscom_username", "")
         lichess = self.config_manager.get("lichess_username", "")
@@ -396,7 +376,7 @@ class MetricsWidget(QWidget):
         self.stats_worker.start()
 
     def on_stats_ready(self, stats):
-        self._clear_layout(self.content_layout)
+        clear_layout(self.content_layout)
         self.show_dashboard(stats)
 
     def show_setup_required(self):
@@ -1171,10 +1151,8 @@ class MetricsWidget(QWidget):
         return container
 
     def _clear_layout(self, layout):
-        while layout.count():
-            child = layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        # Legacy method for backward compatibility - uses shared utility
+        clear_layout(layout)
 
     request_settings = pyqtSignal()
 

@@ -38,23 +38,8 @@ class SettingsView(QWidget):
         self.scroll_area.setWidget(self.content_container)
         main_layout.addWidget(self.scroll_area)
         
-        # Helper to style group boxes
-        self.group_style = f"""
-            QGroupBox {{ 
-                font-weight: bold; 
-                font-size: 16px; 
-                color: {Styles.COLOR_TEXT_PRIMARY}; 
-                border: 1px solid {Styles.COLOR_BORDER}; 
-                border-radius: 8px; 
-                margin-top: 10px; 
-                background-color: {Styles.COLOR_SURFACE};
-            }} 
-            QGroupBox::title {{ 
-                subcontrol-origin: margin; 
-                left: 15px; 
-                padding: 0 5px; 
-            }}
-        """
+        # Use centralized group box style
+        self.group_style = Styles.get_group_box_style()
 
         # --- LEFT COLUMN (Column 0) ---
 
@@ -68,7 +53,7 @@ class SettingsView(QWidget):
         self.path_input = QLineEdit()
         self.path_input.setText(self.config_manager.get("engine_path", ""))
         self.path_input.setPlaceholderText("Path to Stockfish executable...")
-        self.path_input.setStyleSheet(f"padding: 10px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+        self.path_input.setStyleSheet(Styles.get_input_style())
         path_layout.addWidget(self.path_input)
         
         self.browse_btn = QPushButton("Browse")
@@ -95,18 +80,18 @@ class SettingsView(QWidget):
         self.gemini_input = QLineEdit()
         self.gemini_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.gemini_input.setText(self.config_manager.get("gemini_api_key", ""))
-        self.gemini_input.setStyleSheet(f"padding: 10px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+        self.gemini_input.setStyleSheet(Styles.get_input_style())
         
         self.lichess_token_input = QLineEdit()
         self.lichess_token_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
-        self.lichess_token_input.setStyleSheet(f"padding: 10px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+        self.lichess_token_input.setStyleSheet(Styles.get_input_style())
 
         lbl = QLabel("Gemini API Key:")
-        lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl.setStyleSheet(Styles.get_secondary_label_style())
         
         lbl_lichess = QLabel("Lichess API Token:")
-        lbl_lichess.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_lichess.setStyleSheet(Styles.get_secondary_label_style())
         
         api_layout.addRow(lbl, self.gemini_input)
         api_layout.addRow(lbl_lichess, self.lichess_token_input)
@@ -132,18 +117,18 @@ class SettingsView(QWidget):
         self.chesscom_input = QLineEdit()
         self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
         self.chesscom_input.setPlaceholderText("Chess.com Username")
-        self.chesscom_input.setStyleSheet(f"padding: 10px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+        self.chesscom_input.setStyleSheet(Styles.get_input_style())
         
         self.lichess_input = QLineEdit()
         self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
         self.lichess_input.setPlaceholderText("Lichess.org Username")
-        self.lichess_input.setStyleSheet(f"padding: 10px; border: 1px solid {Styles.COLOR_BORDER}; border-radius: 4px; background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_TEXT_PRIMARY};")
+        self.lichess_input.setStyleSheet(Styles.get_input_style())
 
         lbl_chesscom = QLabel("Chess.com:")
-        lbl_chesscom.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_chesscom.setStyleSheet(Styles.get_secondary_label_style())
         
         lbl_lichess = QLabel("Lichess.org:")
-        lbl_lichess.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_lichess.setStyleSheet(Styles.get_secondary_label_style())
 
         username_layout.addRow(lbl_chesscom, self.chesscom_input)
         username_layout.addRow(lbl_lichess, self.lichess_input)
@@ -337,29 +322,18 @@ class SettingsView(QWidget):
             if hasattr(window, "refresh_theme"):
                 window.refresh_theme()
 
-    def change_board_theme(self, theme_name):
-        self.config_manager.set("board_theme", theme_name)
-        
-        # Trigger global refresh
+    def _update_config_and_refresh(self, key, value):
+        """Common helper for config updates that require theme refresh."""
+        self.config_manager.set(key, value)
         window = self.window()
         if hasattr(window, "refresh_theme"):
             window.refresh_theme()
 
     def change_board_theme(self, theme_name):
-        self.config_manager.set("board_theme", theme_name)
-        
-        # Trigger global refresh
-        window = self.window()
-        if hasattr(window, "refresh_theme"):
-            window.refresh_theme()
+        self._update_config_and_refresh("board_theme", theme_name)
 
     def change_piece_theme(self, theme_name):
-        self.config_manager.set("piece_theme", theme_name)
-        
-        # Trigger global refresh
-        window = self.window()
-        if hasattr(window, "refresh_theme"):
-            window.refresh_theme()
+        self._update_config_and_refresh("piece_theme", theme_name)
 
     def browse_engine(self):
         filter_str = "Executables (*.exe);;All Files (*)" if os.name == 'nt' else "All Files (*)"

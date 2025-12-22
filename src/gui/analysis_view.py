@@ -5,6 +5,8 @@ from .graph_widget import GraphWidget
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread, QSize
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
+from .gui_utils import clear_layout
+from .components import SimpleStatCard as StatCard  # Use shared component
 from ..utils.resources import ResourceManager
 from ..utils.logger import logger
 import chess
@@ -14,33 +16,8 @@ from PyQt6.QtWidgets import QTextEdit, QMessageBox, QInputDialog, QLineEdit
 from ..utils.config import ConfigManager
 from .loading_widget import LoadingOverlay
 
-class StatCard(QFrame):
-    def __init__(self, title, value, color=None):
-        super().__init__()
-        self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 10px;
-            }}
-            QLabel {{ border: none; background: transparent; }}
-        """)
-        
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
-        
-        lbl_title = QLabel(title)
-        lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px;")
-        lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        lbl_value = QLabel(str(value))
-        lbl_value.setStyleSheet(f"color: {color if color else Styles.COLOR_TEXT_PRIMARY}; font-size: 18px; font-weight: bold;")
-        lbl_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        layout.addWidget(lbl_title)
-        layout.addWidget(lbl_value)
+
+# StatCard imported from .components.stat_card as SimpleStatCard
 
 class CapturedPiecesWidget(QFrame):
     def __init__(self):
@@ -72,8 +49,8 @@ class CapturedPiecesWidget(QFrame):
         
     def update_captured(self, fen):
         # Clear existing
-        self._clear_layout(self.white_captured_layout)
-        self._clear_layout(self.black_captured_layout)
+        clear_layout(self.white_captured_layout)
+        clear_layout(self.black_captured_layout)
         
         if not fen:
             return
@@ -138,10 +115,8 @@ class CapturedPiecesWidget(QFrame):
             layout.addWidget(lbl)
             
     def _clear_layout(self, layout):
-        while layout.count():
-            child = layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        # Legacy method for backward compatibility - uses shared utility
+        clear_layout(layout)
 
 class AnalysisLinesWidget(QFrame):
     def __init__(self):
@@ -621,8 +596,8 @@ class AnalysisPanel(QWidget):
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
 
     def _update_summary(self, summary):
-        self._clear_layout(self.accuracy_layout)
-        self._clear_layout(self.stats_layout)
+        clear_layout(self.accuracy_layout)
+        clear_layout(self.stats_layout)
         
         if not summary or "white" not in summary:
             return
@@ -678,10 +653,8 @@ class AnalysisPanel(QWidget):
             self.stats_layout.addWidget(lbl_val_b, i+1, 3)
 
     def _clear_layout(self, layout):
-        while layout.count():
-            child = layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        # Legacy method for backward compatibility - uses shared utility
+        clear_layout(layout)
 
     def generate_ai_summary(self):
         if not self.current_game:
