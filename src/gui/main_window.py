@@ -353,7 +353,7 @@ class MainWindow(QMainWindow):
         if ok and username:
             self._load_games_from_api(
                 ChessComAPI().get_last_games, 
-                username, 
+                username.strip(), 
                 "Chess.com", 
                 limit=5
             )
@@ -392,7 +392,7 @@ class MainWindow(QMainWindow):
     def on_games_loaded(self, games_data, username, source):
         self.statusBar().clearMessage()
         if games_data:
-            from .game_selection_dialog import GameSelectionDialog
+            from .dialogs.game_selection_dialog import GameSelectionDialog
             dialog = GameSelectionDialog(games_data, self)
             if dialog.exec():
                 selected_game = dialog.selected_game_data
@@ -418,23 +418,19 @@ class MainWindow(QMainWindow):
         url, ok = QInputDialog.getText(self, "Load from Link", "Enter Chess.com Game URL:")
         if ok and url:
             try:
-                self.statusBar().showMessage("Fetching game from link...")
                 api = ChessComAPI()
                 game_id = api.extract_game_id(url)
                 if game_id:
-                    game_data = api.get_game_by_id(game_id, url)
-                    if game_data and "pgn" in game_data:
-                        self._parse_and_load_game(game_data["pgn"], game_data, "Game loaded from link.")
-                    else:
-                        QMessageBox.warning(self, "Error", "Failed to fetch game data.")
-                        self.statusBar().clearMessage()
+                    self.loading_overlay.start("Fetching game...", f"Getting game {game_id}")
+                    self.api_worker = APILoaderWorker(api.get_game_by_id, game_id, url=url)
+                    self.api_worker.finished.connect(lambda data: self._on_link_game_loaded(data, game_id, "Chess.com"))
+                    self.api_worker.error.connect(lambda e: (self.loading_overlay.stop(), self.on_api_error(e)))
+                    self.api_worker.start()
                 else:
                     QMessageBox.warning(self, "Error", "Invalid Chess.com URL.")
-                    self.statusBar().clearMessage()
             except Exception as e:
                 logger.error(f"Link load error: {e}")
                 QMessageBox.critical(self, "Error", f"Failed to load from link: {e}")
-                self.statusBar().clearMessage()
 
     def load_game(self, game):
         # If game has no moves but has PGN content (loaded from history), parse it
@@ -537,7 +533,7 @@ class MainWindow(QMainWindow):
         if ok and username:
             self._load_games_from_api(
                 LichessAPI().get_user_games, 
-                username, 
+                username.strip(), 
                 "Lichess", 
                 max_games=5
             )

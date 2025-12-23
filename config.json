@@ -1,9 +1,9 @@
 {
     "engine_path": "D:/Coding/Major Projects/Chess_analyzer/stockfish/stockfish-windows-x86-64-avx2.exe",
     "theme": "dark",
-    "accent_color": "#b30c4f",
+    "gemini_api_key": "",
+    "board_theme": "Blue",
+    "accent_color": "#21b61f",
     "chesscom_username": "utchess2308",
-    "lichess_username": "ImutKarsht",
-    "board_theme": "Neon",
-    "piece_theme": "Neo"
+    "lichess_username": "imutkarsht"
 }

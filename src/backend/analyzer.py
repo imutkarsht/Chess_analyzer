@@ -26,22 +26,14 @@ class Analyzer:
         """
         Calculates win probability from centipawns or mate score.
         Returns value between 0.0 and 1.0.
-        Formula based on Lichess: 50 + 50 * (2 / (1 + exp(-0.00368208 * cp)) - 1)
         """
         if mate is not None:
-            # Mate in X. 
+            # Mate in X
             if mate > 0:
                 return 1.0
             elif mate < 0:
                 return 0.0
             else:
-                # Mate is 0 (Immediate checkmate).
-                # This should physically imply the game is over.
-                # If we are strictly evaluating a position where someone HAS been checkmated, 
-                # the side whose turn it is loses.
-                # The score is usually relative to side to move (which is the loser).
-                # So relative mate is -0 (or 0 but implies loss).
-                # We return 0.0 (Win prob for side to move is 0).
                 return 0.0
 
         if cp is None:
@@ -65,10 +57,8 @@ class Analyzer:
         Calculates accuracy of a single move based on Lichess formula.
         Accuracy% = 103.1668 * exp(-0.04354 * (winPercentBefore - winPercentAfter)) - 3.1669
         """
-        # Win probabilities are 0.0-1.0 here, but formula likely expects 0-100 scale or similar?
-        # Lichess source: 
-        # val accuracy = 103.1668 * math.exp(-0.04354 * (winPercentBefore - winPercentAfter)) - 3.1669
-        # where winPercent is 0..100.
+        # Win probabilities are 0.0-1.0
+
         
         wp_before = win_prob_before * 100.0
         wp_after = win_prob_after * 100.0
@@ -423,7 +413,6 @@ class Analyzer:
         Classifies a move based on Win Probability Loss (WPL).
         """
         # Special Case: Missed Win
-        # If we had a winning position (> 80%) and dropped to Drawish or Losing (< 60%)
         player_wc_before = move.win_chance_before if side == "white" else (1.0 - move.win_chance_before)
         player_wc_after = move.win_chance_after if side == "white" else (1.0 - move.win_chance_after)
         
@@ -433,24 +422,15 @@ class Analyzer:
             return
             
         # Checkmate Check
-        # If this move delivers checkmate (win chance after is 1.0 and mate is detected)
-        # We need to check if the move itself is a mate.
-        # The engine analysis for THIS move (s2) should show mate.
         if move.eval_after_mate is not None and move.eval_after_mate > 0:
-             # It is a winning mate for the side that moved
-             move.classification = "Best" # Or Brilliant if it was hard to find?
+             move.classification = "Best"
              return
 
         # If it's the best move
         if move.uci == move.best_move:
             # Check for "Great" move
-            # If this is the only good move (second best move is significantly worse)
             if multi_pvs and len(multi_pvs) > 1:
                 # Calculate WPL for second best move
-                # We need s1 (current position) and s2 (second best move)
-                # s1 is already known implicitly, but we need to recalculate or pass it?
-                # Actually, we can just compare win probabilities of best vs second best.
-                # wp_best = move.win_chance_after
                 
                 # Get second best score
                 sb_data = multi_pvs[1]
@@ -460,16 +440,6 @@ class Analyzer:
                 # If sb_cp is None and sb_mate is None, we can't judge.
                 if sb_cp is not None or sb_mate is not None:
                     # Calculate wp for second best
-                    # Note: These scores are from engine, so they are relative to side to move (which is 'side')
-                    # We need to convert to white perspective for get_win_probability?
-                    # No, get_win_probability takes raw cp/mate.
-                    # Wait, get_win_probability expects absolute CP? 
-                    # No, the formula uses CP. If CP is positive, win% > 50.
-                    # So we should pass CP relative to the side to move?
-                    # In analyze_game loop:
-                    # s2_cp = next_move.eval_before_cp (Normalized to White)
-                    # Here sb_cp is from multi_pvs, which is usually relative to side to move.
-                    # Let's normalize to White perspective.
                     
                     norm_sb_cp = sb_cp
                     norm_sb_mate = sb_mate
@@ -497,8 +467,7 @@ class Analyzer:
             
         # Thresholds for WPL
         
-        # Missed Mate
-        # If we had a forced mate and lost it
+        # Check for Missed Mate
         if move.eval_before_mate is not None and move.eval_before_mate > 0:
             if move.eval_after_mate is None or move.eval_after_mate <= 0:
                 move.classification = "Miss"
@@ -506,8 +475,7 @@ class Analyzer:
                 return
 
         # Missed Win (Miss)
-        # If we were winning (>80%) and now we are not (<60%)
-        # Or if we were winning (>70%) and lost significant advantage (>20%)
+        # Winning (>80%) -> Not (>60%) or Winning (>70%) -> significant loss (>20%)
         if (move.win_chance_before > 0.8 and move.win_chance_after < 0.6) or \
            (move.win_chance_before > 0.7 and wpl > 0.20):
             move.classification = "Miss"

@@ -88,16 +88,13 @@ class MetricsWidget(QWidget):
         self.usernames = [u for u in [chesscom, lichess] if u]
         
         if not self.usernames:
-            # Fallback: Load ALL games if no username is set
-            self.games_data = self.history_manager.get_all_games()
-        else:
-            self.games_data = self.history_manager.get_games_for_users(self.usernames)
+            self.show_setup_required()
+            return
+            
+        self.games_data = self.history_manager.get_games_for_users(self.usernames)
         
         if not self.games_data:
-            if not self.usernames:
-                self.show_setup_required() # Still show setup if history is ALSO empty
-            else:
-                self.show_no_data()
+            self.show_no_data()
             return
             
         # Show Loading
