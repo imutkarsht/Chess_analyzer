@@ -66,7 +66,8 @@ class Analyzer:
         diff = wp_before - wp_after
         if diff < 0: diff = 0 # Improvement is perfect accuracy
         
-        accuracy = 103.1668 * math.exp(-0.04354 * diff) - 3.1669
+        # Stricter decay constant (0.09) to match Chess.com values better
+        accuracy = 103.1668 * math.exp(-0.09 * diff) - 3.1669
         
         return max(0.0, min(100.0, accuracy))
 
@@ -116,12 +117,12 @@ class Analyzer:
             "white": {
                 "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0,
                 "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0,
-                "acpl": 0, "move_count": 0, "accuracies": []
+                "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []
             },
             "black": {
                 "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0,
                 "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0,
-                "acpl": 0, "move_count": 0, "accuracies": []
+                "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []
             }
         }
         
@@ -339,6 +340,7 @@ class Analyzer:
             player_wp_after = wp_after if side == "white" else (1.0 - wp_after)
             move_acc = self._calculate_move_accuracy(player_wp_before, player_wp_after)
             summary_counts[side]["accuracies"].append(move_acc)
+            summary_counts[side]["win_percents"].append(player_wp_before)  # Store for volatility
             
             # Advance board for turn tracking for next move logic
             board.set_fen(move.fen_before)
@@ -393,15 +395,26 @@ class Analyzer:
         return False, None
 
     def _calculate_final_accuracy(self, summary_counts):
-        """Calculates final game accuracy based on ACPL."""
+        """Calculates final game accuracy using arithmetic mean of move accuracies."""
         for side in ["white", "black"]:
+            accuracies = summary_counts[side]["accuracies"]
             mc = summary_counts[side]["move_count"]
+            
             if mc > 0:
+                # Calculate ACPL for stats display
                 summary_counts[side]["acpl"] /= mc
-                acpl = summary_counts[side]["acpl"]
-                accuracy = 100 * math.exp(-0.004 * acpl)
-                summary_counts[side]["accuracy"] = accuracy
-                logger.debug(f"Side: {side}, Avg ACPL: {acpl}, Accuracy: {accuracy}")
+                
+                if len(accuracies) >= 1:
+                    # Cap minimum accuracy at 5% to prevent div-by-zero issues
+                    capped_accs = [max(a, 5.0) for a in accuracies]
+                    
+                    # Use simple arithmetic mean
+                    accuracy = sum(capped_accs) / len(capped_accs)
+                else:
+                    accuracy = 0
+                
+                summary_counts[side]["accuracy"] = max(0, min(100, accuracy))
+                logger.debug(f"Side: {side}, Accuracy: {accuracy:.1f}%")
             else:
                 summary_counts[side]["accuracy"] = 0
 
@@ -467,28 +480,36 @@ class Analyzer:
             
         # Thresholds for WPL
         
-        # Check for Missed Mate
-        if move.eval_before_mate is not None and move.eval_before_mate > 0:
-            if move.eval_after_mate is None or move.eval_after_mate <= 0:
-                move.classification = "Miss"
-                move.explanation = "Missed a forced checkmate."
-                return
+        # Check for Missed Mate (player's perspective)
+        # eval_before_mate > 0 means the side to move HAD a winning mate
+        # For White: eval_before_mate > 0 means White had mate
+        # For Black: eval_before_mate < 0 means Black had mate (from White's perspective)
+        player_had_mate_before = (move.eval_before_mate is not None and 
+                                  ((side == "white" and move.eval_before_mate > 0) or
+                                   (side == "black" and move.eval_before_mate < 0)))
+        player_has_mate_after = (move.eval_after_mate is not None and
+                                 ((side == "white" and move.eval_after_mate > 0) or
+                                  (side == "black" and move.eval_after_mate < 0)))
+        
+        if player_had_mate_before and not player_has_mate_after:
+            move.classification = "Miss"
+            move.explanation = "Missed a forced checkmate."
+            return
 
-        # Missed Win (Miss)
-        # Winning (>80%) -> Not (>60%) or Winning (>70%) -> significant loss (>20%)
-        if (move.win_chance_before > 0.8 and move.win_chance_after < 0.6) or \
-           (move.win_chance_before > 0.7 and wpl > 0.20):
+        # Missed Win (Miss) - using player's perspective
+        if (player_wc_before > 0.80 and player_wc_after < 0.60) or \
+           (player_wc_before > 0.70 and wpl > 0.20):
             move.classification = "Miss"
             move.explanation = "Missed a winning opportunity."
             return
 
-        if wpl >= 0.20:
+        if wpl >= 0.25:
             move.classification = "Blunder"
-        elif wpl >= 0.09:
+        elif wpl >= 0.12:
             move.classification = "Mistake"
-        elif wpl >= 0.04:
+        elif wpl >= 0.06:
             move.classification = "Inaccuracy"
-        elif wpl >= 0.01:
+        elif wpl >= 0.02:
             move.classification = "Good"
         else:
             move.classification = "Excellent"
