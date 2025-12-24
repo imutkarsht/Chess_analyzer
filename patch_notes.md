@@ -7,10 +7,19 @@
 - **Board Themes**: Introduced multiple board color themes in the Settings, allowing users to customize the look of the chessboard.
 - **Piece Themes**: Added support for different piece sets, letting users choose their preferred piece style.
 - **Stats by Piece Color**: The Stats page now displays performance metrics broken down by piece color (White vs Black), giving deeper insight into your play.
+- **Live Settings Update**: All settings now apply immediately without requiring app restart (Gemini API Key, Lichess Token, Usernames).
 
 ### Improvements
 - **Stats Page Overhaul**: Completely redesigned the Metrics/Stats dashboard for better visual presentation and more insightful data visualization.
-- **Analysis Logic Update**: Refined the underlying analysis algorithms for improved accuracy and move classification.
+- **Accuracy Algorithm Overhaul**: Complete rewrite of the accuracy calculation system:
+    - Implemented Lichess-style **volatility-weighted harmonic mean** for game accuracy.
+    - Added proper **Win Probability** conversion formula from centipawns.
+    - Tuned decay constant and thresholds to better match Chess.com accuracy values.
+- **Move Classification Improvements**:
+    - **Checkmate Fix**: Moves delivering checkmate are now always classified as "Best" (was incorrectly showing as "Miss").
+    - Tightened WPL thresholds for more accurate Inaccuracy/Mistake/Blunder detection.
+    - Book moves now receive 100% accuracy (theoretical best play).
+- **Classification Summary Logging**: Detailed breakdown of move classifications now logged after each analysis.
 - **GUI Restructuring**: Major overhaul of the GUI code structure for better maintainability and performance.
 - **Code Refactoring**: 
     - Created reusable utility functions to reduce code duplication.
@@ -19,6 +28,8 @@
 - **Backend Improvements**: Refactored backend code for better performance and cleaner architecture.
 
 ### Bug Fixes
+- **Final Position Score Bug**: Fixed a critical bug where `_analyze_final_position` wasn't returning the score, causing the last move to always get incorrect accuracy.
+- **0% Accuracy Moves**: Added safeguards to prevent moves from getting 0% accuracy (which destroyed harmonic mean calculations).
 - **Metric Widget**: Fixed multiple bugs related to the metric widget display and statistics calculations.
 - **Stats Display**: Resolved issues where stats were not updating correctly in certain scenarios.
 - **UI Update Bug**: Fixed a bug where UI elements were not refreshing properly after certain actions.

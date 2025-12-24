@@ -123,6 +123,8 @@ class MainWindow(QMainWindow):
         # --- Page 3: Settings View ---
         self.settings_view = SettingsView()
         self.settings_view.engine_path_changed.connect(self.update_engine_path)
+        self.settings_view.gemini_key_changed.connect(self.update_gemini_key)
+        self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
 
     def update_engine_path(self, new_path):
@@ -138,6 +140,26 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
             QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
+
+    def update_gemini_key(self, new_key):
+        """Updates the Gemini API key in MetricsWidget immediately."""
+        logger.info("Updating Gemini API key...")
+        if hasattr(self, 'metrics_view') and hasattr(self.metrics_view, 'gemini_service'):
+            from ..backend.gemini_service import GeminiService
+            self.metrics_view.gemini_service = GeminiService(new_key)
+            logger.info("Gemini service updated with new API key.")
+
+    def on_usernames_changed(self):
+        """Reloads config values in views that use usernames."""
+        logger.info("Usernames changed, refreshing dependent views...")
+        # Reload config in config_manager (it's a singleton pattern issue)
+        self.config_manager.config = self.config_manager.load_config()
+        # Refresh metrics view which uses usernames
+        if hasattr(self, 'metrics_view'):
+            self.metrics_view.refresh()
+        # Refresh history view
+        if hasattr(self, 'history_view'):
+            self.history_view.load_history()
 
     def refresh_theme(self):
         """Re-applies the theme and updates widgets that need manual refresh."""

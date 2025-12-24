@@ -10,6 +10,8 @@ import os
 
 class SettingsView(QWidget):
     engine_path_changed = pyqtSignal(str)
+    gemini_key_changed = pyqtSignal(str)
+    usernames_changed = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -338,6 +340,8 @@ class SettingsView(QWidget):
         lichess_token = self.lichess_token_input.text()
         self.config_manager.set("gemini_api_key", key)
         self.config_manager.set("lichess_token", lichess_token)
+        # Emit signal for immediate update
+        self.gemini_key_changed.emit(key)
         QMessageBox.information(self, "Saved", "API Keys saved successfully.")
 
     def save_usernames(self):
@@ -345,6 +349,8 @@ class SettingsView(QWidget):
         lichess = self.lichess_input.text()
         self.config_manager.set("chesscom_username", chesscom)
         self.config_manager.set("lichess_username", lichess)
+        # Emit signal for immediate update
+        self.usernames_changed.emit()
         QMessageBox.information(self, "Saved", "Usernames saved successfully.")
 
     def clear_cache(self):
