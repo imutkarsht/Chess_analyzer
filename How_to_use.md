@@ -59,6 +59,8 @@ Pre-configure your usernames to make loading games faster.
 
 ### D. Appearance
 *   **Accent Color**: Customize the application's look by changing the accent color in **Settings > Appearance**.
+*   **Board Themes**: Choose from multiple board color themes to personalize your chessboard in **Settings > Appearance > Board Theme**.
+*   **Piece Themes**: Select different piece sets to customize how chess pieces appear on the board in **Settings > Appearance > Piece Theme**.
 
 ---
 
@@ -129,6 +131,7 @@ Once a game is loaded:
 ### Detailed Stats
 *   **Game Stats**: View accuracy per player, opening name, and blunder counts in the **Analysis Panel**.
 *   **Global Stats (Metrics)**: Click the **Stats** icon in the sidebar to see your performance over time (Win/Loss rates, accuracy trends) across all analyzed games.
+*   **Stats by Piece Color**: View your performance breakdown by piece color (White vs Black) to understand how you play from each side.
 
 ### History & Caching
 *   **History Tab**: Keeps a record of all games you've analyzed. Double-click any entry to reload that game.

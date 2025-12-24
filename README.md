@@ -45,8 +45,11 @@
 - **Data Backup**: Export your entire game history to CSV for backup or analysis in other tools, and import it back seamlessly.
 
 ### Audio & Visuals
+- **Splash Screen**: Beautiful startup screen for a polished launch experience.
 - **Sound Effects**: Immersive audio feedback for moves, captures, checks, castles, and game completion.
-- **Themes**: Modern dark theme for reduced eye strain during long analysis sessions.
+- **Board Themes**: Multiple board color themes to customize your chessboard appearance.
+- **Piece Themes**: Choose from different piece sets to personalize your playing experience.
+- **Dark Mode**: Modern dark theme for reduced eye strain during long analysis sessions.
 
 ## 💻 Tech Stack
 - **Core**: Python 3.10+

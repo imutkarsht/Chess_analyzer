@@ -76,16 +76,19 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 | **`analysis_view.py`** | **Analysis Dashboard.** Contains the `AnalysisPanel`, `MoveListPanel`, and `StatCard` widgets. This is where the user spends most of their time. |
 | **`board_widget.py`** | **Chess Board.** Renders the board and pieces. Handles piece movement (if interactive) and board flipping. |
 | **`graph_widget.py`** | **Evaluation Graph.** Draws the visual evaluation chart using Matplotlib. |
-| **`metrics_widget.py`** | **Statistics.** Displays aggregate statistics across multiple games. |
+| **`metrics_widget.py`** | **Statistics.** Displays aggregate statistics across multiple games, including performance by piece color (White vs Black). |
 | **`styles.py`** | **Theming.** Contains CSS-like stylesheets (QSS) for the application. Defines colors, fonts, and widget styles. |
+| **`splash_screen.py`** | **Startup Screen.** Displays a branded splash screen during application initialization. |
+| **`themes.py`** | **Board & Piece Themes.** Manages board color themes and piece set options for user customization. |
 
 ### `src/utils/` (The Helpers)
 
 | File | Purpose |
 | :--- | :--- |
-| **`config.py`** | Manages `config.json` for saving user settings (theme, engine path, API keys). |
+| **`config.py`** | Manages `config.json` for saving user settings (theme, engine path, API keys, board/piece themes). |
 | **`logger.py`** | Sets up the application logging (writes to `chess_analyzer.log`). |
 | **`resources.py`** | Helper for loading images, icons, and sounds. |
+| **`utils.py`** | Reusable utility functions shared across the codebase to reduce code duplication. |
 
 ---
 

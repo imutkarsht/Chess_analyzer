@@ -1,5 +1,30 @@
 # Patch Notes
 
+## v1.5 - Themes, Stats Overhaul & Polish
+
+### New Features
+- **Splash Screen**: Added a beautiful splash screen that displays during application startup for a more polished launch experience.
+- **Board Themes**: Introduced multiple board color themes in the Settings, allowing users to customize the look of the chessboard.
+- **Piece Themes**: Added support for different piece sets, letting users choose their preferred piece style.
+- **Stats by Piece Color**: The Stats page now displays performance metrics broken down by piece color (White vs Black), giving deeper insight into your play.
+
+### Improvements
+- **Stats Page Overhaul**: Completely redesigned the Metrics/Stats dashboard for better visual presentation and more insightful data visualization.
+- **Analysis Logic Update**: Refined the underlying analysis algorithms for improved accuracy and move classification.
+- **GUI Restructuring**: Major overhaul of the GUI code structure for better maintainability and performance.
+- **Code Refactoring**: 
+    - Created reusable utility functions to reduce code duplication.
+    - Refactored the metric widget for cleaner architecture.
+    - Removed redundant code across the codebase.
+- **Backend Improvements**: Refactored backend code for better performance and cleaner architecture.
+
+### Bug Fixes
+- **Metric Widget**: Fixed multiple bugs related to the metric widget display and statistics calculations.
+- **Stats Display**: Resolved issues where stats were not updating correctly in certain scenarios.
+- **UI Update Bug**: Fixed a bug where UI elements were not refreshing properly after certain actions.
+
+---
+
 ## v1.4 - Load Options, Data Backup & UI Overhaul
 
 ### New Features
