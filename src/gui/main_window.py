@@ -189,6 +189,21 @@ class MainWindow(QMainWindow):
             self.btn_load.setStyleSheet(Styles.get_control_button_style())
         if hasattr(self, 'btn_analyze'):
             self.btn_analyze.setStyleSheet(Styles.get_button_style())
+        
+        # Update Menu Styles
+        menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
+        if hasattr(self, 'load_menu'):
+            self.load_menu.setStyleSheet(menu_style)
+        if hasattr(self, 'menu_pgn'):
+            self.menu_pgn.setStyleSheet(menu_style)
+        if hasattr(self, 'menu_chesscom'):
+            self.menu_chesscom.setStyleSheet(menu_style)
+        if hasattr(self, 'menu_lichess'):
+            self.menu_lichess.setStyleSheet(menu_style)
+        
+        # Update History View Game List
+        if hasattr(self, 'history_view') and hasattr(self.history_view, 'game_list_widget'):
+            self.history_view.game_list_widget.refresh_styles()
             
         # Force update
         self.update()
@@ -263,53 +278,53 @@ class MainWindow(QMainWindow):
         # Load Game Button with Menu
         self.btn_load = create_button("Load Game", style="secondary")
         
-        load_menu = QMenu(self)
+        self.load_menu = QMenu(self)
         menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
-        load_menu.setStyleSheet(menu_style)
+        self.load_menu.setStyleSheet(menu_style)
         
         # 1. PGN Submenu
-        menu_pgn = QMenu("Load from PGN", self)
-        menu_pgn.setStyleSheet(menu_style)
+        self.menu_pgn = QMenu("Load from PGN", self)
+        self.menu_pgn.setStyleSheet(menu_style)
         
         action_pgn = QAction("From File...", self)
         action_pgn.triggered.connect(self.open_pgn)
-        menu_pgn.addAction(action_pgn)
+        self.menu_pgn.addAction(action_pgn)
 
         action_pgn_text = QAction("From Text...", self)
         action_pgn_text.triggered.connect(self.load_from_pgn_text)
-        menu_pgn.addAction(action_pgn_text)
+        self.menu_pgn.addAction(action_pgn_text)
         
-        load_menu.addMenu(menu_pgn)
+        self.load_menu.addMenu(self.menu_pgn)
         
         # 2. Chess.com Submenu
-        menu_chesscom = QMenu("Load from Chess.com", self)
-        menu_chesscom.setStyleSheet(menu_style)
+        self.menu_chesscom = QMenu("Load from Chess.com", self)
+        self.menu_chesscom.setStyleSheet(menu_style)
         
         action_user = QAction("By Username...", self)
         action_user.triggered.connect(self.load_from_chesscom)
-        menu_chesscom.addAction(action_user)
+        self.menu_chesscom.addAction(action_user)
         
         action_link = QAction("By Game Link...", self)
         action_link.triggered.connect(self.load_from_link)
-        menu_chesscom.addAction(action_link)
+        self.menu_chesscom.addAction(action_link)
         
-        load_menu.addMenu(menu_chesscom)
+        self.load_menu.addMenu(self.menu_chesscom)
 
         # 3. Lichess Submenu
-        menu_lichess = QMenu("Load from Lichess", self)
-        menu_lichess.setStyleSheet(menu_style)
+        self.menu_lichess = QMenu("Load from Lichess", self)
+        self.menu_lichess.setStyleSheet(menu_style)
 
         action_lichess = QAction("By Username...", self)
         action_lichess.triggered.connect(self.load_from_lichess)
-        menu_lichess.addAction(action_lichess)
+        self.menu_lichess.addAction(action_lichess)
         
         action_lichess_link = QAction("By Game Link...", self)
         action_lichess_link.triggered.connect(self.load_from_lichess_link)
-        menu_lichess.addAction(action_lichess_link)
+        self.menu_lichess.addAction(action_lichess_link)
         
-        load_menu.addMenu(menu_lichess)
+        self.load_menu.addMenu(self.menu_lichess)
         
-        self.btn_load.setMenu(load_menu)
+        self.btn_load.setMenu(self.load_menu)
         btn_layout.addWidget(self.btn_load)
         
         # Analyze Button
@@ -657,6 +672,10 @@ class MainWindow(QMainWindow):
     def on_move_selected(self, index):
         self.board_widget.set_position(index)
         self.move_list_panel.select_move(index)
+        
+        # Update evaluation chart current move indicator
+        if hasattr(self, 'analysis_panel') and hasattr(self.analysis_panel, 'graph_widget'):
+            self.analysis_panel.graph_widget.set_current_move(index)
         
         if self.current_game:
             moves = self.current_game.moves

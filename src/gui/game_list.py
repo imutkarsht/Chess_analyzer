@@ -119,20 +119,59 @@ class GameListItemWidget(QWidget):
         
         layout.addLayout(header_layout)
         
-        # Details: Date, Event
-        details_text = f"{game.metadata.date} • {game.metadata.event}"
+        # Details: Date, Event, Move Count
+        move_count = ""
+        if hasattr(game, 'moves') and game.moves:
+            # game.moves contains all half-moves (ply)
+            # Convert to full moves: (num_half_moves + 1) // 2
+            num_ply = len(game.moves)
+            full_moves = (num_ply + 1) // 2
+            move_count = f" • {full_moves} moves"
+        elif hasattr(game, 'pgn_content') and game.pgn_content:
+            # Estimate from PGN - find the highest move number
+            # Only look for moves after the PGN headers end (after ]]
+            import re
+            pgn_text = game.pgn_content
+            # Try to find where headers end
+            header_end = pgn_text.rfind(']')
+            if header_end > 0:
+                pgn_text = pgn_text[header_end:]
+            # Match move numbers (1-3 digits only to exclude years)
+            matches = re.findall(r'(?:^|\s)(\d{1,3})\.', pgn_text)
+            if matches:
+                # Filter to reasonable move numbers (under 500)
+                valid_moves = [int(m) for m in matches if int(m) < 500]
+                if valid_moves:
+                    highest_move = max(valid_moves)
+                    move_count = f" • ~{highest_move} moves"
+        
+        details_text = f"{game.metadata.date} • {game.metadata.event}{move_count}"
         details_label = QLabel(details_text)
-        details_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
+        details_label.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_SECONDARY}; 
+            font-size: 13px;
+            font-family: 'Segoe UI', 'Inter', sans-serif;
+        """)
         layout.addWidget(details_label)
         
+        # Card styling
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: transparent;
+            }}
+            QLabel {{
+                background-color: transparent;
+            }}
+        """)
+        
         # Enforce minimum height
-        self.setMinimumHeight(80)
+        self.setMinimumHeight(85)
 
     def sizeHint(self):
         return self.minimumSizeHint()
 
 class GameListWidget(QWidget):
-    game_selected = pyqtSignal(object) # Emits GameAnalysis object
+    game_selected = pyqtSignal(object)  # Emits GameAnalysis object
 
     def __init__(self):
         super().__init__()
@@ -140,28 +179,56 @@ class GameListWidget(QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
         
-        title_label = QLabel("Games")
-        title_label.setStyleSheet(f"padding: 15px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background-color: {Styles.COLOR_SURFACE}; border-bottom: 1px solid {Styles.COLOR_BORDER}; font-size: 16px;")
-        self.layout.addWidget(title_label)
+        self.title_label = QLabel("Games")
+        self._apply_title_style()
+        self.layout.addWidget(self.title_label)
         
         self.list_widget = QListWidget()
         self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
-        self.list_widget.setStyleSheet(f"""
-            QListWidget {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border: none;
-            }}
-            QListWidget::item {{
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QListWidget::item:selected {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-        """)
+        self.list_widget.setSpacing(0)
+        self._apply_list_style()
         self.list_widget.itemClicked.connect(self.on_item_clicked)
         self.layout.addWidget(self.list_widget)
         self.games = []
         self.usernames = []
+    
+    def _apply_title_style(self):
+        self.title_label.setStyleSheet(f"""
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 16px;
+            color: {Styles.COLOR_TEXT_PRIMARY};
+            background-color: {Styles.COLOR_SURFACE};
+            border-bottom: 2px solid {Styles.COLOR_ACCENT};
+        """)
+    
+    def _apply_list_style(self):
+        self.list_widget.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border: none;
+                outline: none;
+            }}
+            QListWidget::item {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border: none;
+                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
+                padding: 0px;
+                margin: 0px;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Styles.COLOR_SURFACE};
+                border-left: 3px solid {Styles.COLOR_ACCENT};
+            }}
+        """)
+    
+    def refresh_styles(self):
+        """Refresh styles for dynamic theme updates."""
+        self._apply_title_style()
+        self._apply_list_style()
 
     def set_games(self, games, usernames=None):
         self.games = games

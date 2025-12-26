@@ -180,40 +180,57 @@ class MoveListPanel(QWidget):
         
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(0, 40) # Reduced width
+        header.resizeSection(0, 45)  # Slightly wider for better balance
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         
         self.table.verticalHeader().setVisible(False)
-        self.table.setAlternatingRowColors(True)
+        self.table.setAlternatingRowColors(False)  # Using custom hover instead
         self.table.setShowGrid(False)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.cellClicked.connect(self.on_cell_clicked)
-        self.table.setIconSize(QSize(20, 20))
+        self.table.setIconSize(QSize(22, 22))  # Larger icons for better visibility
         
-        # Tighter table styling
+        # Set default row height for better click targets
+        self.table.verticalHeader().setDefaultSectionSize(42)
+        
+        # Enhanced table styling  
         self.table.setStyleSheet(f"""
             QTableWidget {{
                 background-color: {Styles.COLOR_SURFACE};
                 border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                gridline-color: {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                gridline-color: transparent;
+                font-size: 14px;
             }}
             QTableWidget::item {{
-                padding: 2px 4px; /* Reduced padding */
+                padding: 8px 6px;
                 border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QTableWidget::item:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
             }}
             QTableWidget::item:selected {{
                 background-color: {Styles.COLOR_HIGHLIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
+                border-left: 3px solid {Styles.COLOR_ACCENT};
+            }}
+            QHeaderView::section {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                padding: 10px 6px;
+                border: none;
+                border-bottom: 2px solid {Styles.COLOR_ACCENT};
+                font-weight: 600;
+                font-size: 13px;
             }}
         """)
         
         self.layout.addWidget(self.table)
         
         # Stretch factors
-        self.layout.setStretch(0, 1) # Table
+        self.layout.setStretch(0, 1)  # Table
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
@@ -266,14 +283,55 @@ class MoveListPanel(QWidget):
             icon = self.resource_manager.get_icon(move.classification)
             if not icon.isNull():
                 item.setIcon(icon)
+            # Add tooltip with classification name
+            item.setToolTip(f"{move.classification}: {move.san}")
         
         color = Styles.get_class_color(move.classification)
         if not color:
             color = Styles.COLOR_TEXT_PRIMARY
             
         item.setForeground(QBrush(QColor(color)))
-             
+        
+        # Bold font for special moves
+        if move.classification in ["Brilliant", "Blunder", "Mistake", "Miss"]:
+            font = item.font()
+            font.setBold(True)
+            item.setFont(font)
+              
         self.table.setItem(row, col, item)
+    
+    def refresh_styles(self):
+        """Refresh styles for dynamic theme updates."""
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                gridline-color: transparent;
+                font-size: 14px;
+            }}
+            QTableWidget::item {{
+                padding: 8px 6px;
+                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QTableWidget::item:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QTableWidget::item:selected {{
+                background-color: {Styles.COLOR_HIGHLIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border-left: 3px solid {Styles.COLOR_ACCENT};
+            }}
+            QHeaderView::section {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                padding: 10px 6px;
+                border: none;
+                border-bottom: 2px solid {Styles.COLOR_ACCENT};
+                font-weight: 600;
+                font-size: 13px;
+            }}
+        """)
 
     def on_cell_clicked(self, row, col):
         item = self.table.item(row, col)
@@ -577,6 +635,10 @@ class AnalysisPanel(QWidget):
                     color: {Styles.COLOR_TEXT_PRIMARY};
                 }}
             """)
+        
+        # Refresh move list panel styles
+        if hasattr(self, 'move_list_panel'):
+            self.move_list_panel.refresh_styles()
         
         # Refresh summary stats colors if game is loaded
         if self.current_game:

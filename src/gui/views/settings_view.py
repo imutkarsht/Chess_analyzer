@@ -86,13 +86,13 @@ class SettingsView(QWidget):
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         self.lichess_token_input.setStyleSheet(Styles.get_input_style())
 
-        lbl = QLabel("Gemini API Key:")
-        lbl.setStyleSheet(Styles.get_secondary_label_style())
+        lbl_gemini = QLabel("Gemini API Key:")
+        lbl_gemini.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
         
         lbl_lichess = QLabel("Lichess API Token:")
-        lbl_lichess.setStyleSheet(Styles.get_secondary_label_style())
+        lbl_lichess.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
         
-        api_layout.addRow(lbl, self.gemini_input)
+        api_layout.addRow(lbl_gemini, self.gemini_input)
         api_layout.addRow(lbl_lichess, self.lichess_token_input)
         
         self.save_api_btn = create_button("Save API Key", style="primary", on_click=self.save_api_key)
@@ -122,13 +122,13 @@ class SettingsView(QWidget):
         self.lichess_input.setStyleSheet(Styles.get_input_style())
 
         lbl_chesscom = QLabel("Chess.com:")
-        lbl_chesscom.setStyleSheet(Styles.get_secondary_label_style())
+        lbl_chesscom.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
         
-        lbl_lichess = QLabel("Lichess.org:")
-        lbl_lichess.setStyleSheet(Styles.get_secondary_label_style())
+        lbl_lichess_user = QLabel("Lichess.org:")
+        lbl_lichess_user.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
 
         username_layout.addRow(lbl_chesscom, self.chesscom_input)
-        username_layout.addRow(lbl_lichess, self.lichess_input)
+        username_layout.addRow(lbl_lichess_user, self.lichess_input)
 
         self.save_usernames_btn = create_button("Save Usernames", style="primary", on_click=self.save_usernames)
 
@@ -144,78 +144,67 @@ class SettingsView(QWidget):
         # 4. Appearance Settings
         self.appearance_group = QGroupBox("Appearance")
         self.appearance_group.setStyleSheet(self.group_style)
-        appearance_layout = QVBoxLayout(self.appearance_group)
-        appearance_layout.setContentsMargins(20, 25, 20, 20)
+        appearance_layout = QFormLayout(self.appearance_group)
+        appearance_layout.setContentsMargins(20, 30, 20, 20)
+        appearance_layout.setSpacing(16)
+        appearance_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        appearance_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         
-        # Board Theme Selector (Single Instance)
-        theme_layout = QHBoxLayout()
+        # Common label style for this section
+        label_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; background: transparent;"
+        combo_style = f"""
+            QComboBox {{
+                padding: 8px 12px;
+                min-width: 120px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 14px;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                padding-right: 8px;
+            }}
+        """
+        
+        # Board Theme Selector
         theme_lbl = QLabel("Board Theme:")
-        theme_lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
-        theme_layout.addWidget(theme_lbl)
+        theme_lbl.setStyleSheet(label_style)
         
         self.theme_combo = QComboBox()
         self.theme_combo.addItems(list(Styles.BOARD_THEMES.keys()))
         current_theme = self.config_manager.get("board_theme", "Green")
         self.theme_combo.setCurrentText(current_theme)
-        self.theme_combo.setStyleSheet(f"""
-            QComboBox {{
-                padding: 5px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-            }}
-            QComboBox::drop-down {{
-                border: none;
-            }}
-        """)
+        self.theme_combo.setStyleSheet(combo_style)
         self.theme_combo.currentTextChanged.connect(self.change_board_theme)
-        theme_layout.addWidget(self.theme_combo)
         
-        theme_layout.addStretch()
-        appearance_layout.addLayout(theme_layout)
+        appearance_layout.addRow(theme_lbl, self.theme_combo)
 
         # Piece Style Selector
         from ..board.piece_themes import get_piece_theme_names
-        piece_layout = QHBoxLayout()
         piece_lbl = QLabel("Piece Style:")
-        piece_lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
-        piece_layout.addWidget(piece_lbl)
+        piece_lbl.setStyleSheet(label_style)
         
         self.piece_combo = QComboBox()
         self.piece_combo.addItems(get_piece_theme_names())
         current_piece_theme = self.config_manager.get("piece_theme", "Standard")
         self.piece_combo.setCurrentText(current_piece_theme)
-        self.piece_combo.setStyleSheet(f"""
-            QComboBox {{
-                padding: 5px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-            }}
-            QComboBox::drop-down {{
-                border: none;
-            }}
-        """)
+        self.piece_combo.setStyleSheet(combo_style)
         self.piece_combo.currentTextChanged.connect(self.change_piece_theme)
-        piece_layout.addWidget(self.piece_combo)
         
-        piece_layout.addStretch()
-        appearance_layout.addLayout(piece_layout)
-
+        appearance_layout.addRow(piece_lbl, self.piece_combo)
 
         # Accent Color
-        color_layout = QHBoxLayout()
         color_lbl = QLabel("Accent Color:")
-        color_lbl.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};")
-        color_layout.addWidget(color_lbl)
+        color_lbl.setStyleSheet(label_style)
         
         self.color_btn = create_button("Change Color", style="secondary", on_click=self.change_accent_color)
-        color_layout.addWidget(self.color_btn)
         
-        color_layout.addStretch()
-        appearance_layout.addLayout(color_layout)
+        appearance_layout.addRow(color_lbl, self.color_btn)
         
         self.container_layout.addWidget(self.appearance_group, 0, 1) # Top of right column
         

@@ -47,15 +47,15 @@ class Sidebar(QWidget):
         self.set_active(0)
 
     def create_button(self, text, icon_name, index):
-        btn = QPushButton(f"  {text}") # Add text with spacing
-        btn.setFixedHeight(50)
+        btn = QPushButton(f"  {text}")  # Add text with spacing
+        btn.setFixedHeight(54)  # Taller buttons for better click targets
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
         # Load icon
         icon_path = get_resource_path(os.path.join("assets", "icons", icon_name))
         if os.path.exists(icon_path):
             btn.setIcon(QIcon(icon_path))
-            btn.setIconSize(QSize(24, 24))
+            btn.setIconSize(QSize(28, 28))  # Larger icons
             
         btn.setCheckable(True)
         

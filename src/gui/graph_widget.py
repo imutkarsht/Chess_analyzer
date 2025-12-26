@@ -57,15 +57,6 @@ class GraphWidget(QWidget):
         scatter_y = []
         scatter_colors = []
         
-        # We need to align moves with classifications.
-        # game_analysis.moves[i] corresponds to move i+1
-        # moves array has 0 (start) then 1..N
-        # evals array has 0 (start) then 1..N
-        
-        # Filter classifications for scatter plot
-        # Only show: Brilliant, Great, Best, Miss, Mistake, Blunder
-        # Maybe skip "Good", "Excellent", "Book", "Inaccuracy" to reduce clutter?
-        # User asked to "only highlight special moves on graph like ( brilliant, great, miss , mistake and blunders)"
         special_moves = ["Brilliant", "Great", "Miss", "Mistake", "Blunder"]
         
         for i, move in enumerate(game_analysis.moves):
@@ -77,7 +68,7 @@ class GraphWidget(QWidget):
                     scatter_colors.append(color)
         
         if scatter_x:
-            self.ax.scatter(scatter_x, scatter_y, c=scatter_colors, s=40, zorder=3, edgecolors='white', linewidths=1.0)
+            self.ax.scatter(scatter_x, scatter_y, c=scatter_colors, s=50, zorder=3, edgecolors='white', linewidths=1.2)
         
         # Zero line
         self.ax.axhline(0, color=Styles.COLOR_BORDER, linestyle='--', linewidth=1, zorder=0)
@@ -85,11 +76,7 @@ class GraphWidget(QWidget):
         # Styling
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
         self.figure.patch.set_facecolor(Styles.COLOR_SURFACE)
-        
-        # Set Y-axis limits
-        # We want to expand up to 2 units (200 CP) max.
-        # But if the game is drawish (e.g. max 50 CP), we don't want to show 200.
-        # So we find the max absolute value in the data.
+
         max_val = 0
         if evals:
              max_val = max(abs(e) for e in evals)
@@ -110,7 +97,11 @@ class GraphWidget(QWidget):
         self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
         self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
         
-        self.ax.set_title("Evaluation", color=Styles.COLOR_TEXT_PRIMARY, pad=10)
+        self.ax.set_title("Evaluation", color=Styles.COLOR_TEXT_PRIMARY, fontsize=13, fontweight='600', pad=12)
+        
+        # Current move indicator line (initially hidden)
+        self.current_move_line = self.ax.axvline(x=-1, color=Styles.COLOR_ACCENT, linewidth=2, linestyle='-', alpha=0.8, zorder=4)
+        self.current_move_line.set_visible(False)
         
         self.canvas.draw()
         
@@ -119,13 +110,28 @@ class GraphWidget(QWidget):
         self.evals_data = evals
         
         # Annotation for tooltip
-        self.annot = self.ax.annotate("", xy=(0,0), xytext=(10,10), textcoords="offset points",
-                            bbox=dict(boxstyle="round", fc=Styles.COLOR_SURFACE_LIGHT, ec=Styles.COLOR_BORDER, alpha=0.9),
+        self.annot = self.ax.annotate("", xy=(0, 0), xytext=(10, 10), textcoords="offset points",
+                            bbox=dict(boxstyle="round,pad=0.4", fc=Styles.COLOR_SURFACE_LIGHT, ec=Styles.COLOR_BORDER, alpha=0.95),
                             color=Styles.COLOR_TEXT_PRIMARY,
-                            arrowprops=dict(arrowstyle="->", color=Styles.COLOR_TEXT_PRIMARY))
+                            fontsize=11,
+                            arrowprops=dict(arrowstyle="->", color=Styles.COLOR_TEXT_SECONDARY))
         self.annot.set_visible(False)
         
         self.canvas.mpl_connect("motion_notify_event", self.on_hover)
+
+    def set_current_move(self, move_index):
+        """Updates the current move indicator line on the chart."""
+        if not hasattr(self, 'current_move_line') or self.current_move_line is None:
+            return
+            
+        if move_index < 0:
+            self.current_move_line.set_visible(False)
+        else:
+            # move_index 0 = first move = x position 1 on chart
+            self.current_move_line.set_xdata([move_index + 1, move_index + 1])
+            self.current_move_line.set_visible(True)
+        
+        self.canvas.draw_idle()
 
     def on_hover(self, event):
         if event.inaxes == self.ax:
@@ -139,7 +145,8 @@ class GraphWidget(QWidget):
                 val = self.evals_data[idx]
                 
                 self.annot.xy = (move_num, val)
-                self.annot.set_text(f"Move: {move_num}\nEval: {val/100:.2f}")
+                eval_display = f"{val/100:+.2f}" if val != 0 else "0.00"
+                self.annot.set_text(f"Move {move_num}\n{eval_display}")
                 self.annot.set_visible(True)
                 self.canvas.draw_idle()
         else:
@@ -157,4 +164,5 @@ class GraphWidget(QWidget):
         self.ax.spines['left'].set_color(Styles.COLOR_BORDER)
         self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
         self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
+        self.current_move_line = None
         self.canvas.draw()

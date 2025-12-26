@@ -1,34 +1,38 @@
 
 class Styles:
     # Color Palette
-    COLOR_BACKGROUND = "#1E1E1E"
-    COLOR_SURFACE = "#252526"
-    COLOR_SURFACE_LIGHT = "#333333"
-    COLOR_TEXT_PRIMARY = "#D4D4D4"
-    COLOR_TEXT_SECONDARY = "#AAAAAA"
+    COLOR_BACKGROUND = "#1A1A1D"
+    COLOR_SURFACE = "#252529"
+    COLOR_SURFACE_LIGHT = "#2E2E33"
+    COLOR_SURFACE_CARD = "#2A2A2E"  # Slightly elevated cards
+    COLOR_TEXT_PRIMARY = "#E4E4E7"
+    COLOR_TEXT_SECONDARY = "#9CA3AF"
+    COLOR_TEXT_MUTED = "#6B7280"  # For move numbers, less important info
     
     # Dynamic Accent
-    COLOR_ACCENT = "#FF9500" # Default Orange
-    COLOR_ACCENT_HOVER = "#FFAA33"
+    COLOR_ACCENT = "#FF9500"  # Default Orange
+    COLOR_ACCENT_HOVER = "#FFB340"
+    COLOR_ACCENT_SUBTLE = "#3D2B14"  # For subtle accent backgrounds
     
-    COLOR_BORDER = "#3E3E42"
-    COLOR_HIGHLIGHT = "#3A3A3C" # For current move row
+    COLOR_BORDER = "#3E3E45"
+    COLOR_BORDER_LIGHT = "#4A4A52"  # For hover states
+    COLOR_HIGHLIGHT = "#3A3A40"  # For current move row
     
     # Piece Colors
     COLOR_PIECE_WHITE = "#F0F0F0"
     COLOR_PIECE_BLACK = "#111111"
     
-    # Move Classification Colors
-    COLOR_BRILLIANT = "#1BACA6"
-    COLOR_GREAT = "#5B8BB0"
-    COLOR_BEST = "#96BC4B"
-    COLOR_EXCELLENT = "#96BC4B"
-    COLOR_GOOD = "#96BC4B"
-    COLOR_INACCURACY = "#F0C15C"
-    COLOR_MISTAKE = "#E6912C"
-    COLOR_BLUNDER = "#CC3333"
-    COLOR_MISS = "#E6912C"
-    COLOR_BOOK = "#A88865"
+    # Move Classification Colors (Refined for visual appeal)
+    COLOR_BRILLIANT = "#00D4AA"  # Brighter teal
+    COLOR_GREAT = "#4CACEB"  # Vibrant blue
+    COLOR_BEST = "#8BC34A"  # Consistent green
+    COLOR_EXCELLENT = "#8BC34A"
+    COLOR_GOOD = "#7CB342"  # Slightly different green
+    COLOR_INACCURACY = "#FFD54F"  # Warm yellow
+    COLOR_MISTAKE = "#F39C12"  # Warmer amber
+    COLOR_BLUNDER = "#E74C3C"  # Softer but vibrant red
+    COLOR_MISS = "#E67E22"  # Distinct orange
+    COLOR_BOOK = "#B8956E"  # Warm book brown
 
     # Board Themes
     BOARD_THEMES = {
@@ -65,7 +69,7 @@ class Styles:
             QMainWindow, QWidget {{
                 background-color: {cls.COLOR_BACKGROUND};
                 color: {cls.COLOR_TEXT_PRIMARY};
-                font-family: 'Segoe UI', 'Roboto', sans-serif;
+                font-family: 'Segoe UI', 'Inter', 'Roboto', sans-serif;
                 font-size: 14px;
             }}
             
@@ -74,45 +78,64 @@ class Styles:
             }}
             
             QSplitter::handle {{
-                width: 2px;
+                width: 3px;
                 background-color: {cls.COLOR_BORDER};
+            }}
+            QSplitter::handle:hover {{
+                background-color: {cls.COLOR_ACCENT};
             }}
             
             /* Tables */
             QTableWidget {{
                 background-color: {cls.COLOR_SURFACE};
-                gridline-color: {cls.COLOR_BORDER};
+                gridline-color: transparent;
                 border: 1px solid {cls.COLOR_BORDER};
-                border-radius: 6px;
-                selection-background-color: {cls.COLOR_ACCENT};
-                selection-color: white;
+                border-radius: 8px;
+                selection-background-color: {cls.COLOR_HIGHLIGHT};
+                selection-color: {cls.COLOR_TEXT_PRIMARY};
             }}
             
             QTableWidget::item {{
                 color: {cls.COLOR_TEXT_PRIMARY};
-                padding: 8px;
+                padding: 10px 8px;
+                border-bottom: 1px solid {cls.COLOR_SURFACE_LIGHT};
+            }}
+            
+            QTableWidget::item:hover {{
+                background-color: {cls.COLOR_SURFACE_LIGHT};
+            }}
+            
+            QTableWidget::item:selected {{
+                background-color: {cls.COLOR_HIGHLIGHT};
+                border-left: 3px solid {cls.COLOR_ACCENT};
             }}
             
             QHeaderView::section {{
                 background-color: {cls.COLOR_SURFACE_LIGHT};
                 color: {cls.COLOR_TEXT_PRIMARY};
-                padding: 6px;
+                padding: 8px;
                 border: none;
-                border-bottom: 2px solid {cls.COLOR_BORDER};
-                font-weight: bold;
+                border-bottom: 2px solid {cls.COLOR_ACCENT};
+                font-weight: 600;
+                font-size: 13px;
             }}
             
             /* Lists */
             QListWidget {{
                 background-color: {cls.COLOR_SURFACE};
                 border: 1px solid {cls.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 5px;
+                border-radius: 8px;
+                padding: 6px;
             }}
             
             QListWidget::item {{
-                padding: 8px;
-                border-radius: 4px;
+                padding: 10px 12px;
+                border-radius: 6px;
+                margin: 2px 0;
+            }}
+            
+            QListWidget::item:hover {{
+                background-color: {cls.COLOR_SURFACE_LIGHT};
             }}
 
             QListWidget::item:selected {{
@@ -129,16 +152,48 @@ class Styles:
             QScrollBar:vertical {{
                 border: none;
                 background: {cls.COLOR_BACKGROUND};
-                width: 10px;
-                margin: 0px;
+                width: 8px;
+                margin: 4px 2px;
             }}
             QScrollBar::handle:vertical {{
-                background: {cls.COLOR_SURFACE_LIGHT};
-                min-height: 20px;
-                border-radius: 5px;
+                background: {cls.COLOR_BORDER};
+                min-height: 30px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {cls.COLOR_BORDER_LIGHT};
             }}
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
+            }}
+            
+            /* Horizontal Scrollbar */
+            QScrollBar:horizontal {{
+                border: none;
+                background: {cls.COLOR_BACKGROUND};
+                height: 8px;
+                margin: 2px 4px;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {cls.COLOR_BORDER};
+                min-width: 30px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {cls.COLOR_BORDER_LIGHT};
+            }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                width: 0px;
+            }}
+            
+            /* Tooltips */
+            QToolTip {{
+                background-color: {cls.COLOR_SURFACE_LIGHT};
+                color: {cls.COLOR_TEXT_PRIMARY};
+                border: 1px solid {cls.COLOR_BORDER};
+                border-radius: 4px;
+                padding: 6px 10px;
+                font-size: 13px;
             }}
         """
     
@@ -157,15 +212,18 @@ class Styles:
                 background-color: {cls.COLOR_SURFACE_LIGHT};
                 color: {cls.COLOR_TEXT_PRIMARY};
                 border: 1px solid {cls.COLOR_BORDER};
-                border-radius: 4px;
-                padding: 5px 10px;
-                font-size: 16px;
+                border-radius: 6px;
+                padding: 8px 14px;
+                font-size: 15px;
+                font-weight: 500;
             }}
             QPushButton:hover {{
-                background-color: {cls.COLOR_BORDER};
+                background-color: {cls.COLOR_SURFACE_CARD};
+                border: 1px solid {cls.COLOR_BORDER_LIGHT};
             }}
             QPushButton:pressed {{
-                background-color: {cls.COLOR_ACCENT};
+                background-color: {cls.COLOR_ACCENT_SUBTLE};
+                border: 1px solid {cls.COLOR_ACCENT};
             }}
         """
 
@@ -193,19 +251,20 @@ class Styles:
     def get_import_button_style(cls):
         return f"""
             QPushButton {{
-                background-color: #2D4059; /* Dark Blue */
+                background-color: #2D4A6B;
                 color: white;
-                border: 1px solid {cls.COLOR_BORDER};
-                border-radius: 4px;
-                padding: 6px 12px;
+                border: 1px solid #3D5A7B;
+                border-radius: 6px;
+                padding: 8px 14px;
                 font-size: 14px;
-                font-weight: bold;
+                font-weight: 600;
             }}
             QPushButton:hover {{
-                background-color: #3A5375;
+                background-color: #3A5F85;
+                border: 1px solid #4A7095;
             }}
             QPushButton:pressed {{
-                background-color: #1F2D3F;
+                background-color: #254060;
             }}
         """
     
@@ -216,9 +275,9 @@ class Styles:
                 background-color: {cls.COLOR_ACCENT};
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-weight: 600;
                 font-size: 14px;
             }}
             QPushButton:hover {{
@@ -226,10 +285,11 @@ class Styles:
             }}
             QPushButton:pressed {{
                 background-color: {cls.COLOR_ACCENT};
+                padding: 11px 20px 9px 20px;
             }}
             QPushButton:disabled {{
                 background-color: {cls.COLOR_SURFACE_LIGHT};
-                color: {cls.COLOR_TEXT_SECONDARY};
+                color: {cls.COLOR_TEXT_MUTED};
             }}
         """
     
@@ -243,17 +303,21 @@ class Styles:
             QPushButton {{
                 background-color: transparent;
                 border: none;
-                border-radius: 8px;
-                padding: 10px;
+                border-radius: 10px;
+                padding: 12px 16px;
                 text-align: left;
-                padding-left: 15px;
+                font-size: 14px;
+                font-weight: 500;
+                color: {cls.COLOR_TEXT_SECONDARY};
             }}
             QPushButton:hover {{
                 background-color: {cls.COLOR_SURFACE_LIGHT};
+                color: {cls.COLOR_TEXT_PRIMARY};
             }}
             QPushButton:checked {{
                 background-color: {cls.COLOR_ACCENT};
                 color: white;
+                font-weight: 600;
             }}
         """
 
@@ -295,9 +359,15 @@ class Styles:
         return f"font-size: {size}px; color: {color}; font-weight: {weight};"
     
     @classmethod
-    def get_secondary_label_style(cls, size=12):
-        """Secondary/muted label style."""
-        return f"font-size: {size}px; color: {cls.COLOR_TEXT_SECONDARY};"
+    def get_secondary_label_style(cls, size=13):
+        """Secondary/muted label style with transparent background."""
+        return f"""
+            font-size: {size}px; 
+            color: {cls.COLOR_TEXT_SECONDARY}; 
+            background-color: transparent;
+            border: none;
+            padding: 4px 0px;
+        """
     
     @classmethod
     def get_frame_style(cls, border_radius=12, hover_accent=True):

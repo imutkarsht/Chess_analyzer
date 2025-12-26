@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QListWidget, QListWidgetItem, 
-                             QPushButton, QHBoxLayout, QLabel, QAbstractItemView)
+                             QPushButton, QHBoxLayout, QLabel, QAbstractItemView, QWidget)
 from PyQt6.QtCore import Qt
 from ..styles import Styles
 from ..gui_utils import create_button
@@ -8,7 +8,7 @@ class GameSelectionDialog(QDialog):
     def __init__(self, games_data, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Select Game")
-        self.resize(500, 400)
+        self.resize(550, 450)
         self.games_data = games_data
         self.selected_game_data = None
         
@@ -16,27 +16,44 @@ class GameSelectionDialog(QDialog):
         self.populate_list()
         
     def setup_ui(self):
-        self.setStyleSheet(Styles.get_theme())
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {Styles.COLOR_BACKGROUND};
+            }}
+        """)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
         
         # Header
         lbl_header = QLabel(f"Found {len(self.games_data)} recent games. Select one to load:")
-        lbl_header.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: bold;")
+        lbl_header.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_PRIMARY}; 
+            font-size: 15px; 
+            font-weight: 600;
+            padding-bottom: 8px;
+        """)
         layout.addWidget(lbl_header)
         
         # List
         self.list_widget = QListWidget()
         self.list_widget.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.list_widget.setSpacing(4)
         self.list_widget.setStyleSheet(f"""
             QListWidget {{
                 background-color: {Styles.COLOR_SURFACE};
                 border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 14px;
+                border-radius: 8px;
+                outline: none;
             }}
             QListWidget::item {{
-                padding: 10px;
-                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
+                background-color: {Styles.COLOR_SURFACE};
+                padding: 12px 16px;
+                border-radius: 6px;
+                margin: 4px;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
             }}
             QListWidget::item:selected {{
                 background-color: {Styles.COLOR_ACCENT};
@@ -48,6 +65,7 @@ class GameSelectionDialog(QDialog):
         
         # Buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(12)
         btn_layout.addStretch()
         
         self.btn_cancel = create_button("Cancel", style="secondary", on_click=self.reject)
@@ -69,7 +87,6 @@ class GameSelectionDialog(QDialog):
             black_rating = game.get("black", {}).get("rating", "?")
             
             # Result
-            # result is usually in pgn headers, but here we might have it in game dict
             w_res = game.get("white", {}).get("result", "")
             b_res = game.get("black", {}).get("result", "")
             
@@ -87,7 +104,27 @@ class GameSelectionDialog(QDialog):
             end_time = game.get("end_time", 0)
             date_str = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M')
             
-            text = f"{date_str} | {time_class} | {result_str}\n{white} ({white_rating}) vs {black} ({black_rating})"
+            # Move count (estimate from PGN if available)
+            move_count = ""
+            pgn = game.get("pgn", "")
+            if pgn:
+                import re
+                # Skip headers - find content after last ]
+                header_end = pgn.rfind(']')
+                moves_text = pgn[header_end+1:] if header_end > 0 else pgn
+                # Match all numbers followed by a dot (move numbers)
+                all_nums = re.findall(r'(\d+)\.', moves_text)
+                if all_nums:
+                    # Filter to reasonable move numbers (1-300)
+                    valid = [int(n) for n in all_nums if 0 < int(n) < 300]
+                    if valid:
+                        move_count = f" • {max(valid)} moves"
+            
+            # Build display text
+            line1 = f"{date_str}  •  {time_class}  •  {result_str}{move_count}"
+            line2 = f"{white} ({white_rating}) vs {black} ({black_rating})"
+            
+            text = f"{line1}\n{line2}"
             
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, i)
@@ -102,4 +139,3 @@ class GameSelectionDialog(QDialog):
             index = self.list_widget.item(row).data(Qt.ItemDataRole.UserRole)
             self.selected_game_data = self.games_data[index]
             self.accept()
-
