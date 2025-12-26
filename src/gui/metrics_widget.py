@@ -262,7 +262,7 @@ class MetricsWidget(QWidget):
         self.content_layout.addWidget(scroll)
 
     def _create_card(self, title, widget, stretch=0, action_widget=None):
-        # Professional Dashboard Card
+        # Professional Dashboard Card with modern styling
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
@@ -275,14 +275,22 @@ class MetricsWidget(QWidget):
             }}
         """)
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(16)
         
         if title:
             header_layout = QHBoxLayout()
             lbl = QLabel(title)
-            # Distinct title style matching StatCard
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: 600; border: none; background: transparent;")
+            # Uppercase section title for modern look
+            lbl.setStyleSheet(f"""
+                color: {Styles.COLOR_TEXT_SECONDARY}; 
+                font-size: 12px; 
+                font-weight: 600; 
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                border: none; 
+                background: transparent;
+            """)
             header_layout.addWidget(lbl)
             
             header_layout.addStretch()
@@ -349,8 +357,9 @@ class MetricsWidget(QWidget):
     def _create_color_chart(self, color_stats):
         container = QWidget()
         layout = QVBoxLayout(container)
-        layout.setSpacing(15)
-        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         # Helper to create a single color bar
         def create_bar(label, stats):
@@ -364,55 +373,53 @@ class MetricsWidget(QWidget):
             
             wrapper = QWidget()
             w_layout = QVBoxLayout(wrapper)
-            w_layout.setSpacing(5)
-            w_layout.setContentsMargins(0,0,0,0)
+            w_layout.setSpacing(6)
+            w_layout.setContentsMargins(0, 0, 0, 0)
             
             # Label Row
             lbl_row = QHBoxLayout()
             lbl = QLabel(label)
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 13px;")
+            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600; font-size: 14px; border: none; background: transparent;")
             lbl_row.addWidget(lbl)
             lbl_row.addStretch()
             val = QLabel(f"{total} Games")
-            val.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px;")
+            val.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; border: none; background: transparent;")
             lbl_row.addWidget(val)
             w_layout.addLayout(lbl_row)
             
             # Bar Container
             bar_container = QFrame()
-            bar_container.setFixedHeight(20)
-            bar_container.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE_LIGHT}; border-radius: 10px;")
+            bar_container.setFixedHeight(24)
+            bar_container.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE_LIGHT}; border-radius: 12px; border: none;")
             bar_layout = QHBoxLayout(bar_container)
             bar_layout.setContentsMargins(0, 0, 0, 0)
-            bar_layout.setSpacing(0)
+            bar_layout.setSpacing(1)
             
             # Segments
-            def add_segment(pct, color, tooltip):
+            def add_segment(pct, color):
                 if pct > 0:
                     seg = QFrame()
-                    seg.setStyleSheet(f"background-color: {color}; border-right: 1px solid {Styles.COLOR_SURFACE};")
-                    # seg.setToolTip(tooltip) # Tooltip
-                    # Using Fixed size policy relative to parent? No, use stretch
+                    seg.setStyleSheet(f"background-color: {color}; border: none; border-radius: 0px;")
                     bar_layout.addWidget(seg, stretch=int(pct*10))
             
-            add_segment(wins_pct, Styles.COLOR_BEST, f"Wins: {stats['wins']}")
-            add_segment(draws_pct, "#888888", f"Draws: {stats['draws']}")
-            add_segment(losses_pct, Styles.COLOR_BLUNDER, f"Losses: {stats['losses']}")
+            add_segment(wins_pct, Styles.COLOR_BEST)
+            add_segment(draws_pct, "#888888")
+            add_segment(losses_pct, Styles.COLOR_BLUNDER)
             
             if total == 0:
                 empty = QFrame()
-                empty.setStyleSheet("background: transparent;")
+                empty.setStyleSheet("background: transparent; border: none;")
                 bar_layout.addWidget(empty)
                 
             w_layout.addWidget(bar_container)
             
             # Stats Row beneath
             stat_row = QHBoxLayout()
-            stat_row.setSpacing(10)
+            stat_row.setSpacing(12)
             
             def add_pill(txt, color):
                 l = QLabel(txt)
-                l.setStyleSheet(f"color: {color}; font-size: 10px; font-weight: bold;")
+                l.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: 600; border: none; background: transparent;")
                 stat_row.addWidget(l)
                 
             add_pill(f"{wins_pct:.0f}% W", Styles.COLOR_BEST)
@@ -425,6 +432,7 @@ class MetricsWidget(QWidget):
 
         layout.addWidget(create_bar("White", color_stats['white']))
         layout.addWidget(create_bar("Black", color_stats['black']))
+        layout.addStretch()
         
         return container
 

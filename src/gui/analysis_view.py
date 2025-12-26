@@ -497,7 +497,6 @@ class AnalysisPanel(QWidget):
         self.loading_overlay = LoadingOverlay(self)
 
     def set_game(self, game_analysis):
-        logger.info(f"AnalysisPanel: Setting game {game_analysis.game_id if game_analysis else 'None'}")
         self.current_game = game_analysis
         self.refresh()
         
@@ -507,11 +506,8 @@ class AnalysisPanel(QWidget):
             return
             
         try:
-            logger.info("AnalysisPanel: Refreshing UI...")
-            self.lines_widget.clear() # Clear old lines initially or let live analysis fill them
+            self.lines_widget.clear()
             self.graph_widget.plot_game(self.current_game)
-            
-            logger.info(f"AnalysisPanel: Updating summary with keys: {self.current_game.summary.keys() if self.current_game.summary else 'None'}")
             self._update_summary(self.current_game.summary)
             
             opening = self.current_game.metadata.opening

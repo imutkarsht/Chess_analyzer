@@ -81,6 +81,8 @@ class Analyzer:
         Analyzes a game structure in-place.
         """
         try:
+            logger.info(f"Analysis started: {game_analysis.metadata.white} vs {game_analysis.metadata.black}")
+            
             # 1. Analyze positions (Engine work)
             summary_counts = self._analyze_positions(game_analysis, callback)
             
@@ -90,11 +92,12 @@ class Analyzer:
             # 3. Save to history
             if game_analysis.pgn_content:
                 self.history_manager.save_game(game_analysis, game_analysis.pgn_content)
+                logger.info("Game saved to history")
             
-            logger.info("Analysis complete.")
+            logger.info("Analysis complete")
 
         except Exception as e:
-            logger.error(f"Analysis failed: {e}", exc_info=True)
+            logger.error(f"Analysis failed: {e}")
             raise e
         finally:
             self.engine_manager.stop_engine()
@@ -131,9 +134,6 @@ class Analyzer:
             if callback:
                 callback(i, total_moves)
             
-            if i % 20 == 0:
-                logger.debug(f"Analyzing move {i+1}/{total_moves}")
-            
             # 1. Analyze position BEFORE move
             board.set_fen(move_data.fen_before)
             is_white_turn = board.turn
@@ -159,26 +159,22 @@ class Analyzer:
         return summary_counts
     
     def _log_classification_summary(self, summary_counts: Dict):
-        """Logs a detailed summary of move classifications and accuracy."""
+        """Logs a summary of move classifications and accuracy."""
         for side in ["white", "black"]:
             s = summary_counts[side]
-            logger.info(f"\n{'='*50}")
-            logger.info(f"{side.upper()} ANALYSIS SUMMARY")
-            logger.info(f"{'='*50}")
-            logger.info(f"Total moves: {s['move_count']}")
-            logger.info(f"Accuracy: {s.get('accuracy', 0):.1f}%")
-            logger.info(f"ACPL: {s.get('acpl', 0):.1f}")
-            logger.info(f"\nClassification breakdown:")
+            acc = s.get('accuracy', 0)
+            acpl = s.get('acpl', 0)
+            mc = s['move_count']
+            
+            # Build compact classification string
+            classes = []
             for cls in ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "Inaccuracy", "Mistake", "Miss", "Blunder"]:
                 count = s.get(cls, 0)
                 if count > 0:
-                    logger.info(f"  {cls}: {count}")
+                    classes.append(f"{cls}:{count}")
+            class_str = ", ".join(classes) if classes else "None"
             
-            # Log individual move accuracies for debugging
-            accs = s.get("accuracies", [])
-            if accs:
-                logger.debug(f"\nIndividual move accuracies: {[f'{a:.1f}' for a in accs]}")
-                logger.debug(f"Min accuracy: {min(accs):.1f}%, Max: {max(accs):.1f}%, Harmonic mean would be: {self._harmonic_mean(accs):.1f}%")
+            logger.info(f"{side.capitalize()}: {mc} moves, {acc:.1f}% accuracy, ACPL {acpl:.1f} | {class_str}")
         
     def _get_position_analysis(self, board, move_data) -> List:
         """Gets analysis from cache or engine for the current position."""
@@ -186,10 +182,7 @@ class Analyzer:
         if self.config.get("use_cache", True):
             cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
             if cached_result:
-                logger.debug("Analysis cache hit.")
                 return cached_result
-            else:
-                logger.debug("Analysis cache miss.")
         
         # Engine analysis
         info_list = self.engine_manager.analyze_position(
@@ -485,7 +478,6 @@ class Analyzer:
                     accuracy = 0
                 
                 summary_counts[side]["accuracy"] = max(0, min(100, accuracy))
-                logger.debug(f"Side: {side}, Accuracy: {accuracy:.1f}%")
             else:
                 summary_counts[side]["accuracy"] = 0
     
@@ -599,7 +591,7 @@ class Analyzer:
             
         # ============ PRIORITY 2: Best Move Check ============
         if move.uci == move.best_move:
-            # Check for "Great" move - significantly better than alternatives
+            # Check for "Brilliant" or "Great" move - significantly better than alternatives
             if multi_pvs and len(multi_pvs) > 1:
                 sb_data = multi_pvs[1]
                 sb_cp = sb_data.get("cp")
@@ -618,8 +610,25 @@ class Analyzer:
                     player_sb_wp = sb_wp if side == "white" else (1.0 - sb_wp)
                     player_best_wp = player_wc_after
                     
-                    # Significant gap (>15%) between best and second-best = Great move
+                    # Calculate gap between best and second-best
                     diff = player_best_wp - player_sb_wp
+                    
+                    # Brilliant: Extremely rare - only for truly exceptional moves
+                    # Requirements:
+                    # 1. Massive gap (>40%) between best and second-best move
+                    # 2. Move must improve position by at least 10%
+                    # 3. Player wasn't already completely winning (under 90% before)
+                    # 4. Position after must be strong (at least 50% win chance)
+                    position_improved = player_wc_after > player_wc_before + 0.10
+                    not_already_winning = player_wc_before < 0.90
+                    strong_after = player_wc_after >= 0.50
+                    
+                    if diff > 0.40 and position_improved and not_already_winning and strong_after:
+                        move.classification = "Brilliant"
+                        move.explanation = f"Brilliant! Only winning move. Alternatives were {diff*100:.0f}% worse."
+                        return
+                    
+                    # Great: Significant gap (>15%) between best and second-best
                     if diff > 0.15:
                         move.classification = "Great"
                         move.explanation = f"Only good move! Alternatives were {diff*100:.0f}% worse."
@@ -658,16 +667,17 @@ class Analyzer:
 
         # ============ PRIORITY 5: WPL-Based Classification ============
         # Thresholds tuned to match Chess.com more closely
+        # Raised thresholds to reduce over-classification of inaccuracies
         if wpl >= 0.20:
             move.classification = "Blunder"
             move.explanation = f"Lost {wpl*100:.1f}% winning chances."
-        elif wpl >= 0.08:
+        elif wpl >= 0.10:
             move.classification = "Mistake"
             move.explanation = f"Lost {wpl*100:.1f}% winning chances."
-        elif wpl >= 0.03:
+        elif wpl >= 0.05:
             move.classification = "Inaccuracy"
             move.explanation = f"Slight inaccuracy ({wpl*100:.1f}% loss)."
-        elif wpl >= 0.01:
+        elif wpl >= 0.02:
             move.classification = "Good"
             move.explanation = "Solid move."
         else:

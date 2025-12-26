@@ -209,7 +209,6 @@ class MainWindow(QMainWindow):
         self.update()
 
     def switch_page(self, index):
-        logger.debug(f"Switching to page index: {index}")
         self.stack.setCurrentIndex(index)
         if index == 2: # Stats page
             self.metrics_view.refresh()

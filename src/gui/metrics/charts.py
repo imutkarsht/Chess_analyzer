@@ -16,7 +16,7 @@ def create_donut_figure(
     sizes: list,
     colors: list,
     center_text: str = "",
-    figsize: tuple = (3, 3),
+    figsize: tuple = (2.5, 2.5),
     dpi: int = 100
 ) -> Figure:
     """
@@ -32,9 +32,10 @@ def create_donut_figure(
     Returns:
         matplotlib Figure object
     """
-    fig = Figure(figsize=figsize, dpi=dpi, facecolor=Styles.COLOR_SURFACE)
+    fig = Figure(figsize=figsize, dpi=dpi, facecolor='none')
+    fig.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05)
     ax = fig.add_subplot(111)
-    ax.set_facecolor(Styles.COLOR_SURFACE)
+    ax.set_facecolor('none')
     
     if sizes and any(s > 0 for s in sizes):
         # Filter zeros
@@ -45,28 +46,23 @@ def create_donut_figure(
                 valid_sizes.append(size)
                 valid_colors.append(colors[i])
         
-        wedges, texts, autotexts = ax.pie(
+        wedges, texts = ax.pie(
             valid_sizes, 
             labels=None, 
-            autopct='%1.0f%%', 
             startangle=90, 
-            colors=valid_colors, 
-            pctdistance=0.85,
-            textprops=dict(color=Styles.COLOR_TEXT_PRIMARY)
+            colors=valid_colors,
+            wedgeprops=dict(width=0.35, edgecolor='none')
         )
         
-        # Draw donut hole
-        centre_circle = matplotlib.patches.Circle((0, 0), 0.70, fc=Styles.COLOR_SURFACE)
-        fig.gca().add_artist(centre_circle)
-        
-        # Center text
+        # Center text - large and bold
         if center_text:
             ax.text(0, 0, center_text, ha='center', va='center', 
-                    fontsize=12, color=Styles.COLOR_TEXT_PRIMARY, weight='bold')
+                    fontsize=18, color='white', weight='bold')
     else:
         ax.text(0, 0, "No Data", ha='center', va='center', 
-                color=Styles.COLOR_TEXT_SECONDARY)
-
+                fontsize=12, color=Styles.COLOR_TEXT_SECONDARY)
+    
+    ax.set_aspect('equal')
     return fig
 
 

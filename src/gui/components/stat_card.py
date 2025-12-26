@@ -24,17 +24,37 @@ class StatCard(QFrame):
     def __init__(self, title, value, subtitle=None, icon=None, color=None):
         super().__init__()
         
-        self.setStyleSheet(Styles.get_card_style())
+        # Modern card styling with subtle gradient
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            QFrame:hover {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+        """)
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(10)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(8)
         
         # Header (Title + Icon)
         header_layout = QHBoxLayout()
         
         lbl_title = QLabel(title)
-        lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: 600; {Styles.get_transparent_label_style()}")
+        # Uppercase title with letter-spacing for modern look
+        lbl_title.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_SECONDARY}; 
+            font-size: 12px; 
+            font-weight: 600; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border: none; 
+            background: transparent;
+        """)
         header_layout.addWidget(lbl_title)
         
         if icon:
@@ -43,17 +63,31 @@ class StatCard(QFrame):
             header_layout.addStretch()
             
         layout.addLayout(header_layout)
+        layout.addSpacing(4)
         
-        # Value
+        # Value - Large, bold, eye-catching
         lbl_value = QLabel(str(value))
         value_color = color if color else Styles.COLOR_TEXT_PRIMARY
-        lbl_value.setStyleSheet(f"color: {value_color}; font-size: 36px; font-weight: bold; {Styles.get_transparent_label_style()}")
+        lbl_value.setStyleSheet(f"""
+            color: {value_color}; 
+            font-size: 42px; 
+            font-weight: 700; 
+            letter-spacing: -1px;
+            border: none; 
+            background: transparent;
+        """)
         layout.addWidget(lbl_value)
         
-        # Subtitle
+        # Subtitle - Subtle, smaller
         if subtitle:
             lbl_sub = QLabel(subtitle)
-            lbl_sub.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; {Styles.get_transparent_label_style()}")
+            lbl_sub.setStyleSheet(f"""
+                color: {Styles.COLOR_TEXT_MUTED}; 
+                font-size: 12px; 
+                font-weight: 400;
+                border: none; 
+                background: transparent;
+            """)
             lbl_sub.setWordWrap(True)
             layout.addWidget(lbl_sub)
     

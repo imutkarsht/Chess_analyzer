@@ -109,16 +109,12 @@ class GameSelectionDialog(QDialog):
             pgn = game.get("pgn", "")
             if pgn:
                 import re
-                # Skip headers - find content after last ]
-                header_end = pgn.rfind(']')
-                moves_text = pgn[header_end+1:] if header_end > 0 else pgn
-                # Match all numbers followed by a dot (move numbers)
-                all_nums = re.findall(r'(\d+)\.', moves_text)
-                if all_nums:
-                    # Filter to reasonable move numbers (1-300)
-                    valid = [int(n) for n in all_nums if 0 < int(n) < 300]
-                    if valid:
-                        move_count = f" • {max(valid)} moves"
+                # Match: whitespace + 1-3 digits + dot + space + letter (actual move like "1. e4")
+                moves = re.findall(r'(?:^|\s)(\d{1,3})\.\s+[A-Za-z]', pgn, re.MULTILINE)
+                if moves:
+                    move_nums = [int(m) for m in moves if int(m) <= 500]
+                    if move_nums:
+                        move_count = f" • {max(move_nums)} moves"
             
             # Build display text
             line1 = f"{date_str}  •  {time_class}  •  {result_str}{move_count}"

@@ -48,8 +48,6 @@ class GameListItemWidget(QWidget):
             else:
                 icon_path = os.path.join(assets_dir, "file.png")
             
-            logger.debug(f"Icon not found for {source}, falling back to {icon_path}")
-            
         icon_label = QLabel()
         icon_pixmap = None
         
@@ -129,21 +127,14 @@ class GameListItemWidget(QWidget):
             move_count = f" • {full_moves} moves"
         elif hasattr(game, 'pgn_content') and game.pgn_content:
             # Estimate from PGN - find the highest move number
-            # Only look for moves after the PGN headers end (after ]]
             import re
-            pgn_text = game.pgn_content
-            # Try to find where headers end
-            header_end = pgn_text.rfind(']')
-            if header_end > 0:
-                pgn_text = pgn_text[header_end:]
-            # Match move numbers (1-3 digits only to exclude years)
-            matches = re.findall(r'(?:^|\s)(\d{1,3})\.', pgn_text)
-            if matches:
-                # Filter to reasonable move numbers (under 500)
-                valid_moves = [int(m) for m in matches if int(m) < 500]
-                if valid_moves:
-                    highest_move = max(valid_moves)
-                    move_count = f" • ~{highest_move} moves"
+            pgn = game.pgn_content
+            # Match: whitespace + 1-3 digits + dot + space + letter (actual move like "1. e4")
+            moves = re.findall(r'(?:^|\s)(\d{1,3})\.\s+[A-Za-z]', pgn, re.MULTILINE)
+            if moves:
+                move_nums = [int(m) for m in moves if int(m) <= 500]
+                if move_nums:
+                    move_count = f" • {max(move_nums)} moves"
         
         details_text = f"{game.metadata.date} • {game.metadata.event}{move_count}"
         details_label = QLabel(details_text)
@@ -246,5 +237,4 @@ class GameListWidget(QWidget):
     def on_item_clicked(self, item):
         index = self.list_widget.row(item)
         if 0 <= index < len(self.games):
-            logger.debug(f"Game selected from list at index: {index}")
             self.game_selected.emit(self.games[index])
