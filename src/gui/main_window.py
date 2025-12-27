@@ -54,7 +54,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Chess Analyzer Pro")
-        self.resize(1400, 900)
+        self.resize(1600, 900)
         
         # State
         self.games = []

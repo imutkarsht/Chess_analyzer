@@ -10,7 +10,8 @@ class GraphWidget(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         
-        self.figure = Figure(figsize=(5, 3), dpi=100)
+        # Reduced height for more compact look
+        self.figure = Figure(figsize=(5, 2.2), dpi=100)
         self.canvas = FigureCanvas(self.figure)
         self.layout.addWidget(self.canvas)
         self.ax = self.figure.add_subplot(111)
@@ -18,10 +19,26 @@ class GraphWidget(QWidget):
         # Initial styling
         self.clear()
 
+    def _get_nice_limit(self, max_val):
+        """Returns a nice rounded limit for Y-axis based on max value."""
+        if max_val <= 0.5:
+            return 0.5
+        elif max_val <= 1:
+            return 1.0
+        elif max_val <= 2:
+            return 2.0
+        elif max_val <= 3:
+            return 3.0
+        elif max_val <= 5:
+            return 5.0
+        else:
+            return 10.0
+
     def plot_game(self, game_analysis):
         self.ax.clear()
         
-        evals = []
+        # Store evals in pawns (not centipawns) for display
+        evals = []  # In pawns (e.g., 1.5 = 1.5 pawns)
         moves = []
         
         # Start with 0 eval at move 0 (start of game)
@@ -31,12 +48,13 @@ class GraphWidget(QWidget):
         for i, move in enumerate(game_analysis.moves):
             val = 0
             if move.eval_after_mate is not None:
-                # Cap mate at +/- 200 (2.00) for visual consistency with CP
-                val = 200 if move.eval_after_mate > 0 else -200
+                # Cap mate at +/- 10 pawns for visual consistency
+                val = 10 if move.eval_after_mate > 0 else -10
             elif move.eval_after_cp is not None:
-                val = move.eval_after_cp
-                # Clamp for graph readability to +/- 200 (2.00)
-                val = max(-200, min(200, val))
+                # Convert centipawns to pawns
+                val = move.eval_after_cp / 100.0
+                # Clamp for graph readability to +/- 10 pawns
+                val = max(-10, min(10, val))
             
             evals.append(val)
             moves.append(i + 1)
@@ -68,7 +86,7 @@ class GraphWidget(QWidget):
                     scatter_colors.append(color)
         
         if scatter_x:
-            self.ax.scatter(scatter_x, scatter_y, c=scatter_colors, s=50, zorder=3, edgecolors='white', linewidths=1.2)
+            self.ax.scatter(scatter_x, scatter_y, c=scatter_colors, s=40, zorder=3, edgecolors='white', linewidths=1)
         
         # Zero line
         self.ax.axhline(0, color=Styles.COLOR_BORDER, linestyle='--', linewidth=1, zorder=0)
@@ -77,27 +95,74 @@ class GraphWidget(QWidget):
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
         self.figure.patch.set_facecolor(Styles.COLOR_SURFACE)
 
-        max_val = 0
-        if evals:
-             max_val = max(abs(e) for e in evals)
+        # ASYMMETRIC Y-axis limits - scale positive and negative independently
+        positive_evals = [e for e in evals if e > 0]
+        negative_evals = [e for e in evals if e < 0]
         
-        # Floor at 100 (1.00) so we don't zoom in too much on empty/drawish games
-        limit = max(100, max_val)
+        max_positive = max(positive_evals) if positive_evals else 0.5
+        max_negative = abs(min(negative_evals)) if negative_evals else 0.5
         
-        # Cap at 200 (2.00) as requested
-        limit = min(200, limit)
+        # Get nice rounded limits for each side independently
+        upper_limit = self._get_nice_limit(max_positive)
+        lower_limit = self._get_nice_limit(max_negative)
         
-        self.ax.set_ylim(-limit, limit)
+        # Ensure minimum of 0.5 on each side for visual balance
+        upper_limit = max(0.5, upper_limit)
+        lower_limit = max(0.5, lower_limit)
+        
+        self.ax.set_ylim(-lower_limit, upper_limit)
+        
+        # Generate asymmetric ticks - 2 above zero, 2 below zero (or fewer if limit is small)
+        ticks = [0]
+        
+        # Add positive ticks
+        if upper_limit <= 1:
+            ticks.extend([t for t in [0.5, 1.0] if t <= upper_limit])
+        elif upper_limit <= 2:
+            ticks.extend([t for t in [1.0, 2.0] if t <= upper_limit])
+        elif upper_limit <= 3:
+            ticks.extend([t for t in [1.0, 2.0, 3.0] if t <= upper_limit])
+        elif upper_limit <= 5:
+            ticks.extend([t for t in [2.0, 5.0] if t <= upper_limit])
+        else:
+            ticks.extend([5.0, 10.0])
+        
+        # Add negative ticks
+        if lower_limit <= 1:
+            ticks.extend([t for t in [-0.5, -1.0] if abs(t) <= lower_limit])
+        elif lower_limit <= 2:
+            ticks.extend([t for t in [-1.0, -2.0] if abs(t) <= lower_limit])
+        elif lower_limit <= 3:
+            ticks.extend([t for t in [-1.0, -2.0, -3.0] if abs(t) <= lower_limit])
+        elif lower_limit <= 5:
+            ticks.extend([t for t in [-2.0, -5.0] if abs(t) <= lower_limit])
+        else:
+            ticks.extend([-5.0, -10.0])
+        
+        ticks = sorted(set(ticks))
+        self.ax.set_yticks(ticks)
+        
+        # Format Y-axis labels to show pawn values (like +2, +1, 0, -1, -2)
+        def format_tick(val, pos):
+            if val == 0:
+                return "0"
+            elif val == int(val):
+                return f"{int(val):+d}"
+            else:
+                return f"{val:+.1f}"
+        
+        from matplotlib.ticker import FuncFormatter
+        self.ax.yaxis.set_major_formatter(FuncFormatter(format_tick))
         
         # Remove spines/ticks for cleaner look
         self.ax.spines['top'].set_visible(False)
         self.ax.spines['right'].set_visible(False)
         self.ax.spines['bottom'].set_color(Styles.COLOR_BORDER)
         self.ax.spines['left'].set_color(Styles.COLOR_BORDER)
-        self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
-        self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
+        self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
+        self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
         
-        self.ax.set_title("Evaluation", color=Styles.COLOR_TEXT_PRIMARY, fontsize=13, fontweight='600', pad=12)
+        self.ax.set_title("Evaluation", color=Styles.COLOR_TEXT_PRIMARY, fontsize=11, fontweight='600', pad=8)
         
         # Current move indicator line (initially hidden)
         self.current_move_line = self.ax.axvline(x=-1, color=Styles.COLOR_ACCENT, linewidth=2, linestyle='-', alpha=0.8, zorder=4)
@@ -145,7 +210,7 @@ class GraphWidget(QWidget):
                 val = self.evals_data[idx]
                 
                 self.annot.xy = (move_num, val)
-                eval_display = f"{val/100:+.2f}" if val != 0 else "0.00"
+                eval_display = f"{val:+.2f}" if val != 0 else "0.00"
                 self.annot.set_text(f"Move {move_num}\n{eval_display}")
                 self.annot.set_visible(True)
                 self.canvas.draw_idle()
