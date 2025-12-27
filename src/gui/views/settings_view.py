@@ -64,6 +64,45 @@ class SettingsView(QWidget):
         
         engine_layout.addLayout(path_layout)
         
+        # Analysis Depth Selector
+        depth_layout = QHBoxLayout()
+        depth_lbl = QLabel("Analysis Depth:")
+        depth_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        depth_layout.addWidget(depth_lbl)
+        
+        self.depth_combo = QComboBox()
+        depth_values = [str(i) for i in range(10, 26)]  # Depth 10-25
+        self.depth_combo.addItems(depth_values)
+        current_depth = self.config_manager.get("analysis_depth", 18)
+        self.depth_combo.setCurrentText(str(current_depth))
+        self.depth_combo.setStyleSheet(f"""
+            QComboBox {{
+                padding: 6px 12px;
+                min-width: 80px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                padding-right: 8px;
+            }}
+        """)
+        self.depth_combo.currentTextChanged.connect(self.change_analysis_depth)
+        depth_layout.addWidget(self.depth_combo)
+        
+        depth_hint = QLabel("(Higher = more accurate but slower)")
+        depth_hint.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
+        depth_layout.addWidget(depth_hint)
+        depth_layout.addStretch()
+        
+        engine_layout.addLayout(depth_layout)
+        
         self.save_engine_btn = create_button("Save Engine Path", style="primary", on_click=self.save_engine_path)
         engine_layout.addWidget(self.save_engine_btn, alignment=Qt.AlignmentFlag.AlignRight)
         
@@ -308,6 +347,14 @@ class SettingsView(QWidget):
 
     def change_piece_theme(self, theme_name):
         self._update_config_and_refresh("piece_theme", theme_name)
+
+    def change_analysis_depth(self, depth_str):
+        """Changes the analysis depth setting. Takes effect on next analysis."""
+        try:
+            depth = int(depth_str)
+            self.config_manager.set("analysis_depth", depth)
+        except ValueError:
+            pass  # Ignore invalid values
 
     def browse_engine(self):
         filter_str = "Executables (*.exe);;All Files (*)" if os.name == 'nt' else "All Files (*)"

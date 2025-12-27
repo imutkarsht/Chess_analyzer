@@ -9,7 +9,8 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "engine_path": "stockfish",
         "theme": "dark",
-        "gemini_api_key": ""
+        "gemini_api_key": "",
+        "analysis_depth": 18
     }
 
     def __init__(self):

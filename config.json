@@ -5,5 +5,6 @@
     "board_theme": "Blue",
     "accent_color": "#0082c3",
     "chesscom_username": "utchess2308",
-    "lichess_username": "imutkarsht"
+    "lichess_username": "imutkarsht",
+    "analysis_depth": 18
 }

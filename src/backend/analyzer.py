@@ -6,6 +6,7 @@ from .cache import AnalysisCache
 from .book import BookManager
 from .game_history import GameHistoryManager
 from ..utils.logger import logger
+from ..utils.config import ConfigManager
 from typing import Optional, List, Dict
 import math
 
@@ -15,9 +16,10 @@ class Analyzer:
         self.cache = AnalysisCache()
         self.book_manager = BookManager()
         self.history_manager = GameHistoryManager()
+        self.config_manager = ConfigManager()
         self.config = {
             "time_per_move": None,
-            "depth": 18,
+            "depth": self.config_manager.get("analysis_depth", 18),
             "multi_pv": 3,
             "use_cache": True
         }
