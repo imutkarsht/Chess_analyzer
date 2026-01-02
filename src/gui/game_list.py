@@ -73,22 +73,22 @@ class GameListItemWidget(QWidget):
             opening_layout.setSpacing(6)
             opening_layout.setContentsMargins(0, 0, 0, 0)
             
-            # Book icon
+            # Book icon - use muted color
             if HAS_QTAWESOME:
                 book_icon = QLabel()
-                book_icon.setPixmap(qta.icon('fa5s.book-open', color=Styles.COLOR_BOOK).pixmap(12, 12))
+                book_icon.setPixmap(qta.icon('fa5s.book-open', color=Styles.COLOR_TEXT_MUTED).pixmap(12, 12))
                 book_icon.setFixedWidth(16)
                 opening_layout.addWidget(book_icon)
             
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
             opening_label = QLabel(opening_text)
             opening_label.setStyleSheet(f"""
-                color: {Styles.COLOR_BOOK}; 
+                color: {Styles.COLOR_TEXT_MUTED}; 
                 font-size: 12px;
+                font-style: italic;
             """)
-            # Set tooltip for full text in case it's truncated
             opening_label.setToolTip(opening_text)
-            opening_layout.addWidget(opening_label, 1)  # Give it stretch factor
+            opening_layout.addWidget(opening_label, 1)
             
             layout.addLayout(opening_layout)
         
@@ -122,14 +122,14 @@ class GameListItemWidget(QWidget):
         
         meta_layout.addStretch()
         
-        # Accuracy (if analyzed)
+        # Accuracy (if analyzed) - use subtle accent
         if hasattr(game, 'summary') and game.summary:
             white_acc = game.summary.get('white_accuracy')
             black_acc = game.summary.get('black_accuracy')
             
             if white_acc is not None and black_acc is not None:
                 acc_text = f"{white_acc:.0f}% / {black_acc:.0f}%"
-                acc_widget = self._create_meta_item('fa5s.bullseye', acc_text, Styles.COLOR_ACCENT)
+                acc_widget = self._create_meta_item('fa5s.bullseye', acc_text)
                 meta_layout.addWidget(acc_widget)
         
         layout.addLayout(meta_layout)

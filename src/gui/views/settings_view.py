@@ -8,6 +8,12 @@ from ..gui_utils import create_button
 from ...utils.config import ConfigManager
 import os
 
+try:
+    import qtawesome as qta
+    HAS_QTAWESOME = True
+except ImportError:
+    HAS_QTAWESOME = False
+
 class SettingsView(QWidget):
     engine_path_changed = pyqtSignal(str)
     gemini_key_changed = pyqtSignal(str)
@@ -47,7 +53,9 @@ class SettingsView(QWidget):
         # --- LEFT COLUMN (Column 0) ---
 
         # 1. Engine Settings
-        self.engine_group = QGroupBox("Chess Engine")
+        engine_title = self._create_section_title("Chess Engine", "fa5s.cogs")
+        self.engine_group = QGroupBox()
+        self.engine_group.setTitle(engine_title)
         self.engine_group.setStyleSheet(self.group_style)
         engine_layout = QVBoxLayout(self.engine_group)
         engine_layout.setContentsMargins(20, 25, 20, 20)
@@ -59,7 +67,7 @@ class SettingsView(QWidget):
         self.path_input.setStyleSheet(Styles.get_input_style())
         path_layout.addWidget(self.path_input)
         
-        self.browse_btn = create_button("Browse", style="secondary", on_click=self.browse_engine)
+        self.browse_btn = self._create_icon_button("Browse", "fa5s.folder-open", self.browse_engine)
         path_layout.addWidget(self.browse_btn)
         
         engine_layout.addLayout(path_layout)
@@ -103,7 +111,7 @@ class SettingsView(QWidget):
         
         engine_layout.addLayout(depth_layout)
         
-        self.save_engine_btn = create_button("Save Engine Path", style="primary", on_click=self.save_engine_path)
+        self.save_engine_btn = self._create_icon_button("Save Engine Path", "fa5s.save", self.save_engine_path, primary=True)
         engine_layout.addWidget(self.save_engine_btn, alignment=Qt.AlignmentFlag.AlignRight)
         
         self.container_layout.addWidget(self.engine_group, 0, 0)
@@ -134,7 +142,7 @@ class SettingsView(QWidget):
         api_layout.addRow(lbl_gemini, self.gemini_input)
         api_layout.addRow(lbl_lichess, self.lichess_token_input)
         
-        self.save_api_btn = create_button("Save API Key", style="primary", on_click=self.save_api_key)
+        self.save_api_btn = self._create_icon_button("Save API Keys", "fa5s.key", self.save_api_key, primary=True)
         
         btn_wrapper = QHBoxLayout()
         btn_wrapper.addStretch()
@@ -169,7 +177,7 @@ class SettingsView(QWidget):
         username_layout.addRow(lbl_chesscom, self.chesscom_input)
         username_layout.addRow(lbl_lichess_user, self.lichess_input)
 
-        self.save_usernames_btn = create_button("Save Usernames", style="primary", on_click=self.save_usernames)
+        self.save_usernames_btn = self._create_icon_button("Save Usernames", "fa5s.user-check", self.save_usernames, primary=True)
 
         btn_wrapper_user = QHBoxLayout()
         btn_wrapper_user.addStretch()
@@ -241,7 +249,7 @@ class SettingsView(QWidget):
         color_lbl = QLabel("Accent Color:")
         color_lbl.setStyleSheet(label_style)
         
-        self.color_btn = create_button("Change Color", style="secondary", on_click=self.change_accent_color)
+        self.color_btn = self._create_icon_button("Change Color", "fa5s.palette", self.change_accent_color)
         
         appearance_layout.addRow(color_lbl, self.color_btn)
         
@@ -252,25 +260,27 @@ class SettingsView(QWidget):
         self.data_group.setStyleSheet(self.group_style)
         data_layout = QGridLayout(self.data_group)
         data_layout.setContentsMargins(20, 25, 20, 20)
+        data_layout.setSpacing(12)
         
-        self.clear_cache_btn = create_button("Clear Cache", style="secondary", on_click=self.clear_cache)
+        self.clear_cache_btn = self._create_icon_button("Clear Cache", "fa5s.broom", self.clear_cache)
         data_layout.addWidget(self.clear_cache_btn, 0, 0)
         
-        self.clear_data_btn = create_button("Reset All Data", style="secondary", on_click=self.clear_all_data)
+        self.clear_data_btn = self._create_icon_button("Reset All Data", "fa5s.trash-alt", self.clear_all_data, danger=True)
         data_layout.addWidget(self.clear_data_btn, 0, 1)
         
         self.container_layout.addWidget(self.data_group, 1, 1)
 
         # 6. Official Website Section
-        self.website_group = QGroupBox("Official Website")
+        self.website_group = QGroupBox("Links")
         self.website_group.setStyleSheet(self.group_style)
         website_layout = QHBoxLayout(self.website_group)
         website_layout.setContentsMargins(20, 25, 20, 20)
+        website_layout.setSpacing(12)
 
-        self.website_btn = create_button("Visit Website", style="secondary", on_click=self.open_website)
+        self.website_btn = self._create_icon_button("Visit Website", "fa5s.globe", self.open_website)
         website_layout.addWidget(self.website_btn)
 
-        self.feedback_btn = create_button("Feedback", style="secondary", on_click=self.open_feedback)
+        self.feedback_btn = self._create_icon_button("Feedback", "fa5s.comment-dots", self.open_feedback)
         website_layout.addWidget(self.feedback_btn)
 
         self.container_layout.addWidget(self.website_group, 2, 1)
@@ -317,6 +327,73 @@ class SettingsView(QWidget):
         self.clear_data_btn.setStyleSheet(Styles.get_control_button_style())
         self.website_btn.setStyleSheet(Styles.get_control_button_style())
         self.feedback_btn.setStyleSheet(Styles.get_control_button_style())
+
+    def _create_section_title(self, text, icon_name):
+        """Create a section title string (icons applied via button icons)."""
+        return text  # Keep title simple, icons on buttons
+    
+    def _create_icon_button(self, text, icon_name, callback, danger=False, primary=False):
+        """Create a styled button with qtawesome icon."""
+        btn = QPushButton(f"  {text}")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        if HAS_QTAWESOME:
+            if danger:
+                icon_color = Styles.COLOR_BLUNDER
+            elif primary:
+                icon_color = "#ffffff"
+            else:
+                icon_color = Styles.COLOR_TEXT_SECONDARY
+            btn.setIcon(qta.icon(icon_name, color=icon_color))
+        
+        if danger:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {Styles.COLOR_BLUNDER};
+                    border: 1px solid {Styles.COLOR_BLUNDER};
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_BLUNDER};
+                    color: white;
+                }}
+            """)
+        elif primary:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_ACCENT};
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-weight: 600;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_ACCENT_HOVER};
+                }}
+            """)
+        else:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border-color: {Styles.COLOR_ACCENT};
+                }}
+            """)
+        
+        btn.clicked.connect(callback)
+        return btn
 
     def change_accent_color(self):
         from PyQt6.QtWidgets import QColorDialog

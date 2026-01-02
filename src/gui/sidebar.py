@@ -5,6 +5,22 @@ from .styles import Styles
 from ..utils.path_utils import get_resource_path
 import os
 
+try:
+    import qtawesome as qta
+    HAS_QTAWESOME = True
+except ImportError:
+    HAS_QTAWESOME = False
+
+# Map icon names to qtawesome icons
+QTAWESOME_ICONS = {
+    "help.png": "fa5s.question-circle",
+    "exit.png": "fa5s.sign-out-alt",
+    "analyze.png": "fa5s.chess-board",
+    "history.png": "fa5s.history",
+    "stats.png": "fa5s.chart-bar",
+    "settings.png": "fa5s.cog",
+}
+
 class Sidebar(QWidget):
     # Signals for navigation
     page_changed = pyqtSignal(int) # 0: Analyze, 1: History, 2: Settings
@@ -16,11 +32,6 @@ class Sidebar(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(10, 20, 10, 20)
         self.layout.setSpacing(10)
-        
-        # # Logo or Title Area
-        # title = QLabel("Chess Analyzer")
-        # title.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding-bottom: 20px; padding-left: 5px;")
-        # self.layout.addWidget(title)
         
         # Navigation Buttons
         self.btn_analyze = self.create_button("Analyze", "analyze.png", 0)
@@ -52,15 +63,19 @@ class Sidebar(QWidget):
         self.set_active(0)
 
     def create_button(self, text, icon_name, index):
-        btn = QPushButton(f"  {text}")  # Add text with spacing
-        btn.setFixedHeight(54)  # Taller buttons for better click targets
+        btn = QPushButton(f"  {text}")
+        btn.setFixedHeight(54)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
-        # Load icon
+        # Try to load icon from assets first
         icon_path = get_resource_path(os.path.join("assets", "icons", icon_name))
         if os.path.exists(icon_path):
             btn.setIcon(QIcon(icon_path))
-            btn.setIconSize(QSize(28, 28))  # Larger icons
+            btn.setIconSize(QSize(28, 28))
+        elif HAS_QTAWESOME and icon_name in QTAWESOME_ICONS:
+            # Fallback to qtawesome
+            btn.setIcon(qta.icon(QTAWESOME_ICONS[icon_name], color=Styles.COLOR_TEXT_SECONDARY))
+            btn.setIconSize(QSize(24, 24))
             
         btn.setCheckable(True)
         

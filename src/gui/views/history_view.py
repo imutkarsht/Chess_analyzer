@@ -1,5 +1,6 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox, QLineEdit
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox, QLineEdit, QPushButton
 from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QIcon
 from ..game_list import GameListWidget
 from ..styles import Styles
 from ..gui_utils import create_button, create_combobox
@@ -8,6 +9,12 @@ from ...backend.models import GameAnalysis, GameMetadata
 import json
 import logging
 import re
+
+try:
+    import qtawesome as qta
+    HAS_QTAWESOME = True
+except ImportError:
+    HAS_QTAWESOME = False
 
 class HistoryView(QWidget):
     game_selected = pyqtSignal(object) # Emits GameAnalysis object
@@ -116,27 +123,69 @@ class HistoryView(QWidget):
         
         # Bottom Buttons
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(12)
         
-        # Import/Export (Bottom-Left)
-        self.btn_export = create_button(" Export Games", style="export", on_click=self.export_games)
-        self.btn_export.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogSaveButton))
+        # Export Button
+        self.btn_export = self._create_icon_button("Export", "fa5s.file-export", self.export_games)
         btn_layout.addWidget(self.btn_export)
         
-        self.btn_import = create_button(" Import Games", style="import", on_click=self.import_games)
-        self.btn_import.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogOpenButton))
+        # Import Button
+        self.btn_import = self._create_icon_button("Import", "fa5s.file-import", self.import_games)
         btn_layout.addWidget(self.btn_import)
         
         btn_layout.addStretch()
         
-        # Clear History (Bottom-Right)
-        self.btn_clear = create_button("Clear History", style="secondary", on_click=self.clear_history)
-        self.btn_clear.setStyleSheet(f"background-color: {Styles.COLOR_BLUNDER}; color: white; border: none; padding: 8px 16px; border-radius: 4px;")
+        # Clear History (Danger action)
+        self.btn_clear = self._create_icon_button("Clear History", "fa5s.trash-alt", self.clear_history, danger=True)
         btn_layout.addWidget(self.btn_clear)
         
         self.layout.addLayout(btn_layout)
         
         # Load initial data
         self.load_history()
+    
+    def _create_icon_button(self, text, icon_name, callback, danger=False):
+        """Create a styled button with qtawesome icon."""
+        btn = QPushButton(f"  {text}")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        if HAS_QTAWESOME:
+            icon_color = Styles.COLOR_BLUNDER if danger else Styles.COLOR_TEXT_SECONDARY
+            btn.setIcon(qta.icon(icon_name, color=icon_color))
+        
+        if danger:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {Styles.COLOR_BLUNDER};
+                    border: 1px solid {Styles.COLOR_BLUNDER};
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_BLUNDER};
+                    color: white;
+                }}
+            """)
+        else:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border-color: {Styles.COLOR_ACCENT};
+                }}
+            """)
+        
+        btn.clicked.connect(callback)
+        return btn
 
     def load_history(self):
         try:
