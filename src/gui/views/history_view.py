@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox, QLineEdit
 from PyQt6.QtCore import pyqtSignal, Qt
 from ..game_list import GameListWidget
 from ..styles import Styles
@@ -41,6 +41,28 @@ class HistoryView(QWidget):
         # Filter Row
         filter_layout = QHBoxLayout()
         filter_layout.setSpacing(16)
+        
+        # Search Bar
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search by player, opening, event...")
+        self.search_input.setStyleSheet(f"""
+            QLineEdit {{
+                padding: 8px 12px;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-size: 13px;
+                min-width: 250px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+        """)
+        self.search_input.textChanged.connect(self.apply_filters)
+        filter_layout.addWidget(self.search_input)
+        
+        filter_layout.addSpacing(20)
         
         # Filter By Label
         filter_label = QLabel("Filter by:")
@@ -163,12 +185,17 @@ class HistoryView(QWidget):
             logging.error(f"Failed to load history: {e}")
 
     def apply_filters(self):
-        """Apply filter and sort settings to the game list."""
+        """Apply search, filter, and sort settings to the game list."""
+        search_query = self.search_input.text().strip().lower()
         result_filter = self.result_filter.currentText()
         source_filter = self.source_filter.currentText()
         sort_option = self.sort_dropdown.currentText()
         
         filtered_games = self.games.copy()
+        
+        # Apply Search Filter first
+        if search_query:
+            filtered_games = self._filter_by_search(filtered_games, search_query)
         
         # Apply Result Filter
         if result_filter != "All":
@@ -182,6 +209,30 @@ class HistoryView(QWidget):
         filtered_games = self._sort_games(filtered_games, sort_option)
         
         self.game_list.set_games(filtered_games, self.usernames)
+    
+    def _filter_by_search(self, games, query):
+        """Filter games by search query matching player names, opening, event, or date."""
+        filtered = []
+        
+        for game in games:
+            # Get searchable fields
+            white = (game.metadata.white or "").lower()
+            black = (game.metadata.black or "").lower()
+            opening = (game.metadata.opening or "").lower()
+            event = (game.metadata.event or "").lower()
+            date = (game.metadata.date or "").lower()
+            eco = (game.metadata.eco or "").lower()
+            
+            # Check if query matches any field
+            if (query in white or 
+                query in black or 
+                query in opening or 
+                query in event or 
+                query in date or
+                query in eco):
+                filtered.append(game)
+        
+        return filtered
     
     def _filter_by_result(self, games, result_filter):
         """Filter games by result (wins/losses/draws from user perspective)."""

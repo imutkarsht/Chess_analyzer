@@ -7,3 +7,4 @@ google-generativeai>=0.3.0
 python-dotenv>=1.0.0
 pytest-qt>=4.2.0
 pytest-mock>=3.10.0
+qtawesome>=1.2.0

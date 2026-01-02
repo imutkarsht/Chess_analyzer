@@ -648,6 +648,25 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Analysis Error", error_msg)
 
     def keyPressEvent(self, event):
+        # Global shortcuts (work regardless of game state)
+        if event.key() == Qt.Key.Key_F1 or (event.key() == Qt.Key.Key_Question):
+            self.show_shortcuts_help()
+            return
+        
+        if event.key() == Qt.Key.Key_Slash and event.modifiers() == Qt.KeyboardModifier.ShiftModifier:
+            # Shift+/ = ? on most keyboards
+            self.show_shortcuts_help()
+            return
+        
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if event.key() == Qt.Key.Key_O:
+                self.open_pgn()
+                return
+            elif event.key() == Qt.Key.Key_A:
+                self.start_analysis()
+                return
+        
+        # Game-specific shortcuts
         if not self.current_game:
             super().keyPressEvent(event)
             return
@@ -665,8 +684,23 @@ class MainWindow(QMainWindow):
             if new_index != current_index:
                 self.on_move_selected(new_index)
         
+        elif event.key() == Qt.Key.Key_Home:
+            self.go_first()
+        
+        elif event.key() == Qt.Key.Key_End:
+            self.go_last()
+        
+        elif event.key() == Qt.Key.Key_F:
+            self.flip_board()
+        
         else:
             super().keyPressEvent(event)
+    
+    def show_shortcuts_help(self):
+        """Show the keyboard shortcuts help dialog."""
+        from .dialogs import ShortcutHelpDialog
+        dialog = ShortcutHelpDialog(self)
+        dialog.exec()
 
     def on_move_selected(self, index):
         self.board_widget.set_position(index)

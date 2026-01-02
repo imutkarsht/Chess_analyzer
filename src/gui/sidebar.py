@@ -35,6 +35,11 @@ class Sidebar(QWidget):
         
         self.layout.addStretch()
         
+        # Help Button (for keyboard shortcuts)
+        self.btn_help = self.create_button("Help (F1)", "help.png", -1)
+        self.btn_help.clicked.connect(self.show_help)
+        self.layout.addWidget(self.btn_help)
+        
         # Exit Button
         self.btn_exit = self.create_button("Exit", "exit.png", -1)
         self.btn_exit.clicked.connect(QApplication.instance().quit)
@@ -73,3 +78,9 @@ class Sidebar(QWidget):
         self.btn_history.setChecked(index == 1)
         self.btn_stats.setChecked(index == 2)
         self.btn_settings.setChecked(index == 3)
+    
+    def show_help(self):
+        """Show the keyboard shortcuts help dialog."""
+        from .dialogs import ShortcutHelpDialog
+        dialog = ShortcutHelpDialog(self)
+        dialog.exec()
