@@ -1,12 +1,13 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox
 from PyQt6.QtCore import pyqtSignal, Qt
 from ..game_list import GameListWidget
 from ..styles import Styles
-from ..gui_utils import create_button
+from ..gui_utils import create_button, create_combobox
 from ...backend.game_history import GameHistoryManager
 from ...backend.models import GameAnalysis, GameMetadata
 import json
 import logging
+import re
 
 class HistoryView(QWidget):
     game_selected = pyqtSignal(object) # Emits GameAnalysis object
@@ -36,6 +37,55 @@ class HistoryView(QWidget):
         header_layout.addWidget(self.btn_refresh)
         
         self.layout.addLayout(header_layout)
+        
+        # Filter Row
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(16)
+        
+        # Filter By Label
+        filter_label = QLabel("Filter by:")
+        filter_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
+        filter_layout.addWidget(filter_label)
+        
+        # Result Filter
+        result_label = QLabel("Result:")
+        result_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
+        filter_layout.addWidget(result_label)
+        
+        self.result_filter = create_combobox(
+            items=["All", "Wins", "Losses", "Draws"],
+            on_change=self.apply_filters
+        )
+        self.result_filter.setMinimumWidth(100)
+        filter_layout.addWidget(self.result_filter)
+        
+        # Source Filter
+        source_label = QLabel("Source:")
+        source_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
+        filter_layout.addWidget(source_label)
+        
+        self.source_filter = create_combobox(
+            items=["All", "Chess.com", "Lichess", "File"],
+            on_change=self.apply_filters
+        )
+        self.source_filter.setMinimumWidth(100)
+        filter_layout.addWidget(self.source_filter)
+        
+        filter_layout.addStretch()
+        
+        # Sort Dropdown
+        sort_label = QLabel("Sort by:")
+        sort_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
+        filter_layout.addWidget(sort_label)
+        
+        self.sort_dropdown = create_combobox(
+            items=["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
+            on_change=self.apply_filters
+        )
+        self.sort_dropdown.setMinimumWidth(130)
+        filter_layout.addWidget(self.sort_dropdown)
+        
+        self.layout.addLayout(filter_layout)
         
         # Game List
         self.game_list = GameListWidget()
@@ -101,15 +151,99 @@ class HistoryView(QWidget):
                 )
                 self.games.append(game)
             
-            usernames = []
+            self.usernames = []
             if self.config_manager:
                 chesscom = self.config_manager.get("chesscom_username", "")
                 lichess = self.config_manager.get("lichess_username", "")
-                usernames = [u for u in [chesscom, lichess] if u]
-                
-            self.game_list.set_games(self.games, usernames)
+                self.usernames = [u for u in [chesscom, lichess] if u]
+            
+            # Apply filters after loading
+            self.apply_filters()
         except Exception as e:
             logging.error(f"Failed to load history: {e}")
+
+    def apply_filters(self):
+        """Apply filter and sort settings to the game list."""
+        result_filter = self.result_filter.currentText()
+        source_filter = self.source_filter.currentText()
+        sort_option = self.sort_dropdown.currentText()
+        
+        filtered_games = self.games.copy()
+        
+        # Apply Result Filter
+        if result_filter != "All":
+            filtered_games = self._filter_by_result(filtered_games, result_filter)
+        
+        # Apply Source Filter
+        if source_filter != "All":
+            filtered_games = self._filter_by_source(filtered_games, source_filter)
+        
+        # Apply Sorting
+        filtered_games = self._sort_games(filtered_games, sort_option)
+        
+        self.game_list.set_games(filtered_games, self.usernames)
+    
+    def _filter_by_result(self, games, result_filter):
+        """Filter games by result (wins/losses/draws from user perspective)."""
+        filtered = []
+        usernames_lower = [u.lower() for u in self.usernames] if self.usernames else []
+        
+        for game in games:
+            result = game.metadata.result
+            white = game.metadata.white.lower() if game.metadata.white else ""
+            black = game.metadata.black.lower() if game.metadata.black else ""
+            
+            # Determine user color
+            user_is_white = white in usernames_lower
+            user_is_black = black in usernames_lower
+            
+            if result_filter == "Wins":
+                if (result == "1-0" and user_is_white) or (result == "0-1" and user_is_black):
+                    filtered.append(game)
+            elif result_filter == "Losses":
+                if (result == "0-1" and user_is_white) or (result == "1-0" and user_is_black):
+                    filtered.append(game)
+            elif result_filter == "Draws":
+                if result == "1/2-1/2":
+                    filtered.append(game)
+        
+        return filtered
+    
+    def _filter_by_source(self, games, source_filter):
+        """Filter games by source platform."""
+        source_map = {
+            "Chess.com": "chesscom",
+            "Lichess": "lichess",
+            "File": "file"
+        }
+        target_source = source_map.get(source_filter, "")
+        
+        return [g for g in games if getattr(g.metadata, 'source', 'file') == target_source]
+    
+    def _sort_games(self, games, sort_option):
+        """Sort games based on selected option."""
+        if sort_option == "Newest First":
+            # Sort by timestamp descending (default order from DB)
+            return games  # Already sorted by timestamp DESC
+        elif sort_option == "Oldest First":
+            return list(reversed(games))
+        elif sort_option == "Most Moves" or sort_option == "Fewest Moves":
+            # Calculate move count for sorting
+            def get_move_count(game):
+                if hasattr(game, 'moves') and game.moves:
+                    return (len(game.moves) + 1) // 2
+                elif hasattr(game, 'pgn_content') and game.pgn_content:
+                    moves = re.findall(r'(?:^|\s)(\d{1,3})\.\s+[A-Za-z]', game.pgn_content, re.MULTILINE)
+                    if moves:
+                        move_nums = [int(m) for m in moves if int(m) <= 500]
+                        if move_nums:
+                            return max(move_nums)
+                return 0
+            
+            reverse = (sort_option == "Most Moves")
+            return sorted(games, key=get_move_count, reverse=reverse)
+        
+        return games
 
     def on_game_selected(self, game):
         self.game_selected.emit(game)
