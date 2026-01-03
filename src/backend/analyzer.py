@@ -400,8 +400,15 @@ class Analyzer:
             next_move = game_analysis.moves[index+1]
             return next_move.eval_before_cp, next_move.eval_before_mate
         else:
-            # Final position
+            # Final position - need to figure out whose turn it is AFTER the last move
             if final_score:
+                # Get the FEN after the last move to determine whose turn it is
+                last_move = game_analysis.moves[index]
+                temp_board = chess.Board()
+                temp_board.set_fen(last_move.fen_before)
+                temp_board.push_uci(last_move.uci)
+                turn_after_last = temp_board.turn  # Who to move in final position
+                
                 if final_score.is_mate():
                     s2_mate = final_score.relative.mate()
                     s2_cp = None
@@ -409,10 +416,12 @@ class Analyzer:
                     s2_cp = final_score.relative.score(mate_score=10000)
                     s2_mate = None
                     
-                # Normalize (relative to side to move after last move)
-                if current_board_context.turn == chess.BLACK:
-                        if s2_cp is not None: s2_cp = -s2_cp
-                        if s2_mate is not None: s2_mate = -s2_mate
+                # Normalize: score is relative to side-to-move in final position
+                # We need it relative to White for consistency
+                if turn_after_last == chess.BLACK:
+                    # Score is relative to Black, flip to White's perspective
+                    if s2_cp is not None: s2_cp = -s2_cp
+                    if s2_mate is not None: s2_mate = -s2_mate
                 return s2_cp, s2_mate
             else:
                 return None, None

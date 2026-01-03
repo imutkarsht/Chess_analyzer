@@ -90,8 +90,21 @@ class MainWindow(QMainWindow):
         self.check_for_updates()
 
     def check_for_updates(self):
-        """Start background update check after a delay."""
+        """Start background update check after a delay (max once per day)."""
         from PyQt6.QtCore import QTimer
+        from datetime import datetime, timedelta
+        
+        # Check if we already checked today
+        last_check = self.config_manager.get("last_update_check", "")
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        if last_check == today:
+            # Already checked today, skip
+            return
+        
+        # Save today as last check date
+        self.config_manager.set("last_update_check", today)
+        
         # Delay update check by 2 seconds to ensure splash is gone
         QTimer.singleShot(2000, self._start_update_check)
     

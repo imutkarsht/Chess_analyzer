@@ -1,5 +1,39 @@
 # Patch Notes
 
+## v1.6 - UX Enhancements & Auto-Update
+
+### New Features
+- **Auto-Update Check**: App now checks for updates on startup and notifies you when a new version is available with one-click download.
+- **Keyboard Shortcuts**: Added comprehensive keyboard shortcuts (←/→ navigation, Home/End, F for flip, Ctrl+O to open, F1 for help).
+- **Shortcuts Help Dialog**: Press F1 or click Help button to see all available keyboard shortcuts.
+- **History Search**: Search games by player name, opening, event, date, or ECO code with real-time filtering.
+- **History Filters & Sorting**: Filter games by result (Wins/Losses/Draws), source (Chess.com/Lichess/File), and sort by date or move count.
+- **Enhanced Game Cards**: History list now shows opening name, time control, move count, termination type, and accuracy scores.
+
+### Improvements
+- **Consistent Icon System**: Migrated to QtAwesome (FontAwesome) icons throughout the app for a unified modern look.
+- **Settings UI Polish**: All buttons now have appropriate icons (save, folder, key, palette, trash, globe, etc.).
+- **Configurable Engine Depth**: Choose analysis depth (10-25) from Settings.
+- **Dynamic Eval Graph**: Evaluation graph now adapts dynamically to game data.
+- **Improved Loaders**: Better loading indicators and overlay improvements.
+
+### UI Polish
+- **Consistent Typography**: Unified font sizes and weights across all views.
+- **Muted Color Palette**: Replaced bright emojis and colorful badges with professional muted tones.
+- **Game List Redesign**: Clean card layout with icon-based metadata (date, time control, moves, termination).
+- **Button Styling**: Consistent button styles - primary (accent), secondary (bordered), and danger (red) variants.
+- **Sidebar Help Button**: Added Help (F1) button with FontAwesome icon for quick access to shortcuts.
+- **Update Dialog**: Clean modal with version badges and formatted changelog.
+- **History Controls**: Polished search bar, filter dropdowns, and action buttons with icons.
+
+### Technical
+- **Code Refactoring**: Consistent font usage and improved UI component structure.
+- **Icon Assets**: Updated icon system with QtAwesome fallbacks.
+- **Default Window Size**: Optimized default window dimensions.
+- **Dependencies**: Added `qtawesome` and `packaging` libraries.
+
+---
+
 ## v1.5 - Themes, Stats Overhaul & Polish
 
 ### New Features
