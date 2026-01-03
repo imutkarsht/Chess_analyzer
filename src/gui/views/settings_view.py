@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                              QLineEdit, QFileDialog, QGroupBox, QFormLayout, QMessageBox,
-                             QScrollArea, QFrame, QComboBox, QGridLayout)
+                             QScrollArea, QFrame, QComboBox, QGridLayout, QApplication)
 from PyQt6.QtGui import QColor, QDesktopServices
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl
 from ..styles import Styles
@@ -282,6 +282,9 @@ class SettingsView(QWidget):
 
         self.feedback_btn = self._create_icon_button("Feedback", "fa5s.comment-dots", self.open_feedback)
         website_layout.addWidget(self.feedback_btn)
+        
+        self.update_btn = self._create_icon_button("Check for Updates", "fa5s.sync-alt", self.check_for_updates)
+        website_layout.addWidget(self.update_btn)
 
         self.container_layout.addWidget(self.website_group, 2, 1)
         
@@ -505,3 +508,32 @@ class SettingsView(QWidget):
     def open_feedback(self):
         QDesktopServices.openUrl(QUrl("https://chess-analyzer-ut.vercel.app/feedback"))
 
+    def check_for_updates(self):
+        """Manually check for updates."""
+        from ...backend.update_checker import UpdateChecker, APP_VERSION
+        from ..dialogs import UpdateNotificationDialog
+        
+        # Show checking message
+        self.update_btn.setEnabled(False)
+        self.update_btn.setText("  Checking...")
+        QApplication.processEvents()
+        
+        try:
+            update_info = UpdateChecker.check_for_updates()
+            
+            if update_info.available:
+                dialog = UpdateNotificationDialog(update_info, self)
+                dialog.exec()
+            else:
+                QMessageBox.information(
+                    self, 
+                    "Up to Date", 
+                    f"You're running the latest version (v{APP_VERSION})."
+                )
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to check for updates: {e}")
+        finally:
+            self.update_btn.setEnabled(True)
+            self.update_btn.setText("  Check for Updates")
+            if HAS_QTAWESOME:
+                self.update_btn.setIcon(qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY))

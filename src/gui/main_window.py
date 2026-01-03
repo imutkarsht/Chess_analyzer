@@ -86,8 +86,29 @@ class MainWindow(QMainWindow):
         self.loading_overlay = LoadingOverlay(self)
         self.loading_overlay.resize(self.size())
         
-        # Load History
-        # self.load_history()
+        # Check for updates (in background)
+        self.check_for_updates()
+
+    def check_for_updates(self):
+        """Start background update check after a delay."""
+        from PyQt6.QtCore import QTimer
+        # Delay update check by 2 seconds to ensure splash is gone
+        QTimer.singleShot(2000, self._start_update_check)
+    
+    def _start_update_check(self):
+        """Actually start the update check."""
+        from ..backend.update_checker import UpdateCheckerWorker
+        
+        self.update_worker = UpdateCheckerWorker()
+        self.update_worker.update_checked.connect(self.on_update_checked)
+        self.update_worker.start()
+    
+    def on_update_checked(self, update_info):
+        """Handle update check result."""
+        if update_info.available:
+            from .dialogs import UpdateNotificationDialog
+            dialog = UpdateNotificationDialog(update_info, self)
+            dialog.exec()
 
     def setup_ui(self):
         central_widget = QWidget()
