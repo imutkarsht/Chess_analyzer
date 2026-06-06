@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QGridLayout
+from PyQt6.QtWidgets import QWidget, QLabel, QGridLayout, QSizePolicy
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -13,6 +13,13 @@ class BoardWidget(QWidget):
         super().__init__()
         self.board = chess.Board()
         self.is_flipped = False # False = White bottom, True = Black bottom
+        # We need the board to take all available space in its parent
+        # QVBoxLayout cell. Without an inner layout, sizePolicy defaults
+        # to Preferred, which sizes us to sizeHint/minimum and leaves
+        # the rest of the cell empty. Expanding tells the outer layout
+        # to give us all leftover room; _enforce_square_board then
+        # clamps the actual size to a square inside that room.
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.svg_widget = QSvgWidget()
         
         # No QHBoxLayout: eval_bar and board_container are direct children

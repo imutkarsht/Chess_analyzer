@@ -303,6 +303,11 @@ class MainWindow(QMainWindow):
         center_layout.addWidget(self.captured_black)
         center_layout.addWidget(self.board_widget)
         center_layout.addWidget(self.captured_white)
+        # Board takes all remaining vertical space. Without this, the
+        # board (which now has no inner layout of its own, so no useful
+        # sizeHint) collapses to its minimum size and the window is
+        # dominated by empty space.
+        center_layout.setStretch(1, 1)
         
         self.controls = GameControlsWidget()
         self.controls.first_clicked.connect(self.go_first)
