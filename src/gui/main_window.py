@@ -276,6 +276,7 @@ class MainWindow(QMainWindow):
         # Center: Board
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
+        self.center_layout = center_layout  # needed for flip_board()
         center_layout.setContentsMargins(10, 10, 10, 10)
         center_layout.setSpacing(10)
         
@@ -283,12 +284,25 @@ class MainWindow(QMainWindow):
         self.game_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px;")
         center_layout.addWidget(self.game_info_label)
-        
-        self.captured_widget = CapturedPiecesWidget()
-        center_layout.addWidget(self.captured_widget)
-        
+
+        # Captured pieces: White sits at the BOTTOM of the board view,
+        # so White's captures (the black pieces White took) belong BELOW
+        # the board. Black sits at the TOP, so Black's captures (the
+        # white pieces Black took) belong ABOVE the board. Keeping each
+        # capture row adjacent to its capturer is the standard convention.
+        self.captured_white = CapturedPiecesWidget(side="white")
+        self.captured_black = CapturedPiecesWidget(side="black")
+        # Backwards-compat alias — some code may still reference the old name.
+        self.captured_widget = self.captured_white
+
         self.board_widget = BoardWidget()
+        # Layout order (indices shown):
+        #   1 captured_black  (above board, near Black)
+        #   2 board
+        #   3 captured_white  (below board, near White)
+        center_layout.addWidget(self.captured_black)
         center_layout.addWidget(self.board_widget)
+        center_layout.addWidget(self.captured_white)
         
         self.controls = GameControlsWidget()
         self.controls.first_clicked.connect(self.go_first)
@@ -533,7 +547,8 @@ class MainWindow(QMainWindow):
         # self.move_list_panel.load_game(game) # REMOVED: Method does not exist
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
-        self.captured_widget.update_captured(None)
+        self.captured_white.update_captured(None)
+        self.captured_black.update_captured(None)
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
 
     def enrich_game_metadata(self, game, source_data):
@@ -755,9 +770,10 @@ class MainWindow(QMainWindow):
                 else:
                     if hasattr(self.board_widget, 'board'):
                         fen = self.board_widget.board.fen()
-            
-            self.captured_widget.update_captured(fen)
-            
+
+            self.captured_white.update_captured(fen)
+            self.captured_black.update_captured(fen)
+
             if 0 <= index < len(moves):
                 move = moves[index]
                 san = move.san
@@ -796,6 +812,19 @@ class MainWindow(QMainWindow):
 
     def flip_board(self):
         self.board_widget.flip_board()
+        # Keep each player's captured-pieces row adjacent to that player.
+        # The board stays at layout index 2; the two capture rows swap
+        # around it. After flipping (White on top, Black on bottom), the
+        # white-captures row moves above the board and the black-captures
+        # row moves below it.
+        self.center_layout.removeWidget(self.captured_white)
+        self.center_layout.removeWidget(self.captured_black)
+        if self.board_widget.is_flipped:
+            self.center_layout.insertWidget(1, self.captured_white)
+            self.center_layout.insertWidget(3, self.captured_black)
+        else:
+            self.center_layout.insertWidget(1, self.captured_black)
+            self.center_layout.insertWidget(3, self.captured_white)
 
     def on_cache_toggled(self, checked):
         self.analyzer.config["use_cache"] = checked
