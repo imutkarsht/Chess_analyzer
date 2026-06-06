@@ -45,7 +45,7 @@ class CapturedPiecesWidget(QFrame):
         # enough that the piece symbols are easy to read.
         self.setMinimumHeight(56)
         self.setMaximumHeight(56)
-
+        
     def update_captured(self, fen):
         """Update captured pieces display based on current FEN.
 
@@ -88,37 +88,60 @@ class CapturedPiecesWidget(QFrame):
         diff = white_score - black_score  # positive = White is ahead in material
 
         if self.side == "white":
-            # Black pieces White has taken.
+            # Black pieces White has taken — show with INVERTED background
+            # (dark piece on light chip).
             ordered = ['q', 'r', 'b', 'n', 'p']
             for p in ordered:
                 if p in white_caps:
-                    self._add_pieces(white_caps[p], p, Styles.COLOR_PIECE_BLACK)
+                    self._add_pieces(
+                        white_caps[p], p,
+                        fg=Styles.COLOR_PIECE_BLACK,
+                        bg=Styles.COLOR_PIECE_WHITE,
+                    )
             if diff > 0:
                 self._add_advantage_label(f"+{diff}")
-        else:  # "black" — white pieces Black has taken
+        else:  # "black" — white pieces Black has taken (light piece on dark chip)
             ordered = ['Q', 'R', 'B', 'N', 'P']
             for p in ordered:
                 if p in black_caps:
-                    self._add_pieces(black_caps[p], p, Styles.COLOR_PIECE_WHITE)
+                    self._add_pieces(
+                        black_caps[p], p,
+                        fg=Styles.COLOR_PIECE_WHITE,
+                        bg=Styles.COLOR_PIECE_BLACK,
+                    )
             if diff < 0:
                 self._add_advantage_label(f"+{-diff}")
 
-    def _add_pieces(self, count, piece, color):
-        """Add piece symbols to the layout."""
+    def _add_pieces(self, count, piece, fg, bg):
+        """Add piece symbols to layout as chips with an inverted background.
+
+        The chip background (bg) is the inverse of the piece's foreground
+        colour (fg), so a dark piece gets a light chip and vice versa.
+        """
         piece_map = {
             'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛',
             'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛',
         }
 
+        style = (
+            f"color: {fg}; background-color: {bg};"
+            f" font-size: 26px; padding: 2px 6px; border-radius: 4px;"
+        )
         for _ in range(count):
             lbl = QLabel(piece_map.get(piece, '?'))
-            lbl.setStyleSheet(f"color: {color}; font-size: 18px;")
+            lbl.setStyleSheet(style)
             self.pieces_layout.addWidget(lbl)
 
     def _add_advantage_label(self, text):
-        """Append a material-advantage label to the end of the row."""
+        """Insert the material-advantage chip at the LEFT (index 0) so the
+        counter stays pinned to the start of the row and does not wander
+        as new pieces are captured."""
         lbl = QLabel(text)
         lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;"
+            f"color: {Styles.COLOR_TEXT_PRIMARY};"
+            f" background-color: {Styles.COLOR_SURFACE_LIGHT};"
+            f" font-weight: bold; font-size: 16px;"
+            f" padding: 4px 8px; border-radius: 4px;"
+            f" margin-right: 4px;"
         )
-        self.pieces_layout.addWidget(lbl)
+        self.pieces_layout.insertWidget(0, lbl)
