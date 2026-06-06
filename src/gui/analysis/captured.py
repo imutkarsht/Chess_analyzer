@@ -16,6 +16,19 @@ class CapturedPiecesWidget(QFrame):
     surrounding layout — one above the board, one below.
     """
 
+    # Unicode superscript digits used for the compact pawn-count chip.
+    # We avoid HTML <sup> because QLabel's rich-text layout reserved a
+    # separate box for the digit and pushed the piece symbol down so
+    # it no longer lined up with the other piece chips beside it.
+    # The font's built-in superscript glyphs are already ~70% the
+    # size of a normal digit, which gives a small raised count for
+    # free without any inline-CSS that would fight the label's own
+    # font-size rule.
+    _SUP_MAP = {
+        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+    }
+
     def __init__(self, side: str = "white"):
         super().__init__()
         self.side = side  # "white" or "black" — which player's captures this shows
@@ -113,10 +126,16 @@ class CapturedPiecesWidget(QFrame):
                 self._add_advantage_label(f"+{-diff}")
 
     def _add_pieces(self, count, piece, fg, bg):
-        """Add piece symbols to layout as chips with an inverted background.
+        """Add piece chips for the given count.
 
-        The chip background (bg) is the inverse of the piece's foreground
-        colour (fg), so a dark piece gets a light chip and vice versa.
+        Pawns (the only piece type with up to 8 copies) are shown as
+        a single compact chip with a superscript count, e.g. "♟³"
+        for three captured pawns. This keeps the captured-pieces row
+        narrow so it does not stretch the chess board horizontally.
+
+        Every other piece type has at most 2 copies, so they keep the
+        original per-piece chip layout — visually consistent with the
+        piece shapes and the compact-pawn notation.
         """
         piece_map = {
             'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛',
@@ -127,10 +146,38 @@ class CapturedPiecesWidget(QFrame):
             f"color: {fg}; background-color: {bg};"
             f" font-size: 26px; padding: 2px 6px; border-radius: 4px;"
         )
-        for _ in range(count):
-            lbl = QLabel(piece_map.get(piece, '?'))
+
+        symbol = piece_map.get(piece, '?')
+        if piece in ('p', 'P'):
+            # Pawns only: one chip with a small raised count.
+            # A count of 1 is shown as just the symbol — cleaner than
+            # "♟¹" and saves a bit of horizontal room.
+            #
+            # We use Unicode superscript digits (⁰¹²³⁴⁵⁶⁷⁸⁹) rather
+            # than HTML <sup> for two reasons:
+            #   1. With <sup>, QLabel's rich-text layout reserved a
+            #      separate box for the digit that pushed the piece
+            #      symbol down so it no longer lined up with the other
+            #      piece chips beside it.
+            #   2. The font's built-in superscript glyphs are already
+            #      ~70% the size of a normal digit, so we get a small
+            #      raised count without any inline-CSS hack that
+            #      conflicts with the label's 26 px font-size.
+            if count > 1:
+                sup_digits = ''.join(self._SUP_MAP[d] for d in str(count))
+                text = f"{symbol}{sup_digits}"
+            else:
+                text = symbol
+            lbl = QLabel(text)
             lbl.setStyleSheet(style)
             self.pieces_layout.addWidget(lbl)
+        else:
+            # Knights, bishops, rooks, queens: one chip per piece
+            # (max 2 per type, so width stays bounded).
+            for _ in range(count):
+                lbl = QLabel(symbol)
+                lbl.setStyleSheet(style)
+                self.pieces_layout.addWidget(lbl)
 
     def _add_advantage_label(self, text):
         """Insert the material-advantage chip at the LEFT (index 0) so the
