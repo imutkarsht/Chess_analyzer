@@ -15,6 +15,11 @@ class GraphWidget(QWidget):
         self.canvas = FigureCanvas(self.figure)
         self.layout.addWidget(self.canvas)
         self.ax = self.figure.add_subplot(111)
+
+        # Pin the widget height to the figure's intrinsic pixel size so the
+        # graph does not "jump" when sibling widgets (e.g. analysis lines)
+        # change their sizeHint during navigation.
+        self.setFixedHeight(int(self.figure.get_figheight() * self.figure.get_dpi()))
         
         # Initial styling
         self.clear()
