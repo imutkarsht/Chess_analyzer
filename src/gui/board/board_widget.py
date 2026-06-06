@@ -21,7 +21,10 @@ class BoardWidget(QWidget):
         # whenever the layout invalidates (e.g. after update_board
         # redraws the SVG on the first move), which is what caused the
         # board to lose its square aspect ratio on the first move.
-        self.eval_bar = EvalBarWidget(self)
+        # EvalBarWidget.__init__ does not accept a parent kwarg, so we
+        # construct it first and set the parent on the resulting object.
+        self.eval_bar = EvalBarWidget()
+        self.eval_bar.setParent(self)
 
         # Board Container (Stack Layout for Overlays)
         self.board_container = QWidget(self)
