@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout
+from PyQt6.QtWidgets import QWidget, QLabel, QGridLayout
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -15,16 +15,16 @@ class BoardWidget(QWidget):
         self.is_flipped = False # False = White bottom, True = Black bottom
         self.svg_widget = QSvgWidget()
         
-        # Layout: Eval Bar | Board
-        self.layout = QHBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(0)
-        
-        self.eval_bar = EvalBarWidget()
-        self.layout.addWidget(self.eval_bar)
+        # No QHBoxLayout: eval_bar and board_container are direct children
+        # of this widget and are positioned manually in resizeEvent /
+        # showEvent. A layout here would override our manual setGeometry
+        # whenever the layout invalidates (e.g. after update_board
+        # redraws the SVG on the first move), which is what caused the
+        # board to lose its square aspect ratio on the first move.
+        self.eval_bar = EvalBarWidget(self)
 
         # Board Container (Stack Layout for Overlays)
-        self.board_container = QWidget()
+        self.board_container = QWidget(self)
         self.board_layout = QGridLayout(self.board_container)
         self.board_layout.setContentsMargins(0, 0, 0, 0)
         self.board_layout.setSpacing(0)
@@ -44,13 +44,15 @@ class BoardWidget(QWidget):
 
         self.board_layout.addWidget(self.overlay_widget, 0, 0)
 
-        self.layout.addWidget(self.board_container)
-        self.layout.setStretch(1, 1) # Board takes remaining space
-        
         self.current_move_index = -1
         self.game_moves = []
 
         self.update_board()
+
+    def showEvent(self, event):
+        """Position eval_bar and board_container the first time we appear."""
+        super().showEvent(event)
+        self._enforce_square_board()
 
     def resizeEvent(self, event):
         """Keep the chessboard square and align the eval bar to its height.
