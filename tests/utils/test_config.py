@@ -12,8 +12,8 @@ class TestConfigManager:
     
     def test_default_config(self, tmp_path):
         """Test default config values when no file exists."""
-        # Patch get_app_path to return temp directory
-        with patch('src.utils.config.get_app_path', return_value=str(tmp_path)):
+        # Patch get_user_data_dir to return temp directory
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
             
@@ -24,7 +24,7 @@ class TestConfigManager:
 
     def test_get_nonexistent_key(self, tmp_path):
         """Test getting a key that doesn't exist returns default."""
-        with patch('src.utils.config.get_app_path', return_value=str(tmp_path)):
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
             
@@ -33,7 +33,7 @@ class TestConfigManager:
 
     def test_set_and_get(self, tmp_path):
         """Test setting and retrieving a value."""
-        with patch('src.utils.config.get_app_path', return_value=str(tmp_path)):
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
             
@@ -42,7 +42,7 @@ class TestConfigManager:
 
     def test_config_persists_to_file(self, tmp_path):
         """Test config changes are saved to disk."""
-        with patch('src.utils.config.get_app_path', return_value=str(tmp_path)):
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
             
@@ -66,7 +66,7 @@ class TestConfigManager:
             "theme": "light"
         }))
         
-        with patch('src.utils.config.get_app_path', return_value=str(tmp_path)):
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
             
@@ -78,7 +78,7 @@ class TestConfigManager:
         config_file = tmp_path / "config.json"
         config_file.write_text("not valid json {{{")
         
-        with patch('src.utils.config.get_app_path', return_value=str(tmp_path)):
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
             

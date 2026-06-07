@@ -15,7 +15,7 @@ class BookManager:
     def _get_headers(self) -> dict:
         token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
         headers = {
-            "User-Agent": "ChessAnalyzerPro/1.6 (contact: github.com/yourusername/chess-analyzer-pro)"
+            "User-Agent": "ChessAnalyzerPro/1.7 (contact: github.com/yourusername/chess-analyzer-pro)"
         }
         if token:
             headers["Authorization"] = f"Bearer {token}"

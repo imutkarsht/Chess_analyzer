@@ -27,7 +27,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'unittest', 'xmlrpc', 'pydoc', 'pdb'],
+    excludes=['tkinter', 'xmlrpc', 'pydoc', 'pdb'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -35,25 +35,44 @@ a = Analysis(
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Determine executable icon based on platform (Windows requires .ico, macOS converts .png)
+exe_icon = 'assets/images/logo.png'
+if sys.platform == 'win32':
+    ico_path = 'assets/images/logo.ico'
+    exe_icon = ico_path if os.path.exists(ico_path) else None
+
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
+    exclude_binaries=True,
     name='ChessAnalyzerPro',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=exe_icon,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='ChessAnalyzerPro',
+)
+
+app = BUNDLE(
+    coll,
+    name='ChessAnalyzerPro.app',
     icon='assets/images/logo.png',
+    bundle_identifier='com.imutkarsht.chessanalyzerpro'
 )

@@ -35,3 +35,30 @@ def get_app_path() -> str:
         return os.path.dirname(sys.executable)
     else:
         return os.path.abspath(".")
+
+def get_user_data_dir() -> str:
+    """
+    Get the platform-specific directory for user data.
+    - macOS: ~/Library/Application Support/ChessAnalyzerPro
+    - Windows: %APPDATA%/ChessAnalyzerPro
+    - Linux: ~/.local/share/chessanalyzerpro
+    """
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            base_dir = os.path.join(appdata, "ChessAnalyzerPro")
+        else:
+            base_dir = os.path.expanduser("~\\AppData\\Roaming\\ChessAnalyzerPro")
+    elif sys.platform == "darwin":
+        base_dir = os.path.expanduser("~/Library/Application Support/ChessAnalyzerPro")
+    else:
+        # Linux/Unix
+        data_home = os.environ.get("XDG_DATA_HOME")
+        if data_home:
+            base_dir = os.path.join(data_home, "chessanalyzerpro")
+        else:
+            base_dir = os.path.expanduser("~/.local/share/chessanalyzerpro")
+
+    os.makedirs(base_dir, exist_ok=True)
+    return base_dir
+

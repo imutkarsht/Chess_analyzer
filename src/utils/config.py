@@ -1,7 +1,7 @@
 import json
 import os
 from .logger import logger
-from .path_utils import get_app_path
+from .path_utils import get_app_path, get_user_data_dir
 
 class ConfigManager:
     CONFIG_FILE = "config.json"
@@ -15,7 +15,7 @@ class ConfigManager:
     }
 
     def __init__(self):
-        self.config_path = os.path.join(get_app_path(), self.CONFIG_FILE)
+        self.config_path = os.path.join(get_user_data_dir(), self.CONFIG_FILE)
         self.config = self.load_config()
 
     def load_config(self):

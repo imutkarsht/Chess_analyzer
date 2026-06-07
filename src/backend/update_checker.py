@@ -6,8 +6,8 @@ from packaging import version
 from PyQt6.QtCore import QThread, pyqtSignal
 from ..utils.logger import logger
 
-# Current application version (matches your GitHub tag: V1.6)
-APP_VERSION = "1.6"
+# Current application version (matches your GitHub tag: V1.7)
+APP_VERSION = "1.7"
 
 # GitHub API endpoint for latest release
 GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"
@@ -46,16 +46,37 @@ class UpdateChecker:
             # Handle both uppercase V and lowercase v
             latest_version = tag_name.lstrip("Vv")
             
-            # Get download URL (first asset or release page)
+            import sys
+            
+            # Get download URL matching the current platform
             assets = data.get("assets", [])
             download_url = None
-            for asset in assets:
-                # Prefer Windows executable
-                if asset.get("name", "").endswith((".exe", ".zip", ".msi")):
-                    download_url = asset.get("browser_download_url")
-                    break
             
-            # Fallback to release page
+            # Define patterns to identify platform-specific assets
+            if sys.platform == "win32":
+                platform_patterns = ["win", "windows", ".exe", ".msi"]
+            elif sys.platform == "darwin":
+                platform_patterns = ["mac", "macos", "darwin", "osx", ".dmg"]
+            else:
+                platform_patterns = ["linux", "ubuntu", "debian", ".tar.gz", ".appimage"]
+            
+            # 1. Try to find a platform-matching asset
+            for asset in assets:
+                name_lower = asset.get("name", "").lower()
+                if any(pat in name_lower for pat in platform_patterns):
+                    if name_lower.endswith((".exe", ".zip", ".msi", ".dmg", ".tar.gz", ".appimage")):
+                        download_url = asset.get("browser_download_url")
+                        break
+            
+            # 2. Fallback: pick the first general installer/archive asset
+            if not download_url:
+                for asset in assets:
+                    name_lower = asset.get("name", "").lower()
+                    if name_lower.endswith((".exe", ".zip", ".msi", ".dmg", ".tar.gz", ".appimage")):
+                        download_url = asset.get("browser_download_url")
+                        break
+            
+            # Fallback to release page HTML URL if no direct asset links are resolved
             html_url = data.get("html_url", "")
             if not download_url:
                 download_url = html_url

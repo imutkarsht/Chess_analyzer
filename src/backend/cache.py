@@ -4,8 +4,13 @@ import hashlib
 from typing import Optional, Dict, Any
 
 class AnalysisCache:
-    def __init__(self, db_path: str = "analysis_cache.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        if db_path is None:
+            import os
+            from ..utils.path_utils import get_user_data_dir
+            self.db_path = os.path.join(get_user_data_dir(), "analysis_cache.db")
+        else:
+            self.db_path = db_path
         self._init_db()
 
     def _init_db(self):

@@ -16,10 +16,8 @@ def setup_logging():
     
     # File handler
     try:
-        if getattr(sys, 'frozen', False):
-            app_dir = os.path.dirname(sys.executable)
-        else:
-            app_dir = os.path.abspath(".")
+        from .path_utils import get_user_data_dir
+        app_dir = get_user_data_dir()
             
         log_file = os.path.join(app_dir, "chess_analyzer.log")
         f_handler = logging.FileHandler(log_file, mode='w')

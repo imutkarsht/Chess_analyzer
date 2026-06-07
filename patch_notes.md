@@ -1,5 +1,22 @@
 # Patch Notes
 
+## v1.7 - Groq API Integration & Lichess Authentication Fix
+
+### New Features
+- **Groq API Integration**: Switched from the deprecated `google.generativeai` (Gemini) SDK to the official high-speed `groq` SDK for AI summaries and coach insights.
+- **Configurable AI Models**: Users can now change and customize the Groq model ID (defaults to `llama-3.3-70b-versatile`) directly in the Settings tab.
+
+### Bug Fixes & GUI Improvements
+- **Lichess Opening Explorer Auth**: Authenticated Opening Explorer API requests using Lichess personal access tokens to fix the `401 Unauthorized` block on opening explorer book move lookups.
+- **Evaluation Graph Height Pinning**: Locked the evaluation graph widget to its intrinsic height, preventing it from jumping in size when paging through games.
+- **Per-Side Captured Pieces Layout**: Split captured pieces into two single-side rows (Black's captures above the board, White's below) with a locked 56px height, preventing the board from shifting on captures. Updated `flip_board()` to dynamically swap rows.
+- **Captured Piece Chips & Advantage Pinning**: Inverted the backgrounds of captured piece chips for high contrast (dark on light and vice versa), enlarged piece symbols to 26px, and pinned the `+N` advantage counter chip to the left.
+- **Square Board Enforcement & Eval Bar Alignment**: Enforced a strictly square aspect ratio for the board during resize events and aligned the evaluation bar to match the board's height and top edge.
+- **Direct Geometry Control**: Replaced `QHBoxLayout` in `BoardWidget` with direct child geometry positioning to stop the layout manager from distorting square shapes during board updates.
+- **Compact Pawn Count Chips**: Display captured pawns as a single chip with superscript counts (e.g., `♟³`) to keep the rows compact and prevent horizontal distortion.
+
+---
+
 ## v1.6 - UX Enhancements & Auto-Update
 
 ### New Features
