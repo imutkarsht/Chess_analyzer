@@ -41,7 +41,7 @@
 - **Board Themes**: Introduced multiple board color themes in the Settings, allowing users to customize the look of the chessboard.
 - **Piece Themes**: Added support for different piece sets, letting users choose their preferred piece style.
 - **Stats by Piece Color**: The Stats page now displays performance metrics broken down by piece color (White vs Black), giving deeper insight into your play.
-- **Live Settings Update**: All settings now apply immediately without requiring app restart (Gemini API Key, Lichess Token, Usernames).
+- **Live Settings Update**: All settings now apply immediately without requiring app restart (Groq API Key, Lichess Token, Usernames).
 
 ### Improvements
 - **Stats Page Overhaul**: Completely redesigned the Metrics/Stats dashboard for better visual presentation and more insightful data visualization.

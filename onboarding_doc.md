@@ -6,14 +6,14 @@ Welcome to the **Chess Analyzer Pro** codebase! This document is designed to gui
 
 ## 1. Project Overview
 
-**Chess Analyzer Pro** is a desktop application built with **Python** and **PyQt6** that allows users to analyze chess games using the **Stockfish** engine. It provides detailed insights, including move classifications (Brilliant, Mistake, Blunder, etc.), win probability graphs, and AI-powered game summaries using Google Gemini.
+**Chess Analyzer Pro** is a desktop application built with **Python** and **PyQt6** that allows users to analyze chess games using the **Stockfish** engine. It provides detailed insights, including move classifications (Brilliant, Mistake, Blunder, etc.), win probability graphs, and AI-powered game summaries using Groq.
 
 ### Key Technologies
 *   **Language:** Python 3.10+
 *   **GUI Framework:** PyQt6 (Qt for Python)
 *   **Chess Logic:** `python-chess` library
 *   **Engine:** Stockfish (via UCI protocol)
-*   **AI:** Google Gemini API (for natural language summaries)
+*   **AI:** Groq API (for natural language summaries)
 *   **Plotting:** Matplotlib (for evaluation graphs)
 
 ---
@@ -64,7 +64,7 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 
 | **`chess_com_api.py`** | **Chess.com Integration.** Fetches recent games or specific games from Chess.com using their public API. |
 | **`lichess_api.py`** | **Lichess Integration.** Fetches recent games from Lichess.org users. |
-| **`gemini_service.py`** | **AI Summaries.** Connects to Google's Gemini API to generate text summaries of the game based on the analysis data. |
+| **`groq_service.py`** | **AI Summaries.** Connects to Groq's API to generate text summaries of the game based on the analysis data. |
 
 | **`cache.py`** | **Performance.** Caches engine analysis results to avoid re-analyzing known positions. |
 
@@ -175,7 +175,7 @@ pytest tests/test_game_load.py
 ## 8. Troubleshooting
 
 *   **"Engine not found":** Ensure the path in Settings is correct and points to the Stockfish **executable** (not the folder).
-*   **"API Key Error":** If using AI Summary, ensure your Gemini API key is valid and set in Settings.
+*   **"API Key Error":** If using AI Summary, ensure your Groq API key is valid and set in Settings.
 *   **Logs:** Check `chess_analyzer.log` in the root directory for detailed error messages.
 
 ---

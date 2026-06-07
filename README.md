@@ -58,7 +58,7 @@
 - **Database**: **SQLite** references locally (`analysis_cache.db`) to cache analysis results, ensuring instant loading for previously analyzed games.
 - **Config**: Local `config.json` for persistent user settings.
 - **Integrations**: 
-  - **Google Gemini**: AI-powered natural language game summaries.
+  - **Groq AI**: AI-powered natural language game summaries with customizable models.
   - **Lichess & Chess.com**: Direct game import APIs.
 
 ## 🔒 Data Privacy & Local Storage
@@ -66,7 +66,7 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
 
 - **Local Database**: All analysis data and game history are stored in a local SQLite database (`analysis_cache.db`).
 - **No Cloud Uploads**: Your games and moves are **never** uploaded to our servers. Analysis happens entirely on your machine using the bundled Stockfish engine.
-- **Secure Config**: API keys (Gemini, Lichess) are stored locally in `config.json` and are never shared.
+- **Secure Config**: API keys (Groq, Lichess) are stored locally in `config.json` and are never shared.
 
 ## 🛠️ Installation
 
