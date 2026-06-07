@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLa
                              QScrollArea, QFrame, QComboBox, QGridLayout, QApplication)
 from PyQt6.QtGui import QColor, QDesktopServices
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl
+from PyQt6.QtGui import QIntValidator
 from ..styles import Styles
 from ..gui_utils import create_button
 from ...utils.config import ConfigManager
@@ -16,6 +17,7 @@ except ImportError:
 
 class SettingsView(QWidget):
     engine_path_changed = pyqtSignal(str)
+    engine_settings_changed = pyqtSignal()  # emitted when Threads/Hash change
     llm_config_changed = pyqtSignal()   # emitted after LLM settings are saved
     usernames_changed = pyqtSignal()
 
@@ -72,18 +74,38 @@ class SettingsView(QWidget):
         
         engine_layout.addLayout(path_layout)
         
-        # Analysis Depth Selector
-        depth_layout = QHBoxLayout()
-        depth_lbl = QLabel("Analysis Depth:")
-        depth_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
-        depth_layout.addWidget(depth_lbl)
-        
-        self.depth_combo = QComboBox()
-        depth_values = [str(i) for i in range(10, 26)]  # Depth 10-25
-        self.depth_combo.addItems(depth_values)
-        current_depth = self.config_manager.get("analysis_depth", 18)
-        self.depth_combo.setCurrentText(str(current_depth))
-        self.depth_combo.setStyleSheet(f"""
+        # All three engine controls (Depth, Threads, Hash) live in a
+        # single QFormLayout so the labels sit in one column on the
+        # left and the inputs in one column on the right. The hint
+        # text is rendered as a small secondary label below the
+        # corresponding input via addRow(label, container) where the
+        # container is a small QVBoxLayout.
+        form = QFormLayout()
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(10)
+        form.setContentsMargins(0, 0, 0, 0)
+
+        field_label_style = (
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
+        )
+        hint_style = (
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;"
+        )
+        input_style = f"""
+            QLineEdit {{
+                padding: 6px 10px;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 4px;
+                background: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+        """
+        combo_style = f"""
             QComboBox {{
                 padding: 6px 12px;
                 min-width: 80px;
@@ -100,18 +122,72 @@ class SettingsView(QWidget):
                 border: none;
                 padding-right: 8px;
             }}
-        """)
+        """
+
+        def _wrap(label_text, widget, hint_text):
+            """Build a label + (input + hint) pair in form-layout style."""
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet(field_label_style)
+
+            wrapper = QWidget()
+            box = QVBoxLayout(wrapper)
+            box.setContentsMargins(0, 0, 0, 0)
+            box.setSpacing(2)
+            widget.setMaximumWidth(140)
+            box.addWidget(widget)
+            if hint_text:
+                hint = QLabel(hint_text)
+                hint.setStyleSheet(hint_style)
+                box.addWidget(hint)
+            return lbl, wrapper
+
+        # --- Analysis Depth ---
+        self.depth_combo = QComboBox()
+        depth_values = [str(i) for i in range(10, 26)]
+        self.depth_combo.addItems(depth_values)
+        self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", 18)))
+        self.depth_combo.setStyleSheet(combo_style)
         self.depth_combo.currentTextChanged.connect(self.change_analysis_depth)
-        depth_layout.addWidget(self.depth_combo)
+        depth_lbl, depth_row = _wrap(
+            "Analysis Depth:", self.depth_combo, "(Higher = more accurate but slower)"
+        )
+        form.addRow(depth_lbl, depth_row)
+
+        # --- Engine Threads ---
+        cpu_count = os.cpu_count() or 1
+        default_threads = min(cpu_count, 8)
+        max_threads = max(32, cpu_count)
+
+        self.threads_input = QLineEdit()
+        self.threads_input.setValidator(QIntValidator(1, max_threads, self.threads_input))
+        self.threads_input.setText(
+            str(self.config_manager.get("engine_threads", default_threads))
+        )
+        self.threads_input.setStyleSheet(input_style)
+        self.threads_input.editingFinished.connect(self._on_threads_committed)
+        threads_lbl, threads_row = _wrap(
+            "Engine Threads:",
+            self.threads_input,
+            f"(1–{max_threads} integer; recommended for this CPU: {default_threads})",
+        )
+        form.addRow(threads_lbl, threads_row)
+
+        # --- Engine Hash ---
+        self.hash_input = QLineEdit()
+        self.hash_input.setValidator(QIntValidator(16, 4096, self.hash_input))
+        self.hash_input.setText(str(self.config_manager.get("engine_hash", 256)))
+        self.hash_input.setStyleSheet(input_style)
+        self.hash_input.editingFinished.connect(self._on_hash_committed)
+        hash_lbl, hash_row = _wrap(
+            "Engine Hash (MB):",
+            self.hash_input,
+            "(16–4096 MB; 256 MB is a good default)",
+        )
+        form.addRow(hash_lbl, hash_row)
+
+        engine_layout.addLayout(form)
         
-        depth_hint = QLabel("(Higher = more accurate but slower)")
-        depth_hint.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
-        depth_layout.addWidget(depth_hint)
-        depth_layout.addStretch()
-        
-        engine_layout.addLayout(depth_layout)
-        
-        self.save_engine_btn = self._create_icon_button("Save Engine Path", "fa5s.save", self.save_engine_path, primary=True)
+        self.save_engine_btn = self._create_icon_button("Save Settings", "fa5s.save", self.save_engine_path, primary=True)
         engine_layout.addWidget(self.save_engine_btn, alignment=Qt.AlignmentFlag.AlignRight)
         
         self.container_layout.addWidget(self.engine_group, 0, 0)
@@ -560,6 +636,43 @@ class SettingsView(QWidget):
         except ValueError:
             pass  # Ignore invalid values
 
+    def _on_threads_committed(self):
+        """Auto-commit Threads on Enter / focus loss. The line edit's
+        QIntValidator already rejects non-digits, but we still defend
+        against empty input here so the user gets a friendly message
+        instead of a silent ignore."""
+        raw = self.threads_input.text().strip()
+        if not raw:
+            # empty: revert to the previously persisted value
+            current = self.config_manager.get("engine_threads", min(os.cpu_count() or 1, 8))
+            self.threads_input.setText(str(current))
+            return
+        threads, ok = self._validated_threads()
+        if not ok:
+            # restore the last good value to keep the field consistent
+            current = self.config_manager.get("engine_threads", 1)
+            self.threads_input.setText(str(current))
+            return
+        if self.config_manager.get("engine_threads") != threads:
+            self.config_manager.set("engine_threads", threads)
+            self.engine_settings_changed.emit()
+
+    def _on_hash_committed(self):
+        """Auto-commit Hash on Enter / focus loss. See _on_threads_committed."""
+        raw = self.hash_input.text().strip()
+        if not raw:
+            current = self.config_manager.get("engine_hash", 256)
+            self.hash_input.setText(str(current))
+            return
+        hash_mb, ok = self._validated_hash()
+        if not ok:
+            current = self.config_manager.get("engine_hash", 256)
+            self.hash_input.setText(str(current))
+            return
+        if self.config_manager.get("engine_hash") != hash_mb:
+            self.config_manager.set("engine_hash", hash_mb)
+            self.engine_settings_changed.emit()
+
     def browse_engine(self):
         filter_str = "Executables (*.exe);;All Files (*)" if os.name == 'nt' else "All Files (*)"
         path, _ = QFileDialog.getOpenFileName(self, "Select Stockfish Binary", "", filter_str)
@@ -567,13 +680,78 @@ class SettingsView(QWidget):
             self.path_input.setText(path)
 
     def save_engine_path(self):
+        """Save every engine setting (path, threads, hash) at once.
+
+        The button now reads "Save Settings" and serves as the explicit
+        commit point for the Threads/Hash fields. Individual fields
+        also auto-commit on editingFinished, so users can change them
+        and tab away without clicking the button — but clicking this
+        button persists all three and shows a single confirmation.
+        """
         path = self.path_input.text()
-        if path:
-            self.config_manager.set("engine_path", path)
-            self.engine_path_changed.emit(path)
-            QMessageBox.information(self, "Saved", "Engine path saved successfully.")
-        else:
+        if not path:
             QMessageBox.warning(self, "Error", "Please enter a valid path.")
+            return
+
+        threads, threads_ok = self._validated_threads()
+        hash_mb, hash_ok = self._validated_hash()
+
+        if not threads_ok or not hash_ok:
+            return  # the helpers already show an error message
+
+        path_changed = self.config_manager.get("engine_path") != path
+        threads_changed = self.config_manager.get("engine_threads") != threads
+        hash_changed = self.config_manager.get("engine_hash") != hash_mb
+
+        self.config_manager.set("engine_path", path)
+        self.config_manager.set("engine_threads", threads)
+        self.config_manager.set("engine_hash", hash_mb)
+
+        if path_changed:
+            self.engine_path_changed.emit(path)
+        if threads_changed or hash_changed:
+            self.engine_settings_changed.emit()
+
+        QMessageBox.information(
+            self,
+            "Saved",
+            f"Engine settings saved.\n"
+            f"Path: {path}\n"
+            f"Threads: {threads}\n"
+            f"Hash: {hash_mb} MB",
+        )
+
+    def _validated_threads(self):
+        """Return (value, ok) for the Threads field, or (None, False) on error."""
+        raw = self.threads_input.text().strip()
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            value = -1
+        if value < 1:
+            QMessageBox.warning(
+                self,
+                "Invalid Threads",
+                "Engine Threads must be a positive integer (1 or more).",
+            )
+            return None, False
+        return value, True
+
+    def _validated_hash(self):
+        """Return (value, ok) for the Hash field, or (None, False) on error."""
+        raw = self.hash_input.text().strip()
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            value = -1
+        if value < 16 or value > 4096:
+            QMessageBox.warning(
+                self,
+                "Invalid Hash",
+                "Engine Hash must be between 16 and 4096 MB.",
+            )
+            return None, False
+        return value, True
 
     # ------------------------------------------------------------------
     # Profile management helpers
@@ -593,9 +771,13 @@ class SettingsView(QWidget):
             if name == active_name:
                 select_idx = i
         self.llm_profile_combo.blockSignals(False)
-        self._loading_profile = False
         self.llm_profile_combo.setCurrentIndex(select_idx)
-        # ^ triggers _on_profile_selected via signal
+        # _on_profile_selected is suppressed by the blockSignals above, so
+        # we also load the form explicitly — otherwise the form fields
+        # would stay empty until the user clicks the combo.
+        if 0 <= select_idx < len(profiles):
+            self._load_profile_into_form(profiles[select_idx])
+        self._loading_profile = False
 
     def _on_profile_selected(self, index: int) -> None:
         """Load the selected profile's data into the editor form."""
@@ -831,8 +1013,11 @@ class SettingsView(QWidget):
                                    "content": "Reply with exactly: OK"}],
                         max_tokens=10,
                     )
-                    text = (resp.choices[0].message.content or "").strip()
-                    self.done.emit(True, f"✓ Connected ({text[:40]})", "")
+                    # We don't surface the model output — it can leak
+                    # chain-of-thought tokens (e.g. "<think>…") on
+                    # reasoning models and just clutters the status label.
+                    # If the call returned without raising, the profile works.
+                    self.done.emit(True, "✓ Connected", "")
                 except Exception as exc:
                     exc_type = type(exc).__name__
                     full = f"{exc_type}: {exc}"

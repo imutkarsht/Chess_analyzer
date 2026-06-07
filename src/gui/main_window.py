@@ -61,7 +61,9 @@ class MainWindow(QMainWindow):
         self.current_game = None
         self.config_manager = ConfigManager()
         self.engine_path = self.config_manager.get("engine_path", "stockfish")
-        self.analyzer = Analyzer(EngineManager(self.engine_path))
+        self.analyzer = Analyzer(
+            EngineManager(self.engine_path, config_manager=self.config_manager)
+        )
         self.history_manager = GameHistoryManager()
         self.resource_manager = ResourceManager()
         
@@ -157,6 +159,7 @@ class MainWindow(QMainWindow):
         # --- Page 3: Settings View ---
         self.settings_view = SettingsView()
         self.settings_view.engine_path_changed.connect(self.update_engine_path)
+        self.settings_view.engine_settings_changed.connect(self.apply_engine_settings)
         self.settings_view.llm_config_changed.connect(self.update_llm_config)
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
@@ -167,13 +170,25 @@ class MainWindow(QMainWindow):
         self.engine_path = new_path
         # Re-initialize analyzer with new engine
         try:
-            self.analyzer = Analyzer(EngineManager(self.engine_path))
-            # Also update worker if it exists? 
+            self.analyzer = Analyzer(
+                EngineManager(self.engine_path, config_manager=self.config_manager)
+            )
+            # Also update worker if it exists?
             # Worker is created per analysis, so next analysis will use new analyzer/engine.
             QMessageBox.information(self, "Success", "Engine path updated. Future analyses will use the new engine.")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
             QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
+
+    def apply_engine_settings(self):
+        """Re-apply the current Threads/Hash settings to a running engine.
+
+        No-op when no analysis is in progress — the next analysis will
+        pick up the new values automatically.
+        """
+        engine = getattr(self.analyzer, "engine_manager", None)
+        if engine is not None:
+            engine.apply_settings_from_config()
 
     def update_llm_config(self):
         """Re-instantiate the LLM service in every view that holds one.
