@@ -9,7 +9,8 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "engine_path": "stockfish",
         "theme": "dark",
-        "gemini_api_key": "",
+        "groq_api_key": "",
+        "groq_model": "llama-3.3-70b-versatile",
         "analysis_depth": 18
     }
 
