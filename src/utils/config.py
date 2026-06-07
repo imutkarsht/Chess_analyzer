@@ -17,6 +17,9 @@ class ConfigManager:
         "groq_api_key": "",
         "groq_model": "llama-3.3-70b-versatile",
         "analysis_depth": 18,
+        # Last known main window geometry (x, y, width, height).
+        # Any field may be None, meaning "use Qt's default for that dimension".
+        "window_state": {"x": None, "y": None, "width": None, "height": None},
     }
 
     # Human-readable name used when creating the first migration profile.

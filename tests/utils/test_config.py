@@ -77,10 +77,46 @@ class TestConfigManager:
         """Test corrupted config file falls back to defaults."""
         config_file = tmp_path / "config.json"
         config_file.write_text("not valid json {{{")
-        
+
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
-            
+
             # Should use defaults
             assert manager.get("engine_path") == "stockfish"
+
+    def test_window_state_default(self, tmp_path):
+        """window_state should default to an all-null dict."""
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager = ConfigManager()
+
+            state = manager.get("window_state")
+            assert state == {"x": None, "y": None, "width": None, "height": None}
+
+    def test_window_state_round_trip(self, tmp_path):
+        """Setting window_state persists the new geometry."""
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager = ConfigManager()
+
+            new_state = {"x": 100, "y": 200, "width": 1280, "height": 720}
+            manager.set("window_state", new_state)
+            assert manager.get("window_state") == new_state
+
+            # Reload from disk to make sure it actually wrote
+            reloaded = ConfigManager()
+            assert reloaded.get("window_state") == new_state
+
+    def test_window_state_migrates_into_legacy_config(self, tmp_path):
+        """An existing config without window_state should gain the default."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"engine_path": "stockfish", "theme": "dark"}))
+
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager = ConfigManager()
+
+            state = manager.get("window_state")
+            assert state is not None
+            assert state == {"x": None, "y": None, "width": None, "height": None}

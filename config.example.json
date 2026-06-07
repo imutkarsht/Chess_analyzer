@@ -42,5 +42,13 @@
     "chesscom_username": "",
     "lichess_username": "",
     "lichess_token": "",
-    "analysis_depth": 18
+    "analysis_depth": 18,
+
+    "_comment_window_state": "Last-known main window position and size. Written automatically when the app closes, read on next launch. Leave the values as null to let Qt choose defaults.",
+    "window_state": {
+        "x": null,
+        "y": null,
+        "width": null,
+        "height": null
+    }
 }
