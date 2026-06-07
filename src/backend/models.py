@@ -23,6 +23,13 @@ class MoveAnalysis:
     explanation: str = ""
     multi_pvs: List[Dict[str, Any]] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
+    # Clock information parsed from PGN [%clk] / [%timestamp] comments.
+    # time_left   = remaining clock for the side that played this move, in seconds
+    # time_spent  = seconds the side spent thinking on this move (None if unknown)
+    # raw_clk     = original "0:09:56.1" string for display, if present
+    time_left: Optional[float] = None
+    time_spent: Optional[float] = None
+    raw_clk: Optional[str] = None
 
 @dataclass
 class GameMetadata:
