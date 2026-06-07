@@ -1,13 +1,14 @@
 import os
 import sys
-import google.generativeai as genai
+from groq import Groq
 from dotenv import load_dotenv
 from ..utils.logger import logger
 
-class GeminiService:
-    def __init__(self, api_key=None):
-        self.model = None
+class GroqService:
+    def __init__(self, api_key=None, model_name="llama-3.3-70b-versatile"):
+        self.client = None
         self.api_key = api_key
+        self.model_name = model_name
         
         # Try to load from .env if not provided
         if not self.api_key:
@@ -20,28 +21,32 @@ class GeminiService:
                     # If running from source, load from local .env
                     load_dotenv()
                 
-                self.api_key = os.getenv("GEMINI_KEY")
+                self.api_key = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_KEY")
             except Exception:
                 pass
                 
         if self.api_key:
-            self.configure(self.api_key)
+            self.configure(self.api_key, self.model_name)
 
-    def configure(self, api_key):
+    def configure(self, api_key, model_name=None):
         self.api_key = api_key
+        if model_name:
+            self.model_name = model_name
         try:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-flash-latest')
+            if self.api_key:
+                self.client = Groq(api_key=self.api_key)
+            else:
+                self.client = None
         except Exception as e:
-            logger.error(f"Failed to configure Gemini: {e}")
-            self.model = None
+            logger.error(f"Failed to configure Groq: {e}")
+            self.client = None
 
     def generate_summary(self, pgn_text, analysis_summary):
         """
-        Generates a game summary using Gemini.
+        Generates a game summary using Groq.
         """
-        if not self.model:
-            return "Error: Gemini API key not configured or invalid."
+        if not self.client:
+            return "Error: Groq API key not configured or invalid."
 
         # Limit PGN length to prevent token limits/crashes
         if len(pgn_text) > 10000:
@@ -68,22 +73,29 @@ class GeminiService:
             {pgn_text}
             """
             
-            response = self.model.generate_content(prompt)
-            try:
-                if response.text:
-                    return response.text
-                return "No summary generated."
-            except ValueError:
-                return "Summary blocked by safety settings or returned no content."
+            chat_completion = self.client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                model=self.model_name,
+            )
+            response_text = chat_completion.choices[0].message.content
+            if response_text:
+                return response_text.strip()
+            return "No summary generated."
         except Exception as e:
-            logger.error(f"Gemini generation failed: {e}", exc_info=True)
+            logger.error(f"Groq summary generation failed: {e}", exc_info=True)
             return f"Error generating summary: {e}"
+
     def generate_coach_insights(self, stats_text):
         """
-        Generates coaching insights based on player statistics.
+        Generates coaching insights based on player statistics using Groq.
         """
-        if not self.model:
-            return "Error: Gemini API key not configured."
+        if not self.client:
+            return "Error: Groq API key not configured."
 
         try:
             prompt = f"""
@@ -102,21 +114,19 @@ class GeminiService:
             3. [Insight 3]
             """
             
-            response = self.model.generate_content(prompt)
-            try:
-                # Accessing text can raise ValueError if response was blocked/empty
-                if response.text:
-                    return response.text
-                return "No insights generated."
-            except ValueError:
-                error_msg = "No insights generated."
-                try:
-                    # Try to get more info
-                    if response.prompt_feedback and response.prompt_feedback.block_reason:
-                        error_msg = f"Insights blocked by safety filter ({response.prompt_feedback.block_reason.name})."
-                except:
-                    pass
-                return error_msg
+            chat_completion = self.client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                model=self.model_name,
+            )
+            response_text = chat_completion.choices[0].message.content
+            if response_text:
+                return response_text.strip()
+            return "No insights generated."
         except Exception as e:
-            logger.error(f"Gemini insight generation failed: {e}", exc_info=True)
+            logger.error(f"Groq insight generation failed: {e}", exc_info=True)
             return f"Error generating insights: {e}"
