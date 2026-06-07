@@ -11,3 +11,5 @@ analysis_cache.db
 /diagrams
 upcoming_changes.md
 *.csv
+config.json
+.pr_bundle/
