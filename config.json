@@ -1,11 +1,13 @@
 {
-    "engine_path": "D:/Coding/Major Projects/Chess_analyzer/stockfish/stockfish-windows-x86-64-avx2.exe",
+    "engine_path": "/Users/utkarsh/Developer/Projects/Chess_analyzer/stockfish/stockfish-macos-m1-apple-silicon",
     "theme": "dark",
-    "gemini_api_key": "",
+    "groq_api_key": "",
+    "groq_model": "llama-3.3-70b-versatile",
     "board_theme": "Blue",
     "accent_color": "#0082c3",
     "chesscom_username": "utchess2308",
     "lichess_username": "imutkarsht",
     "analysis_depth": 18,
-    "last_update_check": "2026-01-03"
+    "last_update_check": "2026-06-07",
+    "lichess_token": ""
 }
