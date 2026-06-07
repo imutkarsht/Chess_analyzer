@@ -17,7 +17,7 @@ from .metrics.charts import (
 )
 from .components import StatCard
 from ..utils.logger import logger
-from ..backend.gemini_service import GeminiService
+from ..backend.groq_service import GroqService
 import re
 
 
@@ -30,7 +30,10 @@ class MetricsWidget(QWidget):
         self.history_manager = history_manager
         self.usernames = []
         self.games_data = []
-        self.gemini_service = GeminiService(config_manager.get("gemini_api_key"))
+        self.groq_service = GroqService(
+            config_manager.get("groq_api_key"),
+            config_manager.get("groq_model", "llama-3.3-70b-versatile")
+        )
         
         self.setup_ui()
         self.refresh()
@@ -566,7 +569,7 @@ class MetricsWidget(QWidget):
         self._clear_layout(self.insights_layout)
         
         # 2. Show Loading
-        lbl_loading = QLabel("Asking Coach Gemini...")
+        lbl_loading = QLabel("Asking Coach Groq...")
         lbl_loading.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY};")
         lbl_loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.insights_layout.addWidget(lbl_loading)
@@ -575,7 +578,7 @@ class MetricsWidget(QWidget):
         # Add some context about openings/etc
         stats_str = json.dumps(stats, indent=2)
         
-        self.worker = InsightWorker(self.gemini_service, stats_str)
+        self.worker = InsightWorker(self.groq_service, stats_str)
         self.worker.finished.connect(self._populate_insights)
         self.worker.error.connect(self._handle_insight_error)
         self.worker.start()

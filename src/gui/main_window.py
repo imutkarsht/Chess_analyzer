@@ -157,7 +157,7 @@ class MainWindow(QMainWindow):
         # --- Page 3: Settings View ---
         self.settings_view = SettingsView()
         self.settings_view.engine_path_changed.connect(self.update_engine_path)
-        self.settings_view.gemini_key_changed.connect(self.update_gemini_key)
+        self.settings_view.groq_config_changed.connect(self.update_groq_config)
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
 
@@ -175,13 +175,13 @@ class MainWindow(QMainWindow):
             logger.error(f"Failed to update engine: {e}")
             QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
 
-    def update_gemini_key(self, new_key):
-        """Updates the Gemini API key in MetricsWidget immediately."""
-        logger.info("Updating Gemini API key...")
-        if hasattr(self, 'metrics_view') and hasattr(self.metrics_view, 'gemini_service'):
-            from ..backend.gemini_service import GeminiService
-            self.metrics_view.gemini_service = GeminiService(new_key)
-            logger.info("Gemini service updated with new API key.")
+    def update_groq_config(self, new_key, new_model):
+        """Updates the Groq API configuration in MetricsWidget immediately."""
+        logger.info("Updating Groq API configuration...")
+        if hasattr(self, 'metrics_view') and hasattr(self.metrics_view, 'groq_service'):
+            from ..backend.groq_service import GroqService
+            self.metrics_view.groq_service = GroqService(new_key, new_model)
+            logger.info("Groq service updated with new API key and model.")
 
     def on_usernames_changed(self):
         """Reloads config values in views that use usernames."""

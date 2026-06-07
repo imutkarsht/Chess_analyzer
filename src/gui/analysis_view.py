@@ -12,7 +12,7 @@ from ..utils.resources import ResourceManager
 from ..utils.logger import logger
 import chess
 from .live_analysis import LiveAnalysisWorker
-from ..backend.gemini_service import GeminiService
+from ..backend.groq_service import GroqService
 from PyQt6.QtWidgets import QTextEdit, QMessageBox, QInputDialog, QLineEdit
 from ..utils.config import ConfigManager
 from .loading_widget import LoadingOverlay
@@ -407,8 +407,9 @@ class AnalysisPanel(QWidget):
         
         self.resource_manager = ResourceManager()
         self.config_manager = ConfigManager()
-        api_key = self.config_manager.get("gemini_api_key")
-        self.gemini_service = GeminiService(api_key)
+        api_key = self.config_manager.get("groq_api_key")
+        model_name = self.config_manager.get("groq_model", "llama-3.3-70b-versatile")
+        self.groq_service = GroqService(api_key, model_name)
         self.current_game = None
         
         # Tabs
@@ -594,16 +595,17 @@ class AnalysisPanel(QWidget):
     def generate_ai_summary(self):
         if not self.current_game:
             return
-        if not self.gemini_service.model:
+        if not self.groq_service.client:
             # Prompt user for key
-            key, ok = QInputDialog.getText(self, "Gemini API Key Required", 
-                                         "To use AI Summary, please enter your Google Gemini API Key:\n(Get one at aistudio.google.com)",
+            key, ok = QInputDialog.getText(self, "Groq API Key Required", 
+                                         "To use AI Summary, please enter your Groq API Key:\n(Get one at console.groq.com)",
                                          QLineEdit.EchoMode.Password)
             if ok and key:
-                self.gemini_service.configure(key)
-                if self.gemini_service.model:
-                    self.config_manager.set("gemini_api_key", key)
-                    QMessageBox.information(self, "Success", "API Key saved and Gemini configured!")
+                model_name = self.config_manager.get("groq_model", "llama-3.3-70b-versatile")
+                self.groq_service.configure(key, model_name)
+                if self.groq_service.client:
+                    self.config_manager.set("groq_api_key", key)
+                    QMessageBox.information(self, "Success", "API Key saved and Groq configured!")
                 else:
                     QMessageBox.critical(self, "Error", "Invalid API Key or configuration failed.")
                     return
@@ -612,7 +614,7 @@ class AnalysisPanel(QWidget):
         self.btn_generate_summary.setEnabled(False)
         self.loading_overlay.start("Generating AI Summary...")
         logger.info("Starting AI summary generation...")
-        self.summary_thread = GenerateSummaryThread(self.gemini_service, self.current_game)
+        self.summary_thread = GenerateSummaryThread(self.groq_service, self.current_game)
         self.summary_thread.finished.connect(self.on_summary_generated)
         self.summary_thread.start()
         

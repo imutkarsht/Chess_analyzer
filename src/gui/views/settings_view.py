@@ -16,7 +16,7 @@ except ImportError:
 
 class SettingsView(QWidget):
     engine_path_changed = pyqtSignal(str)
-    gemini_key_changed = pyqtSignal(str)
+    groq_config_changed = pyqtSignal(str, str)
     usernames_changed = pyqtSignal()
 
     def __init__(self):
@@ -123,26 +123,34 @@ class SettingsView(QWidget):
         api_layout.setContentsMargins(20, 25, 20, 20)
         api_layout.setSpacing(15)
         
-        self.gemini_input = QLineEdit()
-        self.gemini_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.gemini_input.setText(self.config_manager.get("gemini_api_key", ""))
-        self.gemini_input.setStyleSheet(Styles.get_input_style())
+        self.groq_input = QLineEdit()
+        self.groq_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.groq_input.setText(self.config_manager.get("groq_api_key", ""))
+        self.groq_input.setStyleSheet(Styles.get_input_style())
+        
+        self.groq_model_input = QLineEdit()
+        self.groq_model_input.setText(self.config_manager.get("groq_model", "llama-3.3-70b-versatile"))
+        self.groq_model_input.setStyleSheet(Styles.get_input_style())
         
         self.lichess_token_input = QLineEdit()
         self.lichess_token_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         self.lichess_token_input.setStyleSheet(Styles.get_input_style())
 
-        lbl_gemini = QLabel("Gemini API Key:")
-        lbl_gemini.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        lbl_groq = QLabel("Groq API Key:")
+        lbl_groq.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        
+        lbl_groq_model = QLabel("AI Model:")
+        lbl_groq_model.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
         
         lbl_lichess = QLabel("Lichess API Token:")
         lbl_lichess.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
         
-        api_layout.addRow(lbl_gemini, self.gemini_input)
+        api_layout.addRow(lbl_groq, self.groq_input)
+        api_layout.addRow(lbl_groq_model, self.groq_model_input)
         api_layout.addRow(lbl_lichess, self.lichess_token_input)
         
-        self.save_api_btn = self._create_icon_button("Save API Keys", "fa5s.key", self.save_api_key, primary=True)
+        self.save_api_btn = self._create_icon_button("Save API Keys", "fa5s.key", self.save_api_config, primary=True)
         
         btn_wrapper = QHBoxLayout()
         btn_wrapper.addStretch()
@@ -451,13 +459,15 @@ class SettingsView(QWidget):
         else:
             QMessageBox.warning(self, "Error", "Please enter a valid path.")
 
-    def save_api_key(self):
-        key = self.gemini_input.text()
+    def save_api_config(self):
+        key = self.groq_input.text()
+        model = self.groq_model_input.text().strip()
         lichess_token = self.lichess_token_input.text()
-        self.config_manager.set("gemini_api_key", key)
+        self.config_manager.set("groq_api_key", key)
+        self.config_manager.set("groq_model", model)
         self.config_manager.set("lichess_token", lichess_token)
         # Emit signal for immediate update
-        self.gemini_key_changed.emit(key)
+        self.groq_config_changed.emit(key, model)
         QMessageBox.information(self, "Saved", "API Keys saved successfully.")
 
     def save_usernames(self):
