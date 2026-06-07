@@ -15,6 +15,7 @@ existing import sites.
 
 import locale
 import os
+from typing import Optional
 
 from openai import OpenAI
 
@@ -67,6 +68,7 @@ PROVIDERS: dict[str, dict] = {
 # Language detection
 # ---------------------------------------------------------------------------
 _LANG_NAMES: dict[str, str] = {
+    "en": "English",  # Default language
     "de": "German",   "fr": "French",    "es": "Spanish",
     "it": "Italian",  "pt": "Portuguese", "nl": "Dutch",
     "pl": "Polish",   "ru": "Russian",   "tr": "Turkish",
@@ -75,6 +77,31 @@ _LANG_NAMES: dict[str, str] = {
     "fi": "Finnish",  "nb": "Norwegian", "cs": "Czech",
     "sk": "Slovak",   "hu": "Hungarian", "ro": "Romanian",
 }
+
+# Localised section labels for the AI summary. Keys are the language
+# codes that _LANG_NAMES also uses. The English keys are the defaults
+# and are required; missing languages fall back to English.
+_SECTION_LABELS: dict[str, dict[str, str]] = {
+    "en": {"game_comment": "Game Comment", "summary": "Summary"},
+    "de": {"game_comment": "Spielkommentar", "summary": "Zusammenfassung"},
+}
+
+
+def _detect_ui_locale_code() -> str:
+    """Return the two-letter language code (e.g. 'de', 'en') of the UI locale.
+
+    Same resolution as _detect_ui_language but stops at the code; used to
+    look up _SECTION_LABELS.
+    """
+    try:
+        lang_env = os.environ.get("LANG") or os.environ.get("LANGUAGE") or ""
+        code = lang_env.split(".")[0].split("_")[0].lower()
+        if not code:
+            loc = locale.getdefaultlocale()
+            code = (loc[0] or "").split("_")[0].lower()
+        return code or "en"
+    except Exception:
+        return "en"
 
 
 def _detect_ui_language() -> str:
@@ -223,14 +250,24 @@ class GroqService:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _chat(self, prompt: str) -> str:
-        """Send a single-turn chat message and return the response text."""
+    def _chat(self, prompt: str, system: Optional[str] = None) -> str:
+        """Send a single-turn chat message and return the response text.
+
+        ``prompt`` is always sent as the user message. ``system``, if given,
+        is sent as a system message — this is the right place for
+        language / role instructions, because models tend to *echo* a
+        system-style instruction when it appears inside the user message.
+        """
         if not self.client:
             return "Error: LLM not configured. Go to Settings → API Configuration."
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
         try:
             completion = self.client.chat.completions.create(
                 model=self._model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
             )
             text = completion.choices[0].message.content
             return text.strip() if text else "No response generated."
@@ -241,12 +278,33 @@ class GroqService:
             return f"Error [{exc_type}]: {exc}"
 
     @staticmethod
+    def _lang_code() -> str:
+        """Two-letter language code (e.g. "de", "en") for the active UI locale."""
+        from .groq_service import _detect_ui_locale_code
+        return _detect_ui_locale_code()
+
+    @staticmethod
     def _lang_instruction() -> str:
-        """Return a language instruction appended to every prompt."""
+        """Return a language instruction for the system message.
+
+        We send it as a separate system message (not as a suffix on the
+        user prompt) because reasoning models tend to *echo* the
+        instruction at the top of the answer when it appears inside the
+        user message.
+        """
         lang = _detect_ui_language()
         if lang == "English":
             return ""   # LLMs default to English — no instruction needed
-        return f"\n\nIMPORTANT: Write your entire response in {lang}."
+        return f"Write your entire response in {lang}."
+
+    @staticmethod
+    def _section_labels() -> dict[str, str]:
+        """Return the section-label translations for the active UI locale.
+
+        Falls back to English for any language we don't ship labels for.
+        """
+        code = GroqService._lang_code()
+        return _SECTION_LABELS.get(code, _SECTION_LABELS["en"])
 
     # ------------------------------------------------------------------
     # Public prompts
@@ -270,22 +328,30 @@ class GroqService:
                 "or long thinks that paid off.\n"
             )
 
+        labels = self._section_labels()
+        game_comment_lbl = labels["game_comment"]
+        summary_lbl = labels["summary"]
+
         prompt = (
             "You are a chess expert. Analyze the following chess game and the provided "
             "analysis summary.\n\n"
-            "First, provide a short 'Game Comment' (e.g. Sharp, Tactical, Brilliant, "
-            "Chaotic, Positional Masterpiece …) that captures the essence of the game.\n"
-            "Then provide a concise, insightful summary (max 200 words). "
+            f"First, provide a short '{game_comment_lbl}' (e.g. Sharp, Tactical, "
+            "Brilliant, Chaotic, Positional Masterpiece …) that captures the essence "
+            "of the game.\n"
+            f"Then provide a concise, insightful '{summary_lbl}' (max 200 words). "
             "Highlight key turning points, brilliant moves, and major mistakes."
             + time_block +
-            "\nFormat:\n"
-            "Game Comment: [Your Comment]\n\n"
-            "Summary:\n[Your Summary]\n\n"
+            "\n\nReply with EXACTLY this structure and nothing else — "
+            "do not include any other section headers, do not echo the input "
+            "labels, do not add a preamble or closing remark:\n\n"
+            f"{game_comment_lbl}: <one short phrase>\n\n"
+            f"{summary_lbl}:\n<the summary in prose>\n\n"
+            "---\n"
+            "INPUT — do not repeat any of this in your reply:\n\n"
             f"Analysis Summary:\n{analysis_summary}\n\n"
             f"PGN:\n{pgn_text}"
-            + self._lang_instruction()
         )
-        return self._chat(prompt)
+        return self._chat(prompt, system=self._lang_instruction())
 
     def generate_coach_insights(self, stats_text: str) -> str:
         """Generate 3 coaching tips from aggregate player statistics."""
@@ -302,6 +368,5 @@ class GroqService:
             "1. [Insight 1]\n"
             "2. [Insight 2]\n"
             "3. [Insight 3]"
-            + self._lang_instruction()
         )
-        return self._chat(prompt)
+        return self._chat(prompt, system=self._lang_instruction())
