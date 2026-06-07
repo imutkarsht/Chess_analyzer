@@ -19,7 +19,8 @@ class TestConfigManager:
             
             assert manager.get("engine_path") == "stockfish"
             assert manager.get("theme") == "dark"
-            assert manager.get("gemini_api_key") == ""
+            assert manager.get("groq_api_key") == ""
+            assert manager.get("groq_model") == "llama-3.3-70b-versatile"
 
     def test_get_nonexistent_key(self, tmp_path):
         """Test getting a key that doesn't exist returns default."""
