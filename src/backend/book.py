@@ -1,13 +1,25 @@
+import os
 import chess
 import requests
 from typing import Optional
 from ..utils.logger import logger
+from ..utils.config import ConfigManager
 
 class BookManager:
     def __init__(self):
         self.cache = {}
         self.session = requests.Session()
         self.base_url = "https://explorer.lichess.ovh/masters"
+        self.config_manager = ConfigManager()
+
+    def _get_headers(self) -> dict:
+        token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
+        headers = {
+            "User-Agent": "ChessAnalyzerPro/1.6 (contact: github.com/yourusername/chess-analyzer-pro)"
+        }
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        return headers
 
     def get_opening_name(self, fen_before: str, move_uci: str) -> Optional[str]:
         """
@@ -33,7 +45,7 @@ class BookManager:
                 "fen": fen_after,
                 "moves": 1 # We just need the opening name, not moves
             }
-            response = self.session.get(self.base_url, params=params, timeout=2)
+            response = self.session.get(self.base_url, params=params, headers=self._get_headers(), timeout=2)
             
             if response.status_code == 200:
                 data = response.json()
@@ -58,7 +70,7 @@ class BookManager:
                 "fen": fen_before,
                 "moves": 10
             }
-            response = self.session.get(self.base_url, params=params, timeout=2)
+            response = self.session.get(self.base_url, params=params, headers=self._get_headers(), timeout=2)
             if response.status_code == 200:
                 data = response.json()
                 moves = data.get("moves", [])

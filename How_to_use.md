@@ -42,13 +42,13 @@ You **must** download and link the Stockfish engine for analysis to work.
 ### B. API Configuration
 To unlock advanced features like AI Summaries and Lichess imports:
 
-*   **Gemini API Key**:
-    *   Required for: **AI Game Summaries** and **Coach Insights**.
-    *   Get a key from [Google AI Studio](https://aistudio.google.com/).
-    *   Enter it in **Settings > API Configuration > Gemini API Key** and click **Save**.
+*   **Groq API Key**:
+    *   Required for: **AI Game Summaries** and **Coach Insights** (with customizable models).
+    *   Get a key from the [Groq Console](https://console.groq.com/).
+    *   Enter it in **Settings > API Configuration > Groq API Key** and click **Save**.
 
 *   **Lichess API Token**:
-    *   Required for: Importing user games from Lichess.
+    *   Required for: Importing user games from Lichess and fetching Opening/Book move names from the Lichess Opening Explorer.
     *   Generate a personal access token from your Lichess account (Preferences > API Access tokens).
     *   Enter it in **Settings > API Configuration > Lichess API Token** and click **Save**.
 
@@ -73,7 +73,7 @@ The generated `.exe` is mostly standalone, but it requires the following externa
 3.  **Internet Connection**: Required for:
     *   Importing games from Chess.com/Lichess.
     *   Fetching Opening names (if using online book).
-    *   Generating AI Summaries (Gemini).
+    *   Generating AI Summaries (Groq).
 
 ---
 
@@ -94,8 +94,8 @@ The application automatically creates and manages the following files in its roo
 Your privacy is paramount. **We do not collect any personal data.**
 
 *   **Local Storage**: All your data, including game history, analysis results (`analysis_cache.db`), and configurations (`config.json`), remains strictly on your local machine.
-*   **No Cloud Sync**: We do not send your games or analysis to any remote server (except to Google/Lichess APIs when you explicitly trigger those features).
-*   **API Keys**: Your Gemini and Lichess keys are stored locally in `config.json` and are **never** shared with us.
+*   **No Cloud Sync**: We do not send your games or analysis to any remote server (except to Groq/Lichess APIs when you explicitly trigger those features).
+*   **API Keys**: Your Groq and Lichess keys are stored locally in `config.json` and are **never** shared with us.
 
 ---
 
