@@ -9,7 +9,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import json
 from .styles import Styles
-from .gui_utils import clear_layout, resolve_asset, get_user_color, create_button
+from .gui_utils import clear_layout, resolve_asset, get_user_color, create_button, show_error_dialog
 from .metrics.workers import InsightWorker, StatsWorker
 from .metrics.charts import (
     create_donut_figure, create_line_chart_figure,
@@ -30,10 +30,7 @@ class MetricsWidget(QWidget):
         self.history_manager = history_manager
         self.usernames = []
         self.games_data = []
-        self.groq_service = GroqService(
-            config_manager.get("groq_api_key"),
-            config_manager.get("groq_model", "llama-3.3-70b-versatile")
-        )
+        self.groq_service = GroqService()
         
         self.setup_ui()
         self.refresh()
@@ -588,13 +585,26 @@ class MetricsWidget(QWidget):
         lbl_err = QLabel(f"Error: {err_msg}")
         lbl_err.setStyleSheet(f"color: {Styles.COLOR_BLUNDER};")
         lbl_err.setWordWrap(True)
+        lbl_err.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
         self.insights_layout.addWidget(lbl_err)
-        
+
         # Retry button
         btn_retry = QPushButton("Retry")
         btn_retry.setStyleSheet(Styles.get_button_style())
         btn_retry.clicked.connect(self._generate_insights)
         self.insights_layout.addWidget(btn_retry)
+
+        # Modal dialog with copyable text (for bug reports)
+        show_error_dialog(
+            self,
+            "AI Coach Insights Failed",
+            "Could not generate AI insights. See the insight card and "
+            "the details below for the full error.",
+            err_msg,
+        )
         
     def _populate_insights(self, insight_text):
         self._clear_layout(self.insights_layout)
