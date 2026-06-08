@@ -38,7 +38,15 @@ class ResourceManager:
         
         # Cache
         self._icon_cache = {}
-        self.sounds = {} # Cache QSoundEffect objects
+        # Each sound is backed by a small pool of QSoundEffect instances so
+        # that rapid retriggers (e.g. stepping through a game move by move)
+        # do not collide with a still-playing instance. A single QSoundEffect
+        # silently drops reentrant play() calls while it is still busy, which
+        # previously caused the move sound to be inaudible from the 4th step
+        # onwards.
+        self.SOUND_POOL_SIZE = 4
+        self.sounds = {}              # name -> list[QSoundEffect]
+        self._sound_index = {}        # name -> next pool index (round-robin)
         
         # Mappings
         self.icon_map = {
@@ -67,16 +75,20 @@ class ResourceManager:
         self._preload_sounds()
 
     def _preload_sounds(self):
-        """Pre-loads all sounds for low latency."""
+        """Pre-load each sound into a pool of QSoundEffect instances."""
         for name, filename in self.sound_map.items():
             path = os.path.join(self.sounds_path, filename)
-            if os.path.exists(path):
+            if not os.path.exists(path):
+                logger.warning(f"Sound file not found: {path}")
+                continue
+            pool = []
+            for _ in range(self.SOUND_POOL_SIZE):
                 effect = QSoundEffect()
                 effect.setSource(QUrl.fromLocalFile(path))
                 effect.setVolume(0.5)
-                self.sounds[name] = effect
-            else:
-                logger.warning(f"Sound file not found: {path}")
+                pool.append(effect)
+            self.sounds[name] = pool
+            self._sound_index[name] = 0
 
     def get_icon(self, name: str) -> QIcon:
         """Returns QIcon for the given classification name."""
@@ -101,9 +113,20 @@ class ResourceManager:
         return icon
 
     def play_sound(self, name: str):
-        """Plays the sound for the given event name using QSoundEffect."""
-        if name in self.sounds:
-            self.sounds[name].play()
-        else:
-            # logger.warning(f"Sound '{name}' not loaded.")
-            pass
+        """Plays the sound for the given event name using QSoundEffect.
+
+        Uses a round-robin pool so that consecutive triggers of the same
+        event (common while stepping through a game) do not collide with
+        a still-playing instance of the same sound.
+        """
+        pool = self.sounds.get(name)
+        if not pool:
+            return
+        idx = self._sound_index[name]
+        effect = pool[idx]
+        self._sound_index[name] = (idx + 1) % len(pool)
+        # Explicitly stop first: a QSoundEffect in a still-playing state
+        # silently drops reentrant play() calls, so we always reset.
+        if effect.isPlaying():
+            effect.stop()
+        effect.play()
