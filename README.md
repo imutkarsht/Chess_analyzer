@@ -165,4 +165,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Stockfish](https://stockfishchess.org/) for the powerful chess engine.
 - [Python-Chess](https://python-chess.readthedocs.io/) for the chess library.
 - [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) for the GUI framework.
+- Chess icons by Cburnett (CC BY-SA 3.0).
 

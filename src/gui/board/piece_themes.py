@@ -4,8 +4,15 @@ Chess piece theme definitions for custom board rendering.
 This module provides SVG definitions for chess piece styles
 that can be used with the custom board renderer.
 
-Piece SVGs sourced from Lichess cburnett set (https://github.com/lichess-org/lila)
-by Colin M.L. Burnett, licensed under GFDL, BSD, and GPL.
+These piece graphics are the Cburnett set, originally by
+Colin M.L. Burnett, distributed via Wikimedia Commons:
+    https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces
+They are dual-licensed under GPLv2+ and CC BY-SA 3.0 (Unported).
+
+They are NOT covered by the MIT License that applies to the rest
+of this project. See the ``THIRD-PARTY COMPONENT NOTICE`` section
+in the project root ``LICENSE`` file for the full attribution and
+license terms that apply to these SVGs.
 """
 
 # Standard/Cburnett pieces - The classic Lichess default
