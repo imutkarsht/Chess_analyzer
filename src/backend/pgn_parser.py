@@ -1,8 +1,32 @@
 import chess.pgn
 import io
-from typing import List, Optional
+import re
+from typing import List, Optional, Tuple
 from .models import GameAnalysis, GameMetadata, MoveAnalysis
 import uuid
+
+
+# Matches [%clk H:MM:SS(.s)?] — chess.com style clock comments.
+# The colon-separated hours/minutes/seconds format with optional decimal
+# fraction. Examples: 0:09:56.1, 1:23:45, 0:00:03.4
+_CLK_RE = re.compile(r"\[%clk\s+(\d+):(\d{1,2}):(\d{1,2}(?:\.\d+)?)\]")
+
+
+def _parse_clk(comment: Optional[str]) -> Tuple[Optional[str], Optional[float]]:
+    """
+    Pull the first [%clk …] value out of a move comment.
+
+    Returns (raw_string, seconds) or (None, None) if no clock is present.
+    """
+    if not comment:
+        return None, None
+    m = _CLK_RE.search(comment)
+    if not m:
+        return None, None
+    h, mm, ss = int(m.group(1)), int(m.group(2)), float(m.group(3))
+    seconds = h * 3600 + mm * 60 + ss
+    return m.group(0).split()[-1].rstrip("]"), seconds
+
 
 class PGNParser:
     @staticmethod
@@ -57,20 +81,69 @@ class PGNParser:
         
         moves = []
         board = game.board()
-        
+        # Track per-side running clock so we can compute time_spent.
+        # chess.com PGN: [%clk H:MM:SS.s] on every move. We compute the delta
+        # between consecutive clocks of the same side to derive time_spent.
+        # We don't trust a single missing/invalid entry — fall back to None.
+        last_clk: dict[chess.Color, float] = {chess.WHITE: None, chess.BLACK: None}
+
+        # Derive the *initial* clock from the TimeControl header so we can
+        # compute a delta for the very first move of each side. chess.com
+        # emits values like "600" or "600+5"; lichess emits "60+0" or
+        # just "blitz". We only need the leading integer (seconds) — the
+        # increment does NOT change the starting clock, it gets added
+        # *after* each move.
+        def _initial_clock_seconds() -> Optional[float]:
+            tc = headers.get("TimeControl", "")
+            if not tc or tc == "-":
+                return None
+            # The first numeric chunk is the initial time in seconds.
+            head = tc.split("+", 1)[0].strip()
+            try:
+                return float(head)
+            except ValueError:
+                return None
+
+        start_clock = _initial_clock_seconds()
+
         for i, node in enumerate(game.mainline()):
             move = node.move
             san = node.san()
             uci = move.uci()
             fen_before = board.fen()
-            
+            side_to_move = board.turn  # who is about to play this move
+
+            # node.comment is a free-form string.  We look for [%clk]
+            # (chess.com / lichess) and compute the time delta against the
+            # previous recorded clock on the same side, falling back to the
+            # initial TimeControl value for the very first move of each side.
+            raw_clk, time_left = _parse_clk(node.comment)
+            time_spent = None
+            if time_left is not None:
+                # Determine the "previous" clock for this side. For the very
+                # first move of each side we don't have a recorded previous
+                # clock, but we can derive it from the TimeControl header
+                # (e.g. "600" → 600 seconds starting clock). After that we
+                # use the last recorded value of the same side.
+                previous = last_clk[side_to_move]
+                if previous is None and start_clock is not None:
+                    previous = start_clock
+                if previous is not None:
+                    delta = previous - time_left
+                    if delta >= 0:
+                        time_spent = delta
+                last_clk[side_to_move] = time_left
+
             # Basic move info, analysis will fill in the rest
             move_analysis = MoveAnalysis(
                 move_number=board.fullmove_number,
                 ply=board.ply(),
                 san=san,
                 uci=uci,
-                fen_before=fen_before
+                fen_before=fen_before,
+                time_left=time_left,
+                time_spent=time_spent,
+                raw_clk=raw_clk,
             )
             moves.append(move_analysis)
             board.push(move)

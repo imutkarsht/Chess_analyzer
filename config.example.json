@@ -1,0 +1,46 @@
+{
+    "_comment": "Template for personal config. Copy to your user data directory and rename to config.json. Linux: ~/.local/share/chessanalyzerpro/config.json | macOS: ~/Library/Application Support/ChessAnalyzerPro/config.json | Windows: %APPDATA%/ChessAnalyzerPro/config.json. Do NOT commit your real config.json — it contains personal API keys and paths.",
+
+    "engine_path": "stockfish",
+    "theme": "dark",
+
+    "_comment_llm": "Define as many LLM profiles as you like. Set llm_active_profile to the name of the one you want to use.",
+    "llm_active_profile": "Groq",
+    "llm_profiles": [
+        {
+            "name":     "Groq",
+            "provider": "groq",
+            "api_key":  "",
+            "model":    "llama-3.3-70b-versatile",
+            "base_url": ""
+        },
+        {
+            "name":     "LM Studio (local)",
+            "provider": "lmstudio",
+            "api_key":  "",
+            "model":    "local-model",
+            "base_url": "http://localhost:1234/v1"
+        },
+        {
+            "name":     "MiniMax",
+            "provider": "minimax",
+            "api_key":  "",
+            "model":    "MiniMax-Text-01",
+            "base_url": ""
+        },
+        {
+            "name":     "My Custom API",
+            "provider": "custom",
+            "api_key":  "optional",
+            "model":    "model-name",
+            "base_url": "http://your-server/v1"
+        }
+    ],
+
+    "board_theme": "Blue",
+    "accent_color": "#0082c3",
+    "chesscom_username": "",
+    "lichess_username": "",
+    "lichess_token": "",
+    "analysis_depth": 18
+}

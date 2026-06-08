@@ -5,7 +5,10 @@ from .graph_widget import GraphWidget
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread, QSize
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
-from .gui_utils import clear_layout, create_button
+from .gui_utils import (clear_layout, create_button, show_error_dialog,
+                      is_error_message, format_clock_duration,
+                      format_time_stats_for_llm, ThinkTimeBar,
+                      MoveCellWidget)
 from .components import SimpleStatCard as StatCard
 from .analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
 from ..utils.resources import ResourceManager
@@ -13,7 +16,7 @@ from ..utils.logger import logger
 import chess
 from .live_analysis import LiveAnalysisWorker
 from ..backend.groq_service import GroqService
-from PyQt6.QtWidgets import QTextEdit, QMessageBox, QInputDialog, QLineEdit
+from PyQt6.QtWidgets import QTextEdit, QMessageBox
 from ..utils.config import ConfigManager
 from .loading_widget import LoadingOverlay
 
@@ -167,22 +170,35 @@ class MoveListPanel(QWidget):
         
         self.live_data = {}
         self.current_turn = chess.WHITE
+        # Reusable think-time bar widgets (one per cell). We keep strong
+        # references because QTableWidget.setCellWidget() does not take
+        # ownership; without this, the bars would be garbage-collected
+        # and the table would render empty cells.
+        self._think_bars: list[ThinkTimeBar] = []
         
         self.analysis_timer = QTimer()
         self.analysis_timer.setSingleShot(True)
         self.analysis_timer.setInterval(4000) # 4 seconds delay
         self.analysis_timer.timeout.connect(self.start_live_analysis)
         
-        # Move List Table
+        # Move List Table — 3 columns: #, White, Black
+        # Think-time is rendered as a thin coloured bar at the bottom of the
+        # move cell itself (no separate column) so the table stays readable
+        # in a narrow left-pane.
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["#", "White", "Black"])
-        
+        self.table.setHorizontalHeaderLabels(
+            ["#", "White", "Black"]
+        )
+        self.table.horizontalHeader().setHighlightSections(False)
+        self.table.horizontalHeader().setMinimumHeight(32)
+
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(0, 45)  # Slightly wider for better balance
+        header.resizeSection(0, 38)   # #  — move number
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(False)  # Using custom hover instead
@@ -190,10 +206,10 @@ class MoveListPanel(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.cellClicked.connect(self.on_cell_clicked)
-        self.table.setIconSize(QSize(22, 22))  # Larger icons for better visibility
+        self.table.setIconSize(QSize(20, 20))
         
         # Set default row height for better click targets
-        self.table.verticalHeader().setDefaultSectionSize(42)
+        self.table.verticalHeader().setDefaultSectionSize(40)
         
         # Enhanced table styling  
         self.table.setStyleSheet(f"""
@@ -205,7 +221,7 @@ class MoveListPanel(QWidget):
                 font-size: 14px;
             }}
             QTableWidget::item {{
-                padding: 8px 6px;
+                padding: 6px 8px;
                 border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
             }}
             QTableWidget::item:hover {{
@@ -239,66 +255,72 @@ class MoveListPanel(QWidget):
     def refresh(self):
         if not self.current_game:
             self.table.setRowCount(0)
+            self._think_bars.clear()
             return
-            
+
         try:
+            # Clear previously-embedded bar widgets before re-inserting
+            for bar in self._think_bars:
+                bar.setParent(None)
+                bar.deleteLater()
+            self._think_bars.clear()
+
             # Set row count
             num_rows = (len(self.current_game.moves) + 1) // 2
             self.table.setRowCount(num_rows)
-            
+
             # Update vertical header labels (Move numbers)
             labels = [str(i+1) for i in range(num_rows)]
             self.table.setVerticalHeaderLabels(labels)
-            
+
             for i, move in enumerate(self.current_game.moves):
                 row = i // 2
-                col = (i % 2) + 1 # 0->1 (White), 1->2 (Black)
-                
-                # Set Move Number for White moves
+                col = (i % 2) + 1  # 0->1 (White), 1->2 (Black)
+
+                # Set Move Number for White moves (left of the row)
                 if col == 1:
                     num_item = QTableWidgetItem(str(move.move_number))
                     num_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     num_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
                     num_item.setForeground(QBrush(QColor(Styles.COLOR_TEXT_SECONDARY)))
                     self.table.setItem(row, 0, num_item)
-                    
-                    # Clear Black cell (optional, but good for safety)
-                    self.table.setItem(row, 2, None)
-                
+
                 self._set_move_item(row, col, move, i)
-            
+
             self.table.viewport().update()
-            
+
         except Exception as e:
             logger.error(f"Error refreshing move list: {e}", exc_info=True)
 
     def _set_move_item(self, row, col, move, index):
-        item = QTableWidgetItem(move.san)
-        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        item.setData(Qt.ItemDataRole.UserRole, index)
-        
-        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-        
+        """Render a move cell with icon, SAN, and a think-time bar inline."""
+        # Get classification icon (if any)
+        icon = None
         if move.classification:
             icon = self.resource_manager.get_icon(move.classification)
-            if not icon.isNull():
-                item.setIcon(icon)
-            # Add tooltip with classification name
-            item.setToolTip(f"{move.classification}: {move.san}")
-        
-        color = Styles.get_class_color(move.classification)
-        if not color:
-            color = Styles.COLOR_TEXT_PRIMARY
-            
-        item.setForeground(QBrush(QColor(color)))
-        
-        # Bold font for special moves
-        if move.classification in ["Brilliant", "Blunder", "Mistake", "Miss"]:
-            font = item.font()
-            font.setBold(True)
-            item.setFont(font)
-              
+
+        # Resolve the SAN colour from the project's styles module
+        san_color = Styles.get_class_color(move.classification) or Styles.COLOR_TEXT_PRIMARY
+
+        cell = MoveCellWidget(parent=self.table)
+        cell.set_move(move, index, icon=icon, san_color=san_color)
+        cell.clicked.connect(self._on_cell_widget_clicked)
+
+        # Keep a strong reference so the widget isn't GC'd
+        self._think_bars.append(cell)
+
+        # We also need a backing QTableWidgetItem so the cell is selectable
+        # and shows up in the table's selection model.
+        item = QTableWidgetItem()
+        item.setData(Qt.ItemDataRole.UserRole, index)
+        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+        item.setSizeHint(QSize(120, 38))
         self.table.setItem(row, col, item)
+        self.table.setCellWidget(row, col, cell)
+
+    def _on_cell_widget_clicked(self, index: int):
+        """Forward clicks from MoveCellWidget into the existing move_selected signal."""
+        self.move_selected.emit(index)
     
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
@@ -311,7 +333,7 @@ class MoveListPanel(QWidget):
                 font-size: 14px;
             }}
             QTableWidget::item {{
-                padding: 8px 6px;
+                padding: 6px 8px;
                 border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
             }}
             QTableWidget::item:hover {{
@@ -407,9 +429,7 @@ class AnalysisPanel(QWidget):
         
         self.resource_manager = ResourceManager()
         self.config_manager = ConfigManager()
-        api_key = self.config_manager.get("groq_api_key")
-        model_name = self.config_manager.get("groq_model", "llama-3.3-70b-versatile")
-        self.groq_service = GroqService(api_key, model_name)
+        self.groq_service = GroqService()
         self.current_game = None
         
         # Tabs
@@ -596,21 +616,18 @@ class AnalysisPanel(QWidget):
         if not self.current_game:
             return
         if not self.groq_service.client:
-            # Prompt user for key
-            key, ok = QInputDialog.getText(self, "Groq API Key Required", 
-                                         "To use AI Summary, please enter your Groq API Key:\n(Get one at console.groq.com)",
-                                         QLineEdit.EchoMode.Password)
-            if ok and key:
-                model_name = self.config_manager.get("groq_model", "llama-3.3-70b-versatile")
-                self.groq_service.configure(key, model_name)
-                if self.groq_service.client:
-                    self.config_manager.set("groq_api_key", key)
-                    QMessageBox.information(self, "Success", "API Key saved and Groq configured!")
-                else:
-                    QMessageBox.critical(self, "Error", "Invalid API Key or configuration failed.")
-                    return
-            else:
-                return
+            QMessageBox.information(
+                self,
+                "LLM Not Configured",
+                "No LLM provider is configured.\n\n"
+                "Go to Settings → API Configuration and choose a provider:\n"
+                "  • Groq (cloud, free tier available)\n"
+                "  • LM Studio (local, no key required)\n"
+                "  • MiniMax (cloud)\n"
+                "  • Custom OpenAI-compatible endpoint\n\n"
+                "Save your settings and try again.",
+            )
+            return
         self.btn_generate_summary.setEnabled(False)
         self.loading_overlay.start("Generating AI Summary...")
         logger.info("Starting AI summary generation...")
@@ -644,16 +661,28 @@ class AnalysisPanel(QWidget):
 
     def on_summary_generated(self, summary):
         self.loading_overlay.stop()
-        if summary.startswith("Error"):
+        self.btn_generate_summary.setEnabled(True)
+        self.btn_generate_summary.setText("Generate AI Summary")
+
+        if is_error_message(summary):
             logger.error(f"AI Summary generation failed: {summary}")
-        else:
-            logger.info("AI Summary generated successfully.")
+            # Reset to "no summary yet" so the button reappears
+            self.current_game.ai_summary = ""
+            self.txt_ai_summary.setVisible(False)
+            self.btn_generate_summary.setVisible(True)
+            show_error_dialog(
+                self,
+                "AI Summary Failed",
+                "Could not generate the AI summary.",
+                summary,
+            )
+            return
+
+        logger.info("AI Summary generated successfully.")
         self.current_game.ai_summary = summary
         self.txt_ai_summary.setText(summary)
         self.txt_ai_summary.setVisible(True)
         self.btn_generate_summary.setVisible(False)
-        self.btn_generate_summary.setEnabled(True)
-        self.btn_generate_summary.setText("Generate AI Summary")
         
     def resizeEvent(self, event):
         self.loading_overlay.resize(self.size())
@@ -672,14 +701,40 @@ class GenerateSummaryThread(QThread):
         
     def run(self):
         try:
-            pgn_text = ""
+            # Replay the moves onto a fresh board and export a valid PGN.
+            # The previous inline string-concat produced invalid notation
+            # like "b4 1. Nf6 c4 2. d5 …" because every move was prefixed
+            # with its number regardless of side-to-move.
+            import chess
+            import chess.pgn
+            from io import StringIO
+
+            board = chess.Board()
+            pgn_game = chess.pgn.Game()
+            node = pgn_game
             for move in self.game.moves:
-                if move.move_number % 1 == 0 and move.ply % 2 != 0:
-                     pgn_text += f"{move.move_number}. {move.san} "
-                else:
-                     pgn_text += f"{move.san} "
-            summary = self.service.generate_summary(pgn_text, str(self.game.summary))
+                chess_move = chess.Move.from_uci(move.uci) if move.uci else None
+                if chess_move is None or chess_move not in board.legal_moves:
+                    # Fall back to SAN parsing for moves without a UCI
+                    try:
+                        chess_move = board.parse_san(move.san)
+                    except Exception:
+                        continue
+                node = node.add_variation(chess_move)
+                board.push(chess_move)
+
+            exporter = chess.pgn.StringExporter(
+                headers=False, comments=False, variations=False
+            )
+            pgn_text = pgn_game.accept(exporter)
+            if not pgn_text.strip():
+                pgn_text = " ".join(m.san for m in self.game.moves)
+
+            time_stats = format_time_stats_for_llm(self.game.moves)
+            summary = self.service.generate_summary(
+                pgn_text, str(self.game.summary), time_stats
+            )
             self.finished.emit(summary)
         except Exception as e:
             logger.error(f"GenerateSummaryThread failed: {e}", exc_info=True)
-            self.finished.emit(f"Error: {e}")
+            self.finished.emit(f"Error [{type(e).__name__}]: {e}")

@@ -5,13 +5,24 @@ from .path_utils import get_app_path, get_user_data_dir
 
 class ConfigManager:
     CONFIG_FILE = "config.json"
-    
+
     DEFAULT_CONFIG = {
         "engine_path": "stockfish",
         "theme": "dark",
+        # Profile-based LLM config.  Each profile is a dict with keys:
+        #   name, provider, api_key, model, base_url
+        "llm_profiles": [],
+        "llm_active_profile": "",
+        # Legacy flat keys — kept only for the migration path below.
         "groq_api_key": "",
         "groq_model": "llama-3.3-70b-versatile",
-        "analysis_depth": 18
+        "analysis_depth": 18,
+    }
+
+    # Human-readable name used when creating the first migration profile.
+    _PROVIDER_LABELS = {
+        "groq": "Groq", "lmstudio": "LM Studio",
+        "minimax": "MiniMax", "custom": "Custom",
     }
 
     def __init__(self):
@@ -20,14 +31,89 @@ class ConfigManager:
 
     def load_config(self):
         if not os.path.exists(self.config_path):
-            return self.DEFAULT_CONFIG.copy()
-        
+            cfg = self.DEFAULT_CONFIG.copy()
+            self._ensure_default_profile(cfg)
+            return cfg
+
         try:
             with open(self.config_path, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
-            return self.DEFAULT_CONFIG.copy()
+            cfg = self.DEFAULT_CONFIG.copy()
+            self._ensure_default_profile(cfg)
+            return cfg
+
+        # Fill any missing top-level keys from defaults
+        for key, value in self.DEFAULT_CONFIG.items():
+            data.setdefault(key, value)
+
+        # One-time migration: build profile list from previous flat config keys.
+        migrated = False
+        if not data.get("llm_profiles"):
+            provider = (data.get("llm_provider")
+                        or (data.get("groq_api_key") and "groq")
+                        or "groq")
+            api_key  = data.get("llm_api_key", "") or data.get("groq_api_key", "")
+            model    = data.get("llm_model", "") or data.get("groq_model", "")
+            base_url = data.get("llm_base_url", "")
+            name = self._PROVIDER_LABELS.get(provider, provider.capitalize())
+            data["llm_profiles"] = [{
+                "name": name,
+                "provider": provider,
+                "api_key": api_key,
+                "model": model or "llama-3.3-70b-versatile",
+                "base_url": base_url,
+            }]
+            data["llm_active_profile"] = name
+            logger.info(f"Config: migrated single LLM config to profile '{name}'")
+            migrated = True
+
+        if migrated:
+            # Persist immediately so migration doesn't repeat on every startup.
+            try:
+                with open(self.config_path, 'w') as f:
+                    json.dump(data, f, indent=4)
+            except Exception:
+                pass  # Non-critical: migration will silently repeat next startup
+
+        return data
+
+    def _ensure_default_profile(self, cfg: dict) -> None:
+        """Guarantee at least one profile exists in a fresh config."""
+        if not cfg.get("llm_profiles"):
+            cfg["llm_profiles"] = [{
+                "name": "Groq",
+                "provider": "groq",
+                "api_key": "",
+                "model": "llama-3.3-70b-versatile",
+                "base_url": "",
+            }]
+            cfg["llm_active_profile"] = "Groq"
+
+    # ------------------------------------------------------------------
+    # Active profile helpers
+    # ------------------------------------------------------------------
+
+    def get_active_profile(self) -> dict:
+        """Return the active LLM profile dict, or the first profile as fallback."""
+        profiles = self.config.get("llm_profiles", [])
+        active_name = self.config.get("llm_active_profile", "")
+        if profiles:
+            for p in profiles:
+                if p.get("name") == active_name:
+                    return p
+            return profiles[0]
+        return {}
+
+    def get_profiles(self) -> list:
+        return self.config.get("llm_profiles", [])
+
+    def set_profiles(self, profiles: list, active_name: str = "") -> None:
+        self.config["llm_profiles"] = profiles
+        if active_name:
+            self.config["llm_active_profile"] = active_name
+        self.save_config()
 
     def save_config(self):
         try:

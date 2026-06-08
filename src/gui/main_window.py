@@ -61,7 +61,9 @@ class MainWindow(QMainWindow):
         self.current_game = None
         self.config_manager = ConfigManager()
         self.engine_path = self.config_manager.get("engine_path", "stockfish")
-        self.analyzer = Analyzer(EngineManager(self.engine_path))
+        self.analyzer = Analyzer(
+            EngineManager(self.engine_path, config_manager=self.config_manager)
+        )
         self.history_manager = GameHistoryManager()
         self.resource_manager = ResourceManager()
         
@@ -157,7 +159,8 @@ class MainWindow(QMainWindow):
         # --- Page 3: Settings View ---
         self.settings_view = SettingsView()
         self.settings_view.engine_path_changed.connect(self.update_engine_path)
-        self.settings_view.groq_config_changed.connect(self.update_groq_config)
+        self.settings_view.engine_settings_changed.connect(self.apply_engine_settings)
+        self.settings_view.llm_config_changed.connect(self.update_llm_config)
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
 
@@ -167,21 +170,41 @@ class MainWindow(QMainWindow):
         self.engine_path = new_path
         # Re-initialize analyzer with new engine
         try:
-            self.analyzer = Analyzer(EngineManager(self.engine_path))
-            # Also update worker if it exists? 
+            self.analyzer = Analyzer(
+                EngineManager(self.engine_path, config_manager=self.config_manager)
+            )
+            # Also update worker if it exists?
             # Worker is created per analysis, so next analysis will use new analyzer/engine.
             QMessageBox.information(self, "Success", "Engine path updated. Future analyses will use the new engine.")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
             QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
 
-    def update_groq_config(self, new_key, new_model):
-        """Updates the Groq API configuration in MetricsWidget immediately."""
-        logger.info("Updating Groq API configuration...")
+    def apply_engine_settings(self):
+        """Re-apply the current Threads/Hash settings to a running engine.
+
+        No-op when no analysis is in progress — the next analysis will
+        pick up the new values automatically.
+        """
+        engine = getattr(self.analyzer, "engine_manager", None)
+        if engine is not None:
+            engine.apply_settings_from_config()
+
+    def update_llm_config(self):
+        """Re-instantiate the LLM service in every view that holds one.
+
+        Triggered by SettingsView.llm_config_changed after the user saves
+        a profile. The new GroqService() reads its settings from the
+        ConfigManager itself, so we don't have to pass anything here.
+        """
+        from ..backend.groq_service import GroqService
+        logger.info("Updating LLM configuration in all views...")
         if hasattr(self, 'metrics_view') and hasattr(self.metrics_view, 'groq_service'):
-            from ..backend.groq_service import GroqService
-            self.metrics_view.groq_service = GroqService(new_key, new_model)
-            logger.info("Groq service updated with new API key and model.")
+            self.metrics_view.groq_service = GroqService()
+            logger.info("LLM service in metrics_view refreshed.")
+        if hasattr(self, 'analysis_panel') and hasattr(self.analysis_panel, 'groq_service'):
+            self.analysis_panel.groq_service = GroqService()
+            logger.info("LLM service in analysis_panel refreshed.")
 
     def on_usernames_changed(self):
         """Reloads config values in views that use usernames."""
