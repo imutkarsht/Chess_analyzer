@@ -4,9 +4,12 @@ import os
 from typing import Optional, Dict, Any, Tuple
 from ..utils.logger import logger
 
-# Sensible defaults; overridden from the ConfigManager at runtime.
-DEFAULT_THREADS = min(os.cpu_count() or 1, 8)
-DEFAULT_HASH_MB = 256
+# Conservative defaults aimed at laptops (incl. fanless MacBook Air).
+# Power users can raise these in Settings; the values here are deliberately
+# small so that a stock install does not pin every core at 100% forever.
+# See https://github.com/imutkarsht/Chess_analyzer/issues/5
+DEFAULT_THREADS = min(os.cpu_count() or 1, 4)
+DEFAULT_HASH_MB = 64
 
 
 def engine_options(threads: int, hash_mb: int) -> Dict[str, Any]:

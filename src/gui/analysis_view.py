@@ -153,18 +153,20 @@ class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)
     lines_updated = pyqtSignal(list, bool) # lines, is_white_turn
     
-    def __init__(self, engine_path="stockfish"):
+    def __init__(self, engine_path="stockfish", config_manager=None):
         super().__init__()
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(5)
-        
+
         self.resource_manager = ResourceManager()
         self.current_game = None
-        
-        # Live Analysis
+
+        # Live Analysis — pass the shared ConfigManager so the worker
+        # can honour the live_analysis_time / multi_pv settings that
+        # the user has chosen in Settings.  See issue #5.
         self.engine_path = engine_path
-        self.live_worker = LiveAnalysisWorker(self.engine_path)
+        self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=config_manager)
         self.live_worker.info_ready.connect(self.on_live_analysis_update)
         self.live_worker.start()
         
@@ -414,7 +416,9 @@ class MoveListPanel(QWidget):
     def update_engine_path(self, path):
         self.engine_path = path
         self.live_worker.stop()
-        self.live_worker = LiveAnalysisWorker(self.engine_path)
+        # Re-create the worker preserving the same config_manager so
+        # the live-panel settings (time, multi_pv) survive a path swap.
+        self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=self.live_worker.config_manager)
         self.live_worker.info_ready.connect(self.on_live_analysis_update)
         self.live_worker.start()
 
