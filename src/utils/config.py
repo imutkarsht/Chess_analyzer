@@ -5,6 +5,8 @@ from .path_utils import get_app_path, get_user_data_dir
 
 class ConfigManager:
     CONFIG_FILE = "config.json"
+    _shared_config = None
+    _shared_config_path = None
 
     DEFAULT_CONFIG = {
         "engine_path": "stockfish",
@@ -45,7 +47,11 @@ class ConfigManager:
 
     def __init__(self):
         self.config_path = os.path.join(get_user_data_dir(), self.CONFIG_FILE)
-        self.config = self.load_config()
+        if (self.__class__._shared_config is None or 
+                self.__class__._shared_config_path != self.config_path):
+            self.__class__._shared_config = self.load_config()
+            self.__class__._shared_config_path = self.config_path
+        self.config = self.__class__._shared_config
 
     def load_config(self):
         if not os.path.exists(self.config_path):

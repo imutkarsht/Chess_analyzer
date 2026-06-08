@@ -149,7 +149,7 @@ class Analyzer:
             info_list = self._get_position_analysis(board, move_data)
             
             # Process analysis results
-            self._process_analysis_results(move_data, info_list, is_white_turn)
+            self._process_analysis_results(move_data, info_list, is_white_turn, board)
             
         # Analyze FINAL position
         final_score = self._analyze_final_position(game_analysis, board)
@@ -216,6 +216,7 @@ class Analyzer:
             
             pv = info.get("pv", [])
             s_info["pv"] = [m.uci() for m in pv]
+            s_info["depth"] = info.get("depth", self.config["depth"])
             serializable_list.append(s_info)
         
         if self.config.get("use_cache", True):
@@ -223,7 +224,7 @@ class Analyzer:
             
         return info_list
 
-    def _process_analysis_results(self, move_data: MoveAnalysis, info_list: List, is_white_turn: bool):
+    def _process_analysis_results(self, move_data: MoveAnalysis, info_list: List, is_white_turn: bool, board: chess.Board):
         """Processes raw engine analysis into move data."""
         # Normalize info
         best_pv_uci = []
@@ -241,6 +242,7 @@ class Analyzer:
                 pv_uci = item.get("pv", [])
                 cp = item.get("cp")
                 mate = item.get("mate")
+                depth = item.get("depth", "?")
             else:
                 # Engine format
                 pv_moves = item.get("pv", [])
@@ -254,13 +256,19 @@ class Analyzer:
                         cp = score.relative.score(mate_score=100000)
                     else:
                         cp = score.relative.score(mate_score=100000)
+                depth = item.get("depth", "?")
                         
             pv_data["pv"] = pv_uci
             pv_data["cp"] = cp
             pv_data["mate"] = mate
+            pv_data["depth"] = depth
             
-            # Convert PV to SAN (simplified for robustness)
-            pv_data["pv_san"] = " ".join(pv_uci)
+            # Convert PV to SAN
+            try:
+                pv_moves_obj = [chess.Move.from_uci(uci) for uci in pv_uci]
+                pv_data["pv_san"] = board.variation_san(pv_moves_obj)
+            except Exception:
+                pv_data["pv_san"] = " ".join(pv_uci)
             
             pv_data["score_value"] = f"M{mate}" if mate is not None else f"{cp/100:.2f}" if cp is not None else "?"
             

@@ -31,19 +31,74 @@ class AnalysisLinesWidget(QFrame):
             QFrame {{
                 background-color: {Styles.COLOR_SURFACE};
                 border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
+                border-radius: 12px;
                 padding: 10px;
             }}
-            QLabel {{ border: none; background: transparent; }}
+            QWidget#AnalysisRow {{
+                background-color: transparent;
+                border-radius: 8px;
+                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QWidget#AnalysisRow:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QLabel {{
+                border: none;
+                background: transparent;
+            }}
         """)
         
         self.layout = QVBoxLayout(self)
-        self.layout.setSpacing(8)
-        self.layout.setContentsMargins(10, 10, 10, 10)
+        self.layout.setSpacing(6)
+        self.layout.setContentsMargins(8, 8, 8, 8)
+        
+        # Header Layout for the toggles (Engine Lines and Use Cache)
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(4, 2, 4, 2)
+        header_layout.setSpacing(16)
+        
+        self.toggle_checkbox = QCheckBox("Engine Lines")
+        self.toggle_checkbox.setChecked(False) # Off by default!
+        self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.toggle_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-weight: bold;
+                font-size: 13px;
+                background: transparent;
+                border: none;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+            }}
+        """)
+        header_layout.addWidget(self.toggle_checkbox)
+
+        self.cache_checkbox = QCheckBox("Use Cache")
+        self.cache_checkbox.setChecked(True)
+        self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.cache_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-weight: bold;
+                font-size: 13px;
+                background: transparent;
+                border: none;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+            }}
+        """)
+        header_layout.addWidget(self.cache_checkbox)
+        
+        header_layout.addStretch()
+        self.layout.addLayout(header_layout)
         
         self.rows = [] # List of (widget, lbl_depth, lbl_eval, lbl_pv) tuples
         self.lines_layout = QVBoxLayout()
-        self.lines_layout.setSpacing(8)
+        self.lines_layout.setSpacing(6)
         self.layout.addLayout(self.lines_layout)
         self.layout.addStretch() # Push lines to top
 
@@ -51,13 +106,27 @@ class AnalysisLinesWidget(QFrame):
         """Clears all analysis lines."""
         for row_data in self.rows:
             row_data[0].hide()
-        # We keep the widgets in self.rows to reuse them later, just hide them.
-        
-        # Or if we want to show a "No analysis" message
-        # For now, just hiding is fine.
+
+    def _format_pv_to_html(self, pv_text: str) -> str:
+        if not pv_text:
+            return ""
+        words = pv_text.split()
+        html_words = []
+        first_move = True
+        for word in words:
+            # Check if it's a move number (e.g. "14.", "13...")
+            if word[0].isdigit() or word.endswith("..."):
+                html_words.append(f"<span style='color: {Styles.COLOR_TEXT_MUTED}; font-weight: 500;'>{word}</span>")
+            else:
+                # It's a move
+                if first_move:
+                    html_words.append(f"<span style='color: {Styles.COLOR_ACCENT}; font-weight: 700;'>{word}</span>")
+                    first_move = False
+                else:
+                    html_words.append(f"<span style='color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600;'>{word}</span>")
+        return " ".join(html_words)
 
     def update_lines(self, multi_pvs, turn_color):
-        
         if not multi_pvs:
             self.clear()
             return
@@ -74,40 +143,71 @@ class AnalysisLinesWidget(QFrame):
             # Depth
             depth = pv_data.get("depth", "?")
             lbl_depth.setText(f"d{depth}")
+            lbl_depth.setStyleSheet(f"""
+                QLabel {{
+                    color: {Styles.COLOR_TEXT_SECONDARY};
+                    font-size: 11px;
+                    font-family: monospace;
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    border-radius: 4px;
+                    padding: 2px 4px;
+                }}
+            """)
             
             # Eval
             score_val = pv_data.get("score_value", "?")
             display_score = score_val
-            score_color = Styles.COLOR_TEXT_PRIMARY
+            bg_color = Styles.COLOR_SURFACE_LIGHT
+            text_color = Styles.COLOR_TEXT_PRIMARY
             
             try:
-                if not score_val.startswith("M"):
+                if score_val.startswith("M"):
+                    if "-" in score_val:
+                        bg_color = "#5C1D24" # Dark red
+                        text_color = "#EF5350" # Light red
+                    else:
+                        bg_color = "#1B4D3E" # Dark green
+                        text_color = "#66BB6A" # Light green
+                else:
                     val = float(score_val)
                     if turn_color == chess.BLACK:
                         val = -val
                     display_score = f"{val:+.2f}"
                     
                     # Color coding
-                    if val > 0.5: score_color = Styles.COLOR_BEST     # Greenish
-                    elif val < -0.5: score_color = Styles.COLOR_BLUNDER # Redish
-                    
+                    if val > 0.5:
+                        bg_color = "#1B4D3E" # Dark green
+                        text_color = "#8BC34A" # Light green
+                    elif val < -0.5:
+                        bg_color = "#5C1D24" # Dark red
+                        text_color = "#EF5350" # Light red
+                    else:
+                        bg_color = "#2E2E33" # Grey
+                        text_color = "#E4E4E7"
             except:
                 pass
                 
             lbl_eval.setText(display_score)
-            lbl_eval.setStyleSheet(f"color: {score_color}; font-weight: bold; font-family: monospace;")
+            lbl_eval.setStyleSheet(f"""
+                QLabel {{
+                    background-color: {bg_color};
+                    color: {text_color};
+                    border-radius: 4px;
+                    padding: 2px 6px;
+                    font-weight: bold;
+                    font-family: monospace;
+                    font-size: 12px;
+                }}
+            """)
             
             # PV
             pv_text = pv_data.get("pv_san", "")
             if not pv_text:
                 pv_moves = pv_data.get("pv", [])
                 pv_text = " ".join(pv_moves[:5]) 
-            else:
-                # Better truncation or wrapping
-                # Just show as much as possible for now
-                pass
             
-            lbl_pv.setText(pv_text)
+            formatted_pv = self._format_pv_to_html(pv_text)
+            lbl_pv.setText(formatted_pv)
 
         # Hide unused rows
         for i in range(len(multi_pvs), len(self.rows)):
@@ -115,28 +215,36 @@ class AnalysisLinesWidget(QFrame):
 
     def _create_row(self):
         row_widget = QWidget()
-        row_layout = QHBoxLayout(row_widget)
-        row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(10)
+        row_widget.setObjectName("AnalysisRow")
+        row_layout = QVBoxLayout(row_widget)
+        row_layout.setContentsMargins(8, 8, 8, 8)
+        row_layout.setSpacing(6)
         
-        # Depth
+        # Top row layout for evaluation and depth badges
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(8)
+        
+        # Eval Badge
+        lbl_eval = QLabel("+0.00")
+        lbl_eval.setFixedWidth(65)
+        lbl_eval.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        top_layout.addWidget(lbl_eval, alignment=Qt.AlignmentFlag.AlignVCenter)
+
+        # Depth Badge
         lbl_depth = QLabel("d0")
         lbl_depth.setFixedWidth(40)
-        lbl_depth.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px;")
-        row_layout.addWidget(lbl_depth)
+        lbl_depth.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        top_layout.addWidget(lbl_depth, alignment=Qt.AlignmentFlag.AlignVCenter)
         
-        # Eval
-        lbl_eval = QLabel("+0.00")
-        lbl_eval.setFixedWidth(60)
-        lbl_eval.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold;")
-        lbl_eval.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        row_layout.addWidget(lbl_eval)
+        top_layout.addStretch()
+        row_layout.addLayout(top_layout)
         
-        # PV
+        # PV Move sequence line (rendered below the badges)
         lbl_pv = QLabel("")
-        lbl_pv.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY};")
         lbl_pv.setWordWrap(True) # Wrap text
         lbl_pv.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        lbl_pv.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};")
         row_layout.addWidget(lbl_pv)
         
         self.lines_layout.addWidget(row_widget)
@@ -172,6 +280,7 @@ class MoveListPanel(QWidget):
         
         self.live_data = {}
         self.current_turn = chess.WHITE
+        self.engine_lines_enabled = False # Off by default!
         # Reusable think-time bar widgets (one per cell). We keep strong
         # references because QTableWidget.setCellWidget() does not take
         # ownership; without this, the bars would be garbage-collected
@@ -180,7 +289,7 @@ class MoveListPanel(QWidget):
         
         self.analysis_timer = QTimer()
         self.analysis_timer.setSingleShot(True)
-        self.analysis_timer.setInterval(4000) # 4 seconds delay
+        self.analysis_timer.setInterval(1000) # 1 second delay (more responsive)
         self.analysis_timer.timeout.connect(self.start_live_analysis)
         
         # Move List Table — 3 columns: #, White, Black
@@ -390,7 +499,23 @@ class MoveListPanel(QWidget):
         
         self.current_turn = turn
         self.live_data = {}
-        self.analysis_timer.start()
+        if self.engine_lines_enabled:
+            self.analysis_timer.start()
+
+    def set_engine_lines_enabled(self, enabled):
+        self.engine_lines_enabled = enabled
+        if enabled:
+            self.start_live_analysis()
+        else:
+            self.live_worker.set_position(None)
+            # Restore cached lines (if any) or clear the widget
+            if self.current_game:
+                index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
+                if 0 <= index < len(self.current_game.moves):
+                    move = self.current_game.moves[index]
+                    self.lines_updated.emit(move.multi_pvs, self.current_turn == chess.WHITE)
+                    return
+            self.lines_updated.emit([], self.current_turn == chess.WHITE)
 
     def start_live_analysis(self):
         if not self.current_game:
@@ -512,11 +637,9 @@ class AnalysisPanel(QWidget):
         
         self.tabs.addTab(self.report_tab, "Report")
         
-        # Cache Checkbox
-        self.cache_checkbox = QCheckBox("Use Analysis Cache")
-        self.cache_checkbox.setChecked(True)
+        # Cache Checkbox connected from the header layout
+        self.cache_checkbox = self.lines_widget.cache_checkbox
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
-        self.layout.addWidget(self.cache_checkbox)
         
         # Loading Overlay
         self.loading_overlay = LoadingOverlay(self)

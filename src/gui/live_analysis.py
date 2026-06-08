@@ -50,12 +50,49 @@ class LiveAnalysisWorker(QThread):
                 pass
         return 1
         
+    def _live_depth(self) -> int:
+        if self.config_manager is not None:
+            try:
+                return int(self.config_manager.get("analysis_depth", 18))
+            except (TypeError, ValueError):
+                pass
+        return 18
+
+    def _threads(self) -> int:
+        if self.config_manager is not None:
+            try:
+                return int(self.config_manager.get("engine_threads", 1))
+            except (TypeError, ValueError):
+                pass
+        return 1
+
+    def _hash(self) -> int:
+        if self.config_manager is not None:
+            try:
+                return int(self.config_manager.get("engine_hash", 32))
+            except (TypeError, ValueError):
+                pass
+        return 32
+
+    def configure_engine(self):
+        """Reconfigures engine Thread and Hash options dynamically."""
+        self.mutex.lock()
+        engine = self.engine
+        self.mutex.unlock()
+        if engine:
+            try:
+                engine.configure({"Threads": self._threads(), "Hash": self._hash()})
+                logger.info(f"Live engine reconfigured dynamically: Threads={self._threads()}, Hash={self._hash()}")
+            except Exception as e:
+                logger.error(f"Failed to reconfigure live engine: {e}")
+        
     def set_position(self, fen):
         """Updates the position to analyze."""
         self.mutex.lock()
-        self.current_fen = fen
-        self.new_position = True
-        self.condition.wakeAll()
+        if fen != self.current_fen:
+            self.current_fen = fen
+            self.new_position = True
+            self.condition.wakeAll()
         self.mutex.unlock()
         
     def stop(self):
@@ -71,11 +108,12 @@ class LiveAnalysisWorker(QThread):
         try:
             # Start engine
             self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
-            self.engine.configure({"Threads": 1, "Hash": 32}) # Lightweight config
+            self.engine.configure({"Threads": self._threads(), "Hash": self._hash()})
             
             while self.running:
                 self.mutex.lock()
-                if not self.current_fen:
+                # Wait until there is a new position to analyze
+                while self.running and not self.new_position:
                     self.condition.wait(self.mutex)
                 
                 if not self.running:
@@ -90,16 +128,11 @@ class LiveAnalysisWorker(QThread):
                 if fen:
                     try:
                         board = chess.Board(fen)
-                        # Finite analysis: bound the search by wall-clock
-                        # time so the worker releases the CPU after the
-                        # configured budget even if the user goes idle.
-                        # The previous `Limit(depth=None)` ran forever,
-                        # pinning every core and frying fanless laptops.
-                        # See https://github.com/imutkarsht/Chess_analyzer/issues/5
+                        # Finite analysis: calculate incrementally up to selected depth + 10 max
                         with self.engine.analysis(
                             board,
-                            chess.engine.Limit(time=self._live_time()),
-                            multipv=self._live_multi_pv(),
+                            chess.engine.Limit(depth=self._live_depth() + 10),
+                            multipv=3,
                         ) as analysis:
                             for info in analysis:
                                 if self.new_position or not self.running:
@@ -109,13 +142,9 @@ class LiveAnalysisWorker(QThread):
                                 processed_info = self._process_info(info, board)
                                 self.info_ready.emit(processed_info)
                                 
-                                # Small sleep to avoid flooding GUI? Not needed for analysis iterator usually
-                                # But let's be safe
-                                # time.sleep(0.01) 
-                                
                     except Exception as e:
                         logger.error(f"Live analysis error: {e}")
-                        time.sleep(1) # Wait before retrying
+                        time.sleep(0.5) # Wait before retrying
                 
         except Exception as e:
             logger.error(f"Failed to start live analysis engine: {e}")

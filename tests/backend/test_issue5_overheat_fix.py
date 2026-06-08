@@ -62,7 +62,12 @@ def test_config_defaults_include_multi_pv_and_live_time(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "src.utils.path_utils.get_user_data_dir", lambda: str(tmp_path)
     )
+    monkeypatch.setattr(
+        "src.utils.config.get_user_data_dir", lambda: str(tmp_path)
+    )
     from src.utils.config import ConfigManager
+    ConfigManager._shared_config = None
+    ConfigManager._shared_config_path = None
     cm = ConfigManager()
     assert cm.get("multi_pv", None) == 1
     assert cm.get("live_analysis_time", None) == 2.0
