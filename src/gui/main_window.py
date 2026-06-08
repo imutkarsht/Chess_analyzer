@@ -154,10 +154,21 @@ class MainWindow(QMainWindow):
         except AttributeError:
             return
 
-        width = int(w) if isinstance(w, (int, float)) and w else None
-        height = int(h) if isinstance(h, (int, float)) and h else None
-        pos_x = int(x) if isinstance(x, (int, float)) and x is not None else None
-        pos_y = int(y) if isinstance(y, (int, float)) and y is not None else None
+        # Reject booleans explicitly: in Python, isinstance(True, int) is True,
+        # and `True` would be silently coerced to `1`. The config should only
+        # ever hold real numbers for window geometry, so anything else is
+        # treated as "missing" and ignored.
+        def _coerce(value):
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, (int, float)):
+                return int(value)
+            return None
+
+        width = _coerce(w) or None
+        height = _coerce(h) or None
+        pos_x = _coerce(x)
+        pos_y = _coerce(y)
 
         if width and height:
             self.resize(width, height)

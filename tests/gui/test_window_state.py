@@ -109,3 +109,67 @@ def test_offscreen_position_is_ignored(qtbot, isolated_config):
     assert window.height() == 768
     screen = QGuiApplication.primaryScreen().availableGeometry()
     assert screen.intersects(window.frameGeometry())
+
+
+# ---------------------------------------------------------------------------
+# Defensive parsing: config may hold surprising values (booleans, strings,
+# None, missing keys). _restore_window_state must never crash and must
+# never silently coerce a bool to 1 px.
+# ---------------------------------------------------------------------------
+
+def test_restore_ignores_boolean_dimensions(qtbot, isolated_config):
+    """A `True` value in the config must not be treated as the integer 1.
+
+    In Python, ``isinstance(True, int)`` is True and ``int(True) == 1``,
+    so the previous `isinstance(value, (int, float))` check would have
+    silently turned a stray boolean into a 1-pixel window. The fix is
+    to reject booleans explicitly.
+    """
+    from src.gui.main_window import MainWindow
+
+    seed = {
+        "window_state": {
+            "x": True,        # would otherwise become 1
+            "y": False,       # would otherwise become 0
+            "width": True,    # would otherwise become 1
+            "height": False,  # would otherwise become 0
+        },
+    }
+    isolated_config.write_text(json.dumps(seed))
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+    # The window must keep a sensible default size and stay on a
+    # reachable position, i.e. it must not have been resized to 1×1.
+    assert window.width() > 100
+    assert window.height() > 100
+    screen = QGuiApplication.primaryScreen().availableGeometry()
+    assert screen.intersects(window.frameGeometry())
+
+
+def test_restore_ignores_non_numeric_dimensions(qtbot, isolated_config):
+    """String, None, and list values must not crash the restore code."""
+    from src.gui.main_window import MainWindow
+
+    seed = {
+        "window_state": {
+            "x": "100",        # str, not int
+            "y": None,
+            "width": [1024],   # list, not int
+            "height": {"v": 768},  # dict, not int
+        },
+    }
+    isolated_config.write_text(json.dumps(seed))
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+    # All values were rejected, so we get Qt's default geometry, which
+    # is at least sane and visible.
+    assert window.width() > 100
+    assert window.height() > 100
+    screen = QGuiApplication.primaryScreen().availableGeometry()
+    assert screen.intersects(window.frameGeometry())
