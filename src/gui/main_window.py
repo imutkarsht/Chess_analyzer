@@ -267,6 +267,9 @@ class MainWindow(QMainWindow):
         engine = getattr(self.analyzer, "engine_manager", None)
         if engine is not None:
             engine.apply_settings_from_config()
+        # Also reconfigure the live analysis worker engine dynamically
+        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+            self.move_list_panel.live_worker.configure_engine()
 
     def update_llm_config(self):
         """Re-instantiate the LLM service in every view that holds one.
@@ -424,6 +427,7 @@ class MainWindow(QMainWindow):
         self.analysis_panel = AnalysisPanel()
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
+        self.analysis_panel.lines_widget.toggle_checkbox.toggled.connect(self.move_list_panel.set_engine_lines_enabled)
         
         # Buttons
         btn_layout = QHBoxLayout()
