@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                              QLineEdit, QFileDialog, QGroupBox, QFormLayout, QMessageBox,
-                             QScrollArea, QFrame, QComboBox, QGridLayout, QApplication)
+                             QScrollArea, QFrame, QComboBox, QGridLayout, QApplication, QLayout)
 from PyQt6.QtGui import QColor, QDesktopServices
-from PyQt6.QtCore import Qt, pyqtSignal, QUrl
+from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QRect, QSize, QPoint
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from ..styles import Styles
 from ..gui_utils import create_button
@@ -14,6 +14,104 @@ try:
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
+
+
+# ---------------------------------------------------------------------------
+# MasonryLayout: Custom QLayout for dynamic, space-efficient column packing
+# ---------------------------------------------------------------------------
+class MasonryLayout(QLayout):
+    def __init__(self, parent=None, margin=40, spacing=25):
+        super().__init__(parent)
+        self._items = []
+        self._spacing = spacing
+        self.setContentsMargins(margin, margin, margin, margin)
+
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self.doLayout(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self.doLayout(rect, False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def doLayout(self, rect, test_only):
+        margins = self.contentsMargins()
+        spacing = self._spacing
+        
+        available_width = rect.width() - margins.left() - margins.right()
+        
+        # We want columns to be at least 340px wide
+        min_col_width = 340
+        num_cols = max(1, available_width // min_col_width)
+        num_cols = min(2, num_cols)
+        
+        if num_cols > 1:
+            col_width = (available_width - (num_cols - 1) * spacing) // num_cols
+        else:
+            col_width = available_width
+
+        col_heights = [rect.y() + margins.top()] * num_cols
+
+        for item in self._items:
+            widget = item.widget()
+            if widget and not widget.isVisible():
+                continue
+
+            min_col_idx = col_heights.index(min(col_heights))
+            
+            x = rect.x() + margins.left() + min_col_idx * (col_width + spacing)
+            y = col_heights[min_col_idx]
+            
+            h = item.heightForWidth(col_width) if item.hasHeightForWidth() else item.sizeHint().height()
+            
+            if not test_only:
+                item.setGeometry(QRect(x, y, col_width, h))
+                
+            col_heights[min_col_idx] = y + h + spacing
+
+        if col_heights:
+            max_height = max(col_heights) - spacing + margins.bottom()
+        else:
+            max_height = rect.y() + margins.top() + margins.bottom()
+            
+        return max_height - rect.y()
 
 
 # ---------------------------------------------------------------------------
@@ -132,11 +230,8 @@ class SettingsView(QWidget):
         self.content_container = QWidget()
         self.content_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         
-        # Use Grid Layout for 2-column design
-        self.container_layout = QGridLayout(self.content_container)
-        self.container_layout.setContentsMargins(40, 40, 40, 40)
-        self.container_layout.setSpacing(25)
-        self.container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # Use MasonryLayout for 2-column/3-column dynamic design
+        self.container_layout = MasonryLayout(self.content_container, margin=40, spacing=25)
         
         self.scroll_area.setWidget(self.content_container)
         main_layout.addWidget(self.scroll_area)
@@ -222,6 +317,7 @@ class SettingsView(QWidget):
             lbl.setStyleSheet(field_label_style)
 
             wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent; border: none;")
             box = QVBoxLayout(wrapper)
             box.setContentsMargins(0, 0, 0, 0)
             box.setSpacing(2)
@@ -308,7 +404,7 @@ class SettingsView(QWidget):
         self.save_engine_btn = self._create_icon_button("Save Settings", "fa5s.save", self.save_engine_path, primary=True)
         engine_layout.addWidget(self.save_engine_btn, alignment=Qt.AlignmentFlag.AlignRight)
         
-        self.container_layout.addWidget(self.engine_group, 0, 0)
+        self.container_layout.addWidget(self.engine_group)
         
         # 2. API Settings — profile-based LLM configuration
         from ...backend.groq_service import PROVIDERS as LLM_PROVIDERS
@@ -464,7 +560,7 @@ class SettingsView(QWidget):
         tok_row.addWidget(self.save_api_btn)
         api_layout.addLayout(tok_row)
 
-        self.container_layout.addWidget(self.api_group, 1, 0)
+        self.container_layout.addWidget(self.api_group)
 
         # Populate profiles and select the active one
         self._reload_profile_combo()
@@ -502,7 +598,7 @@ class SettingsView(QWidget):
         btn_wrapper_user.addWidget(self.save_usernames_btn)
         username_layout.addRow(btn_wrapper_user)
 
-        self.container_layout.addWidget(self.username_group, 2, 0) # Bottom of left column
+        self.container_layout.addWidget(self.username_group)
         
         # --- RIGHT COLUMN (Column 1) ---
         
@@ -571,7 +667,7 @@ class SettingsView(QWidget):
         
         appearance_layout.addRow(color_lbl, self.color_btn)
         
-        self.container_layout.addWidget(self.appearance_group, 0, 1) # Top of right column
+        self.container_layout.addWidget(self.appearance_group)
         
         # 5. Data Management
         self.data_group = QGroupBox("Data Management")
@@ -586,7 +682,7 @@ class SettingsView(QWidget):
         self.clear_data_btn = self._create_icon_button("Reset All Data", "fa5s.trash-alt", self.clear_all_data, danger=True)
         data_layout.addWidget(self.clear_data_btn, 0, 1)
         
-        self.container_layout.addWidget(self.data_group, 1, 1)
+        self.container_layout.addWidget(self.data_group)
 
         # 6. Official Website Section
         self.website_group = QGroupBox("Links")
@@ -604,14 +700,7 @@ class SettingsView(QWidget):
         self.update_btn = self._create_icon_button("Check for Updates", "fa5s.sync-alt", self.check_for_updates)
         website_layout.addWidget(self.update_btn)
 
-        self.container_layout.addWidget(self.website_group, 2, 1)
-        
-        # Column stretch
-        self.container_layout.setColumnStretch(0, 1)
-        self.container_layout.setColumnStretch(1, 1)
-
-        # Add vertical spacer to push everything up if needed, though AlignTop handles it
-        # self.container_layout.setRowStretch(3, 1)
+        self.container_layout.addWidget(self.website_group)
 
 
     def refresh_styles(self):
