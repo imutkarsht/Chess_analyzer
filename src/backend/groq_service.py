@@ -15,6 +15,7 @@ existing import sites.
 
 import locale
 import os
+import re
 from typing import Optional
 
 from openai import OpenAI
@@ -196,10 +197,45 @@ class GroqService:
 
     @staticmethod
     def _is_placeholder_key(key: str) -> bool:
-        """Detect obviously-invalid keys copied from another config (Cursor, etc.)."""
+        """Detect unfilled secret references that are clearly placeholders.
+
+        Catches the common template/secret-manager formats people accidentally
+        paste into config files:
+
+        - ``${VAR}``            shell / docker-compose style
+        - ``${input:VAR}``     GitHub Actions / 1Password CLI style
+        - ``{{ secrets.X }}``  GitHub Actions Jinja style
+        - ``<YOUR_KEY_HERE>``  README placeholders
+        - ``xxxxxx…``           redaction artifacts
+
+        A real Groq key starts with ``gsk_``; a real OpenAI key with ``sk-``.
+        We only treat a string as a placeholder when it matches one of the
+        explicit patterns above — never a blanket length check, so a
+        legitimately short key isn't rejected.
+        """
         if not key:
             return False
-        return key.startswith("${") or "${input:" in key
+        # Strip surrounding whitespace once; comparison happens case-sensitively
+        # because all the placeholder formats are themselves case-sensitive.
+        candidate = key.strip()
+        if not candidate:
+            return True
+        # Shell-style / GitHub Actions / 1Password: ${...} or ${input:...}
+        if candidate.startswith("${") and candidate.endswith("}"):
+            return True
+        # GitHub Actions Jinja / template rendering: {{ ... }}
+        if candidate.startswith("{{") and candidate.endswith("}}"):
+            return True
+        # README placeholders: <…>, <your-…-here>
+        if candidate.startswith("<") and candidate.endswith(">"):
+            lower = candidate.lower()
+            if "your" in lower or "key" in lower or "token" in lower or "api" in lower:
+                return True
+        # Redaction artifact: 'xxxxxx' or 'XXXXXXXX' of any length >= 2
+        # (single 'x' is too short to be a useful redaction marker)
+        if re.fullmatch(r"x{2,}", candidate, flags=re.IGNORECASE):
+            return True
+        return False
 
     def _connect(self, provider: str, api_key: str, model: str, base_url: str) -> None:
         provider = self._normalise_provider(provider)

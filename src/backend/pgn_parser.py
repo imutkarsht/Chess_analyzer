@@ -16,14 +16,29 @@ def _parse_clk(comment: Optional[str]) -> Tuple[Optional[str], Optional[float]]:
     """
     Pull the first [%clk …] value out of a move comment.
 
-    Returns (raw_string, seconds) or (None, None) if no clock is present.
+    Returns (raw_string, seconds) or (None, None) if no clock is present,
+    malformed, or contains out-of-range minute/second fields.
+
+    Range checks:
+      - minutes must be 0..59
+      - the seconds integer part must be 0..59 (decimals like .9 are fine)
+
+    A value of ``[0:99:00]`` would otherwise be accepted by the regex and
+    silently parsed as 99*60 = 5940 seconds, which is clearly wrong; the
+    range guards return ``(None, None)`` for those cases so the caller can
+    treat them as "no clock data" instead of feeding garbage into the
+    time-spent delta calculation.
     """
     if not comment:
         return None, None
     m = _CLK_RE.search(comment)
     if not m:
         return None, None
-    h, mm, ss = int(m.group(1)), int(m.group(2)), float(m.group(3))
+    h = int(m.group(1))
+    mm = int(m.group(2))
+    ss = float(m.group(3))
+    if mm >= 60 or ss >= 60:
+        return None, None
     seconds = h * 3600 + mm * 60 + ss
     return m.group(0).split()[-1].rstrip("]"), seconds
 

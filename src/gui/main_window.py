@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Chess Analyzer Pro")
         self.resize(1600, 900)
-        
+
         # State
         self.games = []
         self.current_game = None
@@ -66,6 +66,11 @@ class MainWindow(QMainWindow):
         )
         self.history_manager = GameHistoryManager()
         self.resource_manager = ResourceManager()
+
+        # Restore the last known window geometry, if any. Done before
+        # setup_ui() so child layouts see the real size during their
+        # first showEvent pass.
+        self._restore_window_state()
         
         # Set Window Icon
         icon_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
@@ -124,6 +129,79 @@ class MainWindow(QMainWindow):
             from .dialogs import UpdateNotificationDialog
             dialog = UpdateNotificationDialog(update_info, self)
             dialog.exec()
+
+    # ------------------------------------------------------------------
+    # Window geometry persistence
+    # ------------------------------------------------------------------
+
+    def _restore_window_state(self):
+        """Restore the main window's last-known position and size.
+
+        Values come from ``config["window_state"]``. Any field that is
+        missing, non-numeric, or would push the window off-screen is
+        silently ignored so the user can never end up with a window
+        they cannot reach.
+        """
+        from PyQt6.QtCore import QPoint
+        from PyQt6.QtGui import QGuiApplication
+
+        state = self.config_manager.get("window_state") or {}
+        try:
+            x = state.get("x")
+            y = state.get("y")
+            w = state.get("width")
+            h = state.get("height")
+        except AttributeError:
+            return
+
+        # Reject booleans explicitly: in Python, isinstance(True, int) is True,
+        # and `True` would be silently coerced to `1`. The config should only
+        # ever hold real numbers for window geometry, so anything else is
+        # treated as "missing" and ignored.
+        def _coerce(value):
+            if isinstance(value, bool):
+                return None
+            if isinstance(value, (int, float)):
+                return int(value)
+            return None
+
+        width = _coerce(w) or None
+        height = _coerce(h) or None
+        pos_x = _coerce(x)
+        pos_y = _coerce(y)
+
+        if width and height:
+            self.resize(width, height)
+        if pos_x is not None and pos_y is not None:
+            # Only apply the position if it intersects at least one
+            # available screen — otherwise the user could end up with
+            # an unreachable window after a monitor change.
+            target = self.frameGeometry()
+            target.moveTopLeft(QPoint(pos_x, pos_y))
+            on_screen = any(
+                screen.availableGeometry().intersects(target)
+                for screen in QGuiApplication.screens()
+            )
+            if on_screen:
+                self.move(pos_x, pos_y)
+
+    def _save_window_state(self):
+        """Persist the current window geometry to the user config."""
+        frame = self.frameGeometry()
+        self.config_manager.set("window_state", {
+            "x": frame.x(),
+            "y": frame.y(),
+            "width": self.width(),
+            "height": self.height(),
+        })
+
+    def closeEvent(self, event):
+        """Save window geometry on close so the next launch can restore it."""
+        try:
+            self._save_window_state()
+        except Exception as e:  # pragma: no cover - defensive
+            logger.error(f"Failed to save window state: {e}")
+        super().closeEvent(event)
 
     def setup_ui(self):
         central_widget = QWidget()
