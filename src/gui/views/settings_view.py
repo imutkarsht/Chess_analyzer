@@ -15,6 +15,98 @@ try:
 except ImportError:
     HAS_QTAWESOME = False
 
+
+# ---------------------------------------------------------------------------
+# Pure (UI-free) helpers for the "Test LLM" workflow.
+#
+# Kept at module scope so they can be unit-tested without spinning up a
+# QApplication. The QThread wrapper in SettingsView._test_llm_profile() is
+# the only thing that actually blocks the UI on the network call.
+# ---------------------------------------------------------------------------
+
+def _test_llm_sync(profile: dict) -> tuple:
+    """Run a one-shot chat completion against the given profile.
+
+    Returns (success: bool, short_message: str, full_details: str).
+    The 'short_message' is what the user sees inline in the status row;
+    'full_details' is shown in the copyable error dialog on failure (and
+    is empty on success).
+
+    This function is intentionally Qt-free so it can be exercised by
+    plain pytest tests; the GUI layer only adds threading on top.
+    """
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return (
+            False,
+            "✗ openai SDK missing",
+            "The 'openai' package is not installed. Run "
+            "'pip install openai' in your environment.",
+        )
+
+    # Local imports keep the module importable even when openai is missing.
+    from ...backend.groq_service import PROVIDERS, GroqService
+
+    p = profile or {}
+    provider = GroqService._normalise_provider(p.get("provider", "groq"))
+    preset = PROVIDERS.get(provider, PROVIDERS["custom"])
+    base_url = GroqService._normalise_base_url(
+        p.get("base_url") or preset.get("base_url", "")
+    )
+    api_key = (p.get("api_key") or "not-needed").strip()
+    model = (p.get("model") or preset.get("default_model", "")).strip()
+
+    requires_key = preset.get("requires_key", True)
+    if requires_key and not p.get("api_key"):
+        return (
+            False,
+            "✗ API key required",
+            "Enter a real API key in the field above.",
+        )
+    if not base_url:
+        return (
+            False,
+            "✗ No base URL set",
+            "Set a base URL (preset or custom).",
+        )
+    if not model:
+        return (False, "✗ No model set", "Set a model name.")
+
+    try:
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user",
+                       "content": "Reply with exactly: OK"}],
+            max_tokens=10,
+        )
+        # We deliberately discard the response body — reasoning models can
+        # leak chain-of-thought tokens (e.g. "<think>…") into the reply,
+        # and a successful call returning content is the only signal we
+        # need: the profile is wired correctly.
+        return (True, "✓ Connected", "")
+    except Exception as exc:
+        exc_type = type(exc).__name__
+        full = f"{exc_type}: {exc}"
+        # Authentication errors are the most common cause of a 'Test LLM'
+        # failure; the raw class+message is technically correct but
+        # unhelpful for users who just want to know "is my key wrong?".
+        try:
+            from openai import AuthenticationError, PermissionDeniedError
+            if isinstance(exc, (AuthenticationError, PermissionDeniedError)):
+                return (
+                    False,
+                    "✗ Authentication failed",
+                    "The API key was rejected by the provider.\n\n"
+                    f"Details: {full}\n\n"
+                    "Check the key in the API Configuration above "
+                    "and the provider's dashboard.",
+                )
+        except ImportError:
+            pass
+        return (False, f"✗ {full[:80]}", full)
+
 class SettingsView(QWidget):
     engine_path_changed = pyqtSignal(str)
     engine_settings_changed = pyqtSignal()  # emitted when Threads/Hash change
@@ -981,48 +1073,10 @@ class SettingsView(QWidget):
                 self._profile = profile
 
             def run(self):
-                try:
-                    from openai import OpenAI
-                    from ...backend.groq_service import PROVIDERS, GroqService
-                    p = self._profile
-                    provider = GroqService._normalise_provider(p.get("provider", "groq"))
-                    preset   = PROVIDERS.get(provider, PROVIDERS["custom"])
-                    base_url = GroqService._normalise_base_url(
-                        p.get("base_url") or preset.get("base_url", ""))
-                    api_key  = (p.get("api_key") or "not-needed").strip()
-                    model    = (p.get("model") or preset.get("default_model", "")).strip()
-
-                    requires_key = preset.get("requires_key", True)
-                    if requires_key and not p.get("api_key"):
-                        self.done.emit(False, "✗ API key required",
-                                       "Enter a real API key in the field above.")
-                        return
-                    if not base_url:
-                        self.done.emit(False, "✗ No base URL set",
-                                       "Set a base URL (preset or custom).")
-                        return
-                    if not model:
-                        self.done.emit(False, "✗ No model set",
-                                       "Set a model name.")
-                        return
-
-                    client = OpenAI(api_key=api_key, base_url=base_url)
-                    resp = client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user",
-                                   "content": "Reply with exactly: OK"}],
-                        max_tokens=10,
-                    )
-                    # We don't surface the model output — it can leak
-                    # chain-of-thought tokens (e.g. "<think>…") on
-                    # reasoning models and just clutters the status label.
-                    # If the call returned without raising, the profile works.
-                    self.done.emit(True, "✓ Connected", "")
-                except Exception as exc:
-                    exc_type = type(exc).__name__
-                    full = f"{exc_type}: {exc}"
-                    short = full[:80]
-                    self.done.emit(False, f"✗ {short}", full)
+                # The real work is in a module-level function so it can be
+                # exercised by plain pytest tests without a QApplication.
+                ok, short, full = _test_llm_sync(self._profile)
+                self.done.emit(ok, short, full)
 
         # Collect profile from form (no disk save required)
         profile = self._current_profile_dict()
