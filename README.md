@@ -160,10 +160,28 @@ Contributions are welcome! Please follow these steps:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgements
+> **Note:** The chess piece graphics in `assets/pieces/` are a separate work
+> licensed under CC BY-SA 3.0 (see the [Third-Party Assets](#-third-party-assets)
+> section below).
+
+## Third-Party Assets
+
+The chess piece graphics shipped in [`assets/pieces/`](assets/pieces/) come from
+the **Cburnett** SVG chess set by **Colin M.L. Burnett**.
+
+- Source: [Wikimedia Commons — SVG chess pieces](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces)
+- License: [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
+- Per-file notice: see [assets/pieces/THIRD-PARTY-README.md](assets/pieces/THIRD-PARTY-README.md)
+
+The SVGs are kept in a separate directory so they can be replaced or removed
+without touching the MIT-licensed source code.
+
+## Acknowledgements
 
 - [Stockfish](https://stockfishchess.org/) for the powerful chess engine.
 - [Python-Chess](https://python-chess.readthedocs.io/) for the chess library.
 - [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) for the GUI framework.
-- Chess icons by Cburnett (CC BY-SA 3.0).
+- Chess piece graphics by **Colin M.L. Burnett (Cburnett)**, distributed via
+  [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces)
+  and used in the [Lichess](https://lichess.org) project (CC BY-SA 3.0).
 

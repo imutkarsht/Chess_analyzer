@@ -1,70 +1,163 @@
 """
-Chess piece theme definitions for custom board rendering.
+Chess piece theme loader for custom board rendering.
 
-This module provides SVG definitions for chess piece styles
-that can be used with the custom board renderer.
+This module is a thin loader that reads SVG piece graphics from the
+``assets/pieces/`` directory at runtime. The graphics themselves live in
+external SVG files so the MIT-licensed project source and the
+third-party CC BY-SA / GPLv2+ graphics remain physically separate.
 
-These piece graphics are the Cburnett set, originally by
+The piece graphics are the **Cburnett** set, originally by
 Colin M.L. Burnett, distributed via Wikimedia Commons:
     https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces
 They are dual-licensed under GPLv2+ and CC BY-SA 3.0 (Unported).
 
 They are NOT covered by the MIT License that applies to the rest
-of this project. See the ``THIRD-PARTY COMPONENT NOTICE`` section
-in the project root ``LICENSE`` file for the full attribution and
-license terms that apply to these SVGs.
+of this project. See ``assets/pieces/THIRD-PARTY-README.md`` and the
+``THIRD-PARTY COMPONENT NOTICE`` section in the project root
+``LICENSE`` file for the full attribution and license terms.
 """
 
-# Standard/Cburnett pieces - The classic Lichess default
-# Source: https://github.com/lichess-org/lila/tree/master/public/piece/cburnett
-# These use viewBox 0 0 45 45
-CBURNETT_PIECES = {
-    "K": """<g id="white-king" fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linejoin="miter" d="M22.5 11.63V6M20 8h5"/><path fill="#fff" stroke-linecap="butt" stroke-linejoin="miter" d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/><path fill="#fff" d="M11.5 37c5.5 3.5 15.5 3.5 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10V37z"/><path d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0"/></g>""",
-    "Q": """<g id="white-queen" fill="#fff" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M8 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zm16.5-4.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM41 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM16 8.5a2 2 0 1 1-4 0 2 2 0 1 1 4 0zM33 9a2 2 0 1 1-4 0 2 2 0 1 1 4 0z"/><path stroke-linecap="butt" d="M9 26c8.5-1.5 21-1.5 27 0l2-12-7 11V11l-5.5 13.5-3-15-3 15-5.5-14V25L7 14l2 12z"/><path stroke-linecap="butt" d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"/><path fill="none" d="M11.5 30c3.5-1 18.5-1 22 0M12 33.5c6-1 15-1 21 0"/></g>""",
-    "R": """<g id="white-rook" fill="#fff" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linecap="butt" d="M9 39h27v-3H9v3zm3-3v-4h21v4H12zm-1-22V9h4v2h5V9h5v2h5V9h4v5"/><path d="m34 14-3 3H14l-3-3"/><path stroke-linecap="butt" stroke-linejoin="miter" d="M31 17v12.5H14V17"/><path d="m31 29.5 1.5 2.5h-20l1.5-2.5"/><path fill="none" stroke-linejoin="miter" d="M11 14h23"/></g>""",
-    "B": """<g id="white-bishop" fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g fill="#fff" stroke-linecap="butt"><path d="M9 36c3.39-.97 10.11.43 13.5-2 3.39 2.43 10.11 1.03 13.5 2 0 0 1.65.54 3 2-.68.97-1.65.99-3 .5-3.39-.97-10.11.46-13.5-1-3.39 1.46-10.11.03-13.5 1-1.35.49-2.32.47-3-.5 1.35-1.94 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z"/></g><path stroke-linejoin="miter" d="M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5"/></g>""",
-    "N": """<g id="white-knight" fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path fill="#fff" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path fill="#fff" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3"/><path fill="#000" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0zm5.433-9.75a.5 1.5 30 1 1-.866-.5.5 1.5 30 1 1 .866.5z"/></g>""",
-    "P": """<g id="white-pawn"><path fill="#fff" stroke="#000" stroke-linecap="round" stroke-width="1.5" d="M22.5 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C17.33 16.5 16 18.59 16 21c0 2.03.94 3.84 2.41 5.03-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47 1.47-1.19 2.41-3 2.41-5.03 0-2.41-1.33-4.5-3.28-5.62.49-.67.78-1.49.78-2.38 0-2.21-1.79-4-4-4z"/></g>""",
-    "k": """<g id="black-king" fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linejoin="miter" d="M22.5 11.6V6"/><path fill="#000" stroke-linecap="butt" stroke-linejoin="miter" d="M22.5 25s4.5-7.5 3-10.5c0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5"/><path fill="#000" d="M11.5 37a22.3 22.3 0 0 0 21 0v-7s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 4V27v-3.5c-3.5-7.5-13-10.5-16-4-3 6 5 10 5 10V37z"/><path stroke-linejoin="miter" d="M20 8h5"/><path stroke="#ececec" d="M32 29.5s8.5-4 6-9.7C34.1 14 25 18 22.5 24.6v2.1-2.1C20 18 9.9 14 7 19.9c-2.5 5.6 4.8 9 4.8 9"/><path stroke="#ececec" d="M11.5 30c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0m-21 3.5c5.5-3 15.5-3 21 0"/></g>""",
-    "q": """<g id="black-queen" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g stroke="none"><circle cx="6" cy="12" r="2.75"/><circle cx="14" cy="9" r="2.75"/><circle cx="22.5" cy="8" r="2.75"/><circle cx="31" cy="9" r="2.75"/><circle cx="39" cy="12" r="2.75"/></g><path stroke-linecap="butt" d="M9 26c8.5-1.5 21-1.5 27 0l2.5-12.5L31 25l-.3-14.1-5.2 13.6-3-14.5-3 14.5-5.2-13.6L14 25 6.5 13.5 9 26z"/><path stroke-linecap="butt" d="M9 26c0 2 1.5 2 2.5 4 1 1.5 1 1 .5 3.5-1.5 1-1.5 2.5-1.5 2.5-1.5 1.5.5 2.5.5 2.5 6.5 1 16.5 1 23 0 0 0 1.5-1 0-2.5 0 0 .5-1.5-1-2.5-.5-2.5-.5-2 .5-3.5 1-2 2.5-2 2.5-4-8.5-1.5-18.5-1.5-27 0z"/><path fill="none" stroke-linecap="butt" d="M11 38.5a35 35 1 0 0 23 0"/><path fill="none" stroke="#ececec" d="M11 29a35 35 1 0 1 23 0m-21.5 2.5h20m-21 3a35 35 1 0 0 22 0m-23 3a35 35 1 0 0 24 0"/></g>""",
-    "r": """<g id="black-rook" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path stroke-linecap="butt" d="M9 39h27v-3H9v3zm3.5-7 1.5-2.5h17l1.5 2.5h-20zm-.5 4v-4h21v4H12z"/><path stroke-linecap="butt" stroke-linejoin="miter" d="M14 29.5v-13h17v13H14z"/><path stroke-linecap="butt" d="M14 16.5 11 14h23l-3 2.5H14zM11 14V9h4v2h5V9h5v2h5V9h4v5H11z"/><path fill="none" stroke="#ececec" stroke-linejoin="miter" stroke-width="1" d="M12 35.5h21m-20-4h19m-18-2h17m-17-13h17M11 14h23"/></g>""",
-    "b": """<g id="black-bishop" fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><g fill="#000" stroke-linecap="butt"><path d="M9 36c3.4-1 10.1.4 13.5-2 3.4 2.4 10.1 1 13.5 2 0 0 1.6.5 3 2-.7 1-1.6 1-3 .5-3.4-1-10.1.5-13.5-1-3.4 1.5-10.1 0-13.5 1-1.4.5-2.3.5-3-.5 1.4-2 3-2 3-2z"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4 5.5-1.5 6-11.5-5-15.5-11 4-10.5 14-5 15.5 0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z"/><path d="M25 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 1 1 5 0z"/></g><path stroke="#ececec" stroke-linejoin="miter" d="M17.5 26h10M15 30h15m-7.5-14.5v5M20 18h5"/></g>""",
-    "n": """<g id="black-knight" fill="none" fill-rule="evenodd" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path fill="#000" d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21"/><path fill="#000" d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.04-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-1-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-2 2.5-3c1 0 1 3 1 3"/><path fill="#ececec" stroke="#ececec" d="M9.5 25.5a.5.5 0 1 1-1 0 .5.5 0 1 1 1 0zm5.43-9.75a.5 1.5 30 1 1-.86-.5.5 1.5 30 1 1 .86.5z"/><path fill="#ececec" stroke="none" d="m24.55 10.4-.45 1.45.5.15c3.15 1 5.65 2.49 7.9 6.75S35.75 29.06 35.25 39l-.05.5h2.25l.05-.5c.5-10.06-.88-16.85-3.25-21.34-2.37-4.49-5.79-6.64-9.19-7.16l-.51-.1z"/></g>""",
-    "p": """<g id="black-pawn"><path stroke="#000" stroke-linecap="round" stroke-width="1.5" d="M22.5 9a4 4 0 0 0-3.22 6.38 6.48 6.48 0 0 0-.87 10.65c-3 1.06-7.41 5.55-7.41 13.47h23c0-7.92-4.41-12.41-7.41-13.47a6.46 6.46 0 0 0-.87-10.65A4.01 4.01 0 0 0 22.5 9z"/></g>""",
+import os
+import xml.etree.ElementTree as ET
+
+from ...utils.path_utils import get_resource_path
+
+# Directory that holds the third-party piece SVGs.
+# This path is intentionally outside of the Python source tree so that the
+# MIT-licensed code and the CC BY-SA / GPLv2+ graphics can be licensed
+# independently (see THIRD-PARTY-README.md).
+PIECE_ASSETS_DIR = "assets/pieces"
+
+# Map of piece symbol (the SAN-style letter used by python-chess) to the
+# SVG file that contains the corresponding graphic. The file content is
+# loaded at runtime by :func:`get_piece_defs`.
+STANDARD_THEME_FILES = {
+    "K": "white-king.svg",
+    "Q": "white-queen.svg",
+    "R": "white-rook.svg",
+    "B": "white-bishop.svg",
+    "N": "white-knight.svg",
+    "P": "white-pawn.svg",
+    "k": "black-king.svg",
+    "q": "black-queen.svg",
+    "r": "black-rook.svg",
+    "b": "black-bishop.svg",
+    "n": "black-knight.svg",
+    "p": "black-pawn.svg",
 }
 
-# All available themes - Currently using cburnett for all
-# Additional themes can be added in the future with different piece sets
+# All available themes. A theme is a name plus a mapping of piece-symbol
+# to SVG-filename. Additional themes can be added in the future by adding
+# a new subdirectory under ``assets/pieces/<theme-name>/`` with the same
+# 12 file names.
 PIECE_THEMES = {
-    "Standard": CBURNETT_PIECES,  # Classic cburnett style
+    "Standard": STANDARD_THEME_FILES,
 }
+
+
+def _extract_g_element(svg_path: str) -> str:
+    """
+    Read an SVG file and return the inner ``<g>...</g>`` string.
+
+    The renderer in :mod:`board_widget` embeds the pieces as a single
+    ``<defs><g id="...">...</g></defs>`` block, so we strip the wrapping
+    ``<svg>`` element here and return only the ``<g>`` content.
+
+    Args:
+        svg_path: Absolute path to the SVG file on disk.
+
+    Returns:
+        The ``<g>`` element as a string (without the wrapping ``<svg>``).
+
+    Raises:
+        FileNotFoundError: If the SVG file does not exist.
+        ET.ParseError: If the file is not well-formed XML.
+        ValueError: If the SVG does not contain a ``<g>`` element.
+    """
+    tree = ET.parse(svg_path)
+    root = tree.getroot()
+
+    g_elements = [
+        child
+        for child in root
+        if child.tag.endswith("}g") or child.tag == "g"
+    ]
+    if not g_elements:
+        raise ValueError(
+            f"SVG file {svg_path!r} does not contain a <g> element"
+        )
+
+    # We only support single-piece SVG files, so there should be exactly
+    # one <g> inside the wrapping <svg>.
+    if len(g_elements) != 1:
+        raise ValueError(
+            f"SVG file {svg_path!r} contains {len(g_elements)} <g> "
+            f"elements, expected exactly 1"
+        )
+
+    g_elem = g_elements[0]
+
+    # Strip the default XML namespace so the serialised <g> renders as
+    # ``<g>`` (and not ``<ns0:g xmlns:ns0=...>``). The namespace is only
+    # needed at the wrapping <svg> root, which we discard here. Browsers
+    # and QtSvg handle the un-prefixed form correctly, and downstream
+    # code in board_widget.py parses the result with a wrapping <root
+    # xmlns="..."> container that re-introduces the namespace cleanly.
+    if "}" in g_elem.tag:
+        g_elem.tag = "g"
+    for descendant in g_elem.iter():
+        if "}" in descendant.tag:
+            descendant.tag = descendant.tag.split("}", 1)[1]
+
+    return ET.tostring(g_elem, encoding="unicode")
+
+
+def _load_theme(theme_name: str) -> dict:
+    """
+    Load a piece theme by name and return a ``{piece_symbol: <g>...</g>}``
+    dict.
+
+    Args:
+        theme_name: The theme name (a key of :data:`PIECE_THEMES`).
+
+    Returns:
+        Dict mapping piece symbol to the corresponding ``<g>`` element
+        string, ready to be embedded inside an SVG ``<defs>`` block.
+    """
+    theme_files = PIECE_THEMES.get(theme_name, STANDARD_THEME_FILES)
+    pieces = {}
+    for symbol, filename in theme_files.items():
+        svg_path = get_resource_path(os.path.join(PIECE_ASSETS_DIR, filename))
+        pieces[symbol] = _extract_g_element(svg_path)
+    return pieces
 
 
 def get_piece_defs(theme_name: str = "Standard") -> str:
     """
     Generate SVG defs section with piece definitions for the given theme.
-    
+
+    This loads the piece graphics from ``assets/pieces/`` on every call.
+    Callers that need to render many boards per second should cache the
+    result, but for a typical chess UI the cost of a handful of file
+    reads at startup is negligible compared to the cost of keeping
+    third-party copyleft graphics inline in MIT-licensed source files.
+
     Args:
-        theme_name: Name of the piece theme to use
-        
+        theme_name: Name of the piece theme to use.
+
     Returns:
-        SVG string containing <defs> with all piece definitions
+        SVG string containing the ``<g>`` elements for all 12 pieces,
+        ready to be embedded in a parent ``<svg>`` ``<defs>`` block.
     """
-    theme = PIECE_THEMES.get(theme_name, CBURNETT_PIECES)
-    
-    defs_content = []
-    for piece_symbol, svg in theme.items():
-        defs_content.append(svg)
-    
-    return "\n".join(defs_content)
+    pieces = _load_theme(theme_name)
+    return "\n".join(pieces[symbol] for symbol in STANDARD_THEME_FILES)
 
 
 def get_piece_theme_names() -> list:
     """
     Get list of available piece theme names.
-    
+
     Returns:
-        List of theme name strings
+        List of theme name strings.
     """
     return list(PIECE_THEMES.keys())
-
