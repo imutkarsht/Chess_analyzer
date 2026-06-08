@@ -368,7 +368,7 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.move_list_panel = MoveListPanel(self.engine_path)
+        self.move_list_panel = MoveListPanel(self.engine_path, config_manager=self.config_manager)
         self.move_list_panel.move_selected.connect(self.on_move_selected)
         left_layout.addWidget(self.move_list_panel)
         

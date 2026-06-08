@@ -20,7 +20,12 @@ class Analyzer:
         self.config = {
             "time_per_move": None,
             "depth": self.config_manager.get("analysis_depth", 18),
-            "multi_pv": 3,
+            # multi_pv is read from user config (default 1) so the same
+            # default applies to the Game Analysis tab.  See issue #5:
+            # the previous hard-coded 3 was identified as a primary cause
+            # of laptop overheating because evaluating 3 PVs roughly
+            # triples the search tree.
+            "multi_pv": self.config_manager.get("multi_pv", 1),
             "use_cache": True
         }
 

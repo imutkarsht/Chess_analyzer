@@ -17,6 +17,21 @@ class ConfigManager:
         "groq_api_key": "",
         "groq_model": "llama-3.3-70b-versatile",
         "analysis_depth": 18,
+        # Engine footprint controls (see issue #5).  multi_pv and
+        # live_analysis_time are the new user-tunable knobs; we seed
+        # them in DEFAULT_CONFIG so a brand-new install has safe
+        # values and the analyzers' `config_manager.get(key, default)`
+        # calls return the persisted number (not the literal default
+        # fallback) on first run.
+        #
+        # Note: engine_threads and engine_hash are *intentionally*
+        # absent from DEFAULT_CONFIG.  options_from_config() in
+        # backend/engine.py already falls back to its own conservative
+        # module-level constants when those keys are missing — adding
+        # them here as `None` would break that fallback (a stored None
+        # wins over a `.get(key, default)` fallback).
+        "multi_pv": 1,
+        "live_analysis_time": 2.0,
         # Last known main window geometry (x, y, width, height).
         # Any field may be None, meaning "use Qt's default for that dimension".
         "window_state": {"x": None, "y": None, "width": None, "height": None},

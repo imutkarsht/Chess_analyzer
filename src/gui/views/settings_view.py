@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLa
                              QScrollArea, QFrame, QComboBox, QGridLayout, QApplication)
 from PyQt6.QtGui import QColor, QDesktopServices
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl
-from PyQt6.QtGui import QIntValidator
+from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from ..styles import Styles
 from ..gui_utils import create_button
 from ...utils.config import ConfigManager
@@ -245,9 +245,35 @@ class SettingsView(QWidget):
         )
         form.addRow(depth_lbl, depth_row)
 
+        # --- Multi-PV (alt lines per move) ---
+        self.multi_pv_input = QLineEdit()
+        self.multi_pv_input.setValidator(QIntValidator(1, 5, self.multi_pv_input))
+        self.multi_pv_input.setText(str(self.config_manager.get("multi_pv", 1)))
+        self.multi_pv_input.setStyleSheet(input_style)
+        self.multi_pv_input.editingFinished.connect(self._on_multi_pv_committed)
+        multi_pv_lbl, multi_pv_row = _wrap(
+            "Multi-PV (alt lines):",
+            self.multi_pv_input,
+            "(1–5; 1 = best line only, recommended for laptops)",
+        )
+        form.addRow(multi_pv_lbl, multi_pv_row)
+
+        # --- Live-Analysis time budget (seconds) ---
+        self.live_time_input = QLineEdit()
+        self.live_time_input.setValidator(QDoubleValidator(0.5, 10.0, 1, self.live_time_input))
+        self.live_time_input.setText(str(self.config_manager.get("live_analysis_time", 2.0)))
+        self.live_time_input.setStyleSheet(input_style)
+        self.live_time_input.editingFinished.connect(self._on_live_time_committed)
+        live_time_lbl, live_time_row = _wrap(
+            "Live Analysis Time (s):",
+            self.live_time_input,
+            "(0.5–10.0; per-position CPU budget for the live panel)",
+        )
+        form.addRow(live_time_lbl, live_time_row)
+
         # --- Engine Threads ---
         cpu_count = os.cpu_count() or 1
-        default_threads = min(cpu_count, 8)
+        default_threads = min(cpu_count, 4)
         max_threads = max(32, cpu_count)
 
         self.threads_input = QLineEdit()
@@ -267,7 +293,7 @@ class SettingsView(QWidget):
         # --- Engine Hash ---
         self.hash_input = QLineEdit()
         self.hash_input.setValidator(QIntValidator(16, 4096, self.hash_input))
-        self.hash_input.setText(str(self.config_manager.get("engine_hash", 256)))
+        self.hash_input.setText(str(self.config_manager.get("engine_hash", 64)))
         self.hash_input.setStyleSheet(input_style)
         self.hash_input.editingFinished.connect(self._on_hash_committed)
         hash_lbl, hash_row = _wrap(
@@ -736,7 +762,7 @@ class SettingsView(QWidget):
         raw = self.threads_input.text().strip()
         if not raw:
             # empty: revert to the previously persisted value
-            current = self.config_manager.get("engine_threads", min(os.cpu_count() or 1, 8))
+            current = self.config_manager.get("engine_threads", min(os.cpu_count() or 1, 4))
             self.threads_input.setText(str(current))
             return
         threads, ok = self._validated_threads()
@@ -753,17 +779,69 @@ class SettingsView(QWidget):
         """Auto-commit Hash on Enter / focus loss. See _on_threads_committed."""
         raw = self.hash_input.text().strip()
         if not raw:
-            current = self.config_manager.get("engine_hash", 256)
+            current = self.config_manager.get("engine_hash", 64)
             self.hash_input.setText(str(current))
             return
         hash_mb, ok = self._validated_hash()
         if not ok:
-            current = self.config_manager.get("engine_hash", 256)
+            current = self.config_manager.get("engine_hash", 64)
             self.hash_input.setText(str(current))
             return
         if self.config_manager.get("engine_hash") != hash_mb:
             self.config_manager.set("engine_hash", hash_mb)
             self.engine_settings_changed.emit()
+
+    def _on_multi_pv_committed(self):
+        """Auto-commit Multi-PV. 1 = best line only, 5 = five top lines.
+
+        Higher values multiply the search-tree work roughly linearly, so
+        we keep the validator bounded and surface the persisted default
+        when the field is empty or out of range.
+        """
+        raw = self.multi_pv_input.text().strip()
+        if not raw:
+            current = self.config_manager.get("multi_pv", 1)
+            self.multi_pv_input.setText(str(current))
+            return
+        try:
+            value = int(raw)
+        except ValueError:
+            current = self.config_manager.get("multi_pv", 1)
+            self.multi_pv_input.setText(str(current))
+            return
+        # The QIntValidator already constrains 1..5, but defend anyway.
+        if not 1 <= value <= 5:
+            current = self.config_manager.get("multi_pv", 1)
+            self.multi_pv_input.setText(str(current))
+            return
+        if self.config_manager.get("multi_pv") != value:
+            self.config_manager.set("multi_pv", value)
+
+    def _on_live_time_committed(self):
+        """Auto-commit Live-Analysis time budget (seconds).
+
+        Bounds 0.5..10.0. The previous default of an infinite search
+        (Limit(depth=None)) was the root cause of laptop overheating —
+        see issue #5. A 2-second budget gives the engine a finite
+        window to deepen the analysis, then releases the CPU.
+        """
+        raw = self.live_time_input.text().strip()
+        if not raw:
+            current = self.config_manager.get("live_analysis_time", 2.0)
+            self.live_time_input.setText(str(current))
+            return
+        try:
+            value = float(raw)
+        except ValueError:
+            current = self.config_manager.get("live_analysis_time", 2.0)
+            self.live_time_input.setText(str(current))
+            return
+        if not 0.5 <= value <= 10.0:
+            current = self.config_manager.get("live_analysis_time", 2.0)
+            self.live_time_input.setText(str(current))
+            return
+        if self.config_manager.get("live_analysis_time") != value:
+            self.config_manager.set("live_analysis_time", value)
 
     def browse_engine(self):
         filter_str = "Executables (*.exe);;All Files (*)" if os.name == 'nt' else "All Files (*)"

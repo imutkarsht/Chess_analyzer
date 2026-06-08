@@ -4,14 +4,21 @@ from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QWaitCondition
 from ..utils.logger import logger
 import time
 
+
 class LiveAnalysisWorker(QThread):
     # Signals
     # info: dict with analysis info (depth, score, pv, etc.)
     info_ready = pyqtSignal(dict)
-    
-    def __init__(self, engine_path):
+
+    def __init__(self, engine_path, config_manager=None):
         super().__init__()
         self.engine_path = engine_path
+        # Optional dependency.  When wired in (the normal path) the
+        # worker respects the user's `live_analysis_time` and
+        # `live_multi_pv` settings; when not provided we fall back
+        # to the conservative hard-coded defaults below.  See
+        # https://github.com/imutkarsht/Chess_analyzer/issues/5
+        self.config_manager = config_manager
         self.engine = None
         self.board = chess.Board()
         self.running = True
@@ -19,6 +26,29 @@ class LiveAnalysisWorker(QThread):
         self.condition = QWaitCondition()
         self.new_position = False
         self.current_fen = None
+
+    # ------------------------------------------------------------------
+    # Config accessors with safe fallbacks.  We isolate the fallback
+    # logic so the run() loop stays readable and so the defaults
+    # match the new conservative settings (see issue #5).
+    # ------------------------------------------------------------------
+    def _live_time(self) -> float:
+        if self.config_manager is not None:
+            try:
+                return float(self.config_manager.get("live_analysis_time", 2.0))
+            except (TypeError, ValueError):
+                pass
+        return 2.0
+
+    def _live_multi_pv(self) -> int:
+        if self.config_manager is not None:
+            try:
+                value = int(self.config_manager.get("multi_pv", 1))
+                if value >= 1:
+                    return value
+            except (TypeError, ValueError):
+                pass
+        return 1
         
     def set_position(self, fen):
         """Updates the position to analyze."""
@@ -60,8 +90,17 @@ class LiveAnalysisWorker(QThread):
                 if fen:
                     try:
                         board = chess.Board(fen)
-                        # Infinite analysis
-                        with self.engine.analysis(board, chess.engine.Limit(depth=None), multipv=3) as analysis:
+                        # Finite analysis: bound the search by wall-clock
+                        # time so the worker releases the CPU after the
+                        # configured budget even if the user goes idle.
+                        # The previous `Limit(depth=None)` ran forever,
+                        # pinning every core and frying fanless laptops.
+                        # See https://github.com/imutkarsht/Chess_analyzer/issues/5
+                        with self.engine.analysis(
+                            board,
+                            chess.engine.Limit(time=self._live_time()),
+                            multipv=self._live_multi_pv(),
+                        ) as analysis:
                             for info in analysis:
                                 if self.new_position or not self.running:
                                     break
