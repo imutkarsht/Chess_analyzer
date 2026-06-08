@@ -81,3 +81,51 @@ class TestGroqService:
         
         insights = service.generate_coach_insights("test")
         assert "Groq API key not configured" in insights
+
+
+# ---------------------------------------------------------------------------
+# _is_placeholder_key — secret template detection
+# ---------------------------------------------------------------------------
+
+class TestIsPlaceholderKey:
+    """Unit tests for the placeholder secret detection.
+
+    These cover the patterns the previous implementation missed and the
+    ones it already handled, so the detection logic is regression-safe.
+    """
+
+    @pytest.mark.parametrize("value", [
+        "   ",                   # whitespace only
+        "${GROQ_API_KEY}",       # docker / shell substitution
+        "${input:openai_key}",   # 1Password CLI
+        "${{ secrets.GROQ }}",   # GitHub Actions Jinja
+        "<YOUR_KEY_HERE>",       # README placeholder
+        "<your-api-key>",        # README placeholder, lower case
+        "<insert token>",        # README placeholder, generic
+        "xxxxxx",                # redaction artifact
+        "XXXX",                  # redaction artifact, upper case
+    ])
+    def test_detects_placeholder(self, value):
+        from src.backend.groq_service import GroqService
+        assert GroqService._is_placeholder_key(value) is True
+
+    @pytest.mark.parametrize("value", [
+        "gsk_abc123",                     # real Groq key
+        "sk-proj-abcdefghijklmnop",       # real OpenAI key
+        "sk-1234567890ABCDEF",            # another real-style key
+        "lm-studio-local-key",            # custom, not a template
+        "my-secret-key",                  # plain string
+        "gsk_",                           # very short but not a template
+        "${not closed",                   # incomplete syntax
+        "<not a placeholder>",            # brackets without 'your'/'key'/'token'
+        "x",                              # single x is not 'x+' repeated
+    ])
+    def test_does_not_flag_real_key(self, value):
+        from src.backend.groq_service import GroqService
+        assert GroqService._is_placeholder_key(value) is False
+
+    def test_strips_whitespace_before_check(self):
+        """A real key surrounded by accidental spaces is still real."""
+        from src.backend.groq_service import GroqService
+        assert GroqService._is_placeholder_key("  gsk_abc  ") is False
+        assert GroqService._is_placeholder_key("  ${VAR}  ") is True
