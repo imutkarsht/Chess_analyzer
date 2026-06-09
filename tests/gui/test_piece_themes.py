@@ -156,3 +156,62 @@ def test_assets_pieces_directory_is_separate_from_source():
             f"Asset {asset_path!r} lives under src/, the third-party "
             f"graphics must be kept in assets/pieces/ for license separation"
         )
+
+
+def test_piece_themes_caching():
+    """get_piece_defs must hit the cache on subsequent calls."""
+    from src.gui.board.piece_themes import _load_theme_cached
+    _load_theme_cached.cache_clear()
+    
+    info_before = _load_theme_cached.cache_info()
+    assert info_before.hits == 0
+    assert info_before.misses == 0
+
+    # First call: cache miss
+    get_piece_defs("Standard")
+    info_after_first = _load_theme_cached.cache_info()
+    assert info_after_first.misses == 1
+    assert info_after_first.hits == 0
+
+    # Second call: cache hit
+    get_piece_defs("Standard")
+    info_after_second = _load_theme_cached.cache_info()
+    assert info_after_second.misses == 1
+    assert info_after_second.hits == 1
+
+
+def test_piece_themes_fallback_to_standard(mocker):
+    """When a theme fails to load, it must fall back to the Standard theme."""
+    from src.gui.board.piece_themes import _load_theme_cached
+    _load_theme_cached.cache_clear()
+
+    original_load = _load_theme
+
+    def mock_load(theme_name):
+        if theme_name == "BrokenTheme":
+            raise FileNotFoundError("Mock broken theme file missing")
+        return original_load(theme_name)
+
+    mocker.patch(
+        "src.gui.board.piece_themes._load_theme",
+        side_effect=mock_load
+    )
+
+    # Calling broken theme should return the standard theme definitions via fallback
+    defs = get_piece_defs("BrokenTheme")
+    assert len(defs) > 0
+    assert 'id="white-king"' in defs
+
+
+def test_piece_themes_fatal_failure_returns_empty_string(mocker):
+    """When the fallback theme also fails to load, get_piece_defs must return an empty string."""
+    from src.gui.board.piece_themes import _load_theme_cached
+    _load_theme_cached.cache_clear()
+
+    mocker.patch(
+        "src.gui.board.piece_themes._load_theme",
+        side_effect=FileNotFoundError("Standard missing too")
+    )
+    defs = get_piece_defs("Standard")
+    assert defs == ""
+

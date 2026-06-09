@@ -660,6 +660,8 @@ class MainWindow(QMainWindow):
         self.captured_white.update_captured(None)
         self.captured_black.update_captured(None)
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
+        self.resource_manager.play_sound("notify")
+
 
     def enrich_game_metadata(self, game, source_data):
         """

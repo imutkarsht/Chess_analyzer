@@ -19,8 +19,11 @@ of this project. See ``assets/pieces/THIRD-PARTY-README.md`` and the
 
 import os
 import xml.etree.ElementTree as ET
+from functools import lru_cache
 
 from ...utils.path_utils import get_resource_path
+from ...utils.logger import logger
+
 
 # Directory that holds the third-party piece SVGs.
 # This path is intentionally outside of the Python source tree so that the
@@ -112,6 +115,18 @@ def _extract_g_element(svg_path: str) -> str:
     return ET.tostring(g_elem, encoding="unicode")
 
 
+@lru_cache(maxsize=16)
+def _load_theme_cached(theme_name: str) -> dict:
+    """
+    Cache-wrapped internal helper to load a theme.
+    
+    This function will raise FileNotFoundError, ET.ParseError, or ValueError
+    on failure. Exceptions are not cached by lru_cache, ensuring that retries
+    will attempt to read from disk again.
+    """
+    return _load_theme(theme_name)
+
+
 def _load_theme(theme_name: str) -> dict:
     """
     Load a piece theme by name and return a ``{piece_symbol: <g>...</g>}``
@@ -136,11 +151,9 @@ def get_piece_defs(theme_name: str = "Standard") -> str:
     """
     Generate SVG defs section with piece definitions for the given theme.
 
-    This loads the piece graphics from ``assets/pieces/`` on every call.
-    Callers that need to render many boards per second should cache the
-    result, but for a typical chess UI the cost of a handful of file
-    reads at startup is negligible compared to the cost of keeping
-    third-party copyleft graphics inline in MIT-licensed source files.
+    This loads the piece graphics from ``assets/pieces/`` and caches successful
+    results. If a theme fails to load, it falls back to the Standard theme.
+    If the Standard theme also fails to load, it returns an empty string.
 
     Args:
         theme_name: Name of the piece theme to use.
@@ -149,8 +162,21 @@ def get_piece_defs(theme_name: str = "Standard") -> str:
         SVG string containing the ``<g>`` elements for all 12 pieces,
         ready to be embedded in a parent ``<svg>`` ``<defs>`` block.
     """
-    pieces = _load_theme(theme_name)
-    return "\n".join(pieces[symbol] for symbol in STANDARD_THEME_FILES)
+    try:
+        pieces = _load_theme_cached(theme_name)
+        return "\n".join(pieces[symbol] for symbol in STANDARD_THEME_FILES)
+    except Exception as e:
+        logger.error(f"Failed to load piece theme {theme_name!r}: {e}")
+        if theme_name != "Standard":
+            logger.info("Attempting fallback to 'Standard' piece theme.")
+            try:
+                pieces = _load_theme_cached("Standard")
+                return "\n".join(pieces[symbol] for symbol in STANDARD_THEME_FILES)
+            except Exception as fallback_err:
+                logger.error(
+                    f"Failed to load fallback 'Standard' piece theme: {fallback_err}"
+                )
+        return ""
 
 
 def get_piece_theme_names() -> list:

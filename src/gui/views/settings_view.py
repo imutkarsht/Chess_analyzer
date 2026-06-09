@@ -480,6 +480,8 @@ class SettingsView(QWidget):
         pf = QFormLayout()
         pf.setSpacing(10)
         pf.setContentsMargins(0, 0, 0, 0)
+        pf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+
 
         lbl_pname = QLabel("Name:"); lbl_pname.setStyleSheet(lbl_style)
         self.llm_profile_name = QLineEdit()
@@ -546,6 +548,7 @@ class SettingsView(QWidget):
         api_layout.addWidget(_div2)
 
         lf = QFormLayout(); lf.setSpacing(10); lf.setContentsMargins(0, 0, 0, 0)
+        lf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         lbl_lichess = QLabel("Lichess API Token:"); lbl_lichess.setStyleSheet(lbl_style)
         self.lichess_token_input = QLineEdit()
         self.lichess_token_input.setEchoMode(QLineEdit.EchoMode.Password)
@@ -571,6 +574,7 @@ class SettingsView(QWidget):
         username_layout = QFormLayout(self.username_group)
         username_layout.setContentsMargins(20, 25, 20, 20)
         username_layout.setSpacing(15)
+        username_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
         self.chesscom_input = QLineEdit()
         self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
@@ -610,6 +614,7 @@ class SettingsView(QWidget):
         appearance_layout.setSpacing(16)
         appearance_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         appearance_layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        appearance_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         
         # Common label style for this section
         label_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; background: transparent;"
