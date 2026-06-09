@@ -222,6 +222,11 @@ class BoardWidget(QWidget):
         
         orientation = not self.is_flipped  # True = white at bottom
         
+        # Resolve last move to highlight
+        last_move = self.board.move_stack[-1] if self.board.move_stack else None
+        last_from = last_move.from_square if last_move else None
+        last_to = last_move.to_square if last_move else None
+        
         # Create SVG root
         svg = ET.Element("svg", {
             "xmlns": "http://www.w3.org/2000/svg",
@@ -276,6 +281,15 @@ class BoardWidget(QWidget):
                 "width": str(SQUARE_SIZE), "height": str(SQUARE_SIZE),
                 "fill": fill_color
             })
+            
+            # Highlight start/destination squares of the last move
+            if last_move and square in (last_from, last_to):
+                ET.SubElement(svg, "rect", {
+                    "x": str(x), "y": str(y),
+                    "width": str(SQUARE_SIZE), "height": str(SQUARE_SIZE),
+                    "fill": Styles.COLOR_BOARD_HIGHLIGHT,
+                    "opacity": "0.35"
+                })
         
         # Draw coordinates
         coord_style = f"font-size:10px;fill:{Styles.COLOR_TEXT_SECONDARY};font-family:sans-serif"

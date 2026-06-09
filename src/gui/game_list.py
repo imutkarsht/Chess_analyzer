@@ -151,8 +151,19 @@ class GameListItemWidget(QWidget):
         
         # Accuracy (if analyzed) - use subtle accent
         if hasattr(game, 'summary') and game.summary:
-            white_acc = game.summary.get('white_accuracy')
-            black_acc = game.summary.get('black_accuracy')
+            white_acc = None
+            black_acc = None
+            if isinstance(game.summary, dict):
+                # Try nested dictionary format first (default format from analyzer.py)
+                if 'white' in game.summary and isinstance(game.summary['white'], dict):
+                    white_acc = game.summary['white'].get('accuracy')
+                else:
+                    white_acc = game.summary.get('white_accuracy')
+                    
+                if 'black' in game.summary and isinstance(game.summary['black'], dict):
+                    black_acc = game.summary['black'].get('accuracy')
+                else:
+                    black_acc = game.summary.get('black_accuracy')
             
             if white_acc is not None and black_acc is not None:
                 acc_text = f"{white_acc:.0f}% / {black_acc:.0f}%"

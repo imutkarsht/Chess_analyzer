@@ -11,6 +11,7 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "engine_path": "stockfish",
         "theme": "dark",
+        "sound_enabled": True,
         # Profile-based LLM config.  Each profile is a dict with keys:
         #   name, provider, api_key, model, base_url
         "llm_profiles": [],

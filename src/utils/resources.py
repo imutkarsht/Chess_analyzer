@@ -119,6 +119,10 @@ class ResourceManager:
         event (common while stepping through a game) do not collide with
         a still-playing instance of the same sound.
         """
+        from .config import ConfigManager
+        if not ConfigManager().get("sound_enabled", True):
+            return
+
         pool = self.sounds.get(name)
         if not pool:
             return
