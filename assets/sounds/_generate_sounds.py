@@ -55,12 +55,20 @@ def _to_int16(signal):
 
 def _write_wav(path, signal):
     signal = _to_int16(signal)
+
+    # Pad with silence to at least 0.6 seconds to work around macOS QSoundEffect silent playback issues
+    min_samples = int(0.6 * SAMPLE_RATE)
+    if len(signal) < min_samples:
+        padding = np.zeros(min_samples - len(signal))
+        signal = np.concatenate([signal, padding])
+
     pcm = (signal * 32767.0).astype(np.int16).tobytes()
     with wave.open(path, "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(SAMPLE_RATE)
         wf.writeframes(pcm)
+
 
 
 def _note(freq, duration, kind="sine", amp=0.8):
@@ -89,62 +97,142 @@ def _note(freq, duration, kind="sine", amp=0.8):
 # --------------------------------------------------------------------------- #
 
 def sound_move():
-    """Short neutral click -- piece placed on board."""
-    duration = 0.14
+    """Short woody click -- piece landing on board."""
+    duration = 0.15
     n = int(duration * SAMPLE_RATE)
     t = np.linspace(0.0, duration, n, endpoint=False)
-    body = 0.6 * np.sin(2 * math.pi * 220 * t) \
-         + 0.4 * np.sin(2 * math.pi * 440 * t)
-    # Two-stage envelope: fast initial attack, gentle tail so the
-    # 140 ms total length is fully audible through QSoundEffect.
-    env = np.exp(-t / 0.04)
-    return body * env
+
+    # Sharp contact transient (500 Hz + 1000 Hz) with extremely fast decay
+    strike = (0.5 * np.sin(2 * math.pi * 500 * t) + 0.3 * np.sin(2 * math.pi * 1000 * t)) * np.exp(-t / 0.005)
+    # Wood body resonance (180 Hz + 360 Hz)
+    resonance = (0.6 * np.sin(2 * math.pi * 180 * t) + 0.4 * np.sin(2 * math.pi * 360 * t)) * np.exp(-t / 0.035)
+    # Slight contact friction noise
+    rng = np.random.default_rng(101)
+    noise = rng.uniform(-0.3, 0.3, n) * np.exp(-t / 0.003)
+
+    return strike + resonance + noise
+
 
 
 def sound_capture():
-    """Harder thunk -- piece removed and replaced."""
-    duration = 0.18
+    """Harder double-contact woody snap -- piece striking another and landing."""
+    duration = 0.25
     n = int(duration * SAMPLE_RATE)
     t = np.linspace(0.0, duration, n, endpoint=False)
-    low = 0.8 * np.sin(2 * math.pi * 80 * t) * np.exp(-t / 0.05)
-    # short noise burst at the start
+
+    # First strike (high-pitched contact snap at t=0)
+    click1 = (0.5 * np.sin(2 * math.pi * 800 * t) + 0.3 * np.sin(2 * math.pi * 1600 * t)) * np.exp(-t / 0.008)
+    # High-pass-ish noise transient at strike
     rng = np.random.default_rng(42)
-    noise = rng.uniform(-1.0, 1.0, n) * np.exp(-t / 0.02)
-    return low + 0.4 * noise
+    noise = rng.uniform(-1.0, 1.0, n) * np.exp(-t / 0.005)
+
+    # Second strike (woody thunk landing at t=0.04s)
+    t_delayed = np.maximum(0.0, t - 0.04)
+    click2 = (0.6 * np.sin(2 * math.pi * 320 * t_delayed) + 0.4 * np.sin(2 * math.pi * 640 * t_delayed)) * np.exp(-t_delayed / 0.03)
+    # Add small wood rattle/friction
+    noise2 = rng.uniform(-0.5, 0.5, n) * np.exp(-t_delayed / 0.015)
+
+    # Combine signals (and only add click2 after its delay)
+    mask = t >= 0.04
+    signal = click1 + 0.3 * noise
+    signal[mask] += click2[mask] + 0.15 * noise2[mask]
+
+    return signal
+
 
 
 def sound_check():
-    """Bright, attention-grabbing tone."""
-    duration = 0.22
+    """Tense, buzzing threat warning alert."""
+    duration = 0.35
     n = int(duration * SAMPLE_RATE)
     t = np.linspace(0.0, duration, n, endpoint=False)
-    vibrato = 1.0 + 0.03 * np.sin(2 * math.pi * 12 * t)
-    body = 0.6 * np.sin(2 * math.pi * 880 * vibrato * t) \
-         + 0.4 * np.sin(2 * math.pi * 1320 * vibrato * t)
-    env = _envelope(n, attack=0.01, decay=0.04, sustain=0.12, release=0.05)
-    return body * env
+
+    # Carrier frequencies: 160 Hz square wave + 227 Hz triangle wave
+    carrier = 0.5 * np.sign(np.sin(2 * math.pi * 160.0 * t)) + \
+              0.3 * np.arcsin(np.sin(2 * math.pi * 227.0 * t)) / (math.pi / 2.0)
+
+    # Fast tremolo/buzz modulation at 35 Hz
+    buzz = 1.0 + 0.8 * np.sin(2 * math.pi * 35.0 * t)
+
+    # Combined signal with decay envelope
+    env = np.exp(-t / 0.08)
+    return carrier * buzz * env
+
+
 
 
 def sound_castle():
-    """Soft, regal two-note chord (C5 + G5)."""
-    duration = 0.32
+    """Double-move click with a sliding/whooshing sound of pieces passing each other."""
+    duration = 0.4
     n = int(duration * SAMPLE_RATE)
     t = np.linspace(0.0, duration, n, endpoint=False)
-    body = 0.5 * np.sin(2 * math.pi * 523.25 * t) \
-         + 0.5 * np.sin(2 * math.pi * 783.99 * t)
-    env = _envelope(n, attack=0.02, decay=0.05, sustain=0.18, release=0.07)
-    return body * env
+
+    # 1. Sliding/whooshing movement (t = 0 to 0.22s)
+    # A noise band that rises/falls to simulate pieces passing
+    rng = np.random.default_rng(202)
+    noise_signal = rng.uniform(-1.0, 1.0, n)
+    whoosh_noise = np.convolve(noise_signal, np.ones(12)/12, mode='same')
+
+    # Envelope for the whoosh: rises and falls, peaking around t=0.08s
+    whoosh_env = np.zeros_like(t)
+    whoosh_mask = t < 0.22
+    whoosh_env[whoosh_mask] = np.sin(math.pi * t[whoosh_mask] / 0.22) ** 2
+    whoosh = 0.45 * whoosh_noise * whoosh_env
+
+    # Add a pitch-sweeping component (one rising, one falling) for the passing effect
+    sweep1 = np.sin(2 * math.pi * (500 - 1000 * t) * t) * 0.15
+    sweep2 = np.sin(2 * math.pi * (150 + 800 * t) * t) * 0.15
+    sweeps = (sweep1 + sweep2) * whoosh_env
+
+    # 2. First piece landing (King) at t = 0.08s
+    t_del1 = np.maximum(0.0, t - 0.08)
+    click1 = (0.5 * np.sin(2 * math.pi * 220 * t_del1) + 0.3 * np.sin(2 * math.pi * 440 * t_del1)) * np.exp(-t_del1 / 0.02)
+
+    # 3. Second piece landing (Rook) at t = 0.18s
+    t_del2 = np.maximum(0.0, t - 0.18)
+    click2 = (0.5 * np.sin(2 * math.pi * 260 * t_del2) + 0.3 * np.sin(2 * math.pi * 520 * t_del2)) * np.exp(-t_del2 / 0.02)
+
+    # Combine signals
+    signal = whoosh + sweeps
+    mask1 = t >= 0.08
+    signal[mask1] += click1[mask1]
+    mask2 = t >= 0.18
+    signal[mask2] += click2[mask2]
+
+    return signal
+
 
 
 def sound_game_start():
-    """Greeting ping (E5 + A5, short)."""
-    duration = 0.18
+    """Refined cascading/arpeggiated major-9th chime."""
+    duration = 0.5
     n = int(duration * SAMPLE_RATE)
     t = np.linspace(0.0, duration, n, endpoint=False)
-    body = 0.5 * np.sin(2 * math.pi * 659.25 * t) \
-         + 0.5 * np.sin(2 * math.pi * 880.0 * t)
-    env = _envelope(n, attack=0.005, decay=0.03, sustain=0.10, release=0.05)
-    return body * env
+
+    # Define notes and their delay offsets
+    notes = [
+        {"freq": 523.25,  "delay": 0.00, "amp": 0.40, "decay": 0.18},  # C5
+        {"freq": 659.25,  "delay": 0.02, "amp": 0.35, "decay": 0.16},  # E5
+        {"freq": 783.99,  "delay": 0.04, "amp": 0.30, "decay": 0.14},  # G5
+        {"freq": 987.77,  "delay": 0.06, "amp": 0.25, "decay": 0.12},  # B5
+        {"freq": 1174.66, "delay": 0.08, "amp": 0.20, "decay": 0.10},  # D6
+        {"freq": 1567.98, "delay": 0.10, "amp": 0.15, "decay": 0.08},  # G6
+    ]
+
+    signal = np.zeros_like(t)
+    for note in notes:
+        t_delayed = np.maximum(0.0, t - note["delay"])
+        note_sig = note["amp"] * np.sin(2 * math.pi * note["freq"] * t_delayed) * np.exp(-t_delayed / note["decay"])
+
+        # Apply very fast attack (3ms) to each note at its entry point
+        attack_env = np.minimum(1.0, t_delayed / 0.003)
+        note_sig = note_sig * attack_env
+
+        mask = t >= note["delay"]
+        signal[mask] += note_sig[mask]
+
+    return signal
+
 
 
 def sound_game_end():
