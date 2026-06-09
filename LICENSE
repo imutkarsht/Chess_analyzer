@@ -27,11 +27,12 @@ THIRD-PARTY COMPONENT NOTICE
 This application includes third-party assets that are licensed under
 different terms than the main project.
 
-The chess piece icons located in the assets folder are:
+The chess piece icons located in the `assets/pieces/` directory are:
 - Artifact: "SVG chess pieces" (Cburnett set)
 - Author: Colin M.L. Burnett (Cburnett)
 - Source: Wikimedia Commons
   https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces
+- Per-file attribution: see `assets/pieces/THIRD-PARTY-README.md`
 
 These graphical assets are NOT covered by the MIT License of this project.
 Instead, they are licensed under the terms of the Creative Commons

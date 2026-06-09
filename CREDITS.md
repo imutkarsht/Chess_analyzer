@@ -39,17 +39,27 @@ python assets/sounds/_generate_sounds.py
 
 ---
 
-## Fonts
+## Chess Piece Graphics
 
-This project uses the **Cburnett** chess font for piece rendering, licensed
-under [CC-BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+The SVG chess pieces in [`assets/pieces/`](assets/pieces/) are from the
+**Cburnett** chess set by **Colin M.L. Burnett**. Each file is a separate
+SVG (e.g. `white-king.svg`, `black-pawn.svg`) loaded at runtime by
+[`src/gui/board/piece_themes.py`](src/gui/board/piece_themes.py).
 
-- Source: [https://github.com/lichess-org/lila/tree/master/public/font](https://github.com/lichess-org/lila/tree/master/public/font)
+- Source: [Wikimedia Commons — SVG chess pieces](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces)
+- Mirrored in: [lichess-org/lila — public/piece/cburnett](https://github.com/lichess-org/lila/tree/master/public/piece/cburnett)
 - Copyright: (c) Colin M.L. Burnett
+- License: Dual-licensed under **GPLv2+** and
+  [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
 
-When distributing binaries of this application, the
-[Cburnett font license notice](https://creativecommons.org/licenses/by-sa/3.0/)
-must be preserved.
+The SVGs are kept in a dedicated subdirectory so that the piece graphics and
+the MIT-licensed source code remain separable works. See the
+[per-directory notice](assets/pieces/THIRD-PARTY-README.md) for the full
+attribution and `LICENSE` for the project-level third-party component
+notice.
+
+When distributing binaries of this application, the CC BY-SA 3.0 attribution
+must be preserved with the SVGs.
 
 ---
 

@@ -193,16 +193,18 @@ class BoardWidget(QWidget):
     def update_board(self):
         # Determine colors from configured theme
         from ...utils.config import ConfigManager
-        from .piece_themes import PIECE_THEMES
+        from .piece_themes import get_piece_defs
         
         config = ConfigManager()
         board_theme_name = config.get("board_theme", "Green")
         piece_theme_name = config.get("piece_theme", "Standard")
         colors = Styles.get_board_colors(board_theme_name)
-        
-        # Get the piece definitions for the selected theme
-        piece_defs = PIECE_THEMES.get(piece_theme_name, PIECE_THEMES["Standard"])
-        
+
+        # Get the piece definitions for the selected theme.
+        # This loads the SVGs from assets/pieces/ at runtime; see
+        # piece_themes.py for why the graphics live in external files.
+        piece_defs = get_piece_defs(piece_theme_name)
+
         # Generate custom SVG with our piece definitions
         svg_data = self._generate_custom_board_svg(colors, piece_defs)
         self.svg_widget.load(svg_data)
@@ -236,15 +238,21 @@ class BoardWidget(QWidget):
             "fill": Styles.COLOR_BACKGROUND
         })
         
-        # Add piece definitions to defs section
+        # Add piece definitions to defs section.
+        # ``piece_defs`` is the concatenated <g>...</g><g>...</g> string
+        # returned by ``piece_themes.get_piece_defs()``. We wrap it in a
+        # root element so we can split it back into individual <g> nodes
+        # and append them to <defs> (browsers won't render a free <g>).
         defs = ET.SubElement(svg, "defs")
-        for piece_symbol, piece_svg in piece_defs.items():
-            # Parse the SVG fragment and add to defs
-            try:
-                piece_elem = ET.fromstring(piece_svg)
+        wrapped = (
+            f'<root xmlns="http://www.w3.org/2000/svg">{piece_defs}</root>'
+        )
+        try:
+            wrapper_root = ET.fromstring(wrapped)
+            for piece_elem in wrapper_root:
                 defs.append(piece_elem)
-            except ET.ParseError as e:
-                print(f"Error parsing piece SVG for {piece_symbol}: {e}")
+        except ET.ParseError as e:
+            print(f"Error parsing piece defs: {e}")
         
         # Draw squares
         for square in chess.SQUARES:
