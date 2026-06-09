@@ -9,6 +9,9 @@ class LiveAnalysisWorker(QThread):
     # Signals
     # info: dict with analysis info (depth, score, pv, etc.)
     info_ready = pyqtSignal(dict)
+    # Emitted when the engine starts / stops calculating a position
+    thinking_started = pyqtSignal()
+    thinking_stopped = pyqtSignal()
 
     def __init__(self, engine_path, config_manager=None):
         super().__init__()
@@ -128,6 +131,7 @@ class LiveAnalysisWorker(QThread):
                 if fen:
                     try:
                         board = chess.Board(fen)
+                        self.thinking_started.emit()
                         # Finite analysis: calculate incrementally up to selected depth + 10 max
                         with self.engine.analysis(
                             board,
@@ -141,8 +145,9 @@ class LiveAnalysisWorker(QThread):
                                 # Process info
                                 processed_info = self._process_info(info, board)
                                 self.info_ready.emit(processed_info)
-                                
+                        self.thinking_stopped.emit()
                     except Exception as e:
+                        self.thinking_stopped.emit()
                         logger.error(f"Live analysis error: {e}")
                         time.sleep(0.5) # Wait before retrying
                 

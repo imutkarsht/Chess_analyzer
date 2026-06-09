@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QSplitter, QFileDialog, QMenuBar,
                              QStatusBar, QMessageBox, QInputDialog, QDialog,
                              QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import QMenu
 import shutil
@@ -87,7 +87,30 @@ class MainWindow(QMainWindow):
         
         # Apply Theme
         self.setStyleSheet(Styles.get_theme())
-        
+
+        # Engine status pill + analysis status label — left side of status bar
+        # Note: background + border-radius on QLabel inside QStatusBar renders as a
+        # plain rectangle in Qt — use colored text only for a clean look.
+        self._engine_pill = QLabel()
+        self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px;")
+        self.statusBar().addWidget(self._engine_pill)
+
+        # Thin separator
+        sep = QLabel("│")
+        sep.setStyleSheet(f"color: {Styles.COLOR_BORDER}; padding: 0 4px;")
+        self.statusBar().addWidget(sep)
+
+        self._status_lbl = QLabel("Ready")
+        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        self.statusBar().addWidget(self._status_lbl)
+
+        # Spinner timer for Calculating animation
+        self._spinner_frames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+        self._spinner_idx = 0
+        self._spinner_timer = QTimer(self)
+        self._spinner_timer.timeout.connect(self._tick_spinner)
+
+        self._refresh_engine_status()
         
         # Overlay
         self.loading_overlay = LoadingOverlay(self)
@@ -265,6 +288,74 @@ class MainWindow(QMainWindow):
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
 
+    # ------------------------------------------------------------------
+    # Status bar helpers
+    # ------------------------------------------------------------------
+
+    def _on_live_thinking_started(self):
+        """Live engine started computing — show Calculating unless full analysis is running."""
+        if not getattr(self, '_full_analysis_running', False):
+            self._set_engine_state("calculating")
+
+    def _on_live_thinking_stopped(self):
+        """Live engine finished computing — revert to Ready unless full analysis is running."""
+        if not getattr(self, '_full_analysis_running', False):
+            self._set_engine_state("ready")
+
+    # Engine states: 'offline' | 'ready' | 'calculating'
+    def _refresh_engine_status(self):
+        """Check engine binary and update pill. Call after path changes."""
+        path = self.config_manager.get("engine_path", "stockfish")
+        found = bool(shutil.which(path) or os.path.isfile(path))
+        self._set_engine_state("ready" if found else "offline")
+
+    def _set_engine_state(self, state: str, progress_msg: str = ""):
+        """Update engine status text. state: 'offline' | 'ready' | 'calculating'."""
+        if state == "calculating":
+            self._spinner_idx = 0
+            if not self._spinner_timer.isActive():
+                self._spinner_timer.start(120)
+            self._engine_pill.setText("⬤  Calculating")
+            self._engine_pill.setStyleSheet(
+                "font-size: 12px; font-weight: 600; padding: 0 6px; color: #e67e22;"
+            )
+        else:
+            self._spinner_timer.stop()
+            if state == "ready":
+                self._engine_pill.setText("⬤  Engine Ready")
+                self._engine_pill.setStyleSheet(
+                    "font-size: 12px; font-weight: 600; padding: 0 6px; color: #27ae60;"
+                )
+            else:  # offline
+                self._engine_pill.setText("⬤  Engine Offline")
+                self._engine_pill.setStyleSheet(
+                    "font-size: 12px; font-weight: 600; padding: 0 6px; color: #e74c3c;"
+                )
+
+    def _tick_spinner(self):
+        """Advance the braille spinner animation one frame."""
+        frame = self._spinner_frames[self._spinner_idx % len(self._spinner_frames)]
+        self._spinner_idx += 1
+        self._engine_pill.setText(f"{frame}  Calculating")
+
+    # status label states
+    _STATUS_STYLES = {
+        "idle":       ("○",  "#888888"),
+        "info":       ("◎",  "#3498db"),
+        "success":    ("✔",  "#27ae60"),
+        "warning":    ("⚠",  "#e67e22"),
+        "error":      ("✖",  "#e74c3c"),
+        "progress":   ("◌",  "#3498db"),
+    }
+
+    def _set_status(self, message: str, kind: str = "info"):
+        """Update the status label with an icon prefix and matching colour."""
+        icon, color = self._STATUS_STYLES.get(kind, ("◎", "#3498db"))
+        self._status_lbl.setText(f"{icon}  {message}")
+        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {color};")
+
+    # ------------------------------------------------------------------
+
     def update_engine_path(self, new_path):
         """Updates the engine path and re-initializes the analyzer."""
         logger.info(f"Updating engine path to: {new_path}")
@@ -274,12 +365,12 @@ class MainWindow(QMainWindow):
             self.analyzer = Analyzer(
                 EngineManager(self.engine_path, config_manager=self.config_manager)
             )
-            # Also update worker if it exists?
-            # Worker is created per analysis, so next analysis will use new analyzer/engine.
             QMessageBox.information(self, "Success", "Engine path updated. Future analyses will use the new engine.")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
             QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
+        finally:
+            self._refresh_engine_status()
 
     def apply_engine_settings(self):
         """Re-apply the current Threads/Hash settings to a running engine.
@@ -396,6 +487,9 @@ class MainWindow(QMainWindow):
         
         self.move_list_panel = MoveListPanel(self.engine_path, config_manager=self.config_manager)
         self.move_list_panel.move_selected.connect(self.on_move_selected)
+        # Wire live-engine thinking signals to the status bar indicator
+        self.move_list_panel.live_worker.thinking_started.connect(self._on_live_thinking_started)
+        self.move_list_panel.live_worker.thinking_stopped.connect(self._on_live_thinking_stopped)
         left_layout.addWidget(self.move_list_panel)
         
         splitter.addWidget(left_widget)
@@ -579,7 +673,7 @@ class MainWindow(QMainWindow):
         """Common pattern for loading games from API with worker thread."""
         logger.info(f"Attempting to load games for {source} user: {username}")
         self.loading_overlay.start("Fetching games...", f"Getting recent games for {username}")
-        self.statusBar().showMessage(f"Fetching games for {username}...")
+        self._set_status(f"Fetching games for {username}...", "progress")
         
         self.api_worker = APILoaderWorker(api_func, username, **kwargs)
         self.api_worker.finished.connect(lambda games: self.on_games_loaded(games, username, source))
@@ -600,14 +694,14 @@ class MainWindow(QMainWindow):
                     g.source_data = source_data
             self.load_game(self.games[0])
             if status_msg:
-                self.statusBar().showMessage(status_msg)
+                self._set_status(status_msg, "success")
             return True
         else:
             QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
             return False
 
     def on_games_loaded(self, games_data, username, source):
-        self.statusBar().clearMessage()
+        self._set_status("Ready", "idle")
         if games_data:
             from .dialogs.game_selection_dialog import GameSelectionDialog
             dialog = GameSelectionDialog(games_data, self)
@@ -622,12 +716,12 @@ class MainWindow(QMainWindow):
                 else:
                     QMessageBox.warning(self, "Error", "Selected game has no PGN data.")
             else:
-                self.statusBar().showMessage("Game selection cancelled.")
+                self._set_status("Game selection cancelled.", "warning")
         else:
             QMessageBox.warning(self, "No Games", f"No games found for this user on {source}.")
 
     def on_api_error(self, error_msg):
-        self.statusBar().clearMessage()
+        self._set_status("Ready", "idle")
         logger.error(f"API Load Error: {error_msg}")
         QMessageBox.critical(self, "Error", f"Failed to load games: {error_msg}")
 
@@ -762,7 +856,7 @@ class MainWindow(QMainWindow):
         url, ok = QInputDialog.getText(self, "Load from Lichess Link", "Enter Lichess.org Game URL:")
         if ok and url:
             try:
-                self.statusBar().showMessage("Fetching game from Lichess link...")
+                self._set_status("Fetching game from Lichess...", "progress")
                 api = LichessAPI()
                 game_id = api.extract_game_id(url)
                 if game_id:
@@ -773,11 +867,11 @@ class MainWindow(QMainWindow):
                     self.api_worker.start()
                 else:
                     QMessageBox.warning(self, "Error", "Invalid Lichess URL.")
-                    self.statusBar().clearMessage()
+                    self._set_status("Ready", "idle")
             except Exception as e:
                 logger.error(f"Lichess link load error: {e}")
                 QMessageBox.critical(self, "Error", f"Failed to load from link: {e}")
-                self.statusBar().clearMessage()
+                self._set_status("Ready", "idle")
 
     def _on_link_game_loaded(self, game_data, game_id, source):
         """Common handler for link-based game loading."""
@@ -807,15 +901,20 @@ class MainWindow(QMainWindow):
         self.worker.progress.connect(self.on_analysis_progress)
         self.worker.finished.connect(self.on_analysis_finished)
         self.worker.error.connect(self.on_analysis_error)
-        
-        self.statusBar().showMessage("Starting analysis...")
+
+        self._full_analysis_running = True
+        self._set_engine_state("calculating", "Starting...")
+        self._set_status("Starting analysis...", "progress")
         self.worker.start()
 
     def on_analysis_progress(self, current, total):
-        self.statusBar().showMessage(f"Analyzing move {current}/{total}...")
+        self._set_engine_state("calculating", f"{current}/{total}")
+        self._set_status(f"Analyzing move {current} of {total}", "progress")
 
     def on_analysis_finished(self, game):
-        self.statusBar().showMessage("Analysis complete.")
+        self._full_analysis_running = False
+        self._set_engine_state("ready")
+        self._set_status("Analysis complete", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game
         self.move_list_panel.set_game(game)
@@ -827,7 +926,9 @@ class MainWindow(QMainWindow):
             self.history_view.load_history()
 
     def on_analysis_error(self, error_msg):
-        self.statusBar().showMessage(f"Analysis failed: {error_msg}")
+        self._full_analysis_running = False
+        self._set_engine_state("ready")
+        self._set_status(f"Analysis failed: {error_msg}", "error")
         logger.error(f"Analysis error: {error_msg}")
         QMessageBox.critical(self, "Analysis Error", error_msg)
 
