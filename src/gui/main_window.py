@@ -201,6 +201,29 @@ class MainWindow(QMainWindow):
             self._save_window_state()
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Failed to save window state: {e}")
+            
+        # Stop live analysis worker thread cleanly (Issue C)
+        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+            try:
+                self.move_list_panel.live_worker.stop()
+            except Exception as e:
+                logger.error(f"Failed to stop live analysis worker: {e}")
+
+        # Stop full analysis worker if it is running
+        if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
+            try:
+                self.worker.stop()
+                self.worker.wait()
+            except Exception as e:
+                logger.error(f"Failed to stop full analysis worker: {e}")
+
+        # Stop update worker if running
+        if hasattr(self, 'update_worker') and self.update_worker and self.update_worker.isRunning():
+            try:
+                self.update_worker.wait(500)
+            except Exception as e:
+                logger.error(f"Failed to stop update worker: {e}")
+
         super().closeEvent(event)
 
     def setup_ui(self):

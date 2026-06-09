@@ -132,7 +132,7 @@ class LiveAnalysisWorker(QThread):
                         with self.engine.analysis(
                             board,
                             chess.engine.Limit(depth=self._live_depth() + 10),
-                            multipv=3,
+                            multipv=self._live_multi_pv(),
                         ) as analysis:
                             for info in analysis:
                                 if self.new_position or not self.running:

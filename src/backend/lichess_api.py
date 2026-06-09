@@ -30,10 +30,11 @@ class LichessAPI(BaseChessAPI):
         token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
         headers = BaseChessAPI.DEFAULT_HEADERS.copy()
         headers.update({
-            "Authorization": f"Bearer {token}",
             "Accept": "application/x-ndjson", 
             "Content-Type": "application/json"
         })
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         return headers
 
     def get_user_games(self, username: str, max_games: int = 5) -> List[Dict]:
