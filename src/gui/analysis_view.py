@@ -723,7 +723,7 @@ class AnalysisPanel(QWidget):
             icon_label = QLabel()
             icon = self.resource_manager.get_icon(type_name)
             if not icon.isNull():
-                icon_label.setPixmap(icon.pixmap(16, 16)) # Smaller icons
+                icon_label.setPixmap(icon.pixmap(22, 22))
                 icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 icon_label.setText("-")

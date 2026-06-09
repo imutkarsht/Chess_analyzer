@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="18" fill="#27AE60"/>
+  <!-- Classical: hourglass — timeless, deliberate -->
+  <!-- hourglass outline -->
+  <polygon points="18,12 62,12 62,18 46,40 62,62 62,68 18,68 18,62 34,40 18,18" 
+           fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linejoin="round"/>
+  <!-- sand top half -->
+  <polygon points="22,15 58,15 44,38 36,38" fill="#FFFFFF" opacity="0.35"/>
+  <!-- sand bottom — accumulated -->
+  <polygon points="36,42 44,42 56,65 24,65" fill="#FFFFFF"/>
+</svg>

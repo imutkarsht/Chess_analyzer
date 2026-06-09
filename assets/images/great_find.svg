@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" role="img" aria-label="Great find"><title>Great find</title><rect x="1" y="1" width="22" height="22" rx="4" ry="4" fill="#3E8EDE"/><path d="M8.5 4.5v15M3.5 12h10 M15.5 4.5v15M10.5 12h10" stroke="#FFFFFF" stroke-width="2.0" stroke-linejoin="round" stroke-linecap="round" fill="none"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <polygon points="40,6 71,24 71,56 40,74 9,56 9,24" fill="#4CACEB" stroke="#FFFFFF" stroke-width="4.5" stroke-linejoin="round"/>
+  <!-- One bold white lightning bolt, centered -->
+  <polygon points="46,14 24,44 38,44 30,68 56,36 42,36" fill="#FFFFFF"/>
+</svg>

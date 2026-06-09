@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <!-- Transparent background so the gold crown blends seamlessly on the cards -->
+  <polygon points="8,62 14,24 32,44 40,14 48,44 66,24 72,62" fill="#FFD700" stroke="#E6A100" stroke-width="3.5" stroke-linejoin="round"/>
+  <rect x="8" y="62" width="64" height="8" rx="3" fill="#FFD700" stroke="#E6A100" stroke-width="1"/>
+</svg>
