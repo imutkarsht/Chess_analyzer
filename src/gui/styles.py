@@ -21,6 +21,7 @@ class Styles:
     # Piece Colors
     COLOR_PIECE_WHITE = "#F0F0F0"
     COLOR_PIECE_BLACK = "#111111"
+    COLOR_BOARD_HIGHLIGHT = "#F7EC74"  # Soft yellow highlight for last move
     
     # Move Classification Colors (Aligned with SVG icon background fills)
     COLOR_BRILLIANT = "#00D4AA"

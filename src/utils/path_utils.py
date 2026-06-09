@@ -15,7 +15,8 @@ def get_resource_path(relative_path: str) -> str:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     else:
-        base_path = os.path.abspath(".")
+        # Get the directory of path_utils.py and go up two levels to get the project root
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
     return os.path.join(base_path, relative_path)
 
