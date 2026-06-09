@@ -1,12 +1,13 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                              QLineEdit, QFileDialog, QGroupBox, QFormLayout, QMessageBox,
-                             QScrollArea, QFrame, QComboBox, QGridLayout, QApplication, QLayout)
+                             QScrollArea, QFrame, QComboBox, QGridLayout, QApplication, QLayout, QCheckBox)
 from PyQt6.QtGui import QColor, QDesktopServices
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QRect, QSize, QPoint
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from ..styles import Styles
 from ..gui_utils import create_button
 from ...utils.config import ConfigManager
+from ...utils.path_utils import get_resource_path
 import os
 
 try:
@@ -260,6 +261,15 @@ class SettingsView(QWidget):
         path_layout.addWidget(self.browse_btn)
         
         engine_layout.addLayout(path_layout)
+
+        # Validation status label
+        self.validation_label = QLabel()
+        self.validation_label.setStyleSheet("font-size: 12px; font-weight: bold; background: transparent; margin-top: 2px;")
+        self.validation_label.setWordWrap(True)
+        self.validation_label.setVisible(False)
+        engine_layout.addWidget(self.validation_label)
+
+        self.path_input.editingFinished.connect(self.validate_engine_path)
         
         # All three engine controls (Depth, Threads, Hash) live in a
         # single QFormLayout so the labels sit in one column on the
@@ -664,6 +674,36 @@ class SettingsView(QWidget):
         
         appearance_layout.addRow(piece_lbl, self.piece_combo)
 
+        # Sound Effects Selector
+        sound_lbl = QLabel("Sound Effects:")
+        sound_lbl.setStyleSheet(label_style)
+        
+        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        self.sound_checkbox = QCheckBox("Enable Sound Effects")
+        self.sound_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 4px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {Styles.COLOR_ACCENT};
+                border-color: {Styles.COLOR_ACCENT};
+                image: url('{tick_path}');
+            }}
+        """)
+        self.sound_checkbox.setChecked(self.config_manager.get("sound_enabled", True))
+        self.sound_checkbox.stateChanged.connect(self.change_sound_setting)
+        
+        appearance_layout.addRow(sound_lbl, self.sound_checkbox)
+
         # Accent Color
         color_lbl = QLabel("Accent Color:")
         color_lbl.setStyleSheet(label_style)
@@ -706,6 +746,7 @@ class SettingsView(QWidget):
         website_layout.addWidget(self.update_btn)
 
         self.container_layout.addWidget(self.website_group)
+        self.validate_engine_path()
 
 
     def refresh_styles(self):
@@ -840,6 +881,67 @@ class SettingsView(QWidget):
     def change_piece_theme(self, theme_name):
         self._update_config_and_refresh("piece_theme", theme_name)
 
+    def change_sound_setting(self, state):
+        self.config_manager.set("sound_enabled", self.sound_checkbox.isChecked())
+
+    def validate_engine_path(self):
+        path = self.path_input.text().strip()
+        if not path:
+            self.validation_label.setText("⚠️ No path specified")
+            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_MISTAKE}; font-size: 12px; font-weight: bold; background: transparent;")
+            self.validation_label.setVisible(True)
+            return
+            
+        import shutil
+        import subprocess
+        
+        # Check if executable or in PATH
+        is_in_path = shutil.which(path) is not None
+        is_file = os.path.exists(path) and os.path.isfile(path)
+        
+        if not (is_in_path or is_file):
+            self.validation_label.setText("❌ File does not exist or is not executable")
+            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+            self.validation_label.setVisible(True)
+            return
+            
+        # Try to run it and verify UCI handshake
+        try:
+            creationflags = 0
+            if os.name == 'nt':
+                creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+            proc = subprocess.Popen(
+                [path],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                creationflags=creationflags
+            )
+            
+            # Send uci handshake
+            stdout, _ = proc.communicate(input="uci\nquit\n", timeout=1.0)
+            
+            if "uciok" in stdout:
+                name = "Stockfish"
+                for line in stdout.split('\n'):
+                    if line.startswith("id name "):
+                        name = line[8:].strip()
+                        break
+                self.validation_label.setText(f"✓ Valid UCI Engine: {name}")
+                self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BEST}; font-size: 12px; font-weight: bold; background: transparent;")
+            else:
+                self.validation_label.setText("❌ Handshake failed (not a valid UCI engine)")
+                self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+        except subprocess.TimeoutExpired:
+            self.validation_label.setText("❌ Timeout: Engine failed to respond within 1s")
+            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+        except Exception as e:
+            self.validation_label.setText(f"❌ Failed to execute binary: {str(e)}")
+            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+            
+        self.validation_label.setVisible(True)
+
     def change_analysis_depth(self, depth_str):
         """Changes the analysis depth setting. Takes effect on next analysis."""
         try:
@@ -942,6 +1044,7 @@ class SettingsView(QWidget):
         path, _ = QFileDialog.getOpenFileName(self, "Select Stockfish Binary", "", filter_str)
         if path:
             self.path_input.setText(path)
+            self.validate_engine_path()
 
     def save_engine_path(self):
         """Save every engine setting (path, threads, hash) at once.
@@ -975,6 +1078,8 @@ class SettingsView(QWidget):
             self.engine_path_changed.emit(path)
         if threads_changed or hash_changed:
             self.engine_settings_changed.emit()
+
+        self.validate_engine_path()
 
         QMessageBox.information(
             self,
