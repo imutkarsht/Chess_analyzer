@@ -1,1 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" role="img" aria-label="Book move"><title>Book move</title><rect x="1" y="1" width="22" height="22" rx="4" ry="4" fill="#9A7B4B"/><path d="M3 6.5C3 6.5 5 5 12 5s9 1.5 9 1.5v12.5C21 18 19 19 12 19s-9-1-9-1Z M12 5v14" stroke="#FFFFFF" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" fill="none"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <polygon points="40,6 71,24 71,56 40,74 9,56 9,24" fill="#B8956E" stroke="#FFFFFF" stroke-width="4.5" stroke-linejoin="round"/>
+  <!-- Open Book outline: left and right pages -->
+  <path d="M40,21 C31.5,17 23,17 14.5,21 L14.5,57 C23,53 31.5,53 40,59 C48.5,53 57,53 65.5,57 L65.5,21 C57,17 48.5,17 40,21 Z" fill="#FFFFFF" fill-rule="evenodd"/>
+  <!-- Spine/Center separation -->
+  <path d="M40,21 L40,59" stroke="#B8956E" stroke-width="4" stroke-linecap="round"/>
+  <!-- Page lines on Left Page -->
+  <line x1="22" y1="29" x2="34" y2="29" stroke="#B8956E" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="22" y1="38" x2="34" y2="38" stroke="#B8956E" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="22" y1="47" x2="30" y2="47" stroke="#B8956E" stroke-width="2.8" stroke-linecap="round"/>
+  <!-- Page lines on Right Page -->
+  <line x1="46" y1="29" x2="58" y2="29" stroke="#B8956E" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="46" y1="38" x2="58" y2="38" stroke="#B8956E" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="46" y1="47" x2="54" y2="47" stroke="#B8956E" stroke-width="2.8" stroke-linecap="round"/>
+</svg>

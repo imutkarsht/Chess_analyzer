@@ -6,9 +6,10 @@ import re
 from PyQt6.QtWidgets import (QListWidget, QListWidgetItem, QVBoxLayout, QWidget, QLabel, 
                              QHBoxLayout, QFrame)
 from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QIcon
 from .styles import Styles
 from ..utils.logger import logger
+from ..utils.path_utils import get_resource_path
 
 try:
     import qtawesome as qta
@@ -37,18 +38,39 @@ class GameListItemWidget(QWidget):
         if icon_label:
             header_layout.addWidget(icon_label)
         
-        # Player names
+        # Player names & ELO
         w_elo = f" ({game.metadata.white_elo})" if game.metadata.white_elo else ""
         b_elo = f" ({game.metadata.black_elo})" if game.metadata.black_elo else ""
+        result_text = game.metadata.result
         
-        players_label = QLabel(f"<b>{game.metadata.white}{w_elo}</b>  vs  <b>{game.metadata.black}{b_elo}</b>")
-        players_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px;")
-        header_layout.addWidget(players_label)
+        # White player
+        white_label = QLabel(f"<b>{game.metadata.white}{w_elo}</b>")
+        white_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px;")
+        header_layout.addWidget(white_label)
+        
+        if result_text == "1-0":
+            crown_label = self._create_winner_crown()
+            if crown_label:
+                header_layout.addWidget(crown_label)
+                
+        # "vs" separator
+        vs_label = QLabel("vs")
+        vs_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; margin: 0 4px;")
+        header_layout.addWidget(vs_label)
+        
+        # Black player
+        black_label = QLabel(f"<b>{game.metadata.black}{b_elo}</b>")
+        black_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px;")
+        header_layout.addWidget(black_label)
+        
+        if result_text == "0-1":
+            crown_label = self._create_winner_crown()
+            if crown_label:
+                header_layout.addWidget(crown_label)
         
         header_layout.addStretch()
         
         # Result with color coding
-        result_text = game.metadata.result
         result_color = self._get_result_color(result_text, game.metadata, usernames)
             
         result_label = QLabel(result_text)
@@ -73,12 +95,15 @@ class GameListItemWidget(QWidget):
             opening_layout.setSpacing(6)
             opening_layout.setContentsMargins(0, 0, 0, 0)
             
-            # Book icon - use muted color
-            if HAS_QTAWESOME:
-                book_icon = QLabel()
-                book_icon.setPixmap(qta.icon('fa5s.book-open', color=Styles.COLOR_TEXT_MUTED).pixmap(12, 12))
-                book_icon.setFixedWidth(16)
-                opening_layout.addWidget(book_icon)
+            # Book icon - use custom book SVG or fallback to qtawesome
+            book_icon = QLabel()
+            icon_path = get_resource_path("assets/images/book.svg")
+            if os.path.exists(icon_path):
+                book_icon.setPixmap(QIcon(icon_path).pixmap(16, 16))
+            elif HAS_QTAWESOME:
+                book_icon.setPixmap(qta.icon('fa5s.book-open', color=Styles.COLOR_TEXT_MUTED).pixmap(16, 16))
+            book_icon.setFixedWidth(16)
+            opening_layout.addWidget(book_icon)
             
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
             opening_label = QLabel(opening_text)
@@ -104,7 +129,9 @@ class GameListItemWidget(QWidget):
         # Time Control
         time_control = game.metadata.time_control
         if time_control:
-            tc_widget = self._create_meta_item('fa5s.clock', time_control)
+            tc_icon = self._get_time_control_icon(time_control)
+            tc_text = self._format_time_control(time_control)
+            tc_widget = self._create_meta_item(tc_icon, tc_text)
             meta_layout.addWidget(tc_widget)
         
         # Move count
@@ -192,7 +219,17 @@ class GameListItemWidget(QWidget):
             icon_label.setPixmap(icon_pixmap.scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         return icon_label
     
-    def _create_meta_item(self, icon_name, text, color=None):
+    def _create_winner_crown(self):
+        """Create a winner crown icon label."""
+        icon_path = get_resource_path("assets/images/winner-crown.svg")
+        if os.path.exists(icon_path):
+            crown_label = QLabel()
+            crown_label.setPixmap(QIcon(icon_path).pixmap(14, 14))
+            crown_label.setToolTip("Winner")
+            return crown_label
+        return None
+
+    def _create_meta_item(self, icon, text, color=None):
         """Create a metadata item with icon and text."""
         widget = QWidget()
         layout = QHBoxLayout(widget)
@@ -201,9 +238,23 @@ class GameListItemWidget(QWidget):
         
         text_color = color or Styles.COLOR_TEXT_SECONDARY
         
-        if HAS_QTAWESOME:
-            icon_label = QLabel()
-            icon_label.setPixmap(qta.icon(icon_name, color=text_color).pixmap(12, 12))
+        icon_label = QLabel()
+        icon_pixmap = None
+        
+        if isinstance(icon, QIcon):
+            if not icon.isNull():
+                icon_pixmap = icon.pixmap(16, 16)
+        elif isinstance(icon, str):
+            if icon.endswith('.svg') or icon.endswith('.png'):
+                # Try to load local SVG/image
+                icon_path = get_resource_path(icon)
+                if os.path.exists(icon_path):
+                    icon_pixmap = QIcon(icon_path).pixmap(16, 16)
+            elif HAS_QTAWESOME and icon.startswith('fa5s.'):
+                icon_pixmap = qta.icon(icon, color=text_color).pixmap(16, 16)
+                
+        if icon_pixmap and not icon_pixmap.isNull():
+            icon_label.setPixmap(icon_pixmap)
             layout.addWidget(icon_label)
         
         text_label = QLabel(text)
@@ -237,19 +288,93 @@ class GameListItemWidget(QWidget):
         
         return Styles.COLOR_TEXT_SECONDARY
     
+    def _format_time_control(self, time_control):
+        """Format time control string from seconds to minutes (e.g. 180+2 -> 3+2, 600 -> 10)."""
+        if not time_control or time_control in ("-", "?"):
+            return time_control
+            
+        match = re.match(r"^(\d+)(?:\+(\d+))?$", time_control.strip())
+        if match:
+            try:
+                base_seconds = int(match.group(1))
+                increment = int(match.group(2)) if match.group(2) else 0
+                
+                # Format base time
+                if base_seconds < 60:
+                    base_str = f"{base_seconds}s"
+                elif base_seconds % 60 == 0:
+                    base_str = str(base_seconds // 60)
+                else:
+                    base_str = f"{base_seconds / 60:.1f}".rstrip('0').rstrip('.')
+                
+                # Format increment
+                if increment > 0:
+                    return f"{base_str}+{increment}"
+                else:
+                    return base_str
+            except ValueError:
+                pass
+                
+        return time_control
+
+    def _get_time_control_icon(self, time_control):
+        """Map time control string to a local SVG icon path."""
+        tc_type = self._classify_time_control(time_control)
+        return f"assets/images/{tc_type}.svg"
+
+    def _classify_time_control(self, time_control):
+        """Classify time control into bullet, blitz, rapid, classical, or freestyle."""
+        if not time_control or time_control in ("-", "?"):
+            return "freestyle"
+            
+        # Standard formats: e.g. "180", "180+2", "300", "600+5"
+        # Match base seconds and increment
+        match = re.match(r"^(\d+)(?:\+(\d+))?$", time_control.strip())
+        if match:
+            try:
+                base_seconds = int(match.group(1))
+                increment = int(match.group(2)) if match.group(2) else 0
+                
+                # Estimate total duration assuming a 40-move game
+                total_time = base_seconds + 40 * increment
+                
+                if total_time <= 120:
+                    return "bullet"
+                elif total_time <= 300:
+                    return "blitz"
+                elif total_time <= 2400:
+                    return "rapid"
+                else:
+                    return "classical"
+            except ValueError:
+                pass
+                
+        # Fallback keyword matching
+        tc_lower = time_control.lower()
+        if "bullet" in tc_lower:
+            return "bullet"
+        elif "blitz" in tc_lower:
+            return "blitz"
+        elif "rapid" in tc_lower:
+            return "rapid"
+        elif "classical" in tc_lower or "daily" in tc_lower or "correspondence" in tc_lower:
+            return "classical"
+            
+        return "freestyle"
+
     def _get_termination_icon(self, termination):
         """Return icon name based on termination type."""
         term_lower = termination.lower()
         if "checkmate" in term_lower or "mate" in term_lower:
-            return "fa5s.chess-king"
+            return "assets/images/checkmate.svg"
         elif "resign" in term_lower:
-            return "fa5s.flag"
-        elif "time" in term_lower:
-            return "fa5s.hourglass-end"
+            return "assets/images/resign.svg"
+        elif "time" in term_lower or "timeout" in term_lower or "forfeit" in term_lower:
+            return "assets/images/timeout.svg"
         elif "abandon" in term_lower:
             return "fa5s.door-open"
         elif "draw" in term_lower or "stalemate" in term_lower or "repetition" in term_lower:
-            return "fa5s.handshake"
+            return "assets/images/draw_black.svg"
         return "fa5s.circle"
     
     def _get_move_count(self, game):

@@ -22,17 +22,17 @@ class Styles:
     COLOR_PIECE_WHITE = "#F0F0F0"
     COLOR_PIECE_BLACK = "#111111"
     
-    # Move Classification Colors (Refined for visual appeal)
-    COLOR_BRILLIANT = "#00D4AA"  # Brighter teal
-    COLOR_GREAT = "#4CACEB"  # Vibrant blue
-    COLOR_BEST = "#8BC34A"  # Consistent green
-    COLOR_EXCELLENT = "#8BC34A"
-    COLOR_GOOD = "#7CB342"  # Slightly different green
-    COLOR_INACCURACY = "#FFD54F"  # Warm yellow
-    COLOR_MISTAKE = "#F39C12"  # Warmer amber
-    COLOR_BLUNDER = "#E74C3C"  # Softer but vibrant red
-    COLOR_MISS = "#E67E22"  # Distinct orange
-    COLOR_BOOK = "#B8956E"  # Warm book brown
+    # Move Classification Colors (Aligned with SVG icon background fills)
+    COLOR_BRILLIANT = "#00D4AA"
+    COLOR_GREAT = "#4CACEB"
+    COLOR_BEST = "#3AAA55"
+    COLOR_EXCELLENT = "#6BBF3E"
+    COLOR_GOOD = "#4CAF76"
+    COLOR_INACCURACY = "#F1C40F"
+    COLOR_MISTAKE = "#E67E22"
+    COLOR_BLUNDER = "#D02030"
+    COLOR_MISS = "#FF5252"
+    COLOR_BOOK = "#B8956E"
 
     # Board Themes
     BOARD_THEMES = {

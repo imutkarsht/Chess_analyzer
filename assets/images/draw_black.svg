@@ -1,1 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" role="img" aria-label="Draw"><title>Draw</title><rect x="1" y="1" width="22" height="22" rx="4" ry="4" fill="#111111"/><path d="M2 13l3-3 3 1 3 1 2-1 3 1 2-1 3 1 1 1-1 3-3 1-3-1-2 1-3-1-2 1-3-1-2-2z" fill="#FFFFFF"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" rx="18" fill="#2D2D2D"/>
+  <text x="40" y="52" font-family="Georgia, serif" font-size="34" font-weight="700" fill="#FFFFFF" text-anchor="middle">½</text>
+</svg>
