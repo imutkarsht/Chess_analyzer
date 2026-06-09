@@ -1,8 +1,8 @@
 import os
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QFrame, QScrollArea, QPushButton, QGridLayout, QProgressBar, QSizePolicy)
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QPixmap, QIcon
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+                             QFrame, QScrollArea, QPushButton, QProgressBar, QSizePolicy)
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect
+from PyQt6.QtGui import QColor, QPixmap
 import matplotlib
 matplotlib.use('QtAgg')
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
@@ -19,6 +19,230 @@ from .components import StatCard
 from ..utils.logger import logger
 from ..backend.groq_service import GroqService
 import re
+from PyQt6.QtWidgets import QLayout
+
+
+# ---------------------------------------------------------------------------
+# StatsLayout: Custom layout to arrange the 4 metric cards adaptively
+# ---------------------------------------------------------------------------
+class StatsLayout(QLayout):
+    def __init__(self, parent=None, spacing=20):
+        super().__init__(parent)
+        self._items = []
+        self._spacing = spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        if not self._items:
+            return 0
+            
+        margins = self.contentsMargins()
+        available_width = width - margins.left() - margins.right()
+        spacing = self._spacing
+        
+        if available_width >= 900:
+            cols = 4
+        elif available_width >= 500:
+            cols = 2
+        else:
+            cols = 1
+            
+        rows = (len(self._items) + cols - 1) // cols
+        
+        total_height = 0
+        for r in range(rows):
+            max_h = 0
+            for c in range(cols):
+                idx = r * cols + c
+                if idx < len(self._items):
+                    max_h = max(max_h, self._items[idx].sizeHint().height())
+            total_height += max_h
+            
+        if rows > 1:
+            total_height += (rows - 1) * spacing
+            
+        return total_height + margins.top() + margins.bottom()
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self.doLayout(rect)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def doLayout(self, rect):
+        if not self._items:
+            return
+            
+        margins = self.contentsMargins()
+        spacing = self._spacing
+        available_width = rect.width() - margins.left() - margins.right()
+        
+        if available_width >= 900:
+            cols = 4
+        elif available_width >= 500:
+            cols = 2
+        else:
+            cols = 1
+            
+        item_w = (available_width - (cols - 1) * spacing) // cols
+        
+        # Calculate Y start for each row
+        row_heights = []
+        rows = (len(self._items) + cols - 1) // cols
+        for r in range(rows):
+            max_h = 0
+            for c in range(cols):
+                idx = r * cols + c
+                if idx < len(self._items):
+                    max_h = max(max_h, self._items[idx].sizeHint().height())
+            row_heights.append(max_h)
+
+        row_y = [rect.y() + margins.top()]
+        for r in range(1, rows):
+            row_y.append(row_y[-1] + row_heights[r-1] + spacing)
+
+        for idx, item in enumerate(self._items):
+            r = idx // cols
+            c = idx % cols
+            
+            x = rect.x() + margins.left() + c * (item_w + spacing)
+            y = row_y[r]
+            
+            item.setGeometry(QRect(x, y, item_w, row_heights[r]))
+
+
+# ---------------------------------------------------------------------------
+# MasonryLayout: Custom QLayout for dynamic, space-efficient column packing
+# ---------------------------------------------------------------------------
+class MasonryLayout(QLayout):
+    def __init__(self, parent=None, margin=0, spacing=20):
+        super().__init__(parent)
+        self._items = []
+        self._spacing = spacing
+        self.setContentsMargins(margin, margin, margin, margin)
+
+    def __del__(self):
+        item = self.takeAt(0)
+        while item:
+            item = self.takeAt(0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items[index]
+        return None
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._items):
+            return self._items.pop(index)
+        return None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self.doLayout(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self.doLayout(rect, False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+        return size
+
+    def doLayout(self, rect, test_only):
+        margins = self.contentsMargins()
+        spacing = self._spacing
+        
+        available_width = rect.width() - margins.left() - margins.right()
+        
+        # We want columns to be at least 400px wide
+        min_col_width = 400
+        num_cols = max(1, available_width // min_col_width)
+        num_cols = min(2, num_cols)  # Hard cap at 2 columns — 1 on narrow screens
+        
+        if num_cols > 1:
+            col_width = (available_width - (num_cols - 1) * spacing) // num_cols
+        else:
+            col_width = available_width
+
+        col_heights = [rect.y() + margins.top()] * num_cols
+
+        for item in self._items:
+            widget = item.widget()
+            if widget and not widget.isVisible():
+                continue
+
+            min_col_idx = col_heights.index(min(col_heights))
+            
+            x = rect.x() + margins.left() + min_col_idx * (col_width + spacing)
+            y = col_heights[min_col_idx]
+            
+            h = item.heightForWidth(col_width) if item.hasHeightForWidth() else item.sizeHint().height()
+            
+            if not test_only:
+                item.setGeometry(QRect(x, y, col_width, h))
+                
+            col_heights[min_col_idx] = y + h + spacing
+
+        if col_heights:
+            max_height = max(col_heights) - spacing + margins.bottom()
+        else:
+            max_height = rect.y() + margins.top() + margins.bottom()
+            
+        return max_height - rect.y()
 
 
 class MetricsWidget(QWidget):
@@ -35,26 +259,7 @@ class MetricsWidget(QWidget):
         self.setup_ui()
         self.refresh()
 
-    def _create_icon_label(self, icon_name, size=24, fallback_color=None):
-        """Creates a QLabel with icon, with fallback to colored dot."""
-        # Try SVG first, then PNG
-        icon_path = resolve_asset(f"{icon_name}.svg")
-        if not icon_path:
-            icon_path = resolve_asset(f"{icon_name}.png")
-        
-        lbl = QLabel()
-        if icon_path and os.path.exists(icon_path):
-            pixmap = QPixmap(icon_path)
-            if not pixmap.isNull():
-                pixmap = pixmap.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                lbl.setPixmap(pixmap)
-                lbl.setStyleSheet("border: none; background: transparent;")
-                return lbl
-        # Fallback to colored dot
-        lbl.setText("●")
-        color = fallback_color or Styles.COLOR_ACCENT
-        lbl.setStyleSheet(f"color: {color}; font-size: {size}px; border: none; background: transparent;")
-        return lbl
+
 
     def setup_ui(self):
         self.main_layout = QVBoxLayout(self)
@@ -167,31 +372,6 @@ class MetricsWidget(QWidget):
         
         self.content_layout.addWidget(container)
 
-    def _fig_to_label(self, fig):
-        """Converts a matplotlib figure to a QPixmap and returns a QLabel."""
-        canvas = FigureCanvasQTAgg(fig)
-        canvas.draw()
-        
-        # Render to pixmap
-        width, height = int(fig.get_figwidth() * fig.get_dpi()), int(fig.get_figheight() * fig.get_dpi())
-        pixmap = QPixmap(width, height)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        
-        painter = pyqtSignal = None # Wait, don't need imports here
-        from PyQt6.QtGui import QPainter
-        
-        painter = QPainter(pixmap)
-                
-        buf = canvas.buffer_rgba()
-        from PyQt6.QtGui import QImage
-        qimg = QImage(buf, width, height, QImage.Format.Format_ARGB32)
-        
-        pixmap = QPixmap.fromImage(qimg)
-        
-        lbl = QLabel()
-        lbl.setPixmap(pixmap)
-        lbl.setStyleSheet("background: transparent; border: none;")
-        return lbl
 
     def show_dashboard(self, stats):
         scroll = QScrollArea()
@@ -201,39 +381,37 @@ class MetricsWidget(QWidget):
         dashboard = QWidget()
         dashboard.setStyleSheet("background: transparent;")
         
-        # USE GRID LAYOUT
-        layout = QGridLayout(dashboard)
-        layout.setSpacing(20)
-        layout.setContentsMargins(10, 10, 10, 10)
+        dashboard_layout = QVBoxLayout(dashboard)
+        dashboard_layout.setSpacing(20)
+        dashboard_layout.setContentsMargins(10, 10, 10, 10)
         
-        # 1. Key Metrics Row (Row 0)
-        # Stats are passed in
+        # 1. Key Metrics Row - uses custom adaptive StatsLayout
+        self.stats_container = QWidget()
+        self.stats_layout = StatsLayout(self.stats_container, spacing=20)
+        self.stats_layout.addWidget(StatCard("Total Games", str(stats['total']), "Tracked this week", icon="games"))
+        self.stats_layout.addWidget(StatCard("Win Rate", f"{stats['win_rate']:.1f}%", f"Vs last {stats['total']} games", icon="win_rate", color=Styles.COLOR_ACCENT))
+        self.stats_layout.addWidget(StatCard("Avg Accuracy", f"{stats['avg_accuracy']:.1f}%", "Based on engine eval.", icon="accuracy"))
+        self.stats_layout.addWidget(StatCard("Best Win", str(stats['best_win']), "Keep playing!", icon="best_win"))
+        dashboard_layout.addWidget(self.stats_container)
         
-        layout.addWidget(StatCard("Total Games", str(stats['total']), "Tracked this week", icon="games"), 0, 0)
-        layout.addWidget(StatCard("Win Rate", f"{stats['win_rate']:.1f}%", f"Vs last {stats['total']} games", icon="win_rate", color=Styles.COLOR_ACCENT), 0, 1)
-        layout.addWidget(StatCard("Avg Accuracy", f"{stats['avg_accuracy']:.1f}%", "Based on engine eval.", icon="accuracy"), 0, 2)
-        layout.addWidget(StatCard("Best Win", str(stats['best_win']), "Keep playing!", icon="best_win"), 0, 3)
+        # 2. Donut charts — always 3 equal columns, fully dynamic width
+        donuts_widget = QWidget()
+        donuts_layout = QHBoxLayout(donuts_widget)
+        donuts_layout.setSpacing(20)
+        donuts_layout.setContentsMargins(0, 0, 0, 0)
+        donuts_layout.addWidget(self._create_card("Result Distribution", self._create_result_donut(stats), max_height=310))
+        donuts_layout.addWidget(self._create_card("Ending Distribution", self._create_termination_donut(stats['term_counts']), max_height=310))
+        donuts_layout.addWidget(self._create_card("Move Quality Distribution", self._create_quality_donut(stats['quality_counts']), max_height=310))
+        dashboard_layout.addWidget(donuts_widget)
+
+        # 3. Remaining cards in a 2-column masonry (shortest-column packing)
+        self.charts_container = QWidget()
+        self.charts_layout = MasonryLayout(self.charts_container, margin=0, spacing=20)
+        self.charts_layout.addWidget(self._create_card("Accuracy Trend", self._create_accuracy_chart(stats['accuracy_history'])))
+        self.charts_layout.addWidget(self._create_card("Performance by Color", self._create_color_chart(stats['color_stats'])))
+        self.charts_layout.addWidget(self._create_card("Top Openings", self._create_openings_list(stats['openings'], stats['opening_wins']), min_height=400))
         
-        # 2. Charts Row (Row 1)
-        # Result Distribution
-        layout.addWidget(self._create_card("Result Distribution", self._create_result_donut(stats), 1), 1, 0)
-        # Ending Distribution
-        layout.addWidget(self._create_card("Ending Distribution", self._create_termination_donut(stats['term_counts']), 1), 1, 1)
-        # Move Quality
-        layout.addWidget(self._create_card("Move Quality Distribution", self._create_quality_donut(stats['quality_counts']), 1), 1, 2, 1, 2) # Span 2 cols
-        
-        # 3. Trends & Openings (Row 2)
-        # Accuracy Trend - Split Width (2 cols)
-        layout.addWidget(self._create_card("Accuracy Trend", self._create_accuracy_chart(stats['accuracy_history']), 2), 2, 0, 1, 2)
-        
-        # Color Performance - Split Width (2 cols)
-        layout.addWidget(self._create_card("Performance by Color", self._create_color_chart(stats['color_stats']), 1), 2, 2, 1, 2)
-        
-        # 4. Bottom Row (Row 3)
-        # Top Openings
-        layout.addWidget(self._create_card("Top Openings", self._create_openings_list(stats['openings'], stats['opening_wins']), 1), 3, 0, 1, 2)
-        
-        # Insights
+        # AI Coach Insights refresh button
         btn_refresh_insights = QPushButton("↻")
         btn_refresh_insights.setFixedSize(32, 32)
         btn_refresh_insights.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -252,16 +430,14 @@ class MetricsWidget(QWidget):
             }}
         """)
         btn_refresh_insights.clicked.connect(lambda: self._generate_insights(stats))
-        
-        layout.addWidget(self._create_card("AI Coach Insights", self._create_insights_panel(), 1, action_widget=btn_refresh_insights), 3, 2, 1, 2) 
-        
-        # Row stretches
-        layout.setRowStretch(4, 1) # Push up
+        self.charts_layout.addWidget(self._create_card("AI Coach Insights", self._create_insights_panel(), action_widget=btn_refresh_insights, min_height=400))
+
+        dashboard_layout.addWidget(self.charts_container)
         
         scroll.setWidget(dashboard)
         self.content_layout.addWidget(scroll)
 
-    def _create_card(self, title, widget, stretch=0, action_widget=None):
+    def _create_card(self, title, widget, stretch=0, action_widget=None, max_height=None, min_height=None):
         # Professional Dashboard Card with modern styling
         card = QFrame()
         card.setStyleSheet(f"""
@@ -274,6 +450,11 @@ class MetricsWidget(QWidget):
                 border: 1px solid {Styles.COLOR_ACCENT};
             }}
         """)
+        # Apply size constraints before layout so masonry measures them correctly
+        if max_height is not None:
+            card.setMaximumHeight(max_height)
+        if min_height is not None:
+            card.setMinimumHeight(min_height)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(16)
@@ -447,10 +628,8 @@ class MetricsWidget(QWidget):
         sorted_ops = sorted(openings.items(), key=lambda x: x[1], reverse=True) 
         
         container = QWidget()
-                    
-        sorted_ops = sorted(openings.items(), key=lambda x: x[1], reverse=True) 
-        
-        container = QWidget()
+        # min height handled by _create_card; remove inner constraint to let card control it
+        container.setMinimumHeight(0)
         layout = QVBoxLayout(container)
         layout.setSpacing(8) # Tighter spacing for list
         layout.setContentsMargins(5, 5, 5, 5)
@@ -538,29 +717,46 @@ class MetricsWidget(QWidget):
         return container
 
     def _create_insights_panel(self):
+        # Scrollable wrapper so long AI responses don't get clipped
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("""
+            QScrollArea { background: transparent; border: none; }
+            QScrollBar:vertical {
+                background: transparent; width: 6px; margin: 0;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255,255,255,0.15); border-radius: 3px; min-height: 20px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+        """)
+
         self.insights_container = QWidget()
+        self.insights_container.setStyleSheet("background: transparent;")
+        # Must be Expanding so QScrollArea can scroll it when content overflows
+        self.insights_container.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         self.insights_layout = QVBoxLayout(self.insights_container)
         self.insights_layout.setSpacing(15)
         self.insights_layout.setContentsMargins(10, 10, 10, 10)
         self.insights_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        
-        # Initial State: Placeholder Text / Skeleton
-        # Removed the big generate button as we now have a header button
-        
+
         lbl_placeholder = QLabel("Analysis ready. Click refresh to get insights.")
         lbl_placeholder.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-style: italic;")
         lbl_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.insights_layout.addWidget(lbl_placeholder)
-        
-        # Add a few placeholder lines
+
         for _ in range(3):
             line = QFrame()
             line.setFixedHeight(12)
             line.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE_LIGHT}; border-radius: 6px;")
             self.insights_layout.addWidget(line)
-            
-        return self.insights_container
-        
+
+        scroll.setWidget(self.insights_container)
+        return scroll
+
     def _generate_insights(self, stats):
         # 1. Clear current Layout
         self._clear_layout(self.insights_layout)
@@ -713,8 +909,6 @@ class MetricsWidget(QWidget):
             add_insight("idea", insight_text)
 
     def _create_quality_donut(self, counts):
-        # counts passed in
-        pass
                 
         fig = Figure(figsize=(4, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
         ax = fig.add_subplot(111)
@@ -732,18 +926,13 @@ class MetricsWidget(QWidget):
                 colors.append(color_map.get(k, '#888'))
                 
         if sizes:
-            wedges, texts, autotexts = ax.pie(sizes, labels=None, autopct='%1.0f%%', colors=colors, 
-                                              pctdistance=0.85, startangle=90,
-                                              textprops=dict(color=Styles.COLOR_TEXT_SECONDARY))
+            wedges, texts = ax.pie(sizes, labels=None, colors=colors,
+                                   startangle=90)
             
             # Draw circle
             centre_circle = matplotlib.patches.Circle((0,0),0.70,fc=Styles.COLOR_SURFACE)
             fig.gca().add_artist(centre_circle)
-            
 
-            # Custom legend will be added below
-            pass
-            
         else:
              ax.text(0, 0, "No moves", ha='center', va='center', color=Styles.COLOR_TEXT_SECONDARY)
             
