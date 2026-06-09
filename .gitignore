@@ -16,3 +16,4 @@ config.json
 # Local PGNs (user's games) and editor history
 *.pgn
 .history/
+.DS_Store

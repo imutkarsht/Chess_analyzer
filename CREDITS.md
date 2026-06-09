@@ -98,6 +98,16 @@ service. Brand names are used nominatively to identify the data source.
 
 ---
 
+## Icons & Logos
+
+The platform icons located in [`assets/icons/`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/assets/icons) are used nominatively to identify the game source:
+
+- **Chess.com Logo** (`chesscom.png`): Copyright © Chess.com. Used nominatively to indicate game source.
+- **Lichess Logo** (`lichess.png`): Copyright © Lichess.org. Used nominatively to indicate game source.
+- **Application Icons**: UI icons (such as exit, settings, history, etc.) are standard UI assets sourced from standard open-source sets or designed specifically for the clean system.
+
+---
+
 ## Libraries
 
 The full list of Python dependencies and their licenses is available in
