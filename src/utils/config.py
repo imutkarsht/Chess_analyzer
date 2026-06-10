@@ -20,6 +20,7 @@ class ConfigManager:
         "groq_api_key": "",
         "groq_model": "llama-3.3-70b-versatile",
         "analysis_depth": 18,
+        "api_games_limit": 20,
         # Engine footprint controls (see issue #5).  multi_pv and
         # live_analysis_time are the new user-tunable knobs; we seed
         # them in DEFAULT_CONFIG so a brand-new install has safe
