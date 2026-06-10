@@ -54,19 +54,35 @@ class ChessComAPI(BaseChessAPI):
     def get_game_by_id(game_id: str, url: str = None) -> Optional[Dict]:
         """
         Fetches a specific game by its ID.
-        Prioritizes the callback API for live games as it's most reliable for recent games.
+        Prioritizes the callback API for live/daily games as it's most reliable and fastest.
         Falls back to scraping or archive search if needed.
         """
-        # 1. Try callback API first (fastest and most reliable for live games)
-        game = ChessComAPI._get_game_via_callback(game_id)
-        if game:
-            return game
+        # Determine if it's daily or live from URL
+        is_daily = False
+        if url and "daily" in url.lower():
+            is_daily = True
+
+        # Try daily callback if URL indicates daily, else live callback
+        if is_daily:
+            game = ChessComAPI._get_game_via_daily_callback(game_id)
+            if game:
+                return game
+            game = ChessComAPI._get_game_via_callback(game_id)
+            if game:
+                return game
+        else:
+            game = ChessComAPI._get_game_via_callback(game_id)
+            if game:
+                return game
+            game = ChessComAPI._get_game_via_daily_callback(game_id)
+            if game:
+                return game
 
         if not url:
             return None
 
         try:
-            # 2. If callback failed, try scraping metadata from URL to find archive
+            # 2. If callbacks failed, try scraping metadata from URL to find archive
             response = requests.get(url, headers=ChessComAPI.HEADERS)
             response.raise_for_status()
             html = response.text
@@ -128,6 +144,20 @@ class ChessComAPI(BaseChessAPI):
     def _get_game_via_callback(game_id: str) -> Optional[Dict]:
         try:
             url = f"https://www.chess.com/callback/live/game/{game_id}"
+            response = requests.get(url, headers=ChessComAPI.HEADERS)
+            if response.status_code != 200:
+                return None
+            data = response.json()
+            if "game" in data and "pgn" in data["game"]:
+                return {"pgn": data["game"]["pgn"]}
+            return None
+        except:
+            return None
+
+    @staticmethod
+    def _get_game_via_daily_callback(game_id: str) -> Optional[Dict]:
+        try:
+            url = f"https://www.chess.com/callback/daily/game/{game_id}"
             response = requests.get(url, headers=ChessComAPI.HEADERS)
             if response.status_code != 200:
                 return None

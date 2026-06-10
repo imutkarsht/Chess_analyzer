@@ -120,12 +120,12 @@ class MoveCellWidget(QWidget):
         top_row.setContentsMargins(0, 0, 0, 0)
         top_row.setSpacing(4)
 
-        self._icon_label = QLabel()
+        self._icon_label = QLabel(self)
         self._icon_label.setFixedSize(20, 20)
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._san_label = QLabel()
+        self._san_label = QLabel(self)
         self._san_label.setAlignment(
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
         )
@@ -134,7 +134,7 @@ class MoveCellWidget(QWidget):
         self._san_label.setFont(font)
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
-        self._time_label = QLabel()
+        self._time_label = QLabel(self)
         self._time_label.setAlignment(
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
         )
@@ -148,7 +148,7 @@ class MoveCellWidget(QWidget):
         # Bottom row: a 3-pixel-tall coloured think-time bar (full width).
         # We use a plain QLabel with a stylesheet background so we don't
         # need a second custom widget for such a simple thing.
-        self._bar = QLabel()
+        self._bar = QLabel(self)
         self._bar.setFixedHeight(3)
         self._bar.setStyleSheet("background: rgba(255,255,255,20); border: none;")
         outer.addWidget(self._bar)
