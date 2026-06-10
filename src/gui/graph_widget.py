@@ -1,10 +1,15 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtCore import pyqtSignal
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from .styles import Styles
 
 class GraphWidget(QWidget):
+    # Emitted when the user clicks a point on the graph.
+    # Carries the 0-based move index (same convention as on_move_selected).
+    move_clicked = pyqtSignal(int)
+
     def __init__(self):
         super().__init__()
         self.layout = QVBoxLayout(self)
@@ -186,8 +191,9 @@ class GraphWidget(QWidget):
                             fontsize=11,
                             arrowprops=dict(arrowstyle="->", color=Styles.COLOR_TEXT_SECONDARY))
         self.annot.set_visible(False)
-        
+
         self.canvas.mpl_connect("motion_notify_event", self.on_hover)
+        self.canvas.mpl_connect("button_press_event", self.on_click)
 
     def set_current_move(self, move_index):
         """Updates the current move indicator line on the chart."""
@@ -223,6 +229,22 @@ class GraphWidget(QWidget):
             if hasattr(self, 'annot') and self.annot.get_visible():
                 self.annot.set_visible(False)
                 self.canvas.draw_idle()
+
+    def on_click(self, event):
+        """Navigate the board to the move nearest to the click position."""
+        if event.inaxes != self.ax:
+            return
+        x = event.xdata
+        if x is None or not hasattr(self, 'moves_data'):
+            return
+
+        # Find closest index in moves_data (moves_data[0] == 0 is the start pos)
+        idx = min(range(len(self.moves_data)), key=lambda i: abs(self.moves_data[i] - x))
+
+        # moves_data[0] is the pre-game position (index -1 in board terms).
+        # Every subsequent entry corresponds to 0-based move index idx-1.
+        move_index = idx - 1
+        self.move_clicked.emit(move_index)
 
     def clear(self):
         self.ax.clear()

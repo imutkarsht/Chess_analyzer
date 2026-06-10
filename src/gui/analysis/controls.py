@@ -27,6 +27,14 @@ class GameControlsWidget(QWidget):
         self.btn_next = create_button(">", style="secondary", on_click=self.next_clicked.emit)
         self.btn_last = create_button(">>", style="secondary", on_click=self.last_clicked.emit)
         self.btn_flip = create_button("Flip", style="secondary", on_click=self.flip_clicked.emit)
+
+        # NoFocus prevents the buttons from stealing keyboard focus when clicked.
+        # Without this, clicking a button grabs focus away from the main window,
+        # so the very next arrow-key press goes to the button rather than the
+        # keyPressEvent handler — making navigation feel like it needs two clicks.
+        for btn in (self.btn_first, self.btn_prev, self.btn_next,
+                    self.btn_last, self.btn_flip):
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         
         layout.addWidget(self.btn_first)
         layout.addWidget(self.btn_prev)

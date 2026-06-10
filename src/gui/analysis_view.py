@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetIte
                              QHeaderView, QLabel, QGridLayout, QFrame, QHBoxLayout, 
                              QPushButton, QAbstractItemView, QCheckBox, QTabWidget, QSizePolicy)
 from .graph_widget import GraphWidget
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread, QSize
+from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QThread, QSize, QEvent
 from PyQt6.QtGui import QColor, QBrush, QFont, QIcon
 from .styles import Styles
 from .gui_utils import (clear_layout, create_button, show_error_dialog,
@@ -159,34 +159,48 @@ class AnalysisLinesWidget(QFrame):
             display_score = score_val
             bg_color = Styles.COLOR_SURFACE_LIGHT
             text_color = Styles.COLOR_TEXT_PRIMARY
-            
+
             try:
                 if score_val.startswith("M"):
+                    # Mate score: M+ → White mates, M- → Black mates
                     if "-" in score_val:
-                        bg_color = "#5C1D24" # Dark red
-                        text_color = "#EF5350" # Light red
+                        bg_color = "#1a1a1a"   # Very dark — Black is mating
+                        text_color = "#E4E4E7"
                     else:
-                        bg_color = "#1B4D3E" # Dark green
-                        text_color = "#66BB6A" # Light green
+                        bg_color = "#E8E8E8"   # Near-white — White is mating
+                        text_color = "#111111"
                 else:
                     val = float(score_val)
                     if turn_color == chess.BLACK:
                         val = -val
                     display_score = f"{val:+.2f}"
-                    
-                    # Color coding
-                    if val > 0.5:
-                        bg_color = "#1B4D3E" # Dark green
-                        text_color = "#8BC34A" # Light green
-                    elif val < -0.5:
-                        bg_color = "#5C1D24" # Dark red
-                        text_color = "#EF5350" # Light red
-                    else:
-                        bg_color = "#2E2E33" # Grey
+
+                    # + → White better (light badge), - → Black better (dark badge)
+                    if val > 0:
+                        # Blend from neutral to full white as advantage grows
+                        intensity = min(1.0, abs(val) / 3.0)
+                        r = int(Styles.COLOR_SURFACE_LIGHT.lstrip("#")[0:2], 16)
+                        r = int(r + (232 - r) * intensity)
+                        g = int(Styles.COLOR_SURFACE_LIGHT.lstrip("#")[2:4], 16)
+                        g = int(g + (232 - g) * intensity)
+                        b = int(Styles.COLOR_SURFACE_LIGHT.lstrip("#")[4:6], 16)
+                        b = int(b + (232 - b) * intensity)
+                        bg_color = f"#{r:02X}{g:02X}{b:02X}"
+                        text_color = "#111111" if intensity > 0.4 else Styles.COLOR_TEXT_PRIMARY
+                    elif val < 0:
+                        # Blend from neutral to near-black as Black's advantage grows
+                        intensity = min(1.0, abs(val) / 3.0)
+                        r = int(Styles.COLOR_SURFACE_LIGHT.lstrip("#")[0:2], 16)
+                        r = int(r * (1 - intensity * 0.85))
+                        g = int(Styles.COLOR_SURFACE_LIGHT.lstrip("#")[2:4], 16)
+                        g = int(g * (1 - intensity * 0.85))
+                        b = int(Styles.COLOR_SURFACE_LIGHT.lstrip("#")[4:6], 16)
+                        b = int(b * (1 - intensity * 0.85))
+                        bg_color = f"#{r:02X}{g:02X}{b:02X}"
                         text_color = "#E4E4E7"
             except:
                 pass
-                
+
             lbl_eval.setText(display_score)
             lbl_eval.setStyleSheet(f"""
                 QLabel {{
@@ -318,6 +332,10 @@ class MoveListPanel(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.cellClicked.connect(self.on_cell_clicked)
         self.table.setIconSize(QSize(20, 20))
+
+        # Redirect arrow / Home / End keys from the table back to the main
+        # window so keyboard navigation always works regardless of focus.
+        self.table.installEventFilter(self)
         
         # Set default row height for better click targets
         self.table.verticalHeader().setDefaultSectionSize(40)
@@ -358,6 +376,25 @@ class MoveListPanel(QWidget):
         
         # Stretch factors
         self.layout.setStretch(0, 1)  # Table
+
+    def eventFilter(self, source, event):
+        """Redirect navigation keys from the table to the main window."""
+        _NAV_KEYS = {
+            Qt.Key.Key_Left, Qt.Key.Key_Right,
+            Qt.Key.Key_Up,   Qt.Key.Key_Down,
+            Qt.Key.Key_Home, Qt.Key.Key_End,
+        }
+        if source is self.table and event.type() == QEvent.Type.KeyPress:
+            if event.key() in _NAV_KEYS:
+                # Walk up to the QMainWindow and let it handle the key
+                parent = self.parent()
+                while parent is not None:
+                    from PyQt6.QtWidgets import QMainWindow
+                    if isinstance(parent, QMainWindow):
+                        parent.keyPressEvent(event)
+                        return True
+                    parent = parent.parent()
+        return super().eventFilter(source, event)
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis

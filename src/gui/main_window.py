@@ -776,6 +776,15 @@ class MainWindow(QMainWindow):
         self.analysis_panel.set_game(game)
         self.captured_white.update_captured(None)
         self.captured_black.update_captured(None)
+
+        # Wire graph click → board navigation.
+        # Disconnect first to prevent duplicate connections across game loads.
+        try:
+            self.analysis_panel.graph_widget.move_clicked.disconnect(self.on_move_selected)
+        except (RuntimeError, TypeError):
+            pass  # Was not connected yet — that's fine
+        self.analysis_panel.graph_widget.move_clicked.connect(self.on_move_selected)
+
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
         self.resource_manager.play_sound("notify")
 
@@ -969,11 +978,13 @@ class MainWindow(QMainWindow):
             if new_index != current_index:
                 self.on_move_selected(new_index)
         
-        elif event.key() == Qt.Key.Key_Home:
-            self.go_first()
-        
-        elif event.key() == Qt.Key.Key_End:
+        elif event.key() in (Qt.Key.Key_Up, Qt.Key.Key_End):
+            # Up arrow or End → jump to final position
             self.go_last()
+        
+        elif event.key() in (Qt.Key.Key_Down, Qt.Key.Key_Home):
+            # Down arrow or Home → jump to starting position
+            self.go_first()
         
         elif event.key() == Qt.Key.Key_F:
             self.flip_board()
