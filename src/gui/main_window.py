@@ -480,13 +480,20 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'analysis_panel'):
             self.analysis_panel.refresh_styles()
             
+        # Update Move List Panel
+        if hasattr(self, 'move_list_panel'):
+            self.move_list_panel.refresh_styles()
+            
         # Update Settings View
         if hasattr(self, 'settings_view'):
             self.settings_view.refresh_styles()
             
-        # Update Metrics View
+        # Update Metrics View (using lightweight style refresh if possible)
         if hasattr(self, 'metrics_view'):
-            self.metrics_view.refresh()
+            if hasattr(self.metrics_view, 'refresh_styles'):
+                self.metrics_view.refresh_styles()
+            else:
+                self.metrics_view.refresh()
             
         # Update MainWindow Buttons
         if hasattr(self, 'btn_load'):
@@ -505,9 +512,14 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'menu_lichess'):
             self.menu_lichess.setStyleSheet(menu_style)
         
-        # Update History View Game List
-        if hasattr(self, 'history_view') and hasattr(self.history_view, 'game_list_widget'):
-            self.history_view.game_list_widget.refresh_styles()
+        # Update History View
+        if hasattr(self, 'history_view'):
+            if hasattr(self.history_view, 'refresh_styles'):
+                self.history_view.refresh_styles()
+            elif hasattr(self.history_view, 'game_list'):
+                self.history_view.game_list.refresh_styles()
+            elif hasattr(self.history_view, 'game_list_widget'):
+                self.history_view.game_list_widget.refresh_styles()
             
         # Force update
         self.update()
@@ -614,7 +626,7 @@ class MainWindow(QMainWindow):
         left_layout.insertLayout(0, btn_layout) # Insert at top
 
         splitter.addWidget(self.analysis_panel)
-        splitter.setSizes([250, 600, 350])
+        splitter.setSizes([250, 630, 320])
 
 
 

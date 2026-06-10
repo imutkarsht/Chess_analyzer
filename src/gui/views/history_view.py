@@ -461,3 +461,85 @@ class HistoryView(QWidget):
             logging.error(f"Import failed: {e}")
             QMessageBox.critical(self, "Import Error", f"Failed to import games: {e}")
 
+    def refresh_styles(self):
+        """Re-apply styles with the updated accent color."""
+        # Refresh refresh button
+        if hasattr(self, 'btn_refresh'):
+            self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
+            
+        # Refresh search input focus border
+        if hasattr(self, 'search_input'):
+            self.search_input.setStyleSheet(f"""
+                QLineEdit {{
+                    padding: 8px 12px;
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 6px;
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    font-size: 13px;
+                    min-width: 250px;
+                }}
+                QLineEdit:focus {{
+                    border: 1px solid {Styles.COLOR_ACCENT};
+                }}
+            """)
+            
+        # Refresh filters dropdowns
+        if hasattr(self, 'result_filter'):
+            self.result_filter.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'source_filter'):
+            self.source_filter.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'sort_dropdown'):
+            self.sort_dropdown.setStyleSheet(Styles.get_combobox_style())
+            
+        # Refresh bottom buttons
+        if hasattr(self, 'btn_export'):
+            self.btn_export.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border-color: {Styles.COLOR_ACCENT};
+                }}
+            """)
+        if hasattr(self, 'btn_import'):
+            self.btn_import.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border-color: {Styles.COLOR_ACCENT};
+                }}
+            """)
+        if hasattr(self, 'btn_clear'):
+            self.btn_clear.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {Styles.COLOR_BLUNDER};
+                    border: 1px solid {Styles.COLOR_BLUNDER};
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_BLUNDER};
+                    color: white;
+                }}
+            """)
+            
+        # Cascade refresh to nested game list
+        if hasattr(self, 'game_list'):
+            self.game_list.refresh_styles()
+

@@ -246,6 +246,12 @@ class GraphWidget(QWidget):
         move_index = idx - 1
         self.move_clicked.emit(move_index)
 
+    def refresh_styles(self):
+        """Re-apply styles with the updated accent color."""
+        if hasattr(self, 'current_move_line') and self.current_move_line is not None:
+            self.current_move_line.set_color(Styles.COLOR_ACCENT)
+        self.canvas.draw_idle()
+
     def clear(self):
         self.ax.clear()
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
