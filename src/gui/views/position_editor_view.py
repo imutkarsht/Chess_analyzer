@@ -942,6 +942,7 @@ class PositionEditorView(QWidget):
         if hasattr(self, "_save_btn"):
             self._save_btn.setEnabled(True)
         self._refresh_move_table()
+        self._update_captured()
 
     def _stop_recording(self) -> None:
         """Stop tracking and clear the move list panel."""
@@ -1241,12 +1242,19 @@ class PositionEditorView(QWidget):
     # Captured pieces
     # ------------------------------------------------------------------
     def _update_captured(self) -> None:
-        """Sync captured pieces widgets with the current position."""
+        """Sync captured pieces widgets with the current position.
+
+        Uses the position at the start of recording as the baseline
+        so captured pieces are computed correctly even for non-standard
+        starting positions.  Falls back to the standard chess start
+        when no recording has been started (Free mode).
+        """
         fen = self._board.fen()
+        reference = self._starting_fen or None
         if hasattr(self, "_captured_black"):
-            self._captured_black.update_captured(fen)
+            self._captured_black.update_captured(fen, reference)
         if hasattr(self, "_captured_white"):
-            self._captured_white.update_captured(fen)
+            self._captured_white.update_captured(fen, reference)
 
     # ------------------------------------------------------------------
     # Click / painted-drag handling (event filter on BoardWidget.svg_widget)

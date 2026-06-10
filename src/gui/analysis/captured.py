@@ -59,8 +59,12 @@ class CapturedPiecesWidget(QFrame):
         self.setMinimumHeight(56)
         self.setMaximumHeight(56)
         
-    def update_captured(self, fen):
+    def update_captured(self, fen, reference_fen: str = None):
         """Update captured pieces display based on current FEN.
+
+        If *reference_fen* is given, captured pieces are computed as
+        the difference between that position and *fen*.  Otherwise the
+        standard chess starting position is used as the baseline.
 
         This widget only displays the captures belonging to the configured
         side (self.side). The companion widget on the opposite side is
@@ -71,16 +75,16 @@ class CapturedPiecesWidget(QFrame):
         if not fen:
             return
 
-        starting_pieces = {
-            'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1,
-            'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1
-        }
+        # ── Determine the baseline piece counts ────────────────────
+        if reference_fen:
+            starting_pieces = self._count_pieces(reference_fen)
+        else:
+            starting_pieces = {
+                'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1,
+                'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1,
+            }
 
-        current_pieces = {}
-        board_part = fen.split(' ')[0]
-        for char in board_part:
-            if char.isalpha():
-                current_pieces[char] = current_pieces.get(char, 0) + 1
+        current_pieces = self._count_pieces(fen)
 
         piece_values = {'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9}
 
@@ -88,11 +92,11 @@ class CapturedPiecesWidget(QFrame):
         white_caps = {}  # black pieces White has taken
         black_caps = {}  # white pieces Black has taken
         for p in ['p', 'n', 'b', 'r', 'q']:
-            count = starting_pieces[p] - current_pieces.get(p, 0)
+            count = starting_pieces.get(p, 0) - current_pieces.get(p, 0)
             if count > 0:
                 white_caps[p] = count
         for p in ['P', 'N', 'B', 'R', 'Q']:
-            count = starting_pieces[p] - current_pieces.get(p, 0)
+            count = starting_pieces.get(p, 0) - current_pieces.get(p, 0)
             if count > 0:
                 black_caps[p] = count
 
@@ -124,6 +128,16 @@ class CapturedPiecesWidget(QFrame):
                     )
             if diff < 0:
                 self._add_advantage_label(f"+{-diff}")
+
+    @staticmethod
+    def _count_pieces(fen: str) -> dict:
+        """Count pieces of each type in the board part of a FEN string."""
+        counts: dict[str, int] = {}
+        board_part = fen.split(' ')[0]
+        for char in board_part:
+            if char.isalpha():
+                counts[char] = counts.get(char, 0) + 1
+        return counts
 
     def _add_pieces(self, count, piece, fg, bg):
         """Add piece chips for the given count.
