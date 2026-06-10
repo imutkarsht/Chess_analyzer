@@ -15,7 +15,7 @@ from .analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis 
 from .metrics_widget import MetricsWidget
 from .analysis_worker import AnalysisWorker
 from .sidebar import Sidebar
-from .views import HistoryView, SettingsView  # From views package
+from .views import HistoryView, SettingsView, PositionEditorView  # From views package
 from ..backend.pgn_parser import PGNParser
 from ..backend.analyzer import Analyzer
 from ..utils.resources import ResourceManager
@@ -242,6 +242,9 @@ class MainWindow(QMainWindow):
         # Sidebar
         self.sidebar = Sidebar()
         self.sidebar.page_changed.connect(self.switch_page)
+        # The Build Position entry in the sidebar is an action, not a
+        # page change, so we route it through its own signal.
+        self.sidebar.build_position_requested.connect(self.open_position_editor)
         main_layout.addWidget(self.sidebar)
         
         # Stacked Widget for Pages
@@ -339,6 +342,21 @@ class MainWindow(QMainWindow):
         if not self.current_game: return
         if self.board_widget.current_move_index != -1:
             self.on_move_selected(-1)
+
+        # --- Page 4: Build Position View ---
+        # The position editor lives inside the main stacked widget so
+        # it inherits the existing window chrome (sidebar, status bar,
+        # theme). The view itself emits ``position_accepted(fen)`` when
+        # the user clicks "Use Position" and ``back_requested()`` when
+        # they press "Back"; both are handled in open_position_editor.
+        self.position_editor_view = PositionEditorView()
+        self.position_editor_view.position_accepted.connect(
+            self._on_position_accepted
+        )
+        self.position_editor_view.back_requested.connect(
+            self._on_position_editor_back
+        )
+        self.stack.addWidget(self.position_editor_view)
 
     # ------------------------------------------------------------------
     # Status bar helpers
@@ -628,6 +646,80 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 630, 320])
 
+    def open_position_editor(self):
+        """Switch to the in-window position editor view.
+
+        The view itself is a permanent page in the QStackedWidget — it
+        keeps the editor's local state (current FEN, active piece)
+        between openings, so users can build a position, navigate
+        away, and come back to it without losing their work. The
+        "Back" button on the view and the "Use Position" button emit
+        signals that ``_on_position_editor_back`` and
+        ``_on_position_accepted`` route back into the analysis flow.
+        """
+        self.stack.setCurrentIndex(4)
+        self.sidebar.set_build_position_active(True)
+        self._set_status("Position editor open — build a starting position", "info")
+
+    def _on_position_editor_back(self):
+        """User pressed Back in the position editor — return to Analyze."""
+        self.stack.setCurrentIndex(0)
+        self.sidebar.set_active(0)
+        self.sidebar.set_build_position_active(False)
+        self._set_status("Ready", "idle")
+
+    def _on_position_accepted(self, fen: str):
+        """User pressed "Use Position" — load the FEN as a fresh game
+        and start the analysis flow. Mirrors the previous dialog-based
+        behaviour but is now triggered by a signal from the embedded
+        view, so the window chrome stays put and the user keeps the
+        sidebar/status bar visible throughout.
+        """
+        logger.info(f"User built a custom position: {fen}")
+
+        # Build a minimal GameAnalysis whose only data of interest is
+        # the starting FEN. No moves, so the engine will only see the
+        # initial position. The standard load_game() flow then routes
+        # it through the existing board + move-list + analysis wiring.
+        from datetime import datetime
+        game = GameAnalysis(
+            game_id="custom-position",
+            metadata=GameMetadata(
+                white="Custom",
+                black="Position",
+                event="Manual position setup",
+                date=datetime.now().strftime("%Y.%m.%d"),
+                result="*",
+                starting_fen=fen,
+                source="custom",
+            ),
+            moves=[],
+            pgn_content=None,
+        )
+        self.games = [game]
+        self.load_game(game)
+
+        # Reset the move-list panel to a clean "no moves played" state
+        # so the existing UI doesn't try to highlight move 0 of an
+        # empty move list.
+        if hasattr(self, "move_list_panel") and hasattr(
+            self.move_list_panel, "set_game"
+        ):
+            self.move_list_panel.set_game(game)
+
+        # Switch back to the Analyze page so the board + move list +
+        # analysis panel are visible.
+        self.stack.setCurrentIndex(0)
+        self.sidebar.set_active(0)
+        self.sidebar.set_build_position_active(False)
+
+        self._set_status("Custom position loaded", "success")
+        self.resource_manager.play_sound("notify")
+
+        # Kick off the engine on this position straight away — the user
+        # expects the analysis flow to start immediately after pressing
+        # "Use Position".
+        self.start_analysis()
 
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):

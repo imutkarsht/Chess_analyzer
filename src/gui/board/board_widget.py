@@ -93,7 +93,20 @@ class BoardWidget(QWidget):
         self.eval_bar.setGeometry(0, y_board, eval_w, side)
 
     def load_game(self, game_analysis):
-        self.board = chess.Board()
+        # Honour an explicit starting FEN (used for the position editor
+        # and any PGN that contains a [SetUp "1"] / FEN header). Otherwise
+        # fall back to the standard starting position.
+        starting_fen = (
+            getattr(game_analysis.metadata, "starting_fen", None)
+            if getattr(game_analysis, "metadata", None) else None
+        )
+        if starting_fen:
+            try:
+                self.board = chess.Board(starting_fen)
+            except ValueError:
+                self.board = chess.Board()
+        else:
+            self.board = chess.Board()
         self.game_moves = game_analysis.moves
         self.current_move_index = -1
         self.update_board()
