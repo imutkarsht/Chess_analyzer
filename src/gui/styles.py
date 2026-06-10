@@ -12,7 +12,7 @@ class Styles:
     # Dynamic Accent
     COLOR_ACCENT = "#FF9500"  # Default Orange
     COLOR_ACCENT_HOVER = "#FFB340"
-    COLOR_ACCENT_SUBTLE = "#3D2B14"  # For subtle accent backgrounds
+    COLOR_ACCENT_SUBTLE = "rgba(255, 149, 0, 0.15)"  # For subtle accent backgrounds
     
     COLOR_BORDER = "#3E3E45"
     COLOR_BORDER_LIGHT = "#4A4A52"  # For hover states
@@ -62,7 +62,18 @@ class Styles:
     @classmethod
     def set_accent_color(cls, color_hex):
         cls.COLOR_ACCENT = color_hex
-        cls.COLOR_ACCENT_HOVER = color_hex 
+        cls.COLOR_ACCENT_HOVER = color_hex
+        
+        # Convert hex to rgba with 0.15 opacity for subtle backgrounds
+        hex_clean = color_hex.lstrip('#')
+        if len(hex_clean) == 6:
+            try:
+                r = int(hex_clean[0:2], 16)
+                g = int(hex_clean[2:4], 16)
+                b = int(hex_clean[4:6], 16)
+                cls.COLOR_ACCENT_SUBTLE = f"rgba({r}, {g}, {b}, 0.15)"
+            except ValueError:
+                pass
 
     @classmethod
     def get_theme(cls):

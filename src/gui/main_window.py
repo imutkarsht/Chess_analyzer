@@ -3,9 +3,9 @@ import json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QSplitter, QFileDialog, QMenuBar,
                              QStatusBar, QMessageBox, QInputDialog, QDialog,
-                             QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget)
+                             QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget, QTextEdit)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QAction, QIcon
+from PyQt6.QtGui import QAction, QIcon, QShortcut, QKeySequence
 from PyQt6.QtWidgets import QMenu
 import shutil
 
@@ -31,24 +31,7 @@ from ..backend.game_history import GameHistoryManager
 from ..utils.path_utils import get_resource_path
 from .loading_widget import LoadingOverlay
 
-class APILoaderWorker(QThread):
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
 
-    def __init__(self, api_func, *args, **kwargs):
-        super().__init__()
-        self.api_func = api_func
-        self.args = args
-        self.kwargs = kwargs
-
-    def run(self):
-        try:
-            result = self.api_func(*self.args, **self.kwargs)
-            # Result can be list (multiple games) or dict (single game)
-            if result is None: result = []
-            self.finished.emit(result)
-        except Exception as e:
-            self.error.emit(str(e))
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -287,6 +270,75 @@ class MainWindow(QMainWindow):
         self.settings_view.llm_config_changed.connect(self.update_llm_config)
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
+        
+        self.sidebar.set_active(0)
+        self.stack.setCurrentIndex(0)
+        
+        self._setup_shortcuts()
+        
+    def _setup_shortcuts(self):
+        # File Operations
+        self.shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
+        self.shortcut_open.activated.connect(lambda: self.open_load_dialog(0))
+        
+        self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
+        self.shortcut_paste.activated.connect(self._handle_paste)
+
+        self.shortcut_analyze = QShortcut(QKeySequence("Ctrl+A"), self)
+        self.shortcut_analyze.activated.connect(self.start_analysis)
+        
+        # Navigation
+        self.shortcut_left = QShortcut(QKeySequence("Left"), self)
+        self.shortcut_left.activated.connect(self._nav_prev)
+        
+        self.shortcut_right = QShortcut(QKeySequence("Right"), self)
+        self.shortcut_right.activated.connect(self._nav_next)
+        
+        self.shortcut_up = QShortcut(QKeySequence("Up"), self)
+        self.shortcut_up.activated.connect(self._nav_last)
+        
+        self.shortcut_end = QShortcut(QKeySequence("End"), self)
+        self.shortcut_end.activated.connect(self._nav_last)
+        
+        self.shortcut_down = QShortcut(QKeySequence("Down"), self)
+        self.shortcut_down.activated.connect(self._nav_first)
+        
+        self.shortcut_home = QShortcut(QKeySequence("Home"), self)
+        self.shortcut_home.activated.connect(self._nav_first)
+
+    def _handle_paste(self):
+        focus_widget = QApplication.focusWidget()
+        if isinstance(focus_widget, (QLineEdit, QTextEdit)):
+            # Restore native paste functionality since the shortcut swallowed it
+            focus_widget.paste()
+            return
+            
+        text = QApplication.clipboard().text().strip()
+        if text and ("[Event" in text or "1." in text):
+            self.open_load_dialog(initial_source=1, initial_text=text)
+
+    def _nav_prev(self):
+        if not self.current_game: return
+        idx = max(-1, self.board_widget.current_move_index - 1)
+        if idx != self.board_widget.current_move_index:
+            self.on_move_selected(idx)
+
+    def _nav_next(self):
+        if not self.current_game: return
+        idx = min(len(self.current_game.moves) - 1, self.board_widget.current_move_index + 1)
+        if idx != self.board_widget.current_move_index:
+            self.on_move_selected(idx)
+
+    def _nav_last(self):
+        if not self.current_game: return
+        idx = len(self.current_game.moves) - 1
+        if idx != self.board_widget.current_move_index:
+            self.on_move_selected(idx)
+
+    def _nav_first(self):
+        if not self.current_game: return
+        if self.board_widget.current_move_index != -1:
+            self.on_move_selected(-1)
 
     # ------------------------------------------------------------------
     # Status bar helpers
@@ -548,145 +600,30 @@ class MainWindow(QMainWindow):
         
         # Buttons
         btn_layout = QHBoxLayout()
-        
-        # Load Game Button with Menu
-        self.btn_load = create_button("Load Game", style="secondary")
-        
-        self.load_menu = QMenu(self)
-        menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
-        self.load_menu.setStyleSheet(menu_style)
-        
-        # 1. PGN Submenu
-        self.menu_pgn = QMenu("Load from PGN", self)
-        self.menu_pgn.setStyleSheet(menu_style)
-        
-        action_pgn = QAction("From File...", self)
-        action_pgn.triggered.connect(self.open_pgn)
-        self.menu_pgn.addAction(action_pgn)
 
-        action_pgn_text = QAction("From Text...", self)
-        action_pgn_text.triggered.connect(self.load_from_pgn_text)
-        self.menu_pgn.addAction(action_pgn_text)
-        
-        self.load_menu.addMenu(self.menu_pgn)
-        
-        # 2. Chess.com Submenu
-        self.menu_chesscom = QMenu("Load from Chess.com", self)
-        self.menu_chesscom.setStyleSheet(menu_style)
-        
-        action_user = QAction("By Username...", self)
-        action_user.triggered.connect(self.load_from_chesscom)
-        self.menu_chesscom.addAction(action_user)
-        
-        action_link = QAction("By Game Link...", self)
-        action_link.triggered.connect(self.load_from_link)
-        self.menu_chesscom.addAction(action_link)
-        
-        self.load_menu.addMenu(self.menu_chesscom)
-
-        # 3. Lichess Submenu
-        self.menu_lichess = QMenu("Load from Lichess", self)
-        self.menu_lichess.setStyleSheet(menu_style)
-
-        action_lichess = QAction("By Username...", self)
-        action_lichess.triggered.connect(self.load_from_lichess)
-        self.menu_lichess.addAction(action_lichess)
-        
-        action_lichess_link = QAction("By Game Link...", self)
-        action_lichess_link.triggered.connect(self.load_from_lichess_link)
-        self.menu_lichess.addAction(action_lichess_link)
-        
-        self.load_menu.addMenu(self.menu_lichess)
-        
-        self.btn_load.setMenu(self.load_menu)
+        # Single "Load Game" button — opens the unified LoadGameDialog
+        self.btn_load = create_button("Load Game", style="secondary",
+                                      on_click=self.open_load_dialog)
+        self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         btn_layout.addWidget(self.btn_load)
-        
+
         # Analyze Button
         self.btn_analyze = create_button("Analyze Game", style="primary", on_click=self.start_analysis)
         btn_layout.addWidget(self.btn_analyze)
-        
+
         left_layout.insertLayout(0, btn_layout) # Insert at top
-        
+
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 600, 350])
 
-    def load_from_pgn_text(self):
-        text, ok = QInputDialog.getMultiLineText(
-            self,
-            "Load PGN",
-            "Paste your PGN below:"
-        )
-        if ok and text.strip():
-            logger.info("PGN obtained from textline entry...")
-            try:
-                parsed_games = PGNParser.parse_pgn_text(text)
-                
-                # Validation: A valid game must have moves OR a starting FEN (position setup)
-                valid_games = []
-                for game in parsed_games:
-                    if game.moves or game.metadata.starting_fen:
-                        valid_games.append(game)
-                
-                if valid_games:
-                    self.games = valid_games
-                    self.load_game(self.games[0])
-                    logger.info(f"Loaded {len(self.games)} valid games.")
-                else:
-                    logger.warning("No valid games found in PGN text (no moves or setup).")
-                    QMessageBox.warning(self, "Invalid PGN", "No valid games found in the provided text.\nPlease ensure it contains moves or a FEN setup.")
-            except Exception as e:
-                logger.error(f"Failed to parse PGN: {e}", exc_info=True)
-                QMessageBox.critical(self, "Error", f"Failed to parse PGN: {e}")
-        else:
-            logger.info("PGN text entry cancelled or empty.")
 
-
-    def open_pgn(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open PGN File", "", "PGN Files (*.pgn);;All Files (*)")
-        if file_name:
-            logger.info(f"Loading PGN file: {file_name}")
-            try:
-                self.games = PGNParser.parse_pgn_file(file_name)
-                if self.games:
-                    self.load_game(self.games[0])
-                    logger.info(f"Loaded {len(self.games)} games.")
-                else:
-                    logger.warning("No games found in PGN file.")
-            except Exception as e:
-                logger.error(f"Failed to parse PGN: {e}", exc_info=True)
-                QMessageBox.critical(self, "Error", f"Failed to parse PGN: {e}")
-        else:
-            logger.info("PGN file selection cancelled.")
-
-    def load_from_chesscom(self):
-        default_user = self.config_manager.get("chesscom_username", "")
-        username, ok = QInputDialog.getText(self, "Load from Chess.com", "Enter Chess.com Username:", text=default_user)
-        if ok and username:
-            self._load_games_from_api(
-                ChessComAPI().get_last_games, 
-                username.strip(), 
-                "Chess.com", 
-                limit=5
-            )
-
-    def _load_games_from_api(self, api_func, username, source, **kwargs):
-        """Common pattern for loading games from API with worker thread."""
-        logger.info(f"Attempting to load games for {source} user: {username}")
-        self.loading_overlay.start("Fetching games...", f"Getting recent games for {username}")
-        self._set_status(f"Fetching games for {username}...", "progress")
-        
-        self.api_worker = APILoaderWorker(api_func, username, **kwargs)
-        self.api_worker.finished.connect(lambda games: self.on_games_loaded(games, username, source))
-        self.api_worker.error.connect(self.on_api_error)
-        self.api_worker.finished.connect(self.loading_overlay.stop)
-        self.api_worker.error.connect(lambda _: self.loading_overlay.stop())
-        self.api_worker.start()
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
         """
         Common pattern: Parse PGN text, attach source data, load first game.
         Returns True on success, False on failure.
         """
+        from ..backend.pgn_parser import PGNParser
         self.games = PGNParser.parse_pgn_text(pgn_text)
         if self.games:
             if source_data:
@@ -700,53 +637,11 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
             return False
 
-    def on_games_loaded(self, games_data, username, source):
-        self._set_status("Ready", "idle")
-        if games_data:
-            from .dialogs.game_selection_dialog import GameSelectionDialog
-            dialog = GameSelectionDialog(games_data, self)
-            if dialog.exec():
-                selected_game = dialog.selected_game_data
-                if selected_game and "pgn" in selected_game:
-                    self._parse_and_load_game(
-                        selected_game["pgn"], 
-                        source_data=selected_game, 
-                        status_msg=f"Loaded game for {username} from {source}."
-                    )
-                else:
-                    QMessageBox.warning(self, "Error", "Selected game has no PGN data.")
-            else:
-                self._set_status("Game selection cancelled.", "warning")
-        else:
-            QMessageBox.warning(self, "No Games", f"No games found for this user on {source}.")
-
-    def on_api_error(self, error_msg):
-        self._set_status("Ready", "idle")
-        logger.error(f"API Load Error: {error_msg}")
-        QMessageBox.critical(self, "Error", f"Failed to load games: {error_msg}")
-
-    def load_from_link(self):
-        url, ok = QInputDialog.getText(self, "Load from Link", "Enter Chess.com Game URL:")
-        if ok and url:
-            try:
-                api = ChessComAPI()
-                game_id = api.extract_game_id(url)
-                if game_id:
-                    self.loading_overlay.start("Fetching game...", f"Getting game {game_id}")
-                    self.api_worker = APILoaderWorker(api.get_game_by_id, game_id, url=url)
-                    self.api_worker.finished.connect(lambda data: self._on_link_game_loaded(data, game_id, "Chess.com"))
-                    self.api_worker.error.connect(lambda e: (self.loading_overlay.stop(), self.on_api_error(e)))
-                    self.api_worker.start()
-                else:
-                    QMessageBox.warning(self, "Error", "Invalid Chess.com URL.")
-            except Exception as e:
-                logger.error(f"Link load error: {e}")
-                QMessageBox.critical(self, "Error", f"Failed to load from link: {e}")
-
     def load_game(self, game):
         # If game has no moves but has PGN content (loaded from history), parse it
         if not game.moves and game.pgn_content:
             try:
+                from ..backend.pgn_parser import PGNParser
                 parsed_games = PGNParser.parse_pgn_text(game.pgn_content)
                 if parsed_games:
                     game.moves = parsed_games[0].moves
@@ -771,7 +666,6 @@ class MainWindow(QMainWindow):
         self.game_info_label.setText(info_text)
         
         self.board_widget.load_game(game)
-        # self.move_list_panel.load_game(game) # REMOVED: Method does not exist
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
         self.captured_white.update_captured(None)
@@ -787,7 +681,6 @@ class MainWindow(QMainWindow):
 
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
         self.resource_manager.play_sound("notify")
-
 
     def enrich_game_metadata(self, game, source_data):
         """
@@ -832,63 +725,6 @@ class MainWindow(QMainWindow):
              # Or check keys
              elif "white_rating" in source_data: # Lichess ID structure
                  md.source = "lichess"
-                 
-    
-    def load_from_lichess(self):
-        # Check for token first
-        token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
-        if not token:
-            reply = QMessageBox.question(
-                self, 
-                "Lichess Token Missing", 
-                "Lichess API token is not configured. You need a token to load games.\n\nWould you like to configure it in Settings now?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-            if reply == QMessageBox.StandardButton.Yes:
-                self.sidebar.set_active(3)
-                self.stack.setCurrentIndex(3)
-                if hasattr(self, 'settings_view') and hasattr(self.settings_view, 'lichess_token_input'):
-                    self.settings_view.lichess_token_input.setFocus()
-            return
-
-        default_user = self.config_manager.get("lichess_username", "")
-        username, ok = QInputDialog.getText(self, "Load from Lichess.org", "Enter Lichess.org Username:", text=default_user)
-        if ok and username:
-            self._load_games_from_api(
-                LichessAPI().get_user_games, 
-                username.strip(), 
-                "Lichess", 
-                max_games=5
-            )
-
-    def load_from_lichess_link(self):
-        url, ok = QInputDialog.getText(self, "Load from Lichess Link", "Enter Lichess.org Game URL:")
-        if ok and url:
-            try:
-                self._set_status("Fetching game from Lichess...", "progress")
-                api = LichessAPI()
-                game_id = api.extract_game_id(url)
-                if game_id:
-                    self.loading_overlay.start("Fetching game...", f"Getting game {game_id}")
-                    self.api_worker = APILoaderWorker(api.get_game_by_id, game_id)
-                    self.api_worker.finished.connect(lambda data: self._on_link_game_loaded(data, game_id, "Lichess"))
-                    self.api_worker.error.connect(lambda e: (self.loading_overlay.stop(), self.on_api_error(e)))
-                    self.api_worker.start()
-                else:
-                    QMessageBox.warning(self, "Error", "Invalid Lichess URL.")
-                    self._set_status("Ready", "idle")
-            except Exception as e:
-                logger.error(f"Lichess link load error: {e}")
-                QMessageBox.critical(self, "Error", f"Failed to load from link: {e}")
-                self._set_status("Ready", "idle")
-
-    def _on_link_game_loaded(self, game_data, game_id, source):
-        """Common handler for link-based game loading."""
-        self.loading_overlay.stop()
-        if game_data and "pgn" in game_data:
-            self._parse_and_load_game(game_data["pgn"], game_data, f"Loaded game {game_id} from {source}.")
-        else:
-            QMessageBox.warning(self, "Error", "Failed to fetch game data or invalid ID.")
 
     def start_analysis(self):
         if not self.current_game:
@@ -941,8 +777,23 @@ class MainWindow(QMainWindow):
         logger.error(f"Analysis error: {error_msg}")
         QMessageBox.critical(self, "Analysis Error", error_msg)
 
+    def open_load_dialog(self, initial_source: int = 0, initial_text: str = None):
+        """Open the unified Load Game dialog."""
+        from .dialogs.load_game_dialog import LoadGameDialog
+        dialog = LoadGameDialog(self, initial_source=initial_source)
+        if initial_text and initial_source == 1:
+            dialog._pgn_text_panel._text_edit.setPlainText(initial_text)
+            dialog._pgn_text_panel._parse()
+        dialog.game_ready.connect(self._on_game_ready)
+        dialog.exec()
+
+    def _on_game_ready(self, pgn_text: str, source_data):
+        """Called by LoadGameDialog when the user confirms a game selection."""
+        self._parse_and_load_game(pgn_text, source_data=source_data,
+                                  status_msg="Game loaded.")
+
     def keyPressEvent(self, event):
-        # Global shortcuts (work regardless of game state)
+        # Global shortcuts (help)
         if event.key() == Qt.Key.Key_F1 or (event.key() == Qt.Key.Key_Question):
             self.show_shortcuts_help()
             return
@@ -951,46 +802,8 @@ class MainWindow(QMainWindow):
             # Shift+/ = ? on most keyboards
             self.show_shortcuts_help()
             return
-        
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            if event.key() == Qt.Key.Key_O:
-                self.open_pgn()
-                return
-            elif event.key() == Qt.Key.Key_A:
-                self.start_analysis()
-                return
-        
-        # Game-specific shortcuts
-        if not self.current_game:
-            super().keyPressEvent(event)
-            return
-
-        current_index = self.board_widget.current_move_index
-        total_moves = len(self.current_game.moves)
-        
-        if event.key() == Qt.Key.Key_Left:
-            new_index = max(-1, current_index - 1)
-            if new_index != current_index:
-                self.on_move_selected(new_index)
-        
-        elif event.key() == Qt.Key.Key_Right:
-            new_index = min(total_moves - 1, current_index + 1)
-            if new_index != current_index:
-                self.on_move_selected(new_index)
-        
-        elif event.key() in (Qt.Key.Key_Up, Qt.Key.Key_End):
-            # Up arrow or End → jump to final position
-            self.go_last()
-        
-        elif event.key() in (Qt.Key.Key_Down, Qt.Key.Key_Home):
-            # Down arrow or Home → jump to starting position
-            self.go_first()
-        
-        elif event.key() == Qt.Key.Key_F:
-            self.flip_board()
-        
-        else:
-            super().keyPressEvent(event)
+            
+        super().keyPressEvent(event)
     
     def show_shortcuts_help(self):
         """Show the keyboard shortcuts help dialog."""

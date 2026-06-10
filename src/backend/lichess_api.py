@@ -101,6 +101,9 @@ class LichessAPI(BaseChessAPI):
         - https://lichess.org/HuUq2G3x
         - https://lichess.org/HuUq2G3x/white
         """
+        if "lichess.org" not in url.lower():
+            return ""
+            
         try:
             # Remove trailing slash
             if url.endswith("/"):
