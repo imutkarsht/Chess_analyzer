@@ -350,6 +350,7 @@ class MainWindow(QMainWindow):
         # the user clicks "Use Position" and ``back_requested()`` when
         # they press "Back"; both are handled in open_position_editor.
         self.position_editor_view = PositionEditorView()
+        self.position_editor_view.set_analyzer(self.analyzer)  # Best Move engine access
         self.position_editor_view.position_accepted.connect(
             self._on_position_accepted
         )

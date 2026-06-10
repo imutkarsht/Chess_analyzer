@@ -21,16 +21,17 @@ and is editable — typing a valid FEN and pressing Enter loads it.
 from __future__ import annotations
 
 from typing import Optional
+from enum import IntEnum
 
 import chess
-from PyQt6.QtCore import Qt, QSize, QPoint, QPointF, pyqtSignal, QEvent
-from PyQt6.QtGui import QIcon, QPixmap, QColor, QFont, QPainter, QCursor, QImage
+from PyQt6.QtCore import Qt, QSize, QPoint, QPointF, pyqtSignal, QEvent, QTimer
+from PyQt6.QtGui import QIcon, QPixmap, QColor, QFont, QPainter, QCursor, QImage, QPen, QBrush
 from PyQt6.QtSvg import QSvgRenderer
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QLineEdit, QFrame, QButtonGroup, QToolButton,
-    QMessageBox, QSizePolicy, QSplitter,
+    QMessageBox, QSizePolicy, QSplitter, QComboBox,
 )
 
 from ..styles import Styles
@@ -143,6 +144,117 @@ class _DragOverlay(QWidget):
         p.end()
 
 
+class EditorMode(IntEnum):
+    """Editing modes for the Position Editor."""
+    FREE = 0         # Pieces can be placed anywhere, no rules.
+    LEGAL_MOVES = 1  # Only legal moves allowed; target squares highlighted.
+    BEST_MOVE = 2    # Legal moves + engine best-move indicator.
+
+
+class _LegalMovesOverlay(QWidget):
+    """Transparent canvas on top of the board that paints legal-move
+    target dots and optionally an engine best-move indicator.
+
+    This is a sibling of ``_DragOverlay`` — both sit on top of the
+    board container but serve different purposes.  This one shows
+    static move-hint dots while the drag overlay paints the piece
+    being dragged.
+    """
+
+    _DOT_COLOR = QColor(0, 180, 0, 120)          # semi-transparent green
+    _DOT_OUTLINE = QColor(0, 140, 0, 200)
+    _BEST_DOT_COLOR = QColor(0, 200, 0, 220)      # more opaque, brighter
+    _BEST_DOT_OUTLINE = QColor(0, 220, 0, 255)
+    _CAPTURE_COLOR = QColor(220, 60, 60, 140)     # reddish for captures
+    _CAPTURE_OUTLINE = QColor(180, 40, 40, 200)
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._legal_squares: set[int] = set()
+        self._best_square: int | None = None
+        self._board: chess.Board | None = None
+        self._svg_square: int = 45
+        self._svg_margin: int = 15
+        self._svg_full: int = 8 * 45 + 2 * 15  # 390
+        self.hide()
+
+    def set_squares(self, legal: set[int], best: int | None = None,
+                    board: chess.Board | None = None) -> None:
+        """Set the squares to highlight and optionally the best-move square."""
+        self._legal_squares = legal
+        self._best_square = best
+        self._board = board
+        if legal or best is not None:
+            self.show()
+            self.raise_()
+        else:
+            self.hide()
+        self.update()
+
+    def clear(self) -> None:
+        self._legal_squares = set()
+        self._best_square = None
+        self._board = None
+        self.hide()
+
+    def _square_to_overlay_rect(self, square: int,
+                                 container_w: int, container_h: int):
+        """Return (x, y, w, h) in overlay pixel coords for a chess square."""
+        scale = container_w / self._svg_full if container_w > 0 else 1.0
+        rank_idx = 7 - chess.square_rank(square)  # white at bottom
+        file_idx = chess.square_file(square)
+        x = self._svg_margin + file_idx * self._svg_square
+        y = self._svg_margin + rank_idx * self._svg_square
+        return int(x / scale), int(y / scale), max(1, int(self._svg_square / scale)), max(1, int(self._svg_square / scale))
+
+    def paintEvent(self, _event) -> None:
+        if not self._legal_squares and self._best_square is None:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        cw, ch = self.width(), self.height()
+        if cw <= 0 or ch <= 0:
+            p.end()
+            return
+
+        for sq in self._legal_squares:
+            x, y, w, h = self._square_to_overlay_rect(sq, cw, ch)
+            cx, cy = x + w // 2, y + h // 2
+            radius = int(w * 0.22)
+
+            # Determine if this is a capture square (enemy piece on it)
+            is_capture = (
+                self._board is not None
+                and self._board.piece_at(sq) is not None
+            )
+            fill = self._CAPTURE_COLOR if is_capture else self._DOT_COLOR
+            outline = self._CAPTURE_OUTLINE if is_capture else self._DOT_OUTLINE
+
+            # For capture squares, draw a ring (hollow circle) around the edge
+            if is_capture:
+                p.setPen(QPen(outline, max(2, int(w * 0.06))))
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.drawEllipse(cx - radius, cy - radius, radius * 2, radius * 2)
+            else:
+                p.setPen(QPen(outline, 1))
+                p.setBrush(QBrush(fill))
+                p.drawEllipse(cx - radius, cy - radius, radius * 2, radius * 2)
+
+        # Best-move square gets a brighter, larger filled dot
+        if self._best_square is not None:
+            sq = self._best_square
+            x, y, w, h = self._square_to_overlay_rect(sq, cw, ch)
+            cx, cy = x + w // 2, y + h // 2
+            radius = int(w * 0.28)
+            p.setPen(QPen(self._BEST_DOT_OUTLINE, 2))
+            p.setBrush(QBrush(self._BEST_DOT_COLOR))
+            p.drawEllipse(cx - radius, cy - radius, radius * 2, radius * 2)
+
+        p.end()
+
+
 def _build_initial_board() -> chess.Board:
     """Start the editor with the standard chess starting position."""
     return chess.Board()
@@ -176,6 +288,30 @@ class PositionEditorView(QWidget):
         super().__init__(parent)
         # No window title or min-size — we're embedded in the
         # QStackedWidget and the main window owns sizing.
+
+        # Editing mode — see EditorMode enum.  Free = no rules,
+        # Legal Moves = only legal chess moves, Best Move = legal +
+        # engine best-move indicator.
+        self._editor_mode: EditorMode = EditorMode.FREE
+
+        # Optional Analyzer reference for Best Move mode. Set by the
+        # MainWindow via set_analyzer() after construction.
+        self._analyzer = None
+
+        # Hover state for legal-move / best-move overlay.
+        self._hovered_square: int = -1
+        self._legal_move_squares: set[int] = set()
+        self._best_move_square: int | None = None
+
+        # Engine lifecycle for Best Move mode.
+        self._engine_started_for_editor: bool = False
+
+        # Debounce timer for Best Move engine queries — avoids firing
+        # on every pixel of mouse movement.
+        self._best_move_timer = QTimer(self)
+        self._best_move_timer.setSingleShot(True)
+        self._best_move_timer.setInterval(120)
+        self._best_move_timer.timeout.connect(self._query_best_move)
 
         # Active piece selected in the palette. "" = eraser.
         self._active_piece: str = "K"
@@ -216,6 +352,164 @@ class PositionEditorView(QWidget):
     def result_fen(self) -> str:
         """FEN of the position the user built (always readable)."""
         return self._board.fen()
+
+    def set_analyzer(self, analyzer) -> None:
+        """Give the editor access to the engine analyzer for Best Move mode.
+
+        ``analyzer`` is an instance of ``Analyzer`` (src/backend/analyzer.py).
+        It must be set before Best Move mode can be used.
+        """
+        self._analyzer = analyzer
+
+    @property
+    def editor_mode(self) -> EditorMode:
+        return self._editor_mode
+
+    @editor_mode.setter
+    def editor_mode(self, mode: EditorMode) -> None:
+        old = self._editor_mode
+        self._editor_mode = mode
+        # Manage engine lifecycle when entering / leaving Best Move mode.
+        if mode == EditorMode.BEST_MOVE and old != EditorMode.BEST_MOVE:
+            self._start_editor_engine()
+        elif mode != EditorMode.BEST_MOVE and old == EditorMode.BEST_MOVE:
+            self._stop_editor_engine()
+        # Clear highlights on mode change.
+        self._clear_highlights()
+
+    # ------------------------------------------------------------------
+    # Engine lifecycle (Best Move mode)
+    # ------------------------------------------------------------------
+    def _start_editor_engine(self) -> None:
+        """Start the engine for Best Move queries, if not already running."""
+        if self._analyzer is None:
+            return
+        try:
+            em = self._analyzer.engine_manager
+            if em.engine is None:
+                em.start_engine()
+            self._engine_started_for_editor = True
+        except Exception:
+            # Engine not available — Best Move mode will silently
+            # fall back to Legal Moves behaviour.
+            self._engine_started_for_editor = False
+
+    def _stop_editor_engine(self) -> None:
+        """Stop the engine if we started it for the editor."""
+        if not self._engine_started_for_editor or self._analyzer is None:
+            return
+        try:
+            self._analyzer.engine_manager.stop_engine()
+        except Exception:
+            pass
+        finally:
+            self._engine_started_for_editor = False
+
+    # ------------------------------------------------------------------
+    # Highlight helpers
+    # ------------------------------------------------------------------
+    def _compute_legal_targets(self, from_square: int) -> set[int]:
+        """Return the set of legal target squares for the piece on
+        ``from_square``.  Returns an empty set if the square is empty
+        or if the position itself is illegal (e.g. no kings)."""
+        piece = self._board.piece_at(from_square)
+        if piece is None:
+            return set()
+        # Only legal_moves uses chess' built-in legality check which
+        # requires a somewhat sensible position (at least one king of
+        # each colour, not in check after the move, etc.).  If the
+        # position is crazy (e.g. no kings), we fall back gracefully.
+        try:
+            targets = set()
+            for m in self._board.legal_moves:
+                if m.from_square == from_square:
+                    targets.add(m.to_square)
+            return targets
+        except (ValueError, AssertionError):
+            # Position is not legal enough for legal_moves to work.
+            return set()
+
+    def _query_best_move(self) -> None:
+        """Ask the engine for the best move in the current position.
+
+        Called by the debounce timer when the user hovers a piece in
+        Best Move mode.  Stores the result in ``self._best_move_square``
+        and refreshes the overlay.
+        """
+        if (self._editor_mode != EditorMode.BEST_MOVE
+                or self._analyzer is None
+                or self._hovered_square < 0):
+            return
+        try:
+            em = self._analyzer.engine_manager
+            if em.engine is None:
+                em.start_engine()
+                self._engine_started_for_editor = True
+            info = em.analyze_position(self._board, time_limit=0.1)
+            pv = info.get("pv", [])
+            if pv and len(pv) > 0:
+                self._best_move_square = pv[0].to_square
+            else:
+                self._best_move_square = None
+        except Exception:
+            self._best_move_square = None
+        self._draw_legal_move_highlights()
+
+    def _draw_legal_move_highlights(self) -> None:
+        """Paint legal-move dots and optional best-move indicator on the overlay."""
+        if not hasattr(self, "_legal_moves_overlay"):
+            return
+        legal = self._legal_move_squares
+        best = self._best_move_square if self._editor_mode == EditorMode.BEST_MOVE else None
+        self._legal_moves_overlay.set_squares(legal, best, self._board)
+
+    def _clear_highlights(self) -> None:
+        """Remove all legal-move / best-move visual indicators."""
+        self._hovered_square = -1
+        self._legal_move_squares = set()
+        self._best_move_square = None
+        self._best_move_timer.stop()
+        if hasattr(self, "_legal_moves_overlay"):
+            self._legal_moves_overlay.clear()
+
+    def _on_hover_square(self, square: int) -> None:
+        """Handle mouse hovering over a square — show legal-move /
+        best-move highlights for the piece on that square.
+
+        Called from eventFilter on every MouseMove when not dragging
+        and the editor is in Legal or Best Move mode.
+        """
+        if square == self._hovered_square:
+            return
+        self._hovered_square = square
+        if square < 0:
+            self._clear_highlights()
+            return
+        piece = self._board.piece_at(square)
+        if piece is None:
+            self._clear_highlights()
+            return
+        self._legal_move_squares = self._compute_legal_targets(square)
+        if self._editor_mode == EditorMode.BEST_MOVE:
+            self._best_move_square = None  # reset until engine answers
+            self._best_move_timer.start()   # debounced engine query
+        else:
+            self._best_move_square = None
+        self._draw_legal_move_highlights()
+
+    # ------------------------------------------------------------------
+    # Move validation
+    # ------------------------------------------------------------------
+    def _is_move_allowed(self, from_sq: int, to_sq: int) -> bool:
+        """Return True if moving from ``from_sq`` to ``to_sq`` is allowed
+        under the current editing mode."""
+        if self._editor_mode == EditorMode.FREE:
+            return True
+        try:
+            move = chess.Move(from_sq, to_sq)
+            return self._board.is_legal(move)
+        except (ValueError, AssertionError):
+            return False
 
     # ------------------------------------------------------------------
     # UI construction
@@ -376,6 +670,7 @@ class PositionEditorView(QWidget):
         therefore renders at the same size.
         """
         from ..board.board_widget import BoardWidget
+        from ..analysis import CapturedPiecesWidget
 
         panel = QWidget()
         layout = QVBoxLayout(panel)
@@ -393,12 +688,16 @@ class PositionEditorView(QWidget):
         )
         layout.addWidget(title)
 
+        # Captured pieces — same order as Analyze: black above board, white below.
+        self._captured_black = CapturedPiecesWidget(side="black")
+        layout.addWidget(self._captured_black)
+
         self._board_widget = BoardWidget()
         self._board_widget.board = self._board
-        self._board_widget.eval_bar.hide()
         self._board_widget.update_board()
         # Catch mouse events on the SVG surface for click / painted drag.
         self._board_widget.svg_widget.installEventFilter(self)
+        self._board_widget.svg_widget.setMouseTracking(True)  # Hover for legal-move highlights
         # Transparent overlay that paints the dragged piece at the mouse
         # position (chessx approach — no QDrag, no X11 pixmap issues).
         self._drag_overlay = _DragOverlay(self._board_widget.board_container)
@@ -408,29 +707,23 @@ class PositionEditorView(QWidget):
             self._board_widget.board_container.height(),
         )
         self._drag_overlay.raise_()
+
+        # Transparent overlay for legal-move dots and best-move indicator.
+        self._legal_moves_overlay = _LegalMovesOverlay(
+            self._board_widget.board_container
+        )
+        self._legal_moves_overlay.setGeometry(
+            0, 0,
+            self._board_widget.board_container.width(),
+            self._board_widget.board_container.height(),
+        )
+        self._legal_moves_overlay.stackUnder(self._drag_overlay)
+
         layout.addWidget(self._board_widget, 1)
 
-        # FEN text field
-        fen_row = QHBoxLayout()
-        fen_lbl = QLabel("FEN:")
-        fen_lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
-            f"border: none;"
-        )
-        fen_row.addWidget(fen_lbl)
-        self._fen_edit = QLineEdit()
-        self._fen_edit.setPlaceholderText(
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-        )
-        self._fen_edit.setStyleSheet(
-            f"QLineEdit {{ background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid "
-            f"{Styles.COLOR_BORDER}; border-radius: 6px; padding: 6px; "
-            f"font-family: 'Consolas','Menlo',monospace; font-size: 12px; }}"
-        )
-        self._fen_edit.returnPressed.connect(self._load_fen_from_field)
-        fen_row.addWidget(self._fen_edit, 1)
-        layout.addLayout(fen_row)
+        # White captured pieces below the board (black pieces White took).
+        self._captured_white = CapturedPiecesWidget(side="white")
+        layout.addWidget(self._captured_white)
 
         # Bottom action buttons
         actions = QHBoxLayout()
@@ -493,6 +786,53 @@ class PositionEditorView(QWidget):
         btn_row.addWidget(use)
         layout.addLayout(btn_row)
 
+        # ── Editor Mode ──
+        mode_lbl = QLabel("Editing Mode")
+        mode_lbl.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600; "
+            f"font-size: 12px; border: none;"
+        )
+        layout.addWidget(mode_lbl)
+
+        self._mode_combo = QComboBox()
+        self._mode_combo.addItems(["Free", "Legal Moves", "Best Move"])
+        self._mode_combo.setCurrentIndex(0)
+        self._mode_combo.setStyleSheet(
+            f"QComboBox {{ background-color: {Styles.COLOR_SURFACE_LIGHT}; "
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid "
+            f"{Styles.COLOR_BORDER}; border-radius: 6px; padding: 6px 10px; "
+            f"font-size: 12px; }}"
+            f"QComboBox:hover {{ border-color: {Styles.COLOR_BORDER_LIGHT}; }}"
+            f"QComboBox::drop-down {{ subcontrol-origin: padding; "
+            f"subcontrol-position: top right; width: 20px; "
+            f"border-left: 1px solid {Styles.COLOR_BORDER}; }}"
+            f"QComboBox QAbstractItemView {{ "
+            f"background-color: {Styles.COLOR_SURFACE}; "
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; "
+            f"selection-background-color: {Styles.COLOR_ACCENT_SUBTLE}; "
+            f"border: 1px solid {Styles.COLOR_BORDER}; }}"
+        )
+        self._mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        layout.addWidget(self._mode_combo)
+
+        # ── FEN field ──
+        fen_lbl = QLabel("FEN")
+        fen_lbl.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600; "
+            f"font-size: 12px; border: none;"
+        )
+        layout.addWidget(fen_lbl)
+        self._fen_edit = QLineEdit()
+        self._fen_edit.setPlaceholderText("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        self._fen_edit.setStyleSheet(
+            f"QLineEdit {{ background-color: {Styles.COLOR_SURFACE_LIGHT}; "
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid "
+            f"{Styles.COLOR_BORDER}; border-radius: 6px; padding: 6px; "
+            f"font-family: 'Consolas','Menlo',monospace; font-size: 11px; }}"
+        )
+        self._fen_edit.returnPressed.connect(self._load_fen_from_field)
+        layout.addWidget(self._fen_edit)
+
         # ── Help text ──
         help_text = QLabel(
             "Pick a piece on the left, then click a square to place it.\n"
@@ -513,6 +853,16 @@ class PositionEditorView(QWidget):
     # ------------------------------------------------------------------
     # Event handling
     # ------------------------------------------------------------------
+    def _on_mode_changed(self, index: int) -> None:
+        """Called when the user switches the editing mode ComboBox."""
+        mode_map = {
+            0: EditorMode.FREE,
+            1: EditorMode.LEGAL_MOVES,
+            2: EditorMode.BEST_MOVE,
+        }
+        new_mode = mode_map.get(index, EditorMode.FREE)
+        self.editor_mode = new_mode
+
     def _on_square_clicked(self, square: int, button: Qt.MouseButton) -> None:
         """Callback from the _BoardGridWidget on click.
 
@@ -574,6 +924,7 @@ class PositionEditorView(QWidget):
         self._board.castling_rights = 0
         self._board.ep_square = None
         self._board.clear_stack()
+        self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
 
@@ -583,6 +934,7 @@ class PositionEditorView(QWidget):
         self._board.castling_rights = 0
         self._board.ep_square = None
         self._board.clear_stack()
+        self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
 
@@ -596,6 +948,7 @@ class PositionEditorView(QWidget):
         # paint whatever was on it last. That bug showed up as
         # "Clear Board / Reset doesn't actually clear the board".
         self._board.set_fen(chess.STARTING_FEN)
+        self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
 
@@ -604,6 +957,7 @@ class PositionEditorView(QWidget):
         # the comment there for why we cannot just rebind
         # ``self._board`` here.
         self._board.set_fen("8/8/8/8/8/8/8/8 w - - 0 1")
+        self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
 
@@ -623,6 +977,7 @@ class PositionEditorView(QWidget):
         # ``self._board`` to a new instance, the ``_BoardGridWidget``
         # keeps painting the previous one.
         self._board.set_fen(parsed.fen())
+        self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
 
@@ -638,6 +993,18 @@ class PositionEditorView(QWidget):
         """
         if hasattr(self, "_board_widget"):
             self._board_widget.update_board()
+        self._update_captured()
+
+    # ------------------------------------------------------------------
+    # Captured pieces
+    # ------------------------------------------------------------------
+    def _update_captured(self) -> None:
+        """Sync captured pieces widgets with the current position."""
+        fen = self._board.fen()
+        if hasattr(self, "_captured_black"):
+            self._captured_black.update_captured(fen)
+        if hasattr(self, "_captured_white"):
+            self._captured_white.update_captured(fen)
 
     # ------------------------------------------------------------------
     # Click / painted-drag handling (event filter on BoardWidget.svg_widget)
@@ -693,6 +1060,16 @@ class PositionEditorView(QWidget):
                 if delta.manhattanLength() > 5:
                     self._begin_painted_drag(pos)
                 return True
+
+            # Hover: show legal-move / best-move highlights when not
+            # dragging and not in Free mode.
+            if self._editor_mode != EditorMode.FREE:
+                self._on_hover_square(square)
+            else:
+                if self._hovered_square >= 0:
+                    self._clear_highlights()
+
+            return True
 
         # ── Release ─────────────────────────────────────────────
         if etype == QEvent.Type.MouseButtonRelease:
@@ -751,16 +1128,28 @@ class PositionEditorView(QWidget):
         if piece is None:
             return
 
-        if target < 0 or target == source:
-            # Invalid drop or same square — put the piece back.
-            self._board.set_piece_at(source, piece)
-        else:
-            self._board.set_piece_at(target, piece)
-            self._board.turn = chess.WHITE
-            self._board.castling_rights = 0
-            self._board.ep_square = None
-            self._board.clear_stack()
+        # Put piece back on source first — _is_move_allowed needs the
+        # piece on the board for is_legal() to work.
+        self._board.set_piece_at(source, piece)
 
+        if target >= 0 and target != source and self._is_move_allowed(source, target):
+            if self._editor_mode != EditorMode.FREE:
+                # Legal / Best Move: push() handles castling, ep, turn.
+                try:
+                    move = chess.Move(source, target)
+                    self._board.push(move)
+                except (ValueError, AssertionError):
+                    pass
+            else:
+                # Free mode: simple placement, no rules.
+                self._board.remove_piece_at(source)
+                self._board.set_piece_at(target, piece)
+                self._board.turn = chess.WHITE
+                self._board.castling_rights = 0
+                self._board.ep_square = None
+                self._board.clear_stack()
+
+        self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
 
