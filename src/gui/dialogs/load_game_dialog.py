@@ -109,6 +109,84 @@ class _SourceBtn(QPushButton):
         self._apply_style(checked)
 
 
+def _fetch_and_parse_chesscom(username: str, limit: int) -> list:
+    from ...backend.chess_com_api import ChessComAPI
+    from ...backend.pgn_parser import PGNParser
+    
+    raw_games = ChessComAPI.get_last_games(username, limit)
+    parsed_games = []
+    for g_data in raw_games:
+        pgn = g_data.get("pgn", "")
+        if not pgn:
+            continue
+        try:
+            parsed_list = PGNParser.parse_pgn_text(pgn)
+            if parsed_list:
+                parsed_games.append((parsed_list[0], g_data))
+        except Exception:
+            continue
+    return parsed_games
+
+
+def _fetch_single_chesscom(game_id: str, url: str) -> list:
+    from ...backend.chess_com_api import ChessComAPI
+    from ...backend.pgn_parser import PGNParser
+    
+    result = ChessComAPI.get_game_by_id(game_id, url)
+    if not result:
+        return []
+        
+    pgn = result.get("pgn", "")
+    if pgn:
+        try:
+            parsed_list = PGNParser.parse_pgn_text(pgn)
+            if parsed_list:
+                return [(parsed_list[0], result)]
+        except Exception:
+            pass
+    return []
+
+
+def _fetch_and_parse_lichess(username: str, limit: int) -> list:
+    from ...backend.lichess_api import LichessAPI
+    from ...backend.pgn_parser import PGNParser
+    
+    api = LichessAPI()
+    raw_games = api.get_user_games(username, limit)
+    parsed_games = []
+    for g_data in raw_games:
+        pgn = g_data.get("pgn", "")
+        if not pgn:
+            continue
+        try:
+            parsed_list = PGNParser.parse_pgn_text(pgn)
+            if parsed_list:
+                parsed_games.append((parsed_list[0], g_data))
+        except Exception:
+            continue
+    return parsed_games
+
+
+def _fetch_single_lichess(game_id: str) -> list:
+    from ...backend.lichess_api import LichessAPI
+    from ...backend.pgn_parser import PGNParser
+    
+    api = LichessAPI()
+    result = api.get_game_by_id(game_id)
+    if not result:
+        return []
+        
+    pgn = result.get("pgn", "")
+    if pgn:
+        try:
+            parsed_list = PGNParser.parse_pgn_text(pgn)
+            if parsed_list:
+                return [(parsed_list[0], result)]
+        except Exception:
+            pass
+    return []
+
+
 # ── API Worker for background fetching ──────────────────────────────────────────
 class _ApiWorker(QThread):
     finished = pyqtSignal(object)
@@ -277,7 +355,7 @@ class _GameCard(QFrame):
 # ── Inline game list (scrollable) ───────────────────────────────────────────────
 class _InlineGameList(QWidget):
     """
-    Scrollable list of _GameCard rows.
+    Scrollable list of _GameCard rows with 10-games pagination.
     Emits game_chosen(index) when a card is clicked.
     Emits cleared() when the Clear button is clicked.
     Also supports pre-selecting the first item.
@@ -326,10 +404,10 @@ class _InlineGameList(QWidget):
 
         root.addWidget(header_widget)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"""
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll.setStyleSheet(f"""
             QScrollArea {{
                 background: transparent;
                 border: none;
@@ -353,44 +431,144 @@ class _InlineGameList(QWidget):
         self._cards_layout.setSpacing(6)
         self._cards_layout.addStretch()
 
-        scroll.setWidget(self._content)
-        root.addWidget(scroll, stretch=1)
+        self.scroll.setWidget(self._content)
+        root.addWidget(self.scroll, stretch=1)
 
+        # Pagination controls
+        self._pagination_widget = QWidget()
+        self._pagination_layout = QHBoxLayout(self._pagination_widget)
+        self._pagination_layout.setContentsMargins(2, 4, 2, 4)
+        self._pagination_layout.setSpacing(10)
+
+        self.btn_prev = QPushButton("◀ Previous")
+        self.btn_prev.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_prev.setStyleSheet(self._button_style())
+        self.btn_prev.clicked.connect(self._prev_page)
+        self._pagination_layout.addWidget(self.btn_prev)
+
+        self._pagination_layout.addStretch()
+
+        self.lbl_page = QLabel("")
+        self.lbl_page.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        self._pagination_layout.addWidget(self.lbl_page)
+
+        self._pagination_layout.addStretch()
+
+        self.btn_next = QPushButton("Next ▶")
+        self.btn_next.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_next.setStyleSheet(self._button_style())
+        self.btn_next.clicked.connect(self._next_page)
+        self._pagination_layout.addWidget(self.btn_next)
+
+        root.addWidget(self._pagination_widget)
+
+        self._all_rows: list[tuple[str, str]] = []
         self._cards: list[_GameCard] = []
         self._selected_index: int = -1
+        self._current_page: int = 0
+        self._games_per_page: int = 10
+        self._header_template: str = ""
+
+    def _button_style(self):
+        return f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-size: 12px;
+                padding: 5px 12px;
+            }}
+            QPushButton:hover {{
+                border-color: {Styles.COLOR_ACCENT};
+                background-color: {Styles.COLOR_ACCENT_SUBTLE};
+            }}
+            QPushButton:disabled {{
+                background-color: transparent;
+                border-color: {Styles.COLOR_BORDER};
+                color: {Styles.COLOR_TEXT_MUTED};
+            }}
+        """
 
     def populate(self, rows: list[tuple[str, str]], header: str = ""):
-        """
-        rows: list of (line1, line2) strings for each card.
-        header: optional label above the list e.g. "5 games found"
-        """
+        self._all_rows = rows
+        self._header_template = header
+        self._current_page = 0
+        self._selected_index = -1
+        self._update_page()
+
+    def _update_page(self):
         # Clear old cards
         for card in self._cards:
             self._cards_layout.removeWidget(card)
             card.deleteLater()
         self._cards.clear()
-        self._selected_index = -1
 
-        self._header.setText(header)
-        self._header.setVisible(bool(header))
+        total_games = len(self._all_rows)
+        total_pages = (total_games + self._games_per_page - 1) // self._games_per_page
 
-        for i, (line1, line2) in enumerate(rows):
+        start_idx = self._current_page * self._games_per_page
+        end_idx = min(start_idx + self._games_per_page, total_games)
+
+        # Update Header
+        if total_pages > 1:
+            header_text = f"{self._header_template} - Page {self._current_page + 1} of {total_pages}"
+            self._pagination_widget.setVisible(True)
+            self.btn_prev.setEnabled(self._current_page > 0)
+            self.btn_next.setEnabled(self._current_page < total_pages - 1)
+            self.lbl_page.setText(f"Page {self._current_page + 1} of {total_pages}")
+        else:
+            header_text = self._header_template
+            self._pagination_widget.setVisible(False)
+
+        self._header.setText(header_text)
+        self._header.setVisible(bool(header_text))
+
+        # Add cards for current page
+        for i in range(start_idx, end_idx):
+            line1, line2 = self._all_rows[i]
             card = _GameCard(i, line1, line2)
             card.selected.connect(self._on_card_selected)
             self._cards_layout.insertWidget(self._cards_layout.count() - 1, card)
             self._cards.append(card)
 
-        # Pre-select first card
+        # Restore selection if it's on this page, or pre-select first card on page change
         if self._cards:
-            self._on_card_selected(0)
+            on_page = False
+            for card in self._cards:
+                if card._index == self._selected_index:
+                    card.set_selected(True)
+                    on_page = True
+            if not on_page:
+                self._on_card_selected(start_idx)
 
-    def _on_card_selected(self, index: int):
-        if 0 <= self._selected_index < len(self._cards):
-            self._cards[self._selected_index].set_selected(False)
-        self._selected_index = index
-        if 0 <= index < len(self._cards):
-            self._cards[index].set_selected(True)
-        self.game_chosen.emit(index)
+    def _on_card_selected(self, absolute_index: int):
+        # Deselect old card on page
+        for card in self._cards:
+            if card._index == self._selected_index:
+                card.set_selected(False)
+        
+        self._selected_index = absolute_index
+        
+        # Select new card on page
+        for card in self._cards:
+            if card._index == absolute_index:
+                card.set_selected(True)
+                
+        self.game_chosen.emit(absolute_index)
+
+    def _prev_page(self):
+        if self._current_page > 0:
+            self._current_page -= 1
+            self._update_page()
+
+    def _next_page(self):
+        total_pages = (len(self._all_rows) + self._games_per_page - 1) // self._games_per_page
+        if self._current_page < total_pages - 1:
+            self._current_page += 1
+            self._update_page()
 
     def clear(self):
         self.populate([], "")
@@ -472,7 +650,7 @@ class _PgnFilePanel(QWidget):
             date = md.date or md.headers.get("Date", "?")
             time_ctrl = md.headers.get("TimeControl", "")
             tc_label = _classify_time_control(time_ctrl)
-            move_count = len(g.moves)
+            move_count = (len(g.moves) + 1) // 2
 
             line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
             line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
@@ -592,7 +770,7 @@ class _PgnTextPanel(QWidget):
             date = md.date or md.headers.get("Date", "?")
             time_ctrl = md.headers.get("TimeControl", "")
             tc_label = _classify_time_control(time_ctrl)
-            move_count = len(g.moves)
+            move_count = (len(g.moves) + 1) // 2
 
             line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
             line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
@@ -687,9 +865,10 @@ class _ChessComPanel(QWidget):
         input_layout.addLayout(input_row)
 
         # Helper text
-        help_lbl = QLabel("Fetches the last 5 games for a username.")
-        help_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
-        input_layout.addWidget(help_lbl)
+        self._help_lbl = QLabel()
+        self._help_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        self.update_help_label()
+        input_layout.addWidget(self._help_lbl)
         
         input_layout.addStretch()
         root.addWidget(self._input_widget, stretch=1)
@@ -700,6 +879,11 @@ class _ChessComPanel(QWidget):
         self._game_list.game_chosen.connect(self._on_game_chosen)
         self._game_list.cleared.connect(self._clear)
         root.addWidget(self._game_list, stretch=1)
+
+    def update_help_label(self):
+        from ...utils.config import ConfigManager
+        limit = ConfigManager().get("api_games_limit", 20)
+        self._help_lbl.setText(f"Fetches the last {limit} games for a username.")
 
     # ── Fetching ─────────────────────────────────────────────────────────────
     def _fetch(self):
@@ -712,14 +896,16 @@ class _ChessComPanel(QWidget):
         self._input_edit.setEnabled(False)
 
         from ...backend.chess_com_api import ChessComAPI
+        from ...utils.config import ConfigManager
         
         game_id = ChessComAPI.extract_game_id(text)
         if game_id:
             # It's a URL
-            self._worker = _ApiWorker(ChessComAPI.get_game_by_id, game_id, text)
+            self._worker = _ApiWorker(_fetch_single_chesscom, game_id, text)
         else:
             # It's a username
-            self._worker = _ApiWorker(ChessComAPI.get_last_games, text, 5)
+            limit = ConfigManager().get("api_games_limit", 20)
+            self._worker = _ApiWorker(_fetch_and_parse_chesscom, text, limit)
 
         self._worker.finished.connect(self._on_fetch_finished)
         self._worker.error.connect(self._on_fetch_error)
@@ -729,51 +915,32 @@ class _ChessComPanel(QWidget):
         self._reset_input_ui()
         QMessageBox.critical(self, "API Error", f"Failed to fetch from Chess.com:\n{err_msg}")
 
-    def _on_fetch_finished(self, result):
+    def _on_fetch_finished(self, parsed_games):
         self._reset_input_ui()
 
-        if not result:
+        if not parsed_games:
             QMessageBox.warning(self, "No Games", "No games found.")
             return
 
-        # result is either a single dict or a list of dicts
-        games_data = [result] if isinstance(result, dict) else result
-
-        from ...backend.pgn_parser import PGNParser
-        import datetime
-
-        self._parsed_games = []
+        self._parsed_games = parsed_games
         rows = []
         
-        for g_data in games_data:
-            pgn = g_data.get("pgn", "")
-            if not pgn:
-                continue
+        for game_obj, g_data in parsed_games:
+            # Build display row from PGN metadata
+            md = game_obj.metadata
+            white = md.white or "?"
+            black = md.black or "?"
+            w_elo = md.white_elo or md.headers.get("WhiteElo", "?")
+            b_elo = md.black_elo or md.headers.get("BlackElo", "?")
+            result = md.result or "?"
+            date = md.date or md.headers.get("Date", "?")
+            time_ctrl = md.headers.get("TimeControl", "")
+            tc_label = _classify_time_control(time_ctrl)
+            move_count = (len(game_obj.moves) + 1) // 2
 
-            try:
-                parsed_list = PGNParser.parse_pgn_text(pgn)
-                if not parsed_list:
-                    continue
-                game_obj = parsed_list[0]
-                self._parsed_games.append((game_obj, g_data))
-
-                # Build display row from PGN metadata
-                md = game_obj.metadata
-                white = md.white or "?"
-                black = md.black or "?"
-                w_elo = md.white_elo or md.headers.get("WhiteElo", "?")
-                b_elo = md.black_elo or md.headers.get("BlackElo", "?")
-                result = md.result or "?"
-                date = md.date or md.headers.get("Date", "?")
-                time_ctrl = md.headers.get("TimeControl", "")
-                tc_label = _classify_time_control(time_ctrl)
-                move_count = len(game_obj.moves)
-
-                line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
-                line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
-                rows.append((line1, line2))
-            except Exception:
-                continue
+            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
+            line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
+            rows.append((line1, line2))
 
         n = len(self._parsed_games)
         if n == 0:
@@ -800,6 +967,7 @@ class _ChessComPanel(QWidget):
         self._game_list.setVisible(False)
         self._game_list.clear()
         self._input_widget.setVisible(True)
+        self.update_help_label()
         
         from ...utils.config import ConfigManager
         saved_username = ConfigManager().get("chesscom_username", "")
@@ -876,9 +1044,10 @@ class _LichessPanel(QWidget):
 
         input_layout.addLayout(input_row)
 
-        help_lbl = QLabel("Fetches the last 5 games for a username.")
-        help_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
-        input_layout.addWidget(help_lbl)
+        self._help_lbl = QLabel()
+        self._help_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        self.update_help_label()
+        input_layout.addWidget(self._help_lbl)
         
         input_layout.addStretch()
         root.addWidget(self._input_widget, stretch=1)
@@ -888,6 +1057,11 @@ class _LichessPanel(QWidget):
         self._game_list.game_chosen.connect(self._on_game_chosen)
         self._game_list.cleared.connect(self._clear)
         root.addWidget(self._game_list, stretch=1)
+
+    def update_help_label(self):
+        from ...utils.config import ConfigManager
+        limit = ConfigManager().get("api_games_limit", 20)
+        self._help_lbl.setText(f"Fetches the last {limit} games for a username.")
 
     def _fetch(self):
         text = self._input_edit.text().strip()
@@ -899,13 +1073,15 @@ class _LichessPanel(QWidget):
         self._input_edit.setEnabled(False)
 
         from ...backend.lichess_api import LichessAPI
+        from ...utils.config import ConfigManager
         api = LichessAPI()
         
         game_id = api.extract_game_id(text)
         if game_id:
-            self._worker = _ApiWorker(api.get_game_by_id, game_id)
+            self._worker = _ApiWorker(_fetch_single_lichess, game_id)
         else:
-            self._worker = _ApiWorker(api.get_user_games, text, 5)
+            limit = ConfigManager().get("api_games_limit", 20)
+            self._worker = _ApiWorker(_fetch_and_parse_lichess, text, limit)
 
         self._worker.finished.connect(self._on_fetch_finished)
         self._worker.error.connect(self._on_fetch_error)
@@ -915,48 +1091,31 @@ class _LichessPanel(QWidget):
         self._reset_input_ui()
         QMessageBox.critical(self, "API Error", f"Failed to fetch from Lichess:\n{err_msg}")
 
-    def _on_fetch_finished(self, result):
+    def _on_fetch_finished(self, parsed_games):
         self._reset_input_ui()
 
-        if not result:
+        if not parsed_games:
             QMessageBox.warning(self, "No Games", "No games found.")
             return
 
-        games_data = [result] if isinstance(result, dict) else result
-
-        from ...backend.pgn_parser import PGNParser
-        
-        self._parsed_games = []
+        self._parsed_games = parsed_games
         rows = []
         
-        for g_data in games_data:
-            pgn = g_data.get("pgn", "")
-            if not pgn:
-                continue
+        for game_obj, g_data in parsed_games:
+            md = game_obj.metadata
+            white = md.white or "?"
+            black = md.black or "?"
+            w_elo = md.white_elo or md.headers.get("WhiteElo", "?")
+            b_elo = md.black_elo or md.headers.get("BlackElo", "?")
+            result = md.result or "?"
+            date = md.date or md.headers.get("Date", "?")
+            time_ctrl = md.headers.get("TimeControl", "")
+            tc_label = _classify_time_control(time_ctrl)
+            move_count = (len(game_obj.moves) + 1) // 2
 
-            try:
-                parsed_list = PGNParser.parse_pgn_text(pgn)
-                if not parsed_list:
-                    continue
-                game_obj = parsed_list[0]
-                self._parsed_games.append((game_obj, g_data))
-
-                md = game_obj.metadata
-                white = md.white or "?"
-                black = md.black or "?"
-                w_elo = md.white_elo or md.headers.get("WhiteElo", "?")
-                b_elo = md.black_elo or md.headers.get("BlackElo", "?")
-                result = md.result or "?"
-                date = md.date or md.headers.get("Date", "?")
-                time_ctrl = md.headers.get("TimeControl", "")
-                tc_label = _classify_time_control(time_ctrl)
-                move_count = len(game_obj.moves)
-
-                line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
-                line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
-                rows.append((line1, line2))
-            except Exception:
-                continue
+            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
+            line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
+            rows.append((line1, line2))
 
         n = len(self._parsed_games)
         if n == 0:
@@ -983,6 +1142,7 @@ class _LichessPanel(QWidget):
         self._game_list.setVisible(False)
         self._game_list.clear()
         self._input_widget.setVisible(True)
+        self.update_help_label()
 
         from ...utils.config import ConfigManager
         saved_username = ConfigManager().get("lichess_username", "")
