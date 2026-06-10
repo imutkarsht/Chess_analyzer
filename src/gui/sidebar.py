@@ -56,13 +56,8 @@ class Sidebar(QWidget):
         )
         self.btn_build_position.setCheckable(True)
         self.btn_build_position.clicked.connect(self.build_position_requested.emit)
-        # Use the same icon size as the other sidebar entries for
-        # visual consistency. The default in create_button is already
-        # 24x24 (qtawesome) or 28x28 (asset), which matches.
         self.layout.addWidget(self.btn_analyze)
-        self.layout.addWidget(
-            self._wrap_indented(self.btn_build_position, indent=20)
-        )
+        self.layout.addWidget(self.btn_build_position)
         self.btn_history = self.create_button("History", "history.png", 1)
         self.btn_stats = self.create_button("Stats", "stats.png", 2)
         self.btn_settings = self.create_button("Settings", "settings.png", 3)

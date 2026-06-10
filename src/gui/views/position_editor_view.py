@@ -20,11 +20,13 @@ and is editable — typing a valid FEN and pressing Enter loads it.
 """
 from __future__ import annotations
 
+import io
 import time
 from typing import Optional
 from enum import IntEnum
 
 import chess
+import chess.pgn
 from PyQt6.QtCore import Qt, QSize, QPoint, QPointF, pyqtSignal, QEvent, QTimer
 from PyQt6.QtGui import QIcon, QPixmap, QColor, QFont, QPainter, QCursor, QImage, QPen, QBrush
 from PyQt6.QtSvg import QSvgRenderer
@@ -32,11 +34,12 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QPushButton, QLineEdit, QFrame, QButtonGroup, QToolButton,
-    QMessageBox, QSizePolicy, QSplitter, QComboBox,
-    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
+    QMessageBox, QSizePolicy, QSplitter, QComboBox, QFileDialog,
+    QCheckBox,
 )
 
 from ..styles import Styles
+from ..analysis_view import MoveListPanel, AnalysisLinesWidget
 from ...backend.models import GameAnalysis, GameMetadata, MoveAnalysis
 from ...utils.path_utils import get_resource_path
 
@@ -336,11 +339,12 @@ class PositionEditorView(QWidget):
         self._square_buttons: list[list[QPushButton]] = []
 
         # ── Move tracking (Legal Moves / Best Move modes) ─────────
-        # Record every push() as {ply, san, uci, time_spent, fen_before}
-        self._move_history: list[dict] = []
-        self._last_move_time: float = 0.0   # timestamp of last move
-        self._starting_fen: str = ""        # FEN when recording started
-        self._is_recording: bool = False    # True while in Legal/Best mode
+        # Live GameAnalysis updated on every push(); displayed via
+        # MoveListPanel (same widget used in the Analyze tab).
+        self._editor_game: GameAnalysis | None = None
+        self._last_move_time: float = 0.0
+        self._starting_fen: str = ""
+        self._is_recording: bool = False
 
         # Board state mirrored from the buttons.
         self._board: chess.Board = _build_initial_board()
@@ -422,6 +426,82 @@ class PositionEditorView(QWidget):
             pass
         finally:
             self._engine_started_for_editor = False
+
+    def _toggle_live_analysis(self) -> None:
+        """Toggle the MoveListPanel live engine analysis on/off."""
+        if not hasattr(self, "_move_list_panel"):
+            return
+        panel = self._move_list_panel
+        if panel.engine_lines_enabled:
+            panel.set_engine_lines_enabled(False)
+            self._analyze_btn.setText("Analyze Game")
+            self._analyze_btn.setStyleSheet(
+                Styles.get_control_button_style().replace(
+                    "background-color: #3A3A3A",
+                    f"background-color: {Styles.COLOR_ACCENT}"
+                ).replace("color: #A0A0A0", "color: white")
+                + "font-weight: 600;"
+            )
+        else:
+            panel.engine_lines_enabled = True
+            panel.live_worker.set_position(self._board.fen())
+            self._analyze_btn.setText("Stop Analysis")
+            self._analyze_btn.setStyleSheet(
+                Styles.get_control_button_style().replace(
+                    "background-color: #3A3A3A",
+                    f"background-color: {Styles.COLOR_ACCENT_HOVER}"
+                ).replace("color: #A0A0A0", "color: white")
+                + "font-weight: 600;"
+            )
+
+    # ------------------------------------------------------------------
+    # Live analysis → eval bar
+    # ------------------------------------------------------------------
+    def _on_live_checkbox(self, checked: bool) -> None:
+        """Toggle live engine analysis via the 'Evaluation Live' checkbox."""
+        if not hasattr(self, "_move_list_panel"):
+            return
+        panel = self._move_list_panel
+        panel.engine_lines_enabled = checked
+        if checked:
+            panel.live_worker.set_position(self._board.fen())
+        else:
+            panel.set_engine_lines_enabled(False)
+
+    def _on_live_lines(self, lines: list, _is_white_from_signal: bool) -> None:
+        """Forward engine multi-pv output to eval bar and analysis widget.
+
+        ``_is_white_from_signal`` is the MoveListPanel's internal
+        turn tracker, which is NOT updated during live analysis of a
+        position — it only changes when clicking historical moves.
+        We ignore it and read the actual board turn instead.
+        """
+        if not lines:
+            return
+        scored = [L for L in lines if L.get("score_value")]
+        if not scored:
+            return
+
+        is_white = self._board.turn == chess.WHITE
+
+        # Eval bar (best line only, always from White's perspective)
+        if hasattr(self, "_board_widget"):
+            cp = scored[0].get("cp")
+            mate = scored[0].get("mate")
+            # Engine returns score.relative (side-to-move view);
+            # EvalBarWidget expects White's perspective.
+            if not is_white:
+                if cp is not None:
+                    cp = -cp
+                if mate is not None:
+                    mate = -mate
+            self._board_widget.eval_bar.set_eval(cp=cp, mate=mate)
+
+        # Multi-PV display
+        if hasattr(self, "_analysis_lines"):
+            self._analysis_lines.update_lines(
+                scored, chess.WHITE if is_white else chess.BLACK
+            )
 
     # ------------------------------------------------------------------
     # Highlight helpers
@@ -545,11 +625,37 @@ class PositionEditorView(QWidget):
         splitter.setHandleWidth(2)
         root.addWidget(splitter)
 
-        # ── Left slot — Move list table ─────────────────────────
+        # ── Left slot — button row + MoveListPanel (1:1 like Analyze) ──
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.addWidget(self._build_move_list_panel())
+
+        # Button row — 1:1 like main_window.py lines 569-627
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(8)
+        self._save_btn = QPushButton("Save Game")
+        self._save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._save_btn.setStyleSheet(Styles.get_control_button_style())
+        self._save_btn.clicked.connect(self._save_pgn)
+        self._save_btn.setEnabled(False)
+        btn_layout.addWidget(self._save_btn)
+
+        self._analyze_btn = QPushButton("Analyze Game")
+        self._analyze_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._analyze_btn.setStyleSheet(
+            Styles.get_control_button_style().replace(
+                "background-color: #3A3A3A",
+                f"background-color: {Styles.COLOR_ACCENT}"
+            ).replace("color: #A0A0A0", "color: white")
+            + "font-weight: 600;"
+        )
+        self._analyze_btn.clicked.connect(self._toggle_live_analysis)
+        btn_layout.addWidget(self._analyze_btn)
+        left_layout.insertLayout(0, btn_layout)
+
+        engine_path = "stockfish"
+        self._move_list_panel = MoveListPanel(engine_path, config_manager=None)
+        left_layout.addWidget(self._move_list_panel)
         splitter.addWidget(left_widget)
 
         # ── Center slot — Board + captured pieces ───────────────
@@ -564,75 +670,8 @@ class PositionEditorView(QWidget):
         # (main_window.py line 629).
         splitter.setSizes([250, 600, 350])
 
-    def _build_move_list_panel(self) -> QWidget:
-        """Left column: move list table (3 columns: #, White, Black).
-
-        Records moves made in Legal Moves / Best Move modes with
-        think-time per move.  Styled to match MoveListPanel from
-        the Analyze view.
-        """
-        frame = QFrame()
-        frame.setStyleSheet(
-            f"QFrame {{ background-color: {Styles.COLOR_SURFACE}; "
-            f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 8px; }}"
-        )
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(4)
-
-        title = QLabel("Moves")
-        title.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600; "
-            f"font-size: 13px; border: none;"
-        )
-        layout.addWidget(title)
-
-        self._move_table = QTableWidget()
-        self._move_table.setColumnCount(3)
-        self._move_table.setHorizontalHeaderLabels(["#", "White", "Black"])
-        self._move_table.horizontalHeader().setHighlightSections(False)
-        self._move_table.horizontalHeader().setMinimumHeight(28)
-
-        header = self._move_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(0, 30)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        self._move_table.verticalHeader().setVisible(False)
-        self._move_table.setShowGrid(False)
-        self._move_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
-        self._move_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self._move_table.verticalHeader().setDefaultSectionSize(38)
-        self._move_table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: none;
-                gridline-color: transparent;
-                font-size: 13px;
-            }}
-            QTableWidget::item {{
-                padding: 4px 6px;
-                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QTableWidget::item:selected {{
-                background-color: {Styles.COLOR_HIGHLIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-            QHeaderView::section {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 6px 4px;
-                border: none;
-                border-bottom: 2px solid {Styles.COLOR_ACCENT};
-                font-weight: 600;
-                font-size: 12px;
-            }}
-        """)
-
-        layout.addWidget(self._move_table)
-        return frame
+        # Wire live engine output → eval bar (built into BoardWidget)
+        self._move_list_panel.lines_updated.connect(self._on_live_lines)
 
     def _build_palette(self) -> QWidget:
         """Left column: piece buttons (white & black side by side) + eraser."""
@@ -652,20 +691,13 @@ class PositionEditorView(QWidget):
         )
         layout.addWidget(title)
 
-        # Two columns: White (left) | Black (right)
+        # Two columns: White pieces (left) | Black pieces (right)
         cols = QHBoxLayout()
         cols.setSpacing(8)
 
         # ── White column ──
         white_col = QVBoxLayout()
         white_col.setSpacing(4)
-        white_lbl = QLabel("White")
-        white_lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; "
-            f"border: none;"
-        )
-        white_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        white_col.addWidget(white_lbl)
         for sym in ["K", "Q", "R", "B", "N", "P"]:
             white_col.addWidget(
                 self._make_palette_button(sym), 0,
@@ -676,13 +708,6 @@ class PositionEditorView(QWidget):
         # ── Black column ──
         black_col = QVBoxLayout()
         black_col.setSpacing(4)
-        black_lbl = QLabel("Black")
-        black_lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; "
-            f"border: none;"
-        )
-        black_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        black_col.addWidget(black_lbl)
         for sym in ["k", "q", "r", "b", "n", "p"]:
             black_col.addWidget(
                 self._make_palette_button(sym), 0,
@@ -813,62 +838,37 @@ class PositionEditorView(QWidget):
         return panel
 
     def _build_side_panel(self) -> QVBoxLayout:
-        """Right column: Eraser + Pieces palette, mode selector,
+        """Right column: Pieces palette, mode selector,
         FEN field, help text, and action buttons.
-
-        Mirroring how AnalysisPanel holds the Load Game / Analyze Game
-        buttons in the Analyze tab.
         """
         layout = QVBoxLayout()
         layout.setSpacing(8)
 
-        # ── Action buttons ──
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(8)
-
-        back = QPushButton("Back")
-        back.setCursor(Qt.CursorShape.PointingHandCursor)
-        back.setStyleSheet(
-            f"QPushButton {{ background-color: {Styles.COLOR_SURFACE}; "
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; border: 1px solid "
-            f"{Styles.COLOR_BORDER}; border-radius: 6px; padding: 10px 18px; "
-            f"font-size: 13px; }}"
-            f"QPushButton:hover {{ background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; }}"
-        )
-        back.clicked.connect(self.back_requested.emit)
-        btn_row.addWidget(back)
-
-        use = QPushButton("Use Position")
-        use.setCursor(Qt.CursorShape.PointingHandCursor)
-        use.setStyleSheet(
-            f"QPushButton {{ background-color: {Styles.COLOR_ACCENT}; "
-            f"color: white; border: none; border-radius: 6px; "
-            f"padding: 10px 18px; font-size: 13px; font-weight: 600; }}"
-            f"QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}"
-        )
-        use.clicked.connect(self._on_use_position)
-        btn_row.addWidget(use)
-        layout.addLayout(btn_row)
-
-        # ── Eraser button ──
-        eraser_btn = QPushButton("Eraser")
-        eraser_btn.setCheckable(True)
-        eraser_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        eraser_btn.setStyleSheet(
-            Styles.get_control_button_style()
-            + f"QPushButton:checked {{ background-color: {Styles.COLOR_ACCENT}; "
-            f"color: white; border: 1px solid {Styles.COLOR_ACCENT}; }}"
-        )
-        eraser_btn.clicked.connect(lambda: self._set_active_piece(""))
-        self._piece_group.addButton(eraser_btn)
-        layout.addWidget(eraser_btn)
+        # ── Evaluation Live ──
+        self._eval_live_check = QCheckBox("Evaluation Live")
+        self._eval_live_check.setChecked(False)
+        self._eval_live_check.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._eval_live_check.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-weight: bold;
+                font-size: 13px;
+                background: transparent;
+                border: none;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+            }}
+        """)
+        self._eval_live_check.toggled.connect(self._on_live_checkbox)
+        layout.addWidget(self._eval_live_check)
 
         # ── Pieces palette ──
         layout.addWidget(self._build_palette())
 
-        # ── Editor Mode ──
-        mode_lbl = QLabel("Editing Mode")
+        # ── Mode ──
+        mode_lbl = QLabel("Mode")
         mode_lbl.setStyleSheet(
             f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600; "
             f"font-size: 12px; border: none;"
@@ -876,8 +876,7 @@ class PositionEditorView(QWidget):
         layout.addWidget(mode_lbl)
 
         self._mode_combo = QComboBox()
-        self._mode_combo.addItems(["Free", "Legal Moves", "Best Move"])
-        self._mode_combo.setCurrentIndex(0)
+        self._mode_combo.addItems(["Free", "Gameplay", "Best Move"])
         self._mode_combo.setStyleSheet(
             f"QComboBox {{ background-color: {Styles.COLOR_SURFACE_LIGHT}; "
             f"color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid "
@@ -893,7 +892,9 @@ class PositionEditorView(QWidget):
             f"selection-background-color: {Styles.COLOR_ACCENT_SUBTLE}; "
             f"border: 1px solid {Styles.COLOR_BORDER}; }}"
         )
+        # Connect BEFORE setCurrentIndex so the signal fires on init
         self._mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        self._mode_combo.setCurrentIndex(1)
         layout.addWidget(self._mode_combo)
 
         # ── FEN field ──
@@ -914,20 +915,10 @@ class PositionEditorView(QWidget):
         self._fen_edit.returnPressed.connect(self._load_fen_from_field)
         layout.addWidget(self._fen_edit)
 
-        # ── Help text ──
-        help_text = QLabel(
-            "Pick a piece on the right, then click a square to place it.\n"
-            "Right-click a square to remove the piece on it.\n"
-            "Drag a piece to move it to a different square.\n\n"
-            "Click \"Use Position\" to load the position into the\n"
-            "analyzer, or \"Back\" to return without changes."
-        )
-        help_text.setWordWrap(True)
-        help_text.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; "
-            f"line-height: 1.4;"
-        )
-        layout.addWidget(help_text)
+        # ── Live engine output ──
+        self._analysis_lines = AnalysisLinesWidget()
+        layout.addWidget(self._analysis_lines)
+
         layout.addStretch()
         return layout
 
@@ -935,123 +926,135 @@ class PositionEditorView(QWidget):
     # Move recording (Legal Moves / Best Move modes)
     # ------------------------------------------------------------------
     def _start_recording(self) -> None:
-        """Begin tracking moves made via board.push()."""
-        self._move_history.clear()
+        """Begin tracking moves made via board.push().
+
+        Creates a live GameAnalysis whose .moves list grows with every
+        recorded move.  MoveListPanel.set_game() refreshes the display.
+        """
         self._starting_fen = self._board.fen()
+        self._editor_game = GameAnalysis(
+            game_id=f"editor_{int(time.time())}",
+            metadata=GameMetadata(white="White", black="Black"),
+            moves=[],
+        )
         self._last_move_time = time.time()
         self._is_recording = True
+        if hasattr(self, "_save_btn"):
+            self._save_btn.setEnabled(True)
+        self._refresh_move_table()
 
     def _stop_recording(self) -> None:
-        """Stop tracking and clear accumulated moves."""
+        """Stop tracking and clear the move list panel."""
         self._is_recording = False
-        self._move_history.clear()
-        self._starting_fen = ""
+        self._editor_game = None
+        if hasattr(self, "_move_list_panel"):
+            self._move_list_panel.set_game(None)
+        if hasattr(self, "_save_btn"):
+            self._save_btn.setEnabled(False)
 
     def _record_move(self, san: str, uci: str, fen_before: str) -> None:
-        """Append a move to the history with time_spent computed from
-        the timestamp of the previous move."""
+        """Append a MoveAnalysis to _editor_game and refresh the panel."""
+        if not self._is_recording or self._editor_game is None:
+            return
         now = time.time()
-        time_spent = now - self._last_move_time if self._move_history else 0.0
+        time_spent = (
+            now - self._last_move_time if self._editor_game.moves else 0.0
+        )
         self._last_move_time = now
-        ply = len(self._move_history)
-        self._move_history.append({
-            "ply": ply,
-            "move_number": ply // 2 + 1,
-            "san": san,
-            "uci": uci,
-            "fen_before": fen_before,
-            "time_spent": time_spent,
-        })
+        ply = len(self._editor_game.moves)
+        ma = MoveAnalysis(
+            move_number=ply // 2 + 1,
+            ply=ply,
+            san=san,
+            uci=uci,
+            fen_before=fen_before,
+            time_spent=time_spent,
+        )
+        self._editor_game.moves.append(ma)
+        self._refresh_move_table()
+
+        # Keep the live engine on the current position
+        if (
+            hasattr(self, "_move_list_panel")
+            and self._move_list_panel.engine_lines_enabled
+        ):
+            self._move_list_panel.live_worker.set_position(self._board.fen())
 
     def _refresh_move_table(self) -> None:
-        """Rebuild the move list table from _move_history."""
-        if not hasattr(self, "_move_table"):
+        """Push the current GameAnalysis into the MoveListPanel."""
+        if not hasattr(self, "_move_list_panel"):
             return
-        table = self._move_table
-        table.setRowCount(0)
+        self._move_list_panel.set_game(self._editor_game)
 
-        if not self._is_recording or not self._move_history:
-            return
+    # ── PGN export ────────────────────────────────────────────
+    def _build_pgn_string(self) -> str:
+        """Build a PGN string directly from the recorded moves.
 
-        num_rows = (len(self._move_history) + 1) // 2
-        table.setRowCount(num_rows)
-
-        for i, move in enumerate(self._move_history):
-            row = i // 2
-            col = (i % 2) + 1  # 1=White, 2=Black
-
-            if col == 1:
-                num_item = QTableWidgetItem(str(move["move_number"]))
-                num_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                num_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                num_item.setForeground(QBrush(QColor(Styles.COLOR_TEXT_SECONDARY)))
-                table.setItem(row, 0, num_item)
-
-            # Build a cell widget with SAN + time_spent
-            cell = QWidget()
-            cell_layout = QVBoxLayout(cell)
-            cell_layout.setContentsMargins(2, 2, 2, 2)
-            cell_layout.setSpacing(1)
-
-            san_lbl = QLabel(move["san"])
-            san_lbl.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; "
-                f"background: transparent;"
-            )
-            san_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            cell_layout.addWidget(san_lbl)
-
-            t = move["time_spent"]
-            time_lbl = QLabel(f"{t:.1f}s" if t < 60 else f"{int(t // 60)}:{t % 60:04.1f}")
-            time_lbl.setStyleSheet(
-                "color: rgba(255,255,255,120); font-size: 9px; background: transparent;"
-            )
-            time_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            cell_layout.addWidget(time_lbl)
-
-            # Backing item for selection
-            item = QTableWidgetItem()
-            item.setData(Qt.ItemDataRole.UserRole, i)
-            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-            item.setSizeHint(QSize(80, 36))
-            table.setItem(row, col, item)
-            table.setCellWidget(row, col, cell)
-
-    def _build_game_analysis(self) -> GameAnalysis | None:
-        """Build a GameAnalysis from the recorded moves.
-
-        Returns None if no moves were recorded.
+        Uses the already-computed SAN and time_spent from each
+        MoveAnalysis — no board replay needed, so the starting
+        FEN never causes legality failures.
         """
-        if not self._move_history:
-            return None
-        # Derive player names from the starting FEN
-        board = chess.Board(self._starting_fen)
-        white = "White" if board.turn == chess.WHITE else "?"
-        black = "Black" if board.turn == chess.WHITE else "?"
-        moves = []
-        tmp = chess.Board(self._starting_fen)
-        for m in self._move_history:
-            try:
-                move_obj = chess.Move.from_uci(m["uci"])
-            except (ValueError, chess.InvalidMoveError):
-                continue
-            if move_obj not in tmp.legal_moves:
-                continue
-            ma = MoveAnalysis(
-                move_number=m["move_number"],
-                ply=m["ply"],
-                san=tmp.san(move_obj),
-                uci=m["uci"],
-                fen_before=m["fen_before"],
-                time_spent=m["time_spent"],
+        if self._editor_game is None or not self._editor_game.moves:
+            return ""
+        lines: list[str] = []
+        lines.append('[Event "Position Editor"]')
+        lines.append('[Site "Chess Analyzer"]')
+        lines.append(f'[Date "{time.strftime("%Y.%m.%d")}"]')
+        lines.append(f'[White "{self._editor_game.metadata.white}"]')
+        lines.append(f'[Black "{self._editor_game.metadata.black}"]')
+        lines.append('[Result "*"]')
+        if self._starting_fen and self._starting_fen != chess.STARTING_FEN:
+            lines.append(f'[FEN "{self._starting_fen}"]')
+            lines.append('[SetUp "1"]')
+        lines.append("")
+
+        # Build move text with clock comments
+        move_parts: list[str] = []
+        for i, ma in enumerate(self._editor_game.moves):
+            prefix = f"{ma.move_number}. " if i % 2 == 0 else ""
+            chunk = f"{prefix}{ma.san}"
+            if ma.time_spent is not None and ma.time_spent > 0:
+                m, s = divmod(int(ma.time_spent), 60)
+                chunk += f" {{[%clk 0:{m:02d}:{s:02d}]}}"
+            move_parts.append(chunk)
+
+        # Wrap at ~78 chars
+        current = ""
+        for part in move_parts:
+            if current and len(current) + 1 + len(part) > 78:
+                lines.append(current)
+                current = part
+            elif current:
+                current += " " + part
+            else:
+                current = part
+        if current:
+            lines.append(current)
+        lines.append("*")
+        return "\n".join(lines) + "\n"
+
+    def _save_pgn(self) -> None:
+        """Open a Save dialog and write the recorded game as PGN."""
+        if self._editor_game is None or not self._editor_game.moves:
+            QMessageBox.information(
+                self, "Nothing to Save",
+                "No moves have been recorded yet. Switch to Legal Moves "
+                "or Best Move mode and make some moves first."
             )
-            moves.append(ma)
-            tmp.push(move_obj)
-        return GameAnalysis(
-            game_id=f"editor_{int(time.time())}",
-            metadata=GameMetadata(white=white, black=black),
-            moves=moves,
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Game", "", "PGN Files (*.pgn);;All Files (*)"
         )
+        if not path:
+            return
+        pgn_str = self._build_pgn_string()
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(pgn_str)
+        except OSError as e:
+            QMessageBox.warning(
+                self, "Save Failed", f"Could not write file:\n{e}"
+            )
 
     # ------------------------------------------------------------------
     # Event handling
@@ -1142,6 +1145,28 @@ class PositionEditorView(QWidget):
         self._sync_fen_field()
 
     def _reset_position(self) -> None:
+        # Stop recording / live analysis first
+        if self._is_recording:
+            self._stop_recording()
+        if hasattr(self, "_move_list_panel"):
+            self._move_list_panel.set_engine_lines_enabled(False)
+            self._move_list_panel.set_game(None)
+        if hasattr(self, "_analysis_lines"):
+            self._analysis_lines.clear()
+        if hasattr(self, "_board_widget"):
+            self._board_widget.eval_bar.set_eval(cp=0, mate=None)
+        if hasattr(self, "_analyze_btn"):
+            self._analyze_btn.setText("Analyze Game")
+            self._analyze_btn.setStyleSheet(
+                Styles.get_control_button_style().replace(
+                    "background-color: #3A3A3A",
+                    f"background-color: {Styles.COLOR_ACCENT}"
+                ).replace("color: #A0A0A0", "color: white")
+                + "font-weight: 600;"
+            )
+        if hasattr(self, "_eval_live_check"):
+            self._eval_live_check.setChecked(False)
+
         # IMPORTANT: mutate the existing board in place rather than
         # replacing ``self._board`` with a new instance. The
         # ``_BoardGridWidget`` holds its own reference to the board
@@ -1155,14 +1180,22 @@ class PositionEditorView(QWidget):
         self._refresh_squares()
         self._sync_fen_field()
 
+        # Restart recording if we're in a move-tracking mode
+        if self._editor_mode != EditorMode.FREE:
+            self._start_recording()
+
     def _clear_board(self) -> None:
         # Same in-place mutation as ``_reset_position`` above — see
         # the comment there for why we cannot just rebind
         # ``self._board`` here.
+        if self._is_recording:
+            self._stop_recording()
         self._board.set_fen("8/8/8/8/8/8/8/8 w - - 0 1")
         self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
+        if self._editor_mode != EditorMode.FREE:
+            self._start_recording()
 
     def _load_fen_from_field(self) -> None:
         text = self._fen_edit.text().strip()
@@ -1183,6 +1216,12 @@ class PositionEditorView(QWidget):
         self._clear_highlights()
         self._refresh_squares()
         self._sync_fen_field()
+
+        # Restart recording if needed
+        if self._editor_mode != EditorMode.FREE:
+            if self._is_recording:
+                self._stop_recording()
+            self._start_recording()
 
     # ------------------------------------------------------------------
     # View sync
