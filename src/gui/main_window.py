@@ -278,7 +278,7 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(0)
         
         self._setup_shortcuts()
-        
+        self._setup_position_editor()
     def _setup_shortcuts(self):
         # File Operations
         self.shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
@@ -343,12 +343,18 @@ class MainWindow(QMainWindow):
         if self.board_widget.current_move_index != -1:
             self.on_move_selected(-1)
 
-        # --- Page 4: Build Position View ---
-        # The position editor lives inside the main stacked widget so
-        # it inherits the existing window chrome (sidebar, status bar,
-        # theme). The view itself emits ``position_accepted(fen)`` when
-        # the user clicks "Use Position" and ``back_requested()`` when
-        # they press "Back"; both are handled in open_position_editor.
+    # ------------------------------------------------------------------
+    # Page 4: Build Position View
+    # ------------------------------------------------------------------
+    def _setup_position_editor(self):
+        """Create and add the PositionEditorView to the stacked widget.
+
+        The position editor lives inside the main stacked widget so
+        it inherits the existing window chrome (sidebar, status bar,
+        theme). The view itself emits ``position_accepted(fen)`` when
+        the user clicks "Use Position" and ``back_requested()`` when
+        they press "Back"; both are handled in open_position_editor.
+        """
         self.position_editor_view = PositionEditorView()
         self.position_editor_view.set_analyzer(self.analyzer)  # Best Move engine access
         self.position_editor_view.position_accepted.connect(
