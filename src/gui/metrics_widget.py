@@ -256,6 +256,10 @@ class MetricsWidget(QWidget):
         self.games_data = []
         self.groq_service = GroqService()
         
+        # Cache stats and insights for dynamic style updates
+        self.current_stats = None
+        self.current_insights = None
+        
         self.setup_ui()
         self.refresh()
 
@@ -284,6 +288,18 @@ class MetricsWidget(QWidget):
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self.content_widget)
+
+    def refresh_styles(self):
+        """Re-applies styles and rebuilds the dashboard using cached stats/insights to pick up the new accent color immediately without re-querying the database."""
+        if hasattr(self, 'btn_refresh') and self.btn_refresh:
+            self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
+            
+        if self.current_stats:
+            saved_insights = self.current_insights
+            clear_layout(self.content_layout)
+            self.show_dashboard(self.current_stats)
+            if saved_insights:
+                self._populate_insights(saved_insights)
 
     def refresh(self, _=None):
         clear_layout(self.content_layout)
@@ -334,6 +350,9 @@ class MetricsWidget(QWidget):
         self.stats_worker.start()
 
     def on_stats_ready(self, stats):
+        self.current_stats = stats
+        # Reset insights cache on new stats generation
+        self.current_insights = None
         clear_layout(self.content_layout)
         self.show_dashboard(stats)
 
@@ -803,6 +822,7 @@ class MetricsWidget(QWidget):
         )
         
     def _populate_insights(self, insight_text):
+        self.current_insights = insight_text
         self._clear_layout(self.insights_layout)
         
         # Helper to create insight item

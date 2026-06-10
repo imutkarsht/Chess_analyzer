@@ -12,6 +12,7 @@ from .gui_utils import (clear_layout, create_button, show_error_dialog,
 from .components import SimpleStatCard as StatCard
 from .analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
 from ..utils.resources import ResourceManager
+from ..utils.path_utils import get_resource_path
 from ..utils.logger import logger
 import chess
 from .live_analysis import LiveAnalysisWorker

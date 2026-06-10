@@ -24,6 +24,10 @@ class StatCard(QFrame):
     def __init__(self, title, value, subtitle=None, icon=None, color=None):
         super().__init__()
         
+        # Cache properties for dynamic style refresh
+        self._initial_color = color
+        self._use_accent_color = (color == Styles.COLOR_ACCENT)
+        
         # Modern card styling with subtle gradient
         self.setStyleSheet(f"""
             QFrame {{
@@ -44,9 +48,9 @@ class StatCard(QFrame):
         # Header (Title + Icon)
         header_layout = QHBoxLayout()
         
-        lbl_title = QLabel(title)
+        self.lbl_title = QLabel(title)
         # Uppercase title with letter-spacing for modern look
-        lbl_title.setStyleSheet(f"""
+        self.lbl_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY}; 
             font-size: 12px; 
             font-weight: 600; 
@@ -55,7 +59,7 @@ class StatCard(QFrame):
             border: none; 
             background: transparent;
         """)
-        header_layout.addWidget(lbl_title)
+        header_layout.addWidget(self.lbl_title)
         
         if icon:
             self._add_icon(header_layout, icon)
@@ -66,9 +70,9 @@ class StatCard(QFrame):
         layout.addSpacing(4)
         
         # Value - Large, bold, eye-catching
-        lbl_value = QLabel(str(value))
+        self.lbl_value = QLabel(str(value))
         value_color = color if color else Styles.COLOR_TEXT_PRIMARY
-        lbl_value.setStyleSheet(f"""
+        self.lbl_value.setStyleSheet(f"""
             color: {value_color}; 
             font-size: 42px; 
             font-weight: 700; 
@@ -76,20 +80,64 @@ class StatCard(QFrame):
             border: none; 
             background: transparent;
         """)
-        layout.addWidget(lbl_value)
+        layout.addWidget(self.lbl_value)
         
         # Subtitle - Subtle, smaller
+        self.lbl_sub = None
         if subtitle:
-            lbl_sub = QLabel(subtitle)
-            lbl_sub.setStyleSheet(f"""
+            self.lbl_sub = QLabel(subtitle)
+            self.lbl_sub.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_MUTED}; 
                 font-size: 12px; 
                 font-weight: 400;
                 border: none; 
                 background: transparent;
             """)
-            lbl_sub.setWordWrap(True)
-            layout.addWidget(lbl_sub)
+            self.lbl_sub.setWordWrap(True)
+            layout.addWidget(self.lbl_sub)
+            
+    def refresh_styles(self):
+        """Re-apply styles with the updated accent color."""
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            QFrame:hover {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+        """)
+        
+        self.lbl_title.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_SECONDARY}; 
+            font-size: 12px; 
+            font-weight: 600; 
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border: none; 
+            background: transparent;
+        """)
+        
+        value_color = Styles.COLOR_ACCENT if self._use_accent_color else (self._initial_color if self._initial_color else Styles.COLOR_TEXT_PRIMARY)
+        self.lbl_value.setStyleSheet(f"""
+            color: {value_color}; 
+            font-size: 42px; 
+            font-weight: 700; 
+            letter-spacing: -1px;
+            border: none; 
+            background: transparent;
+        """)
+        
+        if self.lbl_sub:
+            self.lbl_sub.setStyleSheet(f"""
+                color: {Styles.COLOR_TEXT_MUTED}; 
+                font-size: 12px; 
+                font-weight: 400;
+                border: none; 
+                background: transparent;
+            """)
     
     def _add_icon(self, layout, icon):
         """Add icon to the header layout."""
@@ -133,6 +181,9 @@ class SimpleStatCard(QFrame):
     def __init__(self, title, value, color=None):
         super().__init__()
         
+        self._initial_color = color
+        self._use_accent_color = (color == Styles.COLOR_ACCENT)
+        
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
         self.setStyleSheet(f"""
             QFrame {{
@@ -147,13 +198,30 @@ class SimpleStatCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         
-        lbl_title = QLabel(title)
-        lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px;")
-        lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_title = QLabel(title)
+        self.lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px;")
+        self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        lbl_value = QLabel(str(value))
-        lbl_value.setStyleSheet(f"color: {color if color else Styles.COLOR_TEXT_PRIMARY}; font-size: 18px; font-weight: bold;")
-        lbl_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_value = QLabel(str(value))
+        value_color = Styles.COLOR_ACCENT if self._use_accent_color else (color if color else Styles.COLOR_TEXT_PRIMARY)
+        self.lbl_value.setStyleSheet(f"color: {value_color}; font-size: 18px; font-weight: bold;")
+        self.lbl_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        layout.addWidget(lbl_title)
-        layout.addWidget(lbl_value)
+        layout.addWidget(self.lbl_title)
+        layout.addWidget(self.lbl_value)
+
+    def refresh_styles(self):
+        """Re-apply styles with the updated accent color."""
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                padding: 10px;
+            }}
+            QLabel {{ border: none; background: transparent; }}
+        """)
+        self.lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px;")
+        value_color = Styles.COLOR_ACCENT if self._use_accent_color else (self._initial_color if self._initial_color else Styles.COLOR_TEXT_PRIMARY)
+        self.lbl_value.setStyleSheet(f"color: {value_color}; font-size: 18px; font-weight: bold;")
+

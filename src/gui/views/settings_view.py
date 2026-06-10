@@ -602,8 +602,18 @@ class SettingsView(QWidget):
         lbl_lichess_user = QLabel("Lichess.org:")
         lbl_lichess_user.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
 
+        self.games_limit_input = QLineEdit()
+        self.games_limit_input.setValidator(QIntValidator(1, 30, self.games_limit_input))
+        self.games_limit_input.setText(str(self.config_manager.get("api_games_limit", 20)))
+        self.games_limit_input.setPlaceholderText("Number of games to fetch (1-30)")
+        self.games_limit_input.setStyleSheet(Styles.get_input_style())
+        
+        lbl_games_limit = QLabel("Games Fetch Limit:")
+        lbl_games_limit.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+
         username_layout.addRow(lbl_chesscom, self.chesscom_input)
         username_layout.addRow(lbl_lichess_user, self.lichess_input)
+        username_layout.addRow(lbl_games_limit, self.games_limit_input)
 
         self.save_usernames_btn = self._create_icon_button("Save Usernames", "fa5s.user-check", self.save_usernames, primary=True)
 
@@ -774,15 +784,178 @@ class SettingsView(QWidget):
         self.data_group.setStyleSheet(self.group_style)
         self.website_group.setStyleSheet(self.group_style)
         
-        self.browse_btn.setStyleSheet(Styles.get_control_button_style())
-        self.save_engine_btn.setStyleSheet(Styles.get_button_style())
-        self.save_api_btn.setStyleSheet(Styles.get_button_style())
-        self.save_usernames_btn.setStyleSheet(Styles.get_button_style())
-        self.color_btn.setStyleSheet(Styles.get_control_button_style())
-        self.clear_cache_btn.setStyleSheet(Styles.get_control_button_style())
-        self.clear_data_btn.setStyleSheet(Styles.get_control_button_style())
-        self.website_btn.setStyleSheet(Styles.get_control_button_style())
-        self.feedback_btn.setStyleSheet(Styles.get_control_button_style())
+        # Primary buttons style
+        primary_style = f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_ACCENT};
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_ACCENT_HOVER};
+            }}
+        """
+        for btn in [self.save_engine_btn, self.llm_activate_btn, self.save_api_btn, self.save_usernames_btn]:
+            if hasattr(self, btn.__name__ if hasattr(btn, '__name__') else '') or btn:
+                try:
+                    btn.setStyleSheet(primary_style)
+                except:
+                    pass
+                    
+        # Default buttons style
+        default_style = f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+        """
+        for btn in [self.browse_btn, self.llm_test_btn, self.llm_save_profile_btn, self.color_btn, self.clear_cache_btn, self.website_btn, self.feedback_btn, self.update_btn]:
+            if hasattr(self, btn.__name__ if hasattr(btn, '__name__') else '') or btn:
+                try:
+                    btn.setStyleSheet(default_style)
+                except:
+                    pass
+                    
+        # Danger buttons style
+        danger_style = f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {Styles.COLOR_BLUNDER};
+                border: 1px solid {Styles.COLOR_BLUNDER};
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_BLUNDER};
+                color: white;
+            }}
+        """
+        if hasattr(self, 'clear_data_btn') and self.clear_data_btn:
+            self.clear_data_btn.setStyleSheet(danger_style)
+            
+        # LLM add/delete button style
+        llm_add_style = f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 16px; font-weight: bold;
+                min-width: 28px; max-width: 28px;
+                min-height: 28px; max-height: 28px;
+            }}
+            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
+        """
+        llm_del_style = f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_BLUNDER};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 16px; font-weight: bold;
+                min-width: 28px; max-width: 28px;
+                min-height: 28px; max-height: 28px;
+            }}
+            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
+        """
+        if hasattr(self, 'llm_add_btn') and self.llm_add_btn:
+            self.llm_add_btn.setStyleSheet(llm_add_style)
+        if hasattr(self, 'llm_del_btn') and self.llm_del_btn:
+            self.llm_del_btn.setStyleSheet(llm_del_style)
+
+        # Comboboxes style
+        combo_style = Styles.get_combobox_style()
+        short_combo_style = combo_style.replace("min-width: 150px;", "min-width: 80px;")
+        
+        if hasattr(self, 'depth_combo') and self.depth_combo:
+            self.depth_combo.setStyleSheet(short_combo_style)
+        if hasattr(self, 'llm_profile_combo') and self.llm_profile_combo:
+            self.llm_profile_combo.setStyleSheet(combo_style)
+        if hasattr(self, 'llm_provider_combo') and self.llm_provider_combo:
+            self.llm_provider_combo.setStyleSheet(combo_style)
+        if hasattr(self, 'theme_combo') and self.theme_combo:
+            self.theme_combo.setStyleSheet(combo_style)
+        if hasattr(self, 'piece_combo') and self.piece_combo:
+            self.piece_combo.setStyleSheet(combo_style)
+
+        # LineEdits style
+        input_style = f"""
+            QLineEdit {{
+                padding: 6px 12px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 13px;
+                max-width: 140px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+        """
+        full_input_style = f"""
+            QLineEdit {{
+                padding: 10px;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 4px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+        """
+        
+        for input_field in [self.multi_pv_input, self.live_time_input, self.threads_input, self.hash_input, self.games_limit_input]:
+            if hasattr(self, input_field.__name__ if hasattr(input_field, '__name__') else '') or input_field:
+                try:
+                    input_field.setStyleSheet(input_style)
+                except:
+                    pass
+
+        for input_field in [self.path_input, self.llm_profile_name, self.llm_key_input, self.llm_model_input, self.llm_url_input, self.lichess_token_input, self.chesscom_input, self.lichess_input]:
+            if hasattr(self, input_field.__name__ if hasattr(input_field, '__name__') else '') or input_field:
+                try:
+                    input_field.setStyleSheet(full_input_style)
+                except:
+                    pass
+
+        # Checkboxes style
+        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        sound_cb_style = f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 4px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {Styles.COLOR_ACCENT};
+                border-color: {Styles.COLOR_ACCENT};
+                image: url('{tick_path}');
+            }}
+        """
+        if hasattr(self, 'sound_checkbox') and self.sound_checkbox:
+            self.sound_checkbox.setStyleSheet(sound_cb_style)
 
     def _create_section_title(self, text, icon_name):
         """Create a section title string (icons applied via button icons)."""
@@ -1402,11 +1575,45 @@ class SettingsView(QWidget):
     def save_usernames(self):
         chesscom = self.chesscom_input.text()
         lichess = self.lichess_input.text()
+        
+        # Read and validate the games fetch limit
+        limit_text = self.games_limit_input.text().strip()
+        try:
+            limit = int(limit_text)
+        except ValueError:
+            limit = 20  # default fallback if empty/malformed
+            
+        if limit < 1:
+            limit = 1
+
+        # Check Lichess API Token presence
+        import os
+        token = self.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
+        
+        clamped = False
+        if token:
+            if limit > 30:
+                limit = 30
+                clamped = True
+                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
+        else:
+            if limit > 20:
+                limit = 20
+                clamped = True
+                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
+
+        self.games_limit_input.setText(str(limit))
         self.config_manager.set("chesscom_username", chesscom)
         self.config_manager.set("lichess_username", lichess)
+        self.config_manager.set("api_games_limit", limit)
+        
         # Emit signal for immediate update
         self.usernames_changed.emit()
-        QMessageBox.information(self, "Saved", "Usernames saved successfully.")
+        
+        if clamped:
+            QMessageBox.warning(self, "Limit Capped", warning_msg)
+        else:
+            QMessageBox.information(self, "Saved", "Settings saved successfully.")
 
     def clear_cache(self):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear the analysis cache? This will not delete your game history.",

@@ -37,7 +37,7 @@ class LichessAPI(BaseChessAPI):
             headers["Authorization"] = f"Bearer {token}"
         return headers
 
-    def get_user_games(self, username: str, max_games: int = 5) -> List[Dict]:
+    def get_user_games(self, username: str, max_games: int = 20) -> List[Dict]:
         """
         Fetches last N games from Lichess and returns JSON (NDJSON parsed)
         """
@@ -48,6 +48,7 @@ class LichessAPI(BaseChessAPI):
                 "moves": "true",
                 "opening": "true",
                 "pgnInJson": "true",  
+                "clocks": "true",
             }
 
             # Use BaseChessAPI helper
@@ -101,6 +102,9 @@ class LichessAPI(BaseChessAPI):
         - https://lichess.org/HuUq2G3x
         - https://lichess.org/HuUq2G3x/white
         """
+        if "lichess.org" not in url.lower():
+            return ""
+            
         try:
             # Remove trailing slash
             if url.endswith("/"):

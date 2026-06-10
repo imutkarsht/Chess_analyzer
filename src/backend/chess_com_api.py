@@ -12,7 +12,7 @@ class ChessComAPI(BaseChessAPI):
     }
 
     @staticmethod
-    def get_last_games(username: str, limit: int = 5) -> List[Dict]:
+    def get_last_games(username: str, limit: int = 20) -> List[Dict]:
         """
         Fetches the last 'limit' games for the given username.
         Returns a list of dictionaries containing game data (pgn, white, black, result, etc).
