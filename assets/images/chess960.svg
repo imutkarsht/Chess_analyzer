@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <!-- Background badge — purple to signal "variant", distinct from time-control icons -->
+  <rect width="80" height="80" rx="18" fill="#7B2D8B"/>
+  <!-- Mini chessboard: 4×2 grid of squares representing a shuffled back rank -->
+  <!-- Row 1 (top) -->
+  <rect x="12" y="12" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.90"/>
+  <rect x="27" y="12" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.30"/>
+  <rect x="42" y="12" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.90"/>
+  <rect x="57" y="12" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.30"/>
+  <!-- Row 2 -->
+  <rect x="12" y="27" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.30"/>
+  <rect x="27" y="27" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.90"/>
+  <rect x="42" y="27" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.30"/>
+  <rect x="57" y="27" width="13" height="13" rx="2" fill="#FFFFFF" opacity="0.90"/>
+  <!-- Shuffle arrows — two curved arrows suggesting randomisation -->
+  <path d="M16,48 C16,44 24,44 28,48 L32,52" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+  <polygon points="32,47 32,55 38,51" fill="#FFFFFF"/>
+  <path d="M64,52 C64,56 56,56 52,52 L48,48" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+  <polygon points="48,53 48,45 42,49" fill="#FFFFFF"/>
+  <!-- "960" label -->
+  <text x="40" y="74"
+        font-family="Arial Black, Impact, sans-serif"
+        font-size="17"
+        font-weight="900"
+        fill="#FFFFFF"
+        text-anchor="middle"
+        letter-spacing="0.5">960</text>
+</svg>
