@@ -63,6 +63,72 @@ must be preserved with the SVGs.
 
 ---
 
+## Application Images & SVG Icons
+
+The images and SVG icons in [`assets/images/`](assets/images/) are **original works** created for
+this project by the project maintainer using generative AI tools. They are licensed under the
+same **MIT License** as the rest of this repository and are not derived from any third-party
+icon pack.
+
+### Move Classification Icons
+
+Used by [`src/utils/resources.py`](src/utils/resources.py) (`ResourceManager.icon_map`) and
+displayed in the move list and board overlay:
+
+| File | Classification |
+|------|---------------|
+| `brilliant.svg` | Brilliant move |
+| `great_find.svg` | Great find |
+| `best_v2.svg` | Best move |
+| `excellent.svg` | Excellent move |
+| `good.svg` | Good move |
+| `book.svg` | Book / opening move |
+| `inaccuracy.svg` | Inaccuracy |
+| `mistake.svg` | Mistake |
+| `missed_win.svg` | Missed win |
+| `blunder.svg` | Blunder |
+
+### Time Control Icons
+
+Used by [`src/gui/game_list.py`](src/gui/game_list.py) (`_get_time_control_icon`) to indicate
+the time format of each game. Thresholds follow Chess.com / Lichess conventions
+(total time = base + 40 × increment over a 40-move game):
+
+| File | Time Format | Threshold |
+|------|------------|----------|
+| `bullet.svg` | Bullet | < 3 min total (e.g. 1+0, 2+1) |
+| `blitz.svg` | Blitz | 3–10 min total (e.g. 3+0, 5+0) |
+| `rapid.svg` | Rapid | 10–30 min total (e.g. 10+0, 15+10) |
+| `classical.svg` | Classical / Unknown | ≥ 30 min, or no time control given |
+| `chess960.svg` | Chess960 / FRC | Shown as a variant badge when a non-standard starting position or `Variant` PGN header is detected — separate from the time control icon |
+
+### Termination Icons
+
+Used by [`src/gui/game_list.py`](src/gui/game_list.py) (`_get_termination_icon`) to show how
+each game ended:
+
+| File | Termination |
+|------|------------|
+| `checkmate.svg` | Checkmate |
+| `resign.svg` | Resignation |
+| `timeout.svg` | Time forfeit / timeout |
+| `draw_black.svg` | Draw / stalemate / repetition |
+
+### Miscellaneous Icons
+
+| File | Purpose |
+|------|---------|
+| `winner-crown.svg` | Winner indicator in game list |
+| `tick.svg` | Success indicator in settings view |
+
+### Application Logo
+
+| File | Purpose |
+|------|---------|
+| `logo.png` | Application window icon and taskbar icon |
+
+---
+
 ## Algorithms & Code References
 
 ### Accuracy Percent Formula
@@ -100,11 +166,44 @@ service. Brand names are used nominatively to identify the data source.
 
 ## Icons & Logos
 
-The platform icons located in [`assets/icons/`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/assets/icons) are used nominatively to identify the game source:
+### Platform Logos
 
-- **Chess.com Logo** (`chesscom.png`): Copyright © Chess.com. Used nominatively to indicate game source.
-- **Lichess Logo** (`lichess.png`): Copyright © Lichess.org. Used nominatively to indicate game source.
-- **Application Icons**: UI icons (such as exit, settings, history, etc.) are standard UI assets sourced from standard open-source sets or designed specifically for the clean system.
+The following platform logos in [`assets/icons/`](assets/icons/) are used nominatively to identify
+the game data source. They are **not** covered by this project's MIT license.
+
+| File | Mark | Usage |
+|------|------|-------|
+| `chesscom.png` | Copyright © Chess.com | Identifies Chess.com as the game source |
+| `lichess.png` | Copyright © Lichess.org | Identifies Lichess as the game source |
+
+Use of these marks is strictly nominative — no endorsement by or affiliation with either
+platform is implied or claimed.
+
+---
+
+### Application UI Icons
+
+The following icons in [`assets/icons/`](assets/icons/) are **original works** created for this
+project by the project maintainer using generative AI tools. They are licensed under the same
+**MIT License** as the rest of this repository.
+
+| File | Purpose |
+|------|---------|
+| `accuracy.png` | Accuracy stat card & AI insights panel |
+| `analyze.png` | Sidebar — Analyze navigation button |
+| `best_win.png` | Best Win stat card |
+| `exit.png` | Sidebar — Exit button |
+| `file.png` | Game list — fallback source icon (local PGN file) |
+| `games.png` | Total Games stat card |
+| `history.png` | Sidebar — History navigation button |
+| `opening_icon.png` | AI insights panel — opening-related insight |
+| `phase_icon.png` | AI insights panel — endgame / game phase insight |
+| `settings.png` | Sidebar — Settings navigation button |
+| `stats.png` | Sidebar — Stats navigation button |
+| `win_rate.png` | Win Rate stat card & AI insights panel |
+
+These assets are original works created for this project and are not derived from any
+third-party icon pack. No third-party copyrighted icon packs were used.
 
 ---
 

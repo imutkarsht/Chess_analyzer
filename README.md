@@ -13,11 +13,9 @@
 
 ## 📸 Screenshots
 
-
-
-| Analysis View | Stats Tab | Settings Tab | History Tab |
-|:-------------:|:------------:|:---------:|:---:|
-| ![Main Interface](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/home.png) | ![Stats Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/stats.png) | ![Settings Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/settings.png) | ![History Tab](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v1p4/history.png) |
+| Analysis View | Load Game | History Tab | Stats Tab | Settings Tab |
+|:-------------:|:---------:|:-----------:|:---------:|:------------:|
+| ![Analysis](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/analysis.png) | ![Load Game](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/load_game.png) | ![History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/game_history.png) | ![Stats](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/stats.png) | ![Settings](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/settings.png) |
 
 
 ## 🚀 Features
@@ -25,6 +23,7 @@
 ### Core Analysis
 - **Stockfish Integration**: Leverages the world's strongest chess engine for deep, move-by-move analysis.
 - **Move Classification**: Automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss).
+- **AI Coach Summaries**: Generates natural language post-game explanations using any OpenAI-compatible endpoint. Out-of-the-box support for **Groq** (Cloud), **LM Studio** (Local), **MiniMax** (Cloud), and **Custom endpoints**.
 - **Win Probability**: Calculates and displays win probability swings for every move.
 
 - **Opening Explorer**: Identifies openings and variations using a built-in book and online APIs.
@@ -35,6 +34,7 @@
 - **Evaluation Graph**: Dynamic graph visualizing the game's evaluation flow.
 - **Game List**: Easy navigation between multiple games in a PGN.
 - **Move List**: Detailed move history with classification icons and evaluation scores.
+- **Highly Configurable Settings**: Dedicated settings page where application data and preferences (e.g., engine paths, API keys, usernames) are easily managed and automatically saved to a local user JSON file.
 
 ### Import & Export
 - **PGN Support**: Robust parsing for single and multi-game PGN files.
@@ -58,7 +58,7 @@
 - **Database**: **SQLite** references locally (`analysis_cache.db`) to cache analysis results, ensuring instant loading for previously analyzed games.
 - **Config**: Local `config.json` for persistent user settings.
 - **Integrations**: 
-  - **Groq AI**: AI-powered natural language game summaries with customizable models.
+  - **LLM Providers**: AI-powered natural language game summaries. Natively supports **Groq**, **LM Studio**, **MiniMax**, and **Custom OpenAI-compatible** servers.
   - **Lichess & Chess.com**: Direct game import APIs.
 
 ## 🔒 Data Privacy & Local Storage
@@ -140,21 +140,7 @@ python -m pytest tests/
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
-
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/YourFeature`).
-3.  Commit your changes (`git commit -m 'Add some feature'`).
-4.  Push to the branch (`git push origin feature/YourFeature`).
-5.  Open a Pull Request.
-
-## 🔮 Roadmap (Version 2.0)
-
-- [ ] **PDF Export**: Generate professional PDF reports.
-- [ ] **Coach Mode**: AI-powered natural language explanations.
-- [ ] **Opening Repertoire Builder**: Tools to build and practice openings.
-- [ ] **Endgame Tablebases**: Integration with Syzygy tablebases.
-- [ ] **Multi-Engine Support**: Compare analysis from different engines.
+Contributions are welcome! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started, set up your development environment, and submit pull requests.
 
 ## 📄 License
 
