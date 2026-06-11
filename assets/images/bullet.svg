@@ -1,12 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
-  <rect width="80" height="80" rx="18" fill="#CC2200"/>
-  <!-- Bullet: literal bullet/projectile shape — speed lines + bullet -->
-  <!-- speed lines left -->
-  <line x1="8" y1="32" x2="28" y2="32" stroke="#FF6644" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
-  <line x1="8" y1="40" x2="24" y2="40" stroke="#FF6644" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
-  <line x1="8" y1="48" x2="28" y2="48" stroke="#FF6644" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
-  <!-- bullet body -->
-  <rect x="28" y="28" width="26" height="24" rx="4" fill="#FFFFFF"/>
-  <!-- bullet tip (pointed) -->
-  <polygon points="54,28 54,52 70,40" fill="#FFFFFF"/>
+  <!-- Background: intense red -->
+  <rect width="80" height="80" rx="18" fill="#C0392B"/>
+
+  <!-- Motion streaks — three lines, varying length and opacity for parallax depth -->
+  <line x1="3"  y1="30" x2="22" y2="30" stroke="#FF7060" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+  <line x1="1"  y1="40" x2="20" y2="40" stroke="#FF7060" stroke-width="3"   stroke-linecap="round" opacity="0.60"/>
+  <line x1="3"  y1="50" x2="22" y2="50" stroke="#FF7060" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Bullet silhouette: flat base, cylindrical body, smooth ogive tip -->
+  <!-- All-in-one path: start at bottom-left, go right along bottom,
+       curve up into the pointed tip, come back along the top, close. -->
+  <path d="
+    M 22,52
+    L 54,52
+    Q 76,52 76,40
+    Q 76,28 54,28
+    L 22,28
+    Z
+  " fill="#FFFFFF"/>
+
+  <!-- Flat base cap (right-angle left end of the casing) -->
+  <rect x="17" y="28" width="7" height="24" rx="1" fill="#DDEEFF"/>
+
+  <!-- Highlight streak on top surface of bullet -->
+  <line x1="24" y1="31" x2="60" y2="31"
+        stroke="rgba(255,255,255,0.55)" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Muzzle flash / impact star at the tip -->
+  <polygon points="76,40 70,36 72,40 70,44"
+           fill="#FFD700" opacity="0.95"/>
 </svg>
