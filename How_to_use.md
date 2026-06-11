@@ -28,39 +28,45 @@ To get the latest version of the application:
 
 ---
 
-## 3. Configuration
+## 3. Configuration & Data Files
 
-All configurations are managed locally in the **Settings** tab. Click on the "Settings" icon (gear) in the sidebar to access them.
+All configuration, logs, and database files are now automatically managed inside OS-standard user directories rather than the application root:
+- **macOS**: `~/Library/Application Support/ChessAnalyzerPro`
+- **Windows**: `%APPDATA%/ChessAnalyzerPro`
+- **Linux**: `~/.local/share/chessanalyzerpro`
+
+Configurations are managed in the **Settings** tab (gear icon in the sidebar).
 
 ### A. Stockfish Engine (Crucial)
-You **must** download and link the Stockfish engine for analysis to work.
-1.  Download Stockfish from [stockfishchess.org](https://stockfishchess.org/download/).
-2.  Extract the `.exe` file to a known location (e.g., a `stockfish` folder inside the app directory).
-3.  In the app, go to **Settings > Chess Engine**.
-4.  Click **Browse**, select the `stockfish.exe` file, and click **Save Engine Path**.
+You **must** download and link the Stockfish engine for analysis to work:
+1. Download Stockfish from [stockfishchess.org](https://stockfishchess.org/download/).
+2. Extract the file to a memorable location on your computer.
+3. In the app, go to **Settings > Chess Engine**.
+4. Click **Browse**, select the Stockfish executable file (`stockfish.exe` on Windows, or the `stockfish` binary on macOS/Linux), and click **Save Engine Path**.
+5. Click **Test Engine** to immediately verify that the engine path is valid and functional.
 
-### B. API Configuration
-To unlock advanced features like AI Summaries and Lichess imports:
+### B. LLM & API Configuration
+To unlock advanced features like AI Summaries and Lichess imports, configure the following APIs:
 
-*   **Groq API Key**:
-    *   Required for: **AI Game Summaries** and **Coach Insights** (with customizable models).
-    *   Get a key from the [Groq Console](https://console.groq.com/).
-    *   Enter it in **Settings > API Configuration > Groq API Key** and click **Save**.
-
+*   **LLM Profiles (AI summaries & coaching)**:
+    - The application supports multiple **LLM Profiles** with different providers.
+    - Select from **Groq** (Cloud), **LM Studio** (Local), **MiniMax** (Cloud), or **Custom** (any OpenAI-compatible endpoint).
+    - Provide the **API Key**, **Model ID**, and **Base URL** (if using LM Studio or a Custom endpoint).
+    - Select your active profile. All API insights will use the active profile.
 *   **Lichess API Token**:
-    *   Required for: Importing user games from Lichess and fetching Opening/Book move names from the Lichess Opening Explorer.
-    *   Generate a personal access token from your Lichess account (Preferences > API Access tokens).
-    *   Enter it in **Settings > API Configuration > Lichess API Token** and click **Save**.
+    - Required to fetch Opening/Book move names from Lichess without rate-limit issues, and to fetch private games.
+    - Generate a token at [lichess.org/account/oauth/token](https://lichess.org/account/oauth/token) with the `Read games` scope.
+    - Paste it into the **Lichess API Token** field in Settings and click **Save**.
 
 ### C. Player Usernames
-Pre-configure your usernames to make loading games faster.
-*   Enter your **Chess.com** and **Lichess.org** usernames in the **Settings > Player Usernames** section.
-*   Once saved, the "Load from User" dialogs will auto-fill with these names.
+Pre-configure your usernames to make loading games faster:
+*   Enter your **Chess.com** and **Lichess.org** usernames in **Settings > Player Usernames** and click **Save**.
+*   Once saved, the Load Game dialog will auto-fill with these names and personal stats calculations will automatically filter to show your games.
 
-### D. Appearance
-*   **Accent Color**: Customize the application's look by changing the accent color in **Settings > Appearance**.
-*   **Board Themes**: Choose from multiple board color themes to personalize your chessboard in **Settings > Appearance > Board Theme**.
-*   **Piece Themes**: Select different piece sets to customize how chess pieces appear on the board in **Settings > Appearance > Piece Theme**.
+### D. Appearance & Audio
+*   **Accent Color**: Select an accent color in **Settings > Appearance**. Changing the color updates the entire UI in real time without requiring an app restart.
+*   **Board & Piece Themes**: Select a board theme (Default, Brown, Blue, Purple, Grey) and piece set (cburnett, merida, alpha, cardinal, chess7) to update the visual board immediately.
+*   **Sound Effects**: Check or uncheck **Enable Sound Effects** in **Settings > Appearance** to toggle immersive audio feedback on moves, captures, checks, and castles.
 
 ---
 
@@ -79,13 +85,13 @@ The generated `.exe` is mostly standalone, but it requires the following externa
 
 ## 5. Auto-Generated Files
 
-The application automatically creates and manages the following files in its root directory (where the `.exe` is located):
+The application automatically creates and manages the following files inside OS-specific user data directories:
 
 | File | Purpose |
 | :--- | :--- |
-| **`config.json`** | Stores your saved settings (engine path, usernames, theme preferences). |
-| **`analysis_cache.db`** | A SQLite database that stores analysis results. This prevents re-analyzing the same moves, making future reviews instant. |
-| **`chess_analyzer.log`** | A text file containing application logs. useful for debugging errors or crashes. |
+| **`config.json`** | Stores your saved settings (engine path, usernames, theme preferences, LLM profiles). |
+| **`analysis_cache.db`** | A SQLite database that stores your game history and position analysis cache, making future reviews instant. |
+| **`chess_analyzer.log`** | A text file containing application logs, useful for debugging errors or crashes. |
 
 ---
 
@@ -93,24 +99,20 @@ The application automatically creates and manages the following files in its roo
 
 Your privacy is paramount. **We do not collect any personal data.**
 
-*   **Local Storage**: All your data, including game history, analysis results (`analysis_cache.db`), and configurations (`config.json`), remains strictly on your local machine.
-*   **No Cloud Sync**: We do not send your games or analysis to any remote server (except to Groq/Lichess APIs when you explicitly trigger those features).
-*   **API Keys**: Your Groq and Lichess keys are stored locally in `config.json` and are **never** shared with us.
+*   **Local Storage**: All your data, including game history, analysis results (`analysis_cache.db`), and configurations (`config.json`), remains strictly on your local machine in the system user data folder.
+*   **No Cloud Sync**: We do not send your games or analysis to any remote server (except to LLM/Lichess/Chess.com APIs when you explicitly trigger those features).
+*   **API Keys**: Your LLM keys and Lichess tokens are stored locally in `config.json` and are **never** shared with us.
 
 ---
 
 ## 7. How to Use: A to Z
 
 ### Loading Games
-There are several ways to load a game:
-1.  **Open PGN File**: `File > Open PGN...` - Load a game from a local `.pgn` file.
-2.  **Paste PGN**: `File > Paste PGN Text...` - Paste PGN text directly from clipboard.
-3.  **Load from User**: 
-    - `File > Load from Chess.com User...`
-    - `File > Load from Lichess User...`
-4.  **Load from URL**:
-    - `File > Load from Chess.com URL...`
-    - `File > Load from Lichess URL...`
+Click **Load Game** (or press `Ctrl+O`) to open the unified game loader:
+1.  **PGN File**: Drag and drop or browse for local `.pgn` files.
+2.  **Paste PGN**: Paste raw PGN text directly from your clipboard.
+3.  **Chess.com**: Enter a Chess.com username to fetch recent games, or paste a game URL directly.
+4.  **Lichess**: Enter a Lichess username to fetch recent games, or paste a game URL directly.
 
 ### Analysis & Features
 Once a game is loaded:

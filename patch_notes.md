@@ -1,5 +1,37 @@
 # Patch Notes
 
+## v2.0.1 - Unified Load Dialog & UI Polish
+
+These changes are part of the latest stable v2.0.1 release.
+
+### New Features & UI Polish
+- **Unified Load Game Dialog**: Consolidates all game loading sources (PGN file, PGN text, Chess.com, Lichess) into a single modal. Game lists load asynchronously via a background worker, avoiding UI freezes. Each game shows full metadata (date, result, ELOs, time control, move count).
+- **History Pagination & Per-Game Delete**: Game history now loads page by page. Individual games can be deleted from the database without purging the entire history.
+- **Multi-LLM Profile Support**: Supports profile-based LLM configurations (Groq, LM Studio, MiniMax, Custom OpenAI-compatible endpoints) and allows switching the active profile directly in Settings.
+- **Stockfish Path Validator**: A "Test Engine" button in Settings verifies the configured Stockfish binary inline and provides immediate visual feedback.
+- **Evaluation Graph Navigation**: Click any point on the evaluation graph to jump directly to that move in the game.
+- **Dynamic Accent Color**: Updating the accent color in Settings updates the entire UI in real time without requiring a restart.
+- **Real-Time Engine Status**: Status bar indicates real-time engine states (Engine Ready - green, Calculating - orange spinner, Engine Offline - red).
+- **Last-Move Square Highlighting**: Highlights the from and to squares of the last played move on the board with a subtle accent overlay.
+- **Sound Effects Toggle**: Switch sound effects on or off under Settings -> Appearance.
+- **Configurable Game Fetch Limit**: Control how many games are fetched from online APIs (1-30).
+- **Lichess Clock Data**: Fetches clock times for each move and includes them in the AI summary prompt.
+- **Chess960 Variant Icon**: Redesigned and renamed the freestyle variant icon to Chess960.
+- **Custom Hexagonal Classification Icons**: Replaced default move classification and time control icons with high-quality custom hexagonal shapes.
+
+### Improvements & Fixes
+- **Local Application Data Paths**: Migrated `config.json`, SQLite database (`analysis_cache.db`), and `chess_analyzer.log` to OS-standard user data folders (e.g. `~/Library/Application Support/ChessAnalyzerPro` on macOS) instead of the app root.
+- **Stats Dashboard Layout**: Donut charts grouped into a dedicated row, and Settings uses a custom MasonryLayout.
+- **Live Engine CPU Optimization**: Conservative multi-PV defaults and a configurable per-position time budget prevent overheating on laptops.
+- **Chess.com URL Fetch Speed**: Optimized Chess.com URL fetches.
+- **Keyboard Navigation Fixes**: Enhanced arrow key, Home/End, and graph navigation.
+- **Lichess Token Auth**: Solved `401 Unauthorized` errors when retrieving book moves from the Lichess Opening Explorer.
+- **Worker Thread Leak**: Analysis worker thread is properly closed on application exit.
+- **Move Count Display**: Fixed move count truncation past 9 in the move list.
+- **Default Move Type**: Unanalyzed moves are classified as `book` by default rather than blank.
+
+---
+
 ## v1.7 - Groq API Integration & Lichess Authentication Fix
 
 ### New Features

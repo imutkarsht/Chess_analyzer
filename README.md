@@ -111,24 +111,27 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
 
 1.  **Run the Application**
     ```bash
-    uv main.py
+    python main.py
     ```
 
 2.  **Configure Engine**
-    - Go to `Settings > Configure Engine...`.
-    - Select your Stockfish executable path.
+    - Go to the **Settings** tab in the sidebar.
+    - Under **Chess Engine**, select your Stockfish executable path and click **Save Engine Path**.
+    - Click **Test Engine** to verify the path is valid.
 
 3.  **Load a Game**
-    - **File > Open PGN...**: Load a local `.pgn` file.
-    - **File > Load from Chess.com User...**: Fetch recent games for a specific user.
-
-    - **File > Load from Lichess User...**: Fetch recent games for a Lichess user.
-    - **File > Load from Chess.com URL...**: Analyze a specific game URL.
+    - Click **Load Game** at the top of the Analyze tab (or press `Ctrl+O`).
+    - The unified dialog will open. Choose one of the four tabs:
+      - **PGN File**: Drag and drop or browse for a `.pgn` file.
+      - **PGN Text**: Paste raw PGN text directly.
+      - **Chess.com**: Fetch games by username or game URL.
+      - **Lichess**: Fetch games by username or game URL.
+    - Double-click or select a game and click **Load Game**.
 
 4.  **Analyze**
-    - Click `Analysis > Analyze Game` to start the engine.
-    - Watch the progress bar as the engine evaluates each move.
-    - Once complete, explore the move list and graph!
+    - Click **Analyze Game** in the left sidebar controls.
+    - Watch the status bar as the engine evaluates each move.
+    - Once complete, explore the evaluation graph and move classifications!
 
 ## 🧪 Testing
 

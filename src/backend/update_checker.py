@@ -6,8 +6,8 @@ from packaging import version
 from PyQt6.QtCore import QThread, pyqtSignal
 from ..utils.logger import logger
 
-# Current application version (matches your GitHub tag: V1.7)
-APP_VERSION = "1.7"
+# Current application version (matches your GitHub tag: V2.0.1)
+APP_VERSION = "2.0.1"
 
 # GitHub API endpoint for latest release
 GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"

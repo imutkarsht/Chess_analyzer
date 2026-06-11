@@ -115,14 +115,15 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 3.  Update the color constants at the top (e.g., `COLOR_BACKGROUND`, `COLOR_ACCENT`).
 4.  The app uses these constants to generate the QSS strings.
 
-### Scenario D: I want to add a new API (e.g., Lichess).
-> **Note:** Lichess support was added in v1.3! You can check `src/backend/lichess_api.py` for the implementation.
+### Scenario D: I want to add a new game loading source.
 **Files to create/modify:**
-1.  **Create** `src/backend/your_new_api.py` (copy structure from `chess_com_api.py`).
-2.  **Modify** `src/gui/main_window.py`:
-    *   Import your new API class.
-    *   Add a new action to the "Load Game" menu.
-    *   Connect the action to a new method.
+1.  **Create** your API class in `src/backend/` if it requires fetching online games (e.g., see `src/backend/lichess_api.py`).
+2.  **Modify** `src/gui/dialogs/load_game_dialog.py`:
+    *   Create a new right-panel tab class representing the UI layout for your source (e.g., see `_ChessComPanel` or `_PgnTextPanel`).
+    *   Add your new source ID and details to the `_SOURCES` tuple.
+    *   Instantiate the panel inside `LoadGameDialog._build_panels()` and add it to `self.stack`.
+    *   Wire the panel's signals (`pgn_ready`, `pending_cleared`) to trigger `self._set_pending` in the parent dialog.
+    *   Update `LoadGameDialog._switch_source` to handle resetting your new panel.
 
 ---
 
@@ -175,8 +176,8 @@ pytest tests/test_game_load.py
 ## 8. Troubleshooting
 
 *   **"Engine not found":** Ensure the path in Settings is correct and points to the Stockfish **executable** (not the folder).
-*   **"API Key Error":** If using AI Summary, ensure your Groq API key is valid and set in Settings.
-*   **Logs:** Check `chess_analyzer.log` in the root directory for detailed error messages.
+*   **"API Key Error":** If using AI Summary, ensure your LLM configuration profile is active and the API key is valid.
+*   **Logs:** Check `chess_analyzer.log` in the platform-specific user data directory (e.g., `~/Library/Application Support/ChessAnalyzerPro` on macOS) for detailed error messages.
 
 ---
 
