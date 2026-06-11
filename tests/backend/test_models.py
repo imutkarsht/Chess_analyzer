@@ -67,7 +67,7 @@ class TestMoveAnalysis:
         
         assert move.san == "e4"
         assert move.uci == "e2e4"
-        assert move.classification == "Book"  # Default classification
+        assert move.classification == ""  # Default: unanalysed (analyser sets "Book" explicitly)
         assert move.eval_before_cp is None
 
     def test_analyzed_move(self):

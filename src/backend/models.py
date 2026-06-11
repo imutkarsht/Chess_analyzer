@@ -19,7 +19,7 @@ class MoveAnalysis:
     eval_after_mate: Optional[int] = None
     win_chance_before: float = 0.5
     win_chance_after: float = 0.5
-    classification: str = "Book" # Brilliant, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss, Book
+    classification: str = ""  # Set by analyser: Brilliant, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss, Book; empty = unanalysed
     explanation: str = ""
     multi_pvs: List[Dict[str, Any]] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
