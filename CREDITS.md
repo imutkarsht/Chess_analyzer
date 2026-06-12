@@ -212,3 +212,38 @@ third-party icon pack. No third-party copyrighted icon packs were used.
 The full list of Python dependencies and their licenses is available in
 [`requirements.txt`](requirements.txt) and in the license notices shipped
 with each package on PyPI.
+
+---
+
+## Distribution & Packaging
+
+The platform-native installers for Chess Analyzer Pro are produced using
+the following open-source tools. Each tool retains its own license.
+
+### Inno Setup 6 — Windows Installer
+
+Used to produce the **Windows Setup (.exe)** in `installers/windows/`.
+
+- Author: Jordan Russell & Martijn Laan
+- Website: <https://jrsoftware.org/isinfo.php>
+- License: [Inno Setup License](https://jrsoftware.org/files/is/license.txt)
+  (custom permissive license — free for commercial and non-commercial use)
+- Source: <https://github.com/jrsoftware/issrc>
+
+### create-dmg — macOS Disk Image
+
+Used to produce the **macOS Disk Image (.dmg)** in `installers/mac/`.
+
+- Author: Andrei Miulescu (original); maintained by sindresorhus
+- Website: <https://github.com/sindresorhus/create-dmg>
+- License: [MIT License](https://github.com/sindresorhus/create-dmg/blob/main/license)
+
+### AppImageKit — Linux AppImage
+
+Used to produce the **Linux AppImage** in `installers/linux/`.
+
+- Project: AppImage / AppImageKit
+- Website: <https://appimage.org>
+- Source: <https://github.com/AppImage/AppImageKit>
+- License: [MIT License](https://github.com/AppImage/AppImageKit/blob/master/LICENSE)
+

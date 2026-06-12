@@ -17,3 +17,12 @@ config.json
 *.pgn
 .history/
 .DS_Store
+installers/tests/
+
+# Installer outputs and build artifacts
+installers/mac/*.dmg
+installers/mac/ChessAnalyzerPro.app/
+installers/windows/Output/
+installers/linux/*.AppImage
+installers/linux/AppDir/
+installers/linux/appimagetool*
