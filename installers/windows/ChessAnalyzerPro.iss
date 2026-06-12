@@ -58,7 +58,7 @@ UninstallDisplayName={#AppName}
 
 ; -- Misc
 ArchitecturesInstallIn64BitMode=x64compatible
-MinVersion=10.0          ; Windows 10 minimum (PyQt6 requirement)
+MinVersion=10.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

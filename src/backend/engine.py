@@ -49,7 +49,11 @@ class EngineManager:
         if not self.engine:
             try:
                 # Assuming UCI engine
-                self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
+                import sys, subprocess
+                popen_args = {}
+                if sys.platform == "win32":
+                    popen_args["creationflags"] = subprocess.CREATE_NO_WINDOW
+                self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, **popen_args)
                 self.configure_engine(self.options)
             except Exception as e:
                 logger.error(f"Failed to start engine at {self.engine_path}: {e}")

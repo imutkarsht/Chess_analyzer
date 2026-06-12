@@ -110,7 +110,11 @@ class LiveAnalysisWorker(QThread):
         logger.info(f"LiveAnalysisWorker starting with engine: {self.engine_path}")
         try:
             # Start engine
-            self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path)
+            import sys, subprocess
+            popen_args = {}
+            if sys.platform == "win32":
+                popen_args["creationflags"] = subprocess.CREATE_NO_WINDOW
+            self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, **popen_args)
             self.engine.configure({"Threads": self._threads(), "Hash": self._hash()})
             
             while self.running:
