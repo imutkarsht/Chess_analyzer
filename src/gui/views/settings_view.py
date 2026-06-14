@@ -1,3 +1,8 @@
+from src.gui import analysis_worker
+from src.gui import analysis_worker
+from src.gui import analysis_worker
+from src.gui import analysis_worker
+from src.gui import analysis_worker
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
                              QLineEdit, QFileDialog, QGroupBox, QFormLayout, QMessageBox,
                              QScrollArea, QFrame, QComboBox, QGridLayout, QApplication, QLayout, QCheckBox)
@@ -62,6 +67,12 @@ class MasonryLayout(QLayout):
         self.doLayout(rect, False)
 
     def sizeHint(self):
+        parent = self.parentWidget()
+        if parent:
+            width = parent.width()
+            if width > 100:
+                height = self.heightForWidth(width)
+                return QSize(width, height)
         return self.minimumSize()
 
     def minimumSize(self):
@@ -216,10 +227,33 @@ class SettingsView(QWidget):
         super().__init__()
         self.config_manager = ConfigManager()
         
-        # Main layout for the widget itself (contains scroll area)
+        # Main layout for the widget itself (contains header and scroll area)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
+
+        # Header Bar Container
+        self.header_bar = QFrame()
+        self.header_bar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+        """)
+        header_layout = QHBoxLayout(self.header_bar)
+        header_layout.setContentsMargins(40, 12, 40, 12)
+        
+        # Title
+        header_lbl = QLabel("Settings")
+        header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        header_layout.addWidget(header_lbl)
+        
+        header_layout.addStretch()
+        
+        self.save_settings_btn = self._create_icon_button("Save Settings", "fa5s.save", self.save_all_settings, primary=True)
+        header_layout.addWidget(self.save_settings_btn)
+        
+        main_layout.addWidget(self.header_bar)
 
         # Scroll Area
         self.scroll_area = QScrollArea()
@@ -411,9 +445,6 @@ class SettingsView(QWidget):
 
         engine_layout.addLayout(form)
         
-        self.save_engine_btn = self._create_icon_button("Save Settings", "fa5s.save", self.save_engine_path, primary=True)
-        engine_layout.addWidget(self.save_engine_btn, alignment=Qt.AlignmentFlag.AlignRight)
-        
         self.container_layout.addWidget(self.engine_group)
         
         # 2. API Settings — profile-based LLM configuration
@@ -531,12 +562,6 @@ class SettingsView(QWidget):
             "Test LLM", "fa5s.plug", self._test_llm_profile)
         act_row.addWidget(self.llm_test_btn)
         act_row.addStretch()
-        self.llm_save_profile_btn = self._create_icon_button(
-            "Save Profile", "fa5s.save", self._save_llm_profile)
-        act_row.addWidget(self.llm_save_profile_btn)
-        self.llm_activate_btn = self._create_icon_button(
-            "Set as Active", "fa5s.check-circle", self._activate_llm_profile, primary=True)
-        act_row.addWidget(self.llm_activate_btn)
         api_layout.addLayout(act_row)
 
         # Status area: active-profile label + test result on the same row
@@ -566,12 +591,6 @@ class SettingsView(QWidget):
         self.lichess_token_input.setStyleSheet(Styles.get_input_style())
         lf.addRow(lbl_lichess, self.lichess_token_input)
         api_layout.addLayout(lf)
-
-        tok_row = QHBoxLayout(); tok_row.addStretch()
-        self.save_api_btn = self._create_icon_button(
-            "Save Token", "fa5s.key", self._save_lichess_token, primary=True)
-        tok_row.addWidget(self.save_api_btn)
-        api_layout.addLayout(tok_row)
 
         self.container_layout.addWidget(self.api_group)
 
@@ -615,12 +634,7 @@ class SettingsView(QWidget):
         username_layout.addRow(lbl_lichess_user, self.lichess_input)
         username_layout.addRow(lbl_games_limit, self.games_limit_input)
 
-        self.save_usernames_btn = self._create_icon_button("Save Usernames", "fa5s.user-check", self.save_usernames, primary=True)
 
-        btn_wrapper_user = QHBoxLayout()
-        btn_wrapper_user.addStretch()
-        btn_wrapper_user.addWidget(self.save_usernames_btn)
-        username_layout.addRow(btn_wrapper_user)
 
         self.container_layout.addWidget(self.username_group)
         
@@ -759,30 +773,25 @@ class SettingsView(QWidget):
         self.validate_engine_path()
 
 
+
+
     def refresh_styles(self):
         """Re-applies styles to all widgets."""
-        self.group_style = f"""
-            QGroupBox {{ 
-                font-weight: bold; 
-                font-size: 16px; 
-                color: {Styles.COLOR_TEXT_PRIMARY}; 
-                border: 1px solid {Styles.COLOR_BORDER}; 
-                border-radius: 8px; 
-                margin-top: 10px; 
-                background-color: {Styles.COLOR_SURFACE};
-            }} 
-            QGroupBox::title {{ 
-                subcontrol-origin: margin; 
-                left: 15px; 
-                padding: 0 5px; 
-            }}
-        """
+        self.group_style = Styles.get_group_box_style()
         self.engine_group.setStyleSheet(self.group_style)
         self.api_group.setStyleSheet(self.group_style)
         self.username_group.setStyleSheet(self.group_style)
         self.appearance_group.setStyleSheet(self.group_style)
         self.data_group.setStyleSheet(self.group_style)
         self.website_group.setStyleSheet(self.group_style)
+        
+        if hasattr(self, 'header_bar') and self.header_bar:
+            self.header_bar.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {Styles.COLOR_BACKGROUND};
+                    border-bottom: 1px solid {Styles.COLOR_BORDER};
+                }}
+            """)
         
         # Primary buttons style
         primary_style = f"""
@@ -799,12 +808,12 @@ class SettingsView(QWidget):
                 background-color: {Styles.COLOR_ACCENT_HOVER};
             }}
         """
-        for btn in [self.save_engine_btn, self.llm_activate_btn, self.save_api_btn, self.save_usernames_btn]:
-            if hasattr(self, btn.__name__ if hasattr(btn, '__name__') else '') or btn:
-                try:
-                    btn.setStyleSheet(primary_style)
-                except:
-                    pass
+
+        if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
+            try:
+                self.save_settings_btn.setStyleSheet(primary_style)
+            except:
+                pass
                     
         # Default buttons style
         default_style = f"""
@@ -821,7 +830,7 @@ class SettingsView(QWidget):
                 border-color: {Styles.COLOR_ACCENT};
             }}
         """
-        for btn in [self.browse_btn, self.llm_test_btn, self.llm_save_profile_btn, self.color_btn, self.clear_cache_btn, self.website_btn, self.feedback_btn, self.update_btn]:
+        for btn in [self.browse_btn, self.llm_test_btn, self.color_btn, self.clear_cache_btn, self.website_btn, self.feedback_btn, self.update_btn]:
             if hasattr(self, btn.__name__ if hasattr(btn, '__name__') else '') or btn:
                 try:
                     btn.setStyleSheet(default_style)
@@ -1032,8 +1041,8 @@ class SettingsView(QWidget):
             # Update Styles
             Styles.set_accent_color(color.name())
             
-            # Save to config (optional, but good practice)
-            self.config_manager.set("accent_color", color.name())
+            # Save to config in-memory
+            self.config_manager.config["accent_color"] = color.name()
             
             # Trigger global refresh
             # We need to access the main window to refresh
@@ -1043,7 +1052,7 @@ class SettingsView(QWidget):
 
     def _update_config_and_refresh(self, key, value):
         """Common helper for config updates that require theme refresh."""
-        self.config_manager.set(key, value)
+        self.config_manager.config[key] = value
         window = self.window()
         if hasattr(window, "refresh_theme"):
             window.refresh_theme()
@@ -1055,7 +1064,7 @@ class SettingsView(QWidget):
         self._update_config_and_refresh("piece_theme", theme_name)
 
     def change_sound_setting(self, state):
-        self.config_manager.set("sound_enabled", self.sound_checkbox.isChecked())
+        self.config_manager.config["sound_enabled"] = self.sound_checkbox.isChecked()
 
     def validate_engine_path(self):
         path = self.path_input.text().strip()
@@ -1119,33 +1128,25 @@ class SettingsView(QWidget):
         """Changes the analysis depth setting. Takes effect on next analysis."""
         try:
             depth = int(depth_str)
-            self.config_manager.set("analysis_depth", depth)
+            self.config_manager.config["analysis_depth"] = depth
         except ValueError:
             pass  # Ignore invalid values
 
     def _on_threads_committed(self):
-        """Auto-commit Threads on Enter / focus loss. The line edit's
-        QIntValidator already rejects non-digits, but we still defend
-        against empty input here so the user gets a friendly message
-        instead of a silent ignore."""
+        """Format Threads on Enter / focus loss."""
         raw = self.threads_input.text().strip()
         if not raw:
-            # empty: revert to the previously persisted value
             current = self.config_manager.get("engine_threads", min(os.cpu_count() or 1, 4))
             self.threads_input.setText(str(current))
             return
         threads, ok = self._validated_threads()
         if not ok:
-            # restore the last good value to keep the field consistent
             current = self.config_manager.get("engine_threads", 1)
             self.threads_input.setText(str(current))
             return
-        if self.config_manager.get("engine_threads") != threads:
-            self.config_manager.set("engine_threads", threads)
-            self.engine_settings_changed.emit()
 
     def _on_hash_committed(self):
-        """Auto-commit Hash on Enter / focus loss. See _on_threads_committed."""
+        """Format Hash on Enter / focus loss."""
         raw = self.hash_input.text().strip()
         if not raw:
             current = self.config_manager.get("engine_hash", 64)
@@ -1156,17 +1157,9 @@ class SettingsView(QWidget):
             current = self.config_manager.get("engine_hash", 64)
             self.hash_input.setText(str(current))
             return
-        if self.config_manager.get("engine_hash") != hash_mb:
-            self.config_manager.set("engine_hash", hash_mb)
-            self.engine_settings_changed.emit()
 
     def _on_multi_pv_committed(self):
-        """Auto-commit Multi-PV. 1 = best line only, 5 = five top lines.
-
-        Higher values multiply the search-tree work roughly linearly, so
-        we keep the validator bounded and surface the persisted default
-        when the field is empty or out of range.
-        """
+        """Format Multi-PV on Enter / focus loss."""
         raw = self.multi_pv_input.text().strip()
         if not raw:
             current = self.config_manager.get("multi_pv", 1)
@@ -1178,22 +1171,13 @@ class SettingsView(QWidget):
             current = self.config_manager.get("multi_pv", 1)
             self.multi_pv_input.setText(str(current))
             return
-        # The QIntValidator already constrains 1..5, but defend anyway.
         if not 1 <= value <= 5:
             current = self.config_manager.get("multi_pv", 1)
             self.multi_pv_input.setText(str(current))
             return
-        if self.config_manager.get("multi_pv") != value:
-            self.config_manager.set("multi_pv", value)
 
     def _on_live_time_committed(self):
-        """Auto-commit Live-Analysis time budget (seconds).
-
-        Bounds 0.5..10.0. The previous default of an infinite search
-        (Limit(depth=None)) was the root cause of laptop overheating —
-        see issue #5. A 2-second budget gives the engine a finite
-        window to deepen the analysis, then releases the CPU.
-        """
+        """Format Live-Analysis time budget on Enter / focus loss."""
         raw = self.live_time_input.text().strip()
         if not raw:
             current = self.config_manager.get("live_analysis_time", 2.0)
@@ -1209,8 +1193,6 @@ class SettingsView(QWidget):
             current = self.config_manager.get("live_analysis_time", 2.0)
             self.live_time_input.setText(str(current))
             return
-        if self.config_manager.get("live_analysis_time") != value:
-            self.config_manager.set("live_analysis_time", value)
 
     def browse_engine(self):
         filter_str = "Executables (*.exe);;All Files (*)" if os.name == 'nt' else "All Files (*)"
@@ -1219,49 +1201,154 @@ class SettingsView(QWidget):
             self.path_input.setText(path)
             self.validate_engine_path()
 
-    def save_engine_path(self):
-        """Save every engine setting (path, threads, hash) at once.
-
-        The button now reads "Save Settings" and serves as the explicit
-        commit point for the Threads/Hash fields. Individual fields
-        also auto-commit on editingFinished, so users can change them
-        and tab away without clicking the button — but clicking this
-        button persists all three and shows a single confirmation.
-        """
-        path = self.path_input.text()
+    def save_all_settings(self):
+        """Save every setting in the app at once."""
+        path = self.path_input.text().strip()
         if not path:
-            QMessageBox.warning(self, "Error", "Please enter a valid path.")
+            QMessageBox.warning(self, "Error", "Please enter a valid engine path.")
             return
 
         threads, threads_ok = self._validated_threads()
         hash_mb, hash_ok = self._validated_hash()
 
         if not threads_ok or not hash_ok:
-            return  # the helpers already show an error message
+            return
+
+        chesscom = self.chesscom_input.text().strip()
+        lichess = self.lichess_input.text().strip()
+
+        # Read and validate the games fetch limit
+        limit_text = self.games_limit_input.text().strip()
+        try:
+            limit = int(limit_text)
+        except ValueError:
+            limit = 20
+            
+        if limit < 1:
+            limit = 1
+
+        # Check Lichess API Token presence
+        import os
+        token = self.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
+        
+        clamped = False
+        warning_msg = ""
+        if token:
+            if limit > 30:
+                limit = 30
+                clamped = True
+                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
+        else:
+            if limit > 20:
+                limit = 20
+                clamped = True
+                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
+
+        self.games_limit_input.setText(str(limit))
+
+        # Save current LLM profile edits to in-memory profile list first
+        profiles = self.config_manager.get_profiles()
+        idx = self.llm_profile_combo.currentIndex()
+        if 0 <= idx < len(profiles):
+            old_name = profiles[idx].get("name", "")
+            new_profile = self._current_profile_dict()
+            new_name = new_profile["name"]
+            if not new_name:
+                QMessageBox.warning(self, "Validation", "Profile name cannot be empty.")
+                return
+            if new_name != old_name and any(p["name"] == new_name for p in profiles):
+                QMessageBox.warning(self, "Validation", f"A profile named \"{new_name}\" already exists.")
+                return
+            profiles[idx] = new_profile
+            # Set selected profile as active
+            self.config_manager.config["llm_active_profile"] = new_name
+            self.config_manager.config["llm_profiles"] = profiles
 
         path_changed = self.config_manager.get("engine_path") != path
         threads_changed = self.config_manager.get("engine_threads") != threads
         hash_changed = self.config_manager.get("engine_hash") != hash_mb
 
-        self.config_manager.set("engine_path", path)
-        self.config_manager.set("engine_threads", threads)
-        self.config_manager.set("engine_hash", hash_mb)
+        # Update in-memory configuration
+        self.config_manager.config["engine_path"] = path
+        self.config_manager.config["engine_threads"] = threads
+        self.config_manager.config["engine_hash"] = hash_mb
+        
+        try:
+            self.config_manager.config["multi_pv"] = int(self.multi_pv_input.text().strip())
+        except ValueError:
+            self.config_manager.config["multi_pv"] = 1
+            
+        try:
+            self.config_manager.config["live_analysis_time"] = float(self.live_time_input.text().strip())
+        except ValueError:
+            self.config_manager.config["live_analysis_time"] = 2.0
 
+        self.config_manager.config["lichess_token"] = self.lichess_token_input.text().strip()
+        self.config_manager.config["chesscom_username"] = chesscom
+        self.config_manager.config["lichess_username"] = lichess
+        self.config_manager.config["api_games_limit"] = limit
+
+        # Save to disk
+        self.config_manager.save_config()
+
+        # Emit signals for UI and engine updates
+        from ...utils.logger import logger
         if path_changed:
+            logger.info(f"SettingsView: Engine path changed to {path}")
             self.engine_path_changed.emit(path)
         if threads_changed or hash_changed:
+            logger.info(f"SettingsView: Engine settings changed. Threads={threads} (changed: {threads_changed}), Hash={hash_mb} (changed: {hash_changed})")
             self.engine_settings_changed.emit()
+        else:
+            logger.info("SettingsView: Engine settings (Threads, Hash) were NOT modified during this save.")
+
+        self.llm_config_changed.emit()
+        self.usernames_changed.emit()
 
         self.validate_engine_path()
+        self._reload_profile_combo()
 
-        QMessageBox.information(
-            self,
-            "Saved",
-            f"Engine settings saved.\n"
-            f"Path: {path}\n"
-            f"Threads: {threads}\n"
-            f"Hash: {hash_mb} MB",
-        )
+        if clamped:
+            QMessageBox.warning(self, "Limit Capped", f"Settings saved successfully.\n\nNote: {warning_msg}")
+        else:
+            QMessageBox.information(self, "Saved", "All settings saved successfully.")
+
+    def save_usernames(self):
+        chesscom = self.chesscom_input.text()
+        lichess = self.lichess_input.text()
+        limit_text = self.games_limit_input.text().strip()
+        try:
+            limit = int(limit_text)
+        except ValueError:
+            limit = 20
+        if limit < 1:
+            limit = 1
+
+        import os
+        token = self.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
+        clamped = False
+        warning_msg = ""
+        if token:
+            if limit > 30:
+                limit = 30
+                clamped = True
+                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
+        else:
+            if limit > 20:
+                limit = 20
+                clamped = True
+                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
+
+        self.games_limit_input.setText(str(limit))
+        self.config_manager.set("chesscom_username", chesscom)
+        self.config_manager.set("lichess_username", lichess)
+        self.config_manager.set("api_games_limit", limit)
+        self.usernames_changed.emit()
+
+        if clamped:
+            QMessageBox.warning(self, "Limit Capped", warning_msg)
+        else:
+            QMessageBox.information(self, "Saved", "Settings saved successfully.")
 
     def _validated_threads(self):
         """Return (value, ok) for the Threads field, or (None, False) on error."""
@@ -1314,9 +1401,7 @@ class SettingsView(QWidget):
                 select_idx = i
         self.llm_profile_combo.blockSignals(False)
         self.llm_profile_combo.setCurrentIndex(select_idx)
-        # _on_profile_selected is suppressed by the blockSignals above, so
-        # we also load the form explicitly — otherwise the form fields
-        # would stay empty until the user clicks the combo.
+        self._current_profile_index = select_idx
         if 0 <= select_idx < len(profiles):
             self._load_profile_into_form(profiles[select_idx])
         self._loading_profile = False
@@ -1326,8 +1411,14 @@ class SettingsView(QWidget):
         if self._loading_profile:
             return
         profiles = self.config_manager.get_profiles()
+        
+        # Save previous profile edits first
+        if hasattr(self, '_current_profile_index') and 0 <= self._current_profile_index < len(profiles):
+            profiles[self._current_profile_index] = self._current_profile_dict()
+            
         if 0 <= index < len(profiles):
             self._load_profile_into_form(profiles[index])
+            self._current_profile_index = index
 
     def _load_profile_into_form(self, profile: dict) -> None:
         """Fill editor fields from a profile dict without triggering saves."""
@@ -1347,12 +1438,7 @@ class SettingsView(QWidget):
         self._update_active_label()
 
     def _on_provider_changed(self, _index=None) -> None:
-        """Adjust field placeholders and visibility for the selected provider.
-
-        The API key field and the Base URL field are always visible — the
-        placeholders convey defaults, but the user must always be able to
-        override them (e.g. for region-specific endpoints).
-        """
+        """Adjust field placeholders and visibility for the selected provider."""
         if self._loading_profile:
             return
         provider_key = self.llm_provider_combo.currentData() or "groq"
@@ -1365,10 +1451,6 @@ class SettingsView(QWidget):
 
         self.llm_model_input.setPlaceholderText(preset.get("model_placeholder", ""))
 
-        # Base URL field: always visible, prefilled with preset URL for non-custom.
-        # Only overwrite the URL when switching provider AND the current value
-        # matches an existing preset (i.e. user hasn't customised it yet) or is
-        # empty — otherwise we would clobber the user's manual override.
         self.lbl_llm_url.setVisible(True)
         self.llm_url_input.setVisible(True)
         current_url = self.llm_url_input.text().strip()
@@ -1394,7 +1476,6 @@ class SettingsView(QWidget):
         base_url = self.llm_url_input.text().strip()
         if not base_url and provider != "custom":
             base_url = preset.get("base_url", "")
-        # Strip a trailing /chat/completions so the OpenAI SDK can append it
         base_url = GroqService._normalise_base_url(base_url)
         return {
             "name":     self.llm_profile_name.text().strip(),
@@ -1403,60 +1484,6 @@ class SettingsView(QWidget):
             "model":    self.llm_model_input.text().strip() or preset.get("default_model", ""),
             "base_url": base_url,
         }
-
-    def _save_llm_profile(self) -> None:
-        """Persist edits to the selected profile without changing the active one."""
-        profiles = self.config_manager.get_profiles()
-        idx = self.llm_profile_combo.currentIndex()
-        if not (0 <= idx < len(profiles)):
-            return
-
-        old_name = profiles[idx].get("name", "")
-        new_profile = self._current_profile_dict()
-        new_name = new_profile["name"]
-
-        if not new_name:
-            QMessageBox.warning(self, "Validation", "Profile name cannot be empty.")
-            return
-
-        # Check uniqueness (allow keeping the same name)
-        if new_name != old_name and any(p["name"] == new_name for p in profiles):
-            QMessageBox.warning(self, "Validation", f"A profile named \"{new_name}\" already exists.")
-            return
-
-        profiles[idx] = new_profile
-
-        # If the active profile was renamed, follow the rename
-        active = self.config_manager.get("llm_active_profile", "")
-        new_active = new_name if active == old_name else active
-
-        self.config_manager.set_profiles(profiles, new_active)
-        self._reload_profile_combo()
-        QMessageBox.information(self, "Saved", f"Profile \"{new_name}\" saved.")
-
-    def _activate_llm_profile(self) -> None:
-        """Save edits and set this profile as the active (applied) one."""
-        profiles = self.config_manager.get_profiles()
-        idx = self.llm_profile_combo.currentIndex()
-        if not (0 <= idx < len(profiles)):
-            return
-
-        old_name = profiles[idx].get("name", "")
-        new_profile = self._current_profile_dict()
-        new_name = new_profile["name"]
-
-        if not new_name:
-            QMessageBox.warning(self, "Validation", "Profile name cannot be empty.")
-            return
-        if new_name != old_name and any(p["name"] == new_name for p in profiles):
-            QMessageBox.warning(self, "Validation", f"A profile named \"{new_name}\" already exists.")
-            return
-
-        profiles[idx] = new_profile
-        self.config_manager.set_profiles(profiles, new_name)
-        self.llm_config_changed.emit()   # tell MainWindow to reload services
-        self._reload_profile_combo()
-        QMessageBox.information(self, "Activated", f"Profile \"{new_name}\" is now active.")
 
     def _new_llm_profile(self) -> None:
         from PyQt6.QtWidgets import QInputDialog
@@ -1472,9 +1499,8 @@ class SettingsView(QWidget):
             "name": name, "provider": "groq", "api_key": "",
             "model": "llama-3.3-70b-versatile", "base_url": "",
         })
-        self.config_manager.set_profiles(profiles)
+        self.config_manager.config["llm_profiles"] = profiles
         self._reload_profile_combo()
-        # Select the newly added profile
         self.llm_profile_combo.setCurrentIndex(len(profiles) - 1)
 
     def _delete_llm_profile(self) -> None:
@@ -1495,8 +1521,8 @@ class SettingsView(QWidget):
         active = self.config_manager.get("llm_active_profile", "")
         if active == name:
             active = profiles[0]["name"]
-        self.config_manager.set_profiles(profiles, active)
-        self.llm_config_changed.emit()
+        self.config_manager.config["llm_profiles"] = profiles
+        self.config_manager.config["llm_active_profile"] = active
         self._reload_profile_combo()
 
     def _test_llm_profile(self) -> None:
@@ -1508,27 +1534,22 @@ class SettingsView(QWidget):
         from PyQt6.QtCore import QThread, pyqtSignal as _Signal
         from ..gui_utils import show_error_dialog
 
-        # If a previous worker is still running, stop it cleanly to avoid
-        # double-emit crashes when the user clicks "Test LLM" twice.
         prev = getattr(self, "_test_worker", None)
         if prev is not None and prev.isRunning():
             prev.quit()
             prev.wait(2000)
 
         class _TestWorker(QThread):
-            done = _Signal(bool, str, str)   # (success, short_msg, full_details)
+            done = _Signal(bool, str, str)
 
             def __init__(self, profile: dict, parent=None):
                 super().__init__(parent)
                 self._profile = profile
 
             def run(self):
-                # The real work is in a module-level function so it can be
-                # exercised by plain pytest tests without a QApplication.
                 ok, short, full = _test_llm_sync(self._profile)
                 self.done.emit(ok, short, full)
 
-        # Collect profile from form (no disk save required)
         profile = self._current_profile_dict()
 
         self.llm_test_btn.setEnabled(False)
@@ -1540,9 +1561,7 @@ class SettingsView(QWidget):
         self._test_worker = worker
 
         def _on_done(success: bool, msg: str, details: str):
-            # Defensive: if the Settings view was destroyed while the
-            # worker was running, just bail out without touching widgets.
-            if not self.isVisible() or self._test_worker is not worker:
+            if self._test_worker is not worker:  
                 return
             color = Styles.COLOR_GOOD if success else Styles.COLOR_BLUNDER
             self.llm_test_result.setStyleSheet(
@@ -1559,61 +1578,18 @@ class SettingsView(QWidget):
                         details,
                     )
                 except Exception as exc:
-                    # Last-resort: log the error so the user at least sees something
                     from ...utils.logger import logger
                     logger.error(f"Failed to show error dialog: {exc}")
                     logger.error(f"Original error: {details}")
 
+        def _cleanup():
+            if self._test_worker is worker:
+                self._test_worker = None
+            worker.deleteLater()
+
         worker.done.connect(_on_done)
-        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(_cleanup)
         worker.start()
-
-    def _save_lichess_token(self) -> None:
-        self.config_manager.set("lichess_token", self.lichess_token_input.text())
-        QMessageBox.information(self, "Saved", "Lichess token saved.")
-
-    def save_usernames(self):
-        chesscom = self.chesscom_input.text()
-        lichess = self.lichess_input.text()
-        
-        # Read and validate the games fetch limit
-        limit_text = self.games_limit_input.text().strip()
-        try:
-            limit = int(limit_text)
-        except ValueError:
-            limit = 20  # default fallback if empty/malformed
-            
-        if limit < 1:
-            limit = 1
-
-        # Check Lichess API Token presence
-        import os
-        token = self.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
-        
-        clamped = False
-        if token:
-            if limit > 30:
-                limit = 30
-                clamped = True
-                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
-        else:
-            if limit > 20:
-                limit = 20
-                clamped = True
-                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
-
-        self.games_limit_input.setText(str(limit))
-        self.config_manager.set("chesscom_username", chesscom)
-        self.config_manager.set("lichess_username", lichess)
-        self.config_manager.set("api_games_limit", limit)
-        
-        # Emit signal for immediate update
-        self.usernames_changed.emit()
-        
-        if clamped:
-            QMessageBox.warning(self, "Limit Capped", warning_msg)
-        else:
-            QMessageBox.information(self, "Saved", "Settings saved successfully.")
 
     def clear_cache(self):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear the analysis cache? This will not delete your game history.",

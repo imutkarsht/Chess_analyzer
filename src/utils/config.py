@@ -39,6 +39,12 @@ class ConfigManager:
         # Last known main window geometry (x, y, width, height).
         # Any field may be None, meaning "use Qt's default for that dimension".
         "window_state": {"x": None, "y": None, "width": None, "height": None},
+        "board_theme": "Green",
+        "piece_theme": "Standard",
+        "accent_color": "#FF9500",
+        "lichess_token": "",
+        "chesscom_username": "",
+        "lichess_username": "",
     }
 
     # Human-readable name used when creating the first migration profile.
@@ -140,6 +146,15 @@ class ConfigManager:
         if active_name:
             self.config["llm_active_profile"] = active_name
         self.save_config()
+
+    def reload_config(self):
+        new_data = self.load_config()
+        if self.__class__._shared_config is not None:
+            self.__class__._shared_config.clear()
+            self.__class__._shared_config.update(new_data)
+        else:
+            self.__class__._shared_config = new_data
+        self.config = self.__class__._shared_config
 
     def save_config(self):
         try:

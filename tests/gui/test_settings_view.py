@@ -61,3 +61,44 @@ def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
             
         assert view.config_manager.get("api_games_limit") == 30
         assert view.games_limit_input.text() == "30"
+
+def test_save_all_settings_flow(qapp, qtbot, isolated_config):
+    """Test the consolidated save_all_settings flow."""
+    from src.gui.views.settings_view import SettingsView
+    
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+        
+        # Modify some UI fields
+        view.path_input.setText("mock-stockfish")
+        view.threads_input.setText("3")
+        view.hash_input.setText("128")
+        view.chesscom_input.setText("NewUserChessCom")
+        view.lichess_input.setText("NewUserLichess")
+        view.games_limit_input.setText("15")
+        
+        # Mock validation and signals
+        view.validate_engine_path = MagicMock()
+        view.engine_path_changed = MagicMock()
+        view.engine_settings_changed = MagicMock()
+        view.llm_config_changed = MagicMock()
+        view.usernames_changed = MagicMock()
+        
+        with patch.object(QMessageBox, "information") as mock_info:
+            view.save_all_settings()
+            mock_info.assert_called_once()
+            
+        # Verify changes are stored in the config
+        assert view.config_manager.get("engine_path") == "mock-stockfish"
+        assert view.config_manager.get("engine_threads") == 3
+        assert view.config_manager.get("engine_hash") == 128
+        assert view.config_manager.get("chesscom_username") == "NewUserChessCom"
+        assert view.config_manager.get("lichess_username") == "NewUserLichess"
+        assert view.config_manager.get("api_games_limit") == 15
+        
+        # Verify signals are emitted
+        view.engine_path_changed.emit.assert_called_once_with("mock-stockfish")
+        view.engine_settings_changed.emit.assert_called_once()
+        view.llm_config_changed.emit.assert_called_once()
+        view.usernames_changed.emit.assert_called_once()

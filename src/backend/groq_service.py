@@ -36,6 +36,15 @@ PROVIDERS: dict[str, dict] = {
         "model_placeholder": "llama-3.3-70b-versatile",
         "help_url": "https://console.groq.com",
     },
+    "openai": {
+        "label": "OpenAI (Cloud)",
+        "base_url": "https://api.openai.com/v1",
+        "default_model": "gpt-4o-mini",
+        "requires_key": True,
+        "key_placeholder": "sk-proj-…",
+        "model_placeholder": "gpt-4o-mini",
+        "help_url": "https://platform.openai.com",
+    },
     "lmstudio": {
         "label": "LM Studio (Local)",
         "base_url": "http://localhost:1234/v1",
@@ -165,6 +174,10 @@ class GroqService:
         # Env-var fallback for Groq (honours existing .env / GROQ_API_KEY)
         if provider == "groq" and not api_key:
             api_key = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_KEY") or ""
+
+        # Env-var fallback for OpenAI (honours existing .env / OPENAI_API_KEY)
+        if provider == "openai" and not api_key:
+            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_KEY") or ""
 
         self._connect(provider, api_key, model, base_url)
 

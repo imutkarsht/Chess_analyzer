@@ -121,3 +121,28 @@ class TestConfigManager:
             state = manager.get("window_state")
             assert state is not None
             assert state == {"x": None, "y": None, "width": None, "height": None}
+
+    def test_reload_config_in_place(self, tmp_path):
+        """test reload_config updates shared config dict in-place so all instances see updates."""
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager1 = ConfigManager()
+            manager2 = ConfigManager()
+            
+            # Initially same
+            assert manager1.get("theme") == "dark"
+            assert manager2.get("theme") == "dark"
+            
+            # Manually update config.json on disk to simulate external changes or reloads
+            config_file = tmp_path / "config.json"
+            config_file.write_text(json.dumps({
+                "engine_path": "stockfish",
+                "theme": "light"
+            }))
+            
+            # Reload on manager1
+            manager1.reload_config()
+            
+            # Verify both see it because dictionary is updated in-place
+            assert manager1.get("theme") == "light"
+            assert manager2.get("theme") == "light"

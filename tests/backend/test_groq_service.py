@@ -154,6 +154,40 @@ class TestGroqService:
         assert service.client is not None
         assert captured["api_key"] == "env-groq-key"
 
+    def test_openai_profile_creates_client(self, fake_config, monkeypatch):
+        """A valid OpenAI profile produces an OpenAI client with the right preset url."""
+        fake_config(_FakeProfile(
+            provider="openai",
+            api_key="sk-proj-key123",
+            model="gpt-4o-mini",
+        ))
+        captured = {}
+
+        class _FakeOpenAI:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        service = GroqService()
+        assert service.client is not None
+        assert captured["api_key"] == "sk-proj-key123"
+        assert captured["base_url"] == PROVIDERS["openai"]["base_url"]
+
+    def test_openai_env_fallback_used_when_profile_key_empty(self, fake_config, monkeypatch):
+        """If the profile has no OpenAI key, the OPENAI_API_KEY env var is honoured."""
+        fake_config(_FakeProfile(provider="openai", api_key="", model="gpt-4o"))
+        monkeypatch.setenv("OPENAI_API_KEY", "env-openai-key")
+        captured = {}
+
+        class _FakeOpenAI:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        service = GroqService()
+        assert service.client is not None
+        assert captured["api_key"] == "env-openai-key"
+
     def test_configure_replaces_client(self, fake_config, monkeypatch):
         """configure() must rebuild the client with the new settings."""
         fake_config(_FakeProfile(provider="groq", api_key="first", model="m1"))
