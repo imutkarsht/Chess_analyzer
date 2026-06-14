@@ -3,7 +3,7 @@ import json
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QSplitter, QFileDialog, QMenuBar,
                              QStatusBar, QMessageBox, QInputDialog, QDialog,
-                             QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget, QTextEdit)
+                             QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget, QTextEdit, QFrame)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QAction, QIcon, QShortcut, QKeySequence
 from PyQt6.QtWidgets import QMenu
@@ -223,6 +223,45 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Failed to stop full analysis worker: {e}")
 
+        # Stop AI Coach summary thread if running
+        if hasattr(self, 'analysis_panel') and self.analysis_panel:
+            if hasattr(self.analysis_panel, 'summary_thread') and self.analysis_panel.summary_thread and self.analysis_panel.summary_thread.isRunning():
+                try:
+                    self.analysis_panel.summary_thread.finished.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                self.analysis_panel.summary_thread.quit()
+                self.analysis_panel.summary_thread.wait()
+
+        # Stop metrics workers if running
+        if hasattr(self, 'metrics_view') and self.metrics_view:
+            if hasattr(self.metrics_view, 'stats_worker') and self.metrics_view.stats_worker and self.metrics_view.stats_worker.isRunning():
+                try:
+                    self.metrics_view.stats_worker.finished.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                self.metrics_view.stats_worker.quit()
+                self.metrics_view.stats_worker.wait()
+            if hasattr(self.metrics_view, 'worker') and self.metrics_view.worker and self.metrics_view.worker.isRunning():
+                try:
+                    self.metrics_view.worker.finished.disconnect()
+                    self.metrics_view.worker.error.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                self.metrics_view.worker.quit()
+                self.metrics_view.worker.wait()
+
+        # Stop SettingsView test worker if running
+        if hasattr(self, 'settings_view') and self.settings_view:
+            prev = getattr(self.settings_view, "_test_worker", None)
+            if prev is not None and prev.isRunning():
+                try:
+                    prev.done.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                prev.quit()
+                prev.wait(1000)
+
         # Stop update worker if running
         if hasattr(self, 'update_worker') and self.update_worker and self.update_worker.isRunning():
             try:
@@ -260,7 +299,7 @@ class MainWindow(QMainWindow):
         
         # --- Page 2: Metrics View ---
         self.metrics_view = MetricsWidget(self.config_manager, self.history_manager)
-        self.metrics_view.request_settings.connect(lambda: (self.sidebar.set_active(3), self.stack.setCurrentIndex(3)))
+        self.metrics_view.request_settings.connect(lambda: (self.sidebar.set_active(3), self.switch_page(3)))
         self.stack.addWidget(self.metrics_view)
         
         # --- Page 3: Settings View ---
@@ -279,7 +318,7 @@ class MainWindow(QMainWindow):
     def _setup_shortcuts(self):
         # File Operations
         self.shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
-        self.shortcut_open.activated.connect(lambda: self.open_load_dialog(0))
+        self.shortcut_open.activated.connect(lambda: QTimer.singleShot(0, lambda: self.open_load_dialog(0)))
         
         self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
         self.shortcut_paste.activated.connect(self._handle_paste)
@@ -315,7 +354,7 @@ class MainWindow(QMainWindow):
             
         text = QApplication.clipboard().text().strip()
         if text and ("[Event" in text or "1." in text):
-            self.open_load_dialog(initial_source=1, initial_text=text)
+            QTimer.singleShot(0, lambda: self.open_load_dialog(initial_source=1, initial_text=text))
 
     def _nav_prev(self):
         if not self.current_game: return
@@ -430,11 +469,13 @@ class MainWindow(QMainWindow):
         No-op when no analysis is in progress — the next analysis will
         pick up the new values automatically.
         """
+        logger.info("MainWindow: apply_engine_settings triggered by settings update.")
         engine = getattr(self.analyzer, "engine_manager", None)
         if engine is not None:
             engine.apply_settings_from_config()
         # Also reconfigure the live analysis worker engine dynamically
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+            logger.info("MainWindow: Reconfiguring live worker engine.")
             self.move_list_panel.live_worker.configure_engine()
 
     def update_llm_config(self):
@@ -457,7 +498,7 @@ class MainWindow(QMainWindow):
         """Reloads config values in views that use usernames."""
         logger.info("Usernames changed, refreshing dependent views...")
         # Reload config in config_manager (it's a singleton pattern issue)
-        self.config_manager.config = self.config_manager.load_config()
+        self.config_manager.reload_config()
         # Refresh metrics view which uses usernames
         if hasattr(self, 'metrics_view'):
             self.metrics_view.refresh()
@@ -495,6 +536,15 @@ class MainWindow(QMainWindow):
             else:
                 self.metrics_view.refresh()
             
+        # Update Analysis Header Bar
+        if hasattr(self, 'analysis_header_bar') and self.analysis_header_bar:
+            self.analysis_header_bar.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {Styles.COLOR_BACKGROUND};
+                    border-bottom: 1px solid {Styles.COLOR_BORDER};
+                }}
+            """)
+
         # Update MainWindow Buttons
         if hasattr(self, 'btn_load'):
             self.btn_load.setStyleSheet(Styles.get_control_button_style())
@@ -525,6 +575,9 @@ class MainWindow(QMainWindow):
         self.update()
 
     def switch_page(self, index):
+        QTimer.singleShot(0, lambda: self._do_switch_page(index))
+
+    def _do_switch_page(self, index):
         self.stack.setCurrentIndex(index)
         if index == 2: # Stats page
             self.metrics_view.refresh()
@@ -532,17 +585,46 @@ class MainWindow(QMainWindow):
     def load_game_from_history(self, game):
         self.load_game(game)
         self.sidebar.set_active(0) # Switch to Analyze tab
-        self.stack.setCurrentIndex(0)
+        self.switch_page(0)
 
     def setup_analysis_page(self, parent_widget):
-        layout = QHBoxLayout(parent_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        main_layout = QVBoxLayout(parent_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Header Bar Container for Chess Analysis
+        self.analysis_header_bar = QFrame()
+        self.analysis_header_bar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+        """)
+        header_layout = QHBoxLayout(self.analysis_header_bar)
+        header_layout.setContentsMargins(40, 12, 40, 12)
+
+        # Title
+        title_lbl = QLabel("Chess Analysis")
+        title_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        header_layout.addWidget(title_lbl)
+
+        header_layout.addStretch()  # ← pushes buttons to the right, eating spare space
+
+        # Load Game Button
+        self.btn_load = create_button("Load Game", style="secondary", on_click=self.open_load_dialog, icon_name="fa5s.folder-open")
+        self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        header_layout.addWidget(self.btn_load)
+
+        # Analyze Game Button
+        self.btn_analyze = create_button("Analyze Game", style="primary", on_click=self.start_analysis, icon_name="fa5s.play")
+        header_layout.addWidget(self.btn_analyze)
+        
+        main_layout.addWidget(self.analysis_header_bar)
         
         # Splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(2)
-        layout.addWidget(splitter)
+        main_layout.addWidget(splitter, 1)
         
         # Left: Move List
         left_widget = QWidget()
@@ -579,7 +661,7 @@ class MainWindow(QMainWindow):
         self.captured_black = CapturedPiecesWidget(side="black")
         # Backwards-compat alias — some code may still reference the old name.
         self.captured_widget = self.captured_white
-
+ 
         self.board_widget = BoardWidget()
         # Layout order (indices shown):
         #   1 captured_black  (above board, near Black)
@@ -606,29 +688,14 @@ class MainWindow(QMainWindow):
         
         # Right: Analysis
         self.analysis_panel = AnalysisPanel()
+        if self.analysis_panel.layout:
+            self.analysis_panel.layout.setContentsMargins(5, 5, 5, 5)
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
         self.analysis_panel.lines_widget.toggle_checkbox.toggled.connect(self.move_list_panel.set_engine_lines_enabled)
         
-        # Buttons
-        btn_layout = QHBoxLayout()
-
-        # Single "Load Game" button — opens the unified LoadGameDialog
-        self.btn_load = create_button("Load Game", style="secondary",
-                                      on_click=self.open_load_dialog)
-        self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        btn_layout.addWidget(self.btn_load)
-
-        # Analyze Button
-        self.btn_analyze = create_button("Analyze Game", style="primary", on_click=self.start_analysis)
-        btn_layout.addWidget(self.btn_analyze)
-
-        left_layout.insertLayout(0, btn_layout) # Insert at top
-
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 630, 320])
-
-
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
         """
@@ -741,6 +808,10 @@ class MainWindow(QMainWindow):
     def start_analysis(self):
         if not self.current_game:
             return
+            
+        if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
+            QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
+            return
         
         # Check if engine exists
         is_in_path = shutil.which(self.engine_path) is not None
@@ -750,7 +821,7 @@ class MainWindow(QMainWindow):
              logger.warning(f"Engine not found at: {self.engine_path}")
              QMessageBox.warning(self, "Engine Not Found", "Please configure the engine path in Settings.")
              self.sidebar.set_active(3)
-             self.stack.setCurrentIndex(3)
+             self.switch_page(3)
              return
 
         logger.info("Starting analysis...")
@@ -762,11 +833,20 @@ class MainWindow(QMainWindow):
         self._full_analysis_running = True
         self._set_engine_state("calculating", "Starting...")
         self._set_status("Starting analysis...", "progress")
+        
+
+        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+            self.move_list_panel.live_worker.set_position(None)
+            
         self.worker.start()
 
     def on_analysis_progress(self, current, total):
-        self._set_engine_state("calculating", f"{current}/{total}")
-        self._set_status(f"Analyzing move {current} of {total}", "progress")
+        if current > total:
+            self._set_engine_state("calculating", "Final...")
+            self._set_status("Analyzing final position...", "progress")
+        else:
+            self._set_engine_state("calculating", f"{current}/{total}")
+            self._set_status(f"Analyzing move {current} of {total}", "progress")
 
     def on_analysis_finished(self, game):
         self._full_analysis_running = False
@@ -796,11 +876,19 @@ class MainWindow(QMainWindow):
         if initial_text and initial_source == 1:
             dialog._pgn_text_panel._text_edit.setPlainText(initial_text)
             dialog._pgn_text_panel._parse()
-        dialog.game_ready.connect(self._on_game_ready)
-        dialog.exec()
+            
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            if dialog._pending_pgn:
+                pgn = dialog._pending_pgn
+                sd = dialog._pending_source_data
+                QTimer.singleShot(0, lambda: self._parse_and_load_game(
+                    pgn, 
+                    source_data=sd, 
+                    status_msg="Game loaded."
+                ))
 
     def _on_game_ready(self, pgn_text: str, source_data):
-        """Called by LoadGameDialog when the user confirms a game selection."""
+        """Deprecated: Kept for compatibility. Called by LoadGameDialog when the user confirms a game selection."""
         self._parse_and_load_game(pgn_text, source_data=source_data,
                                   status_msg="Game loaded.")
 

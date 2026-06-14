@@ -114,7 +114,11 @@ class Analyzer:
         Runs the engine analysis loop for all moves in the game.
         Returns the raw summary counts/stats.
         """
-        logger.info(f"Starting analysis for game: {game_analysis.game_id}")
+        # Refresh configuration from global settings before starting
+        self.config["depth"] = self.config_manager.get("analysis_depth", 18)
+        self.config["multi_pv"] = self.config_manager.get("multi_pv", 1)
+        
+        logger.info(f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']})")
         self.engine_manager.start_engine()
         
         board = chess.Board()
@@ -138,8 +142,9 @@ class Analyzer:
         opening_name = "Unknown Opening"
 
         for i, move_data in enumerate(game_analysis.moves):
+            logger.info(f"Analyzing move {i+1}/{total_moves}: {move_data.san}")
             if callback:
-                callback(i, total_moves)
+                callback(i+1, total_moves)
             
             # 1. Analyze position BEFORE move
             board.set_fen(move_data.fen_before)
@@ -152,6 +157,9 @@ class Analyzer:
             self._process_analysis_results(move_data, info_list, is_white_turn, board)
             
         # Analyze FINAL position
+        logger.info("Analyzing final position...")
+        if callback:
+            callback(total_moves + 1, total_moves)
         final_score = self._analyze_final_position(game_analysis, board)
         
         # Classify moves and calculate stats
@@ -189,8 +197,10 @@ class Analyzer:
         if self.config.get("use_cache", True):
             cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
             if cached_result:
+                logger.info(f"Cache HIT for position: {move_data.san}")
                 return cached_result
         
+        logger.info(f"Cache MISS for position: {move_data.san} - calling engine")
         # Engine analysis
         info_list = self.engine_manager.analyze_position(
             board, 
