@@ -4,6 +4,7 @@
 __pycache__/
 /stockfish/
 .env
+.vscode
 /dist
 /build
 chess_analyzer.log

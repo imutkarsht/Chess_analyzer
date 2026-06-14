@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox, QLineEdit, QPushButton
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox, QLineEdit, QPushButton, QFrame
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QIcon
 from ..game_list import GameListWidget
@@ -26,24 +26,39 @@ class HistoryView(QWidget):
         self.games = []
         
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(20, 20, 20, 20)
-        self.layout.setSpacing(20)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
         
-        # Header Row
-        header_layout = QHBoxLayout()
+        # Header Bar Container
+        self.header_bar = QFrame()
+        self.header_bar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+        """)
+        header_layout = QHBoxLayout(self.header_bar)
+        header_layout.setContentsMargins(40, 12, 40, 12)
         
         # Title
         header_lbl = QLabel("Game History")
-        header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};")
+        header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
         header_layout.addWidget(header_lbl)
         
         header_layout.addStretch()
         
         # Refresh Button (Top-Right)
-        self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.load_history)
+        self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.load_history, icon_name="fa5s.sync-alt")
         header_layout.addWidget(self.btn_refresh)
         
-        self.layout.addLayout(header_layout)
+        self.layout.addWidget(self.header_bar)
+        
+        # Content Container Widget
+        content_widget = QWidget()
+        content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(40, 20, 40, 20)
+        content_layout.setSpacing(20)
         
         # Filter Row
         filter_layout = QHBoxLayout()
@@ -114,12 +129,12 @@ class HistoryView(QWidget):
         self.sort_dropdown.setMinimumWidth(130)
         filter_layout.addWidget(self.sort_dropdown)
         
-        self.layout.addLayout(filter_layout)
+        content_layout.addLayout(filter_layout)
         
         # Game List
         self.game_list = GameListWidget()
         self.game_list.game_selected.connect(self.on_game_selected)
-        self.layout.addWidget(self.game_list)
+        content_layout.addWidget(self.game_list)
         
         # Bottom Buttons
         btn_layout = QHBoxLayout()
@@ -139,7 +154,9 @@ class HistoryView(QWidget):
         self.btn_clear = self._create_icon_button("Clear History", "fa5s.trash-alt", self.clear_history, danger=True)
         btn_layout.addWidget(self.btn_clear)
         
-        self.layout.addLayout(btn_layout)
+        content_layout.addLayout(btn_layout)
+        
+        self.layout.addWidget(content_widget)
         
         # Load initial data
         self.load_history()
@@ -463,6 +480,15 @@ class HistoryView(QWidget):
 
     def refresh_styles(self):
         """Re-apply styles with the updated accent color."""
+        # Refresh header bar style
+        if hasattr(self, 'header_bar') and self.header_bar:
+            self.header_bar.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {Styles.COLOR_BACKGROUND};
+                    border-bottom: 1px solid {Styles.COLOR_BORDER};
+                }}
+            """)
+            
         # Refresh refresh button
         if hasattr(self, 'btn_refresh'):
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())

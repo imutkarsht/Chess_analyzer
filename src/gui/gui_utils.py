@@ -28,7 +28,13 @@ class ThinkTimeBar(QWidget):
         self.setMinimumHeight(18)
 
     def set_value(self, seconds: Optional[float]) -> None:
-        self._value = seconds
+        if seconds is not None:
+            try:
+                self._value = float(seconds)
+            except (ValueError, TypeError):
+                self._value = None
+        else:
+            self._value = None
         self._update_tooltip()
         self.update()
 
@@ -89,7 +95,15 @@ class ThinkTimeBar(QWidget):
         font.setPointSize(9)
         font.setBold(True)
         p.setFont(font)
-        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, f"{self._value:.1f}s")
+        
+        if self._value >= 3600:
+            time_str = f"{self._value / 3600:.1f}h"
+        elif self._value >= 60:
+            time_str = f"{self._value / 60:.1f}m"
+        else:
+            time_str = f"{self._value:.1f}s"
+            
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, time_str)
         p.end()
 
 
@@ -164,7 +178,7 @@ class MoveCellWidget(QWidget):
 
     # ----- public API -------------------------------------------------
     def set_move(self, move, move_index: int, icon: QIcon = None,
-                 san_color: str = "") -> None:
+                 san_color: str = "", max_seconds: float = 30.0) -> None:
         self._move_index = move_index
         self._san_text = move.san
         self._san_label.setText(move.san)
@@ -195,9 +209,26 @@ class MoveCellWidget(QWidget):
             self._icon_label.clear()
 
         # Think-time text + bar
+        time_spent_val = None
         if move.time_spent is not None:
-            self._time_label.setText(f"{move.time_spent:.1f}s")
-            ratio = min(1.0, move.time_spent / 30.0)
+            try:
+                time_spent_val = float(move.time_spent)
+            except (TypeError, ValueError):
+                time_spent_val = None
+
+        if time_spent_val is not None:
+            if time_spent_val >= 3600:
+                time_str = f"{time_spent_val / 3600:.1f}h"
+            elif time_spent_val >= 60:
+                time_str = f"{time_spent_val / 60:.1f}m"
+            else:
+                time_str = f"{time_spent_val:.1f}s"
+                
+            self._time_label.setText(time_str)
+            
+            # Use dynamically passed max_seconds for color ratio
+            safe_max = max(1.0, float(max_seconds) if max_seconds is not None else 30.0)
+            ratio = min(1.0, time_spent_val / safe_max)
             colour = self._bar_colour(ratio)
             # Render as left-to-right fill: 100% of the cell width for the
             # coloured portion, plus a faded track for the remainder.
@@ -217,7 +248,7 @@ class MoveCellWidget(QWidget):
             )
             self.setToolTip(
                 f"{move.classification + ': ' if move.classification else ''}"
-                f"{move.san}  —  Think time: {move.time_spent:.1f}s"
+                f"{move.san}  —  Think time: {time_str}"
             )
         else:
             self._time_label.setText("")
@@ -317,7 +348,8 @@ def create_button(
     text: str, 
     style: str = "primary",
     on_click: Optional[Callable] = None,
-    cursor: bool = True
+    cursor: bool = True,
+    icon_name: Optional[str] = None
 ) -> QPushButton:
     """
     Factory function to create styled buttons.
@@ -327,13 +359,14 @@ def create_button(
         style: Style type - "primary", "secondary", "export", "import"
         on_click: Click handler callback
         cursor: Whether to show pointer cursor on hover
+        icon_name: Optional icon name from qtawesome (e.g. "fa5s.save")
         
     Returns:
         Configured QPushButton
     """
     from .styles import Styles  # Import here to avoid circular imports
     
-    btn = QPushButton(text)
+    btn = QPushButton(f"  {text}" if icon_name else text)
     
     style_map = {
         "primary": Styles.get_button_style,
@@ -344,6 +377,15 @@ def create_button(
     
     style_func = style_map.get(style, Styles.get_button_style)
     btn.setStyleSheet(style_func())
+    
+    if icon_name:
+        try:
+            import qtawesome as qta
+            icon_color = "#ffffff" if style == "primary" else Styles.COLOR_TEXT_SECONDARY
+            btn.setIcon(qta.icon(icon_name, color=icon_color))
+            btn.setIconSize(QSize(16, 16))
+        except ImportError:
+            pass
     
     if cursor:
         btn.setCursor(Qt.CursorShape.PointingHandCursor)

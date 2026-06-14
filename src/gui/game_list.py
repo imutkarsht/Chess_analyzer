@@ -314,7 +314,8 @@ class GameListItemWidget(QWidget):
         if not time_control or time_control in ("-", "?"):
             return time_control
             
-        match = re.match(r"^(\d+)(?:\+(\d+))?$", time_control.strip())
+        tc = time_control.strip()
+        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
         if match:
             try:
                 base_seconds = int(match.group(1))
@@ -335,6 +336,32 @@ class GameListItemWidget(QWidget):
                     return base_str
             except ValueError:
                 pass
+                
+        # Handle FIDE complex formats like "40/7200:1800+30"
+        if "/" in tc or ":" in tc:
+            base_time = 0
+            increment = 0
+            periods = tc.split(":")
+            for p in periods:
+                parts = p.split("+")
+                base_part = parts[0]
+                if len(parts) > 1:
+                    try:
+                        increment = int(parts[1])
+                    except ValueError:
+                        pass
+                
+                sec_part = base_part.split("/")[-1]
+                try:
+                    base_time += int(sec_part)
+                except ValueError:
+                    pass
+            
+            if base_time > 0:
+                base_mins = base_time // 60
+                if increment > 0:
+                    return f"{base_mins}+{increment}"
+                return f"{base_mins}"
                 
         return time_control
 

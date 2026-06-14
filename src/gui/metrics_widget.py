@@ -267,30 +267,49 @@ class MetricsWidget(QWidget):
 
     def setup_ui(self):
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(20, 20, 20, 20)
-        self.main_layout.setSpacing(20)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         
-        # Header
-        header_layout = QHBoxLayout()
+        # Header Bar Container
+        self.header_bar = QFrame()
+        self.header_bar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+        """)
+        header_layout = QHBoxLayout(self.header_bar)
+        header_layout.setContentsMargins(40, 12, 40, 12)
+        
+        # Title
         title = QLabel("Performance Dashboard")
-        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
         header_layout.addWidget(title)
         
         header_layout.addStretch()
         
-        self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.refresh)
+        self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.refresh, icon_name="fa5s.sync-alt")
         header_layout.addWidget(self.btn_refresh)
         
-        self.main_layout.addLayout(header_layout)
+        self.main_layout.addWidget(self.header_bar)
         
         # Content Area
         self.content_widget = QWidget()
         self.content_layout = QVBoxLayout(self.content_widget)
-        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setContentsMargins(40, 20, 40, 20)
+        self.content_layout.setSpacing(20)
         self.main_layout.addWidget(self.content_widget)
 
     def refresh_styles(self):
         """Re-applies styles and rebuilds the dashboard using cached stats/insights to pick up the new accent color immediately without re-querying the database."""
+        if hasattr(self, 'header_bar') and self.header_bar:
+            self.header_bar.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {Styles.COLOR_BACKGROUND};
+                    border-bottom: 1px solid {Styles.COLOR_BORDER};
+                }}
+            """)
+
         if hasattr(self, 'btn_refresh') and self.btn_refresh:
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
             
@@ -345,6 +364,14 @@ class MetricsWidget(QWidget):
         self.content_layout.addWidget(loading_widget)
         
         # Start Worker
+        if hasattr(self, 'stats_worker') and self.stats_worker is not None and self.stats_worker.isRunning():
+            try:
+                self.stats_worker.finished.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            self.stats_worker.quit()
+            self.stats_worker.wait()
+
         self.stats_worker = StatsWorker(self.games_data, self.usernames)
         self.stats_worker.finished.connect(self.on_stats_ready)
         self.stats_worker.start()
@@ -790,6 +817,15 @@ class MetricsWidget(QWidget):
         # Add some context about openings/etc
         stats_str = json.dumps(stats, indent=2)
         
+        if hasattr(self, 'worker') and self.worker is not None and self.worker.isRunning():
+            try:
+                self.worker.finished.disconnect()
+                self.worker.error.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            self.worker.quit()
+            self.worker.wait()
+
         self.worker = InsightWorker(self.groq_service, stats_str)
         self.worker.finished.connect(self._populate_insights)
         self.worker.error.connect(self._handle_insight_error)

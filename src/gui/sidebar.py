@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QApplication
+from PyQt6.QtWidgets import QFrame, QVBoxLayout, QPushButton, QLabel, QApplication
 from PyQt6.QtCore import pyqtSignal, Qt, QSize
 from PyQt6.QtGui import QIcon
 from .styles import Styles
@@ -21,12 +21,13 @@ QTAWESOME_ICONS = {
     "settings.png": "fa5s.cog",
 }
 
-class Sidebar(QWidget):
+class Sidebar(QFrame):
     # Signals for navigation
     page_changed = pyqtSignal(int) # 0: Analyze, 1: History, 2: Settings
 
     def __init__(self):
         super().__init__()
+        self.setObjectName("Sidebar")
         self.setFixedWidth(200) # Increased width for text
         
         self.layout = QVBoxLayout(self)
