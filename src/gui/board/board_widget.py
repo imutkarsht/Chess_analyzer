@@ -97,6 +97,7 @@ class BoardWidget(QWidget):
         self.game_moves = game_analysis.moves
         self.current_move_index = -1
         self.update_board()
+        self.draw_overlays(-1) # Clear any highlights/arrows from the previous game
         self.eval_bar.set_eval(0, None) # Reset eval
 
     def set_position(self, move_index):

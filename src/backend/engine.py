@@ -66,10 +66,12 @@ class EngineManager:
 
     def configure_engine(self, options: Dict[str, Any]):
         self.options.update(options)
+        logger.info(f"EngineManager: Configuring engine with options: {options}")
         if self.engine:
             for name, value in options.items():
                 try:
                     self.engine.configure({name: value})
+                    logger.debug(f"EngineManager: Successfully set {name} to {value}")
                 except Exception as e:
                     logger.warning(f"Could not configure {name}: {e}")
 

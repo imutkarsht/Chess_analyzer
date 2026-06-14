@@ -225,17 +225,22 @@ class Styles:
                 color: {cls.COLOR_TEXT_PRIMARY};
                 border: 1px solid {cls.COLOR_BORDER};
                 border-radius: 6px;
-                padding: 8px 14px;
-                font-size: 15px;
+                padding: 8px 16px;
+                font-size: 13px;
                 font-weight: 500;
             }}
             QPushButton:hover {{
-                background-color: {cls.COLOR_SURFACE_CARD};
-                border: 1px solid {cls.COLOR_BORDER_LIGHT};
+                background-color: {cls.COLOR_SURFACE};
+                border: 1px solid {cls.COLOR_ACCENT};
             }}
             QPushButton:pressed {{
                 background-color: {cls.COLOR_ACCENT_SUBTLE};
                 border: 1px solid {cls.COLOR_ACCENT};
+            }}
+            QPushButton:disabled {{
+                background-color: {cls.COLOR_SURFACE_LIGHT};
+                color: {cls.COLOR_TEXT_MUTED};
+                border-color: {cls.COLOR_BORDER};
             }}
         """
 
@@ -287,20 +292,19 @@ class Styles:
                 background-color: {cls.COLOR_ACCENT};
                 color: white;
                 border: none;
-                padding: 10px 20px;
+                padding: 8px 16px;
                 border-radius: 6px;
                 font-weight: 600;
-                font-size: 14px;
+                font-size: 13px;
             }}
             QPushButton:hover {{
                 background-color: {cls.COLOR_ACCENT_HOVER};
             }}
             QPushButton:pressed {{
                 background-color: {cls.COLOR_ACCENT};
-                padding: 11px 20px 9px 20px;
             }}
             QPushButton:disabled {{
-                background-color: {cls.COLOR_SURFACE_LIGHT};
+                background-color: {cls.COLOR_BORDER};
                 color: {cls.COLOR_TEXT_MUTED};
             }}
         """
@@ -308,7 +312,7 @@ class Styles:
     @classmethod
     def get_sidebar_style(cls):
         return f"""
-            QWidget {{
+            #Sidebar {{
                 background-color: {cls.COLOR_SURFACE};
                 border-right: 1px solid {cls.COLOR_BORDER};
             }}
@@ -461,7 +465,7 @@ class Styles:
                 subcontrol-position: top left;
                 left: 15px;
                 padding: 0 5px;
-                background-color: {cls.COLOR_SURFACE};
+                background-color: {cls.COLOR_BACKGROUND};
             }}
         """
     

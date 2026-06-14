@@ -403,6 +403,7 @@ class MoveListPanel(QWidget):
         
     def refresh(self):
         if not self.current_game:
+            self.table.clearContents()
             self.table.setRowCount(0)
             self._think_bars.clear()
             return
@@ -414,6 +415,10 @@ class MoveListPanel(QWidget):
                 bar.deleteLater()
             self._think_bars.clear()
 
+            # Clear table contents and reset row count to prevent leftover widgets/text
+            self.table.clearContents()
+            self.table.setRowCount(0)
+
             # Set row count
             num_rows = (len(self.current_game.moves) + 1) // 2
             self.table.setRowCount(num_rows)
@@ -421,6 +426,27 @@ class MoveListPanel(QWidget):
             # Update vertical header labels (Move numbers)
             labels = [str(i+1) for i in range(num_rows)]
             self.table.setVerticalHeaderLabels(labels)
+
+            # Calculate max_seconds based on TimeControl
+            tc = ""
+            if hasattr(self.current_game, 'metadata') and self.current_game.metadata:
+                tc = getattr(self.current_game.metadata, 'time_control', None) or self.current_game.metadata.headers.get("TimeControl", "")
+                
+            base_time = 0
+            if tc and tc not in ("-", "?", ""):
+                for period in tc.split(":"):
+                    base_part = period.split("+")[0]      # remove increment
+                    sec_part = base_part.split("/")[-1]   # remove move count
+                    try:
+                        base_time += int(sec_part)
+                    except ValueError:
+                        pass
+            
+            # Default max seconds if no time control is 30.
+            # Otherwise use 10% of base time, capped between 10s and 600s
+            max_seconds = 30.0
+            if base_time > 0:
+                max_seconds = max(10.0, min(600.0, base_time * 0.1))
 
             for i, move in enumerate(self.current_game.moves):
                 row = i // 2
@@ -434,14 +460,14 @@ class MoveListPanel(QWidget):
                     num_item.setForeground(QBrush(QColor(Styles.COLOR_TEXT_SECONDARY)))
                     self.table.setItem(row, 0, num_item)
 
-                self._set_move_item(row, col, move, i)
+                self._set_move_item(row, col, move, i, max_seconds)
 
             self.table.viewport().update()
 
         except Exception as e:
             logger.error(f"Error refreshing move list: {e}", exc_info=True)
 
-    def _set_move_item(self, row, col, move, index):
+    def _set_move_item(self, row, col, move, index, max_seconds=30.0):
         """Render a move cell with icon, SAN, and a think-time bar inline."""
         # Get classification icon (if any)
         icon = None
@@ -452,7 +478,7 @@ class MoveListPanel(QWidget):
         san_color = Styles.get_class_color(move.classification) or Styles.COLOR_TEXT_PRIMARY
 
         cell = MoveCellWidget(parent=self.table)
-        cell.set_move(move, index, icon=icon, san_color=san_color)
+        cell.set_move(move, index, icon=icon, san_color=san_color, max_seconds=max_seconds)
         cell.clicked.connect(self._on_cell_widget_clicked)
 
         # Keep a strong reference so the widget isn't GC'd

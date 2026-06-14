@@ -187,13 +187,26 @@ def _fetch_single_lichess(game_id: str) -> list:
     return []
 
 
+_RUNNING_WORKERS = []
+
+def _register_worker(worker):
+    _RUNNING_WORKERS.append(worker)
+
+def _remove_worker(worker):
+    if worker in _RUNNING_WORKERS:
+        try:
+            _RUNNING_WORKERS.remove(worker)
+        except ValueError:
+            pass
+
 # ── API Worker for background fetching ──────────────────────────────────────────
 class _ApiWorker(QThread):
     finished = pyqtSignal(object)
     error = pyqtSignal(str)
 
     def __init__(self, api_func, *args, **kwargs):
-        super().__init__()
+        parent = kwargs.pop('parent', None)
+        super().__init__(parent)
         self.api_func = api_func
         self.args = args
         self.kwargs = kwargs
@@ -895,17 +908,29 @@ class _ChessComPanel(QWidget):
         self._fetch_btn.setText("...")
         self._input_edit.setEnabled(False)
 
+        # Disconnect any previously running worker
+        if self._worker is not None and self._worker.isRunning():
+            try:
+                self._worker.finished.disconnect()
+                self._worker.error.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+
         from ...backend.chess_com_api import ChessComAPI
         from ...utils.config import ConfigManager
         
         game_id = ChessComAPI.extract_game_id(text)
         if game_id:
             # It's a URL
-            self._worker = _ApiWorker(_fetch_single_chesscom, game_id, text)
+            self._worker = _ApiWorker(_fetch_single_chesscom, game_id, text, parent=self)
         else:
             # It's a username
             limit = ConfigManager().get("api_games_limit", 20)
-            self._worker = _ApiWorker(_fetch_and_parse_chesscom, text, limit)
+            self._worker = _ApiWorker(_fetch_and_parse_chesscom, text, limit, parent=self)
+
+        _register_worker(self._worker)
+        self._worker.finished.connect(lambda: _remove_worker(self._worker))
+        self._worker.error.connect(lambda: _remove_worker(self._worker))
 
         self._worker.finished.connect(self._on_fetch_finished)
         self._worker.error.connect(self._on_fetch_error)
@@ -1072,16 +1097,28 @@ class _LichessPanel(QWidget):
         self._fetch_btn.setText("...")
         self._input_edit.setEnabled(False)
 
+        # Disconnect any previously running worker
+        if self._worker is not None and self._worker.isRunning():
+            try:
+                self._worker.finished.disconnect()
+                self._worker.error.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+
         from ...backend.lichess_api import LichessAPI
         from ...utils.config import ConfigManager
         api = LichessAPI()
         
         game_id = api.extract_game_id(text)
         if game_id:
-            self._worker = _ApiWorker(_fetch_single_lichess, game_id)
+            self._worker = _ApiWorker(_fetch_single_lichess, game_id, parent=self)
         else:
             limit = ConfigManager().get("api_games_limit", 20)
-            self._worker = _ApiWorker(_fetch_and_parse_lichess, text, limit)
+            self._worker = _ApiWorker(_fetch_and_parse_lichess, text, limit, parent=self)
+
+        _register_worker(self._worker)
+        self._worker.finished.connect(lambda: _remove_worker(self._worker))
+        self._worker.error.connect(lambda: _remove_worker(self._worker))
 
         self._worker.finished.connect(self._on_fetch_finished)
         self._worker.error.connect(self._on_fetch_error)
@@ -1161,13 +1198,24 @@ def _classify_time_control(tc: str) -> str:
     if not tc or tc in ("-", "?", ""):
         return "Unknown"
     try:
-        # Formats: "600" or "600+5"
-        base = int(tc.split("+")[0])
+        # Handle formats like "600", "600+5", "40/7200:1800+30"
+        base = 0
+        for period in tc.split(":"):
+            base_part = period.split("+")[0]
+            sec_part = base_part.split("/")[-1]
+            try:
+                base += int(sec_part)
+            except ValueError:
+                pass
+                
+        if base == 0:
+            return tc
+            
         if base < 180:   return "Bullet"
         if base < 600:   return "Blitz"
         if base < 1800:  return "Rapid"
         return "Classical"
-    except ValueError:
+    except Exception:
         return tc
 
 
@@ -1188,6 +1236,7 @@ class LoadGameDialog(QDialog):
         self.resize(760, 560)
         self.setMinimumSize(680, 480)
 
+        self._already_accepted = False
         self._source_btns: list[_SourceBtn] = []
         self._setup_ui()
         self._switch_source(initial_source)
@@ -1368,7 +1417,10 @@ class LoadGameDialog(QDialog):
         self.btn_load.setEnabled(pgn is not None and pgn.strip() != "")
 
     def _on_load_clicked(self):
+        if self._already_accepted:
+            return
         if self._pending_pgn:
+            self._already_accepted = True
             self.game_ready.emit(self._pending_pgn, self._pending_source_data)
             self.accept()
 
@@ -1380,3 +1432,22 @@ class LoadGameDialog(QDialog):
             self._on_load_clicked()
         else:
             super().keyPressEvent(event)
+
+    def accept(self):
+        if not self._already_accepted:
+            self._already_accepted = True
+        self._cleanup_workers()
+        super().accept()
+
+    def reject(self):
+        self._cleanup_workers()
+        super().reject()
+
+    def _cleanup_workers(self):
+        for panel in [self._chesscom_panel, self._lichess_panel]:
+            if hasattr(panel, '_worker') and panel._worker is not None:
+                try:
+                    panel._worker.finished.disconnect()
+                    panel._worker.error.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
