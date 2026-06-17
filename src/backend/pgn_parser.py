@@ -96,6 +96,20 @@ class PGNParser:
         
         moves = []
         board = game.board()
+        # python-chess reads Variant/FEN headers internally and creates the
+        # correct board type.  Use board.chess960 as the single source of truth.
+        metadata.chess960 = board.chess960
+        # Fallback: detect Chess960 from file-letter castling rights (a-h/A-H)
+        # in the FEN header.  python-chess does not do this automatically when
+        # no Variant header is present.
+        if not metadata.chess960:
+            setup_fen = headers.get("FEN", "")
+            if setup_fen:
+                fen_parts = setup_fen.split(" ")
+                if len(fen_parts) >= 3:
+                    castling = fen_parts[2]
+                    if any(c not in "KQkq-" for c in castling):
+                        metadata.chess960 = True
         # Track per-side running clock so we can compute time_spent.
         # chess.com PGN: [%clk H:MM:SS.s] on every move. We compute the delta
         # between consecutive clocks of the same side to derive time_spent.

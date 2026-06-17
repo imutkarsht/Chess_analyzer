@@ -47,6 +47,7 @@ class GameMetadata:
     termination: Optional[str] = None
     opening: Optional[str] = None
     source: str = "file" # file, chesscom, lichess
+    chess960: bool = False
 
 @dataclass
 class GameAnalysis:

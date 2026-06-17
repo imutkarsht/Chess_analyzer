@@ -75,6 +75,24 @@ class EngineManager:
                 except Exception as e:
                     logger.warning(f"Could not configure {name}: {e}")
 
+    def set_chess960_mode(self, enabled: bool) -> None:
+        """Enable or disable Chess960 mode on the running engine (UCI_Chess960).
+
+        When enabled, Stockfish expects Chess960-format castling UCI moves
+        (king moves to rook square) instead of standard O-O/O-O-O notation.
+        This only configures the running engine and does NOT persist to
+        self.options, so the next start_engine() will not carry this setting.
+        """
+        if self.engine:
+            try:
+                self.engine.configure({"UCI_Chess960": "true" if enabled else "false"})
+                logger.debug(f"EngineManager: Successfully set UCI_Chess960 to {enabled}")
+            except Exception as e:
+                # Stockfish 16+ manages UCI_Chess960 automatically.
+                # Throwing here is harmless — the engine auto-detects Chess960
+                # from the UCI position command.
+                logger.debug(f"EngineManager: Cannot set UCI_Chess960 (auto-managed): {e}")
+
     def apply_settings(self, threads: int, hash_mb: int) -> None:
         """Apply the given Threads/Hash to the running engine (if any).
 

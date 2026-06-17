@@ -399,6 +399,7 @@ class MoveListPanel(QWidget):
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
+        self.live_worker.set_chess960(game_analysis.metadata.chess960)
         self.refresh()
         
     def refresh(self):
@@ -900,8 +901,15 @@ class GenerateSummaryThread(QThread):
             import chess.pgn
             from io import StringIO
 
-            board = chess.Board()
+            is_chess960 = self.game.metadata.chess960
+            if self.game.metadata.starting_fen:
+                board = chess.Board(self.game.metadata.starting_fen, chess960=is_chess960)
+            else:
+                board = chess.Board(chess960=is_chess960)
             pgn_game = chess.pgn.Game()
+            if self.game.metadata.starting_fen:
+                pgn_game.headers["SetUp"] = "1"
+                pgn_game.headers["FEN"] = self.game.metadata.starting_fen
             node = pgn_game
             for move in self.game.moves:
                 chess_move = chess.Move.from_uci(move.uci) if move.uci else None

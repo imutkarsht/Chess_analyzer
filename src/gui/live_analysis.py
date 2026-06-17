@@ -29,6 +29,7 @@ class LiveAnalysisWorker(QThread):
         self.condition = QWaitCondition()
         self.new_position = False
         self.current_fen = None
+        self.is_chess960 = False
 
     # ------------------------------------------------------------------
     # Config accessors with safe fallbacks.  We isolate the fallback
@@ -89,6 +90,15 @@ class LiveAnalysisWorker(QThread):
             except Exception as e:
                 logger.error(f"Failed to reconfigure live engine: {e}")
         
+    def set_chess960(self, enabled: bool):
+        """Set Chess960 mode. Reconfigures the engine if running."""
+        self.is_chess960 = enabled
+        if self.engine:
+            try:
+                self.engine.configure({"UCI_Chess960": "true" if enabled else "false"})
+            except Exception as e:
+                pass
+
     def set_position(self, fen):
         """Updates the position to analyze."""
         self.mutex.lock()
@@ -134,7 +144,7 @@ class LiveAnalysisWorker(QThread):
                 # Start analysis
                 if fen:
                     try:
-                        board = chess.Board(fen)
+                        board = chess.Board(fen, chess960=self.is_chess960)
                         self.thinking_started.emit()
                         # Finite analysis: calculate incrementally up to selected depth + 10 max
                         with self.engine.analysis(
