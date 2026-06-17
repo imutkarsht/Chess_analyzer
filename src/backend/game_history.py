@@ -46,7 +46,8 @@ class GameHistoryManager:
                 ("termination", "TEXT"),
                 ("opening", "TEXT"),
                 ("starting_fen", "TEXT"),
-                ("source", "TEXT")
+                ("source", "TEXT"),
+                ("chess960", "INTEGER")
             ]
             
             # Check existing columns
@@ -81,9 +82,10 @@ class GameHistoryManager:
             cursor.execute("""
                 INSERT OR REPLACE INTO games (
                     id, white, black, result, date, event, pgn, summary_json, timestamp,
-                    white_elo, black_elo, time_control, eco, termination, opening, starting_fen, source
+                    white_elo, black_elo, time_control, eco, termination, opening, starting_fen, source,
+                    chess960
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 game_id,
                 game_analysis.metadata.white,
@@ -101,7 +103,8 @@ class GameHistoryManager:
                 game_analysis.metadata.termination,
                 game_analysis.metadata.opening,
                 game_analysis.metadata.starting_fen,
-                game_analysis.metadata.source
+                game_analysis.metadata.source,
+                int(game_analysis.metadata.chess960)
             ))
             
             conn.commit()

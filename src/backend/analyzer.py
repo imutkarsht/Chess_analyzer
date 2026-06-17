@@ -121,7 +121,11 @@ class Analyzer:
         logger.info(f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']})")
         self.engine_manager.start_engine()
         
-        board = chess.Board()
+        is_chess960 = game_analysis.metadata.chess960
+        if is_chess960:
+            self.engine_manager.set_chess960_mode(True)
+        
+        board = chess.Board(chess960=is_chess960)
         total_moves = len(game_analysis.moves)
         
         # Initialize stats container
@@ -142,7 +146,6 @@ class Analyzer:
         opening_name = "Unknown Opening"
 
         for i, move_data in enumerate(game_analysis.moves):
-            logger.info(f"Analyzing move {i+1}/{total_moves}: {move_data.san}")
             if callback:
                 callback(i+1, total_moves)
             
@@ -197,10 +200,8 @@ class Analyzer:
         if self.config.get("use_cache", True):
             cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
             if cached_result:
-                logger.info(f"Cache HIT for position: {move_data.san}")
                 return cached_result
         
-        logger.info(f"Cache MISS for position: {move_data.san} - calling engine")
         # Engine analysis
         info_list = self.engine_manager.analyze_position(
             board, 
@@ -327,8 +328,9 @@ class Analyzer:
             
     def _classify_and_calculate_stats(self, game_analysis: GameAnalysis, summary_counts: Dict, final_score):
         """Iterates through moves to calculate win probabilities, classification, and ACPL."""
-        board = chess.Board() # For turn tracking
-        temp_board = chess.Board() # For FEN checks
+        is_chess960 = game_analysis.metadata.chess960
+        board = chess.Board(chess960=is_chess960) # For turn tracking
+        temp_board = chess.Board(chess960=is_chess960) # For FEN checks
         
         in_book = True
         
@@ -427,7 +429,7 @@ class Analyzer:
             if final_score:
                 # Get the FEN after the last move to determine whose turn it is
                 last_move = game_analysis.moves[index]
-                temp_board = chess.Board()
+                temp_board = chess.Board(chess960=game_analysis.metadata.chess960)
                 temp_board.set_fen(last_move.fen_before)
                 temp_board.push_uci(last_move.uci)
                 turn_after_last = temp_board.turn  # Who to move in final position

@@ -56,6 +56,7 @@ class BoardWidget(QWidget):
 
         self.current_move_index = -1
         self.game_moves = []
+        self.is_chess960 = False
 
         self.update_board()
 
@@ -93,7 +94,8 @@ class BoardWidget(QWidget):
         self.eval_bar.setGeometry(0, y_board, eval_w, side)
 
     def load_game(self, game_analysis):
-        self.board = chess.Board()
+        self.is_chess960 = game_analysis.metadata.chess960
+        self.board = chess.Board(chess960=self.is_chess960)
         self.game_moves = game_analysis.moves
         self.current_move_index = -1
         self.update_board()
@@ -106,7 +108,10 @@ class BoardWidget(QWidget):
         If move_index is -1, set to initial position.
         """
         self.current_move_index = move_index
-        self.board.reset()
+        if self.game_moves:
+            self.board = chess.Board(self.game_moves[0].fen_before, chess960=self.is_chess960)
+        else:
+            self.board = chess.Board(chess960=self.is_chess960)
         
         cp = 0.0
         mate = None

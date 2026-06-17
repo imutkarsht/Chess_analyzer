@@ -723,7 +723,9 @@ class MainWindow(QMainWindow):
                 from ..backend.pgn_parser import PGNParser
                 parsed_games = PGNParser.parse_pgn_text(game.pgn_content)
                 if parsed_games:
-                    game.moves = parsed_games[0].moves
+                    parsed = parsed_games[0]
+                    game.moves = parsed.moves
+                    game.metadata.chess960 = parsed.metadata.chess960
             except Exception as e:
                 logger.error(f"Failed to parse PGN for history game: {e}")
                 QMessageBox.warning(self, "Error", "Failed to load game moves.")

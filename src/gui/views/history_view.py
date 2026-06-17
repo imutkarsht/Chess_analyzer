@@ -221,7 +221,8 @@ class HistoryView(QWidget):
                     eco=g_dict.get("eco"),
                     opening=g_dict.get("opening"),
                     termination=g_dict.get("termination"),
-                    source=g_dict.get("source", "file")
+                    source=g_dict.get("source", "file"),
+                    chess960=bool(g_dict.get("chess960", 0))
                 )
                 
                 summary = {}
@@ -393,7 +394,7 @@ class HistoryView(QWidget):
             # Determine fields. We'll use database keys as headers.
             # Sample first game to get keys, but ensure consistent order
             fieldnames = ["id", "white", "black", "result", "date", "event", "white_elo", "black_elo", 
-                          "time_control", "eco", "termination", "opening", "source", "pgn", "summary_json", "timestamp", "starting_fen"]
+                          "time_control", "eco", "termination", "opening", "source", "pgn", "summary_json", "timestamp", "starting_fen", "chess960"]
             
             with open(file_name, mode='w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -455,7 +456,8 @@ class HistoryView(QWidget):
                             termination=row.get("termination"),
                             opening=row.get("opening"),
                             starting_fen=row.get("starting_fen"),
-                            source=row.get("source", "file")
+                            source=row.get("source", "file"),
+                            chess960=row.get("chess960") == "1"
                         )
                         
                         game = GameAnalysis(
