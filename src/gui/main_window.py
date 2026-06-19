@@ -9,27 +9,27 @@ from PyQt6.QtGui import QAction, QIcon, QShortcut, QKeySequence
 from PyQt6.QtWidgets import QMenu
 import shutil
 
-from .board import BoardWidget  # From board package
-from .analysis_view import MoveListPanel, AnalysisPanel
-from .analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
-from .metrics_widget import MetricsWidget
-from .analysis_worker import AnalysisWorker
-from .sidebar import Sidebar
-from .views import HistoryView, SettingsView  # From views package
-from ..backend.pgn_parser import PGNParser
-from ..backend.analyzer import Analyzer
-from ..utils.resources import ResourceManager
-from ..utils.logger import logger
-from ..utils.config import ConfigManager
-from ..backend.engine import EngineManager
-from ..backend.chess_com_api import ChessComAPI
-from ..backend.lichess_api import LichessAPI
-from .styles import Styles
-from .gui_utils import create_button
-from ..backend.models import MoveAnalysis, GameAnalysis, GameMetadata
-from ..backend.game_history import GameHistoryManager
-from ..utils.path_utils import get_resource_path
-from .loading_widget import LoadingOverlay
+from src.gui.board import BoardWidget  # From board package
+from src.gui.views.analysis_view import MoveListPanel, AnalysisPanel
+from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
+from src.gui.views.metrics_view import MetricsWidget
+from src.gui.analysis.analysis_worker import AnalysisWorker
+from src.gui.components.sidebar import Sidebar
+from src.gui.views import HistoryView, SettingsView  # From views package
+from src.backend.storage.pgn_parser import PGNParser
+from src.backend.analysis.analyzer import Analyzer
+from src.utils.resources import ResourceManager
+from src.utils.logger import logger
+from src.utils.config import ConfigManager
+from src.backend.analysis.engine import EngineManager
+from src.backend.api.chess_com_api import ChessComAPI
+from src.backend.api.lichess_api import LichessAPI
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button
+from src.backend.storage.models import MoveAnalysis, GameAnalysis, GameMetadata
+from src.backend.storage.game_history import GameHistoryManager
+from src.utils.path_utils import get_resource_path
+from src.gui.components.loading_widget import LoadingOverlay
 
 
 
@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
     
     def _start_update_check(self):
         """Actually start the update check."""
-        from ..backend.update_checker import UpdateCheckerWorker
+        from src.backend.updater.update_checker import UpdateCheckerWorker
         
         self.update_worker = UpdateCheckerWorker()
         self.update_worker.update_checked.connect(self.on_update_checked)
@@ -485,7 +485,7 @@ class MainWindow(QMainWindow):
         a profile. The new GroqService() reads its settings from the
         ConfigManager itself, so we don't have to pass anything here.
         """
-        from ..backend.groq_service import GroqService
+        from src.backend.services.groq_service import GroqService
         logger.info("Updating LLM configuration in all views...")
         if hasattr(self, 'metrics_view') and hasattr(self.metrics_view, 'groq_service'):
             self.metrics_view.groq_service = GroqService()
@@ -702,7 +702,7 @@ class MainWindow(QMainWindow):
         Common pattern: Parse PGN text, attach source data, load first game.
         Returns True on success, False on failure.
         """
-        from ..backend.pgn_parser import PGNParser
+        from src.backend.storage.pgn_parser import PGNParser
         self.games = PGNParser.parse_pgn_text(pgn_text)
         if self.games:
             if source_data:
@@ -720,7 +720,7 @@ class MainWindow(QMainWindow):
         # If game has no moves but has PGN content (loaded from history), parse it
         if not game.moves and game.pgn_content:
             try:
-                from ..backend.pgn_parser import PGNParser
+                from src.backend.storage.pgn_parser import PGNParser
                 parsed_games = PGNParser.parse_pgn_text(game.pgn_content)
                 if parsed_games:
                     parsed = parsed_games[0]

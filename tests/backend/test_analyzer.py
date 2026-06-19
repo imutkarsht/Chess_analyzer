@@ -1,7 +1,7 @@
 import pytest
-from src.backend.analyzer import Analyzer
-from src.backend.models import GameAnalysis, GameMetadata, MoveAnalysis
-from src.backend.engine import EngineManager
+from src.backend.analysis.analyzer import Analyzer
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.backend.analysis.engine import EngineManager
 
 def test_analyzer_init(mock_engine):
     """Test Analyzer initialization."""
@@ -10,19 +10,18 @@ def test_analyzer_init(mock_engine):
     analyzer = Analyzer(engine_manager)
     assert analyzer is not None
 
-def test_get_win_probability(mock_engine):
+from src.backend.analysis.math_utils import get_win_probability
+
+def test_get_win_probability():
     """Test win probability calculation."""
-    engine_manager = EngineManager("dummy_path")
-    analyzer = Analyzer(engine_manager)
-    
     # Test CP values
-    assert 0.4 < analyzer.get_win_probability(0, None) < 0.6  # Equal position
-    assert analyzer.get_win_probability(100, None) > 0.5      # White advantage
-    assert analyzer.get_win_probability(-100, None) < 0.5     # Black advantage
+    assert 0.4 < get_win_probability(0, None) < 0.6  # Equal position
+    assert get_win_probability(100, None) > 0.5      # White advantage
+    assert get_win_probability(-100, None) < 0.5     # Black advantage
     
     # Test Mate values
-    assert analyzer.get_win_probability(None, 1) > 0.9        # Mate in 1 for White
-    assert analyzer.get_win_probability(None, -1) < 0.1       # Mate in 1 for Black
+    assert get_win_probability(None, 1) > 0.9        # Mate in 1 for White
+    assert get_win_probability(None, -1) < 0.1       # Mate in 1 for Black
 
 def test_process_analysis_results(mock_engine):
     import chess

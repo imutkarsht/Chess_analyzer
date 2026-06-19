@@ -3,8 +3,8 @@ Game navigation controls widget.
 """
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton
 from PyQt6.QtCore import pyqtSignal, Qt
-from ..styles import Styles
-from ..gui_utils import create_button
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button
 
 
 class GameControlsWidget(QWidget):

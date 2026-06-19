@@ -1,11 +1,11 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox, QLineEdit, QPushButton, QFrame
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QIcon
-from ..game_list import GameListWidget
-from ..styles import Styles
-from ..gui_utils import create_button, create_combobox
-from ...backend.game_history import GameHistoryManager
-from ...backend.models import GameAnalysis, GameMetadata
+from src.gui.components.game_list_widget import GameListWidget
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button, create_combobox
+from src.backend.storage.game_history import GameHistoryManager
+from src.backend.storage.models import GameAnalysis, GameMetadata
 import json
 import logging
 import re

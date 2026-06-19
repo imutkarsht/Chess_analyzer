@@ -27,7 +27,16 @@ Chess_analyzer/
 ├── assets/                 # Static resources (images, icons, sounds)
 ├── src/                    # Source code
 │   ├── backend/            # Core logic, analysis, and data handling
+│   │   ├── analysis/       # Engine, move analysis, move classification, math helpers
+│   │   ├── api/            # Chess.com & Lichess API integrations
+│   │   ├── storage/        # Game history, caching, parsing, data models
+│   │   ├── services/       # External services (Groq AI Coach)
+│   │   └── updater/        # In-app desktop updater
 │   ├── gui/                # User Interface components (PyQt6)
+│   │   ├── views/          # Main page views (Analyze, History, Stats, Settings)
+│   │   ├── components/     # Reusable layout and dashboard card widgets
+│   │   ├── analysis/       # Background analysis threads and workers
+│   │   └── utils/          # GUI-specific layout and widget factories
 │   └── utils/              # Helper functions (logging, config, paths)
 ├── tests/                  # Unit and integration tests
 ├── main.py                 # Application entry point
@@ -57,28 +66,26 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 
 | File | Purpose |
 | :--- | :--- |
-| **`analyzer.py`** | **Core Logic.** Contains the `Analyzer` class. It manages the analysis loop, calculates win probabilities, determines move accuracy (0-100%), and classifies moves (Best, Mistake, etc.). |
-| **`engine.py`** | **Stockfish Wrapper.** Manages the Stockfish process. Handles starting/stopping the engine and sending UCI commands via `python-chess`. |
-| **`models.py`** | **Data Structures.** Defines `GameAnalysis`, `MoveAnalysis`, and `GameMetadata` dataclasses. These objects are passed around the entire app. |
-| **`pgn_parser.py`** | **PGN Handling.** Reads and parses `.pgn` files or text into `GameAnalysis` objects. |
-
-| **`chess_com_api.py`** | **Chess.com Integration.** Fetches recent games or specific games from Chess.com using their public API. |
-| **`lichess_api.py`** | **Lichess Integration.** Fetches recent games from Lichess.org users. |
-| **`groq_service.py`** | **AI Summaries.** Connects to Groq's API to generate text summaries of the game based on the analysis data. |
-
-| **`cache.py`** | **Performance.** Caches engine analysis results to avoid re-analyzing known positions. |
+| **[`analyzer.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/analysis/analyzer.py)** | **Core Logic.** Manages the analysis loop, calculates win probabilities, determines move accuracy (0-100%), and classifies moves. |
+| **[`engine.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/analysis/engine.py)** | **Stockfish Wrapper.** Manages the Stockfish process. Handles starting/stopping the engine and sending UCI commands. |
+| **[`models.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/models.py)** | **Data Structures.** Defines `GameAnalysis`, `MoveAnalysis`, and `GameMetadata` dataclasses. |
+| **[`pgn_parser.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/pgn_parser.py)** | **PGN Handling.** Reads and parses `.pgn` files or text into `GameAnalysis` objects. |
+| **[`chess_com_api.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/api/chess_com_api.py)** | **Chess.com Integration.** Fetches recent games or specific games from Chess.com. |
+| **[`lichess_api.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/api/lichess_api.py)** | **Lichess Integration.** Fetches recent games from Lichess.org users. |
+| **[`groq_service.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/services/groq_service.py)** | **AI Summaries.** Connects to Groq's API to generate text summaries of the game. |
+| **[`cache.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/cache.py)** | **Performance.** Caches engine analysis results to avoid re-analyzing known positions. |
 
 ### `src/gui/` (The Face)
 
 | File | Purpose |
 | :--- | :--- |
-| **`main_window.py`** | **Main Application.** Sets up the window, sidebar, and orchestrates the interaction between different views. It handles global events like key presses and menu actions. |
-| **`analysis_view.py`** | **Analysis Dashboard.** Contains the `AnalysisPanel`, `MoveListPanel`, and `StatCard` widgets. This is where the user spends most of their time. |
-| **`board_widget.py`** | **Chess Board.** Renders the board and pieces. Handles piece movement (if interactive) and board flipping. |
-| **`graph_widget.py`** | **Evaluation Graph.** Draws the visual evaluation chart using Matplotlib. |
-| **`metrics_widget.py`** | **Statistics.** Displays aggregate statistics across multiple games, including performance by piece color (White vs Black). |
-| **`styles.py`** | **Theming.** Contains CSS-like stylesheets (QSS) for the application. Defines colors, fonts, and widget styles. |
-| **`splash_screen.py`** | **Startup Screen.** Displays a branded splash screen during application initialization. |
+| **[`main_window.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/main_window.py)** | **Main Application.** Sets up the window, sidebar, and orchestrates the interaction between different views. |
+| **[`analysis_view.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/views/analysis_view.py)** | **Analysis Dashboard.** Re-exports the `AnalysisPanel` and `MoveListPanel` views. |
+| **[`board_widget.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/board/board_widget.py)** | **Chess Board.** Renders the board and pieces, and handles flipping. |
+| **[`graph_widget.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/graph_widget.py)** | **Evaluation Graph.** Draws the visual evaluation chart using Matplotlib. |
+| **[`metrics_view.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/views/metrics_view.py)** | **Statistics Dashboard.** Coordinates the decomposed metrics dashboard card widgets under `src/gui/views/metrics/`. |
+| **[`styles.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/styles.py)** | **Theming.** Contains CSS-like stylesheets (QSS) for the application. |
+| **[`splash_screen.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/splash_screen.py)** | **Startup Screen.** Displays a branded splash screen. |
 | **`themes.py`** | **Board & Piece Themes.** Manages board color themes and piece set options for user customization. |
 
 ### `src/utils/` (The Helpers)
@@ -95,18 +102,16 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 ## 5. How-To Guides (Making Changes)
 
 ### Scenario A: I want to change how "Blunders" are defined.
-**File to modify:** `src/backend/analyzer.py`
-1.  Open `analyzer.py`.
-2.  Locate the `_classify_move` method (or the logic inside `analyze_game` loop).
-3.  Look for the thresholds logic (e.g., `if wpl >= 0.20: move.classification = "Blunder"`).
-4.  Adjust the `0.20` value. Lower means stricter (more blunders), higher means more lenient.
+**File to modify:** `src/backend/analysis/move_classifier.py`
+1.  Open `move_classifier.py`.
+2.  Locate the classification logic and threshold constants.
+3.  Adjust the thresholds to make them stricter or more lenient.
 
 ### Scenario B: I want to add a new column to the Move List.
-**Files to modify:** `src/gui/analysis_view.py`
-1.  Open `analysis_view.py`.
-2.  Find the `MoveListPanel` class.
-3.  In `__init__`, update `self.table.setColumnCount(3)` to `4` and add a header label.
-4.  In `refresh` or `_set_move_item`, add logic to populate the new column (e.g., `self.table.setItem(row, 3, newItem)`).
+**Files to modify:** `src/gui/analysis/move_list_panel.py`
+1.  Open `move_list_panel.py`.
+2.  In `__init__`, update the table columns configuration and headers.
+3.  Update the populate logic to draw the new column item.
 
 ### Scenario C: I want to change the app's color theme.
 **File to modify:** `src/gui/styles.py`

@@ -2,8 +2,8 @@
 Tests for PGN Parser - parsing, source detection, edge cases.
 """
 import pytest
-from src.backend.pgn_parser import PGNParser
-from src.backend.models import GameAnalysis
+from src.backend.storage.pgn_parser import PGNParser
+from src.backend.storage.models import GameAnalysis
 
 
 class TestPGNParsing:
@@ -106,22 +106,22 @@ class TestClockParser:
     """Unit tests for the private _parse_clk helper."""
 
     def test_no_comment_returns_none_pair(self):
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         assert _parse_clk(None) == (None, None)
         assert _parse_clk("") == (None, None)
 
     def test_comment_without_clk_returns_none_pair(self):
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         assert _parse_clk("Some unrelated comment") == (None, None)
 
     def test_standard_chesscom_format(self):
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         raw, secs = _parse_clk("[%clk 0:09:56.1]")
         assert raw == "0:09:56.1"
         assert secs == pytest.approx(9 * 60 + 56.1)
 
     def test_whole_seconds_only(self):
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         raw, secs = _parse_clk("[%clk 1:23:45]")
         assert raw == "1:23:45"
         assert secs == 3600 + 23 * 60 + 45
@@ -129,20 +129,20 @@ class TestClockParser:
     def test_minute_overflow_is_rejected(self):
         """[0:99:00] would be a malformed clock and must not silently
         produce 99 minutes of 'time spent'."""
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         assert _parse_clk("[%clk 0:99:00]") == (None, None)
 
     def test_second_overflow_is_rejected(self):
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         assert _parse_clk("[%clk 0:00:99]") == (None, None)
 
     def test_minute_overflow_with_decimal_seconds_still_rejected(self):
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         assert _parse_clk("[%clk 0:99:00.5]") == (None, None)
 
     def test_picks_first_clk_in_multi_comment(self):
         """When a comment has multiple %clk tags, return the first one."""
-        from src.backend.pgn_parser import _parse_clk
+        from src.backend.storage.pgn_parser import _parse_clk
         raw, secs = _parse_clk("blabla [%clk 0:00:10] extra [%clk 0:00:05]")
         assert raw == "0:00:10"
         assert secs == pytest.approx(10.0)

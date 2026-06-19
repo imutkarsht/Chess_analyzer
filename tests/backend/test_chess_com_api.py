@@ -1,5 +1,4 @@
-import pytest
-from src.backend.chess_com_api import ChessComAPI
+from src.backend.api.chess_com_api import ChessComAPI
 
 def test_get_last_games(mock_requests):
     """Test fetching last games."""

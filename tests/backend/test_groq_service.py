@@ -4,10 +4,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from src.backend.groq_service import (
-    GroqService,
-    PROVIDERS,
-)
+from src.backend.services.groq_service import GroqService
+from src.constants import PROVIDERS
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +40,7 @@ def fake_config(monkeypatch):
         )
         return cfg
 
-    monkeypatch.setattr("src.backend.groq_service.ConfigManager", _factory)
+    monkeypatch.setattr("src.backend.services.groq_service.ConfigManager", _factory)
     _set(_FakeProfile())  # default: empty profile
     return _set
 
@@ -99,7 +97,7 @@ class TestGroqService:
             def __init__(self, **kwargs):
                 captured.update(kwargs)
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", _FakeOpenAI)
         service = GroqService()
         assert service.client is not None
         assert captured["api_key"] == "gsk_real_key"
@@ -114,7 +112,7 @@ class TestGroqService:
             def __init__(self, **kwargs):
                 captured.update(kwargs)
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", _FakeOpenAI)
         service = GroqService()
         assert service.client is not None
         assert captured["base_url"] == PROVIDERS["lmstudio"]["base_url"]
@@ -133,7 +131,7 @@ class TestGroqService:
             def __init__(self, **kwargs):
                 captured.update(kwargs)
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", _FakeOpenAI)
         service = GroqService()
         assert service._provider == "custom"
         # Trailing slash + /chat/completions must be stripped before use.
@@ -149,7 +147,7 @@ class TestGroqService:
             def __init__(self, **kwargs):
                 captured.update(kwargs)
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", _FakeOpenAI)
         service = GroqService()
         assert service.client is not None
         assert captured["api_key"] == "env-groq-key"
@@ -167,7 +165,7 @@ class TestGroqService:
             def __init__(self, **kwargs):
                 captured.update(kwargs)
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", _FakeOpenAI)
         service = GroqService()
         assert service.client is not None
         assert captured["api_key"] == "sk-proj-key123"
@@ -183,7 +181,7 @@ class TestGroqService:
             def __init__(self, **kwargs):
                 captured.update(kwargs)
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", _FakeOpenAI)
         service = GroqService()
         assert service.client is not None
         assert captured["api_key"] == "env-openai-key"
@@ -197,7 +195,7 @@ class TestGroqService:
             def __init__(self, **kwargs):
                 captured.append(kwargs)
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", _FakeOpenAI)
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", _FakeOpenAI)
         service = GroqService()
         assert service.client is not None
         service.configure(provider="groq", api_key="second", model="m2", base_url="")
@@ -241,7 +239,7 @@ class TestGroqService:
                 self.chat = MagicMock()
                 self.chat.completions = _FakeChatCompletions()
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", lambda **kw: _FakeClient())
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", lambda **kw: _FakeClient())
         service = GroqService()
         huge_pgn = "1. " + ("e4 " * 20_000)
         service.generate_summary(huge_pgn, "analysis")
@@ -272,7 +270,7 @@ class TestGroqService:
                 self.chat = MagicMock()
                 self.chat.completions = _FakeChatCompletions()
 
-        monkeypatch.setattr("src.backend.groq_service.OpenAI", lambda **kw: _FakeClient())
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", lambda **kw: _FakeClient())
         service = GroqService()
         out = service.generate_summary("1. e4 e5", "analysis")
         assert "Sharp" in out

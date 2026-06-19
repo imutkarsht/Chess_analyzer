@@ -1,7 +1,7 @@
 import pytest
 import os
-from src.backend.game_history import GameHistoryManager
-from src.backend.models import GameAnalysis, GameMetadata
+from src.backend.storage.game_history import GameHistoryManager
+from src.backend.storage.models import GameAnalysis, GameMetadata
 
 @pytest.fixture
 def temp_db(tmp_path):
