@@ -299,3 +299,12 @@ class GameListWidget(QWidget):
                 background-color: {Styles.COLOR_SURFACE};
             }}
         """)
+
+    def refresh_styles(self):
+        """Re-applies styles on theme change."""
+        self._apply_title_style()
+        self._apply_list_style()
+        self._pagination_bar.setStyleSheet(
+            f"background-color: {Styles.COLOR_SURFACE}; border-top: 1px solid {Styles.COLOR_BORDER};"
+        )
+        self._render_page()
