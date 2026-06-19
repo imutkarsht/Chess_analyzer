@@ -10,6 +10,16 @@ from ..utils.config import ConfigManager
 from typing import Optional, List, Dict
 import math
 
+from .math_utils import (
+    get_win_probability,
+    calculate_move_accuracy,
+    get_cp,
+    calculate_volatility_weights,
+    weighted_mean,
+    harmonic_mean
+)
+from .move_classifier import classify_move
+
 class Analyzer:
     def __init__(self, engine_manager: EngineManager):
         self.engine_manager = engine_manager
@@ -28,60 +38,6 @@ class Analyzer:
             "multi_pv": self.config_manager.get("multi_pv", 1),
             "use_cache": True
         }
-
-    def get_win_probability(self, cp: Optional[int], mate: Optional[int]) -> float:
-        """
-        Calculates win probability from centipawns or mate score.
-        Returns value between 0.0 and 1.0.
-        """
-        if mate is not None:
-            # Mate in X
-            if mate > 0:
-                return 1.0
-            elif mate < 0:
-                return 0.0
-            else:
-                return 0.0
-
-        if cp is None:
-            return 0.5
-            
-        try:
-            multiplier = -0.00368208 * cp
-            # If multiplier is too large/small, exp will overflow/underflow
-            if multiplier > 40: 
-                return 0.0 
-            if multiplier < -40: 
-                return 1.0 
-                
-            win_percent = 50 + 50 * (2 / (1 + math.exp(multiplier)) - 1)
-            return win_percent / 100.0
-        except OverflowError:
-            return 1.0 if cp > 0 else 0.0
-
-    def _calculate_move_accuracy(self, win_prob_before: float, win_prob_after: float) -> float:
-        """
-        Calculates accuracy of a single move.
-        Based on Lichess formula but with stricter decay to match Chess.com better.
-        """
-        wp_before = win_prob_before * 100.0
-        wp_after = win_prob_after * 100.0
-        
-        diff = wp_before - wp_after
-        if diff <= 0:
-            return 100.0  # Improvement or equal = perfect accuracy
-        
-        # Moderate decay constant (0.05) - between Lichess and Chess.com
-        raw = 103.1668 * math.exp(-0.05 * diff) - 3.1669
-        
-        return max(0.0, min(100.0, raw))
-
-    @staticmethod
-    def _get_cp(cp, mate):
-        """Convert score to centipawns, capping mate values."""
-        if mate is not None:
-            return 2000 if mate > 0 else -2000
-        return cp if cp is not None else 0
 
     def analyze_game(self, game_analysis: GameAnalysis, callback=None):
         """
@@ -351,8 +307,8 @@ class Analyzer:
             move.eval_after_mate = s2_mate
             
             # Win Probabilities
-            wp_before = self.get_win_probability(s1_cp, s1_mate)
-            wp_after = self.get_win_probability(s2_cp, s2_mate)
+            wp_before = get_win_probability(s1_cp, s1_mate)
+            wp_after = get_win_probability(s2_cp, s2_mate)
             
             move.win_chance_before = wp_before
             move.win_chance_after = wp_after
@@ -366,7 +322,7 @@ class Analyzer:
             if wpl < 0: wpl = 0
             
             # Classification
-            self._classify_move(move, wpl, side, move.multi_pvs)
+            classify_move(move, wpl, side, move.multi_pvs)
             
             # Update counts
             summary_counts[side][move.classification] += 1
@@ -388,7 +344,7 @@ class Analyzer:
             player_wp_after = wp_after if side == "white" else (1.0 - wp_after)
             
             # Calculate raw accuracy
-            move_acc = self._calculate_move_accuracy(player_wp_before, player_wp_after)
+            move_acc = calculate_move_accuracy(player_wp_before, player_wp_after)
             
             # Override accuracy for special cases:
             # 1. Book moves get 100% (theoretical opening theory)
@@ -418,7 +374,7 @@ class Analyzer:
             # Advance board for turn tracking for next move logic
             board.set_fen(move.fen_before)
             board.push_uci(move.uci)
-
+ 
     def _get_next_eval(self, game_analysis, index, final_score, current_board_context):
         """Determines the evaluation of the position AFTER the move."""
         if index < len(game_analysis.moves) - 1:
@@ -450,11 +406,11 @@ class Analyzer:
                 return s2_cp, s2_mate
             else:
                 return None, None
-
+ 
     def _update_acpl(self, summary_counts, side, s1_cp, s1_mate, s2_cp, s2_mate):
         """Calculates and updates ACPL stats."""
-        val_s1 = self._get_cp(s1_cp, s1_mate)
-        val_s2 = self._get_cp(s2_cp, s2_mate)
+        val_s1 = get_cp(s1_cp, s1_mate)
+        val_s2 = get_cp(s2_cp, s2_mate)
         
         if side == "white":
             cp_loss = val_s1 - val_s2
@@ -465,7 +421,7 @@ class Analyzer:
         if cp_loss > 1000: cp_loss = 1000
         
         summary_counts[side]["acpl"] += cp_loss
-
+ 
     def _check_book_move(self, move, side, summary_counts):
         """Checks and updates book move status. Returns (in_book, opening_name)."""
         name = self.book_manager.get_opening_name(move.fen_before, move.uci)
@@ -475,7 +431,7 @@ class Analyzer:
             summary_counts[side]["Book"] += 1
             return True, name
         return False, None
-
+ 
     def _calculate_final_accuracy(self, summary_counts):
         """
         Calculates final game accuracy using Lichess algorithm:
@@ -498,16 +454,16 @@ class Analyzer:
                     
                     # Calculate sliding window volatility weights
                     window_size = max(2, min(8, len(accuracies) // 10))
-                    weights = self._calculate_volatility_weights(win_percents, window_size)
+                    weights = calculate_volatility_weights(win_percents, window_size)
                     
                     # Volatility-weighted mean
-                    weighted_mean = self._weighted_mean(capped_accs, weights)
+                    weighted_mean_val = weighted_mean(capped_accs, weights)
                     
                     # Harmonic mean
-                    harmonic_mean = self._harmonic_mean(capped_accs)
+                    harmonic_mean_val = harmonic_mean(capped_accs)
                     
                     # Final accuracy = average of both
-                    accuracy = (weighted_mean + harmonic_mean) / 2
+                    accuracy = (weighted_mean_val + harmonic_mean_val) / 2
                 elif len(accuracies) == 1:
                     accuracy = accuracies[0]
                 else:
@@ -516,207 +472,4 @@ class Analyzer:
                 summary_counts[side]["accuracy"] = max(0, min(100, accuracy))
             else:
                 summary_counts[side]["accuracy"] = 0
-    
-    def _calculate_volatility_weights(self, win_percents: List[float], window_size: int) -> List[float]:
-        """
-        Calculates volatility weights based on sliding window standard deviation.
-        Higher volatility = higher weight (more important positions).
-        """
-        if len(win_percents) < window_size:
-            return [1.0] * len(win_percents)
-        
-        # Create windows - pad the beginning with copies of the first window
-        wp_values = [wp * 100 for wp in win_percents]  # Convert to percentage
-        
-        windows = []
-        # Pad beginning
-        first_window = wp_values[:window_size] if len(wp_values) >= window_size else wp_values
-        for _ in range(min(window_size - 1, len(wp_values))):
-            windows.append(first_window)
-        
-        # Sliding windows
-        for i in range(len(wp_values) - window_size + 1):
-            windows.append(wp_values[i:i + window_size])
-        
-        # Ensure we have exactly the right number of windows
-        windows = windows[:len(win_percents)]
-        
-        # Calculate standard deviation for each window as the weight
-        weights = []
-        for window in windows:
-            std_dev = self._std_dev(window)
-            # Clamp weight between 0.5 and 12 (as per Lichess source)
-            weight = max(0.5, min(12.0, std_dev))
-            weights.append(weight)
-        
-        return weights
-    
-    def _weighted_mean(self, values: List[float], weights: List[float]) -> float:
-        """Calculates weighted arithmetic mean."""
-        if not values or not weights:
-            return 0.0
-        
-        # Ensure same length
-        min_len = min(len(values), len(weights))
-        values = values[:min_len]
-        weights = weights[:min_len]
-        
-        total_weight = sum(weights)
-        if total_weight == 0:
-            return sum(values) / len(values) if values else 0.0
-        
-        weighted_sum = sum(v * w for v, w in zip(values, weights))
-        return weighted_sum / total_weight
-    
-    def _harmonic_mean(self, values: List[float]) -> float:
-        """Calculates harmonic mean, handling zeros gracefully."""
-        if not values:
-            return 0.0
-        
-        # Filter out zeros/negatives to avoid division errors
-        positive_values = [v for v in values if v > 0]
-        if not positive_values:
-            return 0.0
-        
-        reciprocal_sum = sum(1.0 / v for v in positive_values)
-        return len(positive_values) / reciprocal_sum
-    
-    def _std_dev(self, values: List[float]) -> float:
-        """Calculates standard deviation."""
-        if len(values) < 2:
-            return 0.0
-        
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / len(values)
-        return math.sqrt(variance)
-
-
-
-
-    def _classify_move(self, move: MoveAnalysis, wpl: float, side: str, multi_pvs: List[Dict] = None):
-        """
-        Classifies a move based on Win Probability Loss (WPL).
-        
-        Classification priority (checked in order):
-        1. Delivering checkmate -> Best
-        2. Best move (matches engine) -> Best/Great
-        3. Missed forced mate -> Miss
-        4. Missed winning position -> Miss  
-        5. WPL thresholds -> Blunder/Mistake/Inaccuracy/Good/Excellent
-        """
-        # Calculate player-relative win chances
-        player_wc_before = move.win_chance_before if side == "white" else (1.0 - move.win_chance_before)
-        player_wc_after = move.win_chance_after if side == "white" else (1.0 - move.win_chance_after)
-        
-        # ============ PRIORITY 1: Delivering Checkmate ============
-        # If player delivered checkmate, this is always "Best"
-        # For white: eval_after_mate > 0 means White has mate
-        # For black: eval_after_mate < 0 means Black has mate
-        if move.eval_after_mate is not None:
-            if (side == "white" and move.eval_after_mate > 0) or \
-               (side == "black" and move.eval_after_mate < 0):
-                move.classification = "Best"
-                move.explanation = "Delivered checkmate!"
-                return
-        
-        # Also check if position after is completely won (mate in X)
-        if player_wc_after >= 0.99:
-            move.classification = "Best"
-            move.explanation = "Winning position maintained."
-            return
-            
-        # ============ PRIORITY 2: Best Move Check ============
-        if move.uci == move.best_move:
-            # Check for "Brilliant" or "Great" move - significantly better than alternatives
-            if multi_pvs and len(multi_pvs) > 1:
-                sb_data = multi_pvs[1]
-                sb_cp = sb_data.get("cp")
-                sb_mate = sb_data.get("mate")
-                
-                if sb_cp is not None or sb_mate is not None:
-                    # Normalize second-best score to player's perspective
-                    norm_sb_cp = sb_cp
-                    norm_sb_mate = sb_mate
-                    
-                    if side == "black":
-                        if norm_sb_cp is not None: norm_sb_cp = -norm_sb_cp
-                        if norm_sb_mate is not None: norm_sb_mate = -norm_sb_mate
-                        
-                    sb_wp = self.get_win_probability(norm_sb_cp, norm_sb_mate)
-                    player_sb_wp = sb_wp if side == "white" else (1.0 - sb_wp)
-                    player_best_wp = player_wc_after
-                    
-                    # Calculate gap between best and second-best
-                    diff = player_best_wp - player_sb_wp
-                    
-                    # Brilliant: Extremely rare - only for truly exceptional moves
-                    # Requirements:
-                    # 1. Massive gap (>40%) between best and second-best move
-                    # 2. Move must improve position by at least 10%
-                    # 3. Player wasn't already completely winning (under 90% before)
-                    # 4. Position after must be strong (at least 50% win chance)
-                    position_improved = player_wc_after > player_wc_before + 0.10
-                    not_already_winning = player_wc_before < 0.90
-                    strong_after = player_wc_after >= 0.50
-                    
-                    if diff > 0.40 and position_improved and not_already_winning and strong_after:
-                        move.classification = "Brilliant"
-                        move.explanation = f"Brilliant! Only winning move. Alternatives were {diff*100:.0f}% worse."
-                        return
-                    
-                    # Great: Significant gap (>15%) between best and second-best
-                    if diff > 0.15:
-                        move.classification = "Great"
-                        move.explanation = f"Only good move! Alternatives were {diff*100:.0f}% worse."
-                        return
-
-            move.classification = "Best"
-            move.explanation = "Engine's top choice."
-            return
-            
-        # ============ PRIORITY 3: Missed Forced Mate ============
-        # Player had mate before but doesn't after
-        player_had_mate = (move.eval_before_mate is not None and 
-                          ((side == "white" and move.eval_before_mate > 0) or
-                           (side == "black" and move.eval_before_mate < 0)))
-        player_has_mate = (move.eval_after_mate is not None and
-                          ((side == "white" and move.eval_after_mate > 0) or
-                           (side == "black" and move.eval_after_mate < 0)))
-        
-        if player_had_mate and not player_has_mate:
-            move.classification = "Miss"
-            move.explanation = "Missed a forced checkmate."
-            return
-
-        # ============ PRIORITY 4: Missed Winning Position ============
-        # Was clearly winning (>80%) and now not winning (<60%)
-        if player_wc_before > 0.80 and player_wc_after < 0.60:
-            move.classification = "Miss"
-            move.explanation = f"Missed win (dropped from {player_wc_before*100:.0f}% to {player_wc_after*100:.0f}%)."
-            return
-        
-        # Was winning (>70%) and lost significant equity (>20%)
-        if player_wc_before > 0.70 and wpl > 0.20:
-            move.classification = "Miss"
-            move.explanation = f"Missed winning opportunity (lost {wpl*100:.0f}% winning chances)."
-            return
-
-        # ============ PRIORITY 5: WPL-Based Classification ============
-        # Thresholds tuned to match Chess.com more closely
-        # Raised thresholds to reduce over-classification of inaccuracies
-        if wpl >= 0.20:
-            move.classification = "Blunder"
-            move.explanation = f"Lost {wpl*100:.1f}% winning chances."
-        elif wpl >= 0.10:
-            move.classification = "Mistake"
-            move.explanation = f"Lost {wpl*100:.1f}% winning chances."
-        elif wpl >= 0.05:
-            move.classification = "Inaccuracy"
-            move.explanation = f"Slight inaccuracy ({wpl*100:.1f}% loss)."
-        elif wpl >= 0.02:
-            move.classification = "Good"
-            move.explanation = "Solid move."
-        else:
-            move.classification = "Excellent"
-            move.explanation = "Excellent move."
 
