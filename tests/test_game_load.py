@@ -1,6 +1,6 @@
 import pytest
-from src.backend.pgn_parser import PGNParser
-from src.backend.models import GameAnalysis
+from src.backend.storage.pgn_parser import PGNParser
+from src.backend.storage.models import GameAnalysis
 
 SAMPLE_PGN = """[Event "Live Chess"]
 [Site "Chess.com"]

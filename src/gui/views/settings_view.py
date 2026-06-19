@@ -5,10 +5,10 @@ Coordinates lay out of settings block sections and handles global settings savin
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFrame, QMessageBox
 from PyQt6.QtCore import pyqtSignal
 
-from ..styles import Styles
-from ..gui_utils import get_resource_path
-from ..components import MasonryLayout
-from ...utils.config import ConfigManager
+from src.gui.styles import Styles
+from src.utils.path_utils import get_resource_path
+from src.gui.components import MasonryLayout
+from src.utils.config import ConfigManager
 
 from .settings import (
     EngineSettings,

@@ -21,7 +21,7 @@ import pytest
 # =====================================================================
 def test_default_threads_capped_for_laptops():
     """Engine must never default to more than 4 threads."""
-    from src.backend.engine import DEFAULT_THREADS
+    from src.backend.analysis.engine import DEFAULT_THREADS
     assert isinstance(DEFAULT_THREADS, int)
     assert DEFAULT_THREADS >= 1
     # The cap is the whole point of the fix; on any sensible machine
@@ -34,7 +34,7 @@ def test_default_threads_capped_for_laptops():
 
 def test_default_hash_is_conservative():
     """Engine must default to a small hash table (64 MB)."""
-    from src.backend.engine import DEFAULT_HASH_MB
+    from src.backend.analysis.engine import DEFAULT_HASH_MB
     assert isinstance(DEFAULT_HASH_MB, int)
     assert DEFAULT_HASH_MB == 64, (
         f"DEFAULT_HASH_MB={DEFAULT_HASH_MB}; expected 64 (issue #5)."
@@ -43,7 +43,7 @@ def test_default_hash_is_conservative():
 
 def test_engine_options_passthrough():
     """engine_options() simply forwards the int values."""
-    from src.backend.engine import engine_options
+    from src.backend.analysis.engine import engine_options
     assert engine_options(2, 128) == {"Threads": 2, "Hash": 128}
 
 
@@ -97,7 +97,7 @@ def test_config_loaded_multi_pv_is_consumed_by_analyzer(monkeypatch, tmp_path):
     # reference; otherwise the analyzer will see the real ConfigManager
     # and hit the real on-disk config.
     from src.utils import config as cfg_mod
-    from src.backend import analyzer as analyzer_mod
+    from src.backend.analysis import analyzer as analyzer_mod
     monkeypatch.setattr(cfg_mod, "ConfigManager", FakeCM)
     monkeypatch.setattr(analyzer_mod, "ConfigManager", FakeCM)
     analyzer = analyzer_mod.Analyzer(engine_manager=None)
@@ -123,7 +123,7 @@ def test_live_worker_defaults_when_no_config(mocker):
     """
     # Patch the engine so SimpleEngine.popen_uci is never actually called
     mocker.patch("chess.engine.SimpleEngine.popen_uci")
-    from src.gui.live_analysis import LiveAnalysisWorker
+    from src.gui.analysis.live_analysis import LiveAnalysisWorker
     worker = LiveAnalysisWorker("/fake/stockfish")
     assert worker._live_time() == 2.0
     assert worker._live_multi_pv() == 1
@@ -134,7 +134,7 @@ def test_live_worker_defaults_when_no_config(mocker):
 def test_live_worker_reads_config(mocker):
     """When a config_manager is provided, the worker honours it."""
     mocker.patch("chess.engine.SimpleEngine.popen_uci")
-    from src.gui.live_analysis import LiveAnalysisWorker
+    from src.gui.analysis.live_analysis import LiveAnalysisWorker
     cm = mocker.Mock()
     cm.get.side_effect = lambda key, default=None: {
         "live_analysis_time": 5.0,
@@ -148,7 +148,7 @@ def test_live_worker_reads_config(mocker):
 def test_live_worker_falls_back_safely_on_garbage_config(mocker):
     """Bad config values (wrong type, non-positive) must not crash."""
     mocker.patch("chess.engine.SimpleEngine.popen_uci")
-    from src.gui.live_analysis import LiveAnalysisWorker
+    from src.gui.analysis.live_analysis import LiveAnalysisWorker
     cm = mocker.Mock()
     cm.get.side_effect = lambda key, default=None: {
         "live_analysis_time": "not-a-number",

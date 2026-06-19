@@ -2,7 +2,7 @@ import chess.engine
 import chess
 import os
 from typing import Optional, Dict, Any, Tuple
-from ..utils.logger import logger
+from src.utils.logger import logger
 
 # Conservative defaults aimed at laptops (incl. fanless MacBook Air).
 # Power users can raise these in Settings; the values here are deliberately

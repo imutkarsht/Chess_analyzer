@@ -26,7 +26,7 @@ from PyQt6.QtGui import QDesktopServices
 
 from ..styles import Styles
 from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
-from ...backend.updater import (    # src/gui/dialogs/ → src/backend/
+from src.backend.updater.updater import (
     DownloadWorker,
     get_download_destination,
     install_and_quit,

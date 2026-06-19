@@ -20,59 +20,10 @@ from typing import Optional
 
 from openai import OpenAI
 
-from ..utils.config import ConfigManager
-from ..utils.logger import logger
+from src.utils.config import ConfigManager
+from src.utils.logger import logger
 
-# ---------------------------------------------------------------------------
-# Provider catalogue — drives both the service logic and the Settings UI.
-# ---------------------------------------------------------------------------
-PROVIDERS: dict[str, dict] = {
-    "groq": {
-        "label": "Groq (Cloud)",
-        "base_url": "https://api.groq.com/openai/v1",
-        "default_model": "llama-3.3-70b-versatile",
-        "requires_key": True,
-        "key_placeholder": "gsk_…",
-        "model_placeholder": "llama-3.3-70b-versatile",
-        "help_url": "https://console.groq.com",
-    },
-    "openai": {
-        "label": "OpenAI (Cloud)",
-        "base_url": "https://api.openai.com/v1",
-        "default_model": "gpt-4o-mini",
-        "requires_key": True,
-        "key_placeholder": "sk-proj-…",
-        "model_placeholder": "gpt-4o-mini",
-        "help_url": "https://platform.openai.com",
-    },
-    "lmstudio": {
-        "label": "LM Studio (Local)",
-        "base_url": "http://localhost:1234/v1",
-        "default_model": "local-model",
-        "requires_key": False,
-        "key_placeholder": "(not required)",
-        "model_placeholder": "local-model",
-        "help_url": "https://lmstudio.ai",
-    },
-    "minimax": {
-        "label": "MiniMax (Cloud)",
-        "base_url": "https://api.minimax.io/v1",   # international; China: api.minimaxi.com/v1
-        "default_model": "MiniMax-M3",
-        "requires_key": True,
-        "key_placeholder": "your MiniMax API key",
-        "model_placeholder": "MiniMax-M3",
-        "help_url": "https://platform.minimax.io",
-    },
-    "custom": {
-        "label": "Custom (OpenAI-compatible)",
-        "base_url": "",
-        "default_model": "",
-        "requires_key": False,
-        "key_placeholder": "API key (if required)",
-        "model_placeholder": "model-name",
-        "help_url": "",
-    },
-}
+from src.constants import PROVIDERS
 
 # ---------------------------------------------------------------------------
 # Language detection
@@ -329,7 +280,6 @@ class GroqService:
     @staticmethod
     def _lang_code() -> str:
         """Two-letter language code (e.g. "de", "en") for the active UI locale."""
-        from .groq_service import _detect_ui_locale_code
         return _detect_ui_locale_code()
 
     @staticmethod

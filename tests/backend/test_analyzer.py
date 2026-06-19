@@ -1,7 +1,7 @@
 import pytest
-from src.backend.analyzer import Analyzer
-from src.backend.models import GameAnalysis, GameMetadata, MoveAnalysis
-from src.backend.engine import EngineManager
+from src.backend.analysis.analyzer import Analyzer
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.backend.analysis.engine import EngineManager
 
 def test_analyzer_init(mock_engine):
     """Test Analyzer initialization."""
@@ -10,7 +10,7 @@ def test_analyzer_init(mock_engine):
     analyzer = Analyzer(engine_manager)
     assert analyzer is not None
 
-from src.backend.math_utils import get_win_probability
+from src.backend.analysis.math_utils import get_win_probability
 
 def test_get_win_probability():
     """Test win probability calculation."""

@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (QLayout, QPushButton, QComboBox, QLineEdit,
                              QLabel, QWidget, QHBoxLayout, QVBoxLayout)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QPainter, QColor, QBrush, QLinearGradient, QIcon
-from ..utils.path_utils import get_resource_path
+from src.utils.path_utils import get_resource_path
 
 
 
@@ -92,7 +92,7 @@ def create_button(
     Returns:
         Configured QPushButton
     """
-    from .styles import Styles  # Import here to avoid circular imports
+    from src.gui.styles import Styles  # Import here to avoid circular imports
     
     btn = QPushButton(f"  {text}" if icon_name else text)
     
@@ -140,7 +140,7 @@ def create_combobox(
     Returns:
         Configured QComboBox
     """
-    from .styles import Styles
+    from src.gui.styles import Styles
     
     combo = QComboBox()
     combo.addItems(items)
@@ -173,7 +173,7 @@ def create_labeled_input(
     Returns:
         Tuple of (QLabel, QLineEdit)
     """
-    from .styles import Styles
+    from src.gui.styles import Styles
     
     label = QLabel(label_text)
     label.setStyleSheet(Styles.get_secondary_label_style())
@@ -205,7 +205,7 @@ def create_section_header(
     Returns:
         QWidget containing the header layout
     """
-    from .styles import Styles
+    from src.gui.styles import Styles
     
     header = QWidget()
     layout = QHBoxLayout(header)
@@ -281,7 +281,7 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
         # Last-resort: don't let a dialog failure propagate into the
         # caller (which may be a worker thread).
         import traceback
-        from ..utils.logger import logger
+        from src.utils.logger import logger
         logger.error("show_error_dialog failed: %s", traceback.format_exc())
 
 
@@ -383,5 +383,5 @@ def format_time_stats_for_llm(moves) -> str:
     return "\n".join(lines)
 
 
-from .analysis.think_time_bar import ThinkTimeBar
-from .analysis.move_cell_widget import MoveCellWidget
+from src.gui.analysis.think_time_bar import ThinkTimeBar
+from src.gui.analysis.move_cell_widget import MoveCellWidget

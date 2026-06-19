@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.backend.book import BookManager
+from src.backend.analysis.book import BookManager
 
 class TestBookManager:
-    @patch('src.backend.book.ConfigManager')
+    @patch('src.backend.analysis.book.ConfigManager')
     def test_get_headers_with_token(self, mock_config):
         """Test headers contain Lichess token from ConfigManager."""
         mock_instance = MagicMock()
@@ -15,7 +15,7 @@ class TestBookManager:
         assert headers["Authorization"] == "Bearer lip_testtoken"
         assert "User-Agent" in headers
 
-    @patch('src.backend.book.ConfigManager')
+    @patch('src.backend.analysis.book.ConfigManager')
     @patch.dict('os.environ', {}, clear=True)
     def test_get_headers_no_token(self, mock_config):
         """Test headers do not contain Authorization when no token is set."""
@@ -27,7 +27,7 @@ class TestBookManager:
         headers = manager._get_headers()
         assert "Authorization" not in headers
 
-    @patch('src.backend.book.ConfigManager')
+    @patch('src.backend.analysis.book.ConfigManager')
     def test_get_opening_name_success(self, mock_config):
         """Test get_opening_name with mocked API response."""
         mock_instance = MagicMock()
@@ -55,7 +55,7 @@ class TestBookManager:
         call_kwargs = manager.session.get.call_args[1]
         assert call_kwargs["headers"]["Authorization"] == "Bearer test_token"
 
-    @patch('src.backend.book.ConfigManager')
+    @patch('src.backend.analysis.book.ConfigManager')
     def test_is_book_move_true(self, mock_config):
         """Test is_book_move returns True if move is in master database."""
         mock_instance = MagicMock()

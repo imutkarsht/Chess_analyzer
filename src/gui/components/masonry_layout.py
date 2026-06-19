@@ -5,10 +5,11 @@ from PyQt6.QtWidgets import QLayout
 from PyQt6.QtCore import Qt, QRect, QSize
 
 class MasonryLayout(QLayout):
-    def __init__(self, parent=None, margin=40, spacing=25):
+    def __init__(self, parent=None, margin=40, spacing=25, min_col_width=340):
         super().__init__(parent)
         self._items = []
         self._spacing = spacing
+        self._min_col_width = min_col_width
         self.setContentsMargins(margin, margin, margin, margin)
 
     def __del__(self):
@@ -68,9 +69,8 @@ class MasonryLayout(QLayout):
         
         available_width = rect.width() - margins.left() - margins.right()
         
-        # We want columns to be at least 340px wide
-        min_col_width = 340
-        num_cols = max(1, available_width // min_col_width)
+        # We want columns to be at least min_col_width wide
+        num_cols = max(1, available_width // self._min_col_width)
         num_cols = min(2, num_cols)
         
         if num_cols > 1:

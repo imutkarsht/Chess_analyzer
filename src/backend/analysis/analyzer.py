@@ -1,12 +1,12 @@
 import chess
 import chess.engine
-from .models import GameAnalysis, MoveAnalysis
+from src.backend.storage.models import GameAnalysis, MoveAnalysis
 from .engine import EngineManager
-from .cache import AnalysisCache
+from src.backend.storage.cache import AnalysisCache
 from .book import BookManager
-from .game_history import GameHistoryManager
-from ..utils.logger import logger
-from ..utils.config import ConfigManager
+from src.backend.storage.game_history import GameHistoryManager
+from src.utils.logger import logger
+from src.utils.config import ConfigManager
 from typing import Optional, List, Dict
 import math
 

@@ -27,7 +27,7 @@ class DataSettings(QGroupBox):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear the analysis cache? This will not delete your game history.",
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            from ....backend.cache import AnalysisCache
+            from src.backend.storage.cache import AnalysisCache
             cache = AnalysisCache()
             cache.clear_cache()
             QMessageBox.information(self, "Success", "Analysis cache cleared.")
@@ -36,8 +36,8 @@ class DataSettings(QGroupBox):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear ALL data? This includes game history and analysis cache. This action cannot be undone.",
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            from ....backend.cache import AnalysisCache
-            from ....backend.game_history import GameHistoryManager
+            from src.backend.storage.cache import AnalysisCache
+            from src.backend.storage.game_history import GameHistoryManager
             
             cache = AnalysisCache()
             cache.clear_cache()

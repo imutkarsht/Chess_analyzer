@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QListWidget, QListWidgetItem, 
                              QPushButton, QHBoxLayout, QLabel, QAbstractItemView, QWidget)
 from PyQt6.QtCore import Qt
-from ..styles import Styles
-from ..gui_utils import create_button
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button
 
 class GameSelectionDialog(QDialog):
     def __init__(self, games_data, parent=None):

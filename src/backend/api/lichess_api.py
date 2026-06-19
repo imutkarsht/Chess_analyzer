@@ -4,13 +4,14 @@ import os
 import sys
 import json
 from typing import List, Dict
-from ..utils.config import ConfigManager
-from ..utils.logger import logger
+from src.utils.config import ConfigManager
+from src.utils.logger import logger
+from src.constants import LICHESS_BASE_URL
 
 from .base_api import BaseChessAPI
 
 class LichessAPI(BaseChessAPI):
-    BASE_URL = "https://lichess.org/api/games/user"
+    BASE_URL = LICHESS_BASE_URL
 
     def __init__(self):
         self.config_manager = ConfigManager()

@@ -39,7 +39,7 @@ class LinksSettings(QGroupBox):
 
     def check_for_updates(self):
         """Manually check for updates."""
-        from ....backend.update_checker import UpdateChecker, APP_VERSION
+        from src.backend.updater.update_checker import UpdateChecker, APP_VERSION
         from ...dialogs import UpdateNotificationDialog
         
         # Show checking message

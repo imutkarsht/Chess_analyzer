@@ -6,7 +6,7 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from .drop_zone import DropZone
 from .inline_game_list import InlineGameList
 from .helpers import classify_time_control
-from ...gui_utils import create_button
+from src.gui.utils.gui_utils import create_button
 
 class PgnFilePanel(QWidget):
     """
@@ -56,7 +56,7 @@ class PgnFilePanel(QWidget):
             self._load_file(path)
 
     def _load_file(self, path: str):
-        from ....backend.pgn_parser import PGNParser
+        from src.backend.storage.pgn_parser import PGNParser
         try:
             games = PGNParser.parse_pgn_file(path)
         except Exception as e:

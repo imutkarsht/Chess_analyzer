@@ -5,12 +5,12 @@ import chess
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QSize, QEvent
 from PyQt6.QtGui import QColor, QBrush
-from ..styles import Styles
-from .move_cell_widget import MoveCellWidget
-from .think_time_bar import ThinkTimeBar
-from ..live_analysis import LiveAnalysisWorker
-from ...utils.resources import ResourceManager
-from ...utils.logger import logger
+from src.gui.styles import Styles
+from src.gui.analysis.move_cell_widget import MoveCellWidget
+from src.gui.analysis.think_time_bar import ThinkTimeBar
+from src.gui.analysis.live_analysis import LiveAnalysisWorker
+from src.utils.resources import ResourceManager
+from src.utils.logger import logger
 
 class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)

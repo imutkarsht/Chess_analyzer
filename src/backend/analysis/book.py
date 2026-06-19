@@ -2,8 +2,8 @@ import os
 import chess
 import requests
 from typing import Optional
-from ..utils.logger import logger
-from ..utils.config import ConfigManager
+from src.utils.logger import logger
+from src.utils.config import ConfigManager
 
 class BookManager:
     def __init__(self):

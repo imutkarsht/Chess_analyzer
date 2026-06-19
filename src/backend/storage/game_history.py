@@ -4,13 +4,13 @@ import uuid
 import time
 from typing import List, Optional, Dict, Any
 from .models import GameAnalysis, GameMetadata, MoveAnalysis
-from ..utils.logger import logger
+from src.utils.logger import logger
 
 class GameHistoryManager:
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
             import os
-            from ..utils.path_utils import get_user_data_dir
+            from src.utils.path_utils import get_user_data_dir
             self.db_path = os.path.join(get_user_data_dir(), "analysis_cache.db")
         else:
             self.db_path = db_path

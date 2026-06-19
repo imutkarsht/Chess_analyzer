@@ -3,8 +3,8 @@ PGN Text panel for the Load Game dialog.
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QMessageBox
 from PyQt6.QtCore import pyqtSignal, Qt
-from ...styles import Styles
-from ...gui_utils import create_button
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button
 from .inline_game_list import InlineGameList
 from .helpers import classify_time_control
 
@@ -72,7 +72,7 @@ class PgnTextPanel(QWidget):
             QMessageBox.warning(self, "Empty", "Please paste some PGN text first.")
             return
 
-        from ....backend.pgn_parser import PGNParser
+        from src.backend.storage.pgn_parser import PGNParser
         try:
             games = PGNParser.parse_pgn_text(text)
         except Exception as e:

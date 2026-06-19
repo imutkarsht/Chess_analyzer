@@ -1,7 +1,7 @@
 import chess
 import chess.engine
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QWaitCondition
-from ..utils.logger import logger
+from src.utils.logger import logger
 import time
 
 

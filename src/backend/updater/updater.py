@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from ..utils.logger import logger
+from src.utils.logger import logger
 
 # ---------------------------------------------------------------------------
 # Platform constant

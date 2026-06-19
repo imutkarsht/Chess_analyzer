@@ -1,8 +1,7 @@
 """
 Tests for data models - GameMetadata, GameAnalysis, MoveAnalysis.
 """
-import pytest
-from src.backend.models import GameMetadata, GameAnalysis, MoveAnalysis
+from src.backend.storage.models import GameMetadata, GameAnalysis, MoveAnalysis
 
 
 class TestGameMetadata:

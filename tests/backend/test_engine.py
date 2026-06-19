@@ -1,5 +1,5 @@
 import pytest
-from src.backend.engine import (
+from src.backend.analysis.engine import (
     EngineManager,
     DEFAULT_THREADS,
     DEFAULT_HASH_MB,

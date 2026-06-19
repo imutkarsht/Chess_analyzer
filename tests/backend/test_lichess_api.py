@@ -1,8 +1,7 @@
 """
 Tests for Lichess API - URL parsing, game ID extraction.
 """
-import pytest
-from src.backend.lichess_api import LichessAPI
+from src.backend.api.lichess_api import LichessAPI
 
 
 class TestGameIdExtraction:

@@ -83,7 +83,7 @@ def sample_pgn_file():
 @pytest.fixture
 def sample_game():
     """Creates a sample GameAnalysis object."""
-    from src.backend.models import GameAnalysis, GameMetadata, MoveAnalysis
+    from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
     import chess
     
     metadata = GameMetadata(

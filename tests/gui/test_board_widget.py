@@ -1,6 +1,6 @@
 import pytest
 from src.gui.board import BoardWidget
-from src.backend.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 import chess
 
 def test_board_widget_init(qapp):

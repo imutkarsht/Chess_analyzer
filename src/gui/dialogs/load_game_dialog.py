@@ -6,14 +6,10 @@ fully-styled modal that handles all load sources inline.
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QWidget
 from PyQt6.QtCore import Qt, pyqtSignal
 
-from ..styles import Styles
-from ..gui_utils import create_button
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button
 
-# ── Source IDs ─────────────────────────────────────────────────────────────────
-SRC_PGN_FILE  = 0
-SRC_PGN_TEXT  = 1
-SRC_CHESSCOM  = 2
-SRC_LICHESS   = 3
+from src.constants import SRC_PGN_FILE, SRC_PGN_TEXT, SRC_CHESSCOM, SRC_LICHESS
 
 from .load_game import (
     SourceBtn,

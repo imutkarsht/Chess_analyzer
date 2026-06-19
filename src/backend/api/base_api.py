@@ -4,7 +4,7 @@ Provides shared HTTP request handling and error logging.
 """
 import requests
 from typing import Optional, Dict, Any
-from ..utils.logger import logger
+from src.utils.logger import logger
 
 
 class BaseChessAPI:

@@ -3,16 +3,16 @@ Lichess API Panel for the Load Game dialog.
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox
 from PyQt6.QtCore import pyqtSignal, Qt
-from ...styles import Styles
-from ...gui_utils import create_button
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button
 from ....utils.config import ConfigManager
 from .inline_game_list import InlineGameList
 from .helpers import classify_time_control
 from .api_worker import ApiWorker, register_worker, remove_worker
 
 def fetch_and_parse_lichess(username: str, limit: int) -> list:
-    from ....backend.lichess_api import LichessAPI
-    from ....backend.pgn_parser import PGNParser
+    from src.backend.api.lichess_api import LichessAPI
+    from src.backend.storage.pgn_parser import PGNParser
     
     api = LichessAPI()
     raw_games = api.get_user_games(username, limit)
@@ -31,8 +31,8 @@ def fetch_and_parse_lichess(username: str, limit: int) -> list:
 
 
 def fetch_single_lichess(game_id: str) -> list:
-    from ....backend.lichess_api import LichessAPI
-    from ....backend.pgn_parser import PGNParser
+    from src.backend.api.lichess_api import LichessAPI
+    from src.backend.storage.pgn_parser import PGNParser
     
     api = LichessAPI()
     result = api.get_game_by_id(game_id)
@@ -148,7 +148,7 @@ class LichessPanel(QWidget):
             except (TypeError, RuntimeError):
                 pass
 
-        from ....backend.lichess_api import LichessAPI
+        from src.backend.api.lichess_api import LichessAPI
         api = LichessAPI()
         
         game_id = api.extract_game_id(text)

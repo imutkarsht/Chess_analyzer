@@ -12,49 +12,14 @@ import sys
 import requests
 from packaging import version
 from PyQt6.QtCore import QThread, pyqtSignal
-from ..utils.logger import logger
+from src.utils.logger import logger
 
-# Current application version (matches GitHub tag, e.g. "V2.0.1")
-APP_VERSION = "2.0.1"
+from src.constants import APP_VERSION, GITHUB_RELEASES_API, PLATFORM_RULES
 
-# GitHub API endpoint for latest release
-GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"
-
-# ---------------------------------------------------------------------------
-# Per-platform asset selection rules
-# ---------------------------------------------------------------------------
-# Each entry is (priority_suffixes, fallback_keywords, label, install_hint)
-#   priority_suffixes : checked first — preferred installer extensions
-#   fallback_keywords : broad keyword match if suffix alone is ambiguous
-#   label             : human-readable platform string shown in the dialog
-#   install_hint      : one-line install instruction shown below the button
-# ---------------------------------------------------------------------------
-_PLATFORM_RULES = {
-    "win32": {
-        "priority_suffixes": ("-windows-setup.exe", "-setup.exe", ".exe"),
-        "fallback_keywords": ("win", "windows"),
-        "fallback_suffixes": (".exe", ".msi", ".zip"),
-        "label": "Windows Installer (.exe)",
-        "install_hint": "Run the downloaded Setup.exe to install.",
-    },
-    "darwin": {
-        "priority_suffixes": ("-macos.dmg", ".dmg"),
-        "fallback_keywords": ("mac", "macos", "darwin", "osx"),
-        "fallback_suffixes": (".dmg", ".pkg", ".zip"),
-        "label": "macOS Disk Image (.dmg)",
-        "install_hint": "Open the .dmg and drag Chess Analyzer Pro to Applications.",
-    },
-    "linux": {
-        "priority_suffixes": ("-x86_64.appimage", ".appimage"),
-        "fallback_keywords": ("linux", "ubuntu", "debian"),
-        "fallback_suffixes": (".appimage", ".tar.gz", ".tar.xz"),
-        "label": "Linux AppImage",
-        "install_hint": "chmod +x the AppImage, then run it — no installation needed.",
-    },
-}
+_PLATFORM_RULES = PLATFORM_RULES
 
 # Use "linux" rules for any non-win32/darwin platform
-_CURRENT_PLATFORM = sys.platform if sys.platform in _PLATFORM_RULES else "linux"
+_CURRENT_PLATFORM = sys.platform if sys.platform in PLATFORM_RULES else "linux"
 
 
 def _pick_asset(assets: list) -> tuple[str | None, str, str]:
@@ -66,7 +31,7 @@ def _pick_asset(assets: list) -> tuple[str | None, str, str]:
       3. Asset name ends with any fallback suffix (first one found).
       4. Falls back to (None, …) — caller should use html_url instead.
     """
-    rules = _PLATFORM_RULES[_CURRENT_PLATFORM]
+    rules = PLATFORM_RULES[_CURRENT_PLATFORM]
     label = rules["label"]
     hint = rules["install_hint"]
 

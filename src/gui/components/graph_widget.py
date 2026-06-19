@@ -3,7 +3,7 @@ from PyQt6.QtCore import pyqtSignal
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from .styles import Styles
+from src.gui.styles import Styles
 
 class GraphWidget(QWidget):
     # Emitted when the user clicks a point on the graph.

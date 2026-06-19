@@ -158,7 +158,7 @@ class GameListWidget(QWidget):
     def _on_delete_requested(self, game_id: str):
         """Delete a single game from history after confirmation."""
         from PyQt6.QtWidgets import QMessageBox
-        from ...backend.game_history import GameHistoryManager
+        from src.backend.storage.game_history import GameHistoryManager
 
         reply = QMessageBox.question(
             self,

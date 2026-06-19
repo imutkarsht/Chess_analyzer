@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QPushButton, QLabel, QApplication
 from PyQt6.QtCore import pyqtSignal, Qt, QSize
 from PyQt6.QtGui import QIcon
-from .styles import Styles
-from ..utils.path_utils import get_resource_path
+from src.gui.styles import Styles
+from src.utils.path_utils import get_resource_path
 import os
 
 try:
@@ -97,6 +97,6 @@ class Sidebar(QFrame):
     
     def show_help(self):
         """Show the keyboard shortcuts help dialog."""
-        from .dialogs import ShortcutHelpDialog
+        from src.gui.dialogs import ShortcutHelpDialog
         dialog = ShortcutHelpDialog(self)
         dialog.exec()

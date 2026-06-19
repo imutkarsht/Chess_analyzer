@@ -5,17 +5,17 @@ import chess
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame, QTabWidget, 
                              QSizePolicy, QLabel, QGridLayout, QPushButton, QTextEdit, QMessageBox)
 from PyQt6.QtCore import pyqtSignal, Qt, QThread
-from ..styles import Styles
-from ..gui_utils import (clear_layout, show_error_dialog, is_error_message, 
-                          format_time_stats_for_llm)
-from ..components import SimpleStatCard as StatCard
-from ..graph_widget import GraphWidget
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import (clear_layout, show_error_dialog, is_error_message, 
+                                     format_time_stats_for_llm)
+from src.gui.components import SimpleStatCard as StatCard
+from src.gui.components.graph_widget import GraphWidget
 from .analysis_lines_widget import AnalysisLinesWidget
-from ...utils.resources import ResourceManager
-from ...utils.logger import logger
-from ...utils.config import ConfigManager
-from ...backend.groq_service import GroqService
-from ..loading_widget import LoadingOverlay
+from src.utils.resources import ResourceManager
+from src.utils.logger import logger
+from src.utils.config import ConfigManager
+from src.backend.services.groq_service import GroqService
+from src.gui.components.loading_widget import LoadingOverlay
 
 class AnalysisPanel(QWidget):
     cache_toggled = pyqtSignal(bool)

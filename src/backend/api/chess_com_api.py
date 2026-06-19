@@ -1,15 +1,14 @@
 import requests
 import datetime
 from typing import List, Dict, Optional
-from ..utils.logger import logger
+from src.utils.logger import logger
+from src.constants import CHESSCOM_BASE_URL, CHESSCOM_HEADERS
 from .base_api import BaseChessAPI
 
 
 class ChessComAPI(BaseChessAPI):
-    BASE_URL = "https://api.chess.com/pub"
-    HEADERS = {
-        "User-Agent": "ChessAnalyzer/1.0 (contact: your_email@example.com)" 
-    }
+    BASE_URL = CHESSCOM_BASE_URL
+    HEADERS = CHESSCOM_HEADERS
 
     @staticmethod
     def get_last_games(username: str, limit: int = 20) -> List[Dict]:

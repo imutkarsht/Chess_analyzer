@@ -3,16 +3,16 @@ Chess.com API Panel for the Load Game dialog.
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox
 from PyQt6.QtCore import pyqtSignal, Qt
-from ...styles import Styles
-from ...gui_utils import create_button
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import create_button
 from ....utils.config import ConfigManager
 from .inline_game_list import InlineGameList
 from .helpers import classify_time_control
 from .api_worker import ApiWorker, register_worker, remove_worker
 
 def fetch_and_parse_chesscom(username: str, limit: int) -> list:
-    from ....backend.chess_com_api import ChessComAPI
-    from ....backend.pgn_parser import PGNParser
+    from src.backend.api.chess_com_api import ChessComAPI
+    from src.backend.storage.pgn_parser import PGNParser
     
     raw_games = ChessComAPI.get_last_games(username, limit)
     parsed_games = []
@@ -30,8 +30,8 @@ def fetch_and_parse_chesscom(username: str, limit: int) -> list:
 
 
 def fetch_single_chesscom(game_id: str, url: str) -> list:
-    from ....backend.chess_com_api import ChessComAPI
-    from ....backend.pgn_parser import PGNParser
+    from src.backend.api.chess_com_api import ChessComAPI
+    from src.backend.storage.pgn_parser import PGNParser
     
     result = ChessComAPI.get_game_by_id(game_id, url)
     if not result:
@@ -151,7 +151,7 @@ class ChessComPanel(QWidget):
             except (TypeError, RuntimeError):
                 pass
 
-        from ....backend.chess_com_api import ChessComAPI
+        from src.backend.api.chess_com_api import ChessComAPI
         
         game_id = ChessComAPI.extract_game_id(text)
         if game_id:

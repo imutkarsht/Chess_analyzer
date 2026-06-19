@@ -3,8 +3,8 @@ Captured pieces display widget.
 """
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
-from ..styles import Styles
-from ..gui_utils import clear_layout
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import clear_layout
 
 
 class CapturedPiecesWidget(QFrame):

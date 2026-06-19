@@ -3,7 +3,7 @@ API Configuration Settings group component.
 """
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QFrame, QFormLayout, QLineEdit, QMessageBox
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from ...styles import Styles
+from src.gui.styles import Styles
 from .helpers import create_icon_button
 
 try:
@@ -11,8 +11,9 @@ try:
 except ImportError:
     pass
 
-from ....backend.groq_service import PROVIDERS, GroqService
-from ...gui_utils import show_error_dialog
+from src.backend.services.groq_service import GroqService
+from src.constants import PROVIDERS
+from src.gui.utils.gui_utils import show_error_dialog
 
 def test_llm_sync(profile: dict) -> tuple:
     """Run a one-shot chat completion against the given profile.

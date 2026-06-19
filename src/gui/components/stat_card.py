@@ -5,8 +5,8 @@ import os
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from ..styles import Styles
-from ..gui_utils import resolve_asset  # Use shared utility
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import resolve_asset  # Use shared utility
 
 
 class StatCard(QFrame):
