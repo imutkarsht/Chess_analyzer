@@ -27,3 +27,19 @@ installers/windows/Output/
 installers/linux/*.AppImage
 installers/linux/AppDir/
 installers/linux/appimagetool*
+
+# Agent Ignore files
+.agent/session/
+.agent/scratch/
+.agent/tmp/
+.agent/cache/
+.agent/private/
+.agent/local/
+.agent/current_task.md
+.agent/session.md
+.agent/scratchpad.md
+.agent/debug.md
+.agent/.log
+.agent/**/.log
+.agent/.DS_Store
+.agent/Thumbs.db
