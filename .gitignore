@@ -14,6 +14,7 @@ upcoming_changes.md
 *.csv
 config.json
 .pr_bundle/
+/benchmark
 # Local PGNs (user's games) and editor history
 *.pgn
 .history/
