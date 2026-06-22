@@ -87,10 +87,18 @@ def test_classify_move():
     classify_move(move, wpl=0.07, side="white")
     assert move.classification == "Inaccuracy"
 
-    # 6. Test checkmate delay (mate in 3 to mate in 15) -> Miss
+    # 6. Test checkmate delay (mate in 3 to mate in 15) -> Best (since forced mate is maintained, not missed)
     move = MoveAnalysis(
         move_number=6, ply=6, san="Qf6+", uci="f7f6", fen_before="",
         eval_before_mate=3, eval_after_mate=15
+    )
+    classify_move(move, wpl=0.0, side="white")
+    assert move.classification == "Best"
+
+    # 6.5. Test losing mate entirely (mate in 3 to normal cp 150) -> Miss
+    move = MoveAnalysis(
+        move_number=6, ply=6, san="Qf6+", uci="f7f6", fen_before="",
+        eval_before_mate=3, eval_after_mate=None, eval_before_cp=300, eval_after_cp=150
     )
     classify_move(move, wpl=0.10, side="white")
     assert move.classification == "Miss"
@@ -119,6 +127,15 @@ def test_classify_move():
     )
     classify_move(move, wpl=0.35, side="white")
     assert move.classification == "Blunder"
+
+    # 10. Test WPL safety guard: even if move is the engine's best_move,
+    # if it drops win chance by >= 5%, it should not be Best (should be Mistake/Blunder/Miss)
+    move = MoveAnalysis(
+        move_number=10, ply=10, san="Nf5+", uci="g3f5", best_move="g3f5", fen_before="",
+        win_chance_before=0.75, win_chance_after=0.50
+    )
+    classify_move(move, wpl=0.25, side="white")
+    assert move.classification == "Miss"  # WPL 25%, win_chance_before > 70% -> Missed winning opportunity
 
 def test_drawing_repetition_protection(mock_engine):
     """Test that drawing repetition moves in a drawn game are protected."""
