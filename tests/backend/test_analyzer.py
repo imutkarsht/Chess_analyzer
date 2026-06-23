@@ -63,14 +63,13 @@ def test_classify_move():
     assert move.classification == "Best"
     assert move.explanation == "Delivered checkmate!"
     
-    # 2. Test Missed opportunity (Miss) - solid advantage (>=65%) to equal/worse (<55%)
+    # 2. Test Blunder: 70%→50% (wpl=0.20) qualifies with looser threshold
     move = MoveAnalysis(
         move_number=2, ply=2, san="Nxf4", uci="d5f4", fen_before="",
         win_chance_before=0.70, win_chance_after=0.50
     )
     classify_move(move, wpl=0.20, side="white")
-    assert move.classification == "Miss"
-    assert "Missed" in move.explanation
+    assert move.classification == "Blunder"
 
     # 3. Test thresholds: Good (wpl = 3.5%)
     move = MoveAnalysis(move_number=3, ply=3, san="a6", uci="a7a6", fen_before="")
@@ -112,13 +111,13 @@ def test_classify_move():
     classify_move(move, wpl=0.20, side="white")
     assert move.classification == "Miss"
 
-    # 8. Test miss condition: WPL 25%, win chance before 65%, after 40% -> Miss (WPL >= 0.25 but wc_after 0.40 is not < 0.40 for Blunder)
+    # 8. Test blunder condition: WPL 25%, win chance before 65%, after 40% -> Blunder (wc_after 0.40 < 0.50 and wc_before 0.65 > 0.35)
     move = MoveAnalysis(
         move_number=8, ply=8, san="b6", uci="b7b6", fen_before="",
         win_chance_before=0.65, win_chance_after=0.40
     )
     classify_move(move, wpl=0.25, side="white")
-    assert move.classification == "Miss"
+    assert move.classification == "Blunder"
 
     # 9. Test miss condition: WPL 35%, win chance before 95%, after 60% -> Miss (wc_after=0.60 not < 0.40 for Blunder)
     move = MoveAnalysis(
