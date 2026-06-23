@@ -93,7 +93,12 @@ def classify_move(move: Any, wpl: float, side: str, multi_pvs: List[Dict[str, An
         return
 
     # ============ PRIORITY 4: Blunder Check ============
-    if wpl >= 0.25 and player_wc_after < 0.40 and player_wc_before > 0.50:
+    eval_noise = (
+        (move.eval_before_cp is not None and abs(move.eval_before_cp) > 500)
+        or (move.eval_before_cp is not None and move.eval_after_cp is not None
+            and abs(move.eval_after_cp - move.eval_before_cp) > 400)
+    )
+    if wpl >= 0.19 and player_wc_after <= 0.50 and player_wc_before > 0.48 and not eval_noise:
         move.classification = "Blunder"
         move.explanation = f"Lost {wpl*100:.1f}% winning chances."
         return

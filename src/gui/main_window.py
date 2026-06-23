@@ -456,6 +456,8 @@ class MainWindow(QMainWindow):
             self.analyzer = Analyzer(
                 EngineManager(self.engine_path, config_manager=self.config_manager)
             )
+            if hasattr(self, 'move_list_panel'):
+                self.move_list_panel.update_engine_path(new_path)
             QMessageBox.information(self, "Success", "Engine path updated. Future analyses will use the new engine.")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
@@ -838,7 +840,7 @@ class MainWindow(QMainWindow):
         
 
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
-            self.move_list_panel.live_worker.set_position(None)
+            self.move_list_panel.live_worker.stop()
             
         self.worker.start()
 
@@ -856,6 +858,8 @@ class MainWindow(QMainWindow):
         self._set_status("Analysis complete", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game
+        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+            self.move_list_panel.live_worker.start()
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
         # Update other views with new data
@@ -869,6 +873,8 @@ class MainWindow(QMainWindow):
         self._set_engine_state("ready")
         self._set_status(f"Analysis failed: {error_msg}", "error")
         logger.error(f"Analysis error: {error_msg}")
+        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+            self.move_list_panel.live_worker.start()
         QMessageBox.critical(self, "Analysis Error", error_msg)
 
     def open_load_dialog(self, initial_source: int = 0, initial_text: str = None):

@@ -1,12 +1,16 @@
 import chess
 import chess.engine
+import os
 from src.backend.storage.models import GameAnalysis, MoveAnalysis
 from .engine import EngineManager
 from src.backend.storage.cache import AnalysisCache
-from .book import BookManager
+from .local_book import LocalBookManager, BookResult
+from .polyglot_book import PolyglotBookManager
+from .opening_db import OpeningDB
 from src.backend.storage.game_history import GameHistoryManager
 from src.utils.logger import logger
 from src.utils.config import ConfigManager
+from src.utils.path_utils import get_resource_path, get_user_data_dir
 from typing import Optional, List, Dict
 import math
 
@@ -24,11 +28,22 @@ class Analyzer:
     def __init__(self, engine_manager: EngineManager):
         self.engine_manager = engine_manager
         self.cache = AnalysisCache()
-        self.book_manager = BookManager()
         self.history_manager = GameHistoryManager()
         self.config_manager = ConfigManager()
+
+        tsv_dir = get_resource_path("assets/openings")
+        db_path = os.path.join(get_user_data_dir(), "openings.db")
+        self._opening_db = OpeningDB(db_path)
+        try:
+            self._opening_db.initialize(tsv_dir)
+        except FileNotFoundError:
+            logger.warning(f"Opening TSV files not found in {tsv_dir}; book detection disabled")
+        self.local_book = LocalBookManager(self._opening_db)
+        polyglot_path = self.config_manager.get("polyglot_book_path", "")
+        self.polyglot_book = PolyglotBookManager(polyglot_path)
+        logger.info(f"Opening book initialized: local SQLite at {db_path} ({'populated' if self._opening_db.is_populated() else 'empty'})")
         self.config = {
-            "time_per_move": None,
+            "time_per_move": self.config_manager.get("time_per_move", 1.0),
             "depth": self.config_manager.get("analysis_depth", 18),
             # multi_pv is read from user config (default 1) so the same
             # default applies to the Game Analysis tab.  See issue #5:
@@ -71,8 +86,13 @@ class Analyzer:
         Returns the raw summary counts/stats.
         """
         # Refresh configuration from global settings before starting
+        self.config["time_per_move"] = self.config_manager.get("time_per_move", 1.0)
         self.config["depth"] = self.config_manager.get("analysis_depth", 18)
         self.config["multi_pv"] = self.config_manager.get("multi_pv", 1)
+        
+        # Update Polyglot book path from settings if changed
+        new_polyglot_path = self.config_manager.get("polyglot_book_path", "")
+        self.polyglot_book.set_book_path(new_polyglot_path)
         
         logger.info(f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']})")
         self.engine_manager.start_engine()
@@ -320,9 +340,10 @@ class Analyzer:
         else:
             fen_counts = {}
             
-        in_book = True
-        book_miss_count = 0
-        
+        self.local_book.reset()
+        self.polyglot_book.reset()
+        has_recorded_exit = False
+
         for i, move in enumerate(game_analysis.moves):
             # Determine side
             temp_board.set_fen(move.fen_before)
@@ -393,18 +414,10 @@ class Analyzer:
             self._update_acpl(summary_counts, side, s1_cp, s1_mate, s2_cp, s2_mate)
             
             # Book Check (do this before accuracy so we can adjust accuracy for book moves)
-            # Check every move, with a cooldown after 15 consecutive misses to handle
-            # transpositions back into known lines.
-            is_book_move = False
-            if book_miss_count <= 15:
-                was_book, opening_name = self._check_book_move(move, side, summary_counts)
-                if was_book:
-                    book_miss_count = 0
-                    if opening_name:
-                        game_analysis.metadata.opening = opening_name
-                else:
-                    book_miss_count += 1
-                is_book_move = (move.classification == "Book")
+            is_book_move = self._check_book_move(move, side, summary_counts, game_analysis)
+            if not is_book_move and not has_recorded_exit and not move.book_exit_move:
+                move.book_exit_move = True
+                has_recorded_exit = True
                     
             # Accuracy Calculation
             player_wp_before = wp_before if side == "white" else (1.0 - wp_before)
@@ -485,15 +498,45 @@ class Analyzer:
         
         summary_counts[side]["acpl"] += cp_loss
  
-    def _check_book_move(self, move, side, summary_counts):
-        """Checks and updates book move status. Returns (in_book, opening_name)."""
-        name = self.book_manager.get_opening_name(move.fen_before, move.uci)
-        if name:
+    def _check_book_move(self, move, side, summary_counts, game_analysis):
+        """Check move against opening books. Returns True if it is a book move."""
+        move_number = move.move_number * 2 - (1 if side == "white" else 0)
+        
+        # Check polyglot book if available
+        if self.polyglot_book.is_available():
+            polyglot_result = self.polyglot_book.process_move(move.fen_before, move.uci, move_number)
+            if polyglot_result.is_book:
+                logger.info(f"Polyglot book match at move {move_number} ({side}): {move.san} (candidate continuations: {polyglot_result.candidate_moves})")
+        else:
+            polyglot_result = BookResult(is_book=False)
+            
+        # SQLite book is always checked
+        sqlite_result = self.local_book.process_move(move.fen_before, move.uci, move_number)
+        if sqlite_result.is_book:
+            logger.info(f"SQLite book match at move {move_number} ({side}): {move.san} - {sqlite_result.current_opening} ({sqlite_result.current_eco})")
+
+        is_book = polyglot_result.is_book or sqlite_result.is_book
+        if is_book:
             summary_counts[side][move.classification] -= 1
             move.classification = "Book"
+            move.is_book_move = True
+            
+            # Combine stats
+            move.book_move_count = max(polyglot_result.book_move_count, sqlite_result.book_move_count)
+            # Candidates from polyglot (richer), fallback to sqlite
+            move.candidate_continuations = polyglot_result.candidate_moves or sqlite_result.candidate_moves
+            
+            # Names from SQLite only (polyglot has no names)
+            move.eco = sqlite_result.current_eco or ""
+            move.opening_name = sqlite_result.current_opening or ""
+            
             summary_counts[side]["Book"] += 1
-            return True, name
-        return False, None
+            if sqlite_result.current_opening:
+                game_analysis.metadata.opening = sqlite_result.current_opening
+            if sqlite_result.current_eco:
+                game_analysis.metadata.eco = sqlite_result.current_eco
+                
+        return is_book
  
     def _calculate_final_accuracy(self, summary_counts):
         """

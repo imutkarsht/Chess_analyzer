@@ -63,6 +63,16 @@ must be preserved with the SVGs.
 
 ---
 
+## Opening Book Data
+
+The TSV files in `assets/openings/` (`a.tsv`, `b.tsv`, `c.tsv`, `d.tsv`, `e.tsv`) are compiled from the Lichess public chess openings database.
+
+- **Source**: [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings)
+- **License**: Public Domain ([CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/))
+- **Attribution**: Special thanks to **Lichess.org** for maintaining and sharing this registry of chess openings and variations.
+
+---
+
 ## Application Images & SVG Icons
 
 The images and SVG icons in [`assets/images/`](assets/images/) are **original works** created for

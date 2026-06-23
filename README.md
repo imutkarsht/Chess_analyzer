@@ -9,6 +9,13 @@
 > 🌐 **Official Website:** [chess-analyzer-ut.vercel.app](https://chess-analyzer-ut.vercel.app/)  
 > Visit the official site for detailed documentation, latest updates, and to report bugs or request features.
 
+## 🎥 Application Preview
+
+<p align="center">
+  <video src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/previewChessAnalyzer.mp4?updatedAt=1781885787500" width="100%" controls autoplay loop muted></video>
+</p>
+
+
 **Chess Analyzer Pro** is a powerful, full-stack Python desktop application designed to bring professional-grade chess analysis to your local machine. Inspired by platforms like Chess.com, it combines the robust analysis capabilities of Stockfish with a sleek, responsive PyQt6 interface.
 
 ## 📸 Screenshots
@@ -26,7 +33,7 @@
 - **AI Coach Summaries**: Generates natural language post-game explanations using any OpenAI-compatible endpoint. Out-of-the-box support for **Groq** (Cloud), **LM Studio** (Local), **MiniMax** (Cloud), and **Custom endpoints**.
 - **Win Probability**: Calculates and displays win probability swings for every move.
 
-- **Opening Explorer**: Identifies openings and variations using a built-in book and online APIs.
+- **Opening Explorer**: Identifies openings and variations using a built-in local SQLite openings database, custom Polyglot opening books (`*.bin` files), and online APIs.
 - **Ending Analysis**: Charts game outcomes by type (Checkmate, Time, Resignation).
 
 ### User Interface
@@ -114,10 +121,11 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
     python main.py
     ```
 
-2.  **Configure Engine**
+2.  **Configure Engine & Opening Book**
     - Go to the **Settings** tab in the sidebar.
-    - Under **Chess Engine**, select your Stockfish executable path and click **Save Engine Path**.
-    - Click **Test Engine** to verify the path is valid.
+    - Under **Chess Engine**, enter or browse to your Stockfish executable path.
+    - Under **Opening Book**, you can optionally specify a Polyglot opening book (`*.bin` file) to supplement opening line evaluations.
+    - Click the **Save Settings** button in the top-right corner to persist all changes.
 
 3.  **Load a Game**
     - Click **Load Game** at the top of the Analyze tab (or press `Ctrl+O`).
@@ -170,6 +178,7 @@ without touching the MIT-licensed source code.
 - [Stockfish](https://stockfishchess.org/) for the powerful chess engine.
 - [Python-Chess](https://python-chess.readthedocs.io/) for the chess library.
 - [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) for the GUI framework.
+- [Lichess openings database](https://github.com/lichess-org/chess-openings) for providing the compiled opening datasets.
 - Chess piece graphics by **Colin M.L. Burnett (Cburnett)**, distributed via
   [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces)
   and used in the [Lichess](https://lichess.org) project (CC BY-SA 3.0).

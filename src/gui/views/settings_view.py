@@ -12,6 +12,7 @@ from src.utils.config import ConfigManager
 
 from .settings import (
     EngineSettings,
+    BookSettings,
     ApiSettings,
     PlayerSettings,
     AppearanceSettings,
@@ -84,6 +85,7 @@ class SettingsView(QWidget):
 
         # Instantiate modular components
         self.engine_settings = EngineSettings(self.config_manager, self)
+        self.book_settings = BookSettings(self.config_manager, self)
         self.api_settings = ApiSettings(self.config_manager, self)
         self.player_settings = PlayerSettings(self.config_manager, self)
         self.appearance_settings = AppearanceSettings(self.config_manager, self)
@@ -92,6 +94,7 @@ class SettingsView(QWidget):
 
         # Add components to layout
         self.container_layout.addWidget(self.engine_settings)
+        self.container_layout.addWidget(self.book_settings)
         self.container_layout.addWidget(self.api_settings)
         self.container_layout.addWidget(self.player_settings)
         self.container_layout.addWidget(self.appearance_settings)
@@ -239,6 +242,7 @@ class SettingsView(QWidget):
         self.config_manager.config["engine_path"] = path
         self.config_manager.config["engine_threads"] = threads
         self.config_manager.config["engine_hash"] = hash_mb
+        self.config_manager.config["polyglot_book_path"] = self.book_settings.polyglot_path_input.text().strip()
         
         try:
             self.config_manager.config["multi_pv"] = int(self.engine_settings.multi_pv_input.text().strip())
@@ -273,6 +277,7 @@ class SettingsView(QWidget):
         self.usernames_changed.emit()
 
         self.engine_settings.validate_engine_path()
+        self.book_settings.validate_polyglot_path()
         self.api_settings._reload_profile_combo()
 
         if clamped:
@@ -452,6 +457,7 @@ class SettingsView(QWidget):
         """
 
         self.engine_settings.refresh_styles(combo_style, input_style, default_style)
+        self.book_settings.refresh_styles(combo_style, input_style, default_style)
         self.api_settings.refresh_styles(combo_style, full_input_style, default_style, llm_add_style, llm_del_style)
         self.player_settings.refresh_styles(input_style, full_input_style)
         self.appearance_settings.refresh_styles(combo_style, default_style, sound_cb_style)

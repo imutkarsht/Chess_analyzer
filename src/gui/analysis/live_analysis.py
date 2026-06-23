@@ -108,6 +108,10 @@ class LiveAnalysisWorker(QThread):
             self.condition.wakeAll()
         self.mutex.unlock()
         
+    def start(self, priority=QThread.Priority.InheritPriority):
+        self.running = True
+        super().start(priority)
+
     def stop(self):
         """Stops the worker thread."""
         self.running = False
@@ -117,6 +121,7 @@ class LiveAnalysisWorker(QThread):
         self.wait()
         
     def run(self):
+        self.running = True
         logger.info(f"LiveAnalysisWorker starting with engine: {self.engine_path}")
         try:
             # Start engine
