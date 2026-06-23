@@ -1,12 +1,15 @@
 import chess
 import chess.engine
+import os
 from src.backend.storage.models import GameAnalysis, MoveAnalysis
 from .engine import EngineManager
 from src.backend.storage.cache import AnalysisCache
-from .book import BookManager
+from .local_book import LocalBookManager
+from .opening_db import OpeningDB
 from src.backend.storage.game_history import GameHistoryManager
 from src.utils.logger import logger
 from src.utils.config import ConfigManager
+from src.utils.path_utils import get_resource_path, get_user_data_dir
 from typing import Optional, List, Dict
 import math
 
@@ -24,9 +27,18 @@ class Analyzer:
     def __init__(self, engine_manager: EngineManager):
         self.engine_manager = engine_manager
         self.cache = AnalysisCache()
-        self.book_manager = BookManager()
         self.history_manager = GameHistoryManager()
         self.config_manager = ConfigManager()
+
+        tsv_dir = get_resource_path("assets/openings")
+        db_path = os.path.join(get_user_data_dir(), "openings.db")
+        self._opening_db = OpeningDB(db_path)
+        try:
+            self._opening_db.initialize(tsv_dir)
+        except FileNotFoundError:
+            logger.warning(f"Opening TSV files not found in {tsv_dir}; book detection disabled")
+        self.local_book = LocalBookManager(self._opening_db)
+        logger.info(f"Opening book initialized: local SQLite at {db_path} ({'populated' if self._opening_db.is_populated() else 'empty'})")
         self.config = {
             "time_per_move": None,
             "depth": self.config_manager.get("analysis_depth", 18),
@@ -320,9 +332,9 @@ class Analyzer:
         else:
             fen_counts = {}
             
-        in_book = True
-        book_miss_count = 0
-        
+        self.local_book.reset()
+        has_recorded_exit = False
+
         for i, move in enumerate(game_analysis.moves):
             # Determine side
             temp_board.set_fen(move.fen_before)
@@ -393,18 +405,10 @@ class Analyzer:
             self._update_acpl(summary_counts, side, s1_cp, s1_mate, s2_cp, s2_mate)
             
             # Book Check (do this before accuracy so we can adjust accuracy for book moves)
-            # Check every move, with a cooldown after 15 consecutive misses to handle
-            # transpositions back into known lines.
-            is_book_move = False
-            if book_miss_count <= 15:
-                was_book, opening_name = self._check_book_move(move, side, summary_counts)
-                if was_book:
-                    book_miss_count = 0
-                    if opening_name:
-                        game_analysis.metadata.opening = opening_name
-                else:
-                    book_miss_count += 1
-                is_book_move = (move.classification == "Book")
+            is_book_move = self._check_book_move(move, side, summary_counts, game_analysis)
+            if not is_book_move and not has_recorded_exit and not move.book_exit_move:
+                move.book_exit_move = True
+                has_recorded_exit = True
                     
             # Accuracy Calculation
             player_wp_before = wp_before if side == "white" else (1.0 - wp_before)
@@ -485,15 +489,24 @@ class Analyzer:
         
         summary_counts[side]["acpl"] += cp_loss
  
-    def _check_book_move(self, move, side, summary_counts):
-        """Checks and updates book move status. Returns (in_book, opening_name)."""
-        name = self.book_manager.get_opening_name(move.fen_before, move.uci)
-        if name:
+    def _check_book_move(self, move, side, summary_counts, game_analysis):
+        """Check move against local opening tree. Returns True if it is a book move."""
+        move_number = move.move_number * 2 - (1 if side == "white" else 0)
+        result = self.local_book.process_move(move.fen_before, move.uci, move_number)
+        if result.is_book:
             summary_counts[side][move.classification] -= 1
             move.classification = "Book"
+            move.is_book_move = True
+            move.book_move_count = result.book_move_count
+            move.eco = result.current_eco or ""
+            move.opening_name = result.current_opening or ""
+            move.candidate_continuations = result.candidate_moves
             summary_counts[side]["Book"] += 1
-            return True, name
-        return False, None
+            if result.current_opening:
+                game_analysis.metadata.opening = result.current_opening
+            if result.current_eco:
+                game_analysis.metadata.eco = result.current_eco
+        return result.is_book
  
     def _calculate_final_accuracy(self, summary_counts):
         """

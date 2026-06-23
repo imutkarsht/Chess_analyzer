@@ -30,6 +30,13 @@ class MoveAnalysis:
     time_left: Optional[float] = None
     time_spent: Optional[float] = None
     raw_clk: Optional[str] = None
+    # Opening book fields
+    is_book_move: bool = False
+    book_move_count: int = 0
+    book_exit_move: bool = False
+    eco: str = ""
+    opening_name: str = ""
+    candidate_continuations: List[str] = field(default_factory=list)
 
 @dataclass
 class GameMetadata:
