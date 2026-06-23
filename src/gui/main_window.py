@@ -456,6 +456,8 @@ class MainWindow(QMainWindow):
             self.analyzer = Analyzer(
                 EngineManager(self.engine_path, config_manager=self.config_manager)
             )
+            if hasattr(self, 'move_list_panel'):
+                self.move_list_panel.update_engine_path(new_path)
             QMessageBox.information(self, "Success", "Engine path updated. Future analyses will use the new engine.")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")

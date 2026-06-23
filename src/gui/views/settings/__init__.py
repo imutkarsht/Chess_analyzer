@@ -2,6 +2,7 @@
 Settings view modules.
 """
 from .engine_settings import EngineSettings
+from .book_settings import BookSettings
 from .api_settings import ApiSettings, test_llm_sync
 from .player_settings import PlayerSettings
 from .appearance_settings import AppearanceSettings
@@ -10,6 +11,7 @@ from .links_settings import LinksSettings
 
 __all__ = [
     'EngineSettings',
+    'BookSettings',
     'ApiSettings',
     'PlayerSettings',
     'AppearanceSettings',

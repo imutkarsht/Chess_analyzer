@@ -10,6 +10,7 @@ class ConfigManager:
 
     DEFAULT_CONFIG = {
         "engine_path": "stockfish",
+        "polyglot_book_path": "",
         "theme": "dark",
         "sound_enabled": True,
         # Profile-based LLM config.  Each profile is a dict with keys:

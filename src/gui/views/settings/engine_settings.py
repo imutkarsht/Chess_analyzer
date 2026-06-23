@@ -43,6 +43,8 @@ class EngineSettings(QGroupBox):
 
         self.path_input.editingFinished.connect(self.validate_engine_path)
         
+
+        
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)

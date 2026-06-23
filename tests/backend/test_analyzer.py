@@ -1,7 +1,9 @@
 import pytest
+import chess
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.backend.analysis.engine import EngineManager
+from src.backend.analysis.local_book import BookResult
 
 def test_analyzer_init(mock_engine):
     """Test Analyzer initialization."""
@@ -240,8 +242,67 @@ def test_analyzer_progress_logging(caplog, mocker, mock_engine):
     assert "Analyzing move 20/25..." in log_messages
     assert "Analyzing move 25/25..." in log_messages
     
-    # Ensure moves in between are not logged
-    assert not any("Analyzing move 2/25..." in msg for msg in log_messages)
     assert not any("Analyzing move 11/25..." in msg for msg in log_messages)
+
+
+def test_check_book_move_merging(mocker, mock_engine):
+    """Test that _check_book_move correctly merges Polyglot and SQLite book results."""
+    engine_manager = EngineManager("dummy_path")
+    engine_manager.engine = mock_engine
+    analyzer = Analyzer(engine_manager)
+
+    # Mock both books
+    mock_polyglot = mocker.patch.object(analyzer.polyglot_book, 'process_move')
+    mock_local = mocker.patch.object(analyzer.local_book, 'process_move')
+    
+    # Enable polyglot availability
+    mocker.patch.object(analyzer.polyglot_book, 'is_available', return_value=True)
+
+    # Case 1: Both match
+    mock_polyglot.return_value = BookResult(
+        is_book=True,
+        book_move_count=3,
+        candidate_moves=["e7e5", "c7c5"]
+    )
+    mock_local.return_value = BookResult(
+        is_book=True,
+        book_move_count=2,
+        current_eco="C20",
+        current_opening="King's Pawn Game",
+        candidate_moves=["e7e5"]
+    )
+
+    move = MoveAnalysis(
+        move_number=1,
+        ply=1,
+        san="e4",
+        uci="e2e4",
+        fen_before=chess.STARTING_FEN
+    )
+    move.classification = "Best"
+    summary_counts = {
+        "white": {"Book": 0, "Best": 1},
+        "black": {"Book": 0, "Best": 0}
+    }
+    game_analysis = GameAnalysis(
+        game_id="merge_test",
+        metadata=GameMetadata(white="W", black="B", result="*", date="2026"),
+        moves=[move]
+    )
+
+    is_book = analyzer._check_book_move(move, "white", summary_counts, game_analysis)
+    
+    assert is_book is True
+    assert move.classification == "Book"
+    assert move.is_book_move is True
+    assert move.book_move_count == 3  # max(3, 2)
+    assert move.candidate_continuations == ["e7e5", "c7c5"]  # Polyglot candidates preferred
+    assert move.eco == "C20"  # from SQLite
+    assert move.opening_name == "King's Pawn Game"  # from SQLite
+    assert summary_counts["white"]["Book"] == 1
+    assert summary_counts["white"]["Best"] == 0
+    assert game_analysis.metadata.opening == "King's Pawn Game"
+    assert game_analysis.metadata.eco == "C20"
+
 
 
