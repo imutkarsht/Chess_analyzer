@@ -321,6 +321,7 @@ class Analyzer:
             fen_counts = {}
             
         in_book = True
+        book_miss_count = 0
         
         for i, move in enumerate(game_analysis.moves):
             # Determine side
@@ -392,11 +393,17 @@ class Analyzer:
             self._update_acpl(summary_counts, side, s1_cp, s1_mate, s2_cp, s2_mate)
             
             # Book Check (do this before accuracy so we can adjust accuracy for book moves)
+            # Check every move, with a cooldown after 15 consecutive misses to handle
+            # transpositions back into known lines.
             is_book_move = False
-            if in_book:
-                in_book, opening_name = self._check_book_move(move, side, summary_counts)
-                if opening_name:
-                    game_analysis.metadata.opening = opening_name
+            if book_miss_count <= 15:
+                was_book, opening_name = self._check_book_move(move, side, summary_counts)
+                if was_book:
+                    book_miss_count = 0
+                    if opening_name:
+                        game_analysis.metadata.opening = opening_name
+                else:
+                    book_miss_count += 1
                 is_book_move = (move.classification == "Book")
                     
             # Accuracy Calculation
@@ -410,8 +417,7 @@ class Analyzer:
             # 1. Book moves get 100% (theoretical opening theory)
             # 2. Checkmate moves get 100% (delivering mate is optimal)
             # 3. Moves leading to forced mate get 100%
-            # 4. Best moves get at least 80% (engine's top choice)
-            # 5. All moves get minimum 10% floor (prevent harmonic mean collapse)
+            # 4. All moves get minimum 5% floor (prevent harmonic mean collapse)
             is_checkmate_move = move.san.endswith('#') if move.san else False
             is_mating_move = (move.eval_after_mate is not None and 
                              ((side == "white" and move.eval_after_mate > 0) or
@@ -421,12 +427,9 @@ class Analyzer:
                 move_acc = 100.0
             elif is_checkmate_move or is_mating_move:
                 move_acc = 100.0
-            elif move.classification in ["Best", "Great"]:
-                # Engine's best moves should get at least 80% accuracy
-                move_acc = max(move_acc, 80.0)
             
             # Apply minimum floor to prevent harmonic mean collapse from outliers
-            move_acc = max(move_acc, 10.0)
+            move_acc = max(move_acc, 5.0)
             
             summary_counts[side]["accuracies"].append(move_acc)
             summary_counts[side]["win_percents"].append(player_wp_before)  # Store for volatility

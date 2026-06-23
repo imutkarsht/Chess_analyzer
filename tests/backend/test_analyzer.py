@@ -70,17 +70,17 @@ def test_classify_move():
     )
     classify_move(move, wpl=0.20, side="white")
     assert move.classification == "Miss"
-    assert "Missed opportunity" in move.explanation
+    assert "Missed" in move.explanation
 
     # 3. Test thresholds: Good (wpl = 3.5%)
     move = MoveAnalysis(move_number=3, ply=3, san="a6", uci="a7a6", fen_before="")
     classify_move(move, wpl=0.035, side="white")
     assert move.classification == "Good"
     
-    # 4. Test thresholds: Excellent (wpl = 2.5%)
+    # 4. Test thresholds: Good (wpl = 2.5%, threshold at 2%)
     move = MoveAnalysis(move_number=4, ply=4, san="b6", uci="b7b6", fen_before="")
     classify_move(move, wpl=0.025, side="white")
-    assert move.classification == "Excellent"
+    assert move.classification == "Good"
 
     # 5. Test thresholds: Inaccuracy (wpl = 7%)
     move = MoveAnalysis(move_number=5, ply=5, san="c6", uci="c7c6", fen_before="")
@@ -90,7 +90,7 @@ def test_classify_move():
     # 6. Test checkmate delay (mate in 3 to mate in 15) -> Best (since forced mate is maintained, not missed)
     move = MoveAnalysis(
         move_number=6, ply=6, san="Qf6+", uci="f7f6", fen_before="",
-        eval_before_mate=3, eval_after_mate=15
+        eval_before_mate=3, eval_after_mate=15, best_move="f7f6"
     )
     classify_move(move, wpl=0.0, side="white")
     assert move.classification == "Best"
@@ -104,38 +104,46 @@ def test_classify_move():
     assert move.classification == "Miss"
     assert move.explanation == "Missed a forced checkmate."
 
-    # 7. Test blunder condition: WPL 20%, win chance after 55% -> Mistake (not lost)
+    # 7. Test miss condition: WPL 20%, win chance before 75%, after 55% -> Miss (not Blunder, not Mistake)
     move = MoveAnalysis(
         move_number=7, ply=7, san="b6", uci="b7b6", fen_before="",
         win_chance_before=0.75, win_chance_after=0.55
     )
     classify_move(move, wpl=0.20, side="white")
-    assert move.classification == "Mistake"
+    assert move.classification == "Miss"
 
-    # 8. Test blunder condition: WPL 25%, win chance after 40% -> Blunder (lost)
+    # 8. Test miss condition: WPL 25%, win chance before 65%, after 40% -> Miss (WPL >= 0.25 but wc_after 0.40 is not < 0.40 for Blunder)
     move = MoveAnalysis(
         move_number=8, ply=8, san="b6", uci="b7b6", fen_before="",
         win_chance_before=0.65, win_chance_after=0.40
     )
     classify_move(move, wpl=0.25, side="white")
-    assert move.classification == "Blunder"
+    assert move.classification == "Miss"
 
-    # 9. Test blunder condition: WPL 35%, win chance after 60% -> Blunder (extreme drop)
+    # 9. Test miss condition: WPL 35%, win chance before 95%, after 60% -> Miss (wc_after=0.60 not < 0.40 for Blunder)
     move = MoveAnalysis(
         move_number=9, ply=9, san="b6", uci="b7b6", fen_before="",
         win_chance_before=0.95, win_chance_after=0.60
     )
     classify_move(move, wpl=0.35, side="white")
+    assert move.classification == "Miss"
+    
+    # 9.5. Test true blunder: WPL 30%, win chance before 85%, after 30% -> Blunder
+    move = MoveAnalysis(
+        move_number=10, ply=10, san="b6", uci="b7b6", fen_before="",
+        win_chance_before=0.85, win_chance_after=0.30
+    )
+    classify_move(move, wpl=0.30, side="white")
     assert move.classification == "Blunder"
 
-    # 10. Test WPL safety guard: even if move is the engine's best_move,
-    # if it drops win chance by >= 5%, it should not be Best (should be Mistake/Blunder/Miss)
+    # 10. Test best move classification: engine's #1 move is always Best at minimum.
+    # Even with significant WPL, playing the engine's top move is "Best".
     move = MoveAnalysis(
         move_number=10, ply=10, san="Nf5+", uci="g3f5", best_move="g3f5", fen_before="",
         win_chance_before=0.75, win_chance_after=0.50
     )
     classify_move(move, wpl=0.25, side="white")
-    assert move.classification == "Miss"  # WPL 25%, win_chance_before > 70% -> Missed winning opportunity
+    assert move.classification == "Best"  # Playing engine's top choice is always Best or better
 
 def test_drawing_repetition_protection(mock_engine):
     """Test that drawing repetition moves in a drawn game are protected."""
@@ -190,10 +198,11 @@ def test_drawing_repetition_protection(mock_engine):
     analyzer._classify_and_calculate_stats(game, summary_counts, final_score)
     
     # Let's check classifications of the repeating moves (ply 4, 5, 6)
-    # They should be protected (WPL capped to 0), so they should be classified as Best/Excellent, NOT Blunder/Mistake.
-    assert game.moves[4].classification in ["Best", "Excellent"]
-    assert game.moves[5].classification in ["Best", "Excellent"]
-    assert game.moves[6].classification in ["Best", "Excellent"]
+    # They should be protected (WPL capped to 0), so they should be classified as Best/Excellent/Book, NOT Blunder/Mistake.
+    # Book is also valid since Nf3/Nf6 are common book moves picked up by the improved book detection.
+    assert game.moves[4].classification in ["Best", "Excellent", "Book"]
+    assert game.moves[5].classification in ["Best", "Excellent", "Book"]
+    assert game.moves[6].classification in ["Best", "Excellent", "Book"]
 
 def test_analyzer_progress_logging(caplog, mocker, mock_engine):
     """Test that analyzer logs move progress after gap of 10 moves."""

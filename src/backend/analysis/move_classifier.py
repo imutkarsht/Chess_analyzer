@@ -1,20 +1,13 @@
-"""
-Move classifier module containing heuristics to tag moves (e.g. Brilliant, Blunder) based on evaluation changes.
-"""
+"""Heuristics to classify moves (Brilliant, Blunder, etc.) based on Win Probability Loss."""
 from typing import List, Dict, Any
 from .math_utils import get_win_probability
 
 def classify_move(move: Any, wpl: float, side: str, multi_pvs: List[Dict[str, Any]] = None) -> None:
     """
-    Classifies a move based on Win Probability Loss (WPL).
-    Modifies the move object's classification and explanation in-place.
+    Classifies a move via WPL thresholds and special-case checks.
+    Modifies move.classification and move.explanation in-place.
 
-    Classification priority (checked in order):
-    1. Delivering checkmate -> Best
-    2. Missed forced mate -> Miss
-    3. Missed winning/better position -> Miss
-    4. Best move (matches engine) -> Brilliant/Great/Best
-    5. WPL thresholds -> Blunder/Mistake/Inaccuracy/Good/Excellent
+    Priority order: checkmate > missed mate > winning position > best move > blunder > miss > WPL tiers.
     """
     player_wc_before = move.win_chance_before if side == "white" else (1.0 - move.win_chance_before)
     player_wc_after = move.win_chance_after if side == "white" else (1.0 - move.win_chance_after)
@@ -44,8 +37,6 @@ def classify_move(move: Any, wpl: float, side: str, multi_pvs: List[Dict[str, An
             move.explanation = "Missed a forced checkmate."
             return
 
-        # Player still has mate advantage but didn't play the optimal move.
-        # Don't short-circuit to "Best"; fall through for proper classification.
         if move.uci != move.best_move and player_wc_after >= 0.99:
             pass
         elif player_wc_after >= 0.99:
@@ -62,14 +53,8 @@ def classify_move(move: Any, wpl: float, side: str, multi_pvs: List[Dict[str, An
 
     # ============ PRIORITY 3: Best Move Check ============
     is_best_choice = (move.uci == move.best_move)
-    # Disqualify only if player was clearly winning and still dropped equity.
-    # When player_wc_before < 0.70, the position is complex or worse, so the
-    # engine's best move can still be correct even with high WPL.
-    if is_best_choice and wpl >= 0.05 and player_wc_before >= 0.70:
-        is_best_choice = False
 
     if is_best_choice:
-        # Multi-PV: check if the best move is significantly better than alternatives
         if move.uci == move.best_move and multi_pvs and len(multi_pvs) > 1:
             sb_data = multi_pvs[1]
             sb_cp = sb_data.get("cp")
@@ -107,42 +92,40 @@ def classify_move(move: Any, wpl: float, side: str, multi_pvs: List[Dict[str, An
         move.explanation = "Engine's top choice."
         return
 
-    # ============ PRIORITY 4: Missed Winning/Better Position ============
-    # Was completely winning and dropped significantly
-    if player_wc_before > 0.80 and player_wc_after < 0.60:
-        move.classification = "Miss"
-        move.explanation = f"Missed win (dropped from {player_wc_before*100:.0f}% to {player_wc_after*100:.0f}%)."
-        return
-
-    # Was winning and lost significant equity
-    if player_wc_before > 0.70 and wpl > 0.15:
-        move.classification = "Miss"
-        move.explanation = f"Missed winning opportunity (lost {wpl*100:.0f}% winning chances)."
-        return
-
-    # Had advantage and dropped to equal/worse
-    if player_wc_before >= 0.60 and player_wc_after < 0.50 and wpl >= 0.10:
-        move.classification = "Miss"
-        move.explanation = f"Missed opportunity (dropped from {player_wc_before*100:.0f}% to {player_wc_after*100:.0f}%)."
-        return
-
-    # Lost a very large amount of equity from a winning/advantageous position
-    if wpl >= 0.30 and player_wc_before > 0.50:
-        move.classification = "Miss"
-        move.explanation = f"Missed (lost {wpl*100:.0f}% winning chances)."
-        return
-
-    # ============ PRIORITY 5: Blunder Check ============
-    if wpl >= 0.25 and (player_wc_after < 0.50 or wpl >= 0.35):
+    # ============ PRIORITY 4: Blunder Check ============
+    if wpl >= 0.25 and player_wc_after < 0.40 and player_wc_before > 0.50:
         move.classification = "Blunder"
         move.explanation = f"Lost {wpl*100:.1f}% winning chances."
         return
 
+    # ============ PRIORITY 5: Missed Winning/Better Position ============
+    was_extreme = move.eval_before_cp is not None and abs(move.eval_before_cp) > 300
+    if not was_extreme:
+        if player_wc_before > 0.70 and player_wc_after < 0.50:
+            move.classification = "Miss"
+            move.explanation = f"Missed win (dropped from {player_wc_before*100:.0f}% to {player_wc_after*100:.0f}%)."
+            return
+
+        if player_wc_before > 0.60 and wpl > 0.12:
+            move.classification = "Miss"
+            move.explanation = f"Missed winning opportunity (lost {wpl*100:.0f}% winning chances)."
+            return
+
+        if player_wc_before >= 0.55 and player_wc_after < 0.40 and wpl >= 0.10:
+            move.classification = "Miss"
+            move.explanation = f"Missed opportunity (dropped from {player_wc_before*100:.0f}% to {player_wc_after*100:.0f}%)."
+            return
+
+        if wpl >= 0.25 and player_wc_before > 0.50:
+            move.classification = "Miss"
+            move.explanation = f"Missed (lost {wpl*100:.0f}% winning chances)."
+            return
+
     # ============ PRIORITY 6: WPL-Based Classification ============
-    if wpl >= 0.12:
+    if wpl >= 0.08:
         move.classification = "Mistake"
         move.explanation = f"Lost {wpl*100:.1f}% winning chances."
-    elif wpl >= 0.05:
+    elif wpl >= 0.045:
         move.classification = "Inaccuracy"
         move.explanation = f"Slight inaccuracy ({wpl*100:.1f}% loss)."
     elif wpl >= 0.02:
