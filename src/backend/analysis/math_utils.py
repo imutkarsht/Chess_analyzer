@@ -46,8 +46,9 @@ def calculate_move_accuracy(win_prob_before: float, win_prob_after: float) -> fl
     if diff <= 0:
         return 100.0  # Improvement or equal = perfect accuracy
     
-    # Moderate decay constant (0.05) - between Lichess and Chess.com
-    raw = 103.1668 * math.exp(-0.05 * diff) - 3.1669
+    # Higher decay constant (0.06 vs Lichess 0.04354) to penalize WPL more
+    # and bring accuracy closer to Chess.com's scale
+    raw = 103.1668 * math.exp(-0.06 * diff) - 3.1669
     
     return max(0.0, min(100.0, raw))
 

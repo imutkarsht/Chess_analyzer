@@ -102,6 +102,10 @@ class Analyzer:
         opening_name = "Unknown Opening"
 
         for i, move_data in enumerate(game_analysis.moves):
+            move_idx = i + 1
+            if move_idx == 1 or move_idx % 10 == 0 or move_idx == total_moves:
+                logger.info(f"Analyzing move {move_idx}/{total_moves}...")
+            
             if callback:
                 callback(i+1, total_moves)
             
@@ -267,6 +271,12 @@ class Analyzer:
         board.set_fen(game_analysis.moves[-1].fen_before)
         board.push_uci(game_analysis.moves[-1].uci)
         
+        if board.is_game_over():
+            if board.is_checkmate():
+                return chess.engine.PovScore(chess.engine.Mate(0), board.turn)
+            else:
+                return chess.engine.PovScore(chess.engine.Cp(0), board.turn)
+                
         final_info_list = self.engine_manager.analyze_position(
             board, 
             time_limit=self.config["time_per_move"],
@@ -288,7 +298,30 @@ class Analyzer:
         board = chess.Board(chess960=is_chess960) # For turn tracking
         temp_board = chess.Board(chess960=is_chess960) # For FEN checks
         
+        # Rebuild FEN history to detect repetitions in drawn games
+        is_draw = game_analysis.metadata.result in ["1/2-1/2", "Draw"]
+        clean_fens = []
+        if is_draw and game_analysis.moves:
+            rep_board = chess.Board(chess960=is_chess960)
+            clean_fens.append(" ".join(rep_board.fen().split()[:4]))
+            for m in game_analysis.moves:
+                rep_board.set_fen(m.fen_before)
+                try:
+                    rep_board.push_uci(m.uci)
+                    clean_fens.append(" ".join(rep_board.fen().split()[:4]))
+                except Exception:
+                    clean_fens.append("")
+            
+            # Count occurrences of each clean FEN
+            fen_counts = {}
+            for fen in clean_fens:
+                if fen:
+                    fen_counts[fen] = fen_counts.get(fen, 0) + 1
+        else:
+            fen_counts = {}
+            
         in_book = True
+        book_miss_count = 0
         
         for i, move in enumerate(game_analysis.moves):
             # Determine side
@@ -308,7 +341,35 @@ class Analyzer:
             
             # Win Probabilities
             wp_before = get_win_probability(s1_cp, s1_mate)
-            wp_after = get_win_probability(s2_cp, s2_mate)
+            
+            # Check if this move is checkmate
+            is_checkmate_move = move.san.endswith('#') if move.san else False
+            if is_checkmate_move:
+                wp_after = 1.0 if side == "white" else 0.0
+            else:
+                wp_after = get_win_probability(s2_cp, s2_mate)
+                
+            # Check if this move is protected due to drawing repetition
+            is_protected_repetition = False
+            if is_draw and clean_fens:
+                fen_before = clean_fens[i]
+                # 1. FEN before has occurred more than once in the game
+                if fen_before and fen_counts.get(fen_before, 0) > 1:
+                    is_protected_repetition = True
+                else:
+                    # 2. Within 2 plies of a repeated FEN
+                    for offset in range(-2, 3):
+                        idx = i + offset
+                        if 0 <= idx < len(clean_fens):
+                            f = clean_fens[idx]
+                            if f and fen_counts.get(f, 0) > 1:
+                                player_wp_before = wp_before if side == "white" else (1.0 - wp_before)
+                                if player_wp_before < 0.70:
+                                    is_protected_repetition = True
+                                    break
+                                    
+            if is_protected_repetition:
+                wp_after = wp_before
             
             move.win_chance_before = wp_before
             move.win_chance_after = wp_after
@@ -332,11 +393,17 @@ class Analyzer:
             self._update_acpl(summary_counts, side, s1_cp, s1_mate, s2_cp, s2_mate)
             
             # Book Check (do this before accuracy so we can adjust accuracy for book moves)
+            # Check every move, with a cooldown after 15 consecutive misses to handle
+            # transpositions back into known lines.
             is_book_move = False
-            if in_book:
-                in_book, opening_name = self._check_book_move(move, side, summary_counts)
-                if opening_name:
-                    game_analysis.metadata.opening = opening_name
+            if book_miss_count <= 15:
+                was_book, opening_name = self._check_book_move(move, side, summary_counts)
+                if was_book:
+                    book_miss_count = 0
+                    if opening_name:
+                        game_analysis.metadata.opening = opening_name
+                else:
+                    book_miss_count += 1
                 is_book_move = (move.classification == "Book")
                     
             # Accuracy Calculation
@@ -350,8 +417,7 @@ class Analyzer:
             # 1. Book moves get 100% (theoretical opening theory)
             # 2. Checkmate moves get 100% (delivering mate is optimal)
             # 3. Moves leading to forced mate get 100%
-            # 4. Best moves get at least 80% (engine's top choice)
-            # 5. All moves get minimum 10% floor (prevent harmonic mean collapse)
+            # 4. All moves get minimum 5% floor (prevent harmonic mean collapse)
             is_checkmate_move = move.san.endswith('#') if move.san else False
             is_mating_move = (move.eval_after_mate is not None and 
                              ((side == "white" and move.eval_after_mate > 0) or
@@ -361,12 +427,9 @@ class Analyzer:
                 move_acc = 100.0
             elif is_checkmate_move or is_mating_move:
                 move_acc = 100.0
-            elif move.classification in ["Best", "Great"]:
-                # Engine's best moves should get at least 80% accuracy
-                move_acc = max(move_acc, 80.0)
             
             # Apply minimum floor to prevent harmonic mean collapse from outliers
-            move_acc = max(move_acc, 10.0)
+            move_acc = max(move_acc, 5.0)
             
             summary_counts[side]["accuracies"].append(move_acc)
             summary_counts[side]["win_percents"].append(player_wp_before)  # Store for volatility
