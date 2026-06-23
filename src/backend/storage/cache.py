@@ -11,11 +11,19 @@ class AnalysisCache:
             self.db_path = os.path.join(get_user_data_dir(), "analysis_cache.db")
         else:
             self.db_path = db_path
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        self.conn.execute("PRAGMA journal_mode=WAL")
         self._init_db()
 
+    def __del__(self):
+        if hasattr(self, 'conn') and self.conn:
+            try:
+                self.conn.close()
+            except:
+                pass
+
     def _init_db(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
         # Create table with depth column for depth-aware caching
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS analysis (
@@ -31,8 +39,7 @@ class AnalysisCache:
             cursor.execute("ALTER TABLE analysis ADD COLUMN depth INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass  # Column already exists
-        conn.commit()
-        conn.close()
+        self.conn.commit()
 
     def _generate_key(self, fen: str, multi_pv: int) -> str:
         """Generate cache key based on FEN and multi_pv only (not depth)."""
@@ -48,11 +55,9 @@ class AnalysisCache:
         multi_pv = engine_params.get("multi_pv", 1)
         key = self._generate_key(fen, multi_pv)
         
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
         cursor.execute("SELECT result, depth FROM analysis WHERE id = ?", (key,))
         row = cursor.fetchone()
-        conn.close()
         
         if row:
             cached_result, cached_depth = row[0], row[1] or 0
@@ -69,8 +74,7 @@ class AnalysisCache:
         multi_pv = engine_params.get("multi_pv", 1)
         key = self._generate_key(fen, multi_pv)
         
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        cursor = self.conn.cursor()
         
         # Check existing depth
         cursor.execute("SELECT depth FROM analysis WHERE id = ?", (key,))
@@ -88,17 +92,13 @@ class AnalysisCache:
                 INSERT OR REPLACE INTO analysis (id, fen, engine_params, depth, result)
                 VALUES (?, ?, ?, ?, ?)
             """, (key, fen, json.dumps(engine_params, sort_keys=True), new_depth, json.dumps(result)))
-            conn.commit()
-        
-        conn.close()
+            self.conn.commit()
 
     def clear_cache(self):
         """Clears all cached analysis."""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            cursor = self.conn.cursor()
             cursor.execute("DELETE FROM analysis")
-            conn.commit()
-            conn.close()
+            self.conn.commit()
         except Exception as e:
             print(f"Failed to clear cache: {e}")

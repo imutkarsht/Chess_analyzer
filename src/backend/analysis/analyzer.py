@@ -40,7 +40,7 @@ class Analyzer:
         self.local_book = LocalBookManager(self._opening_db)
         logger.info(f"Opening book initialized: local SQLite at {db_path} ({'populated' if self._opening_db.is_populated() else 'empty'})")
         self.config = {
-            "time_per_move": None,
+            "time_per_move": self.config_manager.get("time_per_move", 1.0),
             "depth": self.config_manager.get("analysis_depth", 18),
             # multi_pv is read from user config (default 1) so the same
             # default applies to the Game Analysis tab.  See issue #5:
@@ -83,6 +83,7 @@ class Analyzer:
         Returns the raw summary counts/stats.
         """
         # Refresh configuration from global settings before starting
+        self.config["time_per_move"] = self.config_manager.get("time_per_move", 1.0)
         self.config["depth"] = self.config_manager.get("analysis_depth", 18)
         self.config["multi_pv"] = self.config_manager.get("multi_pv", 1)
         

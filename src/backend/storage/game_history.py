@@ -121,7 +121,7 @@ class GameHistoryManager:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             
-            cursor.execute("SELECT * FROM games ORDER BY timestamp DESC")
+            cursor.execute("SELECT * FROM games ORDER BY timestamp DESC LIMIT 200")
             rows = cursor.fetchall()
             
             for row in rows:
@@ -150,7 +150,7 @@ class GameHistoryManager:
                 SELECT * FROM games 
                 WHERE LOWER(white) IN ({placeholders}) 
                    OR LOWER(black) IN ({placeholders})
-                ORDER BY timestamp DESC
+                ORDER BY timestamp DESC LIMIT 200
             """
             
             # Duplicate params for both IN clauses

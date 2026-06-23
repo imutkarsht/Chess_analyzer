@@ -64,6 +64,8 @@ class OpeningDB:
         for idx in self.INDEXES_SQL:
             self._conn.execute(idx)
         self._conn.commit()
+        # Ensure WAL is checkpointed after schema checks/updates
+        self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
     def close(self):
         if self._conn is not None:
