@@ -154,11 +154,14 @@ class LiveAnalysisWorker(QThread):
                         # Finite analysis: calculate incrementally up to selected depth + 10 max
                         with self.engine.analysis(
                             board,
-                            chess.engine.Limit(depth=self._live_depth() + 10),
+                            chess.engine.Limit(depth=self._live_depth() + 6),
                             multipv=self._live_multi_pv(),
                         ) as analysis:
                             for info in analysis:
-                                if self.new_position or not self.running:
+                                self.mutex.lock()
+                                should_break = self.new_position or not self.running
+                                self.mutex.unlock()
+                                if should_break:
                                     break
                                 
                                 # Process info
@@ -187,15 +190,19 @@ class LiveAnalysisWorker(QThread):
         result["nps"] = info.get("nps", 0)
         
         # Score
+        result["score_value"] = None
         score = info.get("score")
         if score:
             if score.is_mate():
-                result["mate"] = score.relative.mate()
-                result["score_value"] = f"M{result['mate']}"
+                mate = score.relative.mate()
+                if mate is not None:
+                    result["mate"] = mate
+                    result["score_value"] = f"M{mate}"
             else:
                 cp = score.relative.score(mate_score=10000)
-                result["cp"] = cp
-                result["score_value"] = f"{cp/100:.2f}"
+                if cp is not None:
+                    result["cp"] = cp
+                    result["score_value"] = f"{cp/100:.2f}"
         
         # PV
         pv_moves = info.get("pv", [])

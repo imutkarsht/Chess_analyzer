@@ -16,6 +16,7 @@ QTAWESOME_ICONS = {
     "help.png": "fa5s.question-circle",
     "exit.png": "fa5s.sign-out-alt",
     "analyze.png": "fa5s.chess-board",
+    "explorer.png": "fa5s.compass",
     "history.png": "fa5s.history",
     "stats.png": "fa5s.chart-bar",
     "settings.png": "fa5s.cog",
@@ -23,7 +24,7 @@ QTAWESOME_ICONS = {
 
 class Sidebar(QFrame):
     # Signals for navigation
-    page_changed = pyqtSignal(int) # 0: Analyze, 1: History, 2: Settings
+    page_changed = pyqtSignal(int) # 0: Analyze, 1: Explorer, 2: History, 3: Stats, 4: Settings
 
     def __init__(self):
         super().__init__()
@@ -36,11 +37,13 @@ class Sidebar(QFrame):
         
         # Navigation Buttons
         self.btn_analyze = self.create_button("Analyze", "analyze.png", 0)
-        self.btn_history = self.create_button("History", "history.png", 1)
-        self.btn_stats = self.create_button("Stats", "stats.png", 2)
-        self.btn_settings = self.create_button("Settings", "settings.png", 3)
+        self.btn_explorer = self.create_button("Explorer", "explore.png", 1)
+        self.btn_history = self.create_button("History", "history.png", 2)
+        self.btn_stats = self.create_button("Stats", "stats.png", 3)
+        self.btn_settings = self.create_button("Settings", "settings.png", 4)
         
         self.layout.addWidget(self.btn_analyze)
+        self.layout.addWidget(self.btn_explorer)
         self.layout.addWidget(self.btn_history)
         self.layout.addWidget(self.btn_stats)
         self.layout.addWidget(self.btn_settings)
@@ -91,9 +94,10 @@ class Sidebar(QFrame):
 
     def set_active(self, index):
         self.btn_analyze.setChecked(index == 0)
-        self.btn_history.setChecked(index == 1)
-        self.btn_stats.setChecked(index == 2)
-        self.btn_settings.setChecked(index == 3)
+        self.btn_explorer.setChecked(index == 1)
+        self.btn_history.setChecked(index == 2)
+        self.btn_stats.setChecked(index == 3)
+        self.btn_settings.setChecked(index == 4)
     
     def show_help(self):
         """Show the keyboard shortcuts help dialog."""

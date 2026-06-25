@@ -14,24 +14,29 @@ class EvalBarWidget(QWidget):
         # Animation
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
-        self.timer.start(16) # ~60 FPS
+        # Timer started on demand in set_eval()
         
     def set_eval(self, cp=None, mate=None):
         self.target_cp = cp if cp is not None else 0.0
         self.mate = mate
-        # If mate, snap immediately (or handle mate animation differently)
+        # If mate, snap immediately
         if mate is not None:
-            self.cp = self.target_cp # Not used for mate logic but good to sync
+            self.cp = self.target_cp
+        elif abs(self.target_cp - self.cp) > 1:
+            if not self.timer.isActive():
+                self.timer.start(16)
         
-        self.update() # Trigger repaint
+        self.update()
         
     def animate(self):
         if self.mate is not None:
-            return # No animation for mate yet
+            self.timer.stop()
+            return
             
         diff = self.target_cp - self.cp
         if abs(diff) < 1:
             self.cp = self.target_cp
+            self.timer.stop()
         else:
             # Simple lerp
             self.cp += diff * 0.1

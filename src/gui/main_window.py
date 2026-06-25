@@ -15,6 +15,7 @@ from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget  # From an
 from src.gui.views.metrics_view import MetricsWidget
 from src.gui.analysis.analysis_worker import AnalysisWorker
 from src.gui.components.sidebar import Sidebar
+from src.gui.views.explorer_view import ExplorerView
 from src.gui.views import HistoryView, SettingsView  # From views package
 from src.backend.storage.pgn_parser import PGNParser
 from src.backend.analysis.analyzer import Analyzer
@@ -208,12 +209,19 @@ class MainWindow(QMainWindow):
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Failed to save window state: {e}")
             
-        # Stop live analysis worker thread cleanly (Issue C)
+        # Stop live analysis worker thread cleanly
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
             try:
                 self.move_list_panel.live_worker.stop()
             except Exception as e:
-                logger.error(f"Failed to stop live analysis worker: {e}")
+                logger.error(f"Failed to stop analysis live worker: {e}")
+
+        # Stop explorer's live analysis worker
+        if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'live_worker'):
+            try:
+                self.explorer_view.live_worker.stop()
+            except Exception as e:
+                logger.error(f"Failed to stop explorer live worker: {e}")
 
         # Stop full analysis worker if it is running
         if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
@@ -292,17 +300,21 @@ class MainWindow(QMainWindow):
         self.setup_analysis_page(self.analysis_page)
         self.stack.addWidget(self.analysis_page)
         
-        # --- Page 1: History View ---
+        # --- Page 1: Explorer View ---
+        self.explorer_view = ExplorerView(self.config_manager)
+        self.stack.addWidget(self.explorer_view)
+        
+        # --- Page 2: History View ---
         self.history_view = HistoryView(self.config_manager)
         self.history_view.game_selected.connect(self.load_game_from_history)
         self.stack.addWidget(self.history_view)
         
-        # --- Page 2: Metrics View ---
+        # --- Page 3: Metrics View ---
         self.metrics_view = MetricsWidget(self.config_manager, self.history_manager)
-        self.metrics_view.request_settings.connect(lambda: (self.sidebar.set_active(3), self.switch_page(3)))
+        self.metrics_view.request_settings.connect(lambda: (self.sidebar.set_active(4), self.switch_page(4)))
         self.stack.addWidget(self.metrics_view)
         
-        # --- Page 3: Settings View ---
+        # --- Page 4: Settings View ---
         self.settings_view = SettingsView()
         self.settings_view.engine_path_changed.connect(self.update_engine_path)
         self.settings_view.engine_settings_changed.connect(self.apply_engine_settings)
@@ -357,24 +369,40 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, lambda: self.open_load_dialog(initial_source=1, initial_text=text))
 
     def _nav_prev(self):
+        if self.stack.currentIndex() == 1:
+            self.explorer_view.move_list_widget.nav_prev.emit()
+            return
+            
         if not self.current_game: return
         idx = max(-1, self.board_widget.current_move_index - 1)
         if idx != self.board_widget.current_move_index:
             self.on_move_selected(idx)
 
     def _nav_next(self):
+        if self.stack.currentIndex() == 1:
+            self.explorer_view.move_list_widget.nav_next.emit()
+            return
+            
         if not self.current_game: return
         idx = min(len(self.current_game.moves) - 1, self.board_widget.current_move_index + 1)
         if idx != self.board_widget.current_move_index:
             self.on_move_selected(idx)
 
     def _nav_last(self):
+        if self.stack.currentIndex() == 1:
+            self.explorer_view.move_list_widget.nav_last.emit()
+            return
+            
         if not self.current_game: return
         idx = len(self.current_game.moves) - 1
         if idx != self.board_widget.current_move_index:
             self.on_move_selected(idx)
 
     def _nav_first(self):
+        if self.stack.currentIndex() == 1:
+            self.explorer_view.move_list_widget.nav_first.emit()
+            return
+            
         if not self.current_game: return
         if self.board_widget.current_move_index != -1:
             self.on_move_selected(-1)
@@ -479,6 +507,9 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
             logger.info("MainWindow: Reconfiguring live worker engine.")
             self.move_list_panel.live_worker.configure_engine()
+        if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'live_worker'):
+            logger.info("MainWindow: Reconfiguring explorer live worker engine.")
+            self.explorer_view.live_worker.configure_engine()
 
     def update_llm_config(self):
         """Re-instantiate the LLM service in every view that holds one.
@@ -581,7 +612,7 @@ class MainWindow(QMainWindow):
 
     def _do_switch_page(self, index):
         self.stack.setCurrentIndex(index)
-        if index == 2: # Stats page
+        if index == 3: # Stats page
             self.metrics_view.refresh()
 
     def load_game_from_history(self, game):
@@ -611,6 +642,11 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(title_lbl)
 
         header_layout.addStretch()  # ← pushes buttons to the right, eating spare space
+
+        # Explore Button
+        self.btn_explore = create_button("Explore from here", style="secondary", on_click=self.explore_current_position, icon_name="fa5s.compass")
+        self.btn_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        header_layout.addWidget(self.btn_explore)
 
         # Load Game Button
         self.btn_load = create_button("Load Game", style="secondary", on_click=self.open_load_dialog, icon_name="fa5s.folder-open")
@@ -694,7 +730,7 @@ class MainWindow(QMainWindow):
             self.analysis_panel.layout.setContentsMargins(5, 5, 5, 5)
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
-        self.analysis_panel.lines_widget.toggle_checkbox.toggled.connect(self.move_list_panel.set_engine_lines_enabled)
+        self.analysis_panel.toggle_checkbox.toggled.connect(self.move_list_panel.set_engine_lines_enabled)
         
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 630, 320])
@@ -955,6 +991,20 @@ class MainWindow(QMainWindow):
                     self.resource_manager.play_sound("castle")
                 else:
                     self.resource_manager.play_sound("move")
+
+    def explore_current_position(self):
+        """Switches to the Explorer tab and loads the current board position."""
+        if not self.current_game:
+            self._set_status("Load a game first before exploring", "warning")
+            return
+        if hasattr(self, 'board_widget'):
+            # Switch to Explorer tab
+            self.sidebar.set_active(1)
+            self.switch_page(1)
+            
+            # Load position and full move history
+            moves = self.current_game.moves if self.current_game else None
+            self.explorer_view.load_board_state(self.board_widget.board, moves)
 
     def go_first(self):
         if self.current_game:
