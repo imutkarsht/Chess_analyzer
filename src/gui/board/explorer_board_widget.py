@@ -63,6 +63,7 @@ class ExplorerBoardWidget(BoardWidget):
         self.show_legal_moves = True
         self.selected_square = None
         self.legal_destinations = []
+        self.book_destinations = []
         self.last_move_classification = None
         
         super().__init__()

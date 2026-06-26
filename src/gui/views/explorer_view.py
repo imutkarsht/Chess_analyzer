@@ -615,11 +615,14 @@ class ExplorerView(QWidget):
                 has_books = True
                 for san in candidates:
                     move_name = ""
+                    push_done = False
                     try:
                         move = self.board_widget.board.parse_san(san)
                         self.board_widget.board.push(move)
+                        push_done = True
                         child_fen = _normalize_fen(self.board_widget.board.fen())
                         self.board_widget.board.pop()
+                        push_done = False
                         
                         child_node_id = self.opening_db.get_node_by_fen(child_fen)
                         if child_node_id is not None:
@@ -631,7 +634,7 @@ class ExplorerView(QWidget):
                         self.board_widget.book_destinations.append(move.to_square)
                     except Exception as e:
                         logger.warning(f"Error processing book move {san}: {e}")
-                        if self.board_widget.board.move_stack:
+                        if push_done:
                             try:
                                 self.board_widget.board.pop()
                             except Exception:
@@ -655,7 +658,7 @@ class ExplorerView(QWidget):
             return
         try:
             move = self.board_widget.board.parse_san(san)
-            self.board_widget.attempt_move(move.from_square, move.to_square)
+            self.board_widget.attempt_move(move.from_square, move.to_square, promotion=move.promotion)
         except Exception as e:
             logger.warning(f"Failed to play book move {san}: {e}")
 
@@ -742,13 +745,16 @@ class ExplorerView(QWidget):
 
     def _copy_pgn(self):
         import chess.pgn
-        from io import StringIO
-        board = chess.Board()
+        starting_fen = self.board_widget.board.starting_fen if hasattr(self.board_widget.board, 'starting_fen') else chess.STARTING_FEN
+        board = chess.Board(starting_fen)
         game = chess.pgn.Game()
+        if starting_fen != chess.STARTING_FEN:
+            game.headers["FEN"] = starting_fen
+            game.headers["SetUp"] = "1"
         node = game
         for m, _, _, _ in self.move_history:
             node = node.add_variation(m)
-        exporter = chess.pgn.StringExporter(headers=False, comments=False, variations=False)
+        exporter = chess.pgn.StringExporter(headers=True, comments=False, variations=False)
         pgn_text = game.accept(exporter)
         from PyQt6.QtWidgets import QApplication
         QApplication.clipboard().setText(pgn_text)
