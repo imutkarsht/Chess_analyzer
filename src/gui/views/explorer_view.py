@@ -389,7 +389,7 @@ class ExplorerView(QWidget):
         self.last_eval = None
         self.pending_before_eval = None
         
-        self.board_widget.load_fen(fen)
+        self.board_widget.load_fen(fen, chess960=self.is_chess960)
         self.update_opening_db(fen)
         
         self.live_data = {}
@@ -459,10 +459,48 @@ class ExplorerView(QWidget):
         self._classify_before_eval = None
         self._send_to_engine(self.board.fen())
 
-    def load_board_state(self, source_board, source_moves=None):
-        """Loads a full board state including its move stack history and optional existing classifications."""
-        self.is_chess960 = getattr(source_board, 'chess960', False)
-        self.starting_fen = source_board.starting_fen
+    def load_board_state(self, source_board, source_moves=None, *, chess960=None, starting_fen=None):
+        """Loads a full board state including its move stack history and optional existing classifications.
+
+        Parameters
+        ----------
+        source_board : chess.Board
+            Board at the displayed position (move_stack is replayed from scratch).
+        source_moves : list[MoveAnalysis] | None
+            Move-level metadata with classifications.
+        chess960 : bool | None
+            Authoritative chess960 flag from game metadata.
+            When ``True``, the starting FEN and UCI strings from
+            ``source_moves`` are used for replay so that board states
+            are correct regardless of what mode the main widget used.
+        starting_fen : str | None
+            Authoritative starting FEN from game metadata.
+        """
+        # Phase 1: detect Chess960 mode — trust metadata (passed via kwargs)
+        # over source_board, since the main widget may have lost the flag.
+        self.is_chess960 = chess960 if chess960 is not None else getattr(source_board, 'chess960', False)
+        # Starting FEN: use metadata value when available, else fall back to
+        # source_board (which is chess.STARTING_FEN for Chess960 boards).
+        # When the metadata value is None but Chess960 is True, try to recover
+        # the actual starting FEN from the first move's fen_before.
+        if starting_fen:
+            self.starting_fen = starting_fen
+        elif source_moves and source_moves[0].fen_before:
+            self.starting_fen = source_moves[0].fen_before
+        else:
+            self.starting_fen = source_board.starting_fen
+
+        # Phase 2: determine which move list to replay from.
+        # source_board.move_stack may have been generated on a standard board
+        # even for Chess960 games.  When Chess960 IS detected and source_moves
+        # has enough entries, use the authoritative UCI strings from game
+        # metadata so board states are correct.
+        num_moves = len(source_board.move_stack)
+        if self.is_chess960 and source_moves and len(source_moves) >= num_moves:
+            replay_moves = [chess.Move.from_uci(source_moves[i].uci) for i in range(num_moves)]
+        else:
+            replay_moves = list(source_board.move_stack)
+
         self.board = chess.Board(self.starting_fen, chess960=self.is_chess960)
         self.move_history = []
         self.move_list_widget.clear()
@@ -475,12 +513,15 @@ class ExplorerView(QWidget):
             self.board_widget.move_made.disconnect(self.on_move_made)
         except TypeError:
             pass
-        self.board_widget.load_fen(fen=source_board.starting_fen, chess960=self.is_chess960)
+        self.board_widget.load_fen(fen=self.starting_fen, chess960=self.is_chess960)
         
         # Play out the move stack
-        for i, move in enumerate(source_board.move_stack):
+        for i, move in enumerate(replay_moves):
             fen_before = self.board.fen()
-            san = self.board.san(move)
+            try:
+                san = self.board.san(move)
+            except (AssertionError, ValueError):
+                san = move.uci()
             self.board.push(move)
             fen_after = self.board.fen()
             
@@ -526,7 +567,10 @@ class ExplorerView(QWidget):
         # We pushed a move to self.board_widget.board.
         # Find out what move it was.
         move = self.board_widget.board.peek()
-        san = self.board.san(move)
+        try:
+            san = self.board.san(move)
+        except (AssertionError, ValueError):
+            san = move.uci()
         
         # Update local board state
         fen_before = self.board.fen()

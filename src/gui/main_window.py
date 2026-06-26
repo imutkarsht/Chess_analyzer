@@ -1004,7 +1004,12 @@ class MainWindow(QMainWindow):
             
             # Load position and full move history
             moves = self.current_game.moves if self.current_game else None
-            self.explorer_view.load_board_state(self.board_widget.board, moves)
+            self.explorer_view.load_board_state(
+                self.board_widget.board,
+                moves,
+                chess960=self.current_game.metadata.chess960,
+                starting_fen=self.current_game.metadata.starting_fen,
+            )
 
     def go_first(self):
         if self.current_game:
