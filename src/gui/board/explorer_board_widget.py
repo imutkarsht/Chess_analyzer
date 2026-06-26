@@ -400,9 +400,9 @@ class ExplorerBoardWidget(BoardWidget):
         })
 
     # ------------------------------------------------------------------ public
-    def load_fen(self, fen):
+    def load_fen(self, fen, chess960=False):
         """Load a FEN and reset all selections."""
-        self.board = chess.Board(fen)
+        self.board = chess.Board(fen, chess960=chess960)
         self.selected_square = None
         self.legal_destinations = []
         self.best_move_uci = None

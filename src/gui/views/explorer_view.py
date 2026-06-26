@@ -68,6 +68,8 @@ class ExplorerView(QWidget):
         # State tracking
         self.live_data = {}
         self._position_seq = 0  # monotonic counter for stale-signal detection
+        self.is_chess960 = False
+        self.starting_fen = chess.STARTING_FEN
         self.board = chess.Board()
         self.move_history = [] # list of (Move object, FEN before, FEN after, SAN)
         
@@ -371,8 +373,11 @@ class ExplorerView(QWidget):
 
     def load_fen(self, fen):
         """Loads a starting position into the explorer."""
+        castling = fen.split()[2]
+        self.is_chess960 = castling != '-' and any(c not in 'KQkq' for c in castling)
+        self.starting_fen = fen
         try:
-            test_board = chess.Board(fen)
+            test_board = chess.Board(fen, chess960=self.is_chess960)
         except ValueError as e:
             logger.error(f"Invalid FEN: {fen} — {e}")
             return
@@ -402,12 +407,13 @@ class ExplorerView(QWidget):
         self._position_seq += 1
         self.live_data = {}
         self.lines_widget.clear()
+        self.live_worker.set_chess960(self.is_chess960)
         self.live_worker.set_position(fen, seq=self._position_seq)
 
     def _is_book_move(self, node_id, uci, fen_before):
         """Check if a move (by UCI) is a book move at the given node."""
         try:
-            board = chess.Board(fen_before)
+            board = chess.Board(fen_before, chess960=self.is_chess960)
             candidates = self.opening_db.get_children(node_id)
             for candidate_san in candidates:
                 candidate_move = board.parse_san(candidate_san)
@@ -455,7 +461,9 @@ class ExplorerView(QWidget):
 
     def load_board_state(self, source_board, source_moves=None):
         """Loads a full board state including its move stack history and optional existing classifications."""
-        self.board = chess.Board(source_board.starting_fen)
+        self.is_chess960 = getattr(source_board, 'chess960', False)
+        self.starting_fen = source_board.starting_fen
+        self.board = chess.Board(self.starting_fen, chess960=self.is_chess960)
         self.move_history = []
         self.move_list_widget.clear()
         self.pending_classification_index = -1
@@ -467,7 +475,7 @@ class ExplorerView(QWidget):
             self.board_widget.move_made.disconnect(self.on_move_made)
         except TypeError:
             pass
-        self.board_widget.load_fen(source_board.starting_fen)
+        self.board_widget.load_fen(fen=source_board.starting_fen, chess960=self.is_chess960)
         
         # Play out the move stack
         for i, move in enumerate(source_board.move_stack):
@@ -745,11 +753,10 @@ class ExplorerView(QWidget):
 
     def _copy_pgn(self):
         import chess.pgn
-        starting_fen = self.board_widget.board.starting_fen if hasattr(self.board_widget.board, 'starting_fen') else chess.STARTING_FEN
-        board = chess.Board(starting_fen)
+        board = chess.Board(self.starting_fen, chess960=self.is_chess960)
         game = chess.pgn.Game()
-        if starting_fen != chess.STARTING_FEN:
-            game.headers["FEN"] = starting_fen
+        if self.starting_fen != chess.STARTING_FEN:
+            game.headers["FEN"] = self.starting_fen
             game.headers["SetUp"] = "1"
         node = game
         for m, _, _, _ in self.move_history:
@@ -782,7 +789,7 @@ class ExplorerView(QWidget):
             self.board.pop()
         else:
             # Full replay for larger jumps
-            self.board = chess.Board()
+            self.board = chess.Board(self.starting_fen, chess960=self.is_chess960)
             for i in range(index + 1):
                 self.board.push(self.move_history[i][0])
             
