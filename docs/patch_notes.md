@@ -1,5 +1,43 @@
 # Patch Notes
 
+## v2.1.0 (Upcoming)
+
+### New Features
+- **Analysis Explorer**: Interactive explorer with independent board, move list, opening book integration, live engine analysis, and move classification. Accessible via "Explore from here" in the main analysis panel.
+- **Polyglot Opening Books**: Support for Polyglot binary opening books (`.bin`) configurable in Settings.
+- **Auto-Update Framework**: Cross-platform update mechanism with native installers for Windows (Inno Setup), macOS (DMG), and Linux (AppImage).
+
+### Improvements
+- **Code Restructuring**: Backend split into `analysis/`, `api/`, `services/`, `storage/`, `updater/` directories. GUI split into `board/`, `analysis/`, `components/`, `dialogs/`, `views/`, `utils/`.
+- **Settings Reorganization**: Settings split into dedicated views (API, Appearance, Engine, Player, Data, Book, Links).
+- **Metrics Dashboard Refactored**: Modular card-based layout with separate components for accuracy, color performance, move quality, and opening stats.
+- **Classification Algorithm Tuning**: Adjusted Blunder/Mistake/Inaccuracy thresholds, reordered Blunder before Miss in priority, improved in_book detection with cooldown, increased accuracy decay constant for better Chess.com alignment.
+- **Unified Load Dialog Refactored**: Load game dialog split into modular panel components (PGN file, PGN text, Chess.com, Lichess).
+- **Move List Refactored**: Extracted move cell and game list widgets into reusable components.
+- **Local Opening Books**: Added local book moves as alternative to Lichess API dependency.
+
+### Bug Fixes
+- **Chess960 Persistence**: Fixed Chess960 flag not persisting across game save/load cycles; added chess960 column to history DB, CSV export/import, and PGN re-parsing.
+- **AI Summary Export**: Fixed PGN export in GenerateSummaryThread — was not setting starting FEN header.
+- **PGN/History Transition Crashes**: Fixed crashes when switching between PGN loading and history views.
+- **Live Lines Freeze**: Fixed engine analysis freeze when switching between Polyglot and internal books.
+- **Live Engine Slowdown**: Fixed unbounded engine search depth — now uses configured time per move.
+- **Analysis Worker Cleanup**: Live engine worker properly stopped on application exit.
+- **Config Reloading**: Fixed configuration reloading and API profile validation.
+- **Unified UI Styling**: Fixed header styling and accent color inconsistencies across pages.
+- **Windows Installer**: Fixed minor Windows build issues.
+
+### Explorer-Specific Fixes
+- **Engine Line Click**: Fixed `pv_uci` field access (was reading non-existent `pv` key).
+- **Stale Engine Lines**: Lines widget clears immediately when sending a new position.
+- **Move Input**: Added minimum width, case-insensitive SAN parsing, promotion passing.
+- **Promotion Handling**: `attempt_move` accepts optional promotion parameter — no dialog for engine/book moves.
+- **Duplicate Board Update**: Removed redundant `update_board()` call in `BoardWidget.set_position()`.
+- **Captured Pieces Border**: Empty widget hides border instead of showing an empty box.
+- **LLM Logging**: Removed verbose LLMService logs from production output.
+
+---
+
 ## v2.0.1 - Unified Load Dialog & UI Polish
 
 These changes are part of the latest stable v2.0.1 release.

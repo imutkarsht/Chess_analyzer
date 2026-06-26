@@ -30,6 +30,7 @@ class AnalysisPanel(QWidget):
         self.config_manager = ConfigManager()
         self.groq_service = GroqService()
         self.current_game = None
+        self.summary_thread = None
         
         # Tabs
         self.tabs = QTabWidget()
@@ -44,6 +45,42 @@ class AnalysisPanel(QWidget):
         self.graph_widget = GraphWidget()
         self.graph_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.eval_layout.addWidget(self.graph_widget, stretch=2)
+        
+        # Toggles
+        toggles_layout = QHBoxLayout()
+        toggles_layout.setContentsMargins(0, 5, 0, 5)
+        
+        from PyQt6.QtWidgets import QCheckBox
+        self.toggle_checkbox = QCheckBox("Engine Lines")
+        self.toggle_checkbox.setChecked(False)
+        self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.toggle_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-weight: bold;
+                font-size: 13px;
+                background: transparent;
+                border: none;
+            }}
+        """)
+        toggles_layout.addWidget(self.toggle_checkbox)
+        
+        self.cache_checkbox = QCheckBox("Use Cache")
+        self.cache_checkbox.setChecked(True)
+        self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.cache_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-weight: bold;
+                font-size: 13px;
+                background: transparent;
+                border: none;
+            }}
+        """)
+        self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
+        toggles_layout.addWidget(self.cache_checkbox)
+        toggles_layout.addStretch()
+        self.eval_layout.addLayout(toggles_layout)
         
         # Analysis Lines
         self.lines_widget = AnalysisLinesWidget()
@@ -106,10 +143,6 @@ class AnalysisPanel(QWidget):
         self.report_layout.setStretchFactor(self.ai_summary_frame, 1)
         
         self.tabs.addTab(self.report_tab, "Report")
-        
-        # Cache Checkbox connected from the header layout
-        self.cache_checkbox = self.lines_widget.cache_checkbox
-        self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         
         # Loading Overlay
         self.loading_overlay = LoadingOverlay(self)
