@@ -214,14 +214,13 @@ class ExplorerBoardWidget(BoardWidget):
         return chess.square(file_idx, rank_idx)
 
     # ------------------------------------------------------------------ moves
-    def attempt_move(self, from_sq, to_sq):
+    def attempt_move(self, from_sq, to_sq, promotion=None):
         piece = self.board.piece_at(from_sq)
         is_promo = (
             piece and piece.piece_type == chess.PAWN and
             chess.square_rank(to_sq) in (0, 7)
         )
-        promotion = None
-        if is_promo:
+        if is_promo and promotion is None:
             dlg = PromotionDialog(piece.color, self)
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 promotion = dlg.selected_piece

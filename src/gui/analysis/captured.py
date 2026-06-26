@@ -69,6 +69,7 @@ class CapturedPiecesWidget(QFrame):
         clear_layout(self.pieces_layout)
 
         if not fen:
+            self.setStyleSheet(f"background: transparent; border: none;")
             return
 
         starting_pieces = {
@@ -124,6 +125,20 @@ class CapturedPiecesWidget(QFrame):
                     )
             if diff < 0:
                 self._add_advantage_label(f"+{-diff}")
+
+        # Show border only when there are pieces to display
+        if self.pieces_layout.count() > 0:
+            self.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 8px;
+                    padding: 5px;
+                }}
+                {Styles.CAPTURED_PIECES_STYLE}
+            """)
+        else:
+            self.setStyleSheet(f"background: transparent; border: none;")
 
     def _add_pieces(self, count, piece, fg, bg):
         """Add piece chips for the given count.

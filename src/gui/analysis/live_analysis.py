@@ -29,6 +29,7 @@ class LiveAnalysisWorker(QThread):
         self.condition = QWaitCondition()
         self.new_position = False
         self.current_fen = None
+        self.current_seq = 0
         self.is_chess960 = False
 
     # ------------------------------------------------------------------
@@ -99,11 +100,14 @@ class LiveAnalysisWorker(QThread):
             except Exception as e:
                 pass
 
-    def set_position(self, fen):
-        """Updates the position to analyze."""
+    def set_position(self, fen, seq=0):
+        """Updates the position to analyze. `seq` is a caller-supplied
+        monotonic counter; when set, the worker includes it in every
+        info_ready signal so the receiver can discard stale results."""
         self.mutex.lock()
-        if fen != self.current_fen:
+        if fen != self.current_fen or seq != self.current_seq:
             self.current_fen = fen
+            self.current_seq = seq
             self.new_position = True
             self.condition.wakeAll()
         self.mutex.unlock()
@@ -151,6 +155,10 @@ class LiveAnalysisWorker(QThread):
                     try:
                         board = chess.Board(fen, chess960=self.is_chess960)
                         self.thinking_started.emit()
+                        # Capture the seq at the start of this analysis batch
+                        self.mutex.lock()
+                        batch_seq = self.current_seq
+                        self.mutex.unlock()
                         # Finite analysis: calculate incrementally up to selected depth + 10 max
                         with self.engine.analysis(
                             board,
@@ -166,6 +174,7 @@ class LiveAnalysisWorker(QThread):
                                 
                                 # Process info
                                 processed_info = self._process_info(info, board)
+                                processed_info["seq"] = batch_seq
                                 self.info_ready.emit(processed_info)
                         self.thinking_stopped.emit()
                     except Exception as e:

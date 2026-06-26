@@ -21,7 +21,6 @@ from typing import Optional
 from openai import OpenAI
 
 from src.utils.config import ConfigManager
-from src.utils.logger import logger
 
 from src.constants import PROVIDERS
 
@@ -213,19 +212,13 @@ class GroqService:
 
         requires_key = preset["requires_key"]
         if requires_key and self._is_placeholder_key(self._api_key):
-            logger.error(
-                f"LLMService: provider '{provider}' API key is a placeholder "
-                f"({self._api_key!r}) — enter a real key in Settings."
-            )
             self.client = None
             return
         if requires_key and not self._api_key:
-            logger.info(f"LLMService: provider '{provider}' requires an API key — not connected.")
             self.client = None
             return
 
         if not self._base_url:
-            logger.warning(f"LLMService: no base URL for provider '{provider}' — not connected.")
             self.client = None
             return
 
@@ -234,12 +227,7 @@ class GroqService:
                 api_key=self._api_key or "not-needed",
                 base_url=self._base_url,
             )
-            logger.info(
-                f"LLMService connected — provider={provider}, "
-                f"model={self._model}, base_url={self._base_url}"
-            )
         except Exception as exc:
-            logger.error(f"LLMService: failed to create client: {exc}")
             self.client = None
 
     @property
@@ -272,8 +260,6 @@ class GroqService:
             text = completion.choices[0].message.content
             return text.strip() if text else "No response generated."
         except Exception as exc:
-            logger.error(f"LLMService: request failed: {exc}", exc_info=True)
-            # Keep full error text — UI dialog lets the user copy it.
             exc_type = type(exc).__name__
             return f"Error [{exc_type}]: {exc}"
 

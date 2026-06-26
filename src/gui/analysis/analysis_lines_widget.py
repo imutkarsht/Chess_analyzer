@@ -110,8 +110,8 @@ class AnalysisLinesWidget(QFrame):
             depth = pv_data.get("depth", "?")
             
             # Clickable move logic
-            if pv_data.get("pv"):
-                row_widget.uci_move = pv_data["pv"][0]
+            if pv_data.get("pv_uci"):
+                row_widget.uci_move = pv_data["pv_uci"][0]
             else:
                 row_widget.uci_move = None
                 

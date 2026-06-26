@@ -130,7 +130,6 @@ class BoardWidget(QWidget):
                         cp = move.eval_after_cp
         
         self.update_board()
-        self.update_board()
         self.draw_overlays(move_index)
         self.eval_bar.set_eval(cp, mate)
 
