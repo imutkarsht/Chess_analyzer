@@ -3,10 +3,11 @@ Explorer View - The main container for the Opening Explorer.
 """
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSplitter, 
-    QScrollArea, QCheckBox, QLineEdit, QPushButton
+    QScrollArea, QCheckBox, QLineEdit, QPushButton, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt, QTimer, QByteArray
+from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon
+from PyQt6.QtSvg import QSvgRenderer
 import chess
 
 from src.gui.styles import Styles
@@ -15,6 +16,7 @@ from src.gui.analysis.analysis_lines_widget import AnalysisLinesWidget
 from src.gui.analysis.live_analysis import LiveAnalysisWorker
 from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
 from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
+from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.backend.analysis.math_utils import get_win_probability
 from src.backend.analysis.move_classifier import classify_move
 from src.utils.path_utils import get_resource_path, get_user_data_dir
@@ -93,6 +95,10 @@ class ExplorerView(QWidget):
             logger.warning(f"Failed to initialize opening DB: {e}")
         self.opening_db.connect()
         
+        # Polyglot Book (loaded from config, optional — opened lazily)
+        polyglot_path = self.config_manager.get("polyglot_book_path", "")
+        self.polyglot_manager = PolyglotBookManager(polyglot_path if polyglot_path else None)
+        
         self.setup_ui()
         
         # Loading overlay for background tasks
@@ -130,8 +136,50 @@ class ExplorerView(QWidget):
         title_lbl = QLabel("Opening Explorer")
         title_lbl.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
         header_layout.addWidget(title_lbl)
+
+        # Opening badge (inline after title)
+        self.opening_badge = QLabel("Opening: -")
+        self.opening_badge.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; padding: 0px 0px 0px 12px; background: transparent; border: none;")
+        header_layout.addWidget(self.opening_badge)
+
         header_layout.addStretch()
-        
+
+        # Action buttons header style
+        btn_style = f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border-color: {Styles.COLOR_ACCENT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+        """
+
+        self.btn_flip = QPushButton("Flip Board")
+        self.btn_flip.setStyleSheet(btn_style)
+        self.btn_flip.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_flip.clicked.connect(self._flip_board)
+        header_layout.addWidget(self.btn_flip)
+
+        self.btn_copy_fen = QPushButton("Copy FEN")
+        self.btn_copy_fen.setStyleSheet(btn_style)
+        self.btn_copy_fen.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_copy_fen.clicked.connect(self._copy_fen)
+        header_layout.addWidget(self.btn_copy_fen)
+
+        self.btn_copy_pgn = QPushButton("Copy PGN")
+        self.btn_copy_pgn.setStyleSheet(btn_style)
+        self.btn_copy_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_copy_pgn.clicked.connect(self._copy_pgn)
+        header_layout.addWidget(self.btn_copy_pgn)
+
         main_layout.addWidget(self.header_bar)
         
         # Content Area - Splitter
@@ -193,14 +241,8 @@ class ExplorerView(QWidget):
         # ==========================================
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(8, 12, 12, 8)
-        right_layout.setSpacing(8)
-        
-        # Opening Badge (No border, clean text)
-        self.opening_badge = QLabel("Opening: -")
-        self.opening_badge.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 0px 0px 5px 0px;")
-        self.opening_badge.setWordWrap(True)
-        right_layout.addWidget(self.opening_badge)
+        right_layout.setContentsMargins(8, 8, 12, 8)
+        right_layout.setSpacing(6)
         
         # Toggles Bar
         toggles_layout = QHBoxLayout()
@@ -235,49 +277,6 @@ class ExplorerView(QWidget):
             
         right_layout.addLayout(toggles_layout)
         
-        # Action Toolbar
-        action_layout = QHBoxLayout()
-        action_layout.setContentsMargins(0, 0, 0, 6)
-        action_layout.setSpacing(8)
-        
-        btn_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """
-        
-        self.btn_flip = QPushButton("Flip Board")
-        self.btn_flip.setStyleSheet(btn_style)
-        self.btn_flip.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_flip.clicked.connect(self._flip_board)
-        action_layout.addWidget(self.btn_flip)
-        
-        self.btn_copy_fen = QPushButton("Copy FEN")
-        self.btn_copy_fen.setStyleSheet(btn_style)
-        self.btn_copy_fen.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_copy_fen.clicked.connect(self._copy_fen)
-        action_layout.addWidget(self.btn_copy_fen)
-        
-        self.btn_copy_pgn = QPushButton("Copy PGN")
-        self.btn_copy_pgn.setStyleSheet(btn_style)
-        self.btn_copy_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_copy_pgn.clicked.connect(self._copy_pgn)
-        action_layout.addWidget(self.btn_copy_pgn)
-        
-        action_layout.addStretch()
-        right_layout.addLayout(action_layout)
-        
         # Engine Lines
         self.lines_widget = AnalysisLinesWidget()
         self.lines_widget.line_clicked.connect(self.on_engine_line_clicked)
@@ -285,10 +284,28 @@ class ExplorerView(QWidget):
         
         self.lines_widget.setVisible(False)
         
-        # Book Moves Table
-        self.book_label = QLabel("Book Moves")
-        self.book_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
-        right_layout.addWidget(self.book_label)
+        # Book Moves Toggle + Table
+        self._current_book_count = 0
+        self.book_toggle = QPushButton("▶  Book Moves")
+        self.book_toggle.setCheckable(True)
+        self.book_toggle.setChecked(True)
+        self.book_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.book_toggle.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                border: none;
+                text-align: left;
+                font-size: 14px;
+                font-weight: bold;
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                padding: 2px 0px;
+            }}
+            QPushButton:hover {{
+                color: {Styles.COLOR_ACCENT};
+            }}
+        """)
+        self.book_toggle.toggled.connect(self._toggle_book)
+        right_layout.addWidget(self.book_toggle)
         
         self.book_scroll = QScrollArea()
         self.book_scroll.setWidgetResizable(True)
@@ -322,7 +339,7 @@ class ExplorerView(QWidget):
         self.book_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.book_scroll.setWidget(self.book_container)
         
-        right_layout.addWidget(self.book_scroll, stretch=2)
+        right_layout.addWidget(self.book_scroll, stretch=1)
         
         # Move List Header (inline with move input)
         moves_header = QHBoxLayout()
@@ -411,7 +428,8 @@ class ExplorerView(QWidget):
         self.live_worker.set_position(fen, seq=self._position_seq)
 
     def _is_book_move(self, node_id, uci, fen_before):
-        """Check if a move (by UCI) is a book move at the given node."""
+        """Check if a move (by UCI) is a book move at the given node.
+        Checks both the SQLite opening DB and the Polyglot book."""
         try:
             board = chess.Board(fen_before, chess960=self.is_chess960)
             candidates = self.opening_db.get_children(node_id)
@@ -420,7 +438,17 @@ class ExplorerView(QWidget):
                 if candidate_move.uci() == uci:
                     return True
         except Exception as e:
-            logger.warning(f"Error checking book move: {e}")
+            logger.warning(f"Error checking SQLite book move: {e}")
+
+        if self.polyglot_manager.is_available():
+            try:
+                board = chess.Board(fen_before, chess960=self.is_chess960)
+                for entry in self.polyglot_manager.reader.find_all(board):
+                    if entry.move.uci() == uci:
+                        return True
+            except Exception as e:
+                logger.warning(f"Error checking polyglot book move: {e}")
+
         return False
 
     def _update_material(self):
@@ -543,6 +571,7 @@ class ExplorerView(QWidget):
         
         fen = self.board.fen()
         self.update_opening_db(fen)
+        self._update_material()
         
         self.live_data = {}
         if self.chk_engine.isChecked():
@@ -595,7 +624,7 @@ class ExplorerView(QWidget):
         # Check if it's a book move instantly (compare by UCI to avoid SAN ambiguity)
         norm_fen = _normalize_fen(fen_before)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
-        if node_id is not None and self._is_book_move(node_id, move.uci(), fen_before):
+        if self._is_book_move(node_id, move.uci(), fen_before):
             if self.classify_enabled:
                 self.move_list_widget.update_classification(self.pending_classification_index, "Book")
                 self.pending_classification_index = -1
@@ -611,7 +640,28 @@ class ExplorerView(QWidget):
             
         self.update_opening_db(fen_after)
 
-    def _create_book_row_widget(self, san, move_name):
+    def _get_piece_pixmap(self, symbol, size=18):
+        cache_key = (symbol, size)
+        if not hasattr(self, '_piece_pixmap_cache'):
+            self._piece_pixmap_cache = {}
+        if cache_key not in self._piece_pixmap_cache:
+            from src.gui.board.piece_themes import _load_theme_cached
+            pieces_svg = _load_theme_cached("Standard")
+            g_content = pieces_svg.get(symbol, "")
+            if g_content:
+                svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
+                renderer = QSvgRenderer(QByteArray(svg_str.encode('utf-8')))
+                pixmap = QPixmap(size, size)
+                pixmap.fill(Qt.GlobalColor.transparent)
+                painter = QPainter(pixmap)
+                renderer.render(painter)
+                painter.end()
+                self._piece_pixmap_cache[cache_key] = pixmap
+            else:
+                self._piece_pixmap_cache[cache_key] = None
+        return self._piece_pixmap_cache[cache_key]
+
+    def _create_book_row_widget(self, san, info_text, piece_symbol=None):
         row_widget = BookRowWidget(san, self)
         row_widget.setStyleSheet(f"""
             QWidget {{
@@ -623,16 +673,26 @@ class ExplorerView(QWidget):
         """)
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(14, 10, 14, 10)
+        row_layout.setSpacing(8)
+        
+        if piece_symbol:
+            pixmap = self._get_piece_pixmap(piece_symbol)
+            if pixmap:
+                icon_label = QLabel()
+                icon_label.setPixmap(pixmap)
+                icon_label.setFixedSize(18, 18)
+                icon_label.setStyleSheet("border: none; background: transparent;")
+                row_layout.addWidget(icon_label)
         
         lbl_san = QLabel(san)
         lbl_san.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 15px; border: none; background: transparent;")
         row_layout.addWidget(lbl_san)
         
-        if move_name:
-            lbl_name = QLabel(move_name)
-            lbl_name.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; font-style: italic; border: none; background: transparent;")
-            lbl_name.setMinimumWidth(0)
-            row_layout.addWidget(lbl_name, stretch=1)
+        if info_text:
+            lbl_info = QLabel(info_text)
+            lbl_info.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; font-style: italic; border: none; background: transparent;")
+            lbl_info.setMinimumWidth(0)
+            row_layout.addWidget(lbl_info, stretch=1)
         else:
             row_layout.addStretch()
         
@@ -650,21 +710,49 @@ class ExplorerView(QWidget):
                 w.deleteLater()
         self._book_row_widgets = []
         
-        has_books = False
-        
         if not self.board_widget.board.move_stack:
             self.opening_badge.setText("Opening: -")
-            
+        
+        # --- Update opening badge from SQLite (always) ---
         if node_id is not None:
             openings = self.opening_db.get_openings_at_node(node_id)
             if openings:
                 best_name = max(openings, key=lambda x: len(x[1]))[1]
                 best_eco = max(openings, key=lambda x: len(x[1]))[0]
                 self.opening_badge.setText(f"Opening: {best_eco} - {best_name}")
-                
+        
+        # --- Try Polyglot book first (higher priority) ---
+        polyglot_used = False
+        current_path = self.config_manager.get("polyglot_book_path", "")
+        if current_path != (self.polyglot_manager.book_path or ""):
+            self.polyglot_manager.set_book_path(current_path if current_path else None)
+        if self.polyglot_manager.is_available():
+            try:
+                board = self.board_widget.board
+                entries = list(self.polyglot_manager.reader.find_all(board))
+                if entries:
+                    polyglot_used = True
+                    entries.sort(key=lambda e: e.weight, reverse=True)
+                    for entry in entries:
+                        ply_move = entry.move
+                        try:
+                            san = board.san(ply_move)
+                        except Exception:
+                            san = ply_move.uci()
+                        self.board_widget.book_destinations.append(ply_move.to_square)
+                        weight_str = str(entry.weight)
+                        piece = board.piece_at(ply_move.from_square)
+                        piece_symbol = piece.symbol() if piece else None
+                        row_widget = self._create_book_row_widget(san, weight_str, piece_symbol)
+                        self.book_layout.addWidget(row_widget)
+                        self._book_row_widgets.append(row_widget)
+            except Exception as e:
+                logger.warning(f"Polyglot query failed: {e}", exc_info=True)
+        
+        # --- Fall back to SQLite Opening DB ---
+        if not polyglot_used and node_id is not None:
             candidates = self.opening_db.get_children(node_id)
             if candidates:
-                has_books = True
                 for san in candidates:
                     move_name = ""
                     push_done = False
@@ -685,22 +773,32 @@ class ExplorerView(QWidget):
                         
                         self.board_widget.book_destinations.append(move.to_square)
                     except Exception as e:
-                        logger.warning(f"Error processing book move {san}: {e}")
+                        logger.warning(f"Error processing SQLite book move {san}: {e}")
                         if push_done:
                             try:
                                 self.board_widget.board.pop()
                             except Exception:
                                 pass
+                        continue
                     
-                    row_widget = self._create_book_row_widget(san, move_name)
+                    piece = self.board_widget.board.piece_at(move.from_square)
+                    piece_symbol = piece.symbol() if piece else None
+                    row_widget = self._create_book_row_widget(san, move_name, piece_symbol)
                     self.book_layout.addWidget(row_widget)
                     self._book_row_widgets.append(row_widget)
             
-        if has_books:
-            self.book_label.show()
-            self.book_scroll.show()
+        self._current_book_count = len(self._book_row_widgets)
+        arrow = "▼" if self.book_toggle.isChecked() else "▶"
+        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
+        
+        if self._current_book_count > 0:
+            self.book_toggle.show()
+            if not self.book_toggle.isChecked():
+                self.book_scroll.hide()
+            else:
+                self.book_scroll.show()
         else:
-            self.book_label.hide()
+            self.book_toggle.hide()
             self.book_scroll.hide()
             
         self.board_widget.draw_interactive_overlays()
@@ -745,7 +843,7 @@ class ExplorerView(QWidget):
             self.move_input.clear()
         except Exception as e:
             if not isinstance(e, ValueError) or str(e) != f"Illegal move: {text}":
-                logger.debug(f"Move input error: {e}")
+                pass
             self.move_input.setStyleSheet(f"""
                 QLineEdit {{
                     background-color: #3d1a1a;
@@ -774,18 +872,24 @@ class ExplorerView(QWidget):
             }}
         """)
 
+    def _toggle_book(self, checked):
+        self.book_scroll.setVisible(checked)
+        arrow = "▼" if checked else "▶"
+        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
+
     def _flip_board(self):
         self.board_widget.flip_board()
         self.board_widget.draw_interactive_overlays()
         # Swap captured pieces headers around the board
         self.left_layout.removeWidget(self.white_header_widget)
         self.left_layout.removeWidget(self.black_header_widget)
+        # After removal, only board_container remains at index 0
         if self.board_widget.is_flipped:
-            self.left_layout.insertWidget(2, self.white_header_widget)
-            self.left_layout.insertWidget(0, self.black_header_widget)
+            self.left_layout.insertWidget(0, self.white_header_widget)  # white above
+            self.left_layout.insertWidget(2, self.black_header_widget)  # black below
         else:
-            self.left_layout.insertWidget(0, self.black_header_widget)
-            self.left_layout.insertWidget(2, self.white_header_widget)
+            self.left_layout.insertWidget(0, self.black_header_widget)   # black above
+            self.left_layout.insertWidget(2, self.white_header_widget)   # white below
 
     def _copy_fen(self):
         fen = self.board_widget.board.fen()
@@ -797,8 +901,15 @@ class ExplorerView(QWidget):
 
     def _copy_pgn(self):
         import chess.pgn
-        board = chess.Board(self.starting_fen, chess960=self.is_chess960)
+        from datetime import date
         game = chess.pgn.Game()
+        game.headers["Event"] = "Chess Analyzer Pro"
+        game.headers["Site"] = "Opening Explorer"
+        game.headers["Date"] = date.today().strftime("%Y.%m.%d")
+        game.headers["Round"] = "-"
+        game.headers["White"] = "-"
+        game.headers["Black"] = "-"
+        game.headers["Result"] = "*"
         if self.starting_fen != chess.STARTING_FEN:
             game.headers["FEN"] = self.starting_fen
             game.headers["SetUp"] = "1"
@@ -994,9 +1105,7 @@ class ExplorerView(QWidget):
         # Check if it is a book move first (compare by UCI to avoid SAN ambiguity)
         norm_fen = _normalize_fen(fen_before)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
-        is_book = False
-        if node_id is not None:
-            is_book = self._is_book_move(node_id, move_obj.uci(), fen_before)
+        is_book = self._is_book_move(node_id, move_obj.uci(), fen_before)
                 
         if is_book:
             self.move_list_widget.update_classification(self.pending_classification_index, "Book")

@@ -37,7 +37,7 @@ def main():
     if sys.platform == 'win32':
         try:
             import ctypes
-            myappid = 'com.imutkarsht.chessanalyzerpro.2.0.1'
+            myappid = 'com.imutkarsht.chessanalyzerpro.2.1.0'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception as e:
             pass

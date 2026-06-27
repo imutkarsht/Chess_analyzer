@@ -10,7 +10,7 @@
 ; ==============================================================================
 
 #define AppName        "Chess Analyzer Pro"
-#define AppVersion     "2.0.1"
+#define AppVersion     "2.1.0"
 #define AppPublisher   "imutkarsht"
 #define AppURL         "https://github.com/imutkarsht/Chess_analyzer"
 #define AppExeName     "ChessAnalyzerPro.exe"

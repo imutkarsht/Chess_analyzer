@@ -11,7 +11,7 @@
 #   ./installers/linux/build_appimage.sh
 #
 # Output:
-#   installers/linux/Output/ChessAnalyzerPro-2.0.1-x86_64.AppImage
+#   installers/linux/Output/ChessAnalyzerPro-2.1.0-x86_64.AppImage
 # ==============================================================================
 
 set -euo pipefail
@@ -20,7 +20,7 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 APP_NAME="ChessAnalyzerPro"
-APP_VERSION="2.0.1"
+APP_VERSION="2.1.0"
 BUNDLE_ID="com.imutkarsht.chessanalyzerpro"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

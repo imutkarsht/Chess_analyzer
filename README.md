@@ -9,20 +9,35 @@
 > 🌐 **Official Website:** [chess-analyzer-ut.vercel.app](https://chess-analyzer-ut.vercel.app/)  
 > Visit the official site for detailed documentation, latest updates, and to report bugs or request features.
 
-## 🎥 Application Preview
+## 🎥 Showcase
 
 <p align="center">
-  <video src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/previewChessAnalyzer.mp4?updatedAt=1781885787500" width="100%" controls autoplay loop muted></video>
+  <a href="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/showcasevideo.mp4" target="_blank">
+    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/analysis_page.png" alt="Chess Analyzer Pro Showcase" width="80%">
+    <br>
+    <sub>▶ Click to watch the showcase video</sub>
+  </a>
 </p>
-
 
 **Chess Analyzer Pro** is a powerful, full-stack Python desktop application designed to bring professional-grade chess analysis to your local machine. Inspired by platforms like Chess.com, it combines the robust analysis capabilities of Stockfish with a sleek, responsive PyQt6 interface.
 
 ## 📸 Screenshots
 
-| Analysis View | Load Game | History Tab | Stats Tab | Settings Tab |
-|:-------------:|:---------:|:-----------:|:---------:|:------------:|
-| ![Analysis](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/analysis.png) | ![Load Game](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/load_game.png) | ![History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/game_history.png) | ![Stats](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/stats.png) | ![Settings](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2.0/settings.png) |
+| Analysis | Analysis (Graph) | Load Game |
+|:--------:|:----------------:|:---------:|
+| ![Analysis](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/analysis_page.png) | ![Analysis 2](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/analysis_page_2.png) | ![Load Game](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/load_game.png) |
+
+| History | Stats | Settings |
+|:-------:|:-----:|:--------:|
+| ![History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/History_page.png) | ![Stats](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/stats_page.png) | ![Settings](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/settings_page1.png) |
+
+| Explore | Explore (Tree) | Help |
+|:-------:|:--------------:|:----:|
+| ![Explore](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/explore_page.png) | ![Explore 2](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/explore_page2.png) | ![Help](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/helpPopup.png) |
+
+| | Settings (Engine) | |
+|:---:|:-----------------:|:---:|
+| | ![Settings 2](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/settings_page2.png) | |
 
 
 ## 🚀 Features
