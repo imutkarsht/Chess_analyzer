@@ -549,6 +549,10 @@ class MainWindow(QMainWindow):
         # Update Board
         if hasattr(self, 'board_widget'):
             self.board_widget.update_board()
+
+        # Update Explorer Board
+        if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'board_widget'):
+            self.explorer_view.board_widget.update_board()
             
         # Update Analysis Panel
         if hasattr(self, 'analysis_panel'):
@@ -734,6 +738,9 @@ class MainWindow(QMainWindow):
         
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 630, 320])
+        splitter.setStretchFactor(0, 1)  # Left: move list
+        splitter.setStretchFactor(1, 3)  # Center: board (priority)
+        splitter.setStretchFactor(2, 1)  # Right: analysis
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
         """

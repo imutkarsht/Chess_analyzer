@@ -28,6 +28,7 @@ installers/windows/Output/
 installers/linux/*.AppImage
 installers/linux/AppDir/
 installers/linux/appimagetool*
+installers/mac/Output
 
 # Agent Ignore files
 .agent/session/

@@ -10,7 +10,7 @@
 #   ./build_dmg.sh
 #
 # Output:
-#   installers/mac/Output/ChessAnalyzerPro-2.0.1-macOS.dmg
+#   installers/mac/Output/ChessAnalyzerPro-2.1.0-macOS.dmg
 # ==============================================================================
 
 set -euo pipefail
@@ -19,7 +19,7 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 APP_NAME="Chess Analyzer Pro"
-APP_VERSION="2.0.1"
+APP_VERSION="2.1.0"
 BUNDLE_NAME="ChessAnalyzerPro"
 
 # Paths (relative to project root — run this script from the project root)
