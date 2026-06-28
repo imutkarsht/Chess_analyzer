@@ -1,8 +1,11 @@
 import chess.engine
 import chess
 import os
-from typing import Optional, Dict, Any, Tuple
+import sys
+import shutil
+from typing import Optional, Dict, Any, Tuple, List
 from src.utils.logger import logger
+from src.utils.path_utils import get_stockfish_common_paths, get_engine_data_dir
 
 # Conservative defaults aimed at laptops (incl. fanless MacBook Air).
 # Power users can raise these in Settings; the values here are deliberately
@@ -32,6 +35,63 @@ def options_from_config(config_manager=None) -> Dict[str, Any]:
     threads = config_manager.get("engine_threads", DEFAULT_THREADS)
     hash_mb = config_manager.get("engine_hash", DEFAULT_HASH_MB)
     return engine_options(threads, hash_mb)
+
+
+def _validate_engine_path(path: str) -> bool:
+    """Check whether *path* exists and looks like a UCI engine binary.
+
+    Uses ``os.path.isfile`` and an execute-bit check (non-Windows) to
+    weed-out obvious mismatches without launching a subprocess.
+    """
+    if not path or not os.path.isfile(path):
+        return False
+    if sys.platform != "win32" and not os.access(path, os.X_OK):
+        return False
+    return True
+
+
+def resolve_engine_path(config_manager=None) -> Optional[str]:
+    """Auto-detect a Stockfish binary using the priority table.
+
+    | Priority | Check |
+    |----------|-------|
+    | 1        | ``config["engine_path"]`` – explicit user setting |
+    | 2        | ``shutil.which("stockfish")`` – ``$PATH`` (Homebrew, system) |
+    | 3        | Platform-specific common paths |
+    | 4        | Already-downloaded in engine data dir |
+    | 5        | ``None`` – caller should fall back to download |
+
+    Returns the path string or ``None`` if nothing was found.
+    """
+    # Priority 1 – explicit user setting
+    if config_manager is not None:
+        cfg_path = config_manager.get("engine_path", "")
+        if cfg_path:
+            resolved = shutil.which(cfg_path) or cfg_path
+            if _validate_engine_path(resolved):
+                logger.info("resolve_engine_path: using config path %s", resolved)
+                return resolved
+
+    # Priority 2 – PATH lookup
+    which_path = shutil.which("stockfish")
+    if which_path and _validate_engine_path(which_path):
+        logger.info("resolve_engine_path: found via PATH at %s", which_path)
+        return which_path
+
+    # Priority 3 – platform-specific common paths
+    for candidate in get_stockfish_common_paths():
+        if _validate_engine_path(candidate):
+            logger.info("resolve_engine_path: found at common path %s", candidate)
+            return candidate
+
+    # Priority 4 – previously downloaded
+    downloaded = os.path.join(get_engine_data_dir(), "stockfish")
+    if _validate_engine_path(downloaded):
+        logger.info("resolve_engine_path: found previously downloaded at %s", downloaded)
+        return downloaded
+
+    logger.info("resolve_engine_path: no Stockfish found, returning None")
+    return None
 
 
 class EngineManager:
@@ -111,6 +171,30 @@ class EngineManager:
             threads=self.config_manager.get("engine_threads", DEFAULT_THREADS),
             hash_mb=self.config_manager.get("engine_hash", DEFAULT_HASH_MB),
         )
+
+    def recheck_engine_path(self, config_manager=None) -> bool:
+        """Re-run auto-detection and restart the engine if the path changed.
+
+        This is useful after the user downloads Stockfish through the setup
+        wizard or changes settings – call it to pick up the new binary
+        without requiring an app restart.
+
+        Returns ``True`` if the engine is running (or was successfully
+        restarted) after the check.
+        """
+        new_path = resolve_engine_path(config_manager)
+        if new_path is None:
+            return False
+        if new_path != self.engine_path:
+            self.stop_engine()
+            self.engine_path = new_path
+        if self.engine is None:
+            try:
+                self.start_engine()
+            except Exception:
+                logger.exception("recheck_engine_path: failed to start engine at %s", new_path)
+                return False
+        return self.engine is not None
 
     def analyze_position(self, board: chess.Board, time_limit: float = 0.1, depth: Optional[int] = None, multi_pv: int = 1) -> chess.engine.InfoDict:
         if not self.engine:
