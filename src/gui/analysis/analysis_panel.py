@@ -98,6 +98,7 @@ class AnalysisPanel(QWidget):
         self.opening_label = QLabel("Opening: -")
         self.opening_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: bold;")
         self.opening_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.opening_label.setWordWrap(True)
         self.report_layout.addWidget(self.opening_label)
         
         # Accuracy
