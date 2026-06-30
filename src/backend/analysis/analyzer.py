@@ -293,7 +293,11 @@ class Analyzer:
         
         if board.is_game_over():
             if board.is_checkmate():
-                return chess.engine.PovScore(chess.engine.Mate(0), board.turn)
+                # Mate(-1) from the mated side's perspective: "the opponent
+                # can deliver mate." This unambiguously encodes the winner
+                # after downstream normalization (unlike Mate(0) which loses
+                # polarity when -0 = 0).
+                return chess.engine.PovScore(chess.engine.Mate(-1), board.turn)
             else:
                 return chess.engine.PovScore(chess.engine.Cp(0), board.turn)
                 

@@ -63,3 +63,39 @@ def get_user_data_dir() -> str:
     os.makedirs(base_dir, exist_ok=True)
     return base_dir
 
+
+def get_stockfish_common_paths() -> list[str]:
+    """Return a list of common Stockfish binary paths for the current platform.
+
+    These are checked during auto-detection before falling back to download.
+    Order matters — more specific/likely paths come first.
+    """
+    if sys.platform == "darwin":
+        return [
+            "/opt/homebrew/bin/stockfish",     # Apple Silicon Homebrew
+            "/usr/local/bin/stockfish",         # Intel Homebrew / manual
+            "/opt/homebrew/bin/stockfish.exe",  # Wine cross-build (rare)
+        ]
+    elif sys.platform == "win32":
+        return [
+            "C:\\Program Files\\Stockfish\\stockfish.exe",
+            "C:\\Program Files (x86)\\Stockfish\\stockfish.exe",
+            os.path.expanduser("~\\AppData\\Local\\Stockfish\\stockfish.exe"),
+        ]
+    else:
+        return [
+            "/usr/bin/stockfish",
+            "/usr/local/bin/stockfish",
+            "/usr/games/stockfish",
+        ]
+
+
+def get_engine_data_dir() -> str:
+    """Return the platform-specific directory for engine binaries.
+
+    Returns a subdirectory of get_user_data_dir() named 'engine'.
+    """
+    engine_dir = os.path.join(get_user_data_dir(), "engine")
+    os.makedirs(engine_dir, exist_ok=True)
+    return engine_dir
+
