@@ -19,6 +19,7 @@ from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
 from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.backend.analysis.math_utils import get_win_probability
 from src.backend.analysis.move_classifier import classify_move
+from src.backend.analysis.engine import resolve_engine_path
 from src.utils.path_utils import get_resource_path, get_user_data_dir
 from src.utils.logger import logger
 from src.gui.utils.gui_utils import clear_layout
@@ -61,7 +62,8 @@ class ExplorerView(QWidget):
     def __init__(self, config_manager, parent=None):
         super().__init__(parent)
         self.config_manager = config_manager
-        self.engine_path = self.config_manager.get("engine_path", "stockfish")
+        resolved = resolve_engine_path(self.config_manager)
+        self.engine_path = resolved or self.config_manager.get("engine_path", "stockfish")
         self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=self.config_manager)
         self.live_worker.info_ready.connect(self.on_live_analysis_update)
         self.live_worker.thinking_started.connect(self._on_engine_thinking_started)

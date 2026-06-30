@@ -22,7 +22,7 @@ from src.backend.analysis.analyzer import Analyzer
 from src.utils.resources import ResourceManager
 from src.utils.logger import logger
 from src.utils.config import ConfigManager
-from src.backend.analysis.engine import EngineManager
+from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
 from src.gui.styles import Styles
@@ -44,7 +44,8 @@ class MainWindow(QMainWindow):
         self.games = []
         self.current_game = None
         self.config_manager = ConfigManager()
-        self.engine_path = self.config_manager.get("engine_path", "stockfish")
+        resolved = resolve_engine_path(self.config_manager)
+        self.engine_path = resolved or self.config_manager.get("engine_path", "stockfish")
         self.analyzer = Analyzer(
             EngineManager(self.engine_path, config_manager=self.config_manager)
         )
@@ -424,8 +425,7 @@ class MainWindow(QMainWindow):
     # Engine states: 'offline' | 'ready' | 'calculating'
     def _refresh_engine_status(self):
         """Check engine binary and update pill. Call after path changes."""
-        path = self.config_manager.get("engine_path", "stockfish")
-        found = bool(shutil.which(path) or os.path.isfile(path))
+        found = resolve_engine_path(self.config_manager) is not None
         self._set_engine_state("ready" if found else "offline")
 
     def _set_engine_state(self, state: str, progress_msg: str = ""):
@@ -477,6 +477,9 @@ class MainWindow(QMainWindow):
 
     def update_engine_path(self, new_path):
         """Updates the engine path and re-initializes the analyzer."""
+        resolved = resolve_engine_path(self.config_manager)
+        if resolved:
+            new_path = resolved
         logger.info(f"Updating engine path to: {new_path}")
         self.engine_path = new_path
         # Re-initialize analyzer with new engine
@@ -860,16 +863,20 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
             return
         
-        # Check if engine exists
-        is_in_path = shutil.which(self.engine_path) is not None
-        is_file = os.path.exists(self.engine_path) and os.path.isfile(self.engine_path)
-        
-        if not (is_in_path or is_file):
-             logger.warning(f"Engine not found at: {self.engine_path}")
-             QMessageBox.warning(self, "Engine Not Found", "Please configure the engine path in Settings.")
-             self.sidebar.set_active(3)
-             self.switch_page(3)
-             return
+        # Auto-detect engine if the configured path doesn't work
+        resolved = resolve_engine_path(self.config_manager)
+        if resolved:
+            if resolved != self.engine_path:
+                self.engine_path = resolved
+                self.analyzer = Analyzer(
+                    EngineManager(self.engine_path, config_manager=self.config_manager)
+                )
+        else:
+            logger.warning(f"Engine not found (configured: {self.engine_path})")
+            QMessageBox.warning(self, "Engine Not Found", "Please configure the engine path in Settings.")
+            self.sidebar.set_active(3)
+            self.switch_page(3)
+            return
 
         logger.info("Starting analysis...")
         self.worker = AnalysisWorker(self.analyzer, self.current_game)
