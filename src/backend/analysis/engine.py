@@ -38,11 +38,6 @@ def options_from_config(config_manager=None) -> Dict[str, Any]:
 
 
 def _validate_engine_path(path: str) -> bool:
-    """Check whether *path* exists and looks like a UCI engine binary.
-
-    Uses ``os.path.isfile`` and an execute-bit check (non-Windows) to
-    weed-out obvious mismatches without launching a subprocess.
-    """
     if not path or not os.path.isfile(path):
         return False
     if sys.platform != "win32" and not os.access(path, os.X_OK):
@@ -50,8 +45,19 @@ def _validate_engine_path(path: str) -> bool:
     return True
 
 
+_resolve_cache = None
+
+
+def invalidate_engine_cache() -> None:
+    """Reset the cached engine path so the next resolve_engine_path() call re-probes."""
+    global _resolve_cache
+    _resolve_cache = None
+
+
 def resolve_engine_path(config_manager=None) -> Optional[str]:
     """Auto-detect a Stockfish binary using the priority table.
+    Result is cached for the lifetime of the process (call
+    invalidate_engine_cache() if the config changes).
 
     | Priority | Check |
     |----------|-------|
@@ -63,6 +69,10 @@ def resolve_engine_path(config_manager=None) -> Optional[str]:
 
     Returns the path string or ``None`` if nothing was found.
     """
+    global _resolve_cache
+    if _resolve_cache is not None:
+        return _resolve_cache
+
     # Priority 1 – explicit user setting
     if config_manager is not None:
         cfg_path = config_manager.get("engine_path", "")
@@ -70,27 +80,32 @@ def resolve_engine_path(config_manager=None) -> Optional[str]:
             resolved = shutil.which(cfg_path) or cfg_path
             if _validate_engine_path(resolved):
                 logger.info("resolve_engine_path: using config path %s", resolved)
+                _resolve_cache = resolved
                 return resolved
 
     # Priority 2 – PATH lookup
     which_path = shutil.which("stockfish")
     if which_path and _validate_engine_path(which_path):
         logger.info("resolve_engine_path: found via PATH at %s", which_path)
+        _resolve_cache = which_path
         return which_path
 
     # Priority 3 – platform-specific common paths
     for candidate in get_stockfish_common_paths():
         if _validate_engine_path(candidate):
             logger.info("resolve_engine_path: found at common path %s", candidate)
+            _resolve_cache = candidate
             return candidate
 
     # Priority 4 – previously downloaded
     downloaded = os.path.join(get_engine_data_dir(), "stockfish")
     if _validate_engine_path(downloaded):
         logger.info("resolve_engine_path: found previously downloaded at %s", downloaded)
+        _resolve_cache = downloaded
         return downloaded
 
     logger.info("resolve_engine_path: no Stockfish found, returning None")
+    _resolve_cache = None
     return None
 
 
@@ -182,6 +197,7 @@ class EngineManager:
         Returns ``True`` if the engine is running (or was successfully
         restarted) after the check.
         """
+        invalidate_engine_cache()
         new_path = resolve_engine_path(config_manager)
         if new_path is None:
             return False

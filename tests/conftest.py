@@ -18,6 +18,14 @@ def qapp():
         app = QApplication(sys.argv)
     yield app
 
+# ============ Engine Cache Fixture ============
+@pytest.fixture(autouse=True)
+def _reset_engine_cache():
+    from src.backend.analysis.engine import invalidate_engine_cache
+    invalidate_engine_cache()
+    yield
+
+
 # ============ Mock Fixtures ============
 @pytest.fixture
 def mock_engine(mocker):

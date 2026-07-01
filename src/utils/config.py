@@ -17,9 +17,6 @@ class ConfigManager:
         #   name, provider, api_key, model, base_url
         "llm_profiles": [],
         "llm_active_profile": "",
-        # Legacy flat keys — kept only for the migration path below.
-        "groq_api_key": "",
-        "groq_model": "llama-3.3-70b-versatile",
         "analysis_depth": 18,
         "api_games_limit": 20,
         # Engine footprint controls (see issue #5).  multi_pv and
@@ -101,14 +98,24 @@ class ConfigManager:
             data["llm_active_profile"] = name
             logger.info(f"Config: migrated single LLM config to profile '{name}'")
             migrated = True
+            
+        # Always scrub legacy flat keys — covers both fresh migrations and
+        # configs that were already migrated but still have the old fields
+        # stamped in by a previous version of DEFAULT_CONFIG.
+        _LEGACY_KEYS = ("groq_api_key", "groq_model", "llm_api_key",
+                        "llm_model", "llm_provider", "llm_base_url")
+        purged = [k for k in _LEGACY_KEYS if k in data]
+        for k in purged:
+            data.pop(k)
 
-        if migrated:
-            # Persist immediately so migration doesn't repeat on every startup.
+        if migrated or purged:
             try:
                 with open(self.config_path, 'w') as f:
                     json.dump(data, f, indent=4)
+                if purged:
+                    logger.info(f"Config: removed legacy keys {purged}")
             except Exception:
-                pass  # Non-critical: migration will silently repeat next startup
+                pass
 
         return data
 

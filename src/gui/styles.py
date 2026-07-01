@@ -81,7 +81,7 @@ class Styles:
             QMainWindow, QWidget {{
                 background-color: {cls.COLOR_BACKGROUND};
                 color: {cls.COLOR_TEXT_PRIMARY};
-                font-family: 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+                font-family: 'SF Pro', 'Inter', 'Segoe UI', 'Roboto', sans-serif;
                 font-size: 14px;
             }}
             
