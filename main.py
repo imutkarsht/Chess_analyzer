@@ -1,10 +1,12 @@
 import sys
 import os
+import subprocess
 import logging
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 from src.gui.main_window import MainWindow
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
+from src.backend.analysis.engine import resolve_engine_path
 
 from PyQt6.QtCore import qInstallMessageHandler, QtMsgType
 
@@ -87,6 +89,34 @@ def main():
         
         splash.update_progress(95, "Starting up...")
         time.sleep(0.2)
+        
+        # macOS Gatekeeper self-fix (only when bundled as .app)
+        if getattr(sys, 'frozen', False) and sys.platform == "darwin":
+            app_bundle = os.path.dirname(sys.executable)
+            while not app_bundle.endswith(".app") and app_bundle != "/":
+                app_bundle = os.path.dirname(app_bundle)
+            if app_bundle.endswith(".app"):
+                result = subprocess.run(
+                    ["xattr", "-p", "com.apple.quarantine", app_bundle],
+                    capture_output=True, text=True, timeout=5,
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    subprocess.run(
+                        ["xattr", "-dr", "com.apple.quarantine", app_bundle],
+                        stderr=subprocess.DEVNULL, timeout=5,
+                    )
+                    logger.info("Gatekeeper: removed quarantine from .app bundle")
+        
+        # First-run setup wizard
+        if not window.config_manager.get("setup_completed") or resolve_engine_path(window.config_manager) is None:
+            from src.gui.dialogs.setup_wizard import SetupWizard
+            wizard = SetupWizard(window.config_manager)
+            if wizard.exec() == QDialog.DialogCode.Accepted:
+                wizard.accepted_data()
+                logger.info("Setup wizard completed successfully")
+            else:
+                logger.info("Setup wizard skipped")
+            window._refresh_engine_status()
         
         # Show Main Window
         window.show()

@@ -50,7 +50,7 @@ class SplashScreen(QSplashScreen):
         # App Name
         title_label = QLabel(app_name)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        title_label.setFont(QFont("", 16, QFont.Weight.Bold))
         title_label.setStyleSheet("color: #ffffff; background: transparent; border: none;")
         layout.addWidget(title_label)
         
