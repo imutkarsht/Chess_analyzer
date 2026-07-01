@@ -31,6 +31,8 @@ from src.backend.storage.models import MoveAnalysis, GameAnalysis, GameMetadata
 from src.backend.storage.game_history import GameHistoryManager
 from src.utils.path_utils import get_resource_path
 from src.gui.components.loading_widget import LoadingOverlay
+from src.gui.components.tour_manager import TourManager, TourStep
+from src.gui.components.tour_overlay import TourOverlay
 
 
 
@@ -51,6 +53,7 @@ class MainWindow(QMainWindow):
         )
         self.history_manager = GameHistoryManager()
         self.resource_manager = ResourceManager()
+        self.tour_manager = TourManager(config_manager=self.config_manager)
 
         # Restore the last known window geometry, if any. Done before
         # setup_ui() so child layouts see the real size during their
@@ -72,6 +75,14 @@ class MainWindow(QMainWindow):
         
         # Apply Theme
         self.setStyleSheet(Styles.get_theme())
+
+        # Tour overlay — marks the page seen when the tour finishes/closes
+        self.tour_overlay = TourOverlay(
+            self,
+            self.tour_manager,
+            on_finished=self._on_tour_finished,
+        )
+        self.tour_overlay.hide()
 
         # Engine status pill + analysis status label — left side of status bar
         # Note: background + border-radius on QLabel inside QStatusBar renders as a
@@ -358,6 +369,10 @@ class MainWindow(QMainWindow):
         self.shortcut_home = QShortcut(QKeySequence("Home"), self)
         self.shortcut_home.activated.connect(self._nav_first)
 
+        # Tour
+        self.shortcut_tour = QShortcut(QKeySequence("Ctrl+T"), self)
+        self.shortcut_tour.activated.connect(self.start_tour)
+
     def _handle_paste(self):
         focus_widget = QApplication.focusWidget()
         if isinstance(focus_widget, (QLineEdit, QTextEdit)):
@@ -619,8 +634,227 @@ class MainWindow(QMainWindow):
 
     def _do_switch_page(self, index):
         self.stack.setCurrentIndex(index)
-        if index == 3: # Stats page
+        if index == 3:  # Stats page
             self.metrics_view.refresh()
+        # If a tour is active, close it silently (don't mark seen — user didn't finish it).
+        if hasattr(self, 'tour_overlay') and self.tour_overlay.isVisible():
+            self.tour_overlay.close_silently()
+        # Auto-start the tour the first time the user visits this page.
+        if not self.tour_manager.has_seen_tour(index):
+            QTimer.singleShot(400, lambda idx=index: self._auto_start_tour(idx))
+
+    def _auto_start_tour(self, page_index: int):
+        """Start tour on first visit only — guards against delayed mis-fires."""
+        if self.stack.currentIndex() != page_index:
+            return  # user navigated away during the 400ms delay
+        if self.tour_manager.has_seen_tour(page_index):
+            return  # already seen (e.g. Ctrl+T was pressed and dismissed)
+        self._launch_tour(page_index)
+
+    def start_tour(self):
+        """Ctrl+T: replay tour only if this page has not been seen yet."""
+        index = self.stack.currentIndex()
+        if not self.tour_manager.has_seen_tour(index):
+            self._launch_tour(index)
+
+    def _launch_tour(self, page_index: int):
+        """Build steps and show the tour overlay for the given page."""
+        steps = self._build_tour_steps(page_index)
+        if not steps:
+            self.tour_manager.mark_seen(page_index)  # nothing to show — mark done
+            return
+        self._tour_page = page_index  # remember the originating page
+        self.tour_overlay.setGeometry(self.rect())
+        self.tour_manager.start(steps)
+        self.tour_overlay.show_tour()
+
+    def _on_tour_finished(self):
+        """Called when the tour overlay closes. Uses the page the tour *started*
+        on so a mid-tour page switch doesn't mark the wrong page.
+        """
+        page_index = getattr(self, '_tour_page', self.stack.currentIndex())
+        self.tour_manager.mark_seen(page_index)
+
+    def _build_tour_steps(self, page_index: int) -> list:
+        """Return a list of TourStep objects tailored to the visible page."""
+        ev = self.explorer_view
+        hv = self.history_view
+        sv = self.settings_view
+        mv = self.metrics_view
+        steps = []
+
+        if page_index == 0:  # ── Analysis ───────────────────────────────────
+            steps.append(TourStep(
+                target=self.btn_load,
+                text='Load a game via PGN file, paste PGN text, or fetch directly from Chess.com / Lichess using "Load Game".',
+                position="below", page_index=0,
+            ))
+            steps.append(TourStep(
+                target=self.btn_analyze,
+                text='Click "Analyze Game" to run Stockfish on every move. Each move gets classified: brilliant, best, excellent, good, inaccuracy, mistake, or blunder.',
+                position="below", page_index=0,
+            ))
+            steps.append(TourStep(
+                target=self.board_widget,
+                text="Navigate with the arrow keys or by clicking moves in the list. The board is interactive and shows the current position.",
+                position="right", page_index=0,
+            ))
+            steps.append(TourStep(
+                target=self.move_list_panel,
+                text="The move list shows colour-coded badges (brilliant, best, inaccuracy, blunder). The live engine line updates as you navigate.",
+                position="right", page_index=0,
+            ))
+            steps.append(TourStep(
+                target=self.analysis_panel,
+                text="The eval graph, engine lines, and AI Coach summary are here. Click any point on the graph to jump to that move.",
+                position="left", page_index=0,
+            ))
+            steps.append(TourStep(
+                target=self.btn_explore,
+                text='"Explore from here" opens the Opening Explorer at the current board position so you can study master-level continuations.',
+                position="below", page_index=0,
+            ))
+
+        elif page_index == 1:  # ── Explorer ────────────────────────────────
+            steps.append(TourStep(
+                target=ev.header_bar if hasattr(ev, 'header_bar') else ev,
+                text="The ECO code and full opening name for the current position are shown in the header badge, updating with every move.",
+                position="below", page_index=1,
+            ))
+            steps.append(TourStep(
+                target=ev.board_widget if hasattr(ev, 'board_widget') else ev,
+                text="Click squares to make moves, or use the arrow keys to walk through your move history. The engine evaluates each position in real time.",
+                position="right", page_index=1,
+            ))
+            steps.append(TourStep(
+                target=ev.book_toggle if hasattr(ev, 'book_toggle') else ev,
+                text="Book Moves lists the most-played responses from master games. Click any move to play it instantly on the board.",
+                position="right", page_index=1,
+            ))
+            steps.append(TourStep(
+                target=ev.lines_widget if hasattr(ev, 'lines_widget') else ev,
+                text="Engine Lines shows Stockfish top candidate moves with evaluation scores. Raise multi-PV in Settings to see more alternatives.",
+                position="left", page_index=1,
+            ))
+            steps.append(TourStep(
+                target=ev.chk_classify if hasattr(ev, 'chk_classify') else ev,
+                text='Enable "Classify Moves" to get brilliant/blunder badges on every move you play in the explorer, just like full analysis mode.',
+                position="above", page_index=1,
+            ))
+            steps.append(TourStep(
+                target=ev.move_list_widget if hasattr(ev, 'move_list_widget') else ev,
+                text="Your move history. You can also type a move in SAN notation (e.g. e4, Nf3) in the input box to jump to any position quickly.",
+                position="left", page_index=1,
+            ))
+
+        elif page_index == 2:  # ── History ──────────────────────────────────
+            steps.append(TourStep(
+                target=hv.search_input if hasattr(hv, 'search_input') else hv,
+                text="Search your game history by player name, opening ECO, event, or result. The list filters instantly as you type.",
+                position="below", page_index=2,
+            ))
+            if hasattr(hv, 'result_filter'):
+                steps.append(TourStep(
+                    target=hv.result_filter,
+                    text="Filter by result (Win / Draw / Loss) or by source (Chess.com / Lichess / PGN file) using the dropdowns.",
+                    position="below", page_index=2,
+                ))
+            if hasattr(hv, 'btn_export'):
+                steps.append(TourStep(
+                    target=hv.btn_export,
+                    text='"Export" saves all your analyzed games to a PGN file you can open in Lichess Studies, ChessBase, or any other chess app.',
+                    position="left", page_index=2,
+                ))
+            if hasattr(hv, 'btn_import'):
+                steps.append(TourStep(
+                    target=hv.btn_import,
+                    text='"Import" loads a previously exported PGN back into your history. Use this to restore a backup or transfer games between machines.',
+                    position="left", page_index=2,
+                ))
+            if hasattr(hv, 'btn_clear'):
+                steps.append(TourStep(
+                    target=hv.btn_clear,
+                    text='"Clear History" permanently deletes all saved games. Always export a backup first if you want to keep the data.',
+                    position="left", page_index=2,
+                ))
+
+        elif page_index == 3:  # ── Stats ────────────────────────────────────
+            if hasattr(mv, 'btn_refresh'):
+                steps.append(TourStep(
+                    target=mv.btn_refresh,
+                    text="Stats update automatically when you open this page. Hit Refresh to pick up any games analyzed since the last load.",
+                    position="left", page_index=3,
+                ))
+            if hasattr(mv, 'accuracy_card'):
+                steps.append(TourStep(
+                    target=mv.accuracy_card,
+                    text="Accuracy Trend shows your average move accuracy over time. Watch the line climb as your chess improves.",
+                    position="right", page_index=3,
+                ))
+            if hasattr(mv, 'result_card'):
+                steps.append(TourStep(
+                    target=mv.result_card,
+                    text="Result Distribution breaks down your wins, draws, and losses by colour (White / Black).",
+                    position="right", page_index=3,
+                ))
+            if hasattr(mv, 'openings_card'):
+                steps.append(TourStep(
+                    target=mv.openings_card,
+                    text="Top Openings ranks your most-played openings by win rate — double down on what works and study what doesn't.",
+                    position="left", page_index=3,
+                ))
+            if hasattr(mv, 'ai_coach_card'):
+                steps.append(TourStep(
+                    target=mv.ai_coach_card,
+                    text="AI Coach reads your stats and writes personalised advice: patterns to fix, openings to study, and training priorities.",
+                    position="left", page_index=3,
+                ))
+            if not steps:  # fallback if stat cards not rendered yet
+                steps.append(TourStep(
+                    target=mv,
+                    text="Your personal performance dashboard with accuracy trends, result breakdown, top openings, and AI Coach insights.",
+                    position="right", page_index=3,
+                ))
+
+        elif page_index == 4:  # ── Settings ─────────────────────────────────
+            if hasattr(sv, 'path_input'):
+                steps.append(TourStep(
+                    target=sv.path_input,
+                    text="Engine Path points to your Stockfish binary. Leave blank to auto-detect from PATH (works if installed via Homebrew or a package manager).",
+                    position="below", page_index=4,
+                ))
+            if hasattr(sv, 'depth_combo'):
+                steps.append(TourStep(
+                    target=sv.depth_combo,
+                    text="Analysis Depth controls how deep Stockfish searches (default 18). Higher = more accurate, but slower. 15-20 is ideal for most hardware.",
+                    position="below", page_index=4,
+                ))
+            if hasattr(sv, 'llm_profile_combo'):
+                steps.append(TourStep(
+                    target=sv.llm_profile_combo,
+                    text="LLM Profiles let you configure multiple AI providers (Groq, OpenAI, LM Studio, MiniMax). Switch between them or create new ones here.",
+                    position="below", page_index=4,
+                ))
+            if hasattr(sv, 'llm_key_input'):
+                steps.append(TourStep(
+                    target=sv.llm_key_input,
+                    text="Paste your API key here. For Groq the free tier is very generous. For LM Studio, set the Base URL to your local server address.",
+                    position="below", page_index=4,
+                ))
+            if hasattr(sv, 'theme_combo'):
+                steps.append(TourStep(
+                    target=sv.theme_combo,
+                    text="Board Theme and Piece Style let you personalise the look. Changes apply instantly without restarting.",
+                    position="below", page_index=4,
+                ))
+            if not steps:  # fallback
+                steps.append(TourStep(
+                    target=sv,
+                    text="Configure Stockfish engine path, analysis depth, AI provider, board theme, and piece style here.",
+                    position="right", page_index=4,
+                ))
+
+        return steps
 
     def load_game_from_history(self, game):
         self.load_game(game)
@@ -1069,4 +1303,6 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event):
         if hasattr(self, 'loading_overlay'):
             self.loading_overlay.resize(self.size())
+        if hasattr(self, 'tour_overlay'):
+            self.tour_overlay.setGeometry(self.rect())
         super().resizeEvent(event)
