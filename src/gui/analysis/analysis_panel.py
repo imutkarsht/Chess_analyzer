@@ -3,7 +3,7 @@ Analysis Panel - Coordinates evaluation graphs, stats summaries, and AI coach su
 """
 import chess
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame, QTabWidget, 
-                             QSizePolicy, QLabel, QGridLayout, QPushButton, QTextEdit, QMessageBox)
+                             QSizePolicy, QLabel, QGridLayout, QPushButton, QTextEdit, QMessageBox, QDialog)
 from PyQt6.QtCore import pyqtSignal, Qt, QThread
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (clear_layout, show_error_dialog, is_error_message, 
@@ -90,13 +90,16 @@ class AnalysisPanel(QWidget):
         
         # --- Tab 2: Report ---
         self.report_tab = QWidget()
+        self.report_tab.setStyleSheet("background: transparent;")
         self.report_layout = QVBoxLayout(self.report_tab)
         self.report_layout.setContentsMargins(5, 5, 5, 5)
         self.report_layout.setSpacing(10)
         
         # Opening
         self.opening_label = QLabel("Opening: -")
-        self.opening_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: bold;")
+        self.opening_label.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: bold; background: transparent;"
+        )
         self.opening_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.opening_label.setWordWrap(True)
         self.report_layout.addWidget(self.opening_label)
@@ -301,12 +304,21 @@ class AnalysisPanel(QWidget):
             self.current_game.ai_summary = ""
             self.txt_ai_summary.setVisible(False)
             self.btn_generate_summary.setVisible(True)
-            show_error_dialog(
-                self,
-                "AI Summary Failed",
-                "Could not generate the AI summary.",
-                summary,
-            )
+            if "not configured" in summary.lower():
+                from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+                dlg = LlmNotConfiguredDialog(self)
+                if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
+                    window = self.window()
+                    if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
+                        window.sidebar.set_active(4)
+                        window.switch_page(4)
+            else:
+                show_error_dialog(
+                    self,
+                    "AI Summary Failed",
+                    "Could not generate the AI summary.",
+                    summary,
+                )
             return
 
         logger.info("AI Summary generated successfully.")

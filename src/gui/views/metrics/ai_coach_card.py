@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QFrame, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QFrame, QSizePolicy, QDialog
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from src.gui.views.metrics.base_card import MetricCard
@@ -129,13 +129,22 @@ class AICoachCard(MetricCard):
         btn_retry.clicked.connect(self._generate_insights)
         self.insights_layout.addWidget(btn_retry)
 
-        show_error_dialog(
-            self,
-            "AI Coach Insights Failed",
-            "Could not generate AI insights. See the insight card and "
-            "the details below for the full error.",
-            err_msg,
-        )
+        if "not configured" in err_msg.lower():
+            from ...dialogs.llm_error_dialog import LlmNotConfiguredDialog
+            dlg = LlmNotConfiguredDialog(self)
+            if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
+                window = self.window()
+                if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
+                    window.sidebar.set_active(4)
+                    window.switch_page(4)
+        else:
+            show_error_dialog(
+                self,
+                "AI Coach Insights Failed",
+                "Could not generate AI insights. See the insight card and "
+                "the details below for the full error.",
+                err_msg,
+            )
         
     def _populate_insights(self, insight_text):
         self.current_insights = insight_text

@@ -4,6 +4,7 @@ import subprocess
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QLineEdit, QProgressBar, QApplication,
+    QComboBox, QFrame,
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap, QFont
@@ -113,13 +114,14 @@ def build_profile_page(wizard) -> QWidget:
     layout.setContentsMargins(60, 40, 60, 40)
     layout.setSpacing(6)
 
-    heading = QLabel("Link your accounts")
+    heading = QLabel("Your usernames")
     heading.setFont(QFont("", 16, QFont.Weight.Bold))
     heading.setStyleSheet("background: transparent;")
     layout.addWidget(heading)
 
     helper = QLabel(
-        "Optional. Connect accounts to auto-fetch your games right inside the app."
+        "Optional. Enter your usernames so we can autofill them when you fetch games "
+        "and build your stats over time. We never link or access your accounts."
     )
     helper.setWordWrap(True)
     helper.setStyleSheet(
@@ -134,7 +136,7 @@ def build_profile_page(wizard) -> QWidget:
     wizard.chesscom_input.setPlaceholderText("e.g. magnuscarlsen")
     wizard.chesscom_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     layout.addWidget(wizard.chesscom_input)
-    hint = QLabel("Shows your Chess.com games for quick loading")
+    hint = QLabel("Autofills your Chess.com username when fetching games")
     hint.setStyleSheet(
         f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
     )
@@ -147,7 +149,7 @@ def build_profile_page(wizard) -> QWidget:
     wizard.lichess_input.setPlaceholderText("e.g. drnykterstein")
     wizard.lichess_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     layout.addWidget(wizard.lichess_input)
-    hint = QLabel("Shows your Lichess games for quick loading")
+    hint = QLabel("Autofills your Lichess username when fetching games")
     hint.setStyleSheet(
         f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
     )
@@ -172,6 +174,87 @@ def build_profile_page(wizard) -> QWidget:
     layout.addStretch()
     page._on_show = lambda: wizard.chesscom_input.setFocus()
     return page
+
+
+def build_appearance_page(wizard) -> QWidget:
+    page = QWidget()
+    page.setStyleSheet(PAGE_BG)
+    layout = QVBoxLayout(page)
+    layout.setContentsMargins(60, 40, 60, 40)
+    layout.setSpacing(8)
+
+    heading = QLabel("Personalize your experience")
+    heading.setFont(QFont("", 16, QFont.Weight.Bold))
+    heading.setStyleSheet("background: transparent;")
+    layout.addWidget(heading)
+
+    helper = QLabel("Choose a board theme and accent color that suits your style.")
+    helper.setWordWrap(True)
+    helper.setStyleSheet(
+        f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; margin-bottom: 12px; background: transparent;"
+    )
+    layout.addWidget(helper)
+
+    theme_lbl = QLabel("Board theme")
+    theme_lbl.setStyleSheet("background: transparent;")
+    layout.addWidget(theme_lbl)
+    wizard.wizard_theme_combo = QComboBox()
+    wizard.wizard_theme_combo.addItems(list(Styles.BOARD_THEMES.keys()))
+    wizard.wizard_theme_combo.setCurrentText("Green")
+    wizard.wizard_theme_combo.setStyleSheet(Styles.get_combobox_style())
+    wizard.wizard_theme_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+    layout.addWidget(wizard.wizard_theme_combo)
+
+    accent_lbl = QLabel("Accent color")
+    accent_lbl.setStyleSheet("background: transparent; margin-top: 8px;")
+    layout.addWidget(accent_lbl)
+    wizard.wizard_accent_btn = QPushButton("  Pick accent color")
+    wizard.wizard_accent_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.wizard_accent_btn.setStyleSheet(f"""
+        QPushButton {{
+            background-color: {Styles.COLOR_SURFACE_LIGHT};
+            color: {Styles.COLOR_TEXT_PRIMARY};
+            border: 1px solid {Styles.COLOR_BORDER};
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: left;
+        }}
+        QPushButton:hover {{
+            border: 1px solid {Styles.COLOR_ACCENT};
+        }}
+    """)
+    wizard.wizard_accent_btn.clicked.connect(lambda: _pick_accent_color(wizard))
+    layout.addWidget(wizard.wizard_accent_btn)
+
+    wizard.wizard_accent_color = "#FF9500"
+
+    layout.addStretch()
+    return page
+
+
+def _pick_accent_color(wizard):
+    from PyQt6.QtWidgets import QColorDialog
+    from PyQt6.QtGui import QColor
+    color = QColorDialog.getColor(initial=QColor(wizard.wizard_accent_color), parent=wizard, title="Select Accent Color")
+    if color.isValid():
+        wizard.wizard_accent_color = color.name()
+        Styles.set_accent_color(color.name())
+        wizard.wizard_accent_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {color.name()};
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {color.name()}CC;
+            }}
+        """)
+        wizard.wizard_accent_btn.setText(f"  {color.name()}")
+        wizard.refresh_accent()
 
 
 def build_stockfish_page(wizard) -> QWidget:
@@ -252,11 +335,11 @@ def build_llm_page(wizard) -> QWidget:
     lbl = QLabel("Provider:")
     lbl.setStyleSheet("background: transparent;")
     provider_row.addWidget(lbl)
-    provider_label = QLabel("Groq")
-    provider_label.setStyleSheet(
+    wizard.provider_label = QLabel("Groq")
+    wizard.provider_label.setStyleSheet(
         f"font-size: 14px; font-weight: bold; color: {Styles.COLOR_ACCENT}; background: transparent;"
     )
-    provider_row.addWidget(provider_label)
+    provider_row.addWidget(wizard.provider_label)
     provider_row.addStretch()
     layout.addLayout(provider_row)
 
@@ -310,12 +393,12 @@ def build_done_page(wizard) -> QWidget:
     )
     layout.addWidget(wizard.summary_label)
 
-    ready = QLabel("Ready to analyze your games!")
-    ready.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    ready.setStyleSheet(
+    wizard.ready_label = QLabel("Ready to analyze your games!")
+    wizard.ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    wizard.ready_label.setStyleSheet(
         f"font-size: 15px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
     )
-    layout.addWidget(ready)
+    layout.addWidget(wizard.ready_label)
 
     layout.addStretch()
 

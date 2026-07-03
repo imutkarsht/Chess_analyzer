@@ -45,3 +45,4 @@ installers/mac/Output
 .agent/**/.log
 .agent/.DS_Store
 .agent/Thumbs.db
+.opencode/*

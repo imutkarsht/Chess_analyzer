@@ -21,6 +21,7 @@ from src.gui.dialogs.wizard.wizard_pages import (
     build_gatekeeper_page,
     build_welcome_page,
     build_profile_page,
+    build_appearance_page,
     build_stockfish_page,
     build_llm_page,
     build_done_page,
@@ -38,7 +39,35 @@ class SetupWizard(QDialog):
 
         self.setWindowTitle("Chess Analyzer Pro - Setup")
         self.setFixedSize(self.WIZARD_WIDTH, self.WIZARD_HEIGHT)
-        self.setStyleSheet(f"""
+        self.setStyleSheet(self._build_stylesheet())
+
+        self._build_ui()
+        self._populate_from_config()
+        self._show_page(0)
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self.stack = QStackedWidget()
+        self.stack.addWidget(build_gatekeeper_page(self))
+        self.stack.addWidget(build_welcome_page(self))
+        self.stack.addWidget(build_profile_page(self))
+        self.stack.addWidget(build_appearance_page(self))
+        self.stack.addWidget(build_stockfish_page(self))
+        self.stack.addWidget(build_llm_page(self))
+        self.stack.addWidget(build_done_page(self))
+        layout.addWidget(self.stack, 1)
+
+        self.nav_bar = WizardNavBar()
+        self.nav_bar.next_btn.clicked.connect(self._on_next)
+        self.nav_bar.back_btn.clicked.connect(self._on_back)
+        self.nav_bar.skip_btn.clicked.connect(self._on_skip)
+        layout.addWidget(self.nav_bar)
+
+    def _build_stylesheet(self):
+        return f"""
             SetupWizard {{
                 background-color: {Styles.COLOR_BACKGROUND};
             }}
@@ -56,31 +85,54 @@ class SetupWizard(QDialog):
             QLineEdit::placeholder {{
                 color: {Styles.COLOR_TEXT_MUTED};
             }}
-        """)
+        """
 
-        self._build_ui()
-        self._populate_from_config()
-        self._show_page(0)
-
-    def _build_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        self.stack = QStackedWidget()
-        self.stack.addWidget(build_gatekeeper_page(self))
-        self.stack.addWidget(build_welcome_page(self))
-        self.stack.addWidget(build_profile_page(self))
-        self.stack.addWidget(build_stockfish_page(self))
-        self.stack.addWidget(build_llm_page(self))
-        self.stack.addWidget(build_done_page(self))
-        layout.addWidget(self.stack, 1)
-
-        self.nav_bar = WizardNavBar()
-        self.nav_bar.next_btn.clicked.connect(self._on_next)
-        self.nav_bar.back_btn.clicked.connect(self._on_back)
-        self.nav_bar.skip_btn.clicked.connect(self._on_skip)
-        layout.addWidget(self.nav_bar)
+    def refresh_accent(self):
+        self.setStyleSheet(self._build_stylesheet())
+        self.nav_bar.refresh_accent()
+        self.nav_bar.update(self.current_page)
+        if hasattr(self, 'done_btn'):
+            self.done_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_ACCENT};
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 12px 40px;
+                    font-size: 15px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
+            """)
+        if hasattr(self, 'ready_label'):
+            self.ready_label.setStyleSheet(
+                f"font-size: 15px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
+            )
+        if hasattr(self, 'wizard_theme_combo'):
+            self.wizard_theme_combo.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'llm_test_btn'):
+            self.llm_test_btn.setStyleSheet(Styles.get_control_button_style())
+        if hasattr(self, 'sf_download_btn'):
+            self.sf_download_btn.setStyleSheet(Styles.get_button_style())
+        if hasattr(self, 'provider_label'):
+            self.provider_label.setStyleSheet(
+                f"font-size: 14px; font-weight: bold; color: {Styles.COLOR_ACCENT}; background: transparent;"
+            )
+        if hasattr(self, 'wizard_accent_btn') and self.wizard_accent_color != "#FF9500":
+            c = self.wizard_accent_color
+            self.wizard_accent_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {c};
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    background-color: {c}CC;
+                }}
+            """)
 
     def _show_page(self, index):
         self.current_page = index
@@ -100,7 +152,8 @@ class SetupWizard(QDialog):
 
     def _on_next(self):
         self._save_current_page()
-        if self.current_page == 5:
+        if self.current_page == 6:
+            self._persist_settings()
             self.accept()
         else:
             self._show_page(self.current_page + 1)
@@ -110,7 +163,7 @@ class SetupWizard(QDialog):
             self._show_page(self.current_page - 1)
 
     def _on_skip(self):
-        self._show_page(5)
+        self._show_page(6)
 
     def _on_finish(self):
         self._save_current_page()
@@ -123,6 +176,10 @@ class SetupWizard(QDialog):
             self.settings["chesscom_username"] = self.chesscom_input.text().strip()
             self.settings["lichess_username"] = self.lichess_input.text().strip()
             self.settings["lichess_token"] = self.lichess_token_input.text().strip()
+        elif idx == 3:
+            if hasattr(self, "wizard_theme_combo"):
+                self.settings["board_theme"] = self.wizard_theme_combo.currentText()
+                self.settings["accent_color"] = self.wizard_accent_color
         elif idx == 4:
             key = self.llm_key_input.text().strip()
             if key:
@@ -287,6 +344,11 @@ class SetupWizard(QDialog):
                     "base_url": "https://api.groq.com/openai/v1",
                 })
             cfg.set("llm_profiles", profiles)
+        if "board_theme" in self.settings:
+            cfg.set("board_theme", self.settings["board_theme"])
+        if "accent_color" in self.settings and self.settings["accent_color"] != "#FF9500":
+            cfg.set("accent_color", self.settings["accent_color"])
+            Styles.set_accent_color(self.settings["accent_color"])
         cfg.set("setup_completed", True)
 
     def accepted_data(self) -> dict:

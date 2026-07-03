@@ -67,6 +67,9 @@ class LinksSettings(QGroupBox):
             if HAS_QTAWESOME:
                 self.update_btn.setIcon(qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY))
 
+    def set_advanced_visible(self, visible):
+        pass
+
     def refresh_styles(self, default_style):
         self.setStyleSheet(Styles.get_group_box_style())
         self.website_btn.setStyleSheet(default_style)

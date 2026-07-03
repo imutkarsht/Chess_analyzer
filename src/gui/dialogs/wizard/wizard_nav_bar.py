@@ -21,7 +21,7 @@ class WizardNavBar(QWidget):
         self.dots_layout.setContentsMargins(0, 0, 0, 0)
         self.dots_layout.setSpacing(6)
         self.dot_labels = []
-        for i in range(6):
+        for i in range(7):
             dot = QLabel("o")
             dot.setStyleSheet(
                 f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent;"
@@ -69,7 +69,32 @@ class WizardNavBar(QWidget):
         """)
         layout.addWidget(self.next_btn)
 
-    def update(self, index: int, total: int = 6):
+    def refresh_accent(self):
+        self.next_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_ACCENT};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 24px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
+        """)
+        self.back_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 6px 18px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{ border: 1px solid {Styles.COLOR_ACCENT}; }}
+        """)
+
+    def update(self, index: int, total: int = 7):
         for i, dot in enumerate(self.dot_labels):
             if i == index:
                 dot.setStyleSheet(
@@ -93,4 +118,4 @@ class WizardNavBar(QWidget):
         self.next_btn.setText("Finish" if is_last else "Next")
         self.next_btn.setVisible(not is_gatekeeper)
         self.back_btn.setVisible(not is_first and not is_gatekeeper)
-        self.skip_btn.setVisible(index == 4)
+        self.skip_btn.setVisible(index == 5)

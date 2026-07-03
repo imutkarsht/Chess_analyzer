@@ -22,7 +22,7 @@ from src.backend.analysis.analyzer import Analyzer
 from src.utils.resources import ResourceManager
 from src.utils.logger import logger
 from src.utils.config import ConfigManager
-from src.backend.analysis.engine import EngineManager, resolve_engine_path
+from src.backend.analysis.engine import EngineManager, resolve_engine_path, invalidate_engine_cache
 from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
 from src.gui.styles import Styles
@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
         self.setup_ui()
         
         # Apply Theme
-        self.setStyleSheet(Styles.get_theme())
+        self.refresh_theme()
 
         # Tour overlay — marks the page seen when the tour finishes/closes
         self.tour_overlay = TourOverlay(
@@ -84,20 +84,29 @@ class MainWindow(QMainWindow):
         )
         self.tour_overlay.hide()
 
-        # Engine status pill + analysis status label — left side of status bar
-        # Note: background + border-radius on QLabel inside QStatusBar renders as a
-        # plain rectangle in Qt — use colored text only for a clean look.
+        # Style the status bar itself — without this, macOS renders a grey
+        # native bounding box behind each addWidget() item.
+        self.statusBar().setStyleSheet(f"""
+            QStatusBar {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border-top: 1px solid {Styles.COLOR_BORDER};
+            }}
+            QStatusBar QLabel {{
+                background: transparent;
+            }}
+        """)
+
         self._engine_pill = QLabel()
-        self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px;")
+        self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; background: transparent;")
         self.statusBar().addWidget(self._engine_pill)
 
         # Thin separator
         sep = QLabel("│")
-        sep.setStyleSheet(f"color: {Styles.COLOR_BORDER}; padding: 0 4px;")
+        sep.setStyleSheet(f"color: {Styles.COLOR_BORDER}; padding: 0 4px; background: transparent;")
         self.statusBar().addWidget(sep)
 
         self._status_lbl = QLabel("Ready")
-        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;")
         self.statusBar().addWidget(self._status_lbl)
 
         # Spinner timer for Calculating animation
@@ -486,7 +495,7 @@ class MainWindow(QMainWindow):
         """Update the status label with an icon prefix and matching colour."""
         icon, color = self._STATUS_STYLES.get(kind, ("◎", "#3498db"))
         self._status_lbl.setText(f"{icon}  {message}")
-        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {color};")
+        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {color}; background: transparent;")
 
     # ------------------------------------------------------------------
 
@@ -626,6 +635,10 @@ class MainWindow(QMainWindow):
             elif hasattr(self.history_view, 'game_list_widget'):
                 self.history_view.game_list_widget.refresh_styles()
             
+        # Update tour overlay accent
+        if hasattr(self, 'tour_overlay'):
+            self.tour_overlay.refresh_accent()
+
         # Force update
         self.update()
 
@@ -873,6 +886,9 @@ class MainWindow(QMainWindow):
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
             }}
+            QFrame QLabel {{
+                background: transparent;
+            }}
         """)
         header_layout = QHBoxLayout(self.analysis_header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
@@ -928,7 +944,7 @@ class MainWindow(QMainWindow):
         
         self.game_info_label = QLabel("No Game Loaded")
         self.game_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px;")
+        self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
         center_layout.addWidget(self.game_info_label)
 
         # Captured pieces: White sits at the BOTTOM of the board view,
@@ -1107,9 +1123,25 @@ class MainWindow(QMainWindow):
                 )
         else:
             logger.warning(f"Engine not found (configured: {self.engine_path})")
-            QMessageBox.warning(self, "Engine Not Found", "Please configure the engine path in Settings.")
-            self.sidebar.set_active(3)
-            self.switch_page(3)
+            from .dialogs.engine_error_dialog import EngineNotFoundDialog
+            dialog = EngineNotFoundDialog(self)
+            if hasattr(self, 'config_manager'):
+                dialog.config_manager = lambda: self.config_manager
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                new_path = dialog.engine_path()
+                if new_path:
+                    self.config_manager.config["engine_path"] = new_path
+                    self.config_manager.save_config()
+                    self.engine_path = new_path
+                    self.analyzer = Analyzer(
+                        EngineManager(self.engine_path, config_manager=self.config_manager)
+                    )
+                    invalidate_engine_cache()
+                    logger.info(f"Engine path set to {new_path} via error dialog")
+                    self._refresh_engine_status()
+            else:
+                self.sidebar.set_active(3)
+                self.switch_page(3)
             return
 
         logger.info("Starting analysis...")

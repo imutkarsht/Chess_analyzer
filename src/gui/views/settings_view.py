@@ -9,6 +9,7 @@ from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 from src.gui.components import MasonryLayout
 from src.utils.config import ConfigManager
+from src.constants import DEFAULT_MULTI_PV, DEFAULT_LIVE_ANALYSIS_TIME
 
 from .settings import (
     EngineSettings,
@@ -60,6 +61,12 @@ class SettingsView(QWidget):
         header_layout.addWidget(header_lbl)
         
         header_layout.addStretch()
+        
+        # Mode toggle
+        self._mode = self.config_manager.get("settings_mode", "basic")
+        self.mode_toggle_btn = self._create_mode_toggle()
+        header_layout.addWidget(self.mode_toggle_btn)
+        header_layout.addSpacing(12)
         
         # Create Save settings button
         self.save_settings_btn = self._create_save_button()
@@ -138,6 +145,18 @@ class SettingsView(QWidget):
         self.feedback_btn = self.links_settings.feedback_btn
         self.update_btn = self.links_settings.update_btn
 
+        self._apply_mode()
+
+    def reload_from_config(self):
+        self.config_manager.reload_config()
+        self.engine_settings.reload_from_config()
+        self.book_settings.reload_from_config()
+        self.player_settings.reload_from_config()
+        self.api_settings._reload_profile_combo()
+        self.api_settings.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
+        self.api_settings._update_active_label()
+
     def _create_save_button(self):
         btn = QMessageBox.QPushButton(f"  Save Settings") if hasattr(QMessageBox, 'QPushButton') else None
         # fallback to standard QPushButton
@@ -170,6 +189,57 @@ class SettingsView(QWidget):
         window = self.window()
         if hasattr(window, "refresh_theme"):
             window.refresh_theme()
+
+    def _create_mode_toggle(self):
+        from PyQt6.QtWidgets import QPushButton
+        from PyQt6.QtCore import Qt
+        btn = QPushButton()
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.clicked.connect(self._toggle_mode)
+        self._update_mode_toggle_text(btn)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_ACCENT};
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+        """)
+        return btn
+
+    def _update_mode_toggle_text(self, btn=None):
+        b = btn or self.mode_toggle_btn
+        b.setText("  Advanced Settings" if self._mode == "basic" else "  Basic Settings")
+        if HAS_QTAWESOME:
+            icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
+            b.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
+
+    def _toggle_mode(self):
+        self._mode = "advanced" if self._mode == "basic" else "basic"
+        self._apply_mode()
+        self._update_mode_toggle_text()
+        self.config_manager.config["settings_mode"] = self._mode
+        self.config_manager.save_config()
+
+    def _apply_mode(self):
+        is_advanced = self._mode == "advanced"
+        is_basic = not is_advanced
+
+        self.engine_settings.set_advanced_visible(is_advanced)
+        self.book_settings.set_advanced_visible(is_advanced)
+        self.api_settings.set_advanced_visible(is_advanced)
+        self.player_settings.set_advanced_visible(is_advanced)
+        self.appearance_settings.set_advanced_visible(is_advanced)
+        self.data_settings.set_advanced_visible(is_advanced)
+        self.links_settings.set_advanced_visible(is_advanced)
 
     def save_all_settings(self):
         """Save every setting in the app at once."""
@@ -247,12 +317,12 @@ class SettingsView(QWidget):
         try:
             self.config_manager.config["multi_pv"] = int(self.engine_settings.multi_pv_input.text().strip())
         except ValueError:
-            self.config_manager.config["multi_pv"] = 1
+            self.config_manager.config["multi_pv"] = DEFAULT_MULTI_PV
             
         try:
             self.config_manager.config["live_analysis_time"] = float(self.engine_settings.live_time_input.text().strip())
         except ValueError:
-            self.config_manager.config["live_analysis_time"] = 2.0
+            self.config_manager.config["live_analysis_time"] = DEFAULT_LIVE_ANALYSIS_TIME
 
         self.config_manager.config["lichess_token"] = self.api_settings.lichess_token_input.text().strip()
         self.config_manager.config["chesscom_username"] = chesscom
@@ -366,16 +436,17 @@ class SettingsView(QWidget):
 
         danger_style = f"""
             QPushButton {{
-                background-color: transparent;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_BLUNDER};
-                border: 1px solid {Styles.COLOR_BLUNDER};
+                border: 1px solid {Styles.COLOR_BORDER};
                 padding: 8px 16px;
                 border-radius: 6px;
                 font-size: 13px;
             }}
             QPushButton:hover {{
-                background-color: {Styles.COLOR_BLUNDER};
-                color: white;
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_BLUNDER};
+                border-color: {Styles.COLOR_ACCENT};
             }}
         """
 
@@ -389,7 +460,11 @@ class SettingsView(QWidget):
                 min-width: 28px; max-width: 28px;
                 min-height: 28px; max-height: 28px;
             }}
-            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border-color: {Styles.COLOR_ACCENT};
+            }}
         """
 
         llm_del_style = f"""
@@ -402,7 +477,11 @@ class SettingsView(QWidget):
                 min-width: 28px; max-width: 28px;
                 min-height: 28px; max-height: 28px;
             }}
-            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_BLUNDER};
+                border-color: {Styles.COLOR_ACCENT};
+            }}
         """
 
         combo_style = Styles.get_combobox_style()

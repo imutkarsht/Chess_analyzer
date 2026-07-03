@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from ...styles import Styles
 from .helpers import create_icon_button
+from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV, DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
 
 class EngineSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
@@ -111,7 +112,7 @@ class EngineSettings(QGroupBox):
         self.depth_combo = QComboBox()
         depth_values = [str(i) for i in range(10, 26)]
         self.depth_combo.addItems(depth_values)
-        self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", 18)))
+        self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)))
         self.depth_combo.setStyleSheet(combo_style)
         self.depth_combo.currentTextChanged.connect(self.change_analysis_depth)
         depth_lbl, depth_row = _wrap(
@@ -122,60 +123,63 @@ class EngineSettings(QGroupBox):
         # --- Multi-PV (alt lines per move) ---
         self.multi_pv_input = QLineEdit()
         self.multi_pv_input.setValidator(QIntValidator(1, 5, self.multi_pv_input))
-        self.multi_pv_input.setText(str(self.config_manager.get("multi_pv", 1)))
+        self.multi_pv_input.setText(str(self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)))
         self.multi_pv_input.setStyleSheet(input_style)
         self.multi_pv_input.editingFinished.connect(self._on_multi_pv_committed)
-        multi_pv_lbl, multi_pv_row = _wrap(
+        self._multi_pv_lbl, multi_pv_row = _wrap(
             "Multi-PV (alt lines):",
             self.multi_pv_input,
             "(1–5; 1 = best line only, recommended for laptops)",
         )
-        form.addRow(multi_pv_lbl, multi_pv_row)
+        self._multi_pv_row = multi_pv_row
+        form.addRow(self._multi_pv_lbl, multi_pv_row)
 
         # --- Live-Analysis time budget (seconds) ---
         self.live_time_input = QLineEdit()
         self.live_time_input.setValidator(QDoubleValidator(0.5, 10.0, 1, self.live_time_input))
-        self.live_time_input.setText(str(self.config_manager.get("live_analysis_time", 2.0)))
+        self.live_time_input.setText(str(self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME)))
         self.live_time_input.setStyleSheet(input_style)
         self.live_time_input.editingFinished.connect(self._on_live_time_committed)
-        live_time_lbl, live_time_row = _wrap(
+        self._live_time_lbl, live_time_row = _wrap(
             "Live Analysis Time (s):",
             self.live_time_input,
             "(0.5–10.0; per-position CPU budget for the live panel)",
         )
-        form.addRow(live_time_lbl, live_time_row)
+        self._live_time_row = live_time_row
+        form.addRow(self._live_time_lbl, live_time_row)
 
         # --- Engine Threads ---
         cpu_count = os.cpu_count() or 1
-        default_threads = min(cpu_count, 4)
         max_threads = max(32, cpu_count)
 
         self.threads_input = QLineEdit()
         self.threads_input.setValidator(QIntValidator(1, max_threads, self.threads_input))
         self.threads_input.setText(
-            str(self.config_manager.get("engine_threads", default_threads))
+            str(self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS))
         )
         self.threads_input.setStyleSheet(input_style)
         self.threads_input.editingFinished.connect(self._on_threads_committed)
-        threads_lbl, threads_row = _wrap(
+        self._threads_lbl, threads_row = _wrap(
             "Engine Threads:",
             self.threads_input,
-            f"(1–{max_threads} integer; recommended for this CPU: {default_threads})",
+            f"(1–{max_threads} integer; recommended for this CPU: {DEFAULT_ENGINE_THREADS})",
         )
-        form.addRow(threads_lbl, threads_row)
+        self._threads_row = threads_row
+        form.addRow(self._threads_lbl, threads_row)
 
         # --- Engine Hash ---
         self.hash_input = QLineEdit()
         self.hash_input.setValidator(QIntValidator(16, 4096, self.hash_input))
-        self.hash_input.setText(str(self.config_manager.get("engine_hash", 64)))
+        self.hash_input.setText(str(self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)))
         self.hash_input.setStyleSheet(input_style)
         self.hash_input.editingFinished.connect(self._on_hash_committed)
-        hash_lbl, hash_row = _wrap(
+        self._hash_lbl, hash_row = _wrap(
             "Engine Hash (MB):",
             self.hash_input,
-            "(16–4096 MB; 256 MB is a good default)",
+            "(16–4096 MB; 128 MB is the default)",
         )
-        form.addRow(hash_lbl, hash_row)
+        self._hash_row = hash_row
+        form.addRow(self._hash_lbl, hash_row)
 
         engine_layout.addLayout(form)
         self.validate_engine_path()
@@ -242,55 +246,55 @@ class EngineSettings(QGroupBox):
     def _on_threads_committed(self):
         raw = self.threads_input.text().strip()
         if not raw:
-            current = self.config_manager.get("engine_threads", min(os.cpu_count() or 1, 4))
+            current = self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS)
             self.threads_input.setText(str(current))
             return
         threads, ok = self._validated_threads()
         if not ok:
-            current = self.config_manager.get("engine_threads", 1)
+            current = self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS)
             self.threads_input.setText(str(current))
 
     def _on_hash_committed(self):
         raw = self.hash_input.text().strip()
         if not raw:
-            current = self.config_manager.get("engine_hash", 64)
+            current = self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)
             self.hash_input.setText(str(current))
             return
         hash_mb, ok = self._validated_hash()
         if not ok:
-            current = self.config_manager.get("engine_hash", 64)
+            current = self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)
             self.hash_input.setText(str(current))
 
     def _on_multi_pv_committed(self):
         raw = self.multi_pv_input.text().strip()
         if not raw:
-            current = self.config_manager.get("multi_pv", 1)
+            current = self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)
             self.multi_pv_input.setText(str(current))
             return
         try:
             value = int(raw)
         except ValueError:
-            current = self.config_manager.get("multi_pv", 1)
+            current = self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)
             self.multi_pv_input.setText(str(current))
             return
         if not 1 <= value <= 5:
-            current = self.config_manager.get("multi_pv", 1)
+            current = self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)
             self.multi_pv_input.setText(str(current))
 
     def _on_live_time_committed(self):
         raw = self.live_time_input.text().strip()
         if not raw:
-            current = self.config_manager.get("live_analysis_time", 2.0)
+            current = self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME)
             self.live_time_input.setText(str(current))
             return
         try:
             value = float(raw)
         except ValueError:
-            current = self.config_manager.get("live_analysis_time", 2.0)
+            current = self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME)
             self.live_time_input.setText(str(current))
             return
         if not 0.5 <= value <= 10.0:
-            current = self.config_manager.get("live_analysis_time", 2.0)
+            current = self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME)
             self.live_time_input.setText(str(current))
 
     def browse_engine(self):
@@ -329,6 +333,25 @@ class EngineSettings(QGroupBox):
             )
             return None, False
         return value, True
+
+    def reload_from_config(self):
+        self.path_input.setText(self.config_manager.get("engine_path", ""))
+        self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)))
+        self.multi_pv_input.setText(str(self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)))
+        self.live_time_input.setText(str(self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME)))
+        self.threads_input.setText(str(self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS)))
+        self.hash_input.setText(str(self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)))
+        self.validate_engine_path()
+
+    def set_advanced_visible(self, visible):
+        self._multi_pv_lbl.setVisible(visible)
+        self._multi_pv_row.setVisible(visible)
+        self._live_time_lbl.setVisible(visible)
+        self._live_time_row.setVisible(visible)
+        self._threads_lbl.setVisible(visible)
+        self._threads_row.setVisible(visible)
+        self._hash_lbl.setVisible(visible)
+        self._hash_row.setVisible(visible)
 
     def refresh_styles(self, combo_style, input_style, default_style):
         self.setStyleSheet(Styles.get_group_box_style())

@@ -114,6 +114,8 @@ def main():
             if wizard.exec() == QDialog.DialogCode.Accepted:
                 wizard.accepted_data()
                 logger.info("Setup wizard completed successfully")
+                if hasattr(window, 'settings_view') and hasattr(window.settings_view, 'reload_from_config'):
+                    window.settings_view.reload_from_config()
             else:
                 logger.info("Setup wizard skipped")
             window._refresh_engine_status()

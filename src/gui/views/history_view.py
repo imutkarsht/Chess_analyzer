@@ -173,16 +173,17 @@ class HistoryView(QWidget):
         if danger:
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: transparent;
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
                     color: {Styles.COLOR_BLUNDER};
-                    border: 1px solid {Styles.COLOR_BLUNDER};
+                    border: 1px solid {Styles.COLOR_BORDER};
                     padding: 8px 16px;
                     border-radius: 6px;
                     font-size: 13px;
                 }}
                 QPushButton:hover {{
-                    background-color: {Styles.COLOR_BLUNDER};
-                    color: white;
+                    background-color: {Styles.COLOR_SURFACE};
+                    color: {Styles.COLOR_BLUNDER};
+                    border-color: {Styles.COLOR_ACCENT};
                 }}
             """)
         else:
@@ -554,16 +555,17 @@ class HistoryView(QWidget):
         if hasattr(self, 'btn_clear'):
             self.btn_clear.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: transparent;
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
                     color: {Styles.COLOR_BLUNDER};
-                    border: 1px solid {Styles.COLOR_BLUNDER};
+                    border: 1px solid {Styles.COLOR_BORDER};
                     padding: 8px 16px;
                     border-radius: 6px;
                     font-size: 13px;
                 }}
                 QPushButton:hover {{
-                    background-color: {Styles.COLOR_BLUNDER};
-                    color: white;
+                    background-color: {Styles.COLOR_SURFACE};
+                    color: {Styles.COLOR_BLUNDER};
+                    border-color: {Styles.COLOR_ACCENT};
                 }}
             """)
             

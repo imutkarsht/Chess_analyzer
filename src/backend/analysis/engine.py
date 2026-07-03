@@ -6,13 +6,7 @@ import shutil
 from typing import Optional, Dict, Any, Tuple, List
 from src.utils.logger import logger
 from src.utils.path_utils import get_stockfish_common_paths, get_engine_data_dir
-
-# Conservative defaults aimed at laptops (incl. fanless MacBook Air).
-# Power users can raise these in Settings; the values here are deliberately
-# small so that a stock install does not pin every core at 100% forever.
-# See https://github.com/imutkarsht/Chess_analyzer/issues/5
-DEFAULT_THREADS = min(os.cpu_count() or 1, 4)
-DEFAULT_HASH_MB = 64
+from src.constants import DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
 
 
 def engine_options(threads: int, hash_mb: int) -> Dict[str, Any]:
@@ -31,9 +25,9 @@ def options_from_config(config_manager=None) -> Dict[str, Any]:
     the keys (e.g. on a fresh install) or if it is not provided.
     """
     if config_manager is None:
-        return engine_options(DEFAULT_THREADS, DEFAULT_HASH_MB)
-    threads = config_manager.get("engine_threads", DEFAULT_THREADS)
-    hash_mb = config_manager.get("engine_hash", DEFAULT_HASH_MB)
+        return engine_options(DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB)
+    threads = config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS)
+    hash_mb = config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)
     return engine_options(threads, hash_mb)
 
 
@@ -54,6 +48,21 @@ def invalidate_engine_cache() -> None:
     _resolve_cache = None
 
 
+def _save_fallback_to_config(config_manager, resolved_path: str) -> None:
+    """If the config still holds a stale path, overwrite it with the
+    working fallback so the Settings UI stays in sync."""
+    if config_manager is None:
+        return
+    current = config_manager.get("engine_path", "")
+    if current and current != resolved_path:
+        logger.info(
+            "resolve_engine_path: updating config from '%s' to fallback '%s'",
+            current, resolved_path,
+        )
+        config_manager.config["engine_path"] = resolved_path
+        config_manager.save_config()
+
+
 def resolve_engine_path(config_manager=None) -> Optional[str]:
     """Auto-detect a Stockfish binary using the priority table.
     Result is cached for the lifetime of the process (call
@@ -67,6 +76,8 @@ def resolve_engine_path(config_manager=None) -> Optional[str]:
     | 4        | Already-downloaded in engine data dir |
     | 5        | ``None`` – caller should fall back to download |
 
+    When a fallback path is used (priorities 2-4), the config is updated
+    so the Settings UI reflects the working path on next load.
     Returns the path string or ``None`` if nothing was found.
     """
     global _resolve_cache
@@ -87,6 +98,7 @@ def resolve_engine_path(config_manager=None) -> Optional[str]:
     which_path = shutil.which("stockfish")
     if which_path and _validate_engine_path(which_path):
         logger.info("resolve_engine_path: found via PATH at %s", which_path)
+        _save_fallback_to_config(config_manager, which_path)
         _resolve_cache = which_path
         return which_path
 
@@ -94,6 +106,7 @@ def resolve_engine_path(config_manager=None) -> Optional[str]:
     for candidate in get_stockfish_common_paths():
         if _validate_engine_path(candidate):
             logger.info("resolve_engine_path: found at common path %s", candidate)
+            _save_fallback_to_config(config_manager, candidate)
             _resolve_cache = candidate
             return candidate
 
@@ -101,6 +114,7 @@ def resolve_engine_path(config_manager=None) -> Optional[str]:
     downloaded = os.path.join(get_engine_data_dir(), "stockfish")
     if _validate_engine_path(downloaded):
         logger.info("resolve_engine_path: found previously downloaded at %s", downloaded)
+        _save_fallback_to_config(config_manager, downloaded)
         _resolve_cache = downloaded
         return downloaded
 
@@ -183,8 +197,8 @@ class EngineManager:
         if self.config_manager is None:
             return
         self.apply_settings(
-            threads=self.config_manager.get("engine_threads", DEFAULT_THREADS),
-            hash_mb=self.config_manager.get("engine_hash", DEFAULT_HASH_MB),
+            threads=self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS),
+            hash_mb=self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB),
         )
 
     def recheck_engine_path(self, config_manager=None) -> bool:

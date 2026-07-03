@@ -2,6 +2,7 @@ import chess
 import chess.engine
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QWaitCondition
 from src.utils.logger import logger
+from src.constants import DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV, DEFAULT_ANALYSIS_DEPTH, DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
 import time
 
 
@@ -40,33 +41,33 @@ class LiveAnalysisWorker(QThread):
     def _live_time(self) -> float:
         if self.config_manager is not None:
             try:
-                return float(self.config_manager.get("live_analysis_time", 2.0))
+                return float(self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME))
             except (TypeError, ValueError):
                 pass
-        return 2.0
+        return DEFAULT_LIVE_ANALYSIS_TIME
 
     def _live_multi_pv(self) -> int:
         if self.config_manager is not None:
             try:
-                value = int(self.config_manager.get("multi_pv", 1))
+                value = int(self.config_manager.get("multi_pv", DEFAULT_MULTI_PV))
                 if value >= 1:
                     return value
             except (TypeError, ValueError):
                 pass
-        return 1
+        return DEFAULT_MULTI_PV
         
     def _live_depth(self) -> int:
         if self.config_manager is not None:
             try:
-                return int(self.config_manager.get("analysis_depth", 18))
+                return int(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH))
             except (TypeError, ValueError):
                 pass
-        return 18
+        return DEFAULT_ANALYSIS_DEPTH
 
     def _threads(self) -> int:
         if self.config_manager is not None:
             try:
-                return int(self.config_manager.get("engine_threads", 1))
+                return int(self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS))
             except (TypeError, ValueError):
                 pass
         return 1
@@ -74,10 +75,10 @@ class LiveAnalysisWorker(QThread):
     def _hash(self) -> int:
         if self.config_manager is not None:
             try:
-                return int(self.config_manager.get("engine_hash", 32))
+                return int(self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB))
             except (TypeError, ValueError):
                 pass
-        return 32
+        return DEFAULT_ENGINE_HASH_MB
 
     def configure_engine(self):
         """Reconfigures engine Thread and Hash options dynamically."""

@@ -86,6 +86,13 @@ class BookSettings(QGroupBox):
             
         self.polyglot_validation_label.setVisible(True)
 
+    def reload_from_config(self):
+        self.polyglot_path_input.setText(self.config_manager.get("polyglot_book_path", ""))
+        self.validate_polyglot_path()
+
+    def set_advanced_visible(self, visible):
+        self.setVisible(visible)
+
     def refresh_styles(self, combo_style, input_style, default_style):
         self.setStyleSheet(Styles.get_group_box_style())
         self.polyglot_browse_btn.setStyleSheet(default_style)
