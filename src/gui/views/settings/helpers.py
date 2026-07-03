@@ -28,7 +28,7 @@ def create_icon_button(text, icon_name, callback, parent=None, danger=False, pri
     if danger:
         btn.setStyleSheet(f"""
             QPushButton {{
-                background-color: transparent;
+                background-color: {Styles.COLOR_BACKGROUND};
                 color: {Styles.COLOR_BLUNDER};
                 border: 1px solid {Styles.COLOR_BLUNDER};
                 padding: 8px 16px;

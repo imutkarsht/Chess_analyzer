@@ -58,6 +58,7 @@ class ShortcutHelpDialog(QDialog):
         subtitle.setStyleSheet(f"""
             font-size: 12px;
             color: {Styles.COLOR_TEXT_SECONDARY};
+            background: transparent;
             margin-bottom: 8px;
         """)
         layout.addWidget(subtitle)
@@ -166,6 +167,9 @@ class ShortcutHelpDialog(QDialog):
             QFrame {{
                 background-color: {Styles.COLOR_SURFACE};
                 border-radius: 6px;
+            }}
+            QFrame QLabel {{
+                background: transparent;
             }}
         """)
         

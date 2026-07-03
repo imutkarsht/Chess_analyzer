@@ -79,17 +79,20 @@ class OpeningDB:
         ).fetchone()
         return row["cnt"] > 0
 
-    def initialize(self, tsv_dir: str):
-        """Populate the database from TSV files if not already populated."""
+    def initialize(self, tsv_dir: str) -> bool:
+        """Populate the database from TSV files if not already populated.
+        Returns True if the DB was populated by this call, False if already populated.
+        """
         self.connect()
         if self.is_populated():
-            return
+            return False
         self._import_tsvs(tsv_dir)
         self._conn.execute(
             "INSERT INTO opening_book_metadata (version, imported_at) VALUES (?, datetime('now'))",
             (self.CURRENT_VERSION,),
         )
         self._conn.commit()
+        return True
 
     # ---- TSV Import ----
 

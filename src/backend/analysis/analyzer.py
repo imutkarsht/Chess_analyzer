@@ -14,6 +14,7 @@ from src.utils.path_utils import get_resource_path, get_user_data_dir
 from typing import Optional, List, Dict
 import math
 
+from src.constants import DEFAULT_MULTI_PV, DEFAULT_ANALYSIS_DEPTH
 from .math_utils import (
     get_win_probability,
     calculate_move_accuracy,
@@ -35,22 +36,23 @@ class Analyzer:
         db_path = os.path.join(get_user_data_dir(), "openings.db")
         self._opening_db = OpeningDB(db_path)
         try:
-            self._opening_db.initialize(tsv_dir)
+            just_populated = self._opening_db.initialize(tsv_dir)
         except FileNotFoundError:
             logger.warning(f"Opening TSV files not found in {tsv_dir}; book detection disabled")
         self.local_book = LocalBookManager(self._opening_db)
         polyglot_path = self.config_manager.get("polyglot_book_path", "")
         self.polyglot_book = PolyglotBookManager(polyglot_path)
-        logger.info(f"Opening book initialized: local SQLite at {db_path} ({'populated' if self._opening_db.is_populated() else 'empty'})")
+        if just_populated:
+            logger.info(f"Opening book populated: {db_path}")
         self.config = {
             "time_per_move": self.config_manager.get("time_per_move", 1.0),
-            "depth": self.config_manager.get("analysis_depth", 18),
+            "depth": self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH),
             # multi_pv is read from user config (default 1) so the same
             # default applies to the Game Analysis tab.  See issue #5:
             # the previous hard-coded 3 was identified as a primary cause
             # of laptop overheating because evaluating 3 PVs roughly
             # triples the search tree.
-            "multi_pv": self.config_manager.get("multi_pv", 1),
+            "multi_pv": self.config_manager.get("multi_pv", DEFAULT_MULTI_PV),
             "use_cache": True
         }
 
@@ -87,8 +89,8 @@ class Analyzer:
         """
         # Refresh configuration from global settings before starting
         self.config["time_per_move"] = self.config_manager.get("time_per_move", 1.0)
-        self.config["depth"] = self.config_manager.get("analysis_depth", 18)
-        self.config["multi_pv"] = self.config_manager.get("multi_pv", 1)
+        self.config["depth"] = self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)
+        self.config["multi_pv"] = self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)
         
         # Update Polyglot book path from settings if changed
         new_polyglot_path = self.config_manager.get("polyglot_book_path", "")

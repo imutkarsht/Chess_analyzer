@@ -2,6 +2,7 @@ import sqlite3
 import json
 import hashlib
 from typing import Optional, Dict, Any
+from src.constants import DEFAULT_MULTI_PV
 
 class AnalysisCache:
     def __init__(self, db_path: Optional[str] = None):
@@ -52,7 +53,7 @@ class AnalysisCache:
         Returns cached result only if cached_depth >= requested_depth.
         """
         requested_depth = engine_params.get("depth", 0) or 0
-        multi_pv = engine_params.get("multi_pv", 1)
+        multi_pv = engine_params.get("multi_pv", DEFAULT_MULTI_PV)
         key = self._generate_key(fen, multi_pv)
         
         cursor = self.conn.cursor()
@@ -71,7 +72,7 @@ class AnalysisCache:
         Save analysis to cache. Overwrites if new depth is higher than cached depth.
         """
         new_depth = engine_params.get("depth", 0) or 0
-        multi_pv = engine_params.get("multi_pv", 1)
+        multi_pv = engine_params.get("multi_pv", DEFAULT_MULTI_PV)
         key = self._generate_key(fen, multi_pv)
         
         cursor = self.conn.cursor()

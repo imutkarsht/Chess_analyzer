@@ -74,8 +74,8 @@ class AppearanceSettings(QGroupBox):
         appearance_layout.addRow(piece_lbl, self.piece_combo)
 
         # Sound Effects Selector
-        sound_lbl = QLabel("Sound Effects:")
-        sound_lbl.setStyleSheet(label_style)
+        self._sound_lbl = QLabel("Sound Effects:")
+        self._sound_lbl.setStyleSheet(label_style)
         
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         self.sound_checkbox = QCheckBox("Enable Sound Effects")
@@ -101,7 +101,7 @@ class AppearanceSettings(QGroupBox):
         self.sound_checkbox.setChecked(self.config_manager.get("sound_enabled", True))
         self.sound_checkbox.stateChanged.connect(self.change_sound_setting)
         
-        appearance_layout.addRow(sound_lbl, self.sound_checkbox)
+        appearance_layout.addRow(self._sound_lbl, self.sound_checkbox)
 
         # Accent Color
         color_lbl = QLabel("Accent Color:")
@@ -129,6 +129,9 @@ class AppearanceSettings(QGroupBox):
 
     def change_sound_setting(self, state):
         self.config_manager.config["sound_enabled"] = self.sound_checkbox.isChecked()
+
+    def set_advanced_visible(self, visible):
+        pass
 
     def refresh_styles(self, combo_style, default_style, sound_cb_style):
         self.setStyleSheet(Styles.get_group_box_style())

@@ -121,7 +121,11 @@ class ApiSettings(QGroupBox):
                 min-width: 28px; max-width: 28px;
                 min-height: 28px; max-height: 28px;
             }}
-            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border-color: {Styles.COLOR_ACCENT};
+            }}
         """
 
         # --- Profile selector row ---
@@ -164,10 +168,10 @@ class ApiSettings(QGroupBox):
         pf.setContentsMargins(0, 0, 0, 0)
         pf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
-        lbl_pname = QLabel("Name:"); lbl_pname.setStyleSheet(lbl_style)
+        self._lbl_pname = QLabel("Name:"); self._lbl_pname.setStyleSheet(lbl_style)
         self.llm_profile_name = QLineEdit()
         self.llm_profile_name.setStyleSheet(Styles.get_input_style())
-        pf.addRow(lbl_pname, self.llm_profile_name)
+        pf.addRow(self._lbl_pname, self.llm_profile_name)
 
         lbl_prov = QLabel("Provider:"); lbl_prov.setStyleSheet(lbl_style)
         self.llm_provider_combo = QComboBox()
@@ -216,18 +220,18 @@ class ApiSettings(QGroupBox):
         api_layout.addLayout(status_row)
 
         # --- Lichess token ---
-        _div2 = QFrame(); _div2.setFrameShape(QFrame.Shape.HLine)
-        _div2.setStyleSheet(f"color: {Styles.COLOR_BORDER};")
-        api_layout.addWidget(_div2)
+        self._api_div2 = QFrame(); self._api_div2.setFrameShape(QFrame.Shape.HLine)
+        self._api_div2.setStyleSheet(f"color: {Styles.COLOR_BORDER};")
+        api_layout.addWidget(self._api_div2)
 
         lf = QFormLayout(); lf.setSpacing(10); lf.setContentsMargins(0, 0, 0, 0)
         lf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        lbl_lichess = QLabel("Lichess API Token:"); lbl_lichess.setStyleSheet(lbl_style)
+        self._lbl_lichess = QLabel("Lichess API Token:"); self._lbl_lichess.setStyleSheet(lbl_style)
         self.lichess_token_input = QLineEdit()
         self.lichess_token_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         self.lichess_token_input.setStyleSheet(Styles.get_input_style())
-        lf.addRow(lbl_lichess, self.lichess_token_input)
+        lf.addRow(self._lbl_lichess, self.lichess_token_input)
         api_layout.addLayout(lf)
 
         self._reload_profile_combo()
@@ -419,6 +423,20 @@ class ApiSettings(QGroupBox):
         worker.done.connect(_on_done)
         worker.finished.connect(_cleanup)
         worker.start()
+
+    def set_advanced_visible(self, visible):
+        self._lbl_pname.setVisible(visible)
+        self.llm_profile_name.setVisible(visible)
+        self.llm_add_btn.setVisible(visible)
+        self.llm_del_btn.setVisible(visible)
+        self.lbl_llm_url.setVisible(visible)
+        self.llm_url_input.setVisible(visible)
+        self.llm_test_btn.setVisible(visible)
+        self.llm_test_result.setVisible(visible)
+        self.llm_active_label.setVisible(visible)
+        self._api_div2.setVisible(visible)
+        self._lbl_lichess.setVisible(visible)
+        self.lichess_token_input.setVisible(visible)
 
     def refresh_styles(self, combo_style, input_style, default_style, llm_add_style, llm_del_style):
         self.setStyleSheet(Styles.get_group_box_style())

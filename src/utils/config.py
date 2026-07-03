@@ -2,6 +2,7 @@ import json
 import os
 from .logger import logger
 from .path_utils import get_app_path, get_user_data_dir
+from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV, DEFAULT_LIVE_ANALYSIS_TIME
 
 class ConfigManager:
     CONFIG_FILE = "config.json"
@@ -17,7 +18,7 @@ class ConfigManager:
         #   name, provider, api_key, model, base_url
         "llm_profiles": [],
         "llm_active_profile": "",
-        "analysis_depth": 18,
+        "analysis_depth": DEFAULT_ANALYSIS_DEPTH,
         "api_games_limit": 20,
         # Engine footprint controls (see issue #5).  multi_pv and
         # live_analysis_time are the new user-tunable knobs; we seed
@@ -32,8 +33,8 @@ class ConfigManager:
         # module-level constants when those keys are missing — adding
         # them here as `None` would break that fallback (a stored None
         # wins over a `.get(key, default)` fallback).
-        "multi_pv": 1,
-        "live_analysis_time": 2.0,
+        "multi_pv": DEFAULT_MULTI_PV,
+        "live_analysis_time": DEFAULT_LIVE_ANALYSIS_TIME,
         # Last known main window geometry (x, y, width, height).
         # Any field may be None, meaning "use Qt's default for that dimension".
         "window_state": {"x": None, "y": None, "width": None, "height": None},
