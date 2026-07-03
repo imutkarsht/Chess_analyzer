@@ -1,9 +1,8 @@
 import sys
 import pytest
+from src.constants import DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
 from src.backend.analysis.engine import (
     EngineManager,
-    DEFAULT_THREADS,
-    DEFAULT_HASH_MB,
     engine_options,
     options_from_config,
     resolve_engine_path,
@@ -36,8 +35,8 @@ def test_engine_options_builds_uci_dict():
 def test_options_from_config_without_manager_uses_defaults():
     """Without a ConfigManager we get the module-level defaults."""
     opts = options_from_config(None)
-    assert opts["Threads"] == DEFAULT_THREADS
-    assert opts["Hash"] == DEFAULT_HASH_MB
+    assert opts["Threads"] == DEFAULT_ENGINE_THREADS
+    assert opts["Hash"] == DEFAULT_ENGINE_HASH_MB
 
 
 def test_apply_settings_runs_on_running_engine(mocker):

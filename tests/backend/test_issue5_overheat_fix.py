@@ -17,27 +17,24 @@ import pytest
 
 
 # =====================================================================
-# Module-level defaults (engine.py)
+# Module-level defaults (src/constants.py)
 # =====================================================================
 def test_default_threads_capped_for_laptops():
-    """Engine must never default to more than 4 threads."""
-    from src.backend.analysis.engine import DEFAULT_THREADS
-    assert isinstance(DEFAULT_THREADS, int)
-    assert DEFAULT_THREADS >= 1
-    # The cap is the whole point of the fix; on any sensible machine
-    # this means we never default to 8+ threads and fry a fanless CPU.
-    assert DEFAULT_THREADS <= 4, (
-        f"DEFAULT_THREADS={DEFAULT_THREADS} is too high; "
-        "issue #5 capped this at 4 to protect fanless laptops."
+    """Engine must default to 1 thread."""
+    from src.constants import DEFAULT_ENGINE_THREADS
+    assert isinstance(DEFAULT_ENGINE_THREADS, int)
+    assert DEFAULT_ENGINE_THREADS >= 1
+    assert DEFAULT_ENGINE_THREADS == 1, (
+        f"DEFAULT_ENGINE_THREADS={DEFAULT_ENGINE_THREADS}; expected 1."
     )
 
 
 def test_default_hash_is_conservative():
-    """Engine must default to a small hash table (64 MB)."""
-    from src.backend.analysis.engine import DEFAULT_HASH_MB
-    assert isinstance(DEFAULT_HASH_MB, int)
-    assert DEFAULT_HASH_MB == 64, (
-        f"DEFAULT_HASH_MB={DEFAULT_HASH_MB}; expected 64 (issue #5)."
+    """Engine must default to 128 MB hash."""
+    from src.constants import DEFAULT_ENGINE_HASH_MB
+    assert isinstance(DEFAULT_ENGINE_HASH_MB, int)
+    assert DEFAULT_ENGINE_HASH_MB == 128, (
+        f"DEFAULT_ENGINE_HASH_MB={DEFAULT_ENGINE_HASH_MB}; expected 128."
     )
 
 
@@ -51,14 +48,12 @@ def test_engine_options_passthrough():
 # Multi-PV defaults flow through ConfigManager
 # =====================================================================
 def test_config_defaults_include_multi_pv_and_live_time(tmp_path, monkeypatch):
-    """A fresh install must seed multi_pv=1 and live_analysis_time=2.0.
+    """A fresh install must seed multi_pv=2 and live_analysis_time=0.5.
 
     These are the user-facing toggles that fix the overheating bug;
     they must be present in DEFAULT_CONFIG so a brand-new config.json
     is created with safe values.
     """
-    # Redirect the user-data dir into a temp dir so we don't trample
-    # the real config (and so this test is hermetic).
     monkeypatch.setattr(
         "src.utils.path_utils.get_user_data_dir", lambda: str(tmp_path)
     )
@@ -69,33 +64,22 @@ def test_config_defaults_include_multi_pv_and_live_time(tmp_path, monkeypatch):
     ConfigManager._shared_config = None
     ConfigManager._shared_config_path = None
     cm = ConfigManager()
-    assert cm.get("multi_pv", None) == 1
-    assert cm.get("live_analysis_time", None) == 2.0
+    assert cm.get("multi_pv", None) == 2
+    assert cm.get("live_analysis_time", None) == 0.5
 
 
 def test_config_loaded_multi_pv_is_consumed_by_analyzer(monkeypatch, tmp_path):
-    """Analyzer's effective multi_pv must follow the config, not a hard 3.
-
-    We also redirect the user-data dir to a temp dir (and the ConfigManager
-    class to a fake, **in the analyzer module's namespace**, since the
-    class is already imported there at module load time) so the cache /
-    history / book managers don't trample the real on-disk state and
-    don't race with sibling tests that also patch get_user_data_dir.
-    """
+    """Analyzer's effective multi_pv must follow the config, not a hard 3."""
     monkeypatch.setattr(
         "src.utils.path_utils.get_user_data_dir", lambda: str(tmp_path)
     )
     monkeypatch.setattr(
         "src.utils.config.get_user_data_dir", lambda: str(tmp_path)
     )
-    # Build a fake manager that returns whatever we ask for.
     class FakeCM:
         def get(self, key, default=None):
             data = {"analysis_depth": 18, "multi_pv": 2, "live_analysis_time": 1.5}
             return data.get(key, default)
-    # Patch BOTH the source module and the analyzer's already-imported
-    # reference; otherwise the analyzer will see the real ConfigManager
-    # and hit the real on-disk config.
     from src.utils import config as cfg_mod
     from src.backend.analysis import analyzer as analyzer_mod
     monkeypatch.setattr(cfg_mod, "ConfigManager", FakeCM)
@@ -116,18 +100,15 @@ def test_config_loaded_multi_pv_is_consumed_by_analyzer(monkeypatch, tmp_path):
 # LiveAnalysisWorker — finite CPU budget per position
 # =====================================================================
 def test_live_worker_defaults_when_no_config(mocker):
-    """Without a config_manager the worker must use 2.0s / 1 PV.
-
-    The old behaviour was `Limit(depth=None), multipv=3` (infinite,
-    3 PVs); the fix is a finite time budget and 1 PV by default.
-    """
-    # Patch the engine so SimpleEngine.popen_uci is never actually called
+    """Without a config_manager the worker must use 0.5s / 2 PV."""
     mocker.patch("chess.engine.SimpleEngine.popen_uci")
     from src.gui.analysis.live_analysis import LiveAnalysisWorker
     worker = LiveAnalysisWorker("/fake/stockfish")
-    assert worker._live_time() == 2.0
-    assert worker._live_multi_pv() == 1
-    # Sanity: config_manager is None in this path.
+    assert worker._live_time() == 0.5
+    assert worker._live_multi_pv() == 2
+    assert worker._live_depth() == 18
+    assert worker._threads() == 1
+    assert worker._hash() == 128
     assert worker.config_manager is None
 
 
@@ -155,6 +136,5 @@ def test_live_worker_falls_back_safely_on_garbage_config(mocker):
         "multi_pv": 0,  # invalid (< 1) — should be rejected
     }.get(key, default)
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
-    # Both fall back to the conservative defaults.
-    assert worker._live_time() == 2.0
-    assert worker._live_multi_pv() == 1
+    assert worker._live_time() == 0.5
+    assert worker._live_multi_pv() == 2

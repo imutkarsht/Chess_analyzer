@@ -19,8 +19,9 @@ class TestConfigManager:
             
             assert manager.get("engine_path") == "stockfish"
             assert manager.get("theme") == "dark"
-            assert manager.get("groq_api_key") == ""
-            assert manager.get("groq_model") == "llama-3.3-70b-versatile"
+            assert manager.get("multi_pv") == 2
+            assert manager.get("live_analysis_time") == 0.5
+            assert manager.get("analysis_depth") == 18
             assert manager.get("api_games_limit") == 20
 
     def test_get_nonexistent_key(self, tmp_path):

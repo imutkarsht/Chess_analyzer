@@ -49,6 +49,13 @@ PLATFORM_RULES = {
     },
 }
 
+# Engine Defaults (conservative — see issue #5)
+DEFAULT_ENGINE_THREADS = 1
+DEFAULT_ENGINE_HASH_MB = 128
+DEFAULT_MULTI_PV = 2
+DEFAULT_LIVE_ANALYSIS_TIME = 0.5
+DEFAULT_ANALYSIS_DEPTH = 18
+
 # LLM Providers Catalogue
 PROVIDERS = {
     "groq": {
