@@ -1011,7 +1011,7 @@ class MainWindow(QMainWindow):
                 self._set_status(status_msg, "success")
             return True
         else:
-            QMessageBox.warning(self, "Error", "Failed to parse game PGN.")
+            QMessageBox.warning(self, "Error", "Could not read this game.\nThe PGN data may be empty or corrupted.")
             return False
 
     def load_game(self, game):
@@ -1202,7 +1202,10 @@ class MainWindow(QMainWindow):
             dialog._pgn_text_panel._parse()
             
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            if dialog._pending_pgn:
+            if dialog._navigate_to_settings:
+                self.sidebar.set_active(4)
+                QTimer.singleShot(0, lambda: self.switch_page(4))
+            elif dialog._pending_pgn:
                 pgn = dialog._pending_pgn
                 sd = dialog._pending_source_data
                 QTimer.singleShot(0, lambda: self._parse_and_load_game(

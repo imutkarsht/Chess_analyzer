@@ -250,17 +250,13 @@ class AnalysisPanel(QWidget):
         if not self.current_game:
             return
         if not self.groq_service.client:
-            QMessageBox.information(
-                self,
-                "LLM Not Configured",
-                "No LLM provider is configured.\n\n"
-                "Go to Settings → API Configuration and choose a provider:\n"
-                "  • Groq (cloud, free tier available)\n"
-                "  • LM Studio (local, no key required)\n"
-                "  • MiniMax (cloud)\n"
-                "  • Custom OpenAI-compatible endpoint\n\n"
-                "Save your settings and try again.",
-            )
+            from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+            dlg = LlmNotConfiguredDialog(self)
+            if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
+                window = self.window()
+                if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
+                    window.sidebar.set_active(4)
+                    window.switch_page(4)
             return
         self.btn_generate_summary.setEnabled(False)
         self.loading_overlay.start("Generating AI Summary...")

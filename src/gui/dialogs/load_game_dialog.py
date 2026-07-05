@@ -45,6 +45,7 @@ class LoadGameDialog(QDialog):
         self.setMinimumSize(680, 480)
 
         self._already_accepted = False
+        self._navigate_to_settings = False
         self._source_btns: list[SourceBtn] = []
         self._setup_ui()
         self._switch_source(initial_source)
@@ -189,6 +190,7 @@ class LoadGameDialog(QDialog):
         self._chesscom_panel.pending_cleared.connect(
             lambda: self._set_pending(None, None)
         )
+        self._chesscom_panel.navigate_to_settings.connect(self._on_navigate_to_settings)
         self.stack.addWidget(self._chesscom_panel)   # index 2
 
         # Lichess
@@ -199,6 +201,7 @@ class LoadGameDialog(QDialog):
         self._lichess_panel.pending_cleared.connect(
             lambda: self._set_pending(None, None)
         )
+        self._lichess_panel.navigate_to_settings.connect(self._on_navigate_to_settings)
         self.stack.addWidget(self._lichess_panel)    # index 3
 
     # ── Source switching ────────────────────────────────────────────────────
@@ -240,6 +243,10 @@ class LoadGameDialog(QDialog):
             self._on_load_clicked()
         else:
             super().keyPressEvent(event)
+
+    def _on_navigate_to_settings(self):
+        self._navigate_to_settings = True
+        self.accept()
 
     def accept(self):
         if not self._already_accepted:

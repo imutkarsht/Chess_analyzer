@@ -52,6 +52,11 @@ class PGNParser:
                 game = chess.pgn.read_game(f)
                 if game is None:
                     break
+                # Skip games with no moves — garbage input like SQL text
+                # produces a default game object from python-chess but has
+                # no actual moves.
+                if game.next() is None:
+                    continue
                 games.append(PGNParser._convert_to_game_analysis(game))
         return games
 
@@ -63,6 +68,9 @@ class PGNParser:
             game = chess.pgn.read_game(pgn_io)
             if game is None:
                 break
+            # Skip games with no moves (see comment above).
+            if game.next() is None:
+                continue
             games.append(PGNParser._convert_to_game_analysis(game))
         return games
 
