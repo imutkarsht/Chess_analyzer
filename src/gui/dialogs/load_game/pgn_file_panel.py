@@ -60,7 +60,15 @@ class PgnFilePanel(QWidget):
         try:
             games = PGNParser.parse_pgn_file(path)
         except Exception as e:
-            QMessageBox.critical(self, "Parse Error", f"Failed to read PGN file:\n{e}")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle("Could Not Read PGN")
+            msg.setText("Could not read this PGN.\nIt may be empty or corrupted.")
+            try_again = msg.addButton("Try Another File", QMessageBox.ButtonRole.ActionRole)
+            msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+            msg.exec()
+            if msg.clickedButton() == try_again:
+                self._browse()
             return
 
         if not games:

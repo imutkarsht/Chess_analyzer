@@ -55,6 +55,7 @@ class ChessComPanel(QWidget):
     """
     pgn_ready     = pyqtSignal(str, object)
     pending_cleared = pyqtSignal()
+    navigate_to_settings = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -178,7 +179,16 @@ class ChessComPanel(QWidget):
         self._reset_input_ui()
 
         if not parsed_games:
-            QMessageBox.warning(self, "No Games", "No games found.")
+            username = self._input_edit.text().strip()
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.setWindowTitle("No Games Found")
+            msg.setText(f"No games found for {username}.\nMake sure the username is correct.")
+            change_btn = msg.addButton("Change Username", QMessageBox.ButtonRole.ActionRole)
+            msg.addButton("OK", QMessageBox.ButtonRole.RejectRole)
+            msg.exec()
+            if msg.clickedButton() == change_btn:
+                self.navigate_to_settings.emit()
             return
 
         self._parsed_games = parsed_games

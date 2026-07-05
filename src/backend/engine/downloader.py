@@ -14,10 +14,10 @@ import requests
 GITHUB_API = "https://api.github.com/repos/official-stockfish/Stockfish/releases/latest"
 
 PLATFORM_ASSETS: dict[tuple[str, str], str] = {
-    ("darwin", "arm64"):  "stockfish-macos-universal.tar.gz",
-    ("darwin", "x86_64"): "stockfish-macos-universal.tar.gz",
-    ("win32",  "x86_64"): "stockfish-windows-x86-64-universal.zip",
-    ("linux",  "x86_64"): "stockfish-linux-x86-64-universal.tar.gz",
+    ("darwin", "arm64"):  "stockfish-macos-m1-apple-silicon.tar",
+    ("darwin", "x86_64"): "stockfish-macos-x86-64-avx2.tar",
+    ("win32",  "x86_64"): "stockfish-windows-x86-64-avx2.zip",
+    ("linux",  "x86_64"): "stockfish-ubuntu-x86-64-avx2.tar",
 }
 
 
@@ -120,8 +120,10 @@ def download_and_extract(
 
         if url.endswith(".zip"):
             return _extract_zip(tmp_path, dest_dir)
+        elif url.endswith(".tar.gz") or url.endswith(".tgz"):
+            return _extract_tar(tmp_path, dest_dir, "r:gz")
         else:
-            return _extract_tar(tmp_path, dest_dir)
+            return _extract_tar(tmp_path, dest_dir, "r:")
 
     finally:
         if os.path.exists(tmp_path):
@@ -136,9 +138,9 @@ def _extract_zip(archive_path: str, dest_dir: str) -> str:
     return _find_binary(dest_dir)
 
 
-def _extract_tar(archive_path: str, dest_dir: str) -> str:
-    """Extract a .tar.gz archive and return the path to the Stockfish binary."""
-    with tarfile.open(archive_path, "r:gz") as tf:
+def _extract_tar(archive_path: str, dest_dir: str, mode: str = "r:") -> str:
+    """Extract a tar archive and return the path to the Stockfish binary."""
+    with tarfile.open(archive_path, mode) as tf:
         tf.extractall(dest_dir)
 
     return _find_binary(dest_dir)

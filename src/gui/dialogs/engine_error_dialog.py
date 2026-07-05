@@ -57,7 +57,7 @@ class EngineNotFoundDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Engine Not Found")
-        self.setFixedSize(520, 340)
+        self.setFixedSize(520, 420)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {Styles.COLOR_BACKGROUND};
@@ -113,6 +113,7 @@ class EngineNotFoundDialog(QDialog):
 
         btn_layout = QVBoxLayout()
         btn_layout.setSpacing(10)
+        btn_layout.setContentsMargins(0, 4, 0, 0)
 
         self._auto_btn = QPushButton("  Auto-detect Stockfish")
         self._auto_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -133,6 +134,8 @@ class EngineNotFoundDialog(QDialog):
         btn_layout.addWidget(self._browse_btn)
 
         layout.addLayout(btn_layout)
+
+        layout.addStretch()
 
         footer = QHBoxLayout()
         footer.addStretch()

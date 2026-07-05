@@ -76,7 +76,16 @@ class PgnTextPanel(QWidget):
         try:
             games = PGNParser.parse_pgn_text(text)
         except Exception as e:
-            QMessageBox.critical(self, "Parse Error", f"Failed to parse PGN text:\n{e}")
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Warning)
+            msg.setWindowTitle("Could Not Read PGN")
+            msg.setText("Could not read this PGN.\nIt may be empty or corrupted.")
+            try_again = msg.addButton("Try Again", QMessageBox.ButtonRole.ActionRole)
+            msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+            msg.exec()
+            if msg.clickedButton() == try_again:
+                self._text_edit.clear()
+                self._text_edit.setFocus()
             return
 
         if not games:
