@@ -647,8 +647,8 @@ class ExplorerView(QWidget):
         if not hasattr(self, '_piece_pixmap_cache'):
             self._piece_pixmap_cache = {}
         if cache_key not in self._piece_pixmap_cache:
-            from src.gui.board.piece_themes import _load_theme_cached
-            pieces_svg = _load_theme_cached("Standard")
+            from src.gui.board.piece_themes import _load_theme_cached, get_current_theme_name
+            pieces_svg = _load_theme_cached(get_current_theme_name())
             g_content = pieces_svg.get(symbol, "")
             if g_content:
                 svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'

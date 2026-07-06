@@ -34,8 +34,8 @@ class PromotionDialog(QDialog):
         layout.setSpacing(8)
         layout.setContentsMargins(12, 12, 12, 12)
 
-        from src.gui.board.piece_themes import _load_theme_cached
-        pieces_svg = _load_theme_cached("Standard")
+        from src.gui.board.piece_themes import _load_theme_cached, get_current_theme_name
+        pieces_svg = _load_theme_cached(get_current_theme_name())
 
         piece_map = {
             chess.QUEEN:  'Q' if color == chess.WHITE else 'q',
@@ -199,12 +199,12 @@ class ExplorerBoardWidget(BoardWidget):
         self.drag_start_pos = None
 
     def _start_drag_visuals(self):
-        from src.gui.board.piece_themes import _load_theme_cached
+        from src.gui.board.piece_themes import _load_theme_cached, get_current_theme_name
         piece = self.board.piece_at(self.drag_start_sq)
         if not piece:
             return
-            
-        pieces = _load_theme_cached("Standard")
+
+        pieces = _load_theme_cached(get_current_theme_name())
         g_content = pieces.get(piece.symbol(), "")
         svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
         

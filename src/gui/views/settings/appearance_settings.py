@@ -73,6 +73,14 @@ class AppearanceSettings(QGroupBox):
         
         appearance_layout.addRow(piece_lbl, self.piece_combo)
 
+        # Import Theme button (spacer label keeps form alignment)
+        import_lbl = QLabel("")
+        import_lbl.setStyleSheet(label_style)
+        self.import_theme_btn = create_icon_button(
+            "Import Theme...", "fa5s.folder-open", self.import_theme, self
+        )
+        appearance_layout.addRow(import_lbl, self.import_theme_btn)
+
         # Sound Effects Selector
         self._sound_lbl = QLabel("Sound Effects:")
         self._sound_lbl.setStyleSheet(label_style)
@@ -130,6 +138,51 @@ class AppearanceSettings(QGroupBox):
     def change_sound_setting(self, state):
         self.config_manager.config["sound_enabled"] = self.sound_checkbox.isChecked()
 
+    def import_theme(self):
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from ...board.piece_themes import (
+            get_piece_theme_names,
+            import_theme_from_folder,
+            validate_theme_folder,
+        )
+
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Piece Theme Folder", "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
+        if not folder:
+            return
+
+        is_valid, errors = validate_theme_folder(folder)
+        if not is_valid:
+            QMessageBox.warning(
+                self, "Invalid Theme",
+                "The selected folder is not a valid piece theme:\n\n"
+                + "\n".join(errors),
+            )
+            return
+
+        theme_name = import_theme_from_folder(folder)
+        if theme_name is None:
+            QMessageBox.critical(
+                self, "Import Failed",
+                "Failed to import the theme. Check the logs for details.",
+            )
+            return
+
+        self.piece_combo.blockSignals(True)
+        self.piece_combo.clear()
+        self.piece_combo.addItems(get_piece_theme_names())
+        self.piece_combo.setCurrentText(theme_name)
+        self.piece_combo.blockSignals(False)
+
+        self.change_piece_theme(theme_name)
+
+        QMessageBox.information(
+            self, "Theme Imported",
+            f"Piece theme '{theme_name}' has been imported and is now active.",
+        )
+
     def set_advanced_visible(self, visible):
         pass
 
@@ -139,3 +192,4 @@ class AppearanceSettings(QGroupBox):
         self.piece_combo.setStyleSheet(combo_style)
         self.sound_checkbox.setStyleSheet(sound_cb_style)
         self.color_btn.setStyleSheet(default_style)
+        self.import_theme_btn.setStyleSheet(default_style)
