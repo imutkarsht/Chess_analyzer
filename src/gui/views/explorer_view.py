@@ -209,20 +209,10 @@ class ExplorerView(QWidget):
         black_header.addStretch()
         self.left_layout.addWidget(self.black_header_widget)
         
-        # Board Container (EvalBar + Board)
-        board_container = QWidget()
-        board_h_layout = QHBoxLayout(board_container)
-        board_h_layout.setContentsMargins(0, 0, 0, 0)
-        board_h_layout.setSpacing(10)
-        
+        # Board (contains its own eval bar internally laid out)
         self.board_widget = ExplorerBoardWidget()
         self.board_widget.move_made.connect(self.on_move_made)
-        
-        board_h_layout.addWidget(self.board_widget.eval_bar)
-        board_h_layout.addWidget(self.board_widget)
-        board_h_layout.setStretch(1, 1) # Board takes extra space
-        
-        self.left_layout.addWidget(board_container, stretch=1)
+        self.left_layout.addWidget(self.board_widget, stretch=1)
         
         # Player Label (Bottom)
         self.white_header_widget = QWidget()
@@ -885,7 +875,7 @@ class ExplorerView(QWidget):
         # Swap captured pieces headers around the board
         self.left_layout.removeWidget(self.white_header_widget)
         self.left_layout.removeWidget(self.black_header_widget)
-        # After removal, only board_container remains at index 0
+        # After removal, only board_widget remains at index 0
         if self.board_widget.is_flipped:
             self.left_layout.insertWidget(0, self.white_header_widget)  # white above
             self.left_layout.insertWidget(2, self.black_header_widget)  # black below

@@ -317,11 +317,10 @@ class ExplorerBoardWidget(BoardWidget):
             from src.utils.resources import ResourceManager
             icon = ResourceManager().get_icon(self.last_move_classification)
             if not icon.isNull():
-                badge.setPixmap(icon.pixmap(18, 18))
+                badge.setPixmap(icon.pixmap(32, 32))
                 
             r, c = self._sq_to_grid(to_sq)
-            # Offset it slightly to top-right
-            badge.setStyleSheet("padding: 2px;")
+            badge.setStyleSheet("background: transparent;")
             self.overlay_layout.addWidget(badge, r, c, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
     def _sq_to_grid(self, square):
