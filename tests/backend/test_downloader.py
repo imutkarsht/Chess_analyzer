@@ -47,16 +47,16 @@ class TestGetExpectedAssetName:
     def test_macos_universal(self, mocker):
         mocker.patch.object(sys, "platform", "darwin")
         mocker.patch("platform.machine", return_value="arm64")
-        assert get_expected_asset_name() == "stockfish-macos-universal.tar.gz"
+        assert get_expected_asset_name() == "stockfish-macos-m1-apple-silicon.tar"
 
     def test_windows_universal(self, mocker):
         mocker.patch.object(sys, "platform", "win32")
-        assert get_expected_asset_name() == "stockfish-windows-x86-64-universal.zip"
+        assert get_expected_asset_name() == "stockfish-windows-x86-64-avx2.zip"
 
     def test_linux_universal(self, mocker):
         mocker.patch.object(sys, "platform", "linux")
         mocker.patch("platform.machine", return_value="x86_64")
-        assert get_expected_asset_name() == "stockfish-linux-x86-64-universal.tar.gz"
+        assert get_expected_asset_name() == "stockfish-ubuntu-x86-64-avx2.tar"
 
 
 class TestGetOfficialReleases:
@@ -64,7 +64,7 @@ class TestGetOfficialReleases:
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
             "assets": [
-                {"name": "stockfish-macos-universal.tar.gz",
+                {"name": "stockfish-macos-m1-apple-silicon.tar",
                  "browser_download_url": "https://example.com/a.tar.gz",
                  "size": 12345},
             ]
@@ -73,7 +73,7 @@ class TestGetOfficialReleases:
 
         assets = get_official_releases()
         assert len(assets) == 1
-        assert assets[0].name == "stockfish-macos-universal.tar.gz"
+        assert assets[0].name == "stockfish-macos-m1-apple-silicon.tar"
         assert assets[0].url == "https://example.com/a.tar.gz"
         assert assets[0].size == 12345
 

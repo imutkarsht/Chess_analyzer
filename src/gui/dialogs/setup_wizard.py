@@ -71,6 +71,9 @@ class SetupWizard(QDialog):
             SetupWizard {{
                 background-color: {Styles.COLOR_BACKGROUND};
             }}
+            QLabel {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
             QLineEdit {{
                 padding: 10px 14px;
                 min-height: 24px;
