@@ -1,7 +1,7 @@
 """
 Captured pieces display widget.
 """
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy
 from PyQt6.QtCore import Qt
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
@@ -15,14 +15,6 @@ class CapturedPiecesWidget(QFrame):
     the white pieces Black has taken. Use two of these widgets in the
     surrounding layout — one above the board, one below.
     """
-
-    # Unicode superscript digits used for the compact pawn-count chip.
-    # We avoid HTML <sup> because QLabel's rich-text layout reserved a
-    # separate box for the digit and pushed the piece symbol down so
-    # it no longer lined up with the other piece chips beside it.
-    # The font's built-in superscript glyphs are already ~70% the
-    # size of a normal digit, which gives a small raised count for
-    # free without any inline-CSS that would fight the label's own
     # font-size rule.
     _SUP_MAP = {
         '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
@@ -52,6 +44,18 @@ class CapturedPiecesWidget(QFrame):
         self.pieces_layout.setSpacing(2)
         self.pieces_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(self.pieces_layout)
+        
+        # Add stretch widget so captured pieces stay left, and clock stays right
+        self.spacer_widget = QWidget()
+        self.spacer_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.spacer_widget.setStyleSheet("background: transparent; border: none;")
+        self.spacer_widget.hide()  # Hidden by default
+        layout.addWidget(self.spacer_widget)
+        
+        self.clock_label = QLabel()
+        self.clock_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.clock_label.hide()
+        layout.addWidget(self.clock_label)
 
         # Reserve a fixed, content-independent height so the board does
         # not shift when the first piece gets captured. Sized large
@@ -69,7 +73,7 @@ class CapturedPiecesWidget(QFrame):
         clear_layout(self.pieces_layout)
 
         if not fen:
-            self.setStyleSheet(f"background: transparent; border: none;")
+            self._update_container_style()
             return
 
         starting_pieces = {
@@ -126,19 +130,8 @@ class CapturedPiecesWidget(QFrame):
             if diff < 0:
                 self._add_advantage_label(f"+{-diff}")
 
-        # Show border only when there are pieces to display
-        if self.pieces_layout.count() > 0:
-            self.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 8px;
-                    padding: 5px;
-                }}
-                {Styles.CAPTURED_PIECES_STYLE}
-            """)
-        else:
-            self.setStyleSheet(f"background: transparent; border: none;")
+        # Show border when there are pieces or a visible clock to display
+        self._update_container_style()
 
     def _add_pieces(self, count, piece, fg, bg):
         """Add piece chips for the given count.
@@ -207,3 +200,95 @@ class CapturedPiecesWidget(QFrame):
             f" margin-right: 4px;"
         )
         self.pieces_layout.insertWidget(0, lbl)
+
+    def update_clock(self, seconds):
+        """Update the clock label with the remaining time in seconds.
+        If seconds is None, hide the clock label.
+        """
+        if seconds is None:
+            self.clock_label.hide()
+            if hasattr(self, 'spacer_widget'):
+                self.spacer_widget.hide()
+            self._update_container_style()
+            return
+            
+        formatted = self._format_ui_clock(seconds)
+        self.clock_label.setText(formatted)
+        
+        # Color coding: red/orange if less than 20 seconds
+        if seconds <= 20.0:
+            self.clock_label.setStyleSheet(f"""
+                QLabel {{
+                    color: #FFFFFF;
+                    background-color: {Styles.COLOR_BLUNDER};
+                    font-family: 'Courier New', 'Monospace', monospace;
+                    font-size: 18px;
+                    font-weight: bold;
+                    padding: 4px 10px;
+                    border-radius: 6px;
+                    border: 1px solid {Styles.COLOR_BLUNDER};
+                }}
+            """)
+        else:
+            if self.side == "black":
+                # Black player's clock: White background, black text
+                color_style = """
+                    color: #1A1A1D;
+                    background-color: #FFFFFF;
+                    border: 1px solid #D1D5DB;
+                """
+            else:
+                # White player's clock: Black background, white text
+                color_style = f"""
+                    color: #E4E4E7;
+                    background-color: #111111;
+                    border: 1px solid {Styles.COLOR_BORDER};
+                """
+            self.clock_label.setStyleSheet(f"""
+                QLabel {{
+                    {color_style}
+                    font-family: 'Courier New', 'Monospace', monospace;
+                    font-size: 18px;
+                    font-weight: bold;
+                    padding: 4px 10px;
+                    border-radius: 6px;
+                }}
+            """)
+            
+        self.clock_label.show()
+        if hasattr(self, 'spacer_widget'):
+            self.spacer_widget.show()
+        self._update_container_style()
+
+    def _update_container_style(self):
+        """Show border and background only when there is something to display."""
+        has_pieces = self.pieces_layout.count() > 0
+        has_clock = hasattr(self, 'clock_label') and not self.clock_label.isHidden()
+        
+        if has_pieces or has_clock:
+            self.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 8px;
+                    padding: 5px;
+                }}
+                {Styles.CAPTURED_PIECES_STYLE}
+            """)
+        else:
+            self.setStyleSheet(f"background: transparent; border: none;")
+
+    def _format_ui_clock(self, seconds: float) -> str:
+        """Format seconds to a standard premium chess clock format (e.g. 10:00, 1:35, 15.4)."""
+        seconds = max(0.0, float(seconds))
+        h = int(seconds // 3600)
+        m = int((seconds % 3600) // 60)
+        s = seconds - h * 3600 - m * 60
+        
+        if h > 0:
+            return f"{h}:{m:02d}:{int(s):02d}"
+        if m > 0:
+            return f"{m}:{int(s):02d}"
+        if s < 20.0:
+            return f"{s:.1f}"
+        return f"{int(s)}"

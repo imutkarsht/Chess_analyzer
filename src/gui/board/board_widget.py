@@ -92,6 +92,10 @@ class BoardWidget(QWidget):
         self.board_container.setGeometry(x_board, y_board, side, side)
         # Eval bar spans the full height of the board, aligned to its top.
         self.eval_bar.setGeometry(0, y_board, eval_w, side)
+        
+        # Update overlay grid margins dynamically to align exactly with the SVG board's 15px coordinates margin.
+        margin = int(side * 15 / 390)
+        self.overlay_layout.setContentsMargins(margin, margin, margin, margin)
 
     def load_game(self, game_analysis):
         self.is_chess960 = game_analysis.metadata.chess960

@@ -149,13 +149,19 @@ def _extract_tar(archive_path: str, dest_dir: str, mode: str = "r:") -> str:
 def _find_binary(search_dir: str) -> str:
     """Find the Stockfish binary inside an extracted directory.
 
-    Searches recursively for a file named 'stockfish' (or 'stockfish.exe' on Windows).
+    Searches recursively for a file whose name starts with 'stockfish'
+    (or 'stockfish.exe' on Windows), then renames it to the canonical
+    name so future lookups via resolve_engine_path succeed.
     """
     target = "stockfish.exe" if sys.platform == "win32" else "stockfish"
     for root, _dirs, files in os.walk(search_dir):
         for f in files:
-            if f == target:
+            if f.startswith(target):
                 path = os.path.join(root, f)
+                if f != target:
+                    dest = os.path.join(root, target)
+                    os.rename(path, dest)
+                    path = dest
                 _make_executable(path)
                 return path
     raise FileNotFoundError(

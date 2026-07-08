@@ -81,7 +81,7 @@ class MetricsWidget(QWidget):
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(40, 20, 40, 20)
         self.content_layout.setSpacing(20)
-        self.main_layout.addWidget(self.content_widget)
+        self.main_layout.addWidget(self.content_widget, 1)
 
     def refresh_styles(self):
         """Re-applies styles and rebuilds the dashboard using cached stats/insights."""

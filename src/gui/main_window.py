@@ -34,8 +34,6 @@ from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.components.tour_manager import TourManager, TourStep
 from src.gui.components.tour_overlay import TourOverlay
 
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -662,6 +660,18 @@ class MainWindow(QMainWindow):
             return  # user navigated away during the 400ms delay
         if self.tour_manager.has_seen_tour(page_index):
             return  # already seen (e.g. Ctrl+T was pressed and dismissed)
+
+        # Skip tour if the page has no relevant data yet (don't mark seen,
+        # so the tour retriggers on next visit once data becomes available).
+        if page_index == 0 and self.current_game is None:
+            return
+        if page_index == 2 and hasattr(self, 'history_view') and not self.history_view.games:
+            return
+        if page_index == 3 and hasattr(self, 'metrics_view'):
+            mv = self.metrics_view
+            if not any(hasattr(mv, attr) for attr in ('accuracy_card', 'result_card', 'openings_card')):
+                return
+
         self._launch_tour(page_index)
 
     def start_tour(self):
@@ -822,7 +832,7 @@ class MainWindow(QMainWindow):
                     text="AI Coach reads your stats and writes personalised advice: patterns to fix, openings to study, and training priorities.",
                     position="left", page_index=3,
                 ))
-            if not steps:  # fallback if stat cards not rendered yet
+            if not steps:
                 steps.append(TourStep(
                     target=mv,
                     text="Your personal performance dashboard with accuracy trends, result breakdown, top openings, and AI Coach insights.",
@@ -1050,6 +1060,27 @@ class MainWindow(QMainWindow):
         self.captured_white.update_captured(None)
         self.captured_black.update_captured(None)
 
+        # Initialize clocks based on PGN data if present
+        has_clocks = any(m.time_left is not None for m in game.moves) if game.moves else False
+        if has_clocks:
+            white_time = None
+            black_time = None
+            
+            # Find first white and black clock values to estimate starting time
+            for m in game.moves:
+                if m.time_left is not None:
+                    idx = game.moves.index(m)
+                    if idx % 2 == 0 and white_time is None:
+                        white_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+                    elif idx % 2 == 1 and black_time is None:
+                        black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+            
+            self.captured_white.update_clock(white_time)
+            self.captured_black.update_clock(black_time)
+        else:
+            self.captured_white.update_clock(None)
+            self.captured_black.update_clock(None)
+
         # Wire graph click → board navigation.
         # Disconnect first to prevent duplicate connections across game loads.
         try:
@@ -1260,6 +1291,44 @@ class MainWindow(QMainWindow):
 
             self.captured_white.update_captured(fen)
             self.captured_black.update_captured(fen)
+
+            # Update clock display if clock data is present
+            has_clocks = any(m.time_left is not None for m in moves)
+            if has_clocks:
+                white_time = None
+                black_time = None
+                
+                # Find the latest white time_left at or before index
+                for i in range(index, -1, -1):
+                    if i % 2 == 0:  # White's move
+                        if moves[i].time_left is not None:
+                            white_time = moves[i].time_left
+                            break
+                
+                # Find the latest black time_left at or before index
+                for i in range(index, -1, -1):
+                    if i % 2 == 1:  # Black's move
+                        if moves[i].time_left is not None:
+                            black_time = moves[i].time_left
+                            break
+                
+                # Fall back to starting times if no move has been played yet on that side
+                if white_time is None:
+                    for m in moves:
+                        if m.time_left is not None and moves.index(m) % 2 == 0:
+                            white_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+                            break
+                if black_time is None:
+                    for m in moves:
+                        if m.time_left is not None and moves.index(m) % 2 == 1:
+                            black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+                            break
+                
+                self.captured_white.update_clock(white_time)
+                self.captured_black.update_clock(black_time)
+            else:
+                self.captured_white.update_clock(None)
+                self.captured_black.update_clock(None)
 
             if 0 <= index < len(moves):
                 move = moves[index]
