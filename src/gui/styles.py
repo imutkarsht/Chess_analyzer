@@ -158,6 +158,7 @@ class Styles:
             /* Labels */
             QLabel {{
                 color: {cls.COLOR_TEXT_PRIMARY};
+                background: transparent;
             }}
             
             /* Scrollbars */
