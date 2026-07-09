@@ -108,7 +108,12 @@ def main():
                     logger.info("Gatekeeper: removed quarantine from .app bundle")
         
         # First-run setup wizard
-        if not window.config_manager.get("setup_completed") or resolve_engine_path(window.config_manager) is None:
+        needs_setup = not window.config_manager.get("setup_completed") or resolve_engine_path(window.config_manager) is None
+        if needs_setup:
+            # Finish splash before opening the wizard so it doesn't hang
+            splash.update_progress(100, "Starting setup...")
+            splash.finish(window)
+
             from src.gui.dialogs.setup_wizard import SetupWizard
             wizard = SetupWizard(window.config_manager)
             if wizard.exec() == QDialog.DialogCode.Accepted:
@@ -143,8 +148,9 @@ def main():
         # Show Main Window
         window.show()
         
-        splash.update_progress(100, "Done!")
-        splash.finish(window)
+        if not needs_setup:
+            splash.update_progress(100, "Done!")
+            splash.finish(window)
         # --- Splash Screen End ---
 
         logger.info("MainWindow shown. Application ready.")

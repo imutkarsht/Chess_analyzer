@@ -394,8 +394,8 @@ def build_done_page(wizard) -> QWidget:
     page = QWidget()
     page.setStyleSheet(PAGE_BG)
     layout = QVBoxLayout(page)
-    layout.setContentsMargins(60, 40, 60, 40)
-    layout.setSpacing(20)
+    layout.setContentsMargins(50, 32, 50, 32)
+    layout.setSpacing(0)
 
     # Push contents to center
     layout.addStretch(1)
@@ -407,43 +407,57 @@ def build_done_page(wizard) -> QWidget:
     wizard._update_done_icon()
     layout.addWidget(wizard.done_icon_label)
 
+    layout.addSpacing(16)
+
     heading = QLabel("You're all set!")
     heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    heading.setFont(QFont("", 24, QFont.Weight.Bold))
+    heading.setFont(QFont("", 22, QFont.Weight.Bold))
     heading.setStyleSheet("background: transparent;")
     layout.addWidget(heading)
 
-    wizard.summary_label = QLabel("")
-    wizard.summary_label.setWordWrap(True)
-    wizard.summary_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    wizard.summary_label.setStyleSheet(
-        f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY}; line-height: 1.4; background: transparent;"
-    )
-    layout.addWidget(wizard.summary_label)
+    layout.addSpacing(6)
 
     wizard.ready_label = QLabel("Ready to analyze your games!")
     wizard.ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     wizard.ready_label.setStyleSheet(
-        f"font-size: 15px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
+        f"font-size: 13px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
     )
     layout.addWidget(wizard.ready_label)
 
-    # Extra spacing before button
-    btn_space = QWidget()
-    btn_space.setFixedHeight(12)
-    btn_space.setStyleSheet("background: transparent;")
-    layout.addWidget(btn_space)
+    layout.addSpacing(20)
 
-    wizard.done_btn = QPushButton("Finish")
+    # Summary card container — use object name to scope border so it doesn't cascade to children
+    summary_card = QFrame()
+    summary_card.setObjectName("summaryCard")
+    summary_card.setStyleSheet(f"""
+        QFrame#summaryCard {{
+            background-color: {Styles.COLOR_SURFACE};
+            border: 1px solid {Styles.COLOR_BORDER};
+            border-radius: 10px;
+        }}
+    """)
+    card_layout = QVBoxLayout(summary_card)
+    card_layout.setContentsMargins(20, 14, 20, 14)
+    card_layout.setSpacing(0)
+    layout.addWidget(summary_card)
+
+    # Placeholder rows — will be replaced when the page is shown
+    wizard._done_card_layout = card_layout
+    wizard._done_summary_card = summary_card
+
+    layout.addSpacing(20)
+
+    wizard.done_btn = QPushButton("Launch Chess Analyzer Pro")
     wizard.done_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.done_btn.setFixedHeight(44)
     wizard.done_btn.setStyleSheet(f"""
         QPushButton {{
             background-color: {Styles.COLOR_ACCENT};
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 12px 40px;
-            font-size: 15px;
+            padding: 0 40px;
+            font-size: 14px;
             font-weight: bold;
         }}
         QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
@@ -454,4 +468,72 @@ def build_done_page(wizard) -> QWidget:
     # Balance centering stretch
     layout.addStretch(1)
 
+    # summary_label is kept as a hidden QLabel for compatibility with _show_page logic
+    wizard.summary_label = QLabel("")
+    wizard.summary_label.setVisible(False)
+    layout.addWidget(wizard.summary_label)
+
+    def _on_done_show():
+        """Rebuild the summary card rows each time the done page is shown."""
+        # Clear old rows
+        while wizard._done_card_layout.count():
+            item = wizard._done_card_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Gather items from wizard.summary_label text (set by _show_page)
+        raw = wizard.summary_label.text()
+        items = raw.split("\n") if raw else []
+        valid_items = [x for x in items if x.strip()]
+
+        for i, item in enumerate(valid_items):
+            is_warning = item.startswith("⚠")
+            is_check = item.startswith("✓")
+
+            # Determine icon char and colour
+            if is_warning:
+                icon_char = "⚠"
+                icon_color = Styles.COLOR_MISTAKE
+                text = item[1:].strip()
+            elif is_check:
+                icon_char = "✓"
+                icon_color = Styles.COLOR_BEST
+                text = item[1:].strip()
+            else:
+                icon_char = "•"
+                icon_color = Styles.COLOR_TEXT_MUTED
+                text = item.strip()
+
+            row = QWidget()
+            # Explicitly clear all borders so Qt box model doesn't add outlines
+            row.setStyleSheet("QWidget { background: transparent; border: none; }")
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 10, 0, 10)
+            row_layout.setSpacing(12)
+
+            icon_lbl = QLabel(icon_char)
+            icon_lbl.setFixedWidth(20)
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_lbl.setStyleSheet(
+                f"font-size: 15px; font-weight: bold; color: {icon_color}; background: transparent; border: none;"
+            )
+            row_layout.addWidget(icon_lbl)
+
+            text_lbl = QLabel(text)
+            text_lbl.setWordWrap(True)
+            text_lbl.setStyleSheet(
+                f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
+            )
+            row_layout.addWidget(text_lbl, 1)
+
+            wizard._done_card_layout.addWidget(row)
+
+            # Divider — plain QWidget (not QFrame) to avoid inherited border cascade
+            if i < len(valid_items) - 1:
+                divider = QWidget()
+                divider.setFixedHeight(1)
+                divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
+                wizard._done_card_layout.addWidget(divider)
+
+    page._on_show = _on_done_show
     return page

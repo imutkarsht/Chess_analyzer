@@ -339,6 +339,11 @@ class SetupWizard(QDialog):
         QTimer.singleShot(800, lambda: self._show_page(1))
 
     def _detect_stockfish(self):
+        # If a download is already in progress, don't reset the UI
+        worker = getattr(self, "_download_worker", None)
+        if worker is not None and worker.isRunning():
+            return
+
         path = resolve_engine_path(self.config_manager)
         if path:
             self.sf_status.setText("Stockfish ready")
@@ -348,6 +353,7 @@ class SetupWizard(QDialog):
             self.sf_detail.setText(f"Found at {path}")
             self.sf_detail.setVisible(True)
             self.sf_download_btn.setVisible(False)
+            self.sf_progress.setVisible(False)
             self.settings["engine_path"] = path
         else:
             self.sf_status.setText("Stockfish not found")
@@ -357,6 +363,7 @@ class SetupWizard(QDialog):
             self.sf_detail.setText("")
             self.sf_detail.setVisible(False)
             self.sf_download_btn.setVisible(True)
+            self.sf_progress.setVisible(False)
 
     def _download_stockfish(self):
         self.sf_download_btn.setVisible(False)

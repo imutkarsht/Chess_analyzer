@@ -150,13 +150,19 @@ def _find_binary(search_dir: str) -> str:
     """Find the Stockfish binary inside an extracted directory.
 
     Searches recursively for a file whose name starts with 'stockfish'
-    (or 'stockfish.exe' on Windows), then renames it to the canonical
+    (or ends with '.exe' on Windows), then renames it to the canonical
     name so future lookups via resolve_engine_path succeed.
     """
-    target = "stockfish.exe" if sys.platform == "win32" else "stockfish"
+    is_windows = sys.platform == "win32"
+    target = "stockfish.exe" if is_windows else "stockfish"
     for root, _dirs, files in os.walk(search_dir):
         for f in files:
-            if f.startswith(target):
+            # On Windows: match any stockfish*.exe; on other platforms: match stockfish*
+            if is_windows:
+                matches = f.lower().startswith("stockfish") and f.lower().endswith(".exe")
+            else:
+                matches = f.startswith("stockfish") and not f.endswith(".exe")
+            if matches:
                 path = os.path.join(root, f)
                 if f != target:
                     dest = os.path.join(root, target)
