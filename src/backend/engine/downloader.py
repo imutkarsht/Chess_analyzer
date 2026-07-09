@@ -170,7 +170,13 @@ def _find_binary(search_dir: str) -> str:
 
 
 def _make_executable(path: str) -> None:
-    """Ensure the binary is executable (no-op on Windows)."""
+    """Ensure the binary is executable and remove macOS quarantine (no-op on Windows)."""
     if sys.platform != "win32":
         st = os.stat(path)
         os.chmod(path, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        if sys.platform == "darwin":
+            try:
+                import subprocess
+                subprocess.run(["xattr", "-d", "com.apple.quarantine", path], stderr=subprocess.DEVNULL)
+            except Exception:
+                pass
