@@ -491,9 +491,15 @@ class Styles:
                 border: 2px solid {cls.COLOR_BORDER};
                 border-radius: 5px;
                 background-color: {cls.COLOR_SURFACE};
+                text-align: center;
+                color: {cls.COLOR_TEXT_PRIMARY};
+                font-size: 12px;
+                font-weight: bold;
+                min-height: 22px;
             }}
             QProgressBar::chunk {{
                 background-color: {cls.COLOR_ACCENT};
+                border-radius: 3px;
             }}
         """
     
