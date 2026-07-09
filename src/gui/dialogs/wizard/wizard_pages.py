@@ -54,13 +54,16 @@ def build_welcome_page(wizard) -> QWidget:
     layout = QVBoxLayout(page)
     layout.setContentsMargins(60, 40, 60, 40)
     layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    layout.setSpacing(16)
+    layout.setSpacing(20)
+
+    # Push contents to center
+    layout.addStretch(1)
 
     logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
     if os.path.exists(logo_path):
         logo_label = QLabel()
         pixmap = QPixmap(logo_path).scaled(
-            100, 100,
+            120, 120,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
@@ -71,7 +74,7 @@ def build_welcome_page(wizard) -> QWidget:
 
     title = QLabel("Chess Analyzer Pro")
     title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    title.setFont(QFont("", 20, QFont.Weight.Bold))
+    title.setFont(QFont("", 24, QFont.Weight.Bold))
     title.setStyleSheet("background: transparent;")
     layout.addWidget(title)
 
@@ -82,13 +85,18 @@ def build_welcome_page(wizard) -> QWidget:
     subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
     subtitle.setWordWrap(True)
     subtitle.setStyleSheet(
-        f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
+        f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY}; line-height: 1.4; background: transparent;"
     )
     layout.addWidget(subtitle)
 
-    layout.addStretch()
+    # Extra spacing before button
+    btn_space = QWidget()
+    btn_space.setFixedHeight(12)
+    btn_space.setStyleSheet("background: transparent;")
+    layout.addWidget(btn_space)
 
     get_started = QPushButton("Get Started")
+    get_started.setCursor(Qt.CursorShape.PointingHandCursor)
     get_started.setStyleSheet(f"""
         QPushButton {{
             background-color: {Styles.COLOR_ACCENT};
@@ -103,6 +111,9 @@ def build_welcome_page(wizard) -> QWidget:
     """)
     get_started.clicked.connect(lambda: wizard._go_to(2))
     layout.addWidget(get_started, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    # Balance centering stretch
+    layout.addStretch(1)
 
     return page
 
@@ -283,6 +294,13 @@ def build_stockfish_page(wizard) -> QWidget:
     wizard.sf_status.setStyleSheet("font-size: 14px; background: transparent;")
     layout.addWidget(wizard.sf_status)
 
+    wizard.sf_detail = QLabel("")
+    wizard.sf_detail.setWordWrap(True)
+    wizard.sf_detail.setStyleSheet(
+        f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
+    )
+    layout.addWidget(wizard.sf_detail)
+
     wizard.sf_download_btn = QPushButton("Download Stockfish")
     wizard.sf_download_btn.setStyleSheet(f"""
         QPushButton {{
@@ -377,11 +395,21 @@ def build_done_page(wizard) -> QWidget:
     page.setStyleSheet(PAGE_BG)
     layout = QVBoxLayout(page)
     layout.setContentsMargins(60, 40, 60, 40)
-    layout.setSpacing(8)
+    layout.setSpacing(20)
+
+    # Push contents to center
+    layout.addStretch(1)
+
+    # Success Icon
+    wizard.done_icon_label = QLabel()
+    wizard.done_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    wizard.done_icon_label.setStyleSheet("background: transparent; border: none;")
+    wizard._update_done_icon()
+    layout.addWidget(wizard.done_icon_label)
 
     heading = QLabel("You're all set!")
     heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    heading.setFont(QFont("", 20, QFont.Weight.Bold))
+    heading.setFont(QFont("", 24, QFont.Weight.Bold))
     heading.setStyleSheet("background: transparent;")
     layout.addWidget(heading)
 
@@ -389,7 +417,7 @@ def build_done_page(wizard) -> QWidget:
     wizard.summary_label.setWordWrap(True)
     wizard.summary_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     wizard.summary_label.setStyleSheet(
-        f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY}; margin: 16px 0; background: transparent;"
+        f"font-size: 14px; color: {Styles.COLOR_TEXT_SECONDARY}; line-height: 1.4; background: transparent;"
     )
     layout.addWidget(wizard.summary_label)
 
@@ -400,9 +428,14 @@ def build_done_page(wizard) -> QWidget:
     )
     layout.addWidget(wizard.ready_label)
 
-    layout.addStretch()
+    # Extra spacing before button
+    btn_space = QWidget()
+    btn_space.setFixedHeight(12)
+    btn_space.setStyleSheet("background: transparent;")
+    layout.addWidget(btn_space)
 
     wizard.done_btn = QPushButton("Finish")
+    wizard.done_btn.setCursor(Qt.CursorShape.PointingHandCursor)
     wizard.done_btn.setStyleSheet(f"""
         QPushButton {{
             background-color: {Styles.COLOR_ACCENT};
@@ -417,5 +450,8 @@ def build_done_page(wizard) -> QWidget:
     """)
     wizard.done_btn.clicked.connect(wizard._on_finish)
     layout.addWidget(wizard.done_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    # Balance centering stretch
+    layout.addStretch(1)
 
     return page

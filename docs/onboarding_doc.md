@@ -34,8 +34,9 @@ Chess_analyzer/
 │   │   └── updater/        # In-app desktop updater
 │   ├── gui/                # User Interface components (PyQt6)
 │   │   ├── views/          # Main page views (Analyze, History, Stats, Settings)
-│   │   ├── components/     # Reusable layout and dashboard card widgets
+│   │   ├── components/     # Reusable layout widgets, tours (tour_manager, tour_overlay)
 │   │   ├── analysis/       # Background analysis threads and workers
+│   │   ├── dialogs/        # Modal windows (Setup Wizard, Load Game, Error UX Dialogs)
 │   │   └── utils/          # GUI-specific layout and widget factories
 │   └── utils/              # Helper functions (logging, config, paths)
 ├── tests/                  # Unit and integration tests
@@ -67,7 +68,7 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 | File | Purpose |
 | :--- | :--- |
 | **[`analyzer.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/analysis/analyzer.py)** | **Core Logic.** Manages the analysis loop, calculates win probabilities, determines move accuracy (0-100%), and classifies moves. |
-| **[`engine.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/analysis/engine.py)** | **Stockfish Wrapper.** Manages the Stockfish process. Handles starting/stopping the engine and sending UCI commands. |
+| **[`engine.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/analysis/engine.py)** | **Stockfish Wrapper.** Manages the Stockfish process. Handles starting/stopping the engine, auto-detecting/resolving paths, downloading fallback binaries, and sending UCI commands. |
 | **[`models.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/models.py)** | **Data Structures.** Defines `GameAnalysis`, `MoveAnalysis`, and `GameMetadata` dataclasses. |
 | **[`pgn_parser.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/pgn_parser.py)** | **PGN Handling.** Reads and parses `.pgn` files or text into `GameAnalysis` objects. |
 | **[`chess_com_api.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/api/chess_com_api.py)** | **Chess.com Integration.** Fetches recent games or specific games from Chess.com. |
@@ -84,7 +85,12 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 | **[`board_widget.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/board/board_widget.py)** | **Chess Board.** Renders the board and pieces, and handles flipping. |
 | **[`graph_widget.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/graph_widget.py)** | **Evaluation Graph.** Draws the visual evaluation chart using Matplotlib. |
 | **[`metrics_view.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/views/metrics_view.py)** | **Statistics Dashboard.** Coordinates the decomposed metrics dashboard card widgets under `src/gui/views/metrics/`. |
-| **[`styles.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/styles.py)** | **Theming.** Contains CSS-like stylesheets (QSS) for the application. |
+| **[`styles.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/styles.py)** | **Theming.** Contains CSS-like stylesheets (QSS) and theme color settings. |
+| **[`setup_wizard.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/setup_wizard.py)** | **Setup Wizard.** Guides users through the first-run configuration (Engine, APIs, Accounts, Appearance). |
+| **[`tour_manager.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/tour_manager.py)** | **Tour Controller.** Manages steps, state, and seen-markers for interactive tutorials. |
+| **[`tour_overlay.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/tour_overlay.py)** | **Tour Visuals.** Draws the pulsing target highlights, tooltips, and interactive buttons for tutorials. |
+| **[`engine_error_dialog.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/engine_error_dialog.py)** | **Engine Error handling.** Friendly dialog guiding the user when the Stockfish path is incorrect or missing. |
+| **[`llm_error_dialog.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/llm_error_dialog.py)** | **LLM Error handling.** Prompts configuration steps when AI credentials/endpoints are unconfigured. |
 | **[`splash_screen.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/splash_screen.py)** | **Startup Screen.** Displays a branded splash screen. |
 | **`themes.py`** | **Board & Piece Themes.** Manages board color themes and piece set options for user customization. |
 

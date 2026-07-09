@@ -3,7 +3,7 @@ Global application constants.
 """
 
 # App Version
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 
 # GitHub Update Checker
 GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"

@@ -24,7 +24,7 @@ To get the latest version of the application:
 1.  Navigate to the `dist` folder created in the previous step.
 2.  Double-click **`ChessAnalyzerPro.exe`** to launch the application.
 
-> **Note**: On the very first run, you may be prompted to configure the Stockfish engine path.
+> **Note**: On the very first launch, or if no chess engine is configured, the **Setup Wizard** will automatically launch to guide you through the initial configuration.
 
 ---
 
@@ -35,15 +35,14 @@ All configuration, logs, and database files are now automatically managed inside
 - **Windows**: `%APPDATA%/ChessAnalyzerPro`
 - **Linux**: `~/.local/share/chessanalyzerpro`
 
-Configurations are managed in the **Settings** tab (gear icon in the sidebar).
+Configurations are managed in the **Settings** tab (gear icon in the sidebar) or through the first-run Setup Wizard.
 
 ### A. Stockfish Engine (Crucial)
-You **must** download and link the Stockfish engine for analysis to work:
-1. Download Stockfish from [stockfishchess.org](https://stockfishchess.org/download/).
-2. Extract the file to a memorable location on your computer.
-3. In the app, go to **Settings > Chess Engine**.
-4. Click **Browse**, select the Stockfish executable file (`stockfish.exe` on Windows, or the `stockfish` binary on macOS/Linux), and click **Save Engine Path**.
-5. Click **Test Engine** to immediately verify that the engine path is valid and functional.
+You must configure the Stockfish engine for analysis. The application makes this extremely simple:
+1. **Auto-Detection**: On startup, the application automatically attempts to resolve the Stockfish path by checking your config, system `PATH`, common installation paths, and any previously downloaded engines.
+2. **One-Click Downloader**: If no engine is found, you can download a platform-matched Stockfish binary automatically from within the Setup Wizard or Settings view.
+3. **Manual Selection**: If you prefer, go to **Settings > Chess Engine**, click **Browse**, and select your custom Stockfish executable.
+4. Click **Test Engine** to verify the path is valid and functional.
 
 ### B. LLM & API Configuration
 To unlock advanced features like AI Summaries and Lichess imports, configure the following APIs:
@@ -64,9 +63,10 @@ Pre-configure your usernames to make loading games faster:
 *   Once saved, the Load Game dialog will auto-fill with these names and personal stats calculations will automatically filter to show your games.
 
 ### D. Appearance & Audio
-*   **Accent Color**: Select an accent color in **Settings > Appearance**. Changing the color updates the entire UI in real time without requiring an app restart.
+*   **Accent Color**: Select an accent color in **Settings > Appearance**. Changing the color updates the entire UI in real time.
 *   **Board & Piece Themes**: Select a board theme (Default, Brown, Blue, Purple, Grey) and piece set (cburnett, merida, alpha, cardinal, chess7) to update the visual board immediately.
-*   **Sound Effects**: Check or uncheck **Enable Sound Effects** in **Settings > Appearance** to toggle immersive audio feedback on moves, captures, checks, and castles.
+*   **Custom SVG Theme Import**: You can import any folder of 12 SVG piece images (`wk.svg`, `bp.svg`, etc.) in Appearance Settings. The app will automatically scale and normalize them to fit the board properly.
+*   **Sound Effects**: Check or uncheck **Enable Sound Effects** in **Settings > Appearance** to toggle audio feedback on moves, captures, checks, and castles.
 
 ---
 

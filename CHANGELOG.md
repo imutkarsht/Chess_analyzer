@@ -1,6 +1,30 @@
 # Changelog
 
-## v2.1.0 - Analysis Explorer, Polyglot Books & Auto-Update (Latest)
+## v2.2.0 - Custom Themes, Setup Wizard & UX Polish (Latest)
+
+### New Features
+- **Custom Piece Theme Import**: Import custom folders of 12 SVG piece images via Appearance Settings. SVG files are automatically scaled, normalized, and processed (handling complex gradients and grouping structures) to display beautifully across all views.
+- **First-Run Setup Wizard**: A multi-page configuration guide on first startup to easily configure engine paths, LLM providers, online chess accounts, and interface appearance.
+- **Auto-Engine Resolution & Downloader**: Automatically resolves Stockfish binary path across config, system PATH, common installation paths, and local downloads. Includes an integrated downloader to fetch the latest platform-appropriate Stockfish binary from GitHub.
+- **Dynamic Chess Clocks**: Monospaced clocks next to captured pieces that update dynamically in real time based on PGN time data, with a visual red alert under 20 seconds.
+- **Overhauled Interactive Tours**: Non-intrusive guided tours featuring target-pulsing accent glows and floating tooltips, keeping the app interactive during tours. Tours only trigger when page contents are actually loaded.
+
+### Improvements
+- **Basic/Advanced Settings Toggle**: Added a simplified settings view by default, with an advanced toggle option for fine-tuning engine parameters.
+- **Context-Aware Error Dialogs**: Replaced generic message boxes with custom error dialogs (`EngineNotFoundDialog`, `LlmNotConfiguredDialog`) featuring direct action links to settings.
+- **Performance & Disk Caching**: Added engine resolution disk caching to prevent CPU/disk overhead during startup and transitions.
+- **UI & Font Polish**: Native styling improvements for macOS (e.g. SF Pro font stack integration, Gatekeeper self-fix for app bundles) and dark-themed dialog updates.
+- **Config Legacy Cleanup**: Automated database/config cleanup of stale flat keys (`groq_api_key`, `groq_model`) on load.
+
+### Bug Fixes
+- **Checkmate Evaluation Reversal**: Fixed final position checkmate detection scoring `Mate(0)` instead of `Mate(-1)` to correctly identify the winning side.
+- **Explorer Page Spacing**: Resolved a double-layout evaluation bar spacing bug on the Explorer page (fixing the 24px right-shift) and fixed coordinate grid overlays.
+- **PGN Parsing Guards**: Rejects PGN files with no playable moves to filter out corrupt files and added "Try Again" buttons to parse failure dialogs.
+- **Label Wrapping & Backgrounds**: Resolved label text clipping with word wrap on opening name panels, and fixed gray label background boxes in global styling.
+
+---
+
+## v2.1.0 - Analysis Explorer, Polyglot Books & Auto-Update
 
 ### New Features
 - **Analysis Explorer**: Interactive explorer with independent board, move list, opening book integration, live engine analysis, and move classification.

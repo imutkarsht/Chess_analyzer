@@ -114,8 +114,6 @@ class WizardNavBar(QWidget):
         is_gatekeeper = index == 0
 
         self.back_btn.setVisible(not is_first and not is_gatekeeper)
-        self.skip_btn.setVisible(index == 4)
-        self.next_btn.setText("Finish" if is_last else "Next")
-        self.next_btn.setVisible(not is_gatekeeper)
-        self.back_btn.setVisible(not is_first and not is_gatekeeper)
         self.skip_btn.setVisible(index == 5)
+        self.next_btn.setText("Finish" if is_last else "Next")
+        self.next_btn.setVisible(not is_gatekeeper and index != 1 and not is_last)

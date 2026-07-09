@@ -39,7 +39,7 @@ def main():
     if sys.platform == 'win32':
         try:
             import ctypes
-            myappid = 'com.imutkarsht.chessanalyzerpro.2.1.0'
+            myappid = 'com.imutkarsht.chessanalyzerpro.2.2.0'
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception as e:
             pass
@@ -114,6 +114,26 @@ def main():
             if wizard.exec() == QDialog.DialogCode.Accepted:
                 wizard.accepted_data()
                 logger.info("Setup wizard completed successfully")
+                
+                # Reload config to make sure all config instances share the same state
+                window.config_manager.reload_config()
+                
+                # Update MainWindow's engine path and re-initialize analyzer/engine
+                new_path = resolve_engine_path(window.config_manager)
+                if new_path:
+                    window.engine_path = new_path
+                    from src.backend.analysis.engine import EngineManager
+                    from src.backend.analysis.analyzer import Analyzer
+                    try:
+                        window.analyzer = Analyzer(
+                            EngineManager(window.engine_path, config_manager=window.config_manager)
+                        )
+                        if hasattr(window, 'move_list_panel'):
+                            window.move_list_panel.update_engine_path(new_path)
+                        logger.info("MainWindow: Engine and analyzer re-initialized successfully after setup wizard.")
+                    except Exception as e:
+                        logger.error(f"MainWindow: Failed to initialize engine after setup wizard: {e}")
+
                 if hasattr(window, 'settings_view') and hasattr(window.settings_view, 'reload_from_config'):
                     window.settings_view.reload_from_config()
             else:

@@ -4,7 +4,7 @@ import subprocess
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QStackedWidget, QLabel, QApplication,
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path, get_engine_data_dir
@@ -26,6 +26,72 @@ from src.gui.dialogs.wizard.wizard_pages import (
     build_llm_page,
     build_done_page,
 )
+
+class StockfishDownloadWorker(QThread):
+    progress = pyqtSignal(int)
+    finished = pyqtSignal(str)
+    error = pyqtSignal(str)
+
+    def __init__(self, dest_dir, parent=None):
+        super().__init__(parent)
+        self.dest_dir = dest_dir
+
+    def run(self):
+        import shutil
+        # 1. On macOS, try installing Stockfish via Homebrew first
+        if sys.platform == "darwin":
+            brew_path = shutil.which("brew")
+            if not brew_path:
+                # Check common homebrew installation paths
+                for p in ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]:
+                    if os.path.isfile(p) and os.access(p, os.X_OK):
+                        brew_path = p
+                        break
+
+            if brew_path:
+                self.progress.emit(20)
+                logger.info("StockfishDownloadWorker: attempting Homebrew installation via %s", brew_path)
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        [brew_path, "install", "stockfish"],
+                        capture_output=True, text=True, timeout=120
+                    )
+                    if result.returncode == 0:
+                        # Check if stockfish binary exists in standard brew paths
+                        for candidate in ["/opt/homebrew/bin/stockfish", "/usr/local/bin/stockfish"]:
+                            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                                self.progress.emit(100)
+                                self.finished.emit(candidate)
+                                return
+                        # Fallback check via PATH lookup
+                        which_sf = shutil.which("stockfish")
+                        if which_sf and os.path.isfile(which_sf) and os.access(which_sf, os.X_OK):
+                            self.progress.emit(100)
+                            self.finished.emit(which_sf)
+                            return
+                    logger.warning("StockfishDownloadWorker: Homebrew installation failed: %s", result.stderr)
+                except Exception as e:
+                    logger.warning("StockfishDownloadWorker: Homebrew installation crashed: %s", e)
+                # If Homebrew failed or did not resolve the binary, fall back to Github releases.
+
+        # 2. Github Releases download fallback
+        try:
+            releases = get_official_releases()
+            target = get_expected_asset_name()
+            url = get_download_url(releases, target)
+            if not url:
+                raise RuntimeError(f"No download found for {target}")
+
+            def progress_callback(downloaded, total):
+                pct = int(downloaded / total * 100) if total else 0
+                self.progress.emit(pct)
+
+            binary_path = download_and_extract(url, self.dest_dir, progress_callback=progress_callback)
+            self.finished.emit(binary_path)
+        except Exception as e:
+            self.error.emit(str(e))
+
 
 class SetupWizard(QDialog):
     WIZARD_WIDTH = 600
@@ -136,6 +202,21 @@ class SetupWizard(QDialog):
                     background-color: {c}CC;
                 }}
             """)
+        if hasattr(self, 'sf_progress'):
+            self.sf_progress.setStyleSheet(Styles.get_progress_bar_style())
+        self._update_done_icon()
+
+    def _update_done_icon(self):
+        if not hasattr(self, 'done_icon_label'):
+            return
+        try:
+            import qtawesome as qta
+            icon = qta.icon("fa5s.check-circle", color=Styles.COLOR_ACCENT)
+            pixmap = icon.pixmap(80, 80)
+            self.done_icon_label.setPixmap(pixmap)
+        except Exception:
+            self.done_icon_label.setText("✓")
+            self.done_icon_label.setStyleSheet(f"font-size: 72px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;")
 
     def _show_page(self, index):
         self.current_page = index
@@ -144,6 +225,36 @@ class SetupWizard(QDialog):
 
         if index == 0:
             QTimer.singleShot(200, self._run_gatekeeper)
+        elif index == 6:
+            parts = []
+            engine = self.settings.get("engine_path") or self.config_manager.get("engine_path")
+            if engine and engine != "stockfish":
+                # Get just the filename/basename to keep it clean
+                parts.append(f"✓ Chess Engine: {os.path.basename(engine)}")
+            else:
+                parts.append("⚠ Chess Engine: Not configured")
+
+            llm_key = self.settings.get("groq_api_key")
+            if not llm_key:
+                active_profile = self.config_manager.get_active_profile()
+                if active_profile:
+                    llm_key = active_profile.get("api_key")
+            if llm_key:
+                parts.append("✓ AI Coach (Groq): Connected")
+            else:
+                parts.append("✓ AI Coach: Skipped (configure later in Settings)")
+
+            cc = self.settings.get("chesscom_username") or self.config_manager.get("chesscom_username")
+            li = self.settings.get("lichess_username") or self.config_manager.get("lichess_username")
+            accounts = []
+            if cc: accounts.append("Chess.com")
+            if li: accounts.append("Lichess")
+            if accounts:
+                parts.append(f"✓ Accounts: Linked ({', '.join(accounts)})")
+            else:
+                parts.append("✓ Accounts: Skipped")
+
+            self.summary_label.setText("\n".join(parts))
 
         page = self.stack.currentWidget()
         on_show = getattr(page, "_on_show", None)
@@ -183,7 +294,7 @@ class SetupWizard(QDialog):
             if hasattr(self, "wizard_theme_combo"):
                 self.settings["board_theme"] = self.wizard_theme_combo.currentText()
                 self.settings["accent_color"] = self.wizard_accent_color
-        elif idx == 4:
+        elif idx == 5:
             key = self.llm_key_input.text().strip()
             if key:
                 self.settings["groq_api_key"] = key
@@ -234,18 +345,17 @@ class SetupWizard(QDialog):
             self.sf_status.setStyleSheet(
                 "font-size: 14px; color: #3AAA55; font-weight: bold; background: transparent;"
             )
-            sf_detail = QLabel(f"Found at {path}")
-            sf_detail.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
-            )
-            page = self.stack.widget(3)
-            page.layout().insertWidget(3, sf_detail)
+            self.sf_detail.setText(f"Found at {path}")
+            self.sf_detail.setVisible(True)
+            self.sf_download_btn.setVisible(False)
             self.settings["engine_path"] = path
         else:
             self.sf_status.setText("Stockfish not found")
             self.sf_status.setStyleSheet(
                 "font-size: 14px; color: #E67E22; background: transparent;"
             )
+            self.sf_detail.setText("")
+            self.sf_detail.setVisible(False)
             self.sf_download_btn.setVisible(True)
 
     def _download_stockfish(self):
@@ -257,33 +367,35 @@ class SetupWizard(QDialog):
 
         dest_dir = get_engine_data_dir()
 
-        def progress(downloaded, total):
-            pct = int(downloaded / total * 100) if total else 0
-            self.sf_progress.setValue(pct)
+        self._download_worker = StockfishDownloadWorker(dest_dir, self)
+        self._download_worker.progress.connect(self._on_download_progress)
+        self._download_worker.finished.connect(self._on_download_finished)
+        self._download_worker.error.connect(self._on_download_error)
+        self._download_worker.start()
 
-        try:
-            releases = get_official_releases()
-            target = get_expected_asset_name()
-            url = get_download_url(releases, target)
-            if not url:
-                raise RuntimeError(f"No download found for {target}")
-            binary_path = download_and_extract(url, dest_dir, progress_callback=progress)
-            self.sf_progress.setValue(100)
-            invalidate_engine_cache()
-            self.sf_status.setText("Stockfish downloaded")
-            self.sf_status.setStyleSheet(
-                "font-size: 14px; color: #3AAA55; font-weight: bold; background: transparent;"
-            )
-            self.settings["engine_path"] = binary_path
-            logger.info("SetupWizard: Stockfish downloaded to %s", binary_path)
-        except Exception as e:
-            logger.exception("SetupWizard: Stockfish download failed")
-            self.sf_status.setText(f"Download failed: {e}")
-            self.sf_status.setStyleSheet(
-                "font-size: 14px; color: #D02030; background: transparent;"
-            )
-            self.sf_download_btn.setText("Retry")
-            self.sf_download_btn.setVisible(True)
+    def _on_download_progress(self, pct):
+        self.sf_progress.setValue(pct)
+
+    def _on_download_finished(self, binary_path):
+        self.sf_progress.setValue(100)
+        invalidate_engine_cache()
+        self.sf_status.setText("Stockfish downloaded")
+        self.sf_status.setStyleSheet(
+            "font-size: 14px; color: #3AAA55; font-weight: bold; background: transparent;"
+        )
+        self.settings["engine_path"] = binary_path
+        self.sf_detail.setText(f"Found at {binary_path}")
+        self.sf_detail.setVisible(True)
+        logger.info("SetupWizard: Stockfish downloaded to %s", binary_path)
+
+    def _on_download_error(self, err_msg):
+        logger.error("SetupWizard: Stockfish download failed: %s", err_msg)
+        self.sf_status.setText(f"Download failed: {err_msg}")
+        self.sf_status.setStyleSheet(
+            "font-size: 14px; color: #D02030; background: transparent;"
+        )
+        self.sf_download_btn.setText("Retry")
+        self.sf_download_btn.setVisible(True)
 
     def _test_llm(self):
         key = self.llm_key_input.text().strip()
