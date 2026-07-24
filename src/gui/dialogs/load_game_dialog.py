@@ -52,6 +52,11 @@ class LoadGameDialog(QDialog):
 
     # ── UI construction ─────────────────────────────────────────────────────
     def _setup_ui(self):
+        from PyQt6.QtCore import Qt as _Qt
+        from src.gui.styles import Styles
+        # Force Qt to honour the background-color on the dialog window itself
+        # (macOS ignores it without this attribute)
+        self.setAttribute(_Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {Styles.COLOR_BACKGROUND};

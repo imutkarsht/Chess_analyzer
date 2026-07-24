@@ -11,22 +11,27 @@ class DropZone(QLabel):
     file_dropped = pyqtSignal(str)
     clicked       = pyqtSignal()      # for keyboard / click-to-browse
 
-    _STYLE_IDLE = f"""
-        QLabel {{
-            background-color: {Styles.COLOR_SURFACE};
-            border: 2px dashed {Styles.COLOR_BORDER};
-            border-radius: 12px;
-            color: {Styles.COLOR_TEXT_SECONDARY};
-        }}
-    """
-    _STYLE_HOVER = f"""
-        QLabel {{
-            background-color: {Styles.COLOR_ACCENT_SUBTLE};
-            border: 2px dashed {Styles.COLOR_ACCENT};
-            border-radius: 12px;
-            color: {Styles.COLOR_TEXT_PRIMARY};
-        }}
-    """
+    @property
+    def _STYLE_IDLE(self):
+        return f"""
+            QLabel {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 2px dashed {Styles.COLOR_BORDER};
+                border-radius: 12px;
+                color: {Styles.COLOR_TEXT_SECONDARY};
+            }}
+        """
+
+    @property
+    def _STYLE_HOVER(self):
+        return f"""
+            QLabel {{
+                background-color: {Styles.COLOR_ACCENT_SUBTLE};
+                border: 2px dashed {Styles.COLOR_ACCENT};
+                border-radius: 12px;
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+        """
 
     def __init__(self, parent=None):
         super().__init__(parent)
