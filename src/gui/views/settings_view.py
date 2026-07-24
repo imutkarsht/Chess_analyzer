@@ -221,6 +221,23 @@ class SettingsView(QWidget):
         if HAS_QTAWESOME:
             icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
             b.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
+        # Always re-apply the themed stylesheet
+        b.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_ACCENT};
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+        """)
 
     def _toggle_mode(self):
         self._mode = "advanced" if self._mode == "basic" else "basic"
@@ -350,10 +367,11 @@ class SettingsView(QWidget):
         self.book_settings.validate_polyglot_path()
         self.api_settings._reload_profile_combo()
 
+        from src.gui.main_window import MainWindow
         if clamped:
             QMessageBox.warning(self, "Limit Capped", f"Settings saved successfully.\n\nNote: {warning_msg}")
         else:
-            QMessageBox.information(self, "Saved", "All settings saved successfully.")
+            MainWindow.toast_from_widget(self, "All settings saved successfully.", "success")
 
     def save_usernames(self):
         chesscom = self.chesscom_input.text()
@@ -387,10 +405,11 @@ class SettingsView(QWidget):
         self.config_manager.set("api_games_limit", limit)
         self.usernames_changed.emit()
 
+        from src.gui.main_window import MainWindow
         if clamped:
             QMessageBox.warning(self, "Limit Capped", warning_msg)
         else:
-            QMessageBox.information(self, "Saved", "Settings saved successfully.")
+            MainWindow.toast_from_widget(self, "Settings saved successfully.", "success")
 
     def refresh_styles(self):
         """Re-applies styles to all widgets."""
@@ -401,7 +420,17 @@ class SettingsView(QWidget):
                     border-bottom: 1px solid {Styles.COLOR_BORDER};
                 }}
             """)
-        
+
+        # Update scroll area and content container backgrounds
+        if hasattr(self, 'scroll_area') and self.scroll_area:
+            self.scroll_area.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND}; border: none;")
+        if hasattr(self, 'content_container') and self.content_container:
+            self.content_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+
+        # Refresh mode toggle button
+        if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
+            self._update_mode_toggle_text(self.mode_toggle_btn)
+
         primary_style = f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT};

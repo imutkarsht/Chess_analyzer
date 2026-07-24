@@ -54,11 +54,8 @@ class LinksSettings(QGroupBox):
                 dialog = UpdateNotificationDialog(update_info, self)
                 dialog.exec()
             else:
-                QMessageBox.information(
-                    self, 
-                    "Up to Date", 
-                    f"You're running the latest version (v{APP_VERSION})."
-                )
+                from src.gui.main_window import MainWindow
+                MainWindow.toast_from_widget(self, f"You're up to date (v{APP_VERSION}).", "success")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to check for updates: {e}")
         finally:

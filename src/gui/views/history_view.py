@@ -54,9 +54,9 @@ class HistoryView(QWidget):
         self.layout.addWidget(self.header_bar)
         
         # Content Container Widget
-        content_widget = QWidget()
-        content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        content_layout = QVBoxLayout(content_widget)
+        self.content_widget = QWidget()
+        self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        content_layout = QVBoxLayout(self.content_widget)
         content_layout.setContentsMargins(40, 20, 40, 20)
         content_layout.setSpacing(20)
         
@@ -156,7 +156,7 @@ class HistoryView(QWidget):
         
         content_layout.addLayout(btn_layout)
         
-        self.layout.addWidget(content_widget)
+        self.layout.addWidget(self.content_widget)
         
         # Load initial data
         self.load_history()
@@ -387,9 +387,10 @@ class HistoryView(QWidget):
             if not file_name:
                 return
                 
+            from src.gui.main_window import MainWindow
             history_games = self.history_manager.get_all_games()
             if not history_games:
-                QMessageBox.information(self, "No Games", "No games to export.")
+                MainWindow.toast_from_widget(self, "No games to export.", "warning")
                 return
 
             # Determine fields. We'll use database keys as headers.
@@ -406,7 +407,7 @@ class HistoryView(QWidget):
                     row = {k: game_dict.get(k) for k in fieldnames}
                     writer.writerow(row)
                     
-            QMessageBox.information(self, "Success", f"Exported {len(history_games)} games to {file_name}.")
+            MainWindow.toast_from_widget(self, f"Exported {len(history_games)} games.", "success")
             
         except Exception as e:
             logging.error(f"Export failed: {e}")
@@ -475,7 +476,7 @@ class HistoryView(QWidget):
                         logging.warning(f"Failed to parse row {game_id}: {row_e}")
                         
             self.load_history()
-            QMessageBox.information(self, "Import Complete", f"Imported: {imported_count}\nSkipped (Existing): {skipped_count}")
+            MainWindow.toast_from_widget(self, f"Imported: {imported_count}, Skipped: {skipped_count}", "success")
             
         except Exception as e:
             logging.error(f"Import failed: {e}")
@@ -570,6 +571,8 @@ class HistoryView(QWidget):
             """)
             
         # Cascade refresh to nested game list
+        if hasattr(self, 'content_widget') and self.content_widget:
+            self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         if hasattr(self, 'game_list'):
             self.game_list.refresh_styles()
 

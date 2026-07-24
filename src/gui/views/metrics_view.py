@@ -78,6 +78,7 @@ class MetricsWidget(QWidget):
         
         # Content Area
         self.content_widget = QWidget()
+        self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(40, 20, 40, 20)
         self.content_layout.setSpacing(20)
@@ -95,7 +96,11 @@ class MetricsWidget(QWidget):
 
         if hasattr(self, 'btn_refresh') and self.btn_refresh:
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
-            
+
+        # Always update the content area background
+        if hasattr(self, 'content_widget') and self.content_widget:
+            self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+
         if self.current_stats:
             saved_insights = self.current_insights
             clear_layout(self.content_layout)
