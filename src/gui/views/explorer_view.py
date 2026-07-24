@@ -135,9 +135,9 @@ class ExplorerView(QWidget):
         header_layout.setContentsMargins(20, 6, 20, 6)
 
         # Title
-        title_lbl = QLabel("Opening Explorer")
-        title_lbl.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-        header_layout.addWidget(title_lbl)
+        self.title_lbl = QLabel("Opening Explorer")
+        self.title_lbl.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        header_layout.addWidget(self.title_lbl)
 
         # Opening badge (inline after title)
         self.opening_badge = QLabel("Opening: -")
@@ -185,15 +185,19 @@ class ExplorerView(QWidget):
         main_layout.addWidget(self.header_bar)
         
         # Content Area - Splitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setHandleWidth(2)
-        splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {Styles.COLOR_BORDER}; }}")
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.setHandleWidth(2)
+        self.splitter.setStyleSheet(f"""
+            QSplitter {{ background-color: {Styles.COLOR_BACKGROUND}; }}
+            QSplitter::handle {{ background-color: {Styles.COLOR_BORDER}; }}
+        """)
         
         # ==========================================
         # LEFT PANEL (Board & Eval)
         # ==========================================
-        left_panel = QWidget()
-        self.left_layout = QVBoxLayout(left_panel)
+        self.left_panel = QWidget()
+        self.left_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.left_layout = QVBoxLayout(self.left_panel)
         self.left_layout.setContentsMargins(8, 8, 8, 8)
         self.left_layout.setSpacing(6)
         
@@ -201,10 +205,10 @@ class ExplorerView(QWidget):
         self.black_header_widget = QWidget()
         black_header = QHBoxLayout(self.black_header_widget)
         black_header.setContentsMargins(0, 0, 0, 0)
-        lbl_black = QLabel("Black")
-        lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        self.lbl_black = QLabel("Black")
+        self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
         self.captured_black = CapturedPiecesWidget(side="black")
-        black_header.addWidget(lbl_black)
+        black_header.addWidget(self.lbl_black)
         black_header.addWidget(self.captured_black)
         black_header.addStretch()
         self.left_layout.addWidget(self.black_header_widget)
@@ -218,21 +222,22 @@ class ExplorerView(QWidget):
         self.white_header_widget = QWidget()
         white_header = QHBoxLayout(self.white_header_widget)
         white_header.setContentsMargins(0, 0, 0, 0)
-        lbl_white = QLabel("White")
-        lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        self.lbl_white = QLabel("White")
+        self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
         self.captured_white = CapturedPiecesWidget(side="white")
-        white_header.addWidget(lbl_white)
+        white_header.addWidget(self.lbl_white)
         white_header.addWidget(self.captured_white)
         white_header.addStretch()
         self.left_layout.addWidget(self.white_header_widget)
         
-        splitter.addWidget(left_panel)
+        self.splitter.addWidget(self.left_panel)
         
         # ==========================================
         # RIGHT PANEL (Controls & Analysis)
         # ==========================================
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
+        self.right_panel = QWidget()
+        self.right_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        right_layout = QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(8, 8, 12, 8)
         right_layout.setSpacing(6)
         
@@ -337,9 +342,9 @@ class ExplorerView(QWidget):
         moves_header = QHBoxLayout()
         moves_header.setContentsMargins(0, 0, 0, 0)
         moves_header.setSpacing(8)
-        move_list_label = QLabel("Moves")
-        move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
-        moves_header.addWidget(move_list_label)
+        self.move_list_label = QLabel("Moves")
+        self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
+        moves_header.addWidget(self.move_list_label)
         self.move_input = QLineEdit()
         self.move_input.setPlaceholderText("type SAN move...")
         self.move_input.setToolTip("Enter a move in standard algebraic notation (e.g. e4, Nf3, O-O)")
@@ -376,9 +381,9 @@ class ExplorerView(QWidget):
         self.engine_status_label.setStyleSheet(f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 0px;")
         right_layout.addWidget(self.engine_status_label)
         
-        splitter.addWidget(right_panel)
-        splitter.setSizes([700, 450])
-        main_layout.addWidget(splitter, 1)
+        self.splitter.addWidget(self.right_panel)
+        self.splitter.setSizes([700, 450])
+        main_layout.addWidget(self.splitter, 1)
 
     def load_fen(self, fen):
         """Loads a starting position into the explorer."""
@@ -1144,5 +1149,113 @@ class ExplorerView(QWidget):
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
             }}
+            QFrame QLabel {{
+                background: transparent;
+            }}
         """)
-        self.setStyleSheet(Styles.get_theme())
+        # Update title and player labels
+        if hasattr(self, 'title_lbl'):
+            self.title_lbl.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        if hasattr(self, 'lbl_black'):
+            self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        if hasattr(self, 'lbl_white'):
+            self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        if hasattr(self, 'move_list_label'):
+            self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
+        # Update panel backgrounds
+        if hasattr(self, 'left_panel'):
+            self.left_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        if hasattr(self, 'right_panel'):
+            self.right_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        if hasattr(self, 'splitter'):
+            self.splitter.setStyleSheet(f"""
+                QSplitter {{ background-color: {Styles.COLOR_BACKGROUND}; }}
+                QSplitter::handle {{ background-color: {Styles.COLOR_BORDER}; }}
+            """)
+        self.opening_badge.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; padding: 0px 0px 0px 12px; background: transparent; border: none;")
+        btn_style = f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border-color: {Styles.COLOR_ACCENT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+        """
+        self.btn_flip.setStyleSheet(btn_style)
+        self.btn_copy_fen.setStyleSheet(btn_style)
+        self.btn_copy_pgn.setStyleSheet(btn_style)
+        chk_style = f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 12px;
+                font-weight: 500;
+            }}
+        """
+        self.chk_classify.setStyleSheet(chk_style)
+        self.chk_legal.setStyleSheet(chk_style)
+        self.chk_engine.setStyleSheet(chk_style)
+        self.chk_cache.setStyleSheet(chk_style)
+        self.lines_widget.refresh_styles()
+        self.book_toggle.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                border: none;
+                text-align: left;
+                font-size: 14px;
+                font-weight: bold;
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                padding: 2px 0px;
+            }}
+            QPushButton:hover {{
+                color: {Styles.COLOR_ACCENT};
+            }}
+        """)
+        self.book_scroll.setStyleSheet(f"""
+            QScrollArea {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+            }}
+            QScrollBar:vertical {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                width: 10px;
+                margin: 0px 0px 0px 0px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {Styles.COLOR_BORDER_LIGHT};
+                min-height: 20px;
+                border-radius: 5px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """)
+        self.book_container.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE};")
+        self.move_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 2px 8px;
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+        """)
+        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 0px;")
+        self.captured_white.refresh_styles()
+        self.captured_black.refresh_styles()
+        for child in self.findChildren(QWidget):
+            child.style().unpolish(child)
+            child.style().polish(child)

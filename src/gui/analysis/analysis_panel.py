@@ -87,6 +87,7 @@ class AnalysisPanel(QWidget):
         self.eval_layout.addWidget(self.lines_widget, stretch=1)
         
         self.tabs.addTab(self.eval_tab, "Evaluation")
+        self._apply_tabs_style()
         
         # --- Tab 2: Report ---
         self.report_tab = QWidget()
@@ -280,7 +281,41 @@ class AnalysisPanel(QWidget):
                     color: {Styles.COLOR_TEXT_PRIMARY};
                 }}
             """)
+
+        # Refresh the evaluation graph's matplotlib colors
+        if hasattr(self, 'graph_widget'):
+            self.graph_widget.refresh_styles()
+
+        # Refresh checkboxes
+        checkbox_style = f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-weight: bold;
+                font-size: 13px;
+                background: transparent;
+                border: none;
+            }}
+        """
+        if hasattr(self, 'toggle_checkbox'):
+            self.toggle_checkbox.setStyleSheet(checkbox_style)
+        if hasattr(self, 'cache_checkbox'):
+            self.cache_checkbox.setStyleSheet(checkbox_style)
+
+        # Refresh opening label
+        if hasattr(self, 'opening_label'):
+            self.opening_label.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: bold; background: transparent;"
+            )
+
+        # Refresh tab widget
+        if hasattr(self, 'tabs'):
+            self._apply_tabs_style()
         
+
+        # Refresh analysis lines widget
+        if hasattr(self, 'lines_widget'):
+            self.lines_widget.refresh_styles()
+
         # Refresh move list panel styles
         if hasattr(self, 'move_list_panel'):
             self.move_list_panel.refresh_styles()
@@ -288,6 +323,34 @@ class AnalysisPanel(QWidget):
         # Refresh summary stats colors if game is loaded
         if self.current_game:
             self._update_summary(self.current_game.summary)
+
+    def _apply_tabs_style(self):
+        """Applies the themed QTabWidget stylesheet."""
+        self.tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 4px;
+                background-color: {Styles.COLOR_SURFACE};
+            }}
+            QTabBar::tab {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                padding: 6px 14px;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border-bottom: 2px solid {Styles.COLOR_ACCENT};
+            }}
+            QTabBar::tab:hover:!selected {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+        """)
 
     def on_summary_generated(self, summary):
         self.loading_overlay.stop()

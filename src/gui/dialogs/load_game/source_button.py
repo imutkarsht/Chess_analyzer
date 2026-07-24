@@ -76,3 +76,6 @@ class SourceBtn(QPushButton):
     def setChecked(self, checked: bool):
         super().setChecked(checked)
         self._apply_style(checked)
+
+    def refresh_styles(self):
+        self._apply_style(self.isChecked())

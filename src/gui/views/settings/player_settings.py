@@ -29,11 +29,11 @@ class PlayerSettings(QGroupBox):
         self.lichess_input.setPlaceholderText("Lichess.org Username")
         self.lichess_input.setStyleSheet(Styles.get_input_style())
 
-        lbl_chesscom = QLabel("Chess.com:")
-        lbl_chesscom.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        self._lbl_chesscom = QLabel("Chess.com:")
+        self._lbl_chesscom.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
         
-        lbl_lichess_user = QLabel("Lichess.org:")
-        lbl_lichess_user.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        self._lbl_lichess_user = QLabel("Lichess.org:")
+        self._lbl_lichess_user.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
 
         self.games_limit_input = QLineEdit()
         self.games_limit_input.setValidator(QIntValidator(1, 30, self.games_limit_input))
@@ -44,8 +44,8 @@ class PlayerSettings(QGroupBox):
         self._lbl_games_limit = QLabel("Games Fetch Limit:")
         self._lbl_games_limit.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
 
-        username_layout.addRow(lbl_chesscom, self.chesscom_input)
-        username_layout.addRow(lbl_lichess_user, self.lichess_input)
+        username_layout.addRow(self._lbl_chesscom, self.chesscom_input)
+        username_layout.addRow(self._lbl_lichess_user, self.lichess_input)
         username_layout.addRow(self._lbl_games_limit, self.games_limit_input)
 
     def reload_from_config(self):
@@ -62,3 +62,8 @@ class PlayerSettings(QGroupBox):
         self.games_limit_input.setStyleSheet(input_style)
         self.chesscom_input.setStyleSheet(full_input_style)
         self.lichess_input.setStyleSheet(full_input_style)
+        # Refresh form row labels
+        lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
+        for lbl in [self._lbl_chesscom, self._lbl_lichess_user, self._lbl_games_limit]:
+            if lbl:
+                lbl.setStyleSheet(lbl_style)

@@ -51,7 +51,7 @@ class MoveCellWidget(QWidget):
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
         )
         self._time_label.setStyleSheet(
-            "color: rgba(255,255,255,140); font-size: 10px;"
+            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px;"
         )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -62,7 +62,7 @@ class MoveCellWidget(QWidget):
         # need a second custom widget for such a simple thing.
         self._bar = QLabel(self)
         self._bar.setFixedHeight(3)
-        self._bar.setStyleSheet("background: rgba(255,255,255,20); border: none;")
+        self._bar.setStyleSheet(f"background: {Styles.COLOR_SURFACE_LIGHT}; border: none;")
         outer.addWidget(self._bar)
 
         # Track the move index so clicks can re-emit it.
@@ -70,6 +70,8 @@ class MoveCellWidget(QWidget):
         self._san_text: str = ""
         self._classification_color: str = ""
         self._classification_name: str = ""
+        self._last_time_spent: float | None = None
+        self._last_max_seconds: float = 30.0
 
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -89,7 +91,7 @@ class MoveCellWidget(QWidget):
             )
         else:
             self._san_label.setStyleSheet(
-                "color: white; font-size: 13px; background: transparent;"
+                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
             )
 
         if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss"):
@@ -114,6 +116,9 @@ class MoveCellWidget(QWidget):
             except (TypeError, ValueError):
                 time_spent_val = None
 
+        self._last_time_spent = time_spent_val
+        self._last_max_seconds = float(max_seconds) if max_seconds is not None else 30.0
+
         if time_spent_val is not None:
             if time_spent_val >= 3600:
                 time_str = f"{time_spent_val / 3600:.1f}h"
@@ -125,9 +130,10 @@ class MoveCellWidget(QWidget):
             self._time_label.setText(time_str)
             
             # Use dynamically passed max_seconds for color ratio
-            safe_max = max(1.0, float(max_seconds) if max_seconds is not None else 30.0)
+            safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, time_spent_val / safe_max)
             colour = self._bar_colour(ratio)
+            track = Styles.COLOR_SURFACE_LIGHT
             # Render as left-to-right fill: 100% of the cell width for the
             # coloured portion, plus a faded track for the remainder.
             self._bar.setStyleSheet(
@@ -137,8 +143,8 @@ class MoveCellWidget(QWidget):
                         x1:0, y1:0, x2:1, y2:0,
                         stop:0 {colour},
                         stop:{ratio:.4f} {colour},
-                        stop:{ratio:.4f} rgba(255,255,255,18),
-                        stop:1 rgba(255,255,255,18)
+                        stop:{ratio:.4f} {track},
+                        stop:1 {track}
                     );
                     border: none;
                 }}
@@ -150,11 +156,42 @@ class MoveCellWidget(QWidget):
             )
         else:
             self._time_label.setText("")
-            self._bar.setStyleSheet("background: rgba(255,255,255,12); border: none;")
+            self._bar.setStyleSheet(f"background: {Styles.COLOR_SURFACE_LIGHT}; border: none;")
             self.setToolTip(
                 f"{move.classification + ': ' if move.classification else ''}"
                 f"{move.san}"
             )
+
+    def refresh_styles(self):
+        if self._classification_color:
+            self._san_label.setStyleSheet(
+                f"color: {self._classification_color}; font-size: 13px; background: transparent;"
+            )
+        else:
+            self._san_label.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
+            )
+        if self._last_time_spent is not None:
+            safe_max = max(1.0, self._last_max_seconds)
+            ratio = min(1.0, self._last_time_spent / safe_max)
+            colour = self._bar_colour(ratio)
+            track = Styles.COLOR_SURFACE_LIGHT
+            self._bar.setStyleSheet(
+                f"""
+                QLabel {{
+                    background: qlineargradient(
+                        x1:0, y1:0, x2:1, y2:0,
+                        stop:0 {colour},
+                        stop:{ratio:.4f} {colour},
+                        stop:{ratio:.4f} {track},
+                        stop:1 {track}
+                    );
+                    border: none;
+                }}
+                """
+            )
+        else:
+            self._bar.setStyleSheet(f"background: {Styles.COLOR_SURFACE_LIGHT}; border: none;")
 
     # ----- helpers ----------------------------------------------------
     def _bar_colour(self, ratio: float) -> str:

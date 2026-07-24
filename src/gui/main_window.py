@@ -4,8 +4,9 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QSplitter, QFileDialog, QMenuBar,
                              QStatusBar, QMessageBox, QInputDialog, QDialog,
                              QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget, QTextEdit, QFrame)
+
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QAction, QIcon, QShortcut, QKeySequence
+from PyQt6.QtGui import QAction, QIcon, QShortcut, QKeySequence, QPalette, QColor
 from PyQt6.QtWidgets import QMenu
 import shutil
 
@@ -26,6 +27,7 @@ from src.backend.analysis.engine import EngineManager, resolve_engine_path, inva
 from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 from src.gui.utils.gui_utils import create_button
 from src.backend.storage.models import MoveAnalysis, GameAnalysis, GameMetadata
 from src.backend.storage.game_history import GameHistoryManager
@@ -33,6 +35,8 @@ from src.utils.path_utils import get_resource_path
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.components.tour_manager import TourManager, TourStep
 from src.gui.components.tour_overlay import TourOverlay
+from src.gui.components.transition_stack import FadedStackedWidget
+from src.gui.components.toast import Toast
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -63,10 +67,21 @@ class MainWindow(QMainWindow):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        # Load Configured Theme
+        # Initialize ThemeManager
+        self._theme_manager = ThemeManager(parent=self)
+
+        saved_theme_mode = self.config_manager.get("theme_mode", "system")
+        ThemeManager.set_theme_mode(saved_theme_mode)
+
         saved_accent = self.config_manager.get("accent_color")
-        if saved_accent:
-            Styles.set_accent_color(saved_accent)
+        saved_accent_mode = self.config_manager.get("accent_mode", "system")
+        if saved_accent_mode == "system":
+            ThemeManager.set_accent_mode("system")
+        elif saved_accent:
+            ThemeManager.set_accent(saved_accent)
+
+        self._theme_manager.theme_changed.connect(self._on_theme_changed)
+        self._theme_manager.accent_changed.connect(self._on_accent_changed)
 
         # UI Setup
         self.setup_ui()
@@ -311,7 +326,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.sidebar)
         
         # Stacked Widget for Pages
-        self.stack = QStackedWidget()
+        self.stack = FadedStackedWidget()
         main_layout.addWidget(self.stack)
         
         # --- Page 0: Analysis View ---
@@ -431,6 +446,19 @@ class MainWindow(QMainWindow):
             self.on_move_selected(-1)
 
     # ------------------------------------------------------------------
+    # Toast notifications
+    # ------------------------------------------------------------------
+
+    def show_toast(self, message: str, kind: str = "info", duration: int | None = None):
+        Toast.show_message(self, message, kind, duration)
+
+    @staticmethod
+    def toast_from_widget(widget, message: str, kind: str = "info", duration: int | None = None):
+        win = widget.window()
+        if hasattr(win, "show_toast"):
+            win.show_toast(message, kind, duration)
+
+    # ------------------------------------------------------------------
     # Status bar helpers
     # ------------------------------------------------------------------
 
@@ -511,7 +539,7 @@ class MainWindow(QMainWindow):
             )
             if hasattr(self, 'move_list_panel'):
                 self.move_list_panel.update_engine_path(new_path)
-            QMessageBox.information(self, "Success", "Engine path updated. Future analyses will use the new engine.")
+            self.show_toast("Engine path updated. Future analyses will use the new engine.", "info")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
             QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
@@ -564,16 +592,50 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'history_view'):
             self.history_view.load_history()
 
+    def _apply_palette(self):
+        p = ThemeManager.palette()
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(p.background))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(p.text_primary))
+        palette.setColor(QPalette.ColorRole.Base, QColor(p.surface))
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(p.surface_light))
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(p.surface_light))
+        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(p.text_primary))
+        palette.setColor(QPalette.ColorRole.Text, QColor(p.text_primary))
+        palette.setColor(QPalette.ColorRole.Button, QColor(p.surface))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(p.text_primary))
+        palette.setColor(QPalette.ColorRole.BrightText, QColor(p.accent))
+        palette.setColor(QPalette.ColorRole.Link, QColor(p.accent))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(p.accent))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
+        QApplication.setPalette(palette)
+
+    def _on_theme_changed(self, mode: str):
+        self.refresh_theme()
+
+    def _on_accent_changed(self, hex_color: str):
+        self.config_manager.set("accent_color", hex_color)
+        self.refresh_theme()
+
     def refresh_theme(self):
         """Re-applies the theme and updates widgets that need manual refresh."""
-        self.setStyleSheet(Styles.get_theme())
+        self._apply_palette()
+        theme_qss = Styles.get_theme()
+        self.setStyleSheet(theme_qss)
+        QApplication.instance().setStyleSheet(theme_qss)
         
         # Update Sidebar
-        self.sidebar.setStyleSheet(Styles.get_sidebar_style())
+        self.sidebar.apply_style()
         
         # Update Board
         if hasattr(self, 'board_widget'):
             self.board_widget.update_board()
+
+        # Update analysis page container backgrounds
+        if hasattr(self, 'left_widget') and self.left_widget:
+            self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        if hasattr(self, 'center_widget') and self.center_widget:
+            self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
 
         # Update Explorer Board
         if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'board_widget'):
@@ -605,13 +667,20 @@ class MainWindow(QMainWindow):
                     background-color: {Styles.COLOR_BACKGROUND};
                     border-bottom: 1px solid {Styles.COLOR_BORDER};
                 }}
+                QFrame QLabel {{
+                    background: transparent;
+                }}
             """)
 
         # Update MainWindow Buttons
+        if hasattr(self, 'btn_explore'):
+            self.btn_explore.setStyleSheet(Styles.get_control_button_style())
         if hasattr(self, 'btn_load'):
             self.btn_load.setStyleSheet(Styles.get_control_button_style())
         if hasattr(self, 'btn_analyze'):
             self.btn_analyze.setStyleSheet(Styles.get_button_style())
+        if hasattr(self, 'game_info_label'):
+            self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
         
         # Update Menu Styles
         menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
@@ -624,6 +693,25 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'menu_lichess'):
             self.menu_lichess.setStyleSheet(menu_style)
         
+        # Update Captured Pieces
+        for cp in ("captured_white", "captured_black"):
+            if hasattr(self, cp):
+                w = getattr(self, cp)
+                if hasattr(w, 'refresh_styles'):
+                    w.refresh_styles()
+
+        # Update Game Controls
+        if hasattr(self, 'controls') and hasattr(self.controls, 'refresh_styles'):
+            self.controls.refresh_styles()
+
+        # Update explorer view panels
+        if hasattr(self, 'explorer_view'):
+            ev = self.explorer_view
+            if hasattr(ev, 'refresh_styles'):
+                ev.refresh_styles()
+            if hasattr(ev, 'move_list_widget') and hasattr(ev.move_list_widget, 'refresh_styles'):
+                ev.move_list_widget.refresh_styles()
+
         # Update History View
         if hasattr(self, 'history_view'):
             if hasattr(self.history_view, 'refresh_styles'):
@@ -637,7 +725,30 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'tour_overlay'):
             self.tour_overlay.refresh_accent()
 
-        # Force update
+        # Update status bar
+        self.statusBar().setStyleSheet(f"""
+            QStatusBar {{
+                background-color: {Styles.COLOR_BACKGROUND};
+                border-top: 1px solid {Styles.COLOR_BORDER};
+            }}
+            QStatusBar QLabel {{
+                background: transparent;
+            }}
+        """)
+        if hasattr(self, '_status_lbl'):
+            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;")
+        if hasattr(self, '_engine_pill'):
+            state = self._engine_pill.text()
+            if "Offline" in state:
+                self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; color: #e74c3c;")
+            elif "Calculating" in state:
+                self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; color: #e67e22;")
+            else:
+                self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; color: #27ae60;")
+
+        # Force full style re-evaluation for all children
+        self.style().unpolish(self)
+        self.style().polish(self)
         self.update()
 
     def switch_page(self, index):
@@ -929,11 +1040,20 @@ class MainWindow(QMainWindow):
         # Splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(2)
+        splitter.setStyleSheet(f"""
+            QSplitter {{
+                background-color: {Styles.COLOR_BACKGROUND};
+            }}
+            QSplitter::handle {{
+                background-color: {Styles.COLOR_BORDER};
+            }}
+        """)
         main_layout.addWidget(splitter, 1)
         
         # Left: Move List
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
+        self.left_widget = QWidget()
+        self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        left_layout = QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
         
         self.move_list_panel = MoveListPanel(self.engine_path, config_manager=self.config_manager)
@@ -943,11 +1063,12 @@ class MainWindow(QMainWindow):
         self.move_list_panel.live_worker.thinking_stopped.connect(self._on_live_thinking_stopped)
         left_layout.addWidget(self.move_list_panel)
         
-        splitter.addWidget(left_widget)
+        splitter.addWidget(self.left_widget)
         
         # Center: Board
-        center_widget = QWidget()
-        center_layout = QVBoxLayout(center_widget)
+        self.center_widget = QWidget()
+        self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        center_layout = QVBoxLayout(self.center_widget)
         self.center_layout = center_layout  # needed for flip_board()
         center_layout.setContentsMargins(10, 10, 10, 10)
         center_layout.setSpacing(10)
@@ -989,7 +1110,7 @@ class MainWindow(QMainWindow):
         self.controls.flip_clicked.connect(self.flip_board)
         center_layout.addWidget(self.controls)
         
-        splitter.addWidget(center_widget)
+        splitter.addWidget(self.center_widget)
         
         # Right: Analysis
         self.analysis_panel = AnalysisPanel()
@@ -1203,6 +1324,7 @@ class MainWindow(QMainWindow):
         self._full_analysis_running = False
         self._set_engine_state("ready")
         self._set_status("Analysis complete", "success")
+        self.show_toast("Analysis complete!", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):

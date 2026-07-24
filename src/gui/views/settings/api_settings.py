@@ -130,10 +130,10 @@ class ApiSettings(QGroupBox):
 
         # --- Profile selector row ---
         prof_row = QHBoxLayout()
-        lbl_prof = QLabel("LLM Profile:")
-        lbl_prof.setStyleSheet(lbl_style)
-        lbl_prof.setFixedWidth(88)
-        prof_row.addWidget(lbl_prof)
+        self._lbl_prof = QLabel("LLM Profile:")
+        self._lbl_prof.setStyleSheet(lbl_style)
+        self._lbl_prof.setFixedWidth(88)
+        prof_row.addWidget(self._lbl_prof)
 
         self.llm_profile_combo = QComboBox()
         self.llm_profile_combo.setStyleSheet(_combo_style)
@@ -173,13 +173,13 @@ class ApiSettings(QGroupBox):
         self.llm_profile_name.setStyleSheet(Styles.get_input_style())
         pf.addRow(self._lbl_pname, self.llm_profile_name)
 
-        lbl_prov = QLabel("Provider:"); lbl_prov.setStyleSheet(lbl_style)
+        self._lbl_prov = QLabel("Provider:"); self._lbl_prov.setStyleSheet(lbl_style)
         self.llm_provider_combo = QComboBox()
         for pkey, pmeta in self._llm_providers.items():
             self.llm_provider_combo.addItem(pmeta["label"], userData=pkey)
         self.llm_provider_combo.setStyleSheet(_combo_style)
         self.llm_provider_combo.currentIndexChanged.connect(self._on_provider_changed)
-        pf.addRow(lbl_prov, self.llm_provider_combo)
+        pf.addRow(self._lbl_prov, self.llm_provider_combo)
 
         self.lbl_llm_key = QLabel("API Key:"); self.lbl_llm_key.setStyleSheet(lbl_style)
         self.llm_key_input = QLineEdit()
@@ -187,10 +187,10 @@ class ApiSettings(QGroupBox):
         self.llm_key_input.setStyleSheet(Styles.get_input_style())
         pf.addRow(self.lbl_llm_key, self.llm_key_input)
 
-        lbl_model = QLabel("Model:"); lbl_model.setStyleSheet(lbl_style)
+        self._lbl_model = QLabel("Model:"); self._lbl_model.setStyleSheet(lbl_style)
         self.llm_model_input = QLineEdit()
         self.llm_model_input.setStyleSheet(Styles.get_input_style())
-        pf.addRow(lbl_model, self.llm_model_input)
+        pf.addRow(self._lbl_model, self.llm_model_input)
 
         self.lbl_llm_url = QLabel("Base URL:"); self.lbl_llm_url.setStyleSheet(lbl_style)
         self.llm_url_input = QLineEdit()
@@ -445,6 +445,15 @@ class ApiSettings(QGroupBox):
         self.llm_add_btn.setStyleSheet(llm_add_style)
         self.llm_del_btn.setStyleSheet(llm_del_style)
         self.llm_test_btn.setStyleSheet(default_style)
-        
         for widget in [self.llm_profile_name, self.llm_key_input, self.llm_model_input, self.llm_url_input, self.lichess_token_input]:
             widget.setStyleSheet(input_style)
+        # Refresh form row labels
+        lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
+        for lbl in [self._lbl_prof, self._lbl_pname, self._lbl_prov, self.lbl_llm_key,
+                    self._lbl_model, self.lbl_llm_url, self._lbl_lichess]:
+            if lbl:
+                lbl.setStyleSheet(lbl_style)
+        # Status labels
+        status_style = f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;"
+        self.llm_active_label.setStyleSheet(status_style)
+        self.llm_test_result.setStyleSheet(status_style)

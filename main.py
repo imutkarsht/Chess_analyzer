@@ -47,6 +47,7 @@ def main():
     logger.info("Application starting...")
     try:
         app = QApplication(sys.argv)
+        app.setStyle("Fusion")
         
         # Resource paths
         resource_path = get_resource_path("assets")

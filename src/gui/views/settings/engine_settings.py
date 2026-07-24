@@ -115,10 +115,10 @@ class EngineSettings(QGroupBox):
         self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)))
         self.depth_combo.setStyleSheet(combo_style)
         self.depth_combo.currentTextChanged.connect(self.change_analysis_depth)
-        depth_lbl, depth_row = _wrap(
+        self._depth_lbl, depth_row = _wrap(
             "Analysis Depth:", self.depth_combo, "(Higher = more accurate but slower)"
         )
-        form.addRow(depth_lbl, depth_row)
+        form.addRow(self._depth_lbl, depth_row)
 
         # --- Multi-PV (alt lines per move) ---
         self.multi_pv_input = QLineEdit()
@@ -360,3 +360,9 @@ class EngineSettings(QGroupBox):
         for widget in [self.multi_pv_input, self.live_time_input, self.threads_input, self.hash_input]:
             widget.setStyleSheet(input_style)
         self.path_input.setStyleSheet(input_style.replace("max-width: 140px;", ""))
+        # Refresh form row labels
+        lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
+        for lbl in [self._depth_lbl, self._multi_pv_lbl, self._live_time_lbl,
+                    self._threads_lbl, self._hash_lbl]:
+            if lbl:
+                lbl.setStyleSheet(lbl_style)

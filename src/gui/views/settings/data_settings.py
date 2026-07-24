@@ -30,7 +30,8 @@ class DataSettings(QGroupBox):
             from src.backend.storage.cache import AnalysisCache
             cache = AnalysisCache()
             cache.clear_cache()
-            QMessageBox.information(self, "Success", "Analysis cache cleared.")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, "Analysis cache cleared.", "success")
 
     def clear_all_data(self):
         reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear ALL data? This includes game history and analysis cache. This action cannot be undone.",
@@ -54,7 +55,8 @@ class DataSettings(QGroupBox):
                 if hasattr(window, "metrics_view"):
                     window.metrics_view.refresh([])
             
-            QMessageBox.information(self, "Success", "All data cleared.")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, "All data cleared.", "success")
 
     def set_advanced_visible(self, visible):
         self.setVisible(visible)

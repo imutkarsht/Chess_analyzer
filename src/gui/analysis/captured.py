@@ -277,6 +277,8 @@ class CapturedPiecesWidget(QFrame):
             """)
         else:
             self.setStyleSheet(f"background: transparent; border: none;")
+    def refresh_styles(self):
+        self._update_container_style()
 
     def _format_ui_clock(self, seconds: float) -> str:
         """Format seconds to a standard premium chess clock format (e.g. 10:00, 1:35, 15.4)."""

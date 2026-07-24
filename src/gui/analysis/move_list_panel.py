@@ -271,6 +271,9 @@ class MoveListPanel(QWidget):
             }}
         """)
 
+        for cell in self._think_bars:
+            cell.refresh_styles()
+
     def on_cell_clicked(self, row, col):
         item = self.table.item(row, col)
         if item:

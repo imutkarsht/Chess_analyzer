@@ -45,9 +45,7 @@ def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
         view.lichess_token_input.setText("test_token")
         view.games_limit_input.setText("25")
         
-        with patch.object(QMessageBox, "information") as mock_info:
-            view.save_usernames()
-            mock_info.assert_called_once()
+        view.save_usernames()
             
         assert view.config_manager.get("api_games_limit") == 25
         assert view.games_limit_input.text() == "25"
@@ -85,9 +83,7 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         view.llm_config_changed = MagicMock()
         view.usernames_changed = MagicMock()
         
-        with patch.object(QMessageBox, "information") as mock_info:
-            view.save_all_settings()
-            mock_info.assert_called_once()
+        view.save_all_settings()
             
         # Verify changes are stored in the config
         assert view.config_manager.get("engine_path") == "mock-stockfish"
