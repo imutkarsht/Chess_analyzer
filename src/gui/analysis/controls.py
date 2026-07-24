@@ -42,3 +42,10 @@ class GameControlsWidget(QWidget):
         layout.addWidget(self.btn_last)
         layout.addStretch()
         layout.addWidget(self.btn_flip)
+
+    def refresh_styles(self):
+        from src.gui.styles import Styles
+        style = Styles.get_control_button_style()
+        for btn in (self.btn_first, self.btn_prev, self.btn_next,
+                    self.btn_last, self.btn_flip):
+            btn.setStyleSheet(style)

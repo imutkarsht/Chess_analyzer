@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 from src.gui.utils.gui_utils import resolve_asset  # Use shared utility
 
 
@@ -95,6 +96,8 @@ class StatCard(QFrame):
             """)
             self.lbl_sub.setWordWrap(True)
             layout.addWidget(self.lbl_sub)
+
+        ThemeManager.apply_elevation(self, elevation=1)
             
     def refresh_styles(self):
         """Re-apply styles with the updated accent color."""
@@ -209,6 +212,8 @@ class SimpleStatCard(QFrame):
         
         layout.addWidget(self.lbl_title)
         layout.addWidget(self.lbl_value)
+
+        ThemeManager.apply_elevation(self, elevation=1)
 
     def refresh_styles(self):
         """Re-apply styles with the updated accent color."""

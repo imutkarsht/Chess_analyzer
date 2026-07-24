@@ -99,7 +99,8 @@ class GraphWidget(QWidget):
             self.ax.scatter(scatter_x, scatter_y, c=scatter_colors, s=40, zorder=3, edgecolors='white', linewidths=1)
         
         # Zero line
-        self.ax.axhline(0, color=Styles.COLOR_BORDER, linestyle='--', linewidth=1, zorder=0)
+        zero_line = self.ax.axhline(0, color=Styles.COLOR_BORDER, linestyle='--', linewidth=1, zorder=0)
+        zero_line._is_zero_line = True
         
         # Styling
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
@@ -247,9 +248,39 @@ class GraphWidget(QWidget):
         self.move_clicked.emit(move_index)
 
     def refresh_styles(self):
-        """Re-apply styles with the updated accent color."""
+        """Re-apply all theme-sensitive colors on the matplotlib figure immediately."""
+        # Axes and figure backgrounds
+        self.ax.set_facecolor(Styles.COLOR_SURFACE)
+        self.figure.patch.set_facecolor(Styles.COLOR_SURFACE)
+
+        # Spines
+        self.ax.spines['top'].set_visible(False)
+        self.ax.spines['right'].set_visible(False)
+        self.ax.spines['bottom'].set_color(Styles.COLOR_BORDER)
+        self.ax.spines['left'].set_color(Styles.COLOR_BORDER)
+
+        # Tick label colors
+        self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
+        self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
+
+        # Title
+        self.ax.title.set_color(Styles.COLOR_TEXT_PRIMARY)
+
+        # Zero reference line
+        for line in self.ax.lines:
+            if getattr(line, '_is_zero_line', False):
+                line.set_color(Styles.COLOR_BORDER)
+
+        # Current move indicator
         if hasattr(self, 'current_move_line') and self.current_move_line is not None:
             self.current_move_line.set_color(Styles.COLOR_ACCENT)
+
+        # Tooltip annotation
+        if hasattr(self, 'annot') and self.annot is not None:
+            self.annot.get_bbox_patch().set_facecolor(Styles.COLOR_SURFACE_LIGHT)
+            self.annot.get_bbox_patch().set_edgecolor(Styles.COLOR_BORDER)
+            self.annot.set_color(Styles.COLOR_TEXT_PRIMARY)
+
         self.canvas.draw_idle()
 
     def clear(self):

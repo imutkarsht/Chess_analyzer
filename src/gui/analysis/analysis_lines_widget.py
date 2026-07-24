@@ -25,6 +25,23 @@ class AnalysisLinesWidget(QFrame):
     def __init__(self):
         super().__init__()
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+        self._apply_base_style()
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(6)
+        self.layout.setContentsMargins(8, 8, 8, 8)
+        
+        # No header layout here anymore
+
+        self._last_multi_pvs = None
+        self._last_turn_color = chess.WHITE
+        self.rows = [] # List of (widget, lbl_depth, lbl_eval, lbl_pv) tuples
+        self.lines_layout = QVBoxLayout()
+        self.lines_layout.setSpacing(6)
+        self.layout.addLayout(self.lines_layout)
+        self.layout.addStretch() # Push lines to top
+
+    def _apply_base_style(self):
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: {Styles.COLOR_SURFACE};
@@ -45,19 +62,11 @@ class AnalysisLinesWidget(QFrame):
                 background: transparent;
             }}
         """)
-        
-        self.layout = QVBoxLayout(self)
-        self.layout.setSpacing(6)
-        self.layout.setContentsMargins(8, 8, 8, 8)
-        
-        # No header layout here anymore
 
-        
-        self.rows = [] # List of (widget, lbl_depth, lbl_eval, lbl_pv) tuples
-        self.lines_layout = QVBoxLayout()
-        self.lines_layout.setSpacing(6)
-        self.layout.addLayout(self.lines_layout)
-        self.layout.addStretch() # Push lines to top
+    def refresh_styles(self):
+        self._apply_base_style()
+        if self._last_multi_pvs is not None:
+            self.update_lines(self._last_multi_pvs, self._last_turn_color)
 
     def clear(self):
         """Clears all analysis lines."""
@@ -93,6 +102,8 @@ class AnalysisLinesWidget(QFrame):
         return " ".join(html_words)
 
     def update_lines(self, multi_pvs, turn_color):
+        self._last_multi_pvs = multi_pvs
+        self._last_turn_color = turn_color
         if not multi_pvs:
             self.clear()
             return

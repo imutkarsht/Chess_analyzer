@@ -136,6 +136,63 @@ class ExplorerMoveListWidget(QWidget):
 
         self.layout.addLayout(nav_layout)
 
+    def refresh_styles(self):
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                gridline-color: transparent;
+                font-size: 14px;
+            }}
+            QTableWidget::item {{
+                padding: 4px 8px;
+                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QTableWidget::item:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QTableWidget::item:selected {{
+                background-color: {Styles.COLOR_HIGHLIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border-left: 3px solid {Styles.COLOR_ACCENT};
+            }}
+            QHeaderView::section {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid {Styles.COLOR_ACCENT};
+                font-weight: 600;
+                font-size: 13px;
+            }}
+        """)
+        btn_style = f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-size: 16px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+            QPushButton:pressed {{
+                background-color: {Styles.COLOR_ACCENT};
+                color: white;
+            }}
+            QPushButton:disabled {{
+                color: {Styles.COLOR_TEXT_MUTED};
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+        """
+        for btn in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
+            btn.setStyleSheet(btn_style)
+
     def add_move(self, san: str, classification: str = None):
         """Append a new move to the list."""
         # If we are not at the end, truncate the list before adding
