@@ -50,67 +50,82 @@ class ChessComAPI(BaseChessAPI):
             return []
 
     @staticmethod
-    def get_game_by_id(game_id: str, url: str = None) -> Optional[Dict]:
+    def get_user_games_by_date(username: str, date) -> List[Dict]:
         """
-        Fetches a specific game by its ID.
-        Prioritizes the callback API for live/daily games as it's most reliable and fastest.
-        Falls back to scraping or archive search if needed.
+        Fetches games of a user for a specific date from Chess.com archives.
         """
-        # Determine if it's daily or live from URL
-        is_daily = False
-        if url and "daily" in url.lower():
-            is_daily = True
+        import datetime
+        try:
+            year = str(date.year)
+            month = f"{date.month:02d}"
+            url = f"{ChessComAPI.BASE_URL}/player/{username}/games/{year}/{month}"
+            
+            response = BaseChessAPI._make_request(url, ChessComAPI.HEADERS)
+            if not response:
+                return []
+                
+            data = BaseChessAPI._safe_json(response)
+            if not data:
+                return []
+                
+            games_list = data.get("games", [])
+            matched_games = []
+            
+            start_dt = datetime.datetime.combine(date, datetime.time.min, tzinfo=datetime.timezone.utc)
+            start_ts = int(start_dt.timestamp())
+            end_dt = datetime.datetime.combine(date, datetime.time.max, tzinfo=datetime.timezone.utc)
+            end_ts = int(end_dt.timestamp())
+            
+            for game in games_list:
+                end_time = game.get("end_time")
+                if end_time and start_ts <= end_time <= end_ts:
+                    matched_games.append(game)
+                    
+            return matched_games
+        except Exception as e:
+            BaseChessAPI._log_api_error("Chess.com", "get_user_games_by_date", e)
+            return []
 
-        # Try daily callback if URL indicates daily, else live callback
-        if is_daily:
-            game = ChessComAPI._get_game_via_daily_callback(game_id)
-            if game:
-                return game
-            game = ChessComAPI._get_game_via_callback(game_id)
-            if game:
-                return game
-        else:
-            game = ChessComAPI._get_game_via_callback(game_id)
-            if game:
-                return game
-            game = ChessComAPI._get_game_via_daily_callback(game_id)
+    @staticmethod
+    def get_game_by_id(game_id: str, url: str = None, username: str = None) -> Optional[Dict]:
+        """
+        Fetches a specific game by its ID using ONLY Chess.com Public API.
+        Requires the player's username to search their archives.
+        """
+        if username:
+            game = ChessComAPI._find_game_in_archives(username, game_id)
             if game:
                 return game
 
         if not url:
             return None
 
+        # Fallback scraping of HTML to find the username if it was somehow not passed
         try:
-            # 2. If callbacks failed, try scraping metadata from URL to find archive
             response = requests.get(url, headers=ChessComAPI.HEADERS)
             response.raise_for_status()
             html = response.text
             
-            # Extract username
             import re
-            # Try finding "username":"name" pattern in JSON blobs in HTML
             user_match = re.search(r'"username":"([^"]+)"', html)
-            username = None
+            extracted_username = None
             if user_match:
-                username = user_match.group(1)
+                extracted_username = user_match.group(1)
             
-            if not username:
-                # Try meta description
+            if not extracted_username:
                 desc_match = re.search(r'<meta name="description" content="([^"]+)"', html)
                 if desc_match:
                     content = desc_match.group(1)
                     parts = content.split(' vs ')
                     if len(parts) > 0:
-                        username = parts[0].split(' (')[0].strip()
+                        extracted_username = parts[0].split(' (')[0].strip()
             
-            if username:
-                return ChessComAPI._find_game_in_archives(username, game_id)
-            
-            return None
-            
+            if extracted_username:
+                return ChessComAPI._find_game_in_archives(extracted_username, game_id)
         except Exception as e:
-            logger.error(f"Error fetching game {game_id}: {e}", exc_info=True)
-            return None
+            logger.error(f"Error scraping HTML fallback for game {game_id}: {e}")
+
+        return None
 
     @staticmethod
     def _find_game_in_archives(username: str, game_id: str) -> Optional[Dict]:
@@ -124,7 +139,7 @@ class ChessComAPI(BaseChessAPI):
             archives = response.json().get("archives", [])
             if not archives:
                 return None
-                
+            
             # Search backwards (latest first)
             for archive_url in reversed(archives):
                 resp = requests.get(archive_url, headers=ChessComAPI.HEADERS)
@@ -138,35 +153,6 @@ class ChessComAPI(BaseChessAPI):
         except Exception as e:
             logger.error(f"Error searching archives: {e}")
             return None
-
-    @staticmethod
-    def _get_game_via_callback(game_id: str) -> Optional[Dict]:
-        try:
-            url = f"https://www.chess.com/callback/live/game/{game_id}"
-            response = requests.get(url, headers=ChessComAPI.HEADERS)
-            if response.status_code != 200:
-                return None
-            data = response.json()
-            if "game" in data and "pgn" in data["game"]:
-                return {"pgn": data["game"]["pgn"]}
-            return None
-        except:
-            return None
-
-    @staticmethod
-    def _get_game_via_daily_callback(game_id: str) -> Optional[Dict]:
-        try:
-            url = f"https://www.chess.com/callback/daily/game/{game_id}"
-            response = requests.get(url, headers=ChessComAPI.HEADERS)
-            if response.status_code != 200:
-                return None
-            data = response.json()
-            if "game" in data and "pgn" in data["game"]:
-                return {"pgn": data["game"]["pgn"]}
-            return None
-        except:
-            return None
-
 
     @staticmethod
     def extract_game_id(url: str) -> Optional[str]:

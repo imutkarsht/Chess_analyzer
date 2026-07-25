@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSplitter, 
     QScrollArea, QCheckBox, QLineEdit, QPushButton, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QTimer, QByteArray
+from PyQt6.QtCore import Qt, QTimer, QByteArray, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon
 from PyQt6.QtSvg import QSvgRenderer
 import chess
@@ -26,6 +26,7 @@ from src.gui.utils.gui_utils import clear_layout
 from src.gui.components.loading_widget import LoadingOverlay
 import os
 from src.gui.analysis.captured import CapturedPiecesWidget
+from src.backend.storage.game_history import GameHistoryManager
 
 from dataclasses import dataclass
 from typing import Optional
@@ -43,6 +44,107 @@ class ClassificationContext:
     win_chance_after: float = 0.5
     classification: Optional[str] = None
     explanation: Optional[str] = None
+class RatioBar(QWidget):
+    def __init__(self, w_pct, d_pct, b_pct, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(140, 16)
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        
+        # Segment 1: White Wins
+        if w_pct > 0:
+            w_lbl = QLabel(f"{w_pct}%" if w_pct >= 12 else "")
+            w_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            w_lbl.setStyleSheet("""
+                background-color: #4FA859;
+                color: #FFFFFF;
+                font-size: 9px;
+                font-weight: bold;
+                border: none;
+                border-top-left-radius: 4px;
+                border-bottom-left-radius: 4px;
+            """)
+            if d_pct == 0 and b_pct == 0:
+                w_lbl.setStyleSheet("""
+                    background-color: #4FA859;
+                    color: #FFFFFF;
+                    font-size: 9px;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 4px;
+                """)
+            layout.addWidget(w_lbl, stretch=w_pct)
+            
+        # Segment 2: Draws
+        if d_pct > 0:
+            d_lbl = QLabel(f"{d_pct}%" if d_pct >= 12 else "")
+            d_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            d_lbl.setStyleSheet("""
+                background-color: #8E9AA6;
+                color: #FFFFFF;
+                font-size: 9px;
+                font-weight: bold;
+                border: none;
+            """)
+            if w_pct == 0:
+                d_lbl.setStyleSheet("""
+                    background-color: #8E9AA6;
+                    color: #FFFFFF;
+                    font-size: 9px;
+                    font-weight: bold;
+                    border: none;
+                    border-top-left-radius: 4px;
+                    border-bottom-left-radius: 4px;
+                """)
+            if b_pct == 0:
+                d_lbl.setStyleSheet("""
+                    background-color: #8E9AA6;
+                    color: #FFFFFF;
+                    font-size: 9px;
+                    font-weight: bold;
+                    border: none;
+                    border-top-right-radius: 4px;
+                    border-bottom-right-radius: 4px;
+                """)
+            if w_pct == 0 and b_pct == 0:
+                d_lbl.setStyleSheet("""
+                    background-color: #8E9AA6;
+                    color: #FFFFFF;
+                    font-size: 9px;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 4px;
+                """)
+            layout.addWidget(d_lbl, stretch=d_pct)
+            
+        # Segment 3: Black Wins
+        if b_pct > 0:
+            b_lbl = QLabel(f"{b_pct}%" if b_pct >= 12 else "")
+            b_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            b_lbl.setStyleSheet("""
+                background-color: #2F3640;
+                color: #FFFFFF;
+                font-size: 9px;
+                font-weight: bold;
+                border: none;
+                border-top-right-radius: 4px;
+                border-bottom-right-radius: 4px;
+            """)
+            if w_pct == 0 and d_pct == 0:
+                b_lbl.setStyleSheet("""
+                    background-color: #2F3640;
+                    color: #FFFFFF;
+                    font-size: 9px;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 4px;
+                """)
+            layout.addWidget(b_lbl, stretch=b_pct)
+            
+        self.setToolTip(f"White Wins: {w_pct}%  |  Draws: {d_pct}%  |  Black Wins: {b_pct}%")
+
 
 class BookRowWidget(QWidget):
     def __init__(self, san, parent=None):
@@ -337,7 +439,22 @@ class ExplorerView(QWidget):
         self.book_scroll.setWidget(self.book_container)
         
         right_layout.addWidget(self.book_scroll, stretch=1)
-        
+
+        # Lichess Attribution footer
+        self.lichess_attribution = QLabel()
+        self.lichess_attribution.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_MUTED};
+            font-size: 11px;
+            padding: 4px 14px;
+            background: transparent;
+            border: none;
+        """)
+        self.lichess_attribution.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.lichess_attribution.setOpenExternalLinks(True)
+        self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
+        self.lichess_attribution.setVisible(False)
+        right_layout.addWidget(self.lichess_attribution)
+
         # Move List Header (inline with move input)
         moves_header = QHBoxLayout()
         moves_header.setContentsMargins(0, 0, 0, 0)
@@ -658,7 +775,10 @@ class ExplorerView(QWidget):
                 self._piece_pixmap_cache[cache_key] = None
         return self._piece_pixmap_cache[cache_key]
 
-    def _create_book_row_widget(self, san, info_text, piece_symbol=None):
+
+
+
+    def _create_book_row_widget(self, san, info_text, piece_symbol=None, stats=None):
         row_widget = BookRowWidget(san, self)
         row_widget.setStyleSheet(f"""
             QWidget {{
@@ -669,8 +789,13 @@ class ExplorerView(QWidget):
             }}
         """)
         row_layout = QHBoxLayout(row_widget)
-        row_layout.setContentsMargins(14, 10, 14, 10)
+        row_layout.setContentsMargins(14, 8, 14, 8)
         row_layout.setSpacing(8)
+        
+        # Left part
+        left_layout = QHBoxLayout()
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(8)
         
         if piece_symbol:
             pixmap = self._get_piece_pixmap(piece_symbol)
@@ -679,20 +804,37 @@ class ExplorerView(QWidget):
                 icon_label.setPixmap(pixmap)
                 icon_label.setFixedSize(18, 18)
                 icon_label.setStyleSheet("border: none; background: transparent;")
-                row_layout.addWidget(icon_label)
+                left_layout.addWidget(icon_label)
         
         lbl_san = QLabel(san)
         lbl_san.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 15px; border: none; background: transparent;")
-        row_layout.addWidget(lbl_san)
+        left_layout.addWidget(lbl_san)
         
-        if info_text:
+        row_layout.addLayout(left_layout)
+        row_layout.addStretch()
+        
+        # Right part
+        if stats:
+            w_pct, d_pct, b_pct, count_str = stats
+            
+            right_layout = QHBoxLayout()
+            right_layout.setContentsMargins(0, 0, 0, 0)
+            right_layout.setSpacing(12)
+            
+            lbl_count = QLabel(count_str)
+            lbl_count.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 500; border: none; background: transparent;")
+            right_layout.addWidget(lbl_count)
+            
+            ratio_bar = RatioBar(w_pct, d_pct, b_pct, self)
+            right_layout.addWidget(ratio_bar)
+            
+            row_layout.addLayout(right_layout)
+        elif info_text:
             lbl_info = QLabel(info_text)
             lbl_info.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; font-style: italic; border: none; background: transparent;")
             lbl_info.setMinimumWidth(0)
-            row_layout.addWidget(lbl_info, stretch=1)
-        else:
-            row_layout.addStretch()
-        
+            row_layout.addWidget(lbl_info)
+            
         return row_widget
 
     def update_opening_db(self, fen):
@@ -717,7 +859,37 @@ class ExplorerView(QWidget):
                 best_name = max(openings, key=lambda x: len(x[1]))[1]
                 best_eco = max(openings, key=lambda x: len(x[1]))[0]
                 self.opening_badge.setText(f"Opening: {best_eco} - {best_name}")
+
+        # Check if we should use Lichess Explorer (token present)
+        lichess_token = self.config_manager.get("lichess_token", "").strip()
+        if lichess_token:
+            # Hide book scroll temporarily while fetching
+            self.book_scroll.hide()
+            self.book_toggle.setText("▶  Book Moves  (loading...)")
+            self.book_toggle.show()
+            
+            # Start Lichess worker
+            if hasattr(self, '_lichess_worker') and self._lichess_worker is not None:
+                if self._lichess_worker.isRunning():
+                    try:
+                        self._lichess_worker.finished.disconnect()
+                        self._lichess_worker.error.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
+            
+            self._lichess_worker = LichessExplorerWorker(
+                self.board_widget.board.fen(),
+                self.chk_cache.isChecked(),
+                GameHistoryManager(),
+                token=lichess_token,
+                parent=self
+            )
+            self._lichess_worker.finished.connect(self.on_lichess_explorer_finished)
+            self._lichess_worker.error.connect(self.on_lichess_explorer_error)
+            self._lichess_worker.start()
+            return
         
+        self.lichess_attribution.setVisible(False)
         # --- Try Polyglot book first (higher priority) ---
         polyglot_used = False
         current_path = self.config_manager.get("polyglot_book_path", "")
@@ -1259,3 +1431,122 @@ class ExplorerView(QWidget):
         for child in self.findChildren(QWidget):
             child.style().unpolish(child)
             child.style().polish(child)
+
+    def on_lichess_explorer_finished(self, data):
+        if hasattr(self, '_book_row_widgets'):
+            for w in self._book_row_widgets:
+                self.book_layout.removeWidget(w)
+                w.deleteLater()
+        self._book_row_widgets = []
+        self.board_widget.book_destinations = []
+
+        moves = data.get("moves", [])
+        for m in moves:
+            san = m.get("san")
+            white_wins = m.get("white", 0)
+            draws = m.get("draws", 0)
+            black_wins = m.get("black", 0)
+            total = white_wins + draws + black_wins
+            
+            if total == 0:
+                continue
+
+            if total >= 1000000:
+                count_str = f"{total / 1000000:.1f}M"
+            elif total >= 1000:
+                count_str = f"{total / 1000:.1f}K"
+            else:
+                count_str = str(total)
+
+            w_pct = int(white_wins / total * 100)
+            d_pct = int(draws / total * 100)
+            b_pct = 100 - w_pct - d_pct
+
+            stats = (w_pct, d_pct, b_pct, count_str)
+            
+            piece_symbol = None
+            try:
+                move_obj = self.board_widget.board.parse_san(san)
+                self.board_widget.book_destinations.append(move_obj.to_square)
+                piece = self.board_widget.board.piece_at(move_obj.from_square)
+                if piece:
+                    piece_symbol = piece.symbol()
+            except Exception:
+                pass
+
+            row_widget = self._create_book_row_widget(san, None, piece_symbol, stats=stats)
+            self.book_layout.addWidget(row_widget)
+            self._book_row_widgets.append(row_widget)
+
+        self._current_book_count = len(self._book_row_widgets)
+        arrow = "▼" if self.book_toggle.isChecked() else "▶"
+        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
+        
+        self.lichess_attribution.setVisible(True)
+        if self._current_book_count > 0:
+            self.book_toggle.show()
+            if not self.book_toggle.isChecked():
+                self.book_scroll.hide()
+            else:
+                self.book_scroll.show()
+        else:
+            self.book_toggle.hide()
+            self.book_scroll.hide()
+            
+        self.board_widget.draw_interactive_overlays()
+
+    def on_lichess_explorer_error(self, err):
+        logger.warning(f"Lichess explorer fetch failed: {err}")
+        if hasattr(self, '_book_row_widgets'):
+            for w in self._book_row_widgets:
+                self.book_layout.removeWidget(w)
+                w.deleteLater()
+        self._book_row_widgets = []
+        self._current_book_count = 0
+        arrow = "▼" if self.book_toggle.isChecked() else "▶"
+        self.book_toggle.setText(f"{arrow}  Book Moves  (failed)")
+        self.book_toggle.show()
+        self.book_scroll.hide()
+        self.lichess_attribution.setVisible(False)
+
+
+class LichessExplorerWorker(QThread):
+    finished = pyqtSignal(object)
+    error = pyqtSignal(str)
+
+    def __init__(self, fen: str, cache_enabled: bool, history_manager, token: str = "", parent=None):
+        super().__init__(parent)
+        self.fen = fen
+        self.cache_enabled = cache_enabled
+        self.history_manager = history_manager
+        self.token = token
+
+    def run(self):
+        try:
+            import requests
+            import urllib.parse
+            import json
+            parts = self.fen.split()
+            norm_fen = " ".join(parts[:4])
+            
+            if self.cache_enabled:
+                cached = self.history_manager.get_explorer_cache(norm_fen)
+                if cached:
+                    self.finished.emit(json.loads(cached))
+                    return
+
+            encoded_fen = urllib.parse.quote(self.fen)
+            url = f"https://explorer.lichess.ovh/lichess?fen={encoded_fen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500"
+            headers = {"User-Agent": "ChessAnalyzer/1.0"}
+            if self.token:
+                headers["Authorization"] = f"Bearer {self.token}"
+            resp = requests.get(url, headers=headers, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if self.cache_enabled:
+                    self.history_manager.save_explorer_cache(norm_fen, json.dumps(data))
+                self.finished.emit(data)
+            else:
+                self.error.emit(f"HTTP Error {resp.status_code}")
+        except Exception as e:
+            self.error.emit(str(e))
