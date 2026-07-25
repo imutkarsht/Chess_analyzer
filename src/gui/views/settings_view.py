@@ -2,7 +2,7 @@
 Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFrame, QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFrame
 from PyQt6.QtCore import pyqtSignal
 
 from src.gui.styles import Styles
@@ -56,9 +56,9 @@ class SettingsView(QWidget):
         header_layout.setContentsMargins(40, 12, 40, 12)
         
         # Title
-        header_lbl = QLabel("Settings")
-        header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-        header_layout.addWidget(header_lbl)
+        self.header_lbl = QLabel("Settings")
+        self.header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        header_layout.addWidget(self.header_lbl)
         
         header_layout.addStretch()
         
@@ -158,8 +158,6 @@ class SettingsView(QWidget):
         self.api_settings._update_active_label()
 
     def _create_save_button(self):
-        btn = QMessageBox.QPushButton(f"  Save Settings") if hasattr(QMessageBox, 'QPushButton') else None
-        # fallback to standard QPushButton
         from PyQt6.QtWidgets import QPushButton
         from PyQt6.QtCore import Qt
         btn = QPushButton(f"  Save Settings")
@@ -262,7 +260,8 @@ class SettingsView(QWidget):
         """Save every setting in the app at once."""
         path = self.engine_settings.path_input.text().strip()
         if not path:
-            QMessageBox.warning(self, "Error", "Please enter a valid engine path.")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, "Please enter a valid engine path.", "warning")
             return
 
         threads, threads_ok = self.engine_settings._validated_threads()
@@ -311,10 +310,12 @@ class SettingsView(QWidget):
             new_profile = self.api_settings._current_profile_dict()
             new_name = new_profile["name"]
             if not new_name:
-                QMessageBox.warning(self, "Validation", "Profile name cannot be empty.")
+                from src.gui.main_window import MainWindow
+                MainWindow.toast_from_widget(self, "Profile name cannot be empty.", "warning")
                 return
             if new_name != old_name and any(p["name"] == new_name for p in profiles):
-                QMessageBox.warning(self, "Validation", f"A profile named \"{new_name}\" already exists.")
+                from src.gui.main_window import MainWindow
+                MainWindow.toast_from_widget(self, f'A profile named "{new_name}" already exists.', "warning")
                 return
             profiles[idx] = new_profile
             # Set selected profile as active
@@ -369,7 +370,7 @@ class SettingsView(QWidget):
 
         from src.gui.main_window import MainWindow
         if clamped:
-            QMessageBox.warning(self, "Limit Capped", f"Settings saved successfully.\n\nNote: {warning_msg}")
+            MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
         else:
             MainWindow.toast_from_widget(self, "All settings saved successfully.", "success")
 
@@ -407,12 +408,15 @@ class SettingsView(QWidget):
 
         from src.gui.main_window import MainWindow
         if clamped:
-            QMessageBox.warning(self, "Limit Capped", warning_msg)
+            MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
         else:
             MainWindow.toast_from_widget(self, "Settings saved successfully.", "success")
 
     def refresh_styles(self):
         """Re-applies styles to all widgets."""
+        # Refresh root widget background
+        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+
         if hasattr(self, 'header_bar') and self.header_bar:
             self.header_bar.setStyleSheet(f"""
                 QFrame {{
@@ -420,6 +424,10 @@ class SettingsView(QWidget):
                     border-bottom: 1px solid {Styles.COLOR_BORDER};
                 }}
             """)
+
+        # Refresh title label
+        if hasattr(self, 'header_lbl') and self.header_lbl:
+            self.header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
 
         # Update scroll area and content container backgrounds
         if hasattr(self, 'scroll_area') and self.scroll_area:

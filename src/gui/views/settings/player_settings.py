@@ -4,6 +4,7 @@ Player Usernames Settings group component.
 from PyQt6.QtWidgets import QGroupBox, QFormLayout, QLineEdit, QLabel
 from PyQt6.QtGui import QIntValidator
 from ...styles import Styles
+from .modern_widgets import ModernSliderCounter
 
 class PlayerSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
@@ -35,11 +36,8 @@ class PlayerSettings(QGroupBox):
         self._lbl_lichess_user = QLabel("Lichess.org:")
         self._lbl_lichess_user.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
 
-        self.games_limit_input = QLineEdit()
-        self.games_limit_input.setValidator(QIntValidator(1, 30, self.games_limit_input))
-        self.games_limit_input.setText(str(self.config_manager.get("api_games_limit", 20)))
-        self.games_limit_input.setPlaceholderText("Number of games to fetch (1-30)")
-        self.games_limit_input.setStyleSheet(Styles.get_input_style())
+        self.games_limit_input = ModernSliderCounter(1, 30, step=1, value=self.config_manager.get("api_games_limit", 20), parent=self)
+        self.games_limit_input.setMaximumWidth(220)
         
         self._lbl_games_limit = QLabel("Games Fetch Limit:")
         self._lbl_games_limit.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
@@ -59,7 +57,7 @@ class PlayerSettings(QGroupBox):
 
     def refresh_styles(self, input_style, full_input_style):
         self.setStyleSheet(Styles.get_group_box_style())
-        self.games_limit_input.setStyleSheet(input_style)
+        self.games_limit_input.refresh_styles()
         self.chesscom_input.setStyleSheet(full_input_style)
         self.lichess_input.setStyleSheet(full_input_style)
         # Refresh form row labels

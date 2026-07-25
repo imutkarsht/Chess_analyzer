@@ -1,7 +1,7 @@
 """
 API Configuration Settings group component.
 """
-from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QFrame, QFormLayout, QLineEdit, QMessageBox
+from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QFrame, QFormLayout, QLineEdit
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from src.gui.styles import Styles
 from .helpers import create_icon_button
@@ -11,9 +11,16 @@ try:
 except ImportError:
     pass
 
+try:
+    import qtawesome as qta
+    HAS_QTAWESOME = True
+except ImportError:
+    HAS_QTAWESOME = False
+
 from src.backend.services.groq_service import GroqService
 from src.constants import PROVIDERS
 from src.gui.utils.gui_utils import show_error_dialog
+from .modern_widgets import PasswordFieldWrapper
 
 def test_llm_sync(profile: dict) -> tuple:
     """Run a one-shot chat completion against the given profile.
@@ -140,14 +147,22 @@ class ApiSettings(QGroupBox):
         self.llm_profile_combo.currentIndexChanged.connect(self._on_profile_selected)
         prof_row.addWidget(self.llm_profile_combo, stretch=1)
 
-        self.llm_add_btn = QPushButton("+")
+        self.llm_add_btn = QPushButton()
+        if HAS_QTAWESOME:
+            self.llm_add_btn.setIcon(qta.icon("fa5s.plus", color=Styles.COLOR_TEXT_PRIMARY))
+        else:
+            self.llm_add_btn.setText("+")
         self.llm_add_btn.setStyleSheet(_icon_btn_style)
         self.llm_add_btn.setToolTip("New profile")
         self.llm_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_add_btn.clicked.connect(self._new_llm_profile)
         prof_row.addWidget(self.llm_add_btn)
 
-        self.llm_del_btn = QPushButton("−")
+        self.llm_del_btn = QPushButton()
+        if HAS_QTAWESOME:
+            self.llm_del_btn.setIcon(qta.icon("fa5s.minus", color=Styles.COLOR_BLUNDER))
+        else:
+            self.llm_del_btn.setText("−")
         self.llm_del_btn.setStyleSheet(_icon_btn_style.replace(
             Styles.COLOR_TEXT_PRIMARY, Styles.COLOR_BLUNDER))
         self.llm_del_btn.setToolTip("Delete profile")
@@ -182,8 +197,7 @@ class ApiSettings(QGroupBox):
         pf.addRow(self._lbl_prov, self.llm_provider_combo)
 
         self.lbl_llm_key = QLabel("API Key:"); self.lbl_llm_key.setStyleSheet(lbl_style)
-        self.llm_key_input = QLineEdit()
-        self.llm_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.llm_key_input = PasswordFieldWrapper(self)
         self.llm_key_input.setStyleSheet(Styles.get_input_style())
         pf.addRow(self.lbl_llm_key, self.llm_key_input)
 
@@ -227,8 +241,7 @@ class ApiSettings(QGroupBox):
         lf = QFormLayout(); lf.setSpacing(10); lf.setContentsMargins(0, 0, 0, 0)
         lf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self._lbl_lichess = QLabel("Lichess API Token:"); self._lbl_lichess.setStyleSheet(lbl_style)
-        self.lichess_token_input = QLineEdit()
-        self.lichess_token_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.lichess_token_input = PasswordFieldWrapper(self)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         self.lichess_token_input.setStyleSheet(Styles.get_input_style())
         lf.addRow(self._lbl_lichess, self.lichess_token_input)
@@ -334,7 +347,8 @@ class ApiSettings(QGroupBox):
         name = name.strip()
         profiles = self.config_manager.get_profiles()
         if any(p["name"] == name for p in profiles):
-            QMessageBox.warning(self, "Exists", f"A profile named \"{name}\" already exists.")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, f'A profile named "{name}" already exists.', "warning")
             return
         profiles.append({
             "name": name, "provider": "groq", "api_key": "",
@@ -347,16 +361,17 @@ class ApiSettings(QGroupBox):
     def _delete_llm_profile(self) -> None:
         profiles = self.config_manager.get_profiles()
         if len(profiles) <= 1:
-            QMessageBox.warning(self, "Cannot Delete", "You must keep at least one profile.")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, "You must keep at least one profile.", "warning")
             return
         idx = self.llm_profile_combo.currentIndex()
         if not (0 <= idx < len(profiles)):
             return
         name = profiles[idx].get("name", "")
-        reply = QMessageBox.question(self, "Delete Profile",
-                                     f"Delete profile \"{name}\"?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if reply != QMessageBox.StandardButton.Yes:
+        from src.gui.utils.gui_utils import confirm_dialog
+        if not confirm_dialog(self, "Delete Profile",
+                              f'Delete profile "{name}"?',
+                              confirm_label="Delete"):
             return
         profiles.pop(idx)
         active = self.config_manager.get("llm_active_profile", "")
@@ -444,9 +459,15 @@ class ApiSettings(QGroupBox):
         self.llm_provider_combo.setStyleSheet(combo_style)
         self.llm_add_btn.setStyleSheet(llm_add_style)
         self.llm_del_btn.setStyleSheet(llm_del_style)
+        if HAS_QTAWESOME:
+            self.llm_add_btn.setIcon(qta.icon("fa5s.plus", color=Styles.COLOR_TEXT_PRIMARY))
+            self.llm_del_btn.setIcon(qta.icon("fa5s.minus", color=Styles.COLOR_BLUNDER))
         self.llm_test_btn.setStyleSheet(default_style)
-        for widget in [self.llm_profile_name, self.llm_key_input, self.llm_model_input, self.llm_url_input, self.lichess_token_input]:
+        for widget in [self.llm_profile_name, self.llm_model_input, self.llm_url_input]:
             widget.setStyleSheet(input_style)
+        for widget in [self.llm_key_input, self.lichess_token_input]:
+            widget.setStyleSheet(input_style)
+            widget.refresh_styles()
         # Refresh form row labels
         lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
         for lbl in [self._lbl_prof, self._lbl_pname, self._lbl_prov, self.lbl_llm_key,

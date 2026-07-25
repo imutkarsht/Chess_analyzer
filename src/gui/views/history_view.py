@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QMessageBox, QStyle, QComboBox, QLineEdit, QPushButton, QFrame
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QStyle, QComboBox, QLineEdit, QPushButton, QFrame
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QIcon
 from src.gui.components.game_list_widget import GameListWidget
@@ -41,9 +41,9 @@ class HistoryView(QWidget):
         header_layout.setContentsMargins(40, 12, 40, 12)
         
         # Title
-        header_lbl = QLabel("Game History")
-        header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-        header_layout.addWidget(header_lbl)
+        self.header_lbl = QLabel("Game History")
+        self.header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        header_layout.addWidget(self.header_lbl)
         
         header_layout.addStretch()
         
@@ -87,14 +87,14 @@ class HistoryView(QWidget):
         filter_layout.addSpacing(20)
         
         # Filter By Label
-        filter_label = QLabel("Filter by:")
-        filter_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
-        filter_layout.addWidget(filter_label)
+        self.filter_label = QLabel("Filter by:")
+        self.filter_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
+        filter_layout.addWidget(self.filter_label)
         
         # Result Filter
-        result_label = QLabel("Result:")
-        result_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
-        filter_layout.addWidget(result_label)
+        self.result_label = QLabel("Result:")
+        self.result_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
+        filter_layout.addWidget(self.result_label)
         
         self.result_filter = create_combobox(
             items=["All", "Wins", "Losses", "Draws"],
@@ -104,9 +104,9 @@ class HistoryView(QWidget):
         filter_layout.addWidget(self.result_filter)
         
         # Source Filter
-        source_label = QLabel("Source:")
-        source_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
-        filter_layout.addWidget(source_label)
+        self.source_label = QLabel("Source:")
+        self.source_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
+        filter_layout.addWidget(self.source_label)
         
         self.source_filter = create_combobox(
             items=["All", "Chess.com", "Lichess", "File"],
@@ -118,9 +118,9 @@ class HistoryView(QWidget):
         filter_layout.addStretch()
         
         # Sort Dropdown
-        sort_label = QLabel("Sort by:")
-        sort_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
-        filter_layout.addWidget(sort_label)
+        self.sort_label = QLabel("Sort by:")
+        self.sort_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
+        filter_layout.addWidget(self.sort_label)
         
         self.sort_dropdown = create_combobox(
             items=["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
@@ -368,13 +368,11 @@ class HistoryView(QWidget):
         self.game_selected.emit(game)
 
     def clear_history(self):
-        reply = QMessageBox.question(
-            self, 
-            "Clear History", 
-            "Are you sure you want to clear all game history? This cannot be undone.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        from src.gui.utils.gui_utils import confirm_dialog
+        if confirm_dialog(self,
+                          "Clear History",
+                          "Are you sure you want to clear all game history? This cannot be undone.",
+                          confirm_label="Clear All"):
             self.history_manager.clear_history()
             self.load_history()
 
@@ -411,7 +409,8 @@ class HistoryView(QWidget):
             
         except Exception as e:
             logging.error(f"Export failed: {e}")
-            QMessageBox.critical(self, "Export Error", f"Failed to export games: {e}")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, f"Export failed: {e}", "error")
 
     def import_games(self):
         try:
@@ -480,10 +479,14 @@ class HistoryView(QWidget):
             
         except Exception as e:
             logging.error(f"Import failed: {e}")
-            QMessageBox.critical(self, "Import Error", f"Failed to import games: {e}")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, f"Import failed: {e}", "error")
 
     def refresh_styles(self):
         """Re-apply styles with the updated accent color."""
+        # Refresh root widget background
+        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+
         # Refresh header bar style
         if hasattr(self, 'header_bar') and self.header_bar:
             self.header_bar.setStyleSheet(f"""
@@ -492,6 +495,10 @@ class HistoryView(QWidget):
                     border-bottom: 1px solid {Styles.COLOR_BORDER};
                 }}
             """)
+
+        # Refresh title label
+        if hasattr(self, 'header_lbl') and self.header_lbl:
+            self.header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
             
         # Refresh refresh button
         if hasattr(self, 'btn_refresh'):
@@ -575,4 +582,12 @@ class HistoryView(QWidget):
             self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         if hasattr(self, 'game_list'):
             self.game_list.refresh_styles()
+            
+        if hasattr(self, 'filter_label') and self.filter_label:
+            self.filter_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
+        for lbl_name in ('result_label', 'source_label', 'sort_label'):
+            if hasattr(self, lbl_name):
+                lbl = getattr(self, lbl_name)
+                if lbl:
+                    lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
 

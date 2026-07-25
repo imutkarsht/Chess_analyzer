@@ -1,7 +1,7 @@
 """
 Links and Updates Settings group component.
 """
-from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QApplication, QMessageBox
+from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QApplication
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
 from ...styles import Styles
@@ -57,7 +57,8 @@ class LinksSettings(QGroupBox):
                 from src.gui.main_window import MainWindow
                 MainWindow.toast_from_widget(self, f"You're up to date (v{APP_VERSION}).", "success")
         except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to check for updates: {e}")
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, f"Failed to check for updates: {e}", "error")
         finally:
             self.update_btn.setEnabled(True)
             self.update_btn.setText("  Check for Updates")

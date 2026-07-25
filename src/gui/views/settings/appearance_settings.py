@@ -50,7 +50,7 @@ class AppearanceSettings(QGroupBox):
         )
 
     def _label_style(self):
-        return f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; background: transparent;"
+        return "background: transparent; font-size: 14px; border: none;"
 
     def _combo_style(self):
         return f"""
@@ -260,7 +260,7 @@ class AppearanceSettings(QGroupBox):
         self.config_manager.config["sound_enabled"] = self.sound_checkbox.isChecked()
 
     def import_theme(self):
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from PyQt6.QtWidgets import QFileDialog
         from src.gui.main_window import MainWindow
         from ...board.piece_themes import (
             get_piece_theme_names,
@@ -275,11 +275,13 @@ class AppearanceSettings(QGroupBox):
             return
         is_valid, errors = validate_theme_folder(folder)
         if not is_valid:
-            QMessageBox.warning(self, "Invalid Theme", "The selected folder is not a valid piece theme:\n\n" + "\n".join(errors))
+            MainWindow.toast_from_widget(self,
+                "Invalid theme: " + "; ".join(errors),
+                "error")
             return
         theme_name = import_theme_from_folder(folder)
         if theme_name is None:
-            QMessageBox.critical(self, "Import Failed", "Failed to import the theme. Check the logs for details.")
+            MainWindow.toast_from_widget(self, "Theme import failed. Check the logs.", "error")
             return
         self.piece_combo.blockSignals(True)
         self.piece_combo.clear()
