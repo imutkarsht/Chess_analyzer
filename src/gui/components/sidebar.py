@@ -85,20 +85,24 @@ class Sidebar(QFrame):
 
     sidebar_width = pyqtProperty(float, _get_sidebar_width, _set_sidebar_width)
 
-    def _make_nav_button(self, text: str, icon_name: str, index: int) -> QPushButton:
-        btn = QPushButton(text)
-        btn.setFixedHeight(48)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setCheckable(index >= 0)
-
+    def _apply_icon(self, btn, icon_name):
         if HAS_QTAWESOME and icon_name in QTAWESOME_ICONS:
-            btn.setIcon(qta.icon(QTAWESOME_ICONS[icon_name], color=Styles.COLOR_TEXT_SECONDARY))
+            color_str = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
+            btn.setIcon(qta.icon(QTAWESOME_ICONS[icon_name], color=color_str))
             btn.setIconSize(QSize(22, 22))
         else:
             icon_path = get_resource_path(os.path.join("assets", "icons", icon_name))
             if os.path.exists(icon_path):
                 btn.setIcon(QIcon(icon_path))
                 btn.setIconSize(QSize(22, 22))
+
+    def _make_nav_button(self, text: str, icon_name: str, index: int) -> QPushButton:
+        btn = QPushButton(text)
+        btn.setFixedHeight(48)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setCheckable(index >= 0)
+
+        self._apply_icon(btn, icon_name)
 
         if index >= 0:
             btn.clicked.connect(lambda checked, idx=index: self.handle_click(idx))
@@ -135,6 +139,19 @@ class Sidebar(QFrame):
             }}
         """)
 
+        nav_specs = [
+            ("Analyze", "analyze.png", 0),
+            ("Explorer", "explorer.png", 1),
+            ("History", "history.png", 2),
+            ("Stats", "stats.png", 3),
+            ("Settings", "settings.png", 4),
+        ]
+        for btn, (text, icon_name, idx) in zip(self._nav_buttons, nav_specs):
+            self._apply_icon(btn, icon_name)
+        self._apply_icon(self.btn_help, "help.png")
+        self._apply_icon(self.btn_exit, "exit.png")
+        self._update_collapse_icon()
+
     def _update_labels_and_icons(self):
         nav_texts = ["Analyze", "Explorer", "History", "Stats", "Settings"]
         for btn, txt in zip(self._nav_buttons, nav_texts):
@@ -163,8 +180,16 @@ class Sidebar(QFrame):
             self.page_changed.emit(index)
 
     def set_active(self, index):
+        nav_specs = [
+            ("Analyze", "analyze.png", 0),
+            ("Explorer", "explorer.png", 1),
+            ("History", "history.png", 2),
+            ("Stats", "stats.png", 3),
+            ("Settings", "settings.png", 4),
+        ]
         for i, btn in enumerate(self._nav_buttons):
             btn.setChecked(i == index)
+            self._apply_icon(btn, nav_specs[i][1])
 
     def toggle_collapse(self):
         if self._animating:

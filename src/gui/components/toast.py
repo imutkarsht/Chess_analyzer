@@ -78,7 +78,12 @@ class Toast(QWidget):
         self._fade_out.setStartValue(1.0)
         self._fade_out.setEndValue(0.0)
         self._fade_out.setEasingCurve(QEasingCurve.Type.OutQuad)
-        self._fade_out.finished.connect(self.deleteLater)
+        
+        def on_dismiss_finished():
+            self.setGraphicsEffect(None)
+            QTimer.singleShot(0, self.deleteLater)
+            
+        self._fade_out.finished.connect(on_dismiss_finished)
         self._fade_out.start()
 
     def eventFilter(self, obj, event):
