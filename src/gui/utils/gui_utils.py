@@ -101,6 +101,7 @@ def create_button(
         "secondary": Styles.get_control_button_style,
         "export": Styles.get_export_button_style,
         "import": Styles.get_import_button_style,
+        "danger": Styles.get_danger_button_style,
     }
     
     style_func = style_map.get(style, Styles.get_button_style)
@@ -225,7 +226,64 @@ def create_section_header(
     return header
 
 
+def confirm_dialog(parent, title: str, message: str,
+                   confirm_label: str = "Confirm",
+                   cancel_label: str = "Cancel") -> bool:
+    """
+    Show a lightweight, styled Yes/No confirmation dialog.
+    Returns True if the user confirmed, False otherwise.
+    Never uses the native QMessageBox so it respects the app theme.
+    """
+    from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel
+    from PyQt6.QtCore import Qt
+    from src.gui.styles import Styles
+
+    dlg = QDialog(parent)
+    dlg.setWindowTitle(title)
+    dlg.setModal(True)
+    dlg.setMinimumWidth(360)
+    dlg.setStyleSheet(f"""
+        QDialog {{
+            background-color: {Styles.COLOR_SURFACE};
+            border: 1px solid {Styles.COLOR_BORDER};
+            border-radius: 12px;
+        }}
+        QLabel {{
+            color: {Styles.COLOR_TEXT_PRIMARY};
+            font-size: 14px;
+        }}
+    """)
+
+    root = QVBoxLayout(dlg)
+    root.setContentsMargins(24, 20, 24, 20)
+    root.setSpacing(16)
+
+    title_lbl = QLabel(f"<b>{title}</b>")
+    title_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px;")
+    root.addWidget(title_lbl)
+
+    msg_lbl = QLabel(message)
+    msg_lbl.setWordWrap(True)
+    msg_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
+    root.addWidget(msg_lbl)
+
+    btn_row = QHBoxLayout()
+    btn_row.addStretch()
+
+    cancel_btn = create_button(cancel_label, style="secondary",
+                               on_click=dlg.reject)
+    confirm_btn = create_button(confirm_label, style="danger",
+                                on_click=dlg.accept)
+
+    btn_row.addWidget(cancel_btn)
+    btn_row.addWidget(confirm_btn)
+    root.addLayout(btn_row)
+
+    return dlg.exec() == QDialog.DialogCode.Accepted
+
+
 def show_error_dialog(parent, title: str, message: str, details: str = "") -> None:
+
     """
     Show a modal error dialog with selectable/copyable text.
 

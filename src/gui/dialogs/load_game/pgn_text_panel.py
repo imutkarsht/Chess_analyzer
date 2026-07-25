@@ -1,7 +1,8 @@
 """
 PGN Text panel for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit
+from src.gui.components.toast import Toast
 from PyQt6.QtCore import pyqtSignal, Qt
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
@@ -69,27 +70,20 @@ class PgnTextPanel(QWidget):
     def _parse(self):
         text = self._text_edit.toPlainText().strip()
         if not text:
-            QMessageBox.warning(self, "Empty", "Please paste some PGN text first.")
+            Toast.show_message(self.window(), "Please paste some PGN text first.", "warning")
             return
 
         from src.backend.storage.pgn_parser import PGNParser
         try:
             games = PGNParser.parse_pgn_text(text)
         except Exception as e:
-            msg = QMessageBox(self)
-            msg.setIcon(QMessageBox.Icon.Warning)
-            msg.setWindowTitle("Could Not Read PGN")
-            msg.setText("Could not read this PGN.\nIt may be empty or corrupted.")
-            try_again = msg.addButton("Try Again", QMessageBox.ButtonRole.ActionRole)
-            msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-            msg.exec()
-            if msg.clickedButton() == try_again:
-                self._text_edit.clear()
-                self._text_edit.setFocus()
+            Toast.show_message(self.window(),
+                               "Could not parse this PGN. It may be empty or corrupted.",
+                               "error")
             return
 
         if not games:
-            QMessageBox.warning(self, "No Games", "No valid games found in this text.")
+            Toast.show_message(self.window(), "No valid games found in this text.", "warning")
             return
 
         self._parsed_games = games

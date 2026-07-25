@@ -3,7 +3,7 @@ Unified Load Game Dialog
 Replaces the fragmented dropdown menu + multiple OS dialogs with a single,
 fully-styled modal that handles all load sources inline.
 """
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QWidget
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QWidget, QPushButton, QButtonGroup
 from PyQt6.QtCore import Qt, pyqtSignal
 
 from src.gui.styles import Styles
@@ -12,20 +12,12 @@ from src.gui.utils.gui_utils import create_button
 from src.constants import SRC_PGN_FILE, SRC_PGN_TEXT, SRC_CHESSCOM, SRC_LICHESS
 
 from .load_game import (
-    SourceBtn,
     PgnFilePanel,
     PgnTextPanel,
-    ChessComPanel,
-    LichessPanel,
+    OnlineFetchPanel,
     icon_path,
 )
-
-_SOURCES = [
-    (SRC_PGN_FILE,  "📂",  "PGN File",   None),
-    (SRC_PGN_TEXT,  "📋",  "PGN Text",   None),
-    (SRC_CHESSCOM,  None,  "Chess.com",  icon_path("chesscom.png")),
-    (SRC_LICHESS,   None,  "Lichess",    icon_path("lichess.png")),
-]
+from .load_game.online_fetch_panel import SegmentedSelector
 
 
 class LoadGameDialog(QDialog):
@@ -41,21 +33,18 @@ class LoadGameDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Load Game")
         self.setModal(True)
-        self.resize(760, 560)
-        self.setMinimumSize(680, 480)
+        self.resize(680, 580)
+        self.setMinimumSize(600, 480)
 
         self._already_accepted = False
         self._navigate_to_settings = False
-        self._source_btns: list[SourceBtn] = []
         self._setup_ui()
         self._switch_source(initial_source)
 
     # ── UI construction ─────────────────────────────────────────────────────
     def _setup_ui(self):
         from PyQt6.QtCore import Qt as _Qt
-        from src.gui.styles import Styles
         # Force Qt to honour the background-color on the dialog window itself
-        # (macOS ignores it without this attribute)
         self.setAttribute(_Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             QDialog {{
@@ -80,62 +69,112 @@ class LoadGameDialog(QDialog):
 
         chess_icon = QLabel("♜")
         chess_icon.setStyleSheet(
-            f"font-size: 20px; color: {Styles.COLOR_ACCENT}; background: transparent;"
+            f"font-size: 20px; color: {Styles.COLOR_ACCENT}; background: transparent; border: none;"
         )
         tb_layout.addWidget(chess_icon)
 
         title_lbl = QLabel("Load Game")
         title_lbl.setStyleSheet(
             f"font-size: 17px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent;"
+            " background: transparent; border: none;"
         )
         tb_layout.addWidget(title_lbl)
         tb_layout.addStretch()
 
         root.addWidget(title_bar)
 
-        # ── Body (left source list + right stacked panel) ───────────────────
-        body = QWidget()
-        body.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        body_layout = QHBoxLayout(body)
-        body_layout.setContentsMargins(0, 0, 0, 0)
-        body_layout.setSpacing(0)
+        # ── Navigation bar ──────────────────────────────────────────────────
+        nav_bar = QWidget()
+        nav_bar.setStyleSheet(f"""
+            QWidget {{
+                background-color: {Styles.COLOR_SURFACE};
+                border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+        """)
+        nav_layout = QHBoxLayout(nav_bar)
+        nav_layout.setContentsMargins(20, 0, 20, 0)
+        nav_layout.setSpacing(12)
 
-        # Left source selector
-        left_panel = QWidget()
-        left_panel.setFixedWidth(190)
-        left_panel.setStyleSheet(
-            f"background-color: {Styles.COLOR_SURFACE};"
-            f"border-right: 1px solid {Styles.COLOR_BORDER};"
-        )
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(10, 18, 10, 18)
-        left_layout.setSpacing(4)
+        # Online tab button
+        self.btn_online = QPushButton("  Online Fetch")
+        self.btn_online.setCheckable(True)
+        self.btn_online.setChecked(True)
+        self.btn_online.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_online.setFixedHeight(48)
+        
+        # Pgn tab button
+        self.btn_pgn = QPushButton("  PGN Text / File")
+        self.btn_pgn.setCheckable(True)
+        self.btn_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_pgn.setFixedHeight(48)
 
-        src_header = QLabel("SOURCE")
-        src_header.setStyleSheet(
-            f"font-size: 10px; font-weight: 700; letter-spacing: 1.2px;"
-            f"color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
-            " padding-left: 6px; margin-bottom: 6px;"
-        )
-        left_layout.addWidget(src_header)
+        self.tab_group = QButtonGroup(self)
+        self.tab_group.setExclusive(True)
+        self.tab_group.addButton(self.btn_online)
+        self.tab_group.addButton(self.btn_pgn)
 
-        for src_id, emoji, label, icon_path_val in _SOURCES:
-            btn = SourceBtn(emoji, label, icon_path=icon_path_val)
-            btn.clicked.connect(lambda checked, sid=src_id: self._switch_source(sid))
-            self._source_btns.append(btn)
-            left_layout.addWidget(btn)
+        # Style tab buttons to be borderless with an underline indicator when checked
+        tab_style = f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-bottom: 3px solid transparent;
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 14px;
+                font-weight: 600;
+                padding: 0px 16px;
+            }}
+            QPushButton:hover {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                background-color: rgba(255, 255, 255, 0.03);
+            }}
+            QPushButton:checked {{
+                color: {Styles.COLOR_ACCENT};
+                border-bottom: 3px solid {Styles.COLOR_ACCENT};
+            }}
+        """
+        self.btn_online.setStyleSheet(tab_style)
+        self.btn_pgn.setStyleSheet(tab_style)
 
-        left_layout.addStretch()
-        body_layout.addWidget(left_panel)
+        self.btn_online.clicked.connect(lambda: self._on_tab_changed("online"))
+        self.btn_pgn.clicked.connect(lambda: self._on_tab_changed("pgn"))
 
-        # Right stacked panel
-        self.stack = QStackedWidget()
-        self.stack.setStyleSheet("background-color: transparent;")
-        self._build_panels()
-        body_layout.addWidget(self.stack, stretch=1)
+        nav_layout.addWidget(self.btn_online)
+        nav_layout.addWidget(self.btn_pgn)
+        nav_layout.addStretch()
 
-        root.addWidget(body, stretch=1)
+        root.addWidget(nav_bar)
+
+        # ── Pages Stack ─────────────────────────────────────────────────────
+        self.pages = QStackedWidget()
+        self.pages.setStyleSheet("background-color: transparent;")
+
+        # Page 1: Online Fetch
+        self._online_fetch_panel = OnlineFetchPanel(self)
+        self._online_fetch_panel.pgn_ready.connect(self._set_pending)
+        self._online_fetch_panel.pending_cleared.connect(lambda: self._set_pending(None, None))
+        self._online_fetch_panel.navigate_to_settings.connect(self._on_navigate_to_settings)
+        self.pages.addWidget(self._online_fetch_panel)
+
+        # Page 2: PGN Text / File (split side-by-side)
+        tab2_widget = QWidget()
+        tab2_layout = QHBoxLayout(tab2_widget)
+        tab2_layout.setContentsMargins(16, 16, 16, 16)
+        tab2_layout.setSpacing(16)
+
+        self._pgn_file_panel = PgnFilePanel(self)
+        self._pgn_file_panel.pgn_ready.connect(self._set_pending)
+        self._pgn_file_panel.pending_cleared.connect(lambda: self._set_pending(None, None))
+        tab2_layout.addWidget(self._pgn_file_panel, stretch=1)
+
+        self._pgn_text_panel = PgnTextPanel(self)
+        self._pgn_text_panel.pgn_ready.connect(self._set_pending)
+        self._pgn_text_panel.pending_cleared.connect(lambda: self._set_pending(None, None))
+        tab2_layout.addWidget(self._pgn_text_panel, stretch=1)
+
+        self.pages.addWidget(tab2_widget)
+
+        root.addWidget(self.pages, stretch=1)
 
         # ── Footer ──────────────────────────────────────────────────────────
         footer = QWidget()
@@ -162,69 +201,50 @@ class LoadGameDialog(QDialog):
         root.addWidget(footer)
 
         # Internal state
-        self._pending_pgn: str | None = None
-        self._pending_source_data: dict | None = None
+        self._pending_pgn = None
+        self._pending_source_data = None
+        self._refresh_nav_icons()
 
-    # ── Panel construction ──────────────────────────────────────────────────
-    def _build_panels(self):
-        # PGN File
-        self._pgn_file_panel = PgnFilePanel()
-        self._pgn_file_panel.pgn_ready.connect(
-            lambda pgn, sd: self._set_pending(pgn, sd)
-        )
-        self._pgn_file_panel.pending_cleared.connect(
-            lambda: self._set_pending(None, None)
-        )
-        self.stack.addWidget(self._pgn_file_panel)   # index 0
+    # ── Tab switching ───────────────────────────────────────────────────────
+    def _refresh_nav_icons(self):
+        import qtawesome as qta
+        from PyQt6.QtGui import QIcon
+        from src.utils.path_utils import get_resource_path
+        
+        pgn_icon = QIcon(get_resource_path("assets/icons/file.png"))
+        self.btn_pgn.setIcon(pgn_icon)
+        
+        if self.btn_online.isChecked():
+            self.btn_online.setIcon(qta.icon("fa5s.globe", color=Styles.COLOR_ACCENT))
+        else:
+            self.btn_online.setIcon(qta.icon("fa5s.globe", color=Styles.COLOR_TEXT_SECONDARY))
 
-        # PGN Text
-        self._pgn_text_panel = PgnTextPanel()
-        self._pgn_text_panel.pgn_ready.connect(
-            lambda pgn, sd: self._set_pending(pgn, sd)
-        )
-        self._pgn_text_panel.pending_cleared.connect(
-            lambda: self._set_pending(None, None)
-        )
-        self.stack.addWidget(self._pgn_text_panel)   # index 1
-
-        # Chess.com
-        self._chesscom_panel = ChessComPanel()
-        self._chesscom_panel.pgn_ready.connect(
-            lambda pgn, sd: self._set_pending(pgn, sd)
-        )
-        self._chesscom_panel.pending_cleared.connect(
-            lambda: self._set_pending(None, None)
-        )
-        self._chesscom_panel.navigate_to_settings.connect(self._on_navigate_to_settings)
-        self.stack.addWidget(self._chesscom_panel)   # index 2
-
-        # Lichess
-        self._lichess_panel = LichessPanel()
-        self._lichess_panel.pgn_ready.connect(
-            lambda pgn, sd: self._set_pending(pgn, sd)
-        )
-        self._lichess_panel.pending_cleared.connect(
-            lambda: self._set_pending(None, None)
-        )
-        self._lichess_panel.navigate_to_settings.connect(self._on_navigate_to_settings)
-        self.stack.addWidget(self._lichess_panel)    # index 3
+    def _on_tab_changed(self, tab_key: str):
+        self._set_pending(None, None)
+        if tab_key == "online":
+            self.btn_online.setChecked(True)
+            self.pages.setCurrentIndex(0)
+            self._online_fetch_panel.reset()
+        else:
+            self.btn_pgn.setChecked(True)
+            self.pages.setCurrentIndex(1)
+            self._pgn_file_panel.reset()
+            self._pgn_text_panel.reset()
+        self._refresh_nav_icons()
 
     # ── Source switching ────────────────────────────────────────────────────
     def _switch_source(self, src_id: int):
-        for i, btn in enumerate(self._source_btns):
-            btn.setChecked(i == src_id)
-        self.stack.setCurrentIndex(src_id)
         self._set_pending(None, None)
-
-        # Reset panels when leaving them
-        if src_id != SRC_PGN_FILE:
+        if src_id in [SRC_CHESSCOM, SRC_LICHESS]:
+            self._on_tab_changed("online")
+            platform = "chesscom" if src_id == SRC_CHESSCOM else "lichess"
+            self._online_fetch_panel.platform_selector.setValue(platform)
+            self._online_fetch_panel._on_platform_changed(platform)
+            self._online_fetch_panel.reset()
+        else:
+            self._on_tab_changed("pgn")
             self._pgn_file_panel.reset()
-        if src_id != SRC_PGN_TEXT:
             self._pgn_text_panel.reset()
-        if src_id != SRC_CHESSCOM:
-            self._chesscom_panel.reset()
-        if src_id != SRC_LICHESS:
-            self._lichess_panel.reset()
 
     # ── Load button state ───────────────────────────────────────────────────
     def _set_pending(self, pgn: str | None, source_data: dict | None):
@@ -264,10 +284,10 @@ class LoadGameDialog(QDialog):
         super().reject()
 
     def _cleanup_workers(self):
-        for panel in [self._chesscom_panel, self._lichess_panel]:
-            if hasattr(panel, '_worker') and panel._worker is not None:
-                try:
-                    panel._worker.finished.disconnect()
-                    panel._worker.error.disconnect()
-                except (TypeError, RuntimeError):
-                    pass
+        if hasattr(self, '_online_fetch_panel') and self._online_fetch_panel._worker is not None:
+            try:
+                self._online_fetch_panel._worker.cancel()
+                self._online_fetch_panel._worker.finished.disconnect()
+                self._online_fetch_panel._worker.error.disconnect()
+            except (TypeError, RuntimeError):
+                pass

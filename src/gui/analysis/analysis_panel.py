@@ -32,12 +32,15 @@ class AnalysisPanel(QWidget):
         self.current_game = None
         self.summary_thread = None
         
+        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+
         # Tabs
         self.tabs = QTabWidget()
         self.layout.addWidget(self.tabs)
         
         # --- Tab 1: Evaluation ---
         self.eval_tab = QWidget()
+        self.eval_tab.setStyleSheet("background: transparent;")
         self.eval_layout = QVBoxLayout(self.eval_tab)
         self.eval_layout.setContentsMargins(5, 5, 5, 5)
         
@@ -268,6 +271,8 @@ class AnalysisPanel(QWidget):
         
     def refresh_styles(self):
         """Re-applies styles to widgets."""
+        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+
         if hasattr(self, 'btn_generate_summary'):
             self.btn_generate_summary.setStyleSheet(Styles.get_button_style())
             
@@ -327,6 +332,9 @@ class AnalysisPanel(QWidget):
     def _apply_tabs_style(self):
         """Applies the themed QTabWidget stylesheet."""
         self.tabs.setStyleSheet(f"""
+            QTabWidget {{
+                background-color: {Styles.COLOR_BACKGROUND};
+            }}
             QTabWidget::pane {{
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 4px;

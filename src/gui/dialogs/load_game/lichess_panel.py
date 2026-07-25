@@ -1,7 +1,8 @@
 """
 Lichess API Panel for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit
+from src.gui.components.toast import Toast
 from PyQt6.QtCore import pyqtSignal, Qt
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
@@ -169,22 +170,16 @@ class LichessPanel(QWidget):
 
     def _on_fetch_error(self, err_msg: str):
         self._reset_input_ui()
-        QMessageBox.critical(self, "API Error", f"Failed to fetch from Lichess:\n{err_msg}")
+        Toast.show_message(self.window(), f"Lichess fetch failed: {err_msg}", "error")
 
     def _on_fetch_finished(self, parsed_games):
         self._reset_input_ui()
 
         if not parsed_games:
             username = self._input_edit.text().strip()
-            msg = QMessageBox(self)
-            msg.setIcon(QMessageBox.Icon.Information)
-            msg.setWindowTitle("No Games Found")
-            msg.setText(f"No games found for {username}.\nMake sure the username is correct.")
-            change_btn = msg.addButton("Change Username", QMessageBox.ButtonRole.ActionRole)
-            msg.addButton("OK", QMessageBox.ButtonRole.RejectRole)
-            msg.exec()
-            if msg.clickedButton() == change_btn:
-                self.navigate_to_settings.emit()
+            Toast.show_message(self.window(),
+                               f"No games found for '{username}'. Check the username in Settings.",
+                               "warning")
             return
 
         self._parsed_games = parsed_games
@@ -208,7 +203,7 @@ class LichessPanel(QWidget):
 
         n = len(self._parsed_games)
         if n == 0:
-            QMessageBox.warning(self, "Parse Error", "Failed to parse fetched games.")
+            Toast.show_message(self.window(), "Failed to parse fetched games.", "error")
             return
 
         self._input_widget.setVisible(False)

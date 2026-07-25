@@ -62,10 +62,41 @@ class GameHistoryManager:
                     except Exception as e:
                         logger.error(f"Failed to add column {col_name}: {e}")
             
+            self._init_api_cache(cursor)
+            
             conn.commit()
             conn.close()
         except Exception as e:
             logger.error(f"Failed to initialize game history DB: {e}")
+
+    def _init_api_cache(self, cursor):
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS api_game_cache (
+                    id TEXT PRIMARY KEY,
+                    source TEXT NOT NULL,
+                    white TEXT NOT NULL,
+                    black TEXT NOT NULL,
+                    result TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    pgn TEXT NOT NULL,
+                    white_elo TEXT,
+                    black_elo TEXT,
+                    time_class TEXT,
+                    move_count INTEGER,
+                    opening TEXT,
+                    cached_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS explorer_cache (
+                    fen TEXT PRIMARY KEY,
+                    response_json TEXT NOT NULL,
+                    cached_at TEXT NOT NULL
+                )
+            """)
+        except Exception as e:
+            logger.error(f"Failed to initialize API/Explorer cache tables: {e}")
 
     def save_game(self, game_analysis: GameAnalysis, pgn_content: str):
         """Saves a completed game analysis to the history."""
@@ -222,3 +253,186 @@ class GameHistoryManager:
             logger.info("Game history cleared.")
         except Exception as e:
             logger.error(f"Failed to clear history: {e}")
+
+    def save_cached_game(self, info):
+        """Saves a single GameInfo to the api_game_cache table."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cached_at = info.cached_at or time.strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute("""
+                INSERT OR REPLACE INTO api_game_cache (
+                    id, source, white, black, result, date, pgn,
+                    white_elo, black_elo, time_class, move_count, opening, cached_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                info.game_id,
+                info.source,
+                info.white,
+                info.black,
+                info.result,
+                info.date,
+                info.pgn,
+                info.white_elo,
+                info.black_elo,
+                info.time_class,
+                info.move_count,
+                info.opening,
+                cached_at
+            ))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Failed to save cached game {info.game_id}: {e}")
+
+    def save_cached_games_bulk(self, games):
+        """Saves multiple GameInfo objects inside a single database transaction."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cached_at = time.strftime("%Y-%m-%d %H:%M:%S")
+            for info in games:
+                c_at = info.cached_at or cached_at
+                cursor.execute("""
+                    INSERT OR REPLACE INTO api_game_cache (
+                        id, source, white, black, result, date, pgn,
+                        white_elo, black_elo, time_class, move_count, opening, cached_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    info.game_id,
+                    info.source,
+                    info.white,
+                    info.black,
+                    info.result,
+                    info.date,
+                    info.pgn,
+                    info.white_elo,
+                    info.black_elo,
+                    info.time_class,
+                    info.move_count,
+                    info.opening,
+                    c_at
+                ))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Failed to save cached games bulk: {e}")
+
+    def get_cached_game(self, game_id: str):
+        """Retrieves a single GameInfo object from cache by its ID."""
+        try:
+            from src.backend.models.game_info import GameInfo
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM api_game_cache WHERE id = ?", (game_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                d = dict(row)
+                return GameInfo(
+                    game_id=d["id"],
+                    source=d["source"],
+                    white=d["white"],
+                    black=d["black"],
+                    result=d["result"],
+                    date=d["date"],
+                    pgn=d["pgn"],
+                    white_elo=d["white_elo"],
+                    black_elo=d["black_elo"],
+                    time_class=d["time_class"],
+                    move_count=d["move_count"],
+                    opening=d["opening"],
+                    cached_at=d["cached_at"]
+                )
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get cached game {game_id}: {e}")
+            return None
+
+    def get_cached_games_for_date(self, source: str, date: str, username: str) -> list:
+        """Retrieves cached games matching source, date, and containing username (case-insensitive)."""
+        try:
+            from src.backend.models.game_info import GameInfo
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT * FROM api_game_cache
+                WHERE source = ? AND date = ?
+                  AND (LOWER(white) = ? OR LOWER(black) = ?)
+            """, (source, date, username.lower(), username.lower()))
+            rows = cursor.fetchall()
+            conn.close()
+            games = []
+            for row in rows:
+                d = dict(row)
+                games.append(GameInfo(
+                    game_id=d["id"],
+                    source=d["source"],
+                    white=d["white"],
+                    black=d["black"],
+                    result=d["result"],
+                    date=d["date"],
+                    pgn=d["pgn"],
+                    white_elo=d["white_elo"],
+                    black_elo=d["black_elo"],
+                    time_class=d["time_class"],
+                    move_count=d["move_count"],
+                    opening=d["opening"],
+                    cached_at=d["cached_at"]
+                ))
+            return games
+        except Exception as e:
+            logger.error(f"Failed to get cached games for date {date}: {e}")
+            return []
+
+    def clear_api_cache(self):
+        """Clears all games from the API cache."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM api_game_cache")
+            conn.commit()
+            conn.close()
+            logger.info("API game cache cleared.")
+        except Exception as e:
+            logger.error(f"Failed to clear API game cache: {e}")
+
+    def save_explorer_cache(self, fen: str, response_json: str):
+        """Saves a Lichess explorer response json for a given FEN."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO explorer_cache (fen, response_json, cached_at)
+                VALUES (?, ?, ?)
+            """, (fen, response_json, time.strftime("%Y-%m-%d %H:%M:%S")))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Failed to save explorer cache: {e}")
+
+    def get_explorer_cache(self, fen: str) -> Optional[str]:
+        """Retrieves a cached explorer response json by FEN."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT response_json, cached_at FROM explorer_cache WHERE fen = ?", (fen,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                response_json, cached_at = row
+                try:
+                    cached_time = time.strptime(cached_at, "%Y-%m-%d %H:%M:%S")
+                    cached_epoch = time.mktime(cached_time)
+                    if time.time() - cached_epoch < 172800:
+                        return response_json
+                except Exception:
+                    return response_json
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get explorer cache: {e}")
+            return None

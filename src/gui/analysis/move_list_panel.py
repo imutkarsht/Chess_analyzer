@@ -240,6 +240,7 @@ class MoveListPanel(QWidget):
     
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
+        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         self.table.setStyleSheet(f"""
             QTableWidget {{
                 background-color: {Styles.COLOR_SURFACE};
@@ -270,6 +271,14 @@ class MoveListPanel(QWidget):
                 font-size: 13px;
             }}
         """)
+
+        # Re-apply color for move numbers in column 0
+        from PyQt6.QtGui import QColor, QBrush
+        secondary_color = QColor(Styles.COLOR_TEXT_SECONDARY)
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            if item:
+                item.setForeground(QBrush(secondary_color))
 
         for cell in self._think_bars:
             cell.refresh_styles()

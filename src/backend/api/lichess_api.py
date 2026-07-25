@@ -96,6 +96,63 @@ class LichessAPI(BaseChessAPI):
             BaseChessAPI._log_api_error("Lichess", "get_user_games", e)
             return []
 
+    def get_user_games_by_date(self, username: str, date) -> List[Dict]:
+        """
+        Fetches games for a specific user and date.
+        """
+        import datetime
+        try:
+            start_dt = datetime.datetime.combine(date, datetime.time.min)
+            since = int(start_dt.timestamp() * 1000)
+            end_dt = datetime.datetime.combine(date, datetime.time.max)
+            until = int(end_dt.timestamp() * 1000)
+
+            url = f"{LichessAPI.BASE_URL}/{username}"
+            params = {
+                "since": since,
+                "until": until,
+                "moves": "true",
+                "opening": "true",
+                "pgnInJson": "true",  
+                "clocks": "true",
+                "max": 100
+            }
+
+            response = BaseChessAPI._make_request(url, self.get_headers(), params)
+            if not response:
+                return []
+
+            games = []
+            for raw_line in response.iter_lines():
+                if raw_line.strip():
+                    line = raw_line.decode("utf-8").strip()
+                    try:
+                        game_data = json.loads(line)
+                        normalized_game = {
+                            "white": {
+                                "username": game_data.get("players", {}).get("white", {}).get("user", {}).get("name", "?"),
+                                "rating": game_data.get("players", {}).get("white", {}).get("rating", "?"),
+                                "result": "win" if game_data.get("winner") == "white" else "checkmated" if game_data.get("status") == "mate" else "agreed"
+                            },
+                            "black": {
+                                "username": game_data.get("players", {}).get("black", {}).get("user", {}).get("name", "?"),
+                                "rating": game_data.get("players", {}).get("black", {}).get("rating", "?"),
+                                "result": "win" if game_data.get("winner") == "black" else "checkmated" if game_data.get("status") == "mate" else "agreed"
+                            },
+                            "time_class": game_data.get("speed", "standard"),
+                            "end_time": int(game_data.get("createdAt", 0) / 1000),
+                            "pgn": game_data.get("pgn", ""),
+                            "url": f"https://lichess.org/{game_data.get('id')}"
+                        }
+                        games.append(normalized_game)
+                    except json.JSONDecodeError:
+                        continue
+            return games
+
+        except Exception as e:
+            BaseChessAPI._log_api_error("Lichess", "get_user_games_by_date", e)
+            return []
+
     def extract_game_id(self, url: str) -> str:
         """
         Extracts game ID from Lichess URL.

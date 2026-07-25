@@ -20,6 +20,10 @@ CHESSCOM_HEADERS = {
     "User-Agent": "ChessAnalyzer/1.0 (contact: your_email@example.com)"
 }
 LICHESS_BASE_URL = "https://lichess.org/api/games/user"
+LICHESS_EXPORT_URL = "https://lichess.org/game/export"
+CHESSCOM_CALLBACK_LIVE = "https://www.chess.com/callback/live/game"
+CHESSCOM_CALLBACK_DAILY = "https://www.chess.com/callback/daily/game"
+LICHESS_EXPLORER_URL = "https://explorer.lichess.ovh/lichess"
 
 # Matplotlib defaults
 MATPLOTLIB_DPI = 100

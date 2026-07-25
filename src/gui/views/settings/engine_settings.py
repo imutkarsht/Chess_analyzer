@@ -4,11 +4,12 @@ Engine Settings group component.
 import os
 import shutil
 import subprocess
-from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QFormLayout, QWidget, QComboBox, QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QFormLayout, QWidget, QComboBox, QFileDialog
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIntValidator, QDoubleValidator
 from ...styles import Styles
 from .helpers import create_icon_button
+from .modern_widgets import ModernSliderCounter, ModernHashComboBox
 from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV, DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
 
 class EngineSettings(QGroupBox):
@@ -100,7 +101,10 @@ class EngineSettings(QGroupBox):
             box = QVBoxLayout(wrapper)
             box.setContentsMargins(0, 0, 0, 0)
             box.setSpacing(2)
-            widget.setMaximumWidth(140)
+            if isinstance(widget, ModernSliderCounter):
+                widget.setMaximumWidth(220)
+            else:
+                widget.setMaximumWidth(140)
             box.addWidget(widget)
             if hint_text:
                 hint = QLabel(hint_text)
@@ -121,10 +125,7 @@ class EngineSettings(QGroupBox):
         form.addRow(self._depth_lbl, depth_row)
 
         # --- Multi-PV (alt lines per move) ---
-        self.multi_pv_input = QLineEdit()
-        self.multi_pv_input.setValidator(QIntValidator(1, 5, self.multi_pv_input))
-        self.multi_pv_input.setText(str(self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)))
-        self.multi_pv_input.setStyleSheet(input_style)
+        self.multi_pv_input = ModernSliderCounter(1, 5, step=1, value=self.config_manager.get("multi_pv", DEFAULT_MULTI_PV), parent=self)
         self.multi_pv_input.editingFinished.connect(self._on_multi_pv_committed)
         self._multi_pv_lbl, multi_pv_row = _wrap(
             "Multi-PV (alt lines):",
@@ -135,10 +136,7 @@ class EngineSettings(QGroupBox):
         form.addRow(self._multi_pv_lbl, multi_pv_row)
 
         # --- Live-Analysis time budget (seconds) ---
-        self.live_time_input = QLineEdit()
-        self.live_time_input.setValidator(QDoubleValidator(0.5, 10.0, 1, self.live_time_input))
-        self.live_time_input.setText(str(self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME)))
-        self.live_time_input.setStyleSheet(input_style)
+        self.live_time_input = ModernSliderCounter(0.5, 10.0, step=0.1, value=self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME), is_float=True, parent=self)
         self.live_time_input.editingFinished.connect(self._on_live_time_committed)
         self._live_time_lbl, live_time_row = _wrap(
             "Live Analysis Time (s):",
@@ -150,28 +148,23 @@ class EngineSettings(QGroupBox):
 
         # --- Engine Threads ---
         cpu_count = os.cpu_count() or 1
-        max_threads = max(32, cpu_count)
+        max_threads = cpu_count
+        rec_threads = min(max_threads, 4)
 
-        self.threads_input = QLineEdit()
-        self.threads_input.setValidator(QIntValidator(1, max_threads, self.threads_input))
-        self.threads_input.setText(
-            str(self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS))
-        )
-        self.threads_input.setStyleSheet(input_style)
+        self.threads_input = ModernSliderCounter(1, max_threads, step=1, value=self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS), parent=self)
         self.threads_input.editingFinished.connect(self._on_threads_committed)
         self._threads_lbl, threads_row = _wrap(
             "Engine Threads:",
             self.threads_input,
-            f"(1–{max_threads} integer; recommended for this CPU: {DEFAULT_ENGINE_THREADS})",
+            f"(1–{max_threads} threads; recommended for this CPU: {rec_threads})",
         )
         self._threads_row = threads_row
         form.addRow(self._threads_lbl, threads_row)
 
         # --- Engine Hash ---
-        self.hash_input = QLineEdit()
-        self.hash_input.setValidator(QIntValidator(16, 4096, self.hash_input))
+        self.hash_input = ModernHashComboBox(self)
         self.hash_input.setText(str(self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)))
-        self.hash_input.setStyleSheet(input_style)
+        self.hash_input.setStyleSheet(combo_style)
         self.hash_input.editingFinished.connect(self._on_hash_committed)
         self._hash_lbl, hash_row = _wrap(
             "Engine Hash (MB):",
@@ -311,11 +304,8 @@ class EngineSettings(QGroupBox):
         except (TypeError, ValueError):
             value = -1
         if value < 1:
-            QMessageBox.warning(
-                self,
-                "Invalid Threads",
-                "Engine Threads must be a positive integer (1 or more).",
-            )
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, "Engine Threads must be a positive integer (1 or more).", "warning")
             return None, False
         return value, True
 
@@ -326,11 +316,8 @@ class EngineSettings(QGroupBox):
         except (TypeError, ValueError):
             value = -1
         if value < 16 or value > 4096:
-            QMessageBox.warning(
-                self,
-                "Invalid Hash",
-                "Engine Hash must be between 16 and 4096 MB.",
-            )
+            from src.gui.main_window import MainWindow
+            MainWindow.toast_from_widget(self, "Engine Hash must be between 16 and 4096 MB.", "warning")
             return None, False
         return value, True
 
@@ -357,8 +344,9 @@ class EngineSettings(QGroupBox):
         self.setStyleSheet(Styles.get_group_box_style())
         self.browse_btn.setStyleSheet(default_style)
         self.depth_combo.setStyleSheet(combo_style.replace("min-width: 150px;", "min-width: 80px;"))
-        for widget in [self.multi_pv_input, self.live_time_input, self.threads_input, self.hash_input]:
-            widget.setStyleSheet(input_style)
+        self.hash_input.setStyleSheet(combo_style.replace("min-width: 150px;", "min-width: 80px;"))
+        for widget in [self.multi_pv_input, self.live_time_input, self.threads_input]:
+            widget.refresh_styles()
         self.path_input.setStyleSheet(input_style.replace("max-width: 140px;", ""))
         # Refresh form row labels
         lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"

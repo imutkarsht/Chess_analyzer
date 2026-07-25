@@ -25,10 +25,16 @@ class ApiWorker(QThread):
         self.api_func = api_func
         self.args = args
         self.kwargs = kwargs
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
 
     def run(self):
         try:
             res = self.api_func(*self.args, **self.kwargs)
-            self.finished.emit(res)
+            if not self._cancelled:
+                self.finished.emit(res)
         except Exception as e:
-            self.error.emit(str(e))
+            if not self._cancelled:
+                self.error.emit(str(e))

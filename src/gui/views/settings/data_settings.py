@@ -1,7 +1,7 @@
 """
 Data Management Settings group component.
 """
-from PyQt6.QtWidgets import QGroupBox, QGridLayout, QMessageBox
+from PyQt6.QtWidgets import QGroupBox, QGridLayout
 from ...styles import Styles
 from .helpers import create_icon_button
 
@@ -24,9 +24,10 @@ class DataSettings(QGroupBox):
         data_layout.addWidget(self.clear_data_btn, 0, 1)
 
     def clear_cache(self):
-        reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear the analysis cache? This will not delete your game history.",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes:
+        from src.gui.utils.gui_utils import confirm_dialog
+        if confirm_dialog(self, "Clear Cache",
+                          "Clear the analysis cache? Your game history will not be deleted.",
+                          confirm_label="Clear Cache"):
             from src.backend.storage.cache import AnalysisCache
             cache = AnalysisCache()
             cache.clear_cache()
@@ -34,9 +35,10 @@ class DataSettings(QGroupBox):
             MainWindow.toast_from_widget(self, "Analysis cache cleared.", "success")
 
     def clear_all_data(self):
-        reply = QMessageBox.question(self, "Confirm", "Are you sure you want to clear ALL data? This includes game history and analysis cache. This action cannot be undone.",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes:
+        from src.gui.utils.gui_utils import confirm_dialog
+        if confirm_dialog(self, "Reset All Data",
+                          "This will delete your ENTIRE game history and analysis cache. This cannot be undone.",
+                          confirm_label="Reset All Data"):
             from src.backend.storage.cache import AnalysisCache
             from src.backend.storage.game_history import GameHistoryManager
             

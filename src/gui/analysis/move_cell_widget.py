@@ -83,16 +83,16 @@ class MoveCellWidget(QWidget):
         self._san_text = move.san
         self._san_label.setText(move.san)
         self._classification_name = move.classification or ""
-        self._classification_color = san_color
 
-        if san_color:
-            self._san_label.setStyleSheet(
-                f"color: {san_color}; font-size: 13px; background: transparent;"
-            )
+        # Determine color dynamically based on classification
+        if self._classification_name:
+            color = Styles.get_class_color(self._classification_name) or Styles.COLOR_TEXT_PRIMARY
         else:
-            self._san_label.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
-            )
+            color = Styles.COLOR_TEXT_PRIMARY
+
+        self._san_label.setStyleSheet(
+            f"color: {color}; font-size: 13px; background: transparent;"
+        )
 
         if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss"):
             f = self._san_label.font()
@@ -163,14 +163,19 @@ class MoveCellWidget(QWidget):
             )
 
     def refresh_styles(self):
-        if self._classification_color:
-            self._san_label.setStyleSheet(
-                f"color: {self._classification_color}; font-size: 13px; background: transparent;"
-            )
+        if self._classification_name:
+            color = Styles.get_class_color(self._classification_name) or Styles.COLOR_TEXT_PRIMARY
         else:
-            self._san_label.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
-            )
+            color = Styles.COLOR_TEXT_PRIMARY
+
+        self._san_label.setStyleSheet(
+            f"color: {color}; font-size: 13px; background: transparent;"
+        )
+        
+        self._time_label.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent;"
+        )
+
         if self._last_time_spent is not None:
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, self._last_time_spent / safe_max)

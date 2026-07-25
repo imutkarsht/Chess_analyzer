@@ -308,7 +308,32 @@ class Styles(metaclass=_StylesMeta):
                 color: {p.text_muted};
             }}
         """
-    
+
+    @classmethod
+    def get_danger_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: #D02030;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-weight: 600;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: #B01020;
+            }}
+            QPushButton:pressed {{
+                background-color: #900010;
+            }}
+            QPushButton:disabled {{
+                background-color: {p.border};
+                color: {p.text_muted};
+            }}
+        """
+
     @classmethod
     def get_sidebar_style(cls):
         p = ThemeManager.palette()
@@ -484,7 +509,15 @@ class Styles(metaclass=_StylesMeta):
                 subcontrol-position: top left;
                 left: 15px;
                 padding: 0 5px;
-                background-color: {p.background};
+                color: {p.text_primary};
+            }}
+            QGroupBox QLabel {{
+                color: {p.text_primary};
+                background: transparent;
+                border: none;
+            }}
+            QGroupBox QLabel#hint_label {{
+                color: {p.text_secondary};
             }}
         """
     

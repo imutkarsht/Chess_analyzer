@@ -36,6 +36,9 @@ def get_system_accent(force: bool = False) -> str | None:
                 if color:
                     _ACCENT_CACHE = color
                     return color
+            else:
+                _ACCENT_CACHE = "#007AFF"
+                return "#007AFF"
         except (ValueError, subprocess.TimeoutExpired, FileNotFoundError):
             pass
 
@@ -43,10 +46,12 @@ def get_system_accent(force: bool = False) -> str | None:
         palette = QApplication.style().standardPalette()
         accent = palette.color(QPalette.ColorRole.Accent)
         color = accent.name()
+        if color.lower() in ["#000000", "#ffffff", "#3a3a3a", "#8e8e93"]:
+            color = "#007AFF"
         _ACCENT_CACHE = color
         return color
     except Exception:
-        return None
+        return "#007AFF"
 
 
 class OSThemeWatcher(QObject):

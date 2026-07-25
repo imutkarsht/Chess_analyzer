@@ -157,17 +157,13 @@ class GameListWidget(QWidget):
 
     def _on_delete_requested(self, game_id: str):
         """Delete a single game from history after confirmation."""
-        from PyQt6.QtWidgets import QMessageBox
+        from src.gui.utils.gui_utils import confirm_dialog
         from src.backend.storage.game_history import GameHistoryManager
 
-        reply = QMessageBox.question(
-            self,
-            "Delete Game",
-            "Remove this game from history? This cannot be undone.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not confirm_dialog(self,
+                              "Delete Game",
+                              "Remove this game from history? This cannot be undone.",
+                              confirm_label="Delete"):
             return
 
         try:

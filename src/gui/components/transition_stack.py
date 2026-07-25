@@ -43,12 +43,13 @@ class FadedStackedWidget(QStackedWidget):
         _fade_in = self._fade_in
 
         def on_fade_out_finished():
+            current_widget.setGraphicsEffect(None)
             _parent_set(_self, index)
             _fade_in.start()
 
         def on_fade_in_finished():
-            current_widget.setGraphicsEffect(None)
-            next_widget.setGraphicsEffect(None)
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, lambda: next_widget.setGraphicsEffect(None))
             _self._current = index
 
         self._fade_out.finished.connect(on_fade_out_finished)

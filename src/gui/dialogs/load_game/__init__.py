@@ -10,6 +10,7 @@ from .pgn_file_panel import PgnFilePanel
 from .pgn_text_panel import PgnTextPanel
 from .chesscom_panel import ChessComPanel
 from .lichess_panel import LichessPanel
+from .online_fetch_panel import OnlineFetchPanel
 from .helpers import classify_time_control, icon_path
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     'PgnTextPanel',
     'ChessComPanel',
     'LichessPanel',
+    'OnlineFetchPanel',
     'classify_time_control',
     'icon_path',
 ]
