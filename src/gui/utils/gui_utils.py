@@ -251,6 +251,8 @@ def confirm_dialog(parent, title: str, message: str,
         QLabel {{
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 14px;
+            background: transparent;
+            border: none;
         }}
     """)
 
@@ -259,12 +261,12 @@ def confirm_dialog(parent, title: str, message: str,
     root.setSpacing(16)
 
     title_lbl = QLabel(f"<b>{title}</b>")
-    title_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px;")
+    title_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; background: transparent; border: none;")
     root.addWidget(title_lbl)
 
     msg_lbl = QLabel(message)
     msg_lbl.setWordWrap(True)
-    msg_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
+    msg_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;")
     root.addWidget(msg_lbl)
 
     btn_row = QHBoxLayout()

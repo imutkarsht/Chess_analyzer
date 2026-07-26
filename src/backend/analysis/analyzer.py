@@ -96,6 +96,10 @@ class Analyzer:
         new_polyglot_path = self.config_manager.get("polyglot_book_path", "")
         self.polyglot_book.set_book_path(new_polyglot_path)
         
+        # Reset local and polyglot books for sequential matching
+        self.local_book.reset()
+        self.polyglot_book.reset()
+        
         logger.info(f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']})")
         self.engine_manager.start_engine()
         
@@ -131,24 +135,115 @@ class Analyzer:
             if callback:
                 callback(i+1, total_moves)
             
-            # 1. Analyze position BEFORE move
             board.set_fen(move_data.fen_before)
             is_white_turn = board.turn
             
-            # Get Engine/Cache Analysis for this position
             info_list = self._get_position_analysis(board, move_data)
             
-            # Process analysis results
             self._process_analysis_results(move_data, info_list, is_white_turn, board)
-            
-        # Analyze FINAL position
+
+            if i > 0 and callback:
+                prev_move = game_analysis.moves[i - 1]
+                if move_data.eval_before_cp is not None or move_data.eval_before_mate is not None:
+                    prev_move.eval_after_cp = move_data.eval_before_cp
+                    prev_move.eval_after_mate = move_data.eval_before_mate
+                    
+                    # Progressive classification
+                    temp_board = chess.Board(chess960=is_chess960)
+                    temp_board.set_fen(prev_move.fen_before)
+                    prev_side = "white" if temp_board.turn == chess.WHITE else "black"
+                    
+                    wp_before = get_win_probability(prev_move.eval_before_cp, prev_move.eval_before_mate)
+                    is_checkmate_move = prev_move.san.endswith('#') if prev_move.san else False
+                    if is_checkmate_move:
+                        wp_after = 1.0 if prev_side == "white" else 0.0
+                    else:
+                        wp_after = get_win_probability(prev_move.eval_after_cp, prev_move.eval_after_mate)
+                    
+                    prev_move.win_chance_before = wp_before
+                    prev_move.win_chance_after = wp_after
+                    
+                    if prev_side == "white":
+                        wpl = wp_before - wp_after
+                    else:
+                        wpl = wp_after - wp_before
+                    if wpl < 0: wpl = 0
+                    
+                    classify_move(prev_move, wpl, prev_side, prev_move.multi_pvs)
+                    
+                    dummy_counts = {
+                        "white": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0},
+                        "black": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0}
+                    }
+                    self._check_book_move(prev_move, prev_side, dummy_counts, game_analysis)
+
+                    callback(i, total_moves, {
+                        "index": i - 1,
+                        "classification": prev_move.classification or "",
+                        "eval_after_cp": prev_move.eval_after_cp,
+                        "eval_after_mate": prev_move.eval_after_mate,
+                        "multi_pvs": prev_move.multi_pvs,
+                    })
+
         logger.info("Analyzing final position...")
         if callback:
             callback(total_moves + 1, total_moves)
         final_score = self._analyze_final_position(game_analysis, board)
+
+        if total_moves > 0 and final_score and callback:
+            last_move = game_analysis.moves[-1]
+            temp_board = chess.Board(chess960=is_chess960)
+            temp_board.set_fen(last_move.fen_before)
+            temp_board.push_uci(last_move.uci)
+            turn_after_last = temp_board.turn
+            if final_score.is_mate():
+                last_cp = None
+                last_mate = final_score.relative.mate()
+            else:
+                last_cp = final_score.relative.score(mate_score=10000)
+                last_mate = None
+            if turn_after_last == chess.BLACK:
+                if last_cp is not None: last_cp = -last_cp
+                if last_mate is not None: last_mate = -last_mate
+            last_move.eval_after_cp = last_cp
+            last_move.eval_after_mate = last_mate
+            
+            # Progressive classification for last move
+            last_side = "white" if (total_moves - 1) % 2 == 0 else "black"
+            wp_before = get_win_probability(last_move.eval_before_cp, last_move.eval_before_mate)
+            is_checkmate_move = last_move.san.endswith('#') if last_move.san else False
+            if is_checkmate_move:
+                wp_after = 1.0 if last_side == "white" else 0.0
+            else:
+                wp_after = get_win_probability(last_cp, last_mate)
+            
+            last_move.win_chance_before = wp_before
+            last_move.win_chance_after = wp_after
+            
+            if last_side == "white":
+                wpl = wp_before - wp_after
+            else:
+                wpl = wp_after - wp_before
+            if wpl < 0: wpl = 0
+            
+            classify_move(last_move, wpl, last_side, last_move.multi_pvs)
+            
+            dummy_counts = {
+                "white": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0},
+                "black": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0}
+            }
+            self._check_book_move(last_move, last_side, dummy_counts, game_analysis)
+
+            callback(total_moves, total_moves, {
+                "index": total_moves - 1,
+                "classification": last_move.classification or "",
+                "eval_after_cp": last_cp,
+                "eval_after_mate": last_mate,
+                "multi_pvs": last_move.multi_pvs,
+            })
         
-        # Classify moves and calculate stats
-        self._classify_and_calculate_stats(game_analysis, summary_counts, final_score)
+        # Classify moves and calculate stats (with callback for per-move progress)
+        self._classify_and_calculate_stats(game_analysis, summary_counts, final_score, callback)
         
         # Calculate final accuracy
         self._calculate_final_accuracy(summary_counts)
@@ -318,7 +413,7 @@ class Analyzer:
         # Return the score object so it can be used for last move's eval_after
         return final_info.get("score") if final_info else None
             
-    def _classify_and_calculate_stats(self, game_analysis: GameAnalysis, summary_counts: Dict, final_score):
+    def _classify_and_calculate_stats(self, game_analysis: GameAnalysis, summary_counts: Dict, final_score, callback=None):
         """Iterates through moves to calculate win probabilities, classification, and ACPL."""
         is_chess960 = game_analysis.metadata.chess960
         board = chess.Board(chess960=is_chess960) # For turn tracking
@@ -452,6 +547,19 @@ class Analyzer:
             
             summary_counts[side]["accuracies"].append(move_acc)
             summary_counts[side]["win_percents"].append(player_wp_before)  # Store for volatility
+
+            if callback:
+                move_data = {
+                    "index": i,
+                    "classification": move.classification,
+                    "eval_after_cp": move.eval_after_cp,
+                    "eval_after_mate": move.eval_after_mate,
+                    "win_chance_before": move.win_chance_before,
+                    "win_chance_after": move.win_chance_after,
+                    "multi_pvs": move.multi_pvs,
+                    "fen_before": move.fen_before,
+                }
+                callback(i + 1, len(game_analysis.moves), move_data)
             
             # Advance board for turn tracking for next move logic
             board.set_fen(move.fen_before)

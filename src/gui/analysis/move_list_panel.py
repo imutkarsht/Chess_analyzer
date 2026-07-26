@@ -41,6 +41,7 @@ class MoveListPanel(QWidget):
         # ownership; without this, the bars would be garbage-collected
         # and the table would render empty cells.
         self._think_bars: list[MoveCellWidget] = []
+        self._move_widgets: dict[int, MoveCellWidget] = {}
         
         self.analysis_timer = QTimer()
         self.analysis_timer.setSingleShot(True)
@@ -88,24 +89,26 @@ class MoveListPanel(QWidget):
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 8px;
                 gridline-color: transparent;
-                font-size: 14px;
+                font-size: 13px;
             }}
             QTableWidget::item {{
-                padding: 6px 8px;
+                padding: 4px 6px;
+                border: none;
                 border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
             }}
             QTableWidget::item:hover {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border-radius: 4px;
             }}
             QTableWidget::item:selected {{
                 background-color: {Styles.COLOR_HIGHLIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
-                border-left: 3px solid {Styles.COLOR_ACCENT};
+                border-radius: 4px;
             }}
             QHeaderView::section {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 10px 6px;
+                padding: 8px 6px;
                 border: none;
                 border-bottom: 2px solid {Styles.COLOR_ACCENT};
                 font-weight: 600;
@@ -155,6 +158,7 @@ class MoveListPanel(QWidget):
                 bar.setParent(None)
                 bar.deleteLater()
             self._think_bars.clear()
+            self._move_widgets.clear()
 
             # Clear table contents and reset row count to prevent leftover widgets/text
             self.table.clearContents()
@@ -224,6 +228,7 @@ class MoveListPanel(QWidget):
 
         # Keep a strong reference so the widget isn't GC'd
         self._think_bars.append(cell)
+        self._move_widgets[index] = cell
 
         # We also need a backing QTableWidgetItem so the cell is selectable
         # and shows up in the table's selection model.
@@ -233,6 +238,27 @@ class MoveListPanel(QWidget):
         item.setSizeHint(QSize(120, 38))
         self.table.setItem(row, col, item)
         self.table.setCellWidget(row, col, cell)
+
+    def update_move_cell(self, move_index: int, classification: str = None,
+                         eval_after_cp=None, eval_after_mate=None):
+        """Update a single move cell's classification and eval display during analysis."""
+        widget = self._move_widgets.get(move_index)
+        if widget is None:
+            return
+        if move_index < 0 or move_index >= len(self.current_game.moves):
+            return
+        move = self.current_game.moves[move_index]
+        if classification is not None:
+            move.classification = classification
+        if eval_after_cp is not None:
+            move.eval_after_cp = eval_after_cp
+        if eval_after_mate is not None:
+            move.eval_after_mate = eval_after_mate
+        icon = None
+        if move.classification:
+            icon = self.resource_manager.get_icon(move.classification)
+        san_color = Styles.get_class_color(move.classification) or Styles.COLOR_TEXT_PRIMARY
+        widget.set_move(move, move_index, icon=icon, san_color=san_color)
 
     def _on_cell_widget_clicked(self, index: int):
         """Forward clicks from MoveCellWidget into the existing move_selected signal."""
@@ -247,24 +273,26 @@ class MoveListPanel(QWidget):
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 8px;
                 gridline-color: transparent;
-                font-size: 14px;
+                font-size: 13px;
             }}
             QTableWidget::item {{
-                padding: 6px 8px;
+                padding: 4px 6px;
+                border: none;
                 border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
             }}
             QTableWidget::item:hover {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border-radius: 4px;
             }}
             QTableWidget::item:selected {{
                 background-color: {Styles.COLOR_HIGHLIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
-                border-left: 3px solid {Styles.COLOR_ACCENT};
+                border-radius: 4px;
             }}
             QHeaderView::section {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 10px 6px;
+                padding: 8px 6px;
                 border: none;
                 border-bottom: 2px solid {Styles.COLOR_ACCENT};
                 font-weight: 600;

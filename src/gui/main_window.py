@@ -1210,6 +1210,10 @@ class MainWindow(QMainWindow):
             pass  # Was not connected yet — that's fine
         self.analysis_panel.graph_widget.move_clicked.connect(self.on_move_selected)
 
+        # Navigate to final position if game already has analysis data (e.g., loaded from history)
+        if game.moves and any(m.classification for m in game.moves):
+            self.on_move_selected(len(game.moves) - 1)
+
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
         self.resource_manager.play_sound("notify")
 
@@ -1299,13 +1303,14 @@ class MainWindow(QMainWindow):
         logger.info("Starting analysis...")
         self.worker = AnalysisWorker(self.analyzer, self.current_game)
         self.worker.progress.connect(self.on_analysis_progress)
+        self.worker.move_analyzed.connect(self.on_move_analyzed)
         self.worker.finished.connect(self.on_analysis_finished)
         self.worker.error.connect(self.on_analysis_error)
 
         self._full_analysis_running = True
         self._set_engine_state("calculating", "Starting...")
         self._set_status("Starting analysis...", "progress")
-        
+        self.analysis_panel.set_analysis_running(True)
 
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
             self.move_list_panel.live_worker.stop()
@@ -1320,8 +1325,35 @@ class MainWindow(QMainWindow):
             self._set_engine_state("calculating", f"{current}/{total}")
             self._set_status(f"Analyzing move {current} of {total}", "progress")
 
+    def on_move_analyzed(self, move_index, data):
+        """Called when a move's eval/classification data becomes available."""
+        if not self.current_game:
+            return
+        if 0 <= move_index < len(self.current_game.moves):
+            move = self.current_game.moves[move_index]
+            classification = data.get("classification", move.classification)
+            if classification:
+                move.classification = classification
+            eval_cp = data.get("eval_after_cp")
+            eval_mate = data.get("eval_after_mate")
+            if eval_cp is not None:
+                move.eval_after_cp = eval_cp
+            if eval_mate is not None:
+                move.eval_after_mate = eval_mate
+
+            # Always update the move cell progressively with classification and eval
+            self.move_list_panel.update_move_cell(move_index, classification, eval_cp, eval_mate)
+            self.move_list_panel.select_move(move_index)
+            self.board_widget.set_position(move_index)
+
+            # Always update the progressive evaluation graph
+            if hasattr(self, 'analysis_panel') and hasattr(self.analysis_panel, 'graph_widget'):
+                self.analysis_panel.graph_widget.plot_partial(self.current_game.moves, move_index)
+                self.analysis_panel.graph_widget.set_current_move(move_index)
+
     def on_analysis_finished(self, game):
         self._full_analysis_running = False
+        self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis complete", "success")
         self.show_toast("Analysis complete!", "success")
@@ -1331,6 +1363,9 @@ class MainWindow(QMainWindow):
             self.move_list_panel.live_worker.start()
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
+        # Navigate to final position if moves have analysis data
+        if game.moves and any(m.classification for m in game.moves):
+            self.on_move_selected(len(game.moves) - 1)
         # Update other views with new data
         if hasattr(self, 'metrics_view'):
             self.metrics_view.refresh()
@@ -1339,6 +1374,7 @@ class MainWindow(QMainWindow):
 
     def on_analysis_error(self, error_msg):
         self._full_analysis_running = False
+        self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status(f"Analysis failed: {error_msg}", "error")
         logger.error(f"Analysis error: {error_msg}")
