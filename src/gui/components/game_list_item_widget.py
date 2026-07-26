@@ -1,10 +1,11 @@
 """
 Game List Item Widget - Renders a clean, modern desktop card with mini board thumbnail,
 player details, speed category badges, accuracy stats, and human-readable termination text.
+Supports both "detailed" card view and "compact" list row view.
 """
 import os
 import re
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtSvgWidgets import QSvgWidget
@@ -26,25 +27,179 @@ except ImportError:
 
 
 class GameListItemWidget(QWidget):
-    """A modern, desktop-class game card for the history list."""
+    """A modern, desktop-class game card supporting Detailed and Compact view modes."""
 
     delete_requested = pyqtSignal(str)   # emits game_id
 
     # Standard starting FEN
     _STANDARD_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-    def __init__(self, game, usernames=None):
+    def __init__(self, game, usernames=None, view_mode="detailed"):
         super().__init__()
-        self._game = game   # kept for context menu access
+        self._game = game
+        self.view_mode = view_mode
 
-        # Root layout for outer card frame
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 4, 0, 4)
+        root_layout.setContentsMargins(0, 2 if view_mode == "compact" else 4, 0, 2 if view_mode == "compact" else 4)
         root_layout.setSpacing(0)
 
-        # Card container frame
         self.card_frame = QFrame()
         self.card_frame.setObjectName("GameCard")
+
+        if view_mode == "compact":
+            self._build_compact_ui(game, usernames, root_layout)
+        else:
+            self._build_detailed_ui(game, usernames, root_layout)
+
+    def _build_compact_ui(self, game, usernames, root_layout):
+        """Build compact single-row list item layout (Lichess/Chess.com table style)."""
+        self.card_frame.setStyleSheet(f"""
+            QFrame#GameCard {{
+                background-color: {Styles.COLOR_SURFACE_CARD};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 6px 12px;
+            }}
+            QFrame#GameCard:hover {{
+                border-color: {Styles.COLOR_ACCENT};
+                background-color: {Styles.COLOR_SURFACE};
+            }}
+            QFrame#GameCard QLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """)
+
+        card_layout = QHBoxLayout(self.card_frame)
+        card_layout.setContentsMargins(8, 4, 8, 4)
+        card_layout.setSpacing(12)
+
+        # 1. Source & Speed Icon
+        source = getattr(game.metadata, "source", "file")
+        source_icon = self._create_source_icon(source)
+        if source_icon:
+            card_layout.addWidget(source_icon)
+
+        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(game.metadata.time_control)
+        formatted_tc = self._format_time_control(game.metadata.time_control)
+        tc_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc else speed_cat
+        tc_icon = self._get_time_control_icon(game.metadata.time_control)
+        tc_widget = self._create_meta_item(tc_icon, tc_display)
+        tc_widget.setFixedWidth(130)
+        card_layout.addWidget(tc_widget)
+
+        # 2. Players & Result (Fixed width container for aligned opening column)
+        w_elo = f" ({game.metadata.white_elo})" if game.metadata.white_elo else ""
+        b_elo = f" ({game.metadata.black_elo})" if game.metadata.black_elo else ""
+        result_text = game.metadata.result
+
+        players_widget = QWidget()
+        players_widget.setFixedWidth(220)
+        players_widget.setStyleSheet("background: transparent; border: none;")
+        players_layout = QVBoxLayout(players_widget)
+        players_layout.setContentsMargins(0, 0, 0, 0)
+        players_layout.setSpacing(2)
+
+        # White player row
+        w_row = QHBoxLayout()
+        w_row.setContentsMargins(0, 0, 0, 0)
+        w_row.setSpacing(4)
+        w_lbl = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
+        w_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; background: transparent; border: none;")
+        w_row.addWidget(w_lbl)
+        if result_text == "1-0":
+            crown = self._create_winner_crown()
+            if crown:
+                w_row.addWidget(crown)
+        w_row.addStretch()
+
+        # Black player row
+        b_row = QHBoxLayout()
+        b_row.setContentsMargins(0, 0, 0, 0)
+        b_row.setSpacing(4)
+        b_lbl = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
+        b_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; background: transparent; border: none;")
+        b_row.addWidget(b_lbl)
+        if result_text == "0-1":
+            crown = self._create_winner_crown()
+            if crown:
+                b_row.addWidget(crown)
+        b_row.addStretch()
+
+        players_layout.addLayout(w_row)
+        players_layout.addLayout(b_row)
+        card_layout.addWidget(players_widget)
+
+        # 3. Opening Name (aligned)
+        opening = game.metadata.opening or ""
+        eco = game.metadata.eco or ""
+        opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
+        op_lbl = QLabel(opening_text if opening_text else "-")
+        op_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent; border: none;")
+        op_lbl.setToolTip(opening_text)
+        card_layout.addWidget(op_lbl, stretch=1)
+
+        # 4. Result Badge
+        result_color = self._get_result_color(result_text, game.metadata, usernames)
+        result_label = QLabel(result_text)
+        result_label.setStyleSheet(f"""
+            color: {result_color}; 
+            font-weight: bold; 
+            font-size: 12px;
+            padding: 2px 8px;
+            background-color: {Styles.COLOR_SURFACE_LIGHT};
+            border: 1px solid {Styles.COLOR_BORDER};
+            border-radius: 4px;
+        """)
+        card_layout.addWidget(result_label)
+
+        # 5. Accuracy (if analyzed)
+        if hasattr(game, 'summary') and game.summary:
+            white_acc = game.summary.get('white', {}).get('accuracy') if isinstance(game.summary.get('white'), dict) else game.summary.get('white_accuracy')
+            black_acc = game.summary.get('black', {}).get('accuracy') if isinstance(game.summary.get('black'), dict) else game.summary.get('black_accuracy')
+            if white_acc is not None and black_acc is not None:
+                acc_widget = self._create_meta_item('fa5s.bullseye', f"{white_acc:.0f}% / {black_acc:.0f}%")
+                card_layout.addWidget(acc_widget)
+
+        # 6. Date & Move Count
+        if game.metadata.date:
+            date_lbl = QLabel(game.metadata.date)
+            date_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+            card_layout.addWidget(date_lbl)
+
+        move_count = self._get_move_count(game)
+        if move_count:
+            moves_lbl = QLabel(f"{move_count}m")
+            moves_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+            card_layout.addWidget(moves_lbl)
+
+        # 7. Delete button
+        del_btn = QPushButton()
+        del_btn.setFixedSize(22, 22)
+        del_btn.setToolTip("Delete game")
+        if HAS_QTAWESOME:
+            del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
+        else:
+            del_btn.setText("🗑")
+        del_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_BLUNDER};
+            }}
+        """)
+        game_id = getattr(game, 'game_id', None)
+        del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
+        card_layout.addWidget(del_btn)
+
+        root_layout.addWidget(self.card_frame)
+
+    def _build_detailed_ui(self, game, usernames, root_layout):
+        """Build detailed card layout with mini board thumbnail."""
         self.card_frame.setStyleSheet(f"""
             QFrame#GameCard {{
                 background-color: {Styles.COLOR_SURFACE_CARD};
@@ -127,7 +282,6 @@ class GameListItemWidget(QWidget):
         header_layout.addWidget(result_label)
 
         # Delete button on card
-        from PyQt6.QtWidgets import QPushButton
         del_btn = QPushButton()
         del_btn.setFixedSize(26, 26)
         del_btn.setToolTip("Delete game")
@@ -187,7 +341,7 @@ class GameListItemWidget(QWidget):
         meta_layout = QHBoxLayout()
         meta_layout.setSpacing(12)
 
-        # Speed Category Badge (e.g. Bullet 2+1, Blitz 3+0, Rapid 10+0)
+        # Speed Category Badge
         speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(game.metadata.time_control)
         formatted_tc = self._format_time_control(game.metadata.time_control)
         speed_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc and formatted_tc not in ("-", "?") else speed_cat
@@ -211,7 +365,7 @@ class GameListItemWidget(QWidget):
             moves_widget = self._create_meta_item('fa5s.chess-pawn', f"{move_count} moves")
             meta_layout.addWidget(moves_widget)
 
-        # Human-Readable Termination Description (falling back to detector if "Normal" or missing)
+        # Human-Readable Termination Description
         term_desc = getattr(game.metadata, "termination_description", None)
         term_mode = getattr(game.metadata, "termination_mode", None)
         if not term_desc or term_desc.lower() == "normal":
@@ -232,19 +386,8 @@ class GameListItemWidget(QWidget):
 
         # Accuracy (if analyzed)
         if hasattr(game, 'summary') and game.summary:
-            white_acc = None
-            black_acc = None
-            if isinstance(game.summary, dict):
-                if 'white' in game.summary and isinstance(game.summary['white'], dict):
-                    white_acc = game.summary['white'].get('accuracy')
-                else:
-                    white_acc = game.summary.get('white_accuracy')
-
-                if 'black' in game.summary and isinstance(game.summary['black'], dict):
-                    black_acc = game.summary['black'].get('accuracy')
-                else:
-                    black_acc = game.summary.get('black_accuracy')
-
+            white_acc = game.summary.get('white', {}).get('accuracy') if isinstance(game.summary.get('white'), dict) else game.summary.get('white_accuracy')
+            black_acc = game.summary.get('black', {}).get('accuracy') if isinstance(game.summary.get('black'), dict) else game.summary.get('black_accuracy')
             if white_acc is not None and black_acc is not None:
                 acc_text = f"{white_acc:.0f}% / {black_acc:.0f}%"
                 acc_widget = self._create_meta_item('fa5s.bullseye', acc_text)
@@ -270,7 +413,6 @@ class GameListItemWidget(QWidget):
             except Exception:
                 pass
 
-        # Resolve board theme colors from user config
         theme_name = ConfigManager().get("board_theme", "Green")
         board_theme = BOARD_THEMES.get(theme_name, BOARD_THEMES["Green"])
         dark_color = board_theme["dark"] if board_theme["dark"] != "dynamic" else "#769656"
