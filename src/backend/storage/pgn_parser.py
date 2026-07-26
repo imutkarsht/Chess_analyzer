@@ -185,6 +185,20 @@ class PGNParser:
             moves.append(move_analysis)
             board.push(move)
             
+        # Detect speed category (Bullet, Blitz, Rapid, Classical, UltraBullet)
+        metadata.speed_category = PGNParser._detect_speed_category(metadata.time_control, metadata.event)
+
+        # Detect termination mode and human-readable description
+        from .termination_detector import TerminationDetector
+        term_mode, term_desc = TerminationDetector.detect_termination(
+            headers=headers,
+            moves=moves,
+            starting_fen=metadata.starting_fen,
+            chess960=metadata.chess960
+        )
+        metadata.termination_mode = term_mode
+        metadata.termination_description = term_desc
+
         # Use hash of PGN content as ID to prevent duplicates
         import hashlib
         pgn_content = str(game)
@@ -196,3 +210,40 @@ class PGNParser:
             moves=moves,
             pgn_content=pgn_content
         )
+
+    @staticmethod
+    def _detect_speed_category(time_control: Optional[str], event: Optional[str]) -> str:
+        """Classify game into UltraBullet, Bullet, Blitz, Rapid, or Classical."""
+        tc = (time_control or "").strip()
+        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
+        if match:
+            try:
+                base_sec = int(match.group(1))
+                inc_sec = int(match.group(2)) if match.group(2) else 0
+                total_sec = base_sec + 40 * inc_sec
+                if total_sec < 30:
+                    return "UltraBullet"
+                elif total_sec < 180:
+                    return "Bullet"
+                elif total_sec < 600:
+                    return "Blitz"
+                elif total_sec < 1800:
+                    return "Rapid"
+                else:
+                    return "Classical"
+            except ValueError:
+                pass
+
+        evt_lower = (event or "").lower()
+        if "ultrabullet" in evt_lower:
+            return "UltraBullet"
+        elif "bullet" in evt_lower:
+            return "Bullet"
+        elif "blitz" in evt_lower:
+            return "Blitz"
+        elif "rapid" in evt_lower:
+            return "Rapid"
+        elif any(k in evt_lower for k in ("classical", "daily", "correspondence")):
+            return "Classical"
+
+        return "Blitz"

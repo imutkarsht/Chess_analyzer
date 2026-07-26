@@ -8,42 +8,33 @@ from ..styles import Styles
 
 class MoveCellWidget(QWidget):
     """
-    Compact move cell that packs the classification icon, the SAN, an
-    optional think-time label, and a thin coloured think-time bar in a
-    single column. This keeps the move list at 3 columns (#, White, Black)
-    while still surfacing the clock information visually.
-
-    The widget emits ``clicked`` when the user clicks anywhere in it, so
-    a single ``setCellWidget`` replacement keeps the existing
-    cellClicked-style handlers working.
+    Compact move cell that packs the classification icon, SAN, and optional think-time.
     """
 
     clicked = pyqtSignal(int)  # carries the move index
 
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
-        # Main horizontal layout: [icon] [SAN + bar]  [think-time label]
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(4, 2, 4, 2)
-        outer.setSpacing(0)
+        outer.setContentsMargins(6, 3, 6, 3)
+        outer.setSpacing(1)
 
         # Top row: icon + SAN + time label
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
-        top_row.setSpacing(4)
+        top_row.setSpacing(6)
 
         self._icon_label = QLabel(self)
-        self._icon_label.setFixedSize(20, 20)
+        self._icon_label.setFixedSize(18, 18)
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._icon_label.setStyleSheet("background: transparent; border: none;")
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._san_label = QLabel(self)
         self._san_label.setAlignment(
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
         )
-        font = self._san_label.font()
-        font.setPointSize(13)
-        self._san_label.setFont(font)
+        self._san_label.setStyleSheet("background: transparent; border: none;")
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self._time_label = QLabel(self)
@@ -51,21 +42,19 @@ class MoveCellWidget(QWidget):
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
         )
         self._time_label.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px;"
+            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
         )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         outer.addLayout(top_row)
 
-        # Bottom row: a 3-pixel-tall coloured think-time bar (full width).
-        # We use a plain QLabel with a stylesheet background so we don't
-        # need a second custom widget for such a simple thing.
+        # Bottom row: a 2-pixel-tall coloured think-time bar (shown only if time_spent is present)
         self._bar = QLabel(self)
-        self._bar.setFixedHeight(3)
-        self._bar.setStyleSheet(f"background: {Styles.COLOR_SURFACE_LIGHT}; border: none;")
+        self._bar.setFixedHeight(2)
+        self._bar.setStyleSheet("background: transparent; border: none;")
+        self._bar.hide()
         outer.addWidget(self._bar)
 
-        # Track the move index so clicks can re-emit it.
         self._move_index: int = -1
         self._san_text: str = ""
         self._classification_color: str = ""
@@ -90,21 +79,13 @@ class MoveCellWidget(QWidget):
         else:
             color = Styles.COLOR_TEXT_PRIMARY
 
+        font_weight = "bold" if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
         self._san_label.setStyleSheet(
-            f"color: {color}; font-size: 13px; background: transparent;"
+            f"color: {color}; font-size: 13px; font-weight: {font_weight}; background: transparent; border: none;"
         )
 
-        if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss"):
-            f = self._san_label.font()
-            f.setBold(True)
-            self._san_label.setFont(f)
-        else:
-            f = self._san_label.font()
-            f.setBold(False)
-            self._san_label.setFont(f)
-
         if icon is not None and not icon.isNull():
-            self._icon_label.setPixmap(icon.pixmap(20, 20))
+            self._icon_label.setPixmap(icon.pixmap(18, 18))
         else:
             self._icon_label.clear()
 
@@ -119,7 +100,7 @@ class MoveCellWidget(QWidget):
         self._last_time_spent = time_spent_val
         self._last_max_seconds = float(max_seconds) if max_seconds is not None else 30.0
 
-        if time_spent_val is not None:
+        if time_spent_val is not None and time_spent_val > 0:
             if time_spent_val >= 3600:
                 time_str = f"{time_spent_val / 3600:.1f}h"
             elif time_spent_val >= 60:
@@ -129,13 +110,10 @@ class MoveCellWidget(QWidget):
                 
             self._time_label.setText(time_str)
             
-            # Use dynamically passed max_seconds for color ratio
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, time_spent_val / safe_max)
             colour = self._bar_colour(ratio)
             track = Styles.COLOR_SURFACE_LIGHT
-            # Render as left-to-right fill: 100% of the cell width for the
-            # coloured portion, plus a faded track for the remainder.
             self._bar.setStyleSheet(
                 f"""
                 QLabel {{
@@ -147,16 +125,18 @@ class MoveCellWidget(QWidget):
                         stop:1 {track}
                     );
                     border: none;
+                    border-radius: 1px;
                 }}
                 """
             )
+            self._bar.show()
             self.setToolTip(
                 f"{move.classification + ': ' if move.classification else ''}"
                 f"{move.san}  —  Think time: {time_str}"
             )
         else:
             self._time_label.setText("")
-            self._bar.setStyleSheet(f"background: {Styles.COLOR_SURFACE_LIGHT}; border: none;")
+            self._bar.hide()
             self.setToolTip(
                 f"{move.classification + ': ' if move.classification else ''}"
                 f"{move.san}"
@@ -168,15 +148,16 @@ class MoveCellWidget(QWidget):
         else:
             color = Styles.COLOR_TEXT_PRIMARY
 
+        font_weight = "bold" if self._classification_name in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
         self._san_label.setStyleSheet(
-            f"color: {color}; font-size: 13px; background: transparent;"
+            f"color: {color}; font-size: 13px; font-weight: {font_weight}; background: transparent; border: none;"
         )
         
         self._time_label.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent;"
+            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
         )
 
-        if self._last_time_spent is not None:
+        if self._last_time_spent is not None and self._last_time_spent > 0:
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, self._last_time_spent / safe_max)
             colour = self._bar_colour(ratio)
@@ -192,13 +173,14 @@ class MoveCellWidget(QWidget):
                         stop:1 {track}
                     );
                     border: none;
+                    border-radius: 1px;
                 }}
                 """
             )
+            self._bar.show()
         else:
-            self._bar.setStyleSheet(f"background: {Styles.COLOR_SURFACE_LIGHT}; border: none;")
+            self._bar.hide()
 
-    # ----- helpers ----------------------------------------------------
     def _bar_colour(self, ratio: float) -> str:
         ratio = max(0.0, min(1.0, ratio))
         if ratio < 0.5:
@@ -213,7 +195,6 @@ class MoveCellWidget(QWidget):
             b = int(7 + (60 - 7) * t)
         return f"rgb({r},{g},{b})"
 
-    # ----- mouse handling so a click on the cell still selects the move
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self._move_index)

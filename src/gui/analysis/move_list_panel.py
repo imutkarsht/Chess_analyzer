@@ -89,24 +89,26 @@ class MoveListPanel(QWidget):
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 8px;
                 gridline-color: transparent;
-                font-size: 14px;
+                font-size: 13px;
             }}
             QTableWidget::item {{
-                padding: 6px 8px;
+                padding: 4px 6px;
+                border: none;
                 border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
             }}
             QTableWidget::item:hover {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border-radius: 4px;
             }}
             QTableWidget::item:selected {{
                 background-color: {Styles.COLOR_HIGHLIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
-                border-left: 3px solid {Styles.COLOR_ACCENT};
+                border-radius: 4px;
             }}
             QHeaderView::section {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 10px 6px;
+                padding: 8px 6px;
                 border: none;
                 border-bottom: 2px solid {Styles.COLOR_ACCENT};
                 font-weight: 600;
@@ -271,24 +273,26 @@ class MoveListPanel(QWidget):
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 8px;
                 gridline-color: transparent;
-                font-size: 14px;
+                font-size: 13px;
             }}
             QTableWidget::item {{
-                padding: 6px 8px;
+                padding: 4px 6px;
+                border: none;
                 border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
             }}
             QTableWidget::item:hover {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border-radius: 4px;
             }}
             QTableWidget::item:selected {{
                 background-color: {Styles.COLOR_HIGHLIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
-                border-left: 3px solid {Styles.COLOR_ACCENT};
+                border-radius: 4px;
             }}
             QHeaderView::section {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 10px 6px;
+                padding: 8px 6px;
                 border: none;
                 border-bottom: 2px solid {Styles.COLOR_ACCENT};
                 font-weight: 600;

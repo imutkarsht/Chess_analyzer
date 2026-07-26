@@ -52,6 +52,9 @@ class GameMetadata:
     time_control: Optional[str] = None
     eco: Optional[str] = None
     termination: Optional[str] = None
+    termination_mode: Optional[str] = None
+    termination_description: Optional[str] = None
+    speed_category: Optional[str] = None
     opening: Optional[str] = None
     source: str = "file" # file, chesscom, lichess
     chess960: bool = False

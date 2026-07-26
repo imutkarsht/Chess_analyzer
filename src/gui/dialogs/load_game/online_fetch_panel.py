@@ -262,81 +262,11 @@ class OnlineFetchPanel(QWidget):
         
         self.form_layout.addRow(self.username_label, self.username_input)
 
-        # Form Field 2: Date Edit picker
+        # Form Field 2: Modern Date Picker
+        from src.gui.components.modern_date_picker import ModernDatePicker
         self.date_label = QLabel("Date:")
         self.date_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY};")
-        self.date_picker = QDateEdit()
-        self.date_picker.setCalendarPopup(True)
-        self.date_picker.setDate(QDate.currentDate())
-        
-        # Style outer QDateEdit container (dropdown hidden)
-        self.date_picker.setStyleSheet(f"""
-            QDateEdit {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-                height: 38px;
-            }}
-            QDateEdit:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-            QDateEdit::drop-down {{
-                width: 0px;
-                border: none;
-            }}
-        """)
-
-        # Style inner QLineEdit to add leading calendar icon and proper padding
-        self.date_picker.lineEdit().setStyleSheet(f"""
-            QLineEdit {{
-                background: transparent;
-                border: none;
-                padding-left: 32px;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-            }}
-        """)
-        cal_icon = qta.icon("fa5s.calendar-alt", color=Styles.COLOR_TEXT_SECONDARY)
-        self.date_picker.lineEdit().addAction(cal_icon, QLineEdit.ActionPosition.LeadingPosition)
-        
-        # Install click event filter to trigger calendar popup when clicking anywhere in the input
-        self.date_click_filter = DateClickFilter(self.date_picker, self)
-        self.date_picker.installEventFilter(self.date_click_filter)
-        self.date_picker.lineEdit().installEventFilter(self.date_click_filter)
-        
-        self.date_picker.calendarWidget().setStyleSheet(f"""
-            QCalendarWidget QWidget {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-family: 'SF Pro', 'Inter', sans-serif;
-            }}
-            QCalendarWidget QAbstractItemView:enabled {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                background-color: {Styles.COLOR_SURFACE};
-                selection-background-color: {Styles.COLOR_ACCENT};
-                selection-color: white;
-                border-radius: 4px;
-            }}
-            QCalendarWidget QMenu {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-            QCalendarWidget QSpinBox {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QCalendarWidget QToolButton {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                background-color: transparent;
-                border: none;
-            }}
-            QCalendarWidget QToolButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 4px;
-            }}
-        """)
+        self.date_picker = ModernDatePicker(self, initial_date=QDate.currentDate())
         self.form_layout.addRow(self.date_label, self.date_picker)
 
         # Form Field 3: URL Input
