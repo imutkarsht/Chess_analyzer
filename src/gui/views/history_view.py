@@ -632,6 +632,10 @@ class HistoryView(QWidget):
         # Refresh filters dropdowns
         if hasattr(self, 'result_filter'):
             self.result_filter.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'speed_filter'):
+            self.speed_filter.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'type_filter'):
+            self.type_filter.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, 'source_filter'):
             self.source_filter.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, 'sort_dropdown'):
@@ -693,7 +697,7 @@ class HistoryView(QWidget):
             
         if hasattr(self, 'filter_label') and self.filter_label:
             self.filter_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
-        for lbl_name in ('result_label', 'source_label', 'sort_label'):
+        for lbl_name in ('result_label', 'type_label', 'speed_label', 'source_label', 'sort_label'):
             if hasattr(self, lbl_name):
                 lbl = getattr(self, lbl_name)
                 if lbl:

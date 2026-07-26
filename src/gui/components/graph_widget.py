@@ -159,7 +159,8 @@ class GraphWidget(QWidget):
 
         self.ax.set_title("Evaluation", color=Styles.COLOR_TEXT_PRIMARY, fontsize=11, fontweight='600', pad=8)
 
-        self.current_move_line = self.ax.axvline(x=-1, color=Styles.COLOR_ACCENT, linewidth=2, linestyle='-', alpha=0.8, zorder=4)
+        MOVE_PIN_COLOR = "#00E5FF" # Vibrant Electric Cyan
+        self.current_move_line = self.ax.axvline(x=-1, color=MOVE_PIN_COLOR, linewidth=2.0, linestyle='--', alpha=0.95, zorder=5)
         self.current_move_line.set_visible(False)
 
         self.canvas.draw()
@@ -228,7 +229,7 @@ class GraphWidget(QWidget):
             if getattr(line, '_is_zero_line', False):
                 line.set_color(Styles.COLOR_BORDER)
         if hasattr(self, 'current_move_line') and self.current_move_line is not None:
-            self.current_move_line.set_color(Styles.COLOR_ACCENT)
+            self.current_move_line.set_color("#00E5FF")
         if hasattr(self, 'annot') and self.annot is not None:
             self.annot.get_bbox_patch().set_facecolor(Styles.COLOR_SURFACE_LIGHT)
             self.annot.get_bbox_patch().set_edgecolor(Styles.COLOR_BORDER)

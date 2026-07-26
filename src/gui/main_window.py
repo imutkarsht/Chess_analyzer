@@ -636,6 +636,8 @@ class MainWindow(QMainWindow):
             self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         if hasattr(self, 'center_widget') and self.center_widget:
             self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        if hasattr(self, 'right_widget') and self.right_widget:
+            self.right_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
 
         # Update Explorer Board
         if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'board_widget'):
@@ -671,6 +673,8 @@ class MainWindow(QMainWindow):
                     background: transparent;
                 }}
             """)
+        if hasattr(self, 'title_lbl') and self.title_lbl:
+            self.title_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
 
         # Update MainWindow Buttons
         if hasattr(self, 'btn_explore'):
@@ -1015,9 +1019,9 @@ class MainWindow(QMainWindow):
         header_layout.setContentsMargins(40, 12, 40, 12)
 
         # Title
-        title_lbl = QLabel("Chess Analysis")
-        title_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-        header_layout.addWidget(title_lbl)
+        self.title_lbl = QLabel("Chess Analysis")
+        self.title_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        header_layout.addWidget(self.title_lbl)
 
         header_layout.addStretch()  # ← pushes buttons to the right, eating spare space
 
@@ -1301,6 +1305,27 @@ class MainWindow(QMainWindow):
             return
 
         logger.info("Starting analysis...")
+        
+        # If cache is turned off, clear previous move evaluations so raw moves are shown as analysis begins
+        if not self.analyzer.config.get("use_cache", True):
+            for move in self.current_game.moves:
+                move.eval_before_cp = None
+                move.eval_before_mate = None
+                move.eval_after_cp = None
+                move.eval_after_mate = None
+                move.classification = None
+                move.best_move = None
+                move.multi_pvs = []
+                move.win_chance_before = None
+                move.win_chance_after = None
+            self.current_game.summary = {}
+            self.current_game.ai_summary = ""
+
+            if hasattr(self, 'move_list_panel'):
+                self.move_list_panel.set_game(self.current_game)
+            if hasattr(self, 'analysis_panel'):
+                self.analysis_panel.set_game(self.current_game)
+
         self.worker = AnalysisWorker(self.analyzer, self.current_game)
         self.worker.progress.connect(self.on_analysis_progress)
         self.worker.move_analyzed.connect(self.on_move_analyzed)

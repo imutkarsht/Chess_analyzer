@@ -76,6 +76,32 @@ class Styles(metaclass=_StylesMeta):
         return ThemeManager.get_class_color(classification)
 
     @classmethod
+    def get_accuracy_color(cls, accuracy: float) -> str:
+        """Map accuracy percentage (0-100) to smooth color gradient:
+        0% = red (#D02030) -> 50% = yellow (#F1C40F) -> 75% = light green (#2ECC71) -> 100% = dark green (#00D4AA).
+        """
+        acc = max(0.0, min(100.0, float(accuracy)))
+        if acc <= 50.0:
+            # Interpolate Red (#D02030) -> Yellow (#F1C40F)
+            t = acc / 50.0
+            r = int(0xD0 + (0xF1 - 0xD0) * t)
+            g = int(0x20 + (0xC4 - 0x20) * t)
+            b = int(0x30 + (0x0F - 0x30) * t)
+        elif acc <= 75.0:
+            # Interpolate Yellow (#F1C40F) -> Light Green (#2ECC71)
+            t = (acc - 50.0) / 25.0
+            r = int(0xF1 + (0x2E - 0xF1) * t)
+            g = int(0xC4 + (0xCC - 0xC4) * t)
+            b = int(0x0F + (0x71 - 0x0F) * t)
+        else:
+            # Interpolate Light Green (#2ECC71) -> Dark Green (#00D4AA)
+            t = (acc - 75.0) / 25.0
+            r = int(0x2E + (0x00 - 0x2E) * t)
+            g = int(0xCC + (0xD4 - 0xCC) * t)
+            b = int(0x71 + (0xAA - 0x71) * t)
+        return f"#{r:02X}{g:02X}{b:02X}"
+
+    @classmethod
     def get_theme(cls):
         p = ThemeManager.palette()
         return f"""

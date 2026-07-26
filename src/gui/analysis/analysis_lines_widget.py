@@ -50,12 +50,13 @@ class AnalysisLinesWidget(QFrame):
                 padding: 10px;
             }}
             QWidget#AnalysisRow {{
-                background-color: transparent;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
                 border-radius: 8px;
-                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_BORDER};
             }}
             QWidget#AnalysisRow:hover {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_ACCENT};
             }}
             QLabel {{
                 border: none;
@@ -129,12 +130,14 @@ class AnalysisLinesWidget(QFrame):
             lbl_depth.setText(f"d{depth}")
             lbl_depth.setStyleSheet(f"""
                 QLabel {{
-                    color: {Styles.COLOR_TEXT_SECONDARY};
+                    color: {Styles.COLOR_TEXT_MUTED};
                     font-size: 11px;
                     font-family: monospace;
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border-radius: 4px;
-                    padding: 2px 4px;
+                    font-weight: 600;
+                    background-color: {Styles.COLOR_SURFACE};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 6px;
+                    padding: 2px 6px;
                 }}
             """)
             
@@ -191,8 +194,8 @@ class AnalysisLinesWidget(QFrame):
                 QLabel {{
                     background-color: {bg_color};
                     color: {text_color};
-                    border-radius: 4px;
-                    padding: 2px 6px;
+                    border-radius: 6px;
+                    padding: 3px 8px;
                     font-weight: bold;
                     font-family: monospace;
                     font-size: 12px;
@@ -218,6 +221,7 @@ class AnalysisLinesWidget(QFrame):
 
     def _create_row(self):
         row_widget = AnalysisRowWidget()
+        row_widget.setToolTip("Click to play this candidate move line")
         row_widget.clicked.connect(self.line_clicked.emit)
         row_widget.setObjectName("AnalysisRow")
         row_layout = QVBoxLayout(row_widget)

@@ -291,11 +291,11 @@ class MoveListPanel(QWidget):
             }}
             QHeaderView::section {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
+                color: {Styles.COLOR_TEXT_PRIMARY};
                 padding: 8px 6px;
                 border: none;
                 border-bottom: 2px solid {Styles.COLOR_ACCENT};
-                font-weight: 600;
+                font-weight: 700;
                 font-size: 13px;
             }}
         """)
