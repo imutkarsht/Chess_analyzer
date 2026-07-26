@@ -4,6 +4,7 @@ from src.backend.storage.models import GameAnalysis
 
 class AnalysisWorker(QThread):
     progress = pyqtSignal(int, int) # current, total
+    move_analyzed = pyqtSignal(int, object) # move_index, data_dict
     finished = pyqtSignal(object) # GameAnalysis
     error = pyqtSignal(str)
 
@@ -15,17 +16,18 @@ class AnalysisWorker(QThread):
 
     def run(self):
         try:
-            # We need to modify the analyzer to accept a check for cancellation
-            # For now, we just pass the callback
-            def callback(current, total):
+            def callback(current, total, move_data=None):
                 if not self._is_running:
                     raise InterruptedError("Analysis cancelled")
                 self.progress.emit(current, total)
+                if move_data is not None:
+                    move_index = move_data.get("index", current - 1)
+                    self.move_analyzed.emit(move_index, move_data)
 
             self.analyzer.analyze_game(self.game, callback=callback)
             self.finished.emit(self.game)
         except InterruptedError:
-            pass # Just stop
+            pass
         except Exception as e:
             self.error.emit(str(e))
 

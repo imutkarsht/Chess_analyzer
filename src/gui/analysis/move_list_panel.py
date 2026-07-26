@@ -41,6 +41,7 @@ class MoveListPanel(QWidget):
         # ownership; without this, the bars would be garbage-collected
         # and the table would render empty cells.
         self._think_bars: list[MoveCellWidget] = []
+        self._move_widgets: dict[int, MoveCellWidget] = {}
         
         self.analysis_timer = QTimer()
         self.analysis_timer.setSingleShot(True)
@@ -155,6 +156,7 @@ class MoveListPanel(QWidget):
                 bar.setParent(None)
                 bar.deleteLater()
             self._think_bars.clear()
+            self._move_widgets.clear()
 
             # Clear table contents and reset row count to prevent leftover widgets/text
             self.table.clearContents()
@@ -224,6 +226,7 @@ class MoveListPanel(QWidget):
 
         # Keep a strong reference so the widget isn't GC'd
         self._think_bars.append(cell)
+        self._move_widgets[index] = cell
 
         # We also need a backing QTableWidgetItem so the cell is selectable
         # and shows up in the table's selection model.
@@ -233,6 +236,27 @@ class MoveListPanel(QWidget):
         item.setSizeHint(QSize(120, 38))
         self.table.setItem(row, col, item)
         self.table.setCellWidget(row, col, cell)
+
+    def update_move_cell(self, move_index: int, classification: str = None,
+                         eval_after_cp=None, eval_after_mate=None):
+        """Update a single move cell's classification and eval display during analysis."""
+        widget = self._move_widgets.get(move_index)
+        if widget is None:
+            return
+        if move_index < 0 or move_index >= len(self.current_game.moves):
+            return
+        move = self.current_game.moves[move_index]
+        if classification is not None:
+            move.classification = classification
+        if eval_after_cp is not None:
+            move.eval_after_cp = eval_after_cp
+        if eval_after_mate is not None:
+            move.eval_after_mate = eval_after_mate
+        icon = None
+        if move.classification:
+            icon = self.resource_manager.get_icon(move.classification)
+        san_color = Styles.get_class_color(move.classification) or Styles.COLOR_TEXT_PRIMARY
+        widget.set_move(move, move_index, icon=icon, san_color=san_color)
 
     def _on_cell_widget_clicked(self, index: int):
         """Forward clicks from MoveCellWidget into the existing move_selected signal."""

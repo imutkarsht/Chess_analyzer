@@ -31,11 +31,13 @@ class AnalysisPanel(QWidget):
         self.groq_service = GroqService()
         self.current_game = None
         self.summary_thread = None
-        
+        self._analysis_running = False
+
         self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
 
         # Tabs
         self.tabs = QTabWidget()
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         self.layout.addWidget(self.tabs)
         
         # --- Tab 1: Evaluation ---
@@ -154,6 +156,13 @@ class AnalysisPanel(QWidget):
         
         # Loading Overlay
         self.loading_overlay = LoadingOverlay(self)
+
+    def set_analysis_running(self, running: bool):
+        self._analysis_running = running
+
+    def _on_tab_changed(self, index):
+        if self._analysis_running and index == 1:
+            self.tabs.setCurrentIndex(0)
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis

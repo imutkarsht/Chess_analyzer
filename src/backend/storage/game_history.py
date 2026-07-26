@@ -47,7 +47,8 @@ class GameHistoryManager:
                 ("opening", "TEXT"),
                 ("starting_fen", "TEXT"),
                 ("source", "TEXT"),
-                ("chess960", "INTEGER")
+                ("chess960", "INTEGER"),
+                ("moves_json", "TEXT")
             ]
             
             # Check existing columns
@@ -104,19 +105,48 @@ class GameHistoryManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # Generate ID if not present (though GameAnalysis usually has one)
             game_id = game_analysis.game_id or str(uuid.uuid4())
             
-            # Serialize summary
             summary_json = json.dumps(game_analysis.summary)
+            
+            moves_data = []
+            for m in game_analysis.moves:
+                moves_data.append({
+                    "move_number": m.move_number,
+                    "ply": m.ply,
+                    "san": m.san,
+                    "uci": m.uci,
+                    "fen_before": m.fen_before,
+                    "eval_before_cp": m.eval_before_cp,
+                    "eval_before_mate": m.eval_before_mate,
+                    "best_move": m.best_move,
+                    "best_eval_cp": m.best_eval_cp,
+                    "best_eval_mate": m.best_eval_mate,
+                    "pv": m.pv,
+                    "eval_after_cp": m.eval_after_cp,
+                    "eval_after_mate": m.eval_after_mate,
+                    "win_chance_before": m.win_chance_before,
+                    "win_chance_after": m.win_chance_after,
+                    "classification": m.classification,
+                    "explanation": m.explanation,
+                    "multi_pvs": m.multi_pvs,
+                    "is_book_move": m.is_book_move,
+                    "eco": m.eco,
+                    "opening_name": m.opening_name,
+                    "candidate_continuations": m.candidate_continuations,
+                    "time_left": m.time_left,
+                    "time_spent": m.time_spent,
+                    "raw_clk": m.raw_clk,
+                })
+            moves_json = json.dumps(moves_data)
             
             cursor.execute("""
                 INSERT OR REPLACE INTO games (
                     id, white, black, result, date, event, pgn, summary_json, timestamp,
                     white_elo, black_elo, time_control, eco, termination, opening, starting_fen, source,
-                    chess960
+                    chess960, moves_json
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 game_id,
                 game_analysis.metadata.white,
@@ -135,7 +165,8 @@ class GameHistoryManager:
                 game_analysis.metadata.opening,
                 game_analysis.metadata.starting_fen,
                 game_analysis.metadata.source,
-                int(game_analysis.metadata.chess960)
+                int(game_analysis.metadata.chess960),
+                moves_json
             ))
             
             conn.commit()

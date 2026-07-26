@@ -5,7 +5,7 @@ from src.gui.components.game_list_widget import GameListWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button, create_combobox
 from src.backend.storage.game_history import GameHistoryManager
-from src.backend.storage.models import GameAnalysis, GameMetadata
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 import json
 import logging
 import re
@@ -233,11 +233,48 @@ class HistoryView(QWidget):
                     except:
                         pass
                         
+                moves = []
+                if g_dict.get("moves_json"):
+                    try:
+                        moves_data = json.loads(g_dict["moves_json"])
+                        for md in moves_data:
+                            move = MoveAnalysis(
+                                move_number=md.get("move_number", 0),
+                                ply=md.get("ply", 0),
+                                san=md.get("san", ""),
+                                uci=md.get("uci", ""),
+                                fen_before=md.get("fen_before", ""),
+                                eval_before_cp=md.get("eval_before_cp"),
+                                eval_before_mate=md.get("eval_before_mate"),
+                                best_move=md.get("best_move"),
+                                best_eval_cp=md.get("best_eval_cp"),
+                                best_eval_mate=md.get("best_eval_mate"),
+                                pv=md.get("pv", []),
+                                eval_after_cp=md.get("eval_after_cp"),
+                                eval_after_mate=md.get("eval_after_mate"),
+                                win_chance_before=md.get("win_chance_before", 0.5),
+                                win_chance_after=md.get("win_chance_after", 0.5),
+                                classification=md.get("classification", ""),
+                                explanation=md.get("explanation", ""),
+                                multi_pvs=md.get("multi_pvs", []),
+                                is_book_move=md.get("is_book_move", False),
+                                eco=md.get("eco", ""),
+                                opening_name=md.get("opening_name", ""),
+                                candidate_continuations=md.get("candidate_continuations", []),
+                                time_left=md.get("time_left"),
+                                time_spent=md.get("time_spent"),
+                                raw_clk=md.get("raw_clk"),
+                            )
+                            moves.append(move)
+                    except Exception as e:
+                        logging.error(f"Failed to parse moves_json for game {g_dict['id']}: {e}")
+
                 game = GameAnalysis(
                     game_id=g_dict["id"],
                     metadata=metadata,
                     pgn_content=g_dict["pgn"],
-                    summary=summary
+                    summary=summary,
+                    moves=moves
                 )
                 self.games.append(game)
             
