@@ -38,7 +38,7 @@ class AnalysisPanel(QWidget):
         self.summary_thread = None
         self._analysis_running = False
 
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         # Tabs
         self.tabs = QTabWidget()
@@ -92,13 +92,6 @@ class AnalysisPanel(QWidget):
 
         self.report_card = QFrame()
         self.report_card.setObjectName("ReportCard")
-        self.report_card.setStyleSheet(f"""
-            QFrame#ReportCard {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-        """)
         tab_layout.addWidget(self.report_card)
 
         self.report_layout = QVBoxLayout(self.report_card)
@@ -117,7 +110,7 @@ class AnalysisPanel(QWidget):
         hero_layout.addWidget(self.result_banner_lbl)
 
         self.opening_label = QLabel("-")
-        self.opening_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: 700; background: transparent; border: none;")
+        self.opening_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;")
         self.opening_label.setWordWrap(True)
         hero_layout.addWidget(self.opening_label)
 
@@ -412,7 +405,7 @@ class AnalysisPanel(QWidget):
 
         if hasattr(self, 'opening_label') and self.opening_label:
             self.opening_label.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: 700; background: transparent; border: none;"
+                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;"
             )
 
         if hasattr(self, 'details_label') and self.details_label:

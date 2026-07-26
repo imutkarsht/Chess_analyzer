@@ -55,13 +55,6 @@ class PlayerSettings(QGroupBox):
         self._lbl_games_limit.setVisible(visible)
         self.games_limit_input.setVisible(visible)
 
-    def refresh_styles(self, input_style, full_input_style):
-        self.setStyleSheet(Styles.get_group_box_style())
-        self.games_limit_input.refresh_styles()
-        self.chesscom_input.setStyleSheet(full_input_style)
-        self.lichess_input.setStyleSheet(full_input_style)
-        # Refresh form row labels
-        lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
-        for lbl in [self._lbl_chesscom, self._lbl_lichess_user, self._lbl_games_limit]:
-            if lbl:
-                lbl.setStyleSheet(lbl_style)
+    def refresh_styles(self, *args, **kwargs):
+        if hasattr(self.games_limit_input, 'refresh_styles'):
+            self.games_limit_input.refresh_styles()

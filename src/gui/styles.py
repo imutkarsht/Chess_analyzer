@@ -512,7 +512,14 @@ class Styles(metaclass=_StylesMeta):
                 color: {p.text_primary};
                 selection-background-color: {p.accent};
                 selection-color: white;
-                border: 1px solid {p.border};
+                border: none;
+                outline: 0px;
+                padding: 4px;
+            }}
+            QComboBox QAbstractItemView::item {{
+                min-height: 26px;
+                padding: 4px 8px;
+                border-radius: 4px;
             }}
         """
     

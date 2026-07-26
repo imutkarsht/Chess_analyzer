@@ -63,7 +63,5 @@ class DataSettings(QGroupBox):
     def set_advanced_visible(self, visible):
         self.setVisible(visible)
 
-    def refresh_styles(self, default_style, danger_style):
-        self.setStyleSheet(Styles.get_group_box_style())
-        self.clear_cache_btn.setStyleSheet(default_style)
-        self.clear_data_btn.setStyleSheet(danger_style)
+    def refresh_styles(self, *args, **kwargs):
+        pass

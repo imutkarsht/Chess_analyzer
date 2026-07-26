@@ -68,8 +68,5 @@ class LinksSettings(QGroupBox):
     def set_advanced_visible(self, visible):
         pass
 
-    def refresh_styles(self, default_style):
-        self.setStyleSheet(Styles.get_group_box_style())
-        self.website_btn.setStyleSheet(default_style)
-        self.feedback_btn.setStyleSheet(default_style)
-        self.update_btn.setStyleSheet(default_style)
+    def refresh_styles(self, *args, **kwargs):
+        pass

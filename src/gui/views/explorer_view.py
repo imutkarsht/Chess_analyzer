@@ -221,6 +221,7 @@ class ExplorerView(QWidget):
         self.loading_overlay.stop()
 
     def setup_ui(self):
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -1316,118 +1317,29 @@ class ExplorerView(QWidget):
         super().closeEvent(event)
 
     def refresh_styles(self):
-        self.header_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QFrame QLabel {{
-                background: transparent;
-            }}
-        """)
-        # Update title and player labels
-        if hasattr(self, 'title_lbl'):
-            self.title_lbl.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-        if hasattr(self, 'lbl_black'):
-            self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
-        if hasattr(self, 'lbl_white'):
-            self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
-        if hasattr(self, 'move_list_label'):
-            self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
-        # Update panel backgrounds
-        if hasattr(self, 'left_panel'):
-            self.left_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        if hasattr(self, 'right_panel'):
-            self.right_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        if hasattr(self, 'splitter'):
-            self.splitter.setStyleSheet(f"""
-                QSplitter {{ background-color: {Styles.COLOR_BACKGROUND}; }}
-                QSplitter::handle {{ background-color: {Styles.COLOR_BORDER}; }}
+        """Re-applies styles to explorer view components."""
+        if hasattr(self, 'move_input'):
+            self.move_input.setStyleSheet(f"""
+                QLineEdit {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 6px;
+                    padding: 2px 8px;
+                    font-size: 12px;
+                }}
+                QLineEdit:focus {{
+                    border-color: {Styles.COLOR_ACCENT};
+                }}
             """)
-        self.opening_badge.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; padding: 0px 0px 0px 12px; background: transparent; border: none;")
-        btn_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """
-        self.btn_flip.setStyleSheet(btn_style)
-        self.btn_copy_fen.setStyleSheet(btn_style)
-        self.btn_copy_pgn.setStyleSheet(btn_style)
-        chk_style = f"""
-            QCheckBox {{
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                font-weight: 500;
-            }}
-        """
-        self.chk_classify.setStyleSheet(chk_style)
-        self.chk_legal.setStyleSheet(chk_style)
-        self.chk_engine.setStyleSheet(chk_style)
-        self.chk_cache.setStyleSheet(chk_style)
-        self.lines_widget.refresh_styles()
-        self.book_toggle.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                border: none;
-                text-align: left;
-                font-size: 14px;
-                font-weight: bold;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                padding: 2px 0px;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        self.book_scroll.setStyleSheet(f"""
-            QScrollArea {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-            QScrollBar:vertical {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                width: 10px;
-                margin: 0px 0px 0px 0px;
-                border-radius: 5px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: {Styles.COLOR_BORDER_LIGHT};
-                min-height: 20px;
-                border-radius: 5px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-        """)
-        self.book_container.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE};")
-        self.move_input.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 2px 8px;
-                font-size: 12px;
-            }}
-            QLineEdit:focus {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 0px;")
-        self.captured_white.refresh_styles()
-        self.captured_black.refresh_styles()
+        if hasattr(self, 'lichess_attribution'):
+            self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
+        if hasattr(self, 'lines_widget'):
+            self.lines_widget.refresh_styles()
+        if hasattr(self, 'captured_white'):
+            self.captured_white.refresh_styles()
+        if hasattr(self, 'captured_black'):
+            self.captured_black.refresh_styles()
         for child in self.findChildren(QWidget):
             child.style().unpolish(child)
             child.style().polish(child)

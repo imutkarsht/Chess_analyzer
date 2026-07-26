@@ -97,12 +97,54 @@ class ThemeManager(QObject):
             cls.set_mode(mode)
 
     @classmethod
-    def set_mode(cls, mode: str):
-        if mode == cls._current_mode:
+    def apply_app_stylesheet(cls):
+        """Compiles and applies the central QSS theme template globally to QApplication."""
+        from PyQt6.QtWidgets import QApplication
+        import os
+        from src.utils.path_utils import get_resource_path
+
+        qss_path = os.path.join(os.path.dirname(__file__), "theme_template.qss")
+        if not os.path.exists(qss_path):
+            qss_path = get_resource_path("src/gui/theme/theme_template.qss")
+
+        try:
+            with open(qss_path, "r", encoding="utf-8") as f:
+                template = f.read()
+
+            p = cls._palette
+            tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+
+            qss = template.format(
+                BACKGROUND=p.background,
+                SURFACE=p.surface,
+                SURFACE_LIGHT=p.surface_light,
+                SURFACE_CARD=p.surface_card,
+                BORDER=p.border,
+                BORDER_LIGHT=p.border_light,
+                HIGHLIGHT=p.highlight,
+                TEXT_PRIMARY=p.text_primary,
+                TEXT_SECONDARY=p.text_secondary,
+                TEXT_MUTED=p.text_muted,
+                ACCENT=p.accent,
+                ACCENT_HOVER=p.accent_hover,
+                ACCENT_SUBTLE=p.accent_subtle,
+                TICK_PATH=tick_path
+            )
+            app = QApplication.instance()
+            if app:
+                app.setStyleSheet(qss)
+        except Exception as e:
+            from src.utils.logger import logger
+            logger.error(f"Failed to apply app stylesheet: {e}")
+
+    @classmethod
+    def set_mode(cls, mode: str, force: bool = True):
+        if not force and mode == cls._current_mode:
             return
         cls._current_mode = mode
         cls._palette = DARK if mode == "dark" else LIGHT
         cls._palette = cls._palette.with_accent(cls._accent)
+        cls.apply_app_stylesheet()
         instance = cls.instance()
         instance.theme_changed.emit(mode)
 
@@ -121,8 +163,11 @@ class ThemeManager(QObject):
 
     @classmethod
     def set_accent(cls, hex_color: str):
+        if not hex_color:
+            hex_color = get_system_accent() or (DARK.accent if cls._current_mode == "dark" else LIGHT.accent)
         cls._accent = hex_color
         cls._palette = cls._palette.with_accent(hex_color)
+        cls.apply_app_stylesheet()
         instance = cls.instance()
         instance.accent_changed.emit(hex_color)
 

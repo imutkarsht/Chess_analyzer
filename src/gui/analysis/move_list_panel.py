@@ -27,6 +27,7 @@ class MoveListPanel(QWidget):
 
         # Live Analysis — pass the shared ConfigManager so the worker
         # can honour the live_analysis_time / multi_pv settings that
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         # the user has chosen in Settings.
         self.engine_path = engine_path
         self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=config_manager)
@@ -81,40 +82,6 @@ class MoveListPanel(QWidget):
         
         # Set default row height for better click targets
         self.table.verticalHeader().setDefaultSectionSize(40)
-        
-        # Enhanced table styling  
-        self.table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                gridline-color: transparent;
-                font-size: 13px;
-            }}
-            QTableWidget::item {{
-                padding: 4px 6px;
-                border: none;
-                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QTableWidget::item:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 4px;
-            }}
-            QTableWidget::item:selected {{
-                background-color: {Styles.COLOR_HIGHLIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-radius: 4px;
-            }}
-            QHeaderView::section {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 8px 6px;
-                border: none;
-                border-bottom: 2px solid {Styles.COLOR_ACCENT};
-                font-weight: 600;
-                font-size: 13px;
-            }}
-        """)
         
         self.layout.addWidget(self.table)
         

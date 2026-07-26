@@ -618,72 +618,39 @@ class MainWindow(QMainWindow):
         self.refresh_theme()
 
     def refresh_theme(self):
-        """Re-applies the theme and updates widgets that need manual refresh."""
+        """Re-applies the global central QSS theme and updates non-QSS canvas/board widgets."""
         self._apply_palette()
-        theme_qss = Styles.get_theme()
-        self.setStyleSheet(theme_qss)
-        QApplication.instance().setStyleSheet(theme_qss)
+        from src.gui.theme import ThemeManager
+        ThemeManager.apply_app_stylesheet()
         
-        # Update Sidebar
-        self.sidebar.apply_style()
-        
-        # Update Board
+        # Header Buttons
+        if hasattr(self, 'btn_analyze'):
+            self.btn_analyze.setStyleSheet(Styles.get_button_style())
+        if hasattr(self, 'btn_explore'):
+            self.btn_explore.setStyleSheet(Styles.get_control_button_style())
+        if hasattr(self, 'btn_load'):
+            self.btn_load.setStyleSheet(Styles.get_control_button_style())
+
+        # Update Chess Boards (Graphics / QPainter)
         if hasattr(self, 'board_widget'):
             self.board_widget.update_board()
-
-        # Update analysis page container backgrounds
-        if hasattr(self, 'left_widget') and self.left_widget:
-            self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        if hasattr(self, 'center_widget') and self.center_widget:
-            self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        if hasattr(self, 'right_widget') and self.right_widget:
-            self.right_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-
-        # Update Explorer Board
         if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'board_widget'):
             self.explorer_view.board_widget.update_board()
             
-        # Update Analysis Panel
+        # Refresh Matplotlib Evaluation Graphs & Custom Gauges
         if hasattr(self, 'analysis_panel'):
             self.analysis_panel.refresh_styles()
-            
-        # Update Move List Panel
         if hasattr(self, 'move_list_panel'):
             self.move_list_panel.refresh_styles()
-            
-        # Update Settings View
+        if hasattr(self, 'history_view'):
+            self.history_view.refresh_styles()
         if hasattr(self, 'settings_view'):
             self.settings_view.refresh_styles()
-            
-        # Update Metrics View (using lightweight style refresh if possible)
         if hasattr(self, 'metrics_view'):
             if hasattr(self.metrics_view, 'refresh_styles'):
                 self.metrics_view.refresh_styles()
             else:
                 self.metrics_view.refresh()
-            
-        # Update Analysis Header Bar
-        if hasattr(self, 'analysis_header_bar') and self.analysis_header_bar:
-            self.analysis_header_bar.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Styles.COLOR_BACKGROUND};
-                    border-bottom: 1px solid {Styles.COLOR_BORDER};
-                }}
-                QFrame QLabel {{
-                    background: transparent;
-                }}
-            """)
-        if hasattr(self, 'title_lbl') and self.title_lbl:
-            self.title_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-
-        # Update MainWindow Buttons
-        if hasattr(self, 'btn_explore'):
-            self.btn_explore.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'btn_load'):
-            self.btn_load.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'btn_analyze'):
-            self.btn_analyze.setStyleSheet(Styles.get_button_style())
-        if hasattr(self, 'game_info_label'):
             self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
         
         # Update Menu Styles

@@ -49,6 +49,7 @@ class MetricsWidget(QWidget):
             self.ai_coach_card.groq_service = service
 
     def setup_ui(self):
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)

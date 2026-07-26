@@ -25,6 +25,7 @@ class HistoryView(QWidget):
         self.history_manager = GameHistoryManager()
         self.games = []
         
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
@@ -77,6 +78,7 @@ class HistoryView(QWidget):
         # Search Bar
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search player, opening, date...")
+        self.search_input.setMinimumWidth(220)
         self.search_input.setStyleSheet(f"""
             QLineEdit {{
                 padding: 6px 10px;
@@ -85,65 +87,64 @@ class HistoryView(QWidget):
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
                 font-size: 13px;
-                max-width: 220px;
             }}
             QLineEdit:focus {{
                 border: 1px solid {Styles.COLOR_ACCENT};
             }}
         """)
         self.search_input.textChanged.connect(self.apply_filters)
-        filter_layout.addWidget(self.search_input)
+        filter_layout.addWidget(self.search_input, 1)
         
-        filter_layout.addSpacing(6)
+        filter_layout.addSpacing(10)
         
         # Result Filter
         self.result_label = QLabel("Result:")
-        self.result_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px;")
+        self.result_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
         filter_layout.addWidget(self.result_label)
         
         self.result_filter = create_combobox(
             items=["All", "Wins", "Losses", "Draws"],
             on_change=self.apply_filters
         )
-        self.result_filter.setMinimumWidth(80)
+        self.result_filter.setFixedWidth(100)
         filter_layout.addWidget(self.result_filter)
 
         # Type / Speed Category Filter
         self.type_label = QLabel("Type:")
-        self.type_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px;")
+        self.type_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
         filter_layout.addWidget(self.type_label)
 
         self.type_filter = create_combobox(
             items=["All", "Rapid", "Blitz", "Bullet", "Classical", "UltraBullet"],
             on_change=self.apply_filters
         )
-        self.type_filter.setMinimumWidth(90)
+        self.type_filter.setFixedWidth(110)
         filter_layout.addWidget(self.type_filter)
         
         # Source Filter
         self.source_label = QLabel("Source:")
-        self.source_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px;")
+        self.source_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
         filter_layout.addWidget(self.source_label)
         
         self.source_filter = create_combobox(
             items=["All", "Chess.com", "Lichess", "File"],
             on_change=self.apply_filters
         )
-        self.source_filter.setMinimumWidth(90)
+        self.source_filter.setFixedWidth(110)
         filter_layout.addWidget(self.source_filter)
         
-        filter_layout.addStretch()
+        filter_layout.addSpacing(10)
         
         # Sort Dropdown
         self.sort_label = QLabel("Sort:")
-        self.sort_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px;")
+        self.sort_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
         filter_layout.addWidget(self.sort_label)
         
         self.sort_dropdown = create_combobox(
             items=["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
             on_change=self.apply_filters
         )
-        self.sort_dropdown.setMinimumWidth(115)
+        self.sort_dropdown.setFixedWidth(135)
         filter_layout.addWidget(self.sort_dropdown)
         
         content_layout.addLayout(filter_layout)
@@ -591,115 +592,9 @@ class HistoryView(QWidget):
             Toast.show_message(self.window(), f"Import failed: {e}", "error")
 
     def refresh_styles(self):
-        """Re-apply styles with the updated accent color."""
-        # Refresh root widget background
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-
-        # Refresh header bar style
-        if hasattr(self, 'header_bar') and self.header_bar:
-            self.header_bar.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Styles.COLOR_BACKGROUND};
-                    border-bottom: 1px solid {Styles.COLOR_BORDER};
-                }}
-            """)
-
-        # Refresh title label
-        if hasattr(self, 'header_lbl') and self.header_lbl:
-            self.header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-            
-        # Refresh refresh button
+        """Re-applies styles to game history view components."""
         if hasattr(self, 'btn_refresh'):
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
-            
-        # Refresh search input focus border
-        if hasattr(self, 'search_input'):
-            self.search_input.setStyleSheet(f"""
-                QLineEdit {{
-                    padding: 8px 12px;
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 6px;
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    font-size: 13px;
-                    min-width: 250px;
-                }}
-                QLineEdit:focus {{
-                    border: 1px solid {Styles.COLOR_ACCENT};
-                }}
-            """)
-            
-        # Refresh filters dropdowns
-        if hasattr(self, 'result_filter'):
-            self.result_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'speed_filter'):
-            self.speed_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'type_filter'):
-            self.type_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'source_filter'):
-            self.source_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'sort_dropdown'):
-            self.sort_dropdown.setStyleSheet(Styles.get_combobox_style())
-            
-        # Refresh bottom buttons
-        if hasattr(self, 'btn_export'):
-            self.btn_export.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-size: 13px;
-                }}
-                QPushButton:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border-color: {Styles.COLOR_ACCENT};
-                }}
-            """)
-        if hasattr(self, 'btn_import'):
-            self.btn_import.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-size: 13px;
-                }}
-                QPushButton:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border-color: {Styles.COLOR_ACCENT};
-                }}
-            """)
-        if hasattr(self, 'btn_clear'):
-            self.btn_clear.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_BLUNDER};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-size: 13px;
-                }}
-                QPushButton:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    color: {Styles.COLOR_BLUNDER};
-                    border-color: {Styles.COLOR_ACCENT};
-                }}
-            """)
-            
-        # Cascade refresh to nested game list
-        if hasattr(self, 'content_widget') and self.content_widget:
-            self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         if hasattr(self, 'game_list'):
             self.game_list.refresh_styles()
-            
-        if hasattr(self, 'filter_label') and self.filter_label:
-            self.filter_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px;")
-        for lbl_name in ('result_label', 'type_label', 'speed_label', 'source_label', 'sort_label'):
-            if hasattr(self, lbl_name):
-                lbl = getattr(self, lbl_name)
-                if lbl:
-                    lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px;")
 

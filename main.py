@@ -49,6 +49,9 @@ def main():
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
         
+        from src.gui.theme import ThemeManager
+        ThemeManager.apply_app_stylesheet()
+        
         # Resource paths
         resource_path = get_resource_path("assets")
         logo_path = os.path.join(resource_path, "images", "logo.png")
