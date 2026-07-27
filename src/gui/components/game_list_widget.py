@@ -6,6 +6,12 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from ..styles import Styles
 from .game_list_item_widget import GameListItemWidget
 
+try:
+    import qtawesome as qta
+    HAS_QTAWESOME = True
+except ImportError:
+    HAS_QTAWESOME = False
+
 class GameListWidget(QWidget):
     """Container widget for the game list with pagination (10 games per page)."""
 
@@ -17,64 +23,59 @@ class GameListWidget(QWidget):
         self._all_games: list = []
         self._current_page: int = 0
         self.usernames: list = []
-        self.view_mode: str = "detailed"  # "detailed" or "compact"
+        self.view_mode: str = "compact"  # "compact" or "detailed"
 
+        from src.gui.theme import ThemeManager
+        ThemeManager.instance().theme_changed.connect(lambda mode: self.refresh_styles())
+        ThemeManager.instance().accent_changed.connect(lambda acc: self.refresh_styles())
+
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
         # ── Header Bar ───────────────────────────────────────────────────────
         self.header_bar_widget = QWidget()
-        self._apply_title_style()
+        self.header_bar_widget.setFixedHeight(44)
+        
         header_bar_layout = QHBoxLayout(self.header_bar_widget)
-        header_bar_layout.setContentsMargins(16, 10, 16, 10)
-        header_bar_layout.setSpacing(8)
+        header_bar_layout.setContentsMargins(16, 0, 16, 0)
 
-        self.title_label = QLabel("Games")
-        self.title_label.setStyleSheet(f"font-weight: 600; font-size: 15px; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-        header_bar_layout.addWidget(self.title_label)
+        title_lbl = QLabel("Games")
+        title_lbl.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        header_bar_layout.addWidget(title_lbl)
 
         header_bar_layout.addStretch()
 
-        # View Mode Toggle Control Group
-        try:
-            import qtawesome as qta
-            has_qta = True
-        except ImportError:
-            has_qta = False
-
+        # View mode toggle buttons
         self.btn_detailed = QPushButton()
-        self.btn_detailed.setFixedSize(30, 28)
-        self.btn_detailed.setToolTip("Detailed Card View")
+        self.btn_detailed.setFixedSize(30, 26)
+        self.btn_detailed.setToolTip("Detailed Cards View")
         self.btn_detailed.setCursor(Qt.CursorShape.PointingHandCursor)
-        if has_qta:
-            self.btn_detailed.setIcon(qta.icon("fa5s.th-large", color=Styles.COLOR_TEXT_PRIMARY))
-        else:
-            self.btn_detailed.setText("🌁")
 
         self.btn_compact = QPushButton()
-        self.btn_compact.setFixedSize(30, 28)
-        self.btn_compact.setToolTip("Compact List View")
+        self.btn_compact.setFixedSize(30, 26)
+        self.btn_compact.setToolTip("Compact Table View")
         self.btn_compact.setCursor(Qt.CursorShape.PointingHandCursor)
-        if has_qta:
-            self.btn_compact.setIcon(qta.icon("fa5s.list", color=Styles.COLOR_TEXT_MUTED))
+
+        if HAS_QTAWESOME:
+            self.btn_detailed.setIcon(qta.icon("fa5s.th-large", color=Styles.COLOR_TEXT_PRIMARY))
+            self.btn_compact.setIcon(qta.icon("fa5s.list", color=Styles.COLOR_TEXT_PRIMARY))
         else:
-            self.btn_compact.setText("☰")
+            self.btn_detailed.setText("田")
+            self.btn_compact.setText("≡")
 
         self.btn_detailed.clicked.connect(lambda: self.set_view_mode("detailed"))
         self.btn_compact.clicked.connect(lambda: self.set_view_mode("compact"))
 
         header_bar_layout.addWidget(self.btn_detailed)
         header_bar_layout.addWidget(self.btn_compact)
-        self._update_view_toggle_styles()
-
         root.addWidget(self.header_bar_widget)
 
         # ── List ─────────────────────────────────────────────────────────────
         self.list_widget = QListWidget()
         self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
         self.list_widget.setSpacing(0)
-        self._apply_list_style()
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         root.addWidget(self.list_widget, stretch=1)
 
@@ -89,7 +90,7 @@ class GameListWidget(QWidget):
         self._page_bar_layout.setSpacing(6)
         root.addWidget(self._pagination_bar)
 
-        self.layout = root
+        self._update_view_toggle_styles()
         self._render_page()
 
     def set_view_mode(self, mode: str):
@@ -101,10 +102,15 @@ class GameListWidget(QWidget):
 
     def _update_view_toggle_styles(self):
         is_detailed = (self.view_mode == "detailed")
+        if HAS_QTAWESOME:
+            detailed_icon_color = "#FFFFFF" if is_detailed else Styles.COLOR_TEXT_PRIMARY
+            compact_icon_color = "#FFFFFF" if not is_detailed else Styles.COLOR_TEXT_PRIMARY
+            self.btn_detailed.setIcon(qta.icon("fa5s.th-large", color=detailed_icon_color))
+            self.btn_compact.setIcon(qta.icon("fa5s.list", color=compact_icon_color))
         self.btn_detailed.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT if is_detailed else Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
+                color: {"#FFFFFF" if is_detailed else Styles.COLOR_TEXT_PRIMARY} !important;
                 border: 1px solid {Styles.COLOR_ACCENT if is_detailed else Styles.COLOR_BORDER};
                 border-radius: 5px;
                 padding: 0 10px;
@@ -115,7 +121,7 @@ class GameListWidget(QWidget):
         self.btn_compact.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT if not is_detailed else Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
+                color: {"#FFFFFF" if not is_detailed else Styles.COLOR_TEXT_PRIMARY} !important;
                 border: 1px solid {Styles.COLOR_ACCENT if not is_detailed else Styles.COLOR_BORDER};
                 border-radius: 5px;
                 padding: 0 10px;
@@ -128,7 +134,7 @@ class GameListWidget(QWidget):
 
     def set_games(self, games, usernames=None):
         """Replace the game list and jump back to page 1."""
-        self._all_games = list(games)
+        self._all_games = games or []
         if usernames is not None:
             self.usernames = usernames
         self._current_page = 0
@@ -325,15 +331,18 @@ class GameListWidget(QWidget):
         btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT if is_current else Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
+                color: {"#FFFFFF" if is_current else Styles.COLOR_TEXT_PRIMARY} !important;
                 border: 1px solid {Styles.COLOR_ACCENT if is_current else Styles.COLOR_BORDER};
                 border-radius: 6px;
+                padding: 0px !important;
                 font-size: 12px;
                 font-weight: {'700' if is_current else '400'};
+                text-align: center !important;
             }}
             QPushButton:hover {{
                 background-color: {Styles.COLOR_ACCENT};
                 border-color: {Styles.COLOR_ACCENT};
+                color: #FFFFFF !important;
             }}
         """)
         btn.clicked.connect(lambda _, p=page: self._go_to_page(p))
@@ -356,7 +365,7 @@ class GameListWidget(QWidget):
             self.header_bar_widget.setStyleSheet(f"""
                 QWidget {{
                     background-color: {Styles.COLOR_SURFACE};
-                    border-bottom: 2px solid {Styles.COLOR_ACCENT};
+                    border-bottom: 1px solid {Styles.COLOR_BORDER};
                 }}
             """)
 

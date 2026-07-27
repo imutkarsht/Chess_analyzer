@@ -14,8 +14,13 @@ from .analysis_lines_widget import AnalysisLinesWidget
 from src.utils.resources import ResourceManager
 from src.utils.logger import logger
 from src.utils.config import ConfigManager
+from src.utils.path_utils import get_resource_path
 from src.backend.services.groq_service import GroqService
 from src.gui.components.loading_widget import LoadingOverlay
+
+from src.gui.components import CircularAccuracyWidget
+from src.backend.storage.termination_detector import TerminationDetector
+
 
 class AnalysisPanel(QWidget):
     cache_toggled = pyqtSignal(bool)
@@ -33,7 +38,7 @@ class AnalysisPanel(QWidget):
         self.summary_thread = None
         self._analysis_running = False
 
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         # Tabs
         self.tabs = QTabWidget()
@@ -53,39 +58,23 @@ class AnalysisPanel(QWidget):
         
         # Toggles
         toggles_layout = QHBoxLayout()
-        toggles_layout.setContentsMargins(0, 5, 0, 5)
+        toggles_layout.setContentsMargins(0, 6, 0, 6)
+        toggles_layout.setSpacing(10)
         
         from PyQt6.QtWidgets import QCheckBox
         self.toggle_checkbox = QCheckBox("Engine Lines")
         self.toggle_checkbox.setChecked(False)
         self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.toggle_checkbox.setStyleSheet(f"""
-            QCheckBox {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-weight: bold;
-                font-size: 13px;
-                background: transparent;
-                border: none;
-            }}
-        """)
         toggles_layout.addWidget(self.toggle_checkbox)
         
         self.cache_checkbox = QCheckBox("Use Cache")
         self.cache_checkbox.setChecked(True)
         self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.cache_checkbox.setStyleSheet(f"""
-            QCheckBox {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-weight: bold;
-                font-size: 13px;
-                background: transparent;
-                border: none;
-            }}
-        """)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         toggles_layout.addWidget(self.cache_checkbox)
         toggles_layout.addStretch()
         self.eval_layout.addLayout(toggles_layout)
+        self._apply_toggle_style()
         
         # Analysis Lines
         self.lines_widget = AnalysisLinesWidget()
@@ -97,46 +86,109 @@ class AnalysisPanel(QWidget):
         # --- Tab 2: Report ---
         self.report_tab = QWidget()
         self.report_tab.setStyleSheet("background: transparent;")
-        self.report_layout = QVBoxLayout(self.report_tab)
-        self.report_layout.setContentsMargins(5, 5, 5, 5)
+        tab_layout = QVBoxLayout(self.report_tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.setSpacing(0)
+
+        self.report_card = QFrame()
+        self.report_card.setObjectName("ReportCard")
+        tab_layout.addWidget(self.report_card)
+
+        self.report_layout = QVBoxLayout(self.report_card)
+        self.report_layout.setContentsMargins(12, 12, 12, 12)
         self.report_layout.setSpacing(10)
-        
-        # Opening
-        self.opening_label = QLabel("Opening: -")
-        self.opening_label.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: bold; background: transparent;"
-        )
-        self.opening_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # 1. Top Section: Hero Outcome Header
+        self.hero_card = QFrame()
+        self.hero_card.setStyleSheet("background: transparent; border: none;")
+        hero_layout = QVBoxLayout(self.hero_card)
+        hero_layout.setContentsMargins(0, 0, 0, 0)
+        hero_layout.setSpacing(2)
+
+        self.result_banner_lbl = QLabel("-")
+        self.result_banner_lbl.setStyleSheet("background: transparent; border: none;")
+        hero_layout.addWidget(self.result_banner_lbl)
+
+        self.opening_label = QLabel("-")
+        self.opening_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;")
         self.opening_label.setWordWrap(True)
-        self.report_layout.addWidget(self.opening_label)
+        hero_layout.addWidget(self.opening_label)
+
+        self.details_label = QLabel("-")
+        self.details_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+        hero_layout.addWidget(self.details_label)
+
+        self.report_layout.addWidget(self.hero_card)
+
+        # Subtle divider 1
+        self.div1 = QFrame()
+        self.div1.setFrameShape(QFrame.Shape.HLine)
+        self.div1.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+        self.report_layout.addWidget(self.div1)
         
-        # Accuracy
+        # 2. Accuracy Gauges (Side by side White & Black)
         self.accuracy_frame = QFrame()
+        self.accuracy_frame.setStyleSheet("background: transparent; border: none;")
         self.accuracy_layout = QHBoxLayout(self.accuracy_frame)
-        self.accuracy_layout.setContentsMargins(0, 0, 0, 0)
+        self.accuracy_layout.setContentsMargins(0, 4, 0, 4)
+        self.accuracy_layout.setSpacing(16)
+
+        self.w_circular_acc = CircularAccuracyWidget(side="White", accuracy=0.0, acpl=None)
+        self.b_circular_acc = CircularAccuracyWidget(side="Black", accuracy=0.0, acpl=None)
+        self.accuracy_layout.addWidget(self.w_circular_acc)
+        self.accuracy_layout.addWidget(self.b_circular_acc)
+
         self.report_layout.addWidget(self.accuracy_frame)
+
+        # Subtle divider 2
+        self.div2 = QFrame()
+        self.div2.setFrameShape(QFrame.Shape.HLine)
+        self.div2.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+        self.report_layout.addWidget(self.div2)
         
-        # Stats Grid
+        # 3. Move Quality Classification Table
         self.stats_frame = QFrame()
+        self.stats_frame.setStyleSheet("background: transparent; border: none;")
         self.stats_layout = QGridLayout(self.stats_frame)
-        self.stats_layout.setSpacing(5)
-        self.stats_layout.setContentsMargins(0, 0, 0, 0)
+        self.stats_layout.setSpacing(4)
+        self.stats_layout.setContentsMargins(0, 4, 0, 4)
         self.report_layout.addWidget(self.stats_frame)
+
+        # Subtle divider 3
+        self.div3 = QFrame()
+        self.div3.setFrameShape(QFrame.Shape.HLine)
+        self.div3.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+        self.report_layout.addWidget(self.div3)
         
-        # AI Summary
+        # 4. AI Coach Summary (Takes remaining vertical height)
         self.ai_summary_frame = QFrame()
         self.ai_summary_layout = QVBoxLayout(self.ai_summary_frame)
-        self.ai_summary_layout.setContentsMargins(0, 5, 0, 0)
+        self.ai_summary_layout.setContentsMargins(0, 4, 0, 0)
+        self.ai_summary_layout.setSpacing(6)
         
-        self.btn_generate_summary = QPushButton("Generate AI Summary")
-        self.btn_generate_summary.setStyleSheet(Styles.get_button_style())
+        self.btn_generate_summary = QPushButton(" ✨  Generate AI coach summary")
         self.btn_generate_summary.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_generate_summary.setFixedHeight(34)
+        self.btn_generate_summary.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_ACCENT};
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_ACCENT};
+                color: #FFFFFF;
+            }}
+        """)
         self.btn_generate_summary.clicked.connect(self.generate_ai_summary)
         self.ai_summary_layout.addWidget(self.btn_generate_summary)
         
         self.txt_ai_summary = QTextEdit()
         self.txt_ai_summary.setReadOnly(True)
-        self.txt_ai_summary.setPlaceholderText("AI Summary will appear here...")
+        self.txt_ai_summary.setPlaceholderText("AI Coach summary & key takeaways will appear here...")
         self.txt_ai_summary.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
@@ -144,13 +196,14 @@ class AnalysisPanel(QWidget):
                 border-radius: 8px;
                 padding: 10px;
                 color: {Styles.COLOR_TEXT_PRIMARY};
+                font-size: 13px;
+                line-height: 1.4;
             }}
         """)
         self.txt_ai_summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.ai_summary_layout.addWidget(self.txt_ai_summary)
         
-        self.report_layout.addWidget(self.ai_summary_frame)
-        self.report_layout.setStretchFactor(self.ai_summary_frame, 1)
+        self.report_layout.addWidget(self.ai_summary_frame, stretch=1)
         
         self.tabs.addTab(self.report_tab, "Report")
         
@@ -177,9 +230,40 @@ class AnalysisPanel(QWidget):
             self.lines_widget.clear()
             self.graph_widget.plot_game(self.current_game)
             self._update_summary(self.current_game.summary)
+
+            meta = self.current_game.metadata
+            w_name = meta.white or "White"
+            b_name = meta.black or "Black"
+
+            # Result Header
+            term_mode, term_desc = TerminationDetector.detect_termination(
+                headers={"Result": meta.result, "White": w_name, "Black": b_name, "Termination": meta.termination or ""},
+                moves=getattr(self.current_game, "moves", []) or [],
+                starting_fen=meta.starting_fen
+            )
+
+            res_color = self._get_result_color(meta)
+
+            self.result_banner_lbl.setText(f"<span style='color: {res_color}; font-weight: 800; font-size: 13px;'>{meta.result}</span> &nbsp;<span style='color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500;'>{term_desc}</span>")
+
+            # Opening & details section
+            opening = meta.opening or "Unknown Opening"
+            self.opening_label.setText(opening)
+
+            speed_cat = getattr(meta, "speed_category", "")
+            num_moves = (len(self.current_game.moves) + 1) // 2 if hasattr(self.current_game, 'moves') and self.current_game.moves else 0
             
-            opening = self.current_game.metadata.opening
-            self.opening_label.setText(f"Opening: {opening}" if opening else "Opening: Unknown")
+            details_parts = []
+            if speed_cat:
+                details_parts.append(speed_cat)
+            if num_moves:
+                details_parts.append(f"{num_moves} moves")
+
+            if details_parts:
+                self.details_label.setText("  •  ".join(details_parts))
+                self.details_label.setVisible(True)
+            else:
+                self.details_label.setVisible(False)
             
             if self.current_game.ai_summary:
                 self.txt_ai_summary.setText(self.current_game.ai_summary)
@@ -193,66 +277,94 @@ class AnalysisPanel(QWidget):
         except Exception as e:
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
 
+    def _get_result_color(self, meta):
+        chesscom = self.config_manager.get("chesscom_username", "")
+        lichess = self.config_manager.get("lichess_username", "")
+        usernames = [u.lower() for u in [chesscom, lichess] if u]
+
+        w_name = (meta.white or "").lower()
+        b_name = (meta.black or "").lower()
+
+        user_is_white = w_name in usernames if w_name else False
+        user_is_black = b_name in usernames if b_name else False
+
+        if meta.result == "1-0":
+            if user_is_black:
+                return Styles.COLOR_BLUNDER
+            return Styles.COLOR_BEST
+        elif meta.result == "0-1":
+            if user_is_white:
+                return Styles.COLOR_BLUNDER
+            return Styles.COLOR_BEST
+
+        return Styles.COLOR_TEXT_PRIMARY
+
     def _update_summary(self, summary):
-        clear_layout(self.accuracy_layout)
         clear_layout(self.stats_layout)
         
-        if not summary:
-            logger.warning("AnalysisPanel: Summary is empty/None")
+        if not summary or "white" not in summary:
+            self.w_circular_acc.set_data(0.0, None)
+            self.b_circular_acc.set_data(0.0, None)
             return
-            
-        if "white" not in summary:
-            logger.warning(f"AnalysisPanel: Summary missing 'white' key. Keys: {summary.keys()}")
-            return
-            
-        w_acc = summary['white'].get('accuracy', 0)
-        b_acc = summary['black'].get('accuracy', 0)
+
+        w_acc = summary['white'].get('accuracy', 0.0)
+        b_acc = summary['black'].get('accuracy', 0.0)
+        w_acpl = summary['white'].get('acpl', None)
+        b_acpl = summary['black'].get('acpl', None)
+
+        self.w_circular_acc.set_data(w_acc, w_acpl)
+        self.b_circular_acc.set_data(b_acc, b_acpl)
         
-        self.accuracy_layout.addWidget(StatCard("White Accuracy", f"{w_acc:.1f}%", Styles.COLOR_TEXT_PRIMARY))
-        self.accuracy_layout.addWidget(StatCard("Black Accuracy", f"{b_acc:.1f}%", Styles.COLOR_TEXT_PRIMARY))
-        
-        # Stats Grid
+        # Stats Grid Header
         self.stats_layout.addWidget(QLabel(""), 0, 0)
         lbl_w = QLabel("White")
         lbl_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_w.setStyleSheet("font-weight: bold;")
+        lbl_w.setStyleSheet("font-weight: bold; color: " + Styles.COLOR_TEXT_PRIMARY + ";")
         self.stats_layout.addWidget(lbl_w, 0, 1)
         
         self.stats_layout.addWidget(QLabel(""), 0, 2)
         
         lbl_b = QLabel("Black")
         lbl_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_b.setStyleSheet("font-weight: bold;")
+        lbl_b.setStyleSheet("font-weight: bold; color: " + Styles.COLOR_TEXT_PRIMARY + ";")
         self.stats_layout.addWidget(lbl_b, 0, 3)
         
         types = ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "Inaccuracy", "Mistake", "Miss", "Blunder"]
         
         for i, type_name in enumerate(types):
             color = Styles.get_class_color(type_name)
-            
+            bg_tint = f"{color}15"
+
+            # Create row container widget for subtle background tint
+            row_frame = QFrame()
+            row_frame.setStyleSheet(f"background-color: {bg_tint}; border-radius: 4px;")
+            row_layout = QHBoxLayout(row_frame)
+            row_layout.setContentsMargins(6, 2, 6, 2)
+
             lbl_type = QLabel(type_name)
-            lbl_type.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 12px;") # Smaller font
+            lbl_type.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 12px; background: transparent; border: none;")
             self.stats_layout.addWidget(lbl_type, i+1, 0)
             
             val_w = summary['white'].get(type_name, 0)
             lbl_val_w = QLabel(str(val_w))
             lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_val_w.setStyleSheet(f"color: {color}; font-weight: bold;")
+            lbl_val_w.setStyleSheet(f"color: {color}; font-weight: bold; background: transparent; border: none;")
             self.stats_layout.addWidget(lbl_val_w, i+1, 1)
             
             icon_label = QLabel()
             icon = self.resource_manager.get_icon(type_name)
             if not icon.isNull():
-                icon_label.setPixmap(icon.pixmap(22, 22))
+                icon_label.setPixmap(icon.pixmap(20, 20))
                 icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 icon_label.setText("-")
+            icon_label.setStyleSheet("background: transparent; border: none;")
             self.stats_layout.addWidget(icon_label, i+1, 2)
             
             val_b = summary['black'].get(type_name, 0)
             lbl_val_b = QLabel(str(val_b))
             lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_val_b.setStyleSheet(f"color: {color}; font-weight: bold;")
+            lbl_val_b.setStyleSheet(f"color: {color}; font-weight: bold; background: transparent; border: none;")
             self.stats_layout.addWidget(lbl_val_b, i+1, 3)
 
     def _clear_layout(self, layout):
@@ -282,8 +394,49 @@ class AnalysisPanel(QWidget):
         """Re-applies styles to widgets."""
         self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
 
+        if hasattr(self, 'report_card') and self.report_card:
+            self.report_card.setStyleSheet(f"""
+                QFrame#ReportCard {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 12px;
+                }}
+            """)
+
+        if hasattr(self, 'opening_label') and self.opening_label:
+            self.opening_label.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;"
+            )
+
+        if hasattr(self, 'details_label') and self.details_label:
+            self.details_label.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;"
+            )
+
+        if hasattr(self, 'w_circular_acc'):
+            self.w_circular_acc.refresh_styles()
+        if hasattr(self, 'b_circular_acc'):
+            self.b_circular_acc.refresh_styles()
+
+        for div_name in ('div1', 'div2', 'div3'):
+            if hasattr(self, div_name):
+                getattr(self, div_name).setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+
         if hasattr(self, 'btn_generate_summary'):
-            self.btn_generate_summary.setStyleSheet(Styles.get_button_style())
+            self.btn_generate_summary.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_ACCENT};
+                    border-radius: 8px;
+                    font-size: 13px;
+                    font-weight: 600;
+                }}
+                QPushButton:hover {{
+                    background-color: {Styles.COLOR_ACCENT};
+                    color: #FFFFFF;
+                }}
+            """)
             
         if hasattr(self, 'txt_ai_summary'):
             self.txt_ai_summary.setStyleSheet(f"""
@@ -301,30 +454,11 @@ class AnalysisPanel(QWidget):
             self.graph_widget.refresh_styles()
 
         # Refresh checkboxes
-        checkbox_style = f"""
-            QCheckBox {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-weight: bold;
-                font-size: 13px;
-                background: transparent;
-                border: none;
-            }}
-        """
-        if hasattr(self, 'toggle_checkbox'):
-            self.toggle_checkbox.setStyleSheet(checkbox_style)
-        if hasattr(self, 'cache_checkbox'):
-            self.cache_checkbox.setStyleSheet(checkbox_style)
-
-        # Refresh opening label
-        if hasattr(self, 'opening_label'):
-            self.opening_label.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 14px; font-weight: bold; background: transparent;"
-            )
+        self._apply_toggle_style()
 
         # Refresh tab widget
         if hasattr(self, 'tabs'):
             self._apply_tabs_style()
-        
 
         # Refresh analysis lines widget
         if hasattr(self, 'lines_widget'):
@@ -338,6 +472,44 @@ class AnalysisPanel(QWidget):
         if self.current_game:
             self._update_summary(self.current_game.summary)
 
+    def _apply_toggle_style(self):
+        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        cb_style = f"""
+            QCheckBox {{
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-weight: 600;
+                font-size: 12px;
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                padding: 6px 12px;
+                spacing: 8px;
+            }}
+            QCheckBox:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border-color: {Styles.COLOR_BORDER_LIGHT};
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 4px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {Styles.COLOR_ACCENT};
+                border-color: {Styles.COLOR_ACCENT};
+                image: url('{tick_path}');
+            }}
+        """
+        if hasattr(self, 'toggle_checkbox'):
+            self.toggle_checkbox.setStyleSheet(cb_style)
+        if hasattr(self, 'cache_checkbox'):
+            self.cache_checkbox.setStyleSheet(cb_style)
+
     def _apply_tabs_style(self):
         """Applies the themed QTabWidget stylesheet."""
         self.tabs.setStyleSheet(f"""
@@ -345,27 +517,31 @@ class AnalysisPanel(QWidget):
                 background-color: {Styles.COLOR_BACKGROUND};
             }}
             QTabWidget::pane {{
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                background-color: {Styles.COLOR_SURFACE};
+                border: none;
+                background-color: transparent;
+            }}
+            QTabBar {{
+                qproperty-drawBase: 0;
             }}
             QTabBar::tab {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                background-color: {Styles.COLOR_SURFACE};
                 color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 6px 14px;
+                padding: 7px 18px;
+                font-weight: 600;
+                font-size: 12px;
                 border: 1px solid {Styles.COLOR_BORDER};
-                border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
+                border-radius: 8px;
+                margin-right: 6px;
             }}
             QTabBar::tab:selected {{
-                background-color: {Styles.COLOR_SURFACE};
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
-                border-bottom: 2px solid {Styles.COLOR_ACCENT};
+                border-color: {Styles.COLOR_ACCENT};
             }}
             QTabBar::tab:hover:!selected {{
-                background-color: {Styles.COLOR_SURFACE};
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_PRIMARY};
+                border-color: {Styles.COLOR_BORDER_LIGHT};
             }}
         """)
 

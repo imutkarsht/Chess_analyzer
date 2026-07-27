@@ -419,10 +419,9 @@ class Analyzer:
         board = chess.Board(chess960=is_chess960) # For turn tracking
         temp_board = chess.Board(chess960=is_chess960) # For FEN checks
         
-        # Rebuild FEN history to detect repetitions in drawn games
-        is_draw = game_analysis.metadata.result in ["1/2-1/2", "Draw"]
+        # Rebuild FEN history to detect repetitions
         clean_fens = []
-        if is_draw and game_analysis.moves:
+        if game_analysis.moves:
             rep_board = chess.Board(chess960=is_chess960)
             clean_fens.append(" ".join(rep_board.fen().split()[:4]))
             for m in game_analysis.moves:
@@ -432,14 +431,11 @@ class Analyzer:
                     clean_fens.append(" ".join(rep_board.fen().split()[:4]))
                 except Exception:
                     clean_fens.append("")
-            
-            # Count occurrences of each clean FEN
-            fen_counts = {}
-            for fen in clean_fens:
-                if fen:
-                    fen_counts[fen] = fen_counts.get(fen, 0) + 1
-        else:
-            fen_counts = {}
+
+        fen_counts = {}
+        for fen in clean_fens:
+            if fen:
+                fen_counts[fen] = fen_counts.get(fen, 0) + 1
             
         self.local_book.reset()
         self.polyglot_book.reset()
@@ -473,7 +469,7 @@ class Analyzer:
                 
             # Check if this move is protected due to drawing repetition
             is_protected_repetition = False
-            if is_draw and clean_fens:
+            if clean_fens:
                 fen_before = clean_fens[i]
                 # 1. FEN before has occurred more than once in the game
                 if fen_before and fen_counts.get(fen_before, 0) > 1:

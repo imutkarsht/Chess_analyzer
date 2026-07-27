@@ -453,28 +453,7 @@ class ApiSettings(QGroupBox):
         self._lbl_lichess.setVisible(visible)
         self.lichess_token_input.setVisible(visible)
 
-    def refresh_styles(self, combo_style, input_style, default_style, llm_add_style, llm_del_style):
-        self.setStyleSheet(Styles.get_group_box_style())
-        self.llm_profile_combo.setStyleSheet(combo_style)
-        self.llm_provider_combo.setStyleSheet(combo_style)
-        self.llm_add_btn.setStyleSheet(llm_add_style)
-        self.llm_del_btn.setStyleSheet(llm_del_style)
-        if HAS_QTAWESOME:
-            self.llm_add_btn.setIcon(qta.icon("fa5s.plus", color=Styles.COLOR_TEXT_PRIMARY))
-            self.llm_del_btn.setIcon(qta.icon("fa5s.minus", color=Styles.COLOR_BLUNDER))
-        self.llm_test_btn.setStyleSheet(default_style)
-        for widget in [self.llm_profile_name, self.llm_model_input, self.llm_url_input]:
-            widget.setStyleSheet(input_style)
+    def refresh_styles(self, *args, **kwargs):
         for widget in [self.llm_key_input, self.lichess_token_input]:
-            widget.setStyleSheet(input_style)
-            widget.refresh_styles()
-        # Refresh form row labels
-        lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
-        for lbl in [self._lbl_prof, self._lbl_pname, self._lbl_prov, self.lbl_llm_key,
-                    self._lbl_model, self.lbl_llm_url, self._lbl_lichess]:
-            if lbl:
-                lbl.setStyleSheet(lbl_style)
-        # Status labels
-        status_style = f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;"
-        self.llm_active_label.setStyleSheet(status_style)
-        self.llm_test_result.setStyleSheet(status_style)
+            if hasattr(widget, 'refresh_styles'):
+                widget.refresh_styles()

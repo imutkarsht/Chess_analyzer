@@ -340,17 +340,7 @@ class EngineSettings(QGroupBox):
         self._hash_lbl.setVisible(visible)
         self._hash_row.setVisible(visible)
 
-    def refresh_styles(self, combo_style, input_style, default_style):
-        self.setStyleSheet(Styles.get_group_box_style())
-        self.browse_btn.setStyleSheet(default_style)
-        self.depth_combo.setStyleSheet(combo_style.replace("min-width: 150px;", "min-width: 80px;"))
-        self.hash_input.setStyleSheet(combo_style.replace("min-width: 150px;", "min-width: 80px;"))
+    def refresh_styles(self, *args, **kwargs):
         for widget in [self.multi_pv_input, self.live_time_input, self.threads_input]:
-            widget.refresh_styles()
-        self.path_input.setStyleSheet(input_style.replace("max-width: 140px;", ""))
-        # Refresh form row labels
-        lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
-        for lbl in [self._depth_lbl, self._multi_pv_lbl, self._live_time_lbl,
-                    self._threads_lbl, self._hash_lbl]:
-            if lbl:
-                lbl.setStyleSheet(lbl_style)
+            if hasattr(widget, 'refresh_styles'):
+                widget.refresh_styles()

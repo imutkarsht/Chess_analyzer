@@ -3,7 +3,7 @@ Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFrame
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, Qt
 
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
@@ -40,6 +40,7 @@ class SettingsView(QWidget):
         self.config_manager = ConfigManager()
         
         # Main layout for the widget itself (contains header and scroll area)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -413,169 +414,22 @@ class SettingsView(QWidget):
             MainWindow.toast_from_widget(self, "Settings saved successfully.", "success")
 
     def refresh_styles(self):
-        """Re-applies styles to all widgets."""
-        # Refresh root widget background
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-
-        if hasattr(self, 'header_bar') and self.header_bar:
-            self.header_bar.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Styles.COLOR_BACKGROUND};
-                    border-bottom: 1px solid {Styles.COLOR_BORDER};
-                }}
-            """)
-
-        # Refresh title label
-        if hasattr(self, 'header_lbl') and self.header_lbl:
-            self.header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
-
-        # Update scroll area and content container backgrounds
-        if hasattr(self, 'scroll_area') and self.scroll_area:
-            self.scroll_area.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND}; border: none;")
-        if hasattr(self, 'content_container') and self.content_container:
-            self.content_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-
-        # Refresh mode toggle button
-        if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
-            self._update_mode_toggle_text(self.mode_toggle_btn)
-
-        primary_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-        """
+        """Re-applies styles to settings view components."""
         if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
-            self.save_settings_btn.setStyleSheet(primary_style)
-
-        default_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """
-
-        danger_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_BLUNDER};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_BLUNDER};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """
-
-        llm_add_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 16px; font-weight: bold;
-                min-width: 28px; max-width: 28px;
-                min-height: 28px; max-height: 28px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """
-
-        llm_del_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_BLUNDER};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 16px; font-weight: bold;
-                min-width: 28px; max-width: 28px;
-                min-height: 28px; max-height: 28px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_BLUNDER};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """
-
-        combo_style = Styles.get_combobox_style()
-
-        input_style = f"""
-            QLineEdit {{
-                padding: 6px 12px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 13px;
-                max-width: 140px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """
-
-        full_input_style = f"""
-            QLineEdit {{
-                padding: 10px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """
-
-        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-        sound_cb_style = f"""
-            QCheckBox {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-                background: transparent;
-            }}
-            QCheckBox::indicator {{
-                width: 18px;
-                height: 18px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {Styles.COLOR_ACCENT};
-                border-color: {Styles.COLOR_ACCENT};
-                image: url('{tick_path}');
-            }}
-        """
-
-        self.engine_settings.refresh_styles(combo_style, input_style, default_style)
-        self.book_settings.refresh_styles(combo_style, input_style, default_style)
-        self.api_settings.refresh_styles(combo_style, full_input_style, default_style, llm_add_style, llm_del_style)
-        self.player_settings.refresh_styles(input_style, full_input_style)
-        self.appearance_settings.refresh_styles(combo_style, default_style, sound_cb_style)
-        self.data_settings.refresh_styles(default_style, danger_style)
-        self.links_settings.refresh_styles(default_style)
+            self.save_settings_btn.setStyleSheet(Styles.get_button_style())
+        if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
+            self.mode_toggle_btn.setStyleSheet(Styles.get_control_button_style())
+            self._update_mode_toggle_text(self.mode_toggle_btn)
+        
+        cards = (
+            getattr(self, 'engine_settings', None),
+            getattr(self, 'book_settings', None),
+            getattr(self, 'api_settings', None),
+            getattr(self, 'player_settings', None),
+            getattr(self, 'appearance_settings', None),
+            getattr(self, 'data_settings', None),
+            getattr(self, 'links_settings', None),
+        )
+        for card in cards:
+            if card and hasattr(card, 'refresh_styles'):
+                card.refresh_styles()

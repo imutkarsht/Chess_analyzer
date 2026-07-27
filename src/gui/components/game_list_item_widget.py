@@ -58,7 +58,7 @@ class GameListItemWidget(QWidget):
                 background-color: {Styles.COLOR_SURFACE_CARD};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
-                padding: 6px 12px;
+                padding: 10px 14px;
             }}
             QFrame#GameCard:hover {{
                 border-color: {Styles.COLOR_ACCENT};
@@ -71,7 +71,7 @@ class GameListItemWidget(QWidget):
         """)
 
         card_layout = QHBoxLayout(self.card_frame)
-        card_layout.setContentsMargins(8, 4, 8, 4)
+        card_layout.setContentsMargins(12, 8, 12, 8)
         card_layout.setSpacing(12)
 
         # 1. Source & Speed Icon
@@ -205,10 +205,10 @@ class GameListItemWidget(QWidget):
                 background-color: {Styles.COLOR_SURFACE_CARD};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 10px;
-                padding: 6px 12px;
+                padding: 8px 14px;
             }}
             QFrame#GameCard:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
+                border-color: {Styles.COLOR_ACCENT};
             }}
             QFrame#GameCard QLabel {{
                 background: transparent;
@@ -217,7 +217,7 @@ class GameListItemWidget(QWidget):
         """)
 
         card_layout = QHBoxLayout(self.card_frame)
-        card_layout.setContentsMargins(8, 8, 8, 8)
+        card_layout.setContentsMargins(12, 10, 12, 10)
         card_layout.setSpacing(14)
 
         # ===== LEFT: Mini Chessboard Thumbnail =====

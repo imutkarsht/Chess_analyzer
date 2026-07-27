@@ -112,15 +112,15 @@ class SegmentedSelector(QWidget):
                     if icon_name.startswith("assets/") or "/" in icon_name:
                         btn.setIcon(QIcon(get_resource_path(icon_name)))
                     else:
-                        btn.setIcon(qta.icon(icon_name, color=Styles.COLOR_ACCENT))
+                        btn.setIcon(qta.icon(icon_name, color="#FFFFFF"))
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background-color: {Styles.COLOR_BACKGROUND};
-                        color: {Styles.COLOR_ACCENT};
-                        border: 1px solid {Styles.COLOR_BORDER};
+                        background-color: {Styles.COLOR_ACCENT};
+                        color: #FFFFFF !important;
+                        border: none;
                         border-radius: 6px;
                         font-size: 13px;
-                        font-weight: 600;
+                        font-weight: 700;
                         padding: 0px 14px;
                     }}
                 """)
@@ -282,31 +282,37 @@ class OnlineFetchPanel(QWidget):
         
         self.form_layout.addRow(self.url_label, self.url_input)
 
-        # Align Fetch button inside form layout aligned with input fields and stretch to fill
+        # Centered action button
         self.fetch_btn = create_button("Fetch Games", style="primary", on_click=self._fetch, icon_name="fa5s.cloud-download-alt")
-        self.fetch_btn.setFixedHeight(40)
+        self.fetch_btn.setFixedHeight(38)
+        self.fetch_btn.setMinimumWidth(200)
         self.fetch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.fetch_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT};
-                color: white;
+                color: #FFFFFF !important;
                 border: none;
                 border-radius: 8px;
                 font-size: 13px;
                 font-weight: 700;
+                padding: 0 24px;
             }}
             QPushButton:hover {{
                 background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-            QPushButton:pressed {{
-                background-color: {Styles.COLOR_ACCENT};
             }}
             QPushButton:disabled {{
                 background-color: {Styles.COLOR_BORDER};
                 color: {Styles.COLOR_TEXT_MUTED};
             }}
         """)
-        self.form_layout.addRow("", self.fetch_btn)
+        
+        btn_box = QHBoxLayout()
+        btn_box.setContentsMargins(0, 8, 0, 0)
+        btn_box.addStretch()
+        btn_box.addWidget(self.fetch_btn)
+        btn_box.addStretch()
+
+        self.form_layout.addRow("", btn_box)
 
         card_layout.addLayout(self.form_layout)
         layout.addWidget(self.form_card)

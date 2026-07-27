@@ -36,6 +36,7 @@ class Sidebar(QFrame):
         self._animating = False
         self._sidebar_width = EXPANDED_WIDTH
 
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(6, 20, 6, 20)
         self.layout.setSpacing(6)
@@ -69,6 +70,9 @@ class Sidebar(QFrame):
         self.btn_exit = self._make_nav_button("Exit", "exit.png", -1)
         self.btn_exit.clicked.connect(QApplication.instance().quit)
         self.layout.addWidget(self.btn_exit)
+
+        ThemeManager.instance().theme_changed.connect(lambda mode: self.apply_style())
+        ThemeManager.instance().accent_changed.connect(lambda acc: self.apply_style())
 
         self.apply_style()
 

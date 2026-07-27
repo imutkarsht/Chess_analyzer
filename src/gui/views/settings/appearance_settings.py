@@ -122,12 +122,28 @@ class AppearanceSettings(QGroupBox):
         group.buttonClicked.connect(self._on_theme_mode_clicked)
         layout.addRow(lbl, container)
 
+    def _prompt_restart(self):
+        from src.gui.utils.gui_utils import confirm_dialog
+        import sys
+        from PyQt6.QtCore import QProcess
+        from PyQt6.QtWidgets import QApplication
+
+        restart = confirm_dialog(
+            self,
+            title="Restart Required",
+            message="Theme settings updated. A restart is required to apply the new theme completely.\n\nWould you like to restart Chess Analyzer Pro now?",
+            confirm_label="Restart Now",
+            cancel_label="Not Now",
+        )
+        if restart:
+            QProcess.startDetached(sys.executable, sys.argv)
+            QApplication.instance().quit()
+
     def _on_theme_mode_clicked(self, btn):
         mapping = {self._theme_mode_system: "system", self._theme_mode_light: "light", self._theme_mode_dark: "dark"}
         mode = mapping.get(btn, "system")
-        self.config_manager.config["theme_mode"] = mode
-        ThemeManager.set_theme_mode(mode)
-        self.theme_refreshed.emit()
+        self.config_manager.set("theme_mode", mode)
+        self._prompt_restart()
 
     def _add_board_theme_row(self, layout, label_style, combo_style):
         lbl = QLabel("Board Theme:")
@@ -230,9 +246,9 @@ class AppearanceSettings(QGroupBox):
 
     def _on_accent_mode_clicked(self, btn):
         mode = "custom" if btn == self.accent_mode_custom else "system"
-        self.config_manager.config["accent_mode"] = mode
-        ThemeManager.set_accent_mode(mode)
+        self.config_manager.set("accent_mode", mode)
         self._update_accent_btn_visibility()
+        ThemeManager.set_accent_mode(mode)
         self.theme_refreshed.emit()
 
     def _update_accent_btn_visibility(self):
@@ -241,11 +257,11 @@ class AppearanceSettings(QGroupBox):
     def change_accent_color(self):
         color = QColorDialog.getColor(initial=QColor(ThemeManager.accent()), parent=self, title="Select Accent Color")
         if color.isValid():
-            ThemeManager.set_accent(color.name())
-            self.config_manager.config["accent_color"] = color.name()
-            self.config_manager.config["accent_mode"] = "custom"
+            self.config_manager.set("accent_color", color.name())
+            self.config_manager.set("accent_mode", "custom")
             self.accent_mode_custom.setChecked(True)
             self._update_accent_btn_visibility()
+            ThemeManager.set_accent(color.name())
             self.theme_refreshed.emit()
 
     def change_board_theme(self, theme_name):
@@ -294,15 +310,36 @@ class AppearanceSettings(QGroupBox):
     def set_advanced_visible(self, visible):
         pass
 
-    def refresh_styles(self, combo_style, default_style, sound_cb_style):
-        self.setStyleSheet(Styles.get_group_box_style())
-        self.theme_combo.setStyleSheet(combo_style)
-        self.piece_combo.setStyleSheet(combo_style)
-        self.sound_checkbox.setStyleSheet(sound_cb_style)
-        self.color_btn.setStyleSheet(default_style)
-        self.import_theme_btn.setStyleSheet(default_style)
-        rs = self._radio_style()
-        for btn in (self._theme_mode_system, self._theme_mode_light, self._theme_mode_dark,
-                    self.accent_mode_system, self.accent_mode_custom):
-            if btn:
-                btn.setStyleSheet(rs)
+    def refresh_styles(self, *args, **kwargs):
+        label_style = self._label_style()
+        combo_style = self._combo_style()
+        radio_style = self._radio_style()
+
+        if hasattr(self, 'board_combo'):
+            self.board_combo.setStyleSheet(combo_style)
+        if hasattr(self, 'piece_combo'):
+            self.piece_combo.setStyleSheet(combo_style)
+        if hasattr(self, 'color_btn'):
+            self.color_btn.setStyleSheet(f"""
+                QPushButton {{
+                    padding: 6px 14px;
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_ACCENT};
+                    border-radius: 6px;
+                    font-size: 13px;
+                }}
+                QPushButton:hover {{
+                    border-color: {Styles.COLOR_ACCENT_HOVER};
+                    background-color: {Styles.COLOR_SURFACE};
+                }}
+            """)
+        for rb in (
+            getattr(self, '_theme_mode_system', None),
+            getattr(self, '_theme_mode_light', None),
+            getattr(self, '_theme_mode_dark', None),
+            getattr(self, 'accent_mode_system', None),
+            getattr(self, 'accent_mode_custom', None),
+        ):
+            if rb:
+                rb.setStyleSheet(radio_style)

@@ -93,8 +93,5 @@ class BookSettings(QGroupBox):
     def set_advanced_visible(self, visible):
         self.setVisible(visible)
 
-    def refresh_styles(self, combo_style, input_style, default_style):
-        self.setStyleSheet(Styles.get_group_box_style())
-        self.polyglot_browse_btn.setStyleSheet(default_style)
-        self.polyglot_clear_btn.setStyleSheet(default_style)
-        self.polyglot_path_input.setStyleSheet(input_style.replace("max-width: 140px;", ""))
+    def refresh_styles(self, *args, **kwargs):
+        pass
