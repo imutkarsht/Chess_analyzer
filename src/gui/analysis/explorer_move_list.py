@@ -57,36 +57,7 @@ class ExplorerMoveListWidget(QWidget):
         self.table.setIconSize(QSize(16, 16))
         self.table.verticalHeader().setDefaultSectionSize(36)
 
-        self.table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                gridline-color: transparent;
-                font-size: 14px;
-            }}
-            QTableWidget::item {{
-                padding: 4px 8px;
-                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QTableWidget::item:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QTableWidget::item:selected {{
-                background-color: {Styles.COLOR_HIGHLIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-left: 3px solid {Styles.COLOR_ACCENT};
-            }}
-            QHeaderView::section {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 6px;
-                border: none;
-                border-bottom: 2px solid {Styles.COLOR_ACCENT};
-                font-weight: 600;
-                font-size: 13px;
-            }}
-        """)
+        self.table.setStyleSheet(Styles.get_explorer_table_style())
 
         self.layout.addWidget(self.table)
 
@@ -95,37 +66,13 @@ class ExplorerMoveListWidget(QWidget):
         nav_layout.setContentsMargins(0, 4, 0, 0)
         nav_layout.setSpacing(10)
         
-        btn_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-            QPushButton:pressed {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-            }}
-            QPushButton:disabled {{
-                color: {Styles.COLOR_TEXT_MUTED};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-        """
-
         self.btn_first = QPushButton("⏮")
         self.btn_prev = QPushButton("◀")
         self.btn_next = QPushButton("▶")
         self.btn_last = QPushButton("⏭")
 
         for btn in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
-            btn.setStyleSheet(btn_style)
+            btn.setStyleSheet(Styles.get_nav_button_style())
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             nav_layout.addWidget(btn)
 
@@ -137,59 +84,8 @@ class ExplorerMoveListWidget(QWidget):
         self.layout.addLayout(nav_layout)
 
     def refresh_styles(self):
-        self.table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                gridline-color: transparent;
-                font-size: 14px;
-            }}
-            QTableWidget::item {{
-                padding: 4px 8px;
-                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QTableWidget::item:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QTableWidget::item:selected {{
-                background-color: {Styles.COLOR_HIGHLIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-left: 3px solid {Styles.COLOR_ACCENT};
-            }}
-            QHeaderView::section {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 6px;
-                border: none;
-                border-bottom: 2px solid {Styles.COLOR_ACCENT};
-                font-weight: 600;
-                font-size: 13px;
-            }}
-        """)
-        btn_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-            QPushButton:pressed {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-            }}
-            QPushButton:disabled {{
-                color: {Styles.COLOR_TEXT_MUTED};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-        """
+        self.table.setStyleSheet(Styles.get_explorer_table_style())
+        btn_style = Styles.get_nav_button_style()
         for btn in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
             btn.setStyleSheet(btn_style)
 

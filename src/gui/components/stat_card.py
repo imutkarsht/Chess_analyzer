@@ -50,16 +50,7 @@ class StatCard(QFrame):
         header_layout = QHBoxLayout()
         
         self.lbl_title = QLabel(title)
-        # Uppercase title with letter-spacing for modern look
-        self.lbl_title.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY}; 
-            font-size: 12px; 
-            font-weight: 600; 
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            border: none; 
-            background: transparent;
-        """)
+        self.lbl_title.setStyleSheet(Styles.get_card_title_style())
         header_layout.addWidget(self.lbl_title)
         
         if icon:
@@ -113,15 +104,7 @@ class StatCard(QFrame):
             }}
         """)
         
-        self.lbl_title.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY}; 
-            font-size: 12px; 
-            font-weight: 600; 
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            border: none; 
-            background: transparent;
-        """)
+        self.lbl_title.setStyleSheet(Styles.get_card_title_style())
         
         value_color = Styles.COLOR_ACCENT if self._use_accent_color else (self._initial_color if self._initial_color else Styles.COLOR_TEXT_PRIMARY)
         self.lbl_value.setStyleSheet(f"""

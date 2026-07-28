@@ -76,14 +76,18 @@ class CircularAccuracyWidget(QWidget):
         # Side Title ("White" / "Black")
         self.side_label = QLabel(self.side)
         self.side_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.side_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
+        self.side_label.setStyleSheet(
+            Styles.get_label_style(size=13, bold=True) + " " + Styles.get_transparent_label_style()
+        )
         layout.addWidget(self.side_label)
 
         # ACPL Label ("ACPL 18")
         acpl_str = f"ACPL {self.acpl:.0f}" if self.acpl is not None else "ACPL -"
         self.acpl_label = QLabel(acpl_str)
         self.acpl_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.acpl_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+        self.acpl_label.setStyleSheet(
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+        )
         layout.addWidget(self.acpl_label)
 
     def set_data(self, accuracy: float, acpl=None):
@@ -94,7 +98,11 @@ class CircularAccuracyWidget(QWidget):
         self.acpl_label.setText(acpl_str)
 
     def refresh_styles(self):
-        self.side_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: bold; background: transparent; border: none;")
-        self.acpl_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+        self.side_label.setStyleSheet(
+            Styles.get_label_style(size=13, bold=True) + " " + Styles.get_transparent_label_style()
+        )
+        self.acpl_label.setStyleSheet(
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+        )
         if hasattr(self, 'gauge'):
             self.gauge.update()

@@ -26,50 +26,11 @@ def create_icon_button(text, icon_name, callback, parent=None, danger=False, pri
         btn.setIcon(qta.icon(icon_name, color=icon_color))
     
     if danger:
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                color: {Styles.COLOR_BLUNDER};
-                border: 1px solid {Styles.COLOR_BLUNDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_BLUNDER};
-                color: white;
-            }}
-        """)
+        btn.setStyleSheet(Styles.get_settings_danger_button_style())
     elif primary:
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-        """)
+        btn.setStyleSheet(Styles.get_button_style())
     else:
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        btn.setStyleSheet(Styles.get_settings_default_button_style())
     
     btn.clicked.connect(callback)
     return btn

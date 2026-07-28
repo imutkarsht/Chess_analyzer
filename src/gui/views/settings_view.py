@@ -47,18 +47,13 @@ class SettingsView(QWidget):
 
         # Header Bar Container
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
+        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
         
         # Title
         self.header_lbl = QLabel("Settings")
-        self.header_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        self.header_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(self.header_lbl)
         
         header_layout.addStretch()
@@ -79,11 +74,11 @@ class SettingsView(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll_area.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND}; border: none;")
+        self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
         
         # Container for content inside scroll area
         self.content_container = QWidget()
-        self.content_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.content_container.setStyleSheet(Styles.get_background_style())
         
         # Use MasonryLayout for 2-column/3-column dynamic design
         self.container_layout = MasonryLayout(self.content_container, margin=40, spacing=25)
@@ -163,24 +158,11 @@ class SettingsView(QWidget):
         from PyQt6.QtCore import Qt
         btn = QPushButton(f"  Save Settings")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet(Styles.get_button_style())
         
         if HAS_QTAWESOME:
             btn.setIcon(qta.icon("fa5s.save", color="#ffffff"))
         
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-        """)
         btn.clicked.connect(self.save_all_settings)
         return btn
 
@@ -195,23 +177,8 @@ class SettingsView(QWidget):
         btn = QPushButton()
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(self._toggle_mode)
+        btn.setStyleSheet(Styles.get_control_button_style())
         self._update_mode_toggle_text(btn)
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_ACCENT};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
         return btn
 
     def _update_mode_toggle_text(self, btn=None):
@@ -220,23 +187,7 @@ class SettingsView(QWidget):
         if HAS_QTAWESOME:
             icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
             b.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
-        # Always re-apply the themed stylesheet
-        b.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_ACCENT};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        b.setStyleSheet(Styles.get_control_button_style())
 
     def _toggle_mode(self):
         self._mode = "advanced" if self._mode == "basic" else "basic"
@@ -415,6 +366,14 @@ class SettingsView(QWidget):
 
     def refresh_styles(self):
         """Re-applies styles to settings view components."""
+        if hasattr(self, 'header_bar'):
+            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
+        if hasattr(self, 'header_lbl'):
+            self.header_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        if hasattr(self, 'scroll_area'):
+            self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
+        if hasattr(self, 'content_container'):
+            self.content_container.setStyleSheet(Styles.get_background_style())
         if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
             self.save_settings_btn.setStyleSheet(Styles.get_button_style())
         if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:

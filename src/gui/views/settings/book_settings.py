@@ -35,7 +35,7 @@ class BookSettings(QGroupBox):
 
         # Polyglot Validation status label
         self.polyglot_validation_label = QLabel()
-        self.polyglot_validation_label.setStyleSheet("font-size: 12px; font-weight: bold; background: transparent; margin-top: 2px;")
+        self.polyglot_validation_label.setStyleSheet(Styles.get_validation_label_style())
         self.polyglot_validation_label.setWordWrap(True)
         self.polyglot_validation_label.setVisible(False)
         layout.addWidget(self.polyglot_validation_label)
@@ -94,4 +94,11 @@ class BookSettings(QGroupBox):
         self.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        pass
+        if hasattr(self, 'polyglot_path_input'):
+            self.polyglot_path_input.setStyleSheet(Styles.get_input_style())
+        if hasattr(self, 'polyglot_browse_btn'):
+            self.polyglot_browse_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'polyglot_clear_btn'):
+            self.polyglot_clear_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'polyglot_validation_label'):
+            self.validate_polyglot_path()

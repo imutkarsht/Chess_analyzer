@@ -22,13 +22,7 @@ class PromotionDialog(QDialog):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.selected_piece = None
 
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-        """)
+        self.setStyleSheet(Styles.get_dialog_surface_style())
 
         layout = QHBoxLayout(self)
         layout.setSpacing(8)
@@ -58,17 +52,7 @@ class PromotionDialog(QDialog):
                 painter.end()
                 btn.setIcon(QIcon(pixmap))
                 btn.setIconSize(pixmap.size())
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 2px solid {Styles.COLOR_BORDER};
-                    border-radius: 8px;
-                }}
-                QPushButton:hover {{
-                    background: {Styles.COLOR_ACCENT};
-                    border-color: {Styles.COLOR_ACCENT};
-                }}
-            """)
+            btn.setStyleSheet(Styles.get_icon_button_style())
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _, pt=piece_type: self.select_piece(pt))
             layout.addWidget(btn)
@@ -117,7 +101,7 @@ class ExplorerBoardWidget(BoardWidget):
         self.drag_piece_label = QLabel(self.board_container)
         self.drag_piece_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.drag_piece_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.drag_piece_label.setStyleSheet("background: transparent; border: none;")
+        self.drag_piece_label.setStyleSheet(Styles.get_transparent_label_style())
         self.drag_piece_label.hide()
         self.is_dragging = False
         self.drag_start_sq = None
@@ -300,7 +284,11 @@ class ExplorerBoardWidget(BoardWidget):
             for sq in self.legal_destinations:
                 dot = QLabel("●")
                 dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                dot.setStyleSheet(f"color: {Styles.COLOR_ACCENT}80; font-size: 24px; background: transparent;")
+                c = QColor(Styles.COLOR_ACCENT)
+                dot.setStyleSheet(
+                    Styles.get_label_style(size=24, color=f"rgba({c.red()},{c.green()},{c.blue()},0.5)")
+                    + " " + Styles.get_transparent_label_style()
+                )
                 r, c = self._sq_to_grid(sq)
                 self.overlay_layout.addWidget(dot, r, c)
 
@@ -320,7 +308,7 @@ class ExplorerBoardWidget(BoardWidget):
                 badge.setPixmap(icon.pixmap(32, 32))
                 
             r, c = self._sq_to_grid(to_sq)
-            badge.setStyleSheet("background: transparent;")
+            badge.setStyleSheet(Styles.get_transparent_label_style())
             self.overlay_layout.addWidget(badge, r, c, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
     def _sq_to_grid(self, square):

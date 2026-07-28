@@ -100,22 +100,26 @@ class AnalysisPanel(QWidget):
 
         # 1. Top Section: Hero Outcome Header
         self.hero_card = QFrame()
-        self.hero_card.setStyleSheet("background: transparent; border: none;")
+        self.hero_card.setStyleSheet(Styles.get_transparent_label_style())
         hero_layout = QVBoxLayout(self.hero_card)
         hero_layout.setContentsMargins(0, 0, 0, 0)
         hero_layout.setSpacing(2)
 
         self.result_banner_lbl = QLabel("-")
-        self.result_banner_lbl.setStyleSheet("background: transparent; border: none;")
+        self.result_banner_lbl.setStyleSheet(Styles.get_transparent_label_style())
         hero_layout.addWidget(self.result_banner_lbl)
 
         self.opening_label = QLabel("-")
-        self.opening_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;")
+        self.opening_label.setStyleSheet(
+            Styles.get_label_style(size=12, weight=600) + " " + Styles.get_transparent_label_style()
+        )
         self.opening_label.setWordWrap(True)
         hero_layout.addWidget(self.opening_label)
 
         self.details_label = QLabel("-")
-        self.details_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+        self.details_label.setStyleSheet(
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+        )
         hero_layout.addWidget(self.details_label)
 
         self.report_layout.addWidget(self.hero_card)
@@ -123,12 +127,12 @@ class AnalysisPanel(QWidget):
         # Subtle divider 1
         self.div1 = QFrame()
         self.div1.setFrameShape(QFrame.Shape.HLine)
-        self.div1.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+        self.div1.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div1)
         
         # 2. Accuracy Gauges (Side by side White & Black)
         self.accuracy_frame = QFrame()
-        self.accuracy_frame.setStyleSheet("background: transparent; border: none;")
+        self.accuracy_frame.setStyleSheet(Styles.get_transparent_label_style())
         self.accuracy_layout = QHBoxLayout(self.accuracy_frame)
         self.accuracy_layout.setContentsMargins(0, 4, 0, 4)
         self.accuracy_layout.setSpacing(16)
@@ -143,12 +147,12 @@ class AnalysisPanel(QWidget):
         # Subtle divider 2
         self.div2 = QFrame()
         self.div2.setFrameShape(QFrame.Shape.HLine)
-        self.div2.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+        self.div2.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div2)
         
         # 3. Move Quality Classification Table
         self.stats_frame = QFrame()
-        self.stats_frame.setStyleSheet("background: transparent; border: none;")
+        self.stats_frame.setStyleSheet(Styles.get_transparent_label_style())
         self.stats_layout = QGridLayout(self.stats_frame)
         self.stats_layout.setSpacing(4)
         self.stats_layout.setContentsMargins(0, 4, 0, 4)
@@ -157,7 +161,7 @@ class AnalysisPanel(QWidget):
         # Subtle divider 3
         self.div3 = QFrame()
         self.div3.setFrameShape(QFrame.Shape.HLine)
-        self.div3.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+        self.div3.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div3)
         
         # 4. AI Coach Summary (Takes remaining vertical height)
@@ -169,37 +173,14 @@ class AnalysisPanel(QWidget):
         self.btn_generate_summary = QPushButton(" ✨  Generate AI coach summary")
         self.btn_generate_summary.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_generate_summary.setFixedHeight(34)
-        self.btn_generate_summary.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_ACCENT};
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: #FFFFFF;
-            }}
-        """)
+        self.btn_generate_summary.setStyleSheet(Styles.get_outline_button_style())
         self.btn_generate_summary.clicked.connect(self.generate_ai_summary)
         self.ai_summary_layout.addWidget(self.btn_generate_summary)
         
         self.txt_ai_summary = QTextEdit()
         self.txt_ai_summary.setReadOnly(True)
         self.txt_ai_summary.setPlaceholderText("AI Coach summary & key takeaways will appear here...")
-        self.txt_ai_summary.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 10px;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-                line-height: 1.4;
-            }}
-        """)
+        self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
         self.txt_ai_summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.ai_summary_layout.addWidget(self.txt_ai_summary)
         
@@ -319,14 +300,14 @@ class AnalysisPanel(QWidget):
         self.stats_layout.addWidget(QLabel(""), 0, 0)
         lbl_w = QLabel("White")
         lbl_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_w.setStyleSheet("font-weight: bold; color: " + Styles.COLOR_TEXT_PRIMARY + ";")
+        lbl_w.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_w, 0, 1)
         
         self.stats_layout.addWidget(QLabel(""), 0, 2)
         
         lbl_b = QLabel("Black")
         lbl_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_b.setStyleSheet("font-weight: bold; color: " + Styles.COLOR_TEXT_PRIMARY + ";")
+        lbl_b.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_b, 0, 3)
         
         types = ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "Inaccuracy", "Mistake", "Miss", "Blunder"]
@@ -342,13 +323,17 @@ class AnalysisPanel(QWidget):
             row_layout.setContentsMargins(6, 2, 6, 2)
 
             lbl_type = QLabel(type_name)
-            lbl_type.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 12px; background: transparent; border: none;")
+            lbl_type.setStyleSheet(
+                Styles.get_label_style(size=12, color=color, bold=True) + " " + Styles.get_transparent_label_style()
+            )
             self.stats_layout.addWidget(lbl_type, i+1, 0)
             
             val_w = summary['white'].get(type_name, 0)
             lbl_val_w = QLabel(str(val_w))
             lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_val_w.setStyleSheet(f"color: {color}; font-weight: bold; background: transparent; border: none;")
+            lbl_val_w.setStyleSheet(
+                Styles.get_label_style(color=color, bold=True) + " " + Styles.get_transparent_label_style()
+            )
             self.stats_layout.addWidget(lbl_val_w, i+1, 1)
             
             icon_label = QLabel()
@@ -358,13 +343,15 @@ class AnalysisPanel(QWidget):
                 icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 icon_label.setText("-")
-            icon_label.setStyleSheet("background: transparent; border: none;")
+            icon_label.setStyleSheet(Styles.get_transparent_label_style())
             self.stats_layout.addWidget(icon_label, i+1, 2)
             
             val_b = summary['black'].get(type_name, 0)
             lbl_val_b = QLabel(str(val_b))
             lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_val_b.setStyleSheet(f"color: {color}; font-weight: bold; background: transparent; border: none;")
+            lbl_val_b.setStyleSheet(
+                Styles.get_label_style(color=color, bold=True) + " " + Styles.get_transparent_label_style()
+            )
             self.stats_layout.addWidget(lbl_val_b, i+1, 3)
 
     def _clear_layout(self, layout):
@@ -392,25 +379,19 @@ class AnalysisPanel(QWidget):
         
     def refresh_styles(self):
         """Re-applies styles to widgets."""
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.setStyleSheet(Styles.get_background_style())
 
         if hasattr(self, 'report_card') and self.report_card:
-            self.report_card.setStyleSheet(f"""
-                QFrame#ReportCard {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 12px;
-                }}
-            """)
+            self.report_card.setStyleSheet(Styles.get_frame_style(object_name="ReportCard", hover_accent=False))
 
         if hasattr(self, 'opening_label') and self.opening_label:
             self.opening_label.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;"
+                Styles.get_label_style(size=12, weight=600) + " " + Styles.get_transparent_label_style()
             )
 
         if hasattr(self, 'details_label') and self.details_label:
             self.details_label.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;"
+                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
             )
 
         if hasattr(self, 'w_circular_acc'):
@@ -420,91 +401,34 @@ class AnalysisPanel(QWidget):
 
         for div_name in ('div1', 'div2', 'div3'):
             if hasattr(self, div_name):
-                getattr(self, div_name).setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; max-height: 1px; border: none;")
+                getattr(self, div_name).setStyleSheet(Styles.get_divider_style())
 
         if hasattr(self, 'btn_generate_summary'):
-            self.btn_generate_summary.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_ACCENT};
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-weight: 600;
-                }}
-                QPushButton:hover {{
-                    background-color: {Styles.COLOR_ACCENT};
-                    color: #FFFFFF;
-                }}
-            """)
+            self.btn_generate_summary.setStyleSheet(Styles.get_outline_button_style())
             
         if hasattr(self, 'txt_ai_summary'):
-            self.txt_ai_summary.setStyleSheet(f"""
-                QTextEdit {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 8px;
-                    padding: 10px;
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                }}
-            """)
+            self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
 
-        # Refresh the evaluation graph's matplotlib colors
         if hasattr(self, 'graph_widget'):
             self.graph_widget.refresh_styles()
 
-        # Refresh checkboxes
         self._apply_toggle_style()
 
-        # Refresh tab widget
         if hasattr(self, 'tabs'):
-            self._apply_tabs_style()
+            self.tabs.setStyleSheet(Styles.get_tab_style())
 
-        # Refresh analysis lines widget
         if hasattr(self, 'lines_widget'):
             self.lines_widget.refresh_styles()
 
-        # Refresh move list panel styles
         if hasattr(self, 'move_list_panel'):
             self.move_list_panel.refresh_styles()
         
-        # Refresh summary stats colors if game is loaded
         if self.current_game:
             self._update_summary(self.current_game.summary)
 
     def _apply_toggle_style(self):
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-        cb_style = f"""
-            QCheckBox {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-weight: 600;
-                font-size: 12px;
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 6px 12px;
-                spacing: 8px;
-            }}
-            QCheckBox:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-color: {Styles.COLOR_BORDER_LIGHT};
-            }}
-            QCheckBox::indicator {{
-                width: 16px;
-                height: 16px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QCheckBox::indicator:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {Styles.COLOR_ACCENT};
-                border-color: {Styles.COLOR_ACCENT};
-                image: url('{tick_path}');
-            }}
-        """
+        cb_style = Styles.get_checkbox_style(tick_path)
         if hasattr(self, 'toggle_checkbox'):
             self.toggle_checkbox.setStyleSheet(cb_style)
         if hasattr(self, 'cache_checkbox'):
@@ -512,38 +436,7 @@ class AnalysisPanel(QWidget):
 
     def _apply_tabs_style(self):
         """Applies the themed QTabWidget stylesheet."""
-        self.tabs.setStyleSheet(f"""
-            QTabWidget {{
-                background-color: {Styles.COLOR_BACKGROUND};
-            }}
-            QTabWidget::pane {{
-                border: none;
-                background-color: transparent;
-            }}
-            QTabBar {{
-                qproperty-drawBase: 0;
-            }}
-            QTabBar::tab {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                padding: 7px 18px;
-                font-weight: 600;
-                font-size: 12px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                margin-right: 6px;
-            }}
-            QTabBar::tab:selected {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-            QTabBar::tab:hover:!selected {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-color: {Styles.COLOR_BORDER_LIGHT};
-            }}
-        """)
+        self.tabs.setStyleSheet(Styles.get_tab_style())
 
     def on_summary_generated(self, summary):
         self.loading_overlay.stop()

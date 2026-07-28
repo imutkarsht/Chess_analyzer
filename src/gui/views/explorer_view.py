@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSplitter, 
     QScrollArea, QCheckBox, QLineEdit, QPushButton, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QTimer, QByteArray, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, QByteArray
 from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon
 from PyQt6.QtSvg import QSvgRenderer
 import chess
@@ -28,137 +28,10 @@ import os
 from src.gui.analysis.captured import CapturedPiecesWidget
 from src.backend.storage.game_history import GameHistoryManager
 
-from dataclasses import dataclass
-from typing import Optional
-
-@dataclass
-class ClassificationContext:
-    san: str
-    uci: str
-    best_move: Optional[str] = None
-    eval_before_cp: Optional[float] = None
-    eval_before_mate: Optional[int] = None
-    eval_after_cp: Optional[float] = None
-    eval_after_mate: Optional[int] = None
-    win_chance_before: float = 0.5
-    win_chance_after: float = 0.5
-    classification: Optional[str] = None
-    explanation: Optional[str] = None
-class RatioBar(QWidget):
-    def __init__(self, w_pct, d_pct, b_pct, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(140, 16)
-        
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        
-        # Segment 1: White Wins
-        if w_pct > 0:
-            w_lbl = QLabel(f"{w_pct}%" if w_pct >= 12 else "")
-            w_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            w_lbl.setStyleSheet("""
-                background-color: #4FA859;
-                color: #FFFFFF;
-                font-size: 9px;
-                font-weight: bold;
-                border: none;
-                border-top-left-radius: 4px;
-                border-bottom-left-radius: 4px;
-            """)
-            if d_pct == 0 and b_pct == 0:
-                w_lbl.setStyleSheet("""
-                    background-color: #4FA859;
-                    color: #FFFFFF;
-                    font-size: 9px;
-                    font-weight: bold;
-                    border: none;
-                    border-radius: 4px;
-                """)
-            layout.addWidget(w_lbl, stretch=w_pct)
-            
-        # Segment 2: Draws
-        if d_pct > 0:
-            d_lbl = QLabel(f"{d_pct}%" if d_pct >= 12 else "")
-            d_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            d_lbl.setStyleSheet("""
-                background-color: #8E9AA6;
-                color: #FFFFFF;
-                font-size: 9px;
-                font-weight: bold;
-                border: none;
-            """)
-            if w_pct == 0:
-                d_lbl.setStyleSheet("""
-                    background-color: #8E9AA6;
-                    color: #FFFFFF;
-                    font-size: 9px;
-                    font-weight: bold;
-                    border: none;
-                    border-top-left-radius: 4px;
-                    border-bottom-left-radius: 4px;
-                """)
-            if b_pct == 0:
-                d_lbl.setStyleSheet("""
-                    background-color: #8E9AA6;
-                    color: #FFFFFF;
-                    font-size: 9px;
-                    font-weight: bold;
-                    border: none;
-                    border-top-right-radius: 4px;
-                    border-bottom-right-radius: 4px;
-                """)
-            if w_pct == 0 and b_pct == 0:
-                d_lbl.setStyleSheet("""
-                    background-color: #8E9AA6;
-                    color: #FFFFFF;
-                    font-size: 9px;
-                    font-weight: bold;
-                    border: none;
-                    border-radius: 4px;
-                """)
-            layout.addWidget(d_lbl, stretch=d_pct)
-            
-        # Segment 3: Black Wins
-        if b_pct > 0:
-            b_lbl = QLabel(f"{b_pct}%" if b_pct >= 12 else "")
-            b_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            b_lbl.setStyleSheet("""
-                background-color: #2F3640;
-                color: #FFFFFF;
-                font-size: 9px;
-                font-weight: bold;
-                border: none;
-                border-top-right-radius: 4px;
-                border-bottom-right-radius: 4px;
-            """)
-            if w_pct == 0 and d_pct == 0:
-                b_lbl.setStyleSheet("""
-                    background-color: #2F3640;
-                    color: #FFFFFF;
-                    font-size: 9px;
-                    font-weight: bold;
-                    border: none;
-                    border-radius: 4px;
-                """)
-            layout.addWidget(b_lbl, stretch=b_pct)
-            
-        self.setToolTip(f"White Wins: {w_pct}%  |  Draws: {d_pct}%  |  Black Wins: {b_pct}%")
-
-
-class BookRowWidget(QWidget):
-    def __init__(self, san, parent=None):
-        super().__init__(parent)
-        self.san = san
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            p = self.parent()
-            while p is not None:
-                if isinstance(p, ExplorerView):
-                    p.on_book_move_clicked(self.san)
-                    break
-                p = p.parent()
+from src.gui.views.explorer_types import ClassificationContext
+from src.gui.views.explorer_ratio_bar import RatioBar
+from src.gui.views.explorer_book_row import BookRowWidget
+from src.gui.views.explorer_lichess_worker import LichessExplorerWorker
 
 class ExplorerView(QWidget):
     def __init__(self, config_manager, parent=None):
@@ -228,59 +101,37 @@ class ExplorerView(QWidget):
         
         # Header Bar Container
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
+        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND))
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(20, 6, 20, 6)
 
         # Title
         self.title_lbl = QLabel("Opening Explorer")
-        self.title_lbl.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        self.title_lbl.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(self.title_lbl)
 
         # Opening badge (inline after title)
         self.opening_badge = QLabel("Opening: -")
-        self.opening_badge.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; padding: 0px 0px 0px 12px; background: transparent; border: none;")
+        self.opening_badge.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; padding: 0px 0px 0px 12px; " + Styles.get_transparent_label_style())
         header_layout.addWidget(self.opening_badge)
 
         header_layout.addStretch()
 
         # Action buttons header style
-        btn_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """
-
         self.btn_flip = QPushButton("Flip Board")
-        self.btn_flip.setStyleSheet(btn_style)
+        self.btn_flip.setStyleSheet(Styles.get_action_button_style())
         self.btn_flip.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_flip.clicked.connect(self._flip_board)
         header_layout.addWidget(self.btn_flip)
 
         self.btn_copy_fen = QPushButton("Copy FEN")
-        self.btn_copy_fen.setStyleSheet(btn_style)
+        self.btn_copy_fen.setStyleSheet(Styles.get_action_button_style())
         self.btn_copy_fen.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_copy_fen.clicked.connect(self._copy_fen)
         header_layout.addWidget(self.btn_copy_fen)
 
         self.btn_copy_pgn = QPushButton("Copy PGN")
-        self.btn_copy_pgn.setStyleSheet(btn_style)
+        self.btn_copy_pgn.setStyleSheet(Styles.get_action_button_style())
         self.btn_copy_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_copy_pgn.clicked.connect(self._copy_pgn)
         header_layout.addWidget(self.btn_copy_pgn)
@@ -290,16 +141,13 @@ class ExplorerView(QWidget):
         # Content Area - Splitter
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(2)
-        self.splitter.setStyleSheet(f"""
-            QSplitter {{ background-color: {Styles.COLOR_BACKGROUND}; }}
-            QSplitter::handle {{ background-color: {Styles.COLOR_BORDER}; }}
-        """)
+        self.splitter.setStyleSheet(Styles.get_splitter_style())
         
         # ==========================================
         # LEFT PANEL (Board & Eval)
         # ==========================================
         self.left_panel = QWidget()
-        self.left_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.left_panel.setStyleSheet(Styles.get_background_style())
         self.left_layout = QVBoxLayout(self.left_panel)
         self.left_layout.setContentsMargins(8, 8, 8, 8)
         self.left_layout.setSpacing(6)
@@ -339,7 +187,7 @@ class ExplorerView(QWidget):
         # RIGHT PANEL (Controls & Analysis)
         # ==========================================
         self.right_panel = QWidget()
-        self.right_panel.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.right_panel.setStyleSheet(Styles.get_background_style())
         right_layout = QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(8, 8, 12, 8)
         right_layout.setSpacing(6)
@@ -365,13 +213,7 @@ class ExplorerView(QWidget):
         self.chk_cache.setChecked(True)
         
         for chk in (self.chk_classify, self.chk_legal, self.chk_engine, self.chk_cache):
-            chk.setStyleSheet(f"""
-                QCheckBox {{
-                    color: {Styles.COLOR_TEXT_SECONDARY}; 
-                    font-size: 12px; 
-                    font-weight: 500;
-                }}
-            """)
+            chk.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500))
             chk.setCursor(Qt.CursorShape.PointingHandCursor)
             toggles_layout.addWidget(chk)
             
@@ -390,49 +232,16 @@ class ExplorerView(QWidget):
         self.book_toggle.setCheckable(True)
         self.book_toggle.setChecked(True)
         self.book_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.book_toggle.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                border: none;
-                text-align: left;
-                font-size: 14px;
-                font-weight: bold;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                padding: 2px 0px;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
         self.book_toggle.toggled.connect(self._toggle_book)
         right_layout.addWidget(self.book_toggle)
         
         self.book_scroll = QScrollArea()
         self.book_scroll.setWidgetResizable(True)
-        self.book_scroll.setStyleSheet(f"""
-            QScrollArea {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-            QScrollBar:vertical {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                width: 10px;
-                margin: 0px 0px 0px 0px;
-                border-radius: 5px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: {Styles.COLOR_BORDER_LIGHT};
-                min-height: 20px;
-                border-radius: 5px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-        """)
+        self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
         
         self.book_container = QWidget()
-        self.book_container.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE};")
+        self.book_container.setStyleSheet(Styles.get_surface_style())
         self.book_layout = QVBoxLayout(self.book_container)
         self.book_layout.setContentsMargins(0, 0, 0, 0)
         self.book_layout.setSpacing(0)
@@ -443,13 +252,7 @@ class ExplorerView(QWidget):
 
         # Lichess Attribution footer
         self.lichess_attribution = QLabel()
-        self.lichess_attribution.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_MUTED};
-            font-size: 11px;
-            padding: 4px 14px;
-            background: transparent;
-            border: none;
-        """)
+        self.lichess_attribution.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + "; padding: 4px 14px; " + Styles.get_transparent_label_style())
         self.lichess_attribution.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.lichess_attribution.setOpenExternalLinks(True)
         self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
@@ -466,19 +269,7 @@ class ExplorerView(QWidget):
         self.move_input = QLineEdit()
         self.move_input.setPlaceholderText("type SAN move...")
         self.move_input.setToolTip("Enter a move in standard algebraic notation (e.g. e4, Nf3, O-O)")
-        self.move_input.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 2px 8px;
-                font-size: 12px;
-            }}
-            QLineEdit:focus {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        self.move_input.setStyleSheet(Styles.get_line_edit_style())
         self.move_input.setMinimumWidth(120)
         self.move_input.returnPressed.connect(self._on_move_text_entered)
         moves_header.addWidget(self.move_input)
@@ -496,7 +287,7 @@ class ExplorerView(QWidget):
         
         # Engine Status
         self.engine_status_label = QLabel("")
-        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 0px;")
+        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED))
         right_layout.addWidget(self.engine_status_label)
         
         self.splitter.addWidget(self.right_panel)
@@ -780,15 +571,8 @@ class ExplorerView(QWidget):
 
 
     def _create_book_row_widget(self, san, info_text, piece_symbol=None, stats=None):
-        row_widget = BookRowWidget(san, self)
-        row_widget.setStyleSheet(f"""
-            QWidget {{
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QWidget:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-        """)
+        row_widget = BookRowWidget(san, on_click=self.on_book_move_clicked, parent=self)
+        row_widget.setStyleSheet(Styles.get_book_row_style())
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(14, 8, 14, 8)
         row_layout.setSpacing(8)
@@ -804,11 +588,11 @@ class ExplorerView(QWidget):
                 icon_label = QLabel()
                 icon_label.setPixmap(pixmap)
                 icon_label.setFixedSize(18, 18)
-                icon_label.setStyleSheet("border: none; background: transparent;")
+                icon_label.setStyleSheet(Styles.get_transparent_label_style())
                 left_layout.addWidget(icon_label)
         
         lbl_san = QLabel(san)
-        lbl_san.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 15px; border: none; background: transparent;")
+        lbl_san.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         left_layout.addWidget(lbl_san)
         
         row_layout.addLayout(left_layout)
@@ -823,7 +607,7 @@ class ExplorerView(QWidget):
             right_layout.setSpacing(12)
             
             lbl_count = QLabel(count_str)
-            lbl_count.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 500; border: none; background: transparent;")
+            lbl_count.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED, weight=500) + " " + Styles.get_transparent_label_style())
             right_layout.addWidget(lbl_count)
             
             ratio_bar = RatioBar(w_pct, d_pct, b_pct, self)
@@ -832,7 +616,7 @@ class ExplorerView(QWidget):
             row_layout.addLayout(right_layout)
         elif info_text:
             lbl_info = QLabel(info_text)
-            lbl_info.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; font-style: italic; border: none; background: transparent;")
+            lbl_info.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; font-style: italic; " + Styles.get_transparent_label_style())
             lbl_info.setMinimumWidth(0)
             row_layout.addWidget(lbl_info)
             
@@ -1014,33 +798,11 @@ class ExplorerView(QWidget):
         except Exception as e:
             if not isinstance(e, ValueError) or str(e) != f"Illegal move: {text}":
                 pass
-            self.move_input.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: #3d1a1a;
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid #e74c3c;
-                    border-radius: 6px;
-                    padding: 2px 8px;
-                    font-size: 12px;
-                    font-weight: 600;
-                }}
-            """)
+            self.move_input.setStyleSheet(Styles.get_line_edit_error_style())
             QTimer.singleShot(1000, self._reset_move_input_style)
 
     def _reset_move_input_style(self):
-        self.move_input.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 2px 8px;
-                font-size: 12px;
-            }}
-            QLineEdit:focus {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        self.move_input.setStyleSheet(Styles.get_line_edit_style())
 
     def _toggle_book(self, checked):
         self.book_scroll.setVisible(checked)
@@ -1066,7 +828,7 @@ class ExplorerView(QWidget):
         from PyQt6.QtWidgets import QApplication
         QApplication.clipboard().setText(fen)
         self.engine_status_label.setText("✓ FEN copied")
-        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: #27ae60; padding: 2px 0px;")
+        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
         QTimer.singleShot(2000, self._reset_status)
 
     def _copy_pgn(self):
@@ -1091,12 +853,12 @@ class ExplorerView(QWidget):
         from PyQt6.QtWidgets import QApplication
         QApplication.clipboard().setText(pgn_text)
         self.engine_status_label.setText("✓ PGN copied")
-        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: #27ae60; padding: 2px 0px;")
+        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
         QTimer.singleShot(2000, self._reset_status)
 
     def _reset_status(self):
         self.engine_status_label.setText("⬤ Ready")
-        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: #27ae60; padding: 2px 0px;")
+        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
 
     def on_move_list_clicked(self, index):
         # Prevent out-of-bounds
@@ -1156,14 +918,14 @@ class ExplorerView(QWidget):
 
     def _on_engine_thinking_started(self):
         self.engine_status_label.setText("⬤ Analyzing...")
-        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: #e67e22; padding: 2px 0px;")
+        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_BUSY))
         # Discard stale analysis data from previous position so old info_ready
         # signals don't mix with new position data
         self.live_data = {}
 
     def _on_engine_thinking_stopped(self):
         self.engine_status_label.setText("⬤ Ready")
-        self.engine_status_label.setStyleSheet(f"font-size: 11px; color: #27ae60; padding: 2px 0px;")
+        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
 
     def on_classify_toggled(self, checked):
         self.classify_enabled = checked
@@ -1318,20 +1080,16 @@ class ExplorerView(QWidget):
 
     def refresh_styles(self):
         """Re-applies styles to explorer view components."""
+        if hasattr(self, 'btn_flip'):
+            self.btn_flip.setStyleSheet(Styles.get_action_button_style())
+        if hasattr(self, 'btn_copy_fen'):
+            self.btn_copy_fen.setStyleSheet(Styles.get_action_button_style())
+        if hasattr(self, 'btn_copy_pgn'):
+            self.btn_copy_pgn.setStyleSheet(Styles.get_action_button_style())
+        if hasattr(self, 'book_toggle'):
+            self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
         if hasattr(self, 'move_input'):
-            self.move_input.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 6px;
-                    padding: 2px 8px;
-                    font-size: 12px;
-                }}
-                QLineEdit:focus {{
-                    border-color: {Styles.COLOR_ACCENT};
-                }}
-            """)
+            self.move_input.setStyleSheet(Styles.get_line_edit_style())
         if hasattr(self, 'lichess_attribution'):
             self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
         if hasattr(self, 'lines_widget'):
@@ -1420,45 +1178,3 @@ class ExplorerView(QWidget):
         self.book_toggle.show()
         self.book_scroll.hide()
         self.lichess_attribution.setVisible(False)
-
-
-class LichessExplorerWorker(QThread):
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
-
-    def __init__(self, fen: str, cache_enabled: bool, history_manager, token: str = "", parent=None):
-        super().__init__(parent)
-        self.fen = fen
-        self.cache_enabled = cache_enabled
-        self.history_manager = history_manager
-        self.token = token
-
-    def run(self):
-        try:
-            import requests
-            import urllib.parse
-            import json
-            parts = self.fen.split()
-            norm_fen = " ".join(parts[:4])
-            
-            if self.cache_enabled:
-                cached = self.history_manager.get_explorer_cache(norm_fen)
-                if cached:
-                    self.finished.emit(json.loads(cached))
-                    return
-
-            encoded_fen = urllib.parse.quote(self.fen)
-            url = f"https://explorer.lichess.ovh/lichess?fen={encoded_fen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500"
-            headers = {"User-Agent": "ChessAnalyzer/1.0"}
-            if self.token:
-                headers["Authorization"] = f"Bearer {self.token}"
-            resp = requests.get(url, headers=headers, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                if self.cache_enabled:
-                    self.history_manager.save_explorer_cache(norm_fen, json.dumps(data))
-                self.finished.emit(data)
-            else:
-                self.error.emit(f"HTTP Error {resp.status_code}")
-        except Exception as e:
-            self.error.emit(str(e))

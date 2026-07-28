@@ -25,15 +25,7 @@ class CapturedPiecesWidget(QFrame):
         super().__init__()
         self.side = side  # "white" or "black" — which player's captures this shows
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shape.NoFrame)
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 5px;
-            }}
-            {Styles.CAPTURED_PIECES_STYLE}
-        """)
+        self.setStyleSheet(Styles.get_captured_pieces_style())
 
         layout = QHBoxLayout(self)
         layout.setSpacing(5)
@@ -48,7 +40,7 @@ class CapturedPiecesWidget(QFrame):
         # Add stretch widget so captured pieces stay left, and clock stays right
         self.spacer_widget = QWidget()
         self.spacer_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.spacer_widget.setStyleSheet("background: transparent; border: none;")
+        self.spacer_widget.setStyleSheet(Styles.get_transparent_label_style())
         self.spacer_widget.hide()  # Hidden by default
         layout.addWidget(self.spacer_widget)
         
@@ -150,10 +142,7 @@ class CapturedPiecesWidget(QFrame):
             'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛',
         }
 
-        style = (
-            f"color: {fg}; background-color: {bg};"
-            f" font-size: 26px; padding: 2px 6px; border-radius: 4px;"
-        )
+        style = Styles.get_piece_chip_style(fg, bg)
 
         symbol = piece_map.get(piece, '?')
         if piece in ('p', 'P'):
@@ -192,13 +181,7 @@ class CapturedPiecesWidget(QFrame):
         counter stays pinned to the start of the row and does not wander
         as new pieces are captured."""
         lbl = QLabel(text)
-        lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY};"
-            f" background-color: {Styles.COLOR_SURFACE_LIGHT};"
-            f" font-weight: bold; font-size: 16px;"
-            f" padding: 4px 8px; border-radius: 4px;"
-            f" margin-right: 4px;"
-        )
+        lbl.setStyleSheet(Styles.get_advantage_chip_style())
         self.pieces_layout.insertWidget(0, lbl)
 
     def update_clock(self, seconds):
@@ -217,43 +200,13 @@ class CapturedPiecesWidget(QFrame):
         
         # Color coding: red/orange if less than 20 seconds
         if seconds <= 20.0:
-            self.clock_label.setStyleSheet(f"""
-                QLabel {{
-                    color: #FFFFFF;
-                    background-color: {Styles.COLOR_BLUNDER};
-                    font-family: 'Courier New', 'Monospace', monospace;
-                    font-size: 18px;
-                    font-weight: bold;
-                    padding: 4px 10px;
-                    border-radius: 6px;
-                    border: 1px solid {Styles.COLOR_BLUNDER};
-                }}
-            """)
+            self.clock_label.setStyleSheet(Styles.get_digital_clock_style(Styles.COLOR_BLUNDER, "#FFFFFF", Styles.COLOR_BLUNDER))
         else:
             if self.side == "black":
-                # Black player's clock: White background, black text
-                color_style = """
-                    color: #1A1A1D;
-                    background-color: #FFFFFF;
-                    border: 1px solid #D1D5DB;
-                """
+                bg, fg, border = "#FFFFFF", "#1A1A1D", "#D1D5DB"
             else:
-                # White player's clock: Black background, white text
-                color_style = f"""
-                    color: #E4E4E7;
-                    background-color: #111111;
-                    border: 1px solid {Styles.COLOR_BORDER};
-                """
-            self.clock_label.setStyleSheet(f"""
-                QLabel {{
-                    {color_style}
-                    font-family: 'Courier New', 'Monospace', monospace;
-                    font-size: 18px;
-                    font-weight: bold;
-                    padding: 4px 10px;
-                    border-radius: 6px;
-                }}
-            """)
+                bg, fg, border = "#111111", "#E4E4E7", Styles.COLOR_BORDER
+            self.clock_label.setStyleSheet(Styles.get_digital_clock_style(bg, fg, border))
             
         self.clock_label.show()
         if hasattr(self, 'spacer_widget'):
@@ -266,17 +219,9 @@ class CapturedPiecesWidget(QFrame):
         has_clock = hasattr(self, 'clock_label') and not self.clock_label.isHidden()
         
         if has_pieces or has_clock:
-            self.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 8px;
-                    padding: 5px;
-                }}
-                {Styles.CAPTURED_PIECES_STYLE}
-            """)
+            self.setStyleSheet(Styles.get_captured_pieces_style())
         else:
-            self.setStyleSheet(f"background: transparent; border: none;")
+            self.setStyleSheet(Styles.get_transparent_label_style())
     def refresh_styles(self):
         self._update_container_style()
 

@@ -631,6 +631,16 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'btn_load'):
             self.btn_load.setStyleSheet(Styles.get_control_button_style())
 
+        # Analysis page header containers
+        if hasattr(self, 'analysis_header_bar'):
+            self.analysis_header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND) + " QFrame QLabel { background: transparent; }")
+        if hasattr(self, 'title_lbl'):
+            self.title_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        if hasattr(self, 'left_widget'):
+            self.left_widget.setStyleSheet(Styles.get_background_style())
+        if hasattr(self, 'center_widget'):
+            self.center_widget.setStyleSheet(Styles.get_background_style())
+
         # Update Chess Boards (Graphics / QPainter)
         if hasattr(self, 'board_widget'):
             self.board_widget.update_board()

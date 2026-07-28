@@ -42,27 +42,7 @@ class AnalysisLinesWidget(QFrame):
         self.layout.addStretch() # Push lines to top
 
     def _apply_base_style(self):
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-                padding: 10px;
-            }}
-            QWidget#AnalysisRow {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 8px;
-                border: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QWidget#AnalysisRow:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-            QLabel {{
-                border: none;
-                background: transparent;
-            }}
-        """)
+        self.setStyleSheet(Styles.get_analysis_lines_style())
 
     def refresh_styles(self):
         self._apply_base_style()
@@ -128,18 +108,7 @@ class AnalysisLinesWidget(QFrame):
                 row_widget.uci_move = None
                 
             lbl_depth.setText(f"d{depth}")
-            lbl_depth.setStyleSheet(f"""
-                QLabel {{
-                    color: {Styles.COLOR_TEXT_MUTED};
-                    font-size: 11px;
-                    font-family: monospace;
-                    font-weight: 600;
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 6px;
-                    padding: 2px 6px;
-                }}
-            """)
+            lbl_depth.setStyleSheet(Styles.get_badge_style(size=11))
             
             # Eval
             score_val = pv_data.get("score_value")
@@ -190,17 +159,7 @@ class AnalysisLinesWidget(QFrame):
                     logger.warning(f"Failed to format eval score '{score_val}': {e}")
 
             lbl_eval.setText(display_score)
-            lbl_eval.setStyleSheet(f"""
-                QLabel {{
-                    background-color: {bg_color};
-                    color: {text_color};
-                    border-radius: 6px;
-                    padding: 3px 8px;
-                    font-weight: bold;
-                    font-family: monospace;
-                    font-size: 12px;
-                }}
-            """)
+            lbl_eval.setStyleSheet(Styles.get_eval_badge_style(bg_color, text_color))
             
             # PV
             pv_text = pv_data.get("pv_san", "")
@@ -255,7 +214,7 @@ class AnalysisLinesWidget(QFrame):
         lbl_pv.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         lbl_pv.setWordWrap(True) # Wrap text
         lbl_pv.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        lbl_pv.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_pv.setStyleSheet(Styles.get_label_style(size=12))
         row_layout.addWidget(lbl_pv)
         
         self.lines_layout.addWidget(row_widget)

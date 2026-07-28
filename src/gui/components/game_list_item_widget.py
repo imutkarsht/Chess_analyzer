@@ -53,22 +53,7 @@ class GameListItemWidget(QWidget):
 
     def _build_compact_ui(self, game, usernames, root_layout):
         """Build compact single-row list item layout (Lichess/Chess.com table style)."""
-        self.card_frame.setStyleSheet(f"""
-            QFrame#GameCard {{
-                background-color: {Styles.COLOR_SURFACE_CARD};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 10px 14px;
-            }}
-            QFrame#GameCard:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-                background-color: {Styles.COLOR_SURFACE};
-            }}
-            QFrame#GameCard QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """)
+        self.card_frame.setStyleSheet(Styles.get_game_card_style(border_radius=6, compact=True))
 
         card_layout = QHBoxLayout(self.card_frame)
         card_layout.setContentsMargins(12, 8, 12, 8)
@@ -95,7 +80,7 @@ class GameListItemWidget(QWidget):
 
         players_widget = QWidget()
         players_widget.setFixedWidth(220)
-        players_widget.setStyleSheet("background: transparent; border: none;")
+        players_widget.setStyleSheet(Styles.get_transparent_label_style())
         players_layout = QVBoxLayout(players_widget)
         players_layout.setContentsMargins(0, 0, 0, 0)
         players_layout.setSpacing(2)
@@ -105,7 +90,7 @@ class GameListItemWidget(QWidget):
         w_row.setContentsMargins(0, 0, 0, 0)
         w_row.setSpacing(4)
         w_lbl = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        w_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; background: transparent; border: none;")
+        w_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
         w_row.addWidget(w_lbl)
         if result_text == "1-0":
             crown = self._create_winner_crown()
@@ -118,7 +103,7 @@ class GameListItemWidget(QWidget):
         b_row.setContentsMargins(0, 0, 0, 0)
         b_row.setSpacing(4)
         b_lbl = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        b_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; background: transparent; border: none;")
+        b_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
         b_row.addWidget(b_lbl)
         if result_text == "0-1":
             crown = self._create_winner_crown()
@@ -135,22 +120,14 @@ class GameListItemWidget(QWidget):
         eco = game.metadata.eco or ""
         opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
         op_lbl = QLabel(opening_text if opening_text else "-")
-        op_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent; border: none;")
+        op_lbl.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY) + " " + Styles.get_transparent_label_style())
         op_lbl.setToolTip(opening_text)
         card_layout.addWidget(op_lbl, stretch=1)
 
         # 4. Result Badge
         result_color = self._get_result_color(result_text, game.metadata, usernames)
         result_label = QLabel(result_text)
-        result_label.setStyleSheet(f"""
-            color: {result_color}; 
-            font-weight: bold; 
-            font-size: 12px;
-            padding: 2px 8px;
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 4px;
-        """)
+        result_label.setStyleSheet(Styles.get_result_badge_style(result_color, 12, "2px 8px", 4))
         card_layout.addWidget(result_label)
 
         # 5. Accuracy (if analyzed)
@@ -164,13 +141,13 @@ class GameListItemWidget(QWidget):
         # 6. Date & Move Count
         if game.metadata.date:
             date_lbl = QLabel(game.metadata.date)
-            date_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+            date_lbl.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style())
             card_layout.addWidget(date_lbl)
 
         move_count = self._get_move_count(game)
         if move_count:
             moves_lbl = QLabel(f"{move_count}m")
-            moves_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+            moves_lbl.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style())
             card_layout.addWidget(moves_lbl)
 
         # 7. Delete button
@@ -181,17 +158,7 @@ class GameListItemWidget(QWidget):
             del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
         else:
             del_btn.setText("🗑")
-        del_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                border-radius: 4px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BLUNDER};
-            }}
-        """)
+        del_btn.setStyleSheet(Styles.get_delete_button_style())
         game_id = getattr(game, 'game_id', None)
         del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
         card_layout.addWidget(del_btn)
@@ -200,21 +167,7 @@ class GameListItemWidget(QWidget):
 
     def _build_detailed_ui(self, game, usernames, root_layout):
         """Build detailed card layout with mini board thumbnail."""
-        self.card_frame.setStyleSheet(f"""
-            QFrame#GameCard {{
-                background-color: {Styles.COLOR_SURFACE_CARD};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 10px;
-                padding: 8px 14px;
-            }}
-            QFrame#GameCard:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-            QFrame#GameCard QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """)
+        self.card_frame.setStyleSheet(Styles.get_game_card_style())
 
         card_layout = QHBoxLayout(self.card_frame)
         card_layout.setContentsMargins(12, 10, 12, 10)
@@ -243,7 +196,7 @@ class GameListItemWidget(QWidget):
 
         # White player
         white_label = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        white_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; background: transparent; border: none;")
+        white_label.setStyleSheet(Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(white_label)
 
         if result_text == "1-0":
@@ -252,12 +205,12 @@ class GameListItemWidget(QWidget):
                 header_layout.addWidget(crown_label)
 
         vs_label = QLabel("vs")
-        vs_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; margin: 0 4px; background: transparent; border: none;")
+        vs_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED) + "; margin: 0 4px; " + Styles.get_transparent_label_style())
         header_layout.addWidget(vs_label)
 
         # Black player
         black_label = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        black_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; background: transparent; border: none;")
+        black_label.setStyleSheet(Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(black_label)
 
         if result_text == "0-1":
@@ -270,15 +223,7 @@ class GameListItemWidget(QWidget):
         # Result badge
         result_color = self._get_result_color(result_text, game.metadata, usernames)
         result_label = QLabel(result_text)
-        result_label.setStyleSheet(f"""
-            color: {result_color}; 
-            font-weight: bold; 
-            font-size: 13px;
-            padding: 3px 10px;
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-        """)
+        result_label.setStyleSheet(Styles.get_result_badge_style(result_color, 13, "3px 10px", 6))
         header_layout.addWidget(result_label)
 
         # Delete button on card
@@ -289,17 +234,7 @@ class GameListItemWidget(QWidget):
             del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
         else:
             del_btn.setText("🗑")
-        del_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                border-radius: 4px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BLUNDER};
-            }}
-        """)
+        del_btn.setStyleSheet(Styles.get_delete_button_style())
         game_id = getattr(game, 'game_id', None)
         del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
         header_layout.addWidget(del_btn)
@@ -320,18 +255,12 @@ class GameListItemWidget(QWidget):
             elif HAS_QTAWESOME:
                 book_icon.setPixmap(qta.icon('fa5s.book-open', color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14))
             book_icon.setFixedWidth(14)
-            book_icon.setStyleSheet("background: transparent; border: none;")
+            book_icon.setStyleSheet(Styles.get_transparent_label_style())
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
             opening_label = QLabel(opening_text)
-            opening_label.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY}; 
-                font-size: 12px;
-                font-weight: 500;
-                background: transparent;
-                border: none;
-            """)
+            opening_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500) + " " + Styles.get_transparent_label_style())
             opening_label.setToolTip(opening_text)
             opening_layout.addWidget(opening_label, 1)
 
@@ -447,7 +376,7 @@ class GameListItemWidget(QWidget):
         lbl = QLabel()
         lbl.setFixedSize(18, 18)
         lbl.setScaledContents(True)
-        lbl.setStyleSheet("background: transparent; border: none;")
+        lbl.setStyleSheet(Styles.get_transparent_label_style())
 
         src_lower = str(source).lower().strip()
         if "lichess" in src_lower:
@@ -479,7 +408,7 @@ class GameListItemWidget(QWidget):
         lbl = QLabel()
         lbl.setFixedSize(16, 16)
         lbl.setScaledContents(True)
-        lbl.setStyleSheet("background: transparent; border: none;")
+        lbl.setStyleSheet(Styles.get_transparent_label_style())
 
         icon_path = get_resource_path(os.path.join("assets", "images", "winner_crown.svg"))
         if os.path.exists(icon_path):
@@ -495,14 +424,14 @@ class GameListItemWidget(QWidget):
 
     def _create_meta_item(self, icon, text):
         container = QWidget()
-        container.setStyleSheet("background: transparent; border: none;")
+        container.setStyleSheet(Styles.get_transparent_label_style())
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
         icon_lbl = QLabel()
         icon_lbl.setFixedSize(14, 14)
-        icon_lbl.setStyleSheet("background: transparent; border: none;")
+        icon_lbl.setStyleSheet(Styles.get_transparent_label_style())
 
         if isinstance(icon, str) and icon.endswith(".svg"):
             icon_path = get_resource_path(icon)
@@ -518,7 +447,7 @@ class GameListItemWidget(QWidget):
         layout.addWidget(icon_lbl)
 
         text_lbl = QLabel(str(text))
-        text_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; background: transparent; border: none;")
+        text_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style())
         layout.addWidget(text_lbl)
 
         return container
@@ -662,24 +591,7 @@ class GameListItemWidget(QWidget):
     def contextMenuEvent(self, event):
         from PyQt6.QtWidgets import QMenu
         menu = QMenu(self)
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-            QMenu::item {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                padding: 8px 20px;
-                border-radius: 4px;
-                font-size: 13px;
-            }}
-            QMenu::item:selected {{
-                background-color: {Styles.COLOR_BLUNDER};
-                color: white;
-            }}
-        """)
+        menu.setStyleSheet(Styles.get_menu_style())
         act_delete = menu.addAction("🗑  Delete from history")
         chosen = menu.exec(event.globalPos())
         if chosen is act_delete:

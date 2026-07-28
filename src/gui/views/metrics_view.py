@@ -56,18 +56,13 @@ class MetricsWidget(QWidget):
         
         # Header Bar Container
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
+        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
         
         # Title
         title = QLabel("Performance Dashboard")
-        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        title.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(title)
         
         header_layout.addStretch()
@@ -79,7 +74,7 @@ class MetricsWidget(QWidget):
         
         # Content Area
         self.content_widget = QWidget()
-        self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.content_widget.setStyleSheet(Styles.get_background_style())
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(40, 20, 40, 20)
         self.content_layout.setSpacing(20)
@@ -88,19 +83,13 @@ class MetricsWidget(QWidget):
     def refresh_styles(self):
         """Re-applies styles and rebuilds the dashboard using cached stats/insights."""
         if hasattr(self, 'header_bar') and self.header_bar:
-            self.header_bar.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Styles.COLOR_BACKGROUND};
-                    border-bottom: 1px solid {Styles.COLOR_BORDER};
-                }}
-            """)
+            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
 
         if hasattr(self, 'btn_refresh') and self.btn_refresh:
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
 
-        # Always update the content area background
         if hasattr(self, 'content_widget') and self.content_widget:
-            self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+            self.content_widget.setStyleSheet(Styles.get_background_style())
 
         if self.current_stats:
             saved_insights = self.current_insights
@@ -134,20 +123,11 @@ class MetricsWidget(QWidget):
         spinner = QProgressBar()
         spinner.setRange(0, 0) # Infinite loading
         spinner.setFixedWidth(200)
-        spinner.setStyleSheet(f"""
-            QProgressBar {{
-                border: 2px solid {Styles.COLOR_BORDER};
-                border-radius: 5px;
-                background-color: {Styles.COLOR_SURFACE};
-            }}
-            QProgressBar::chunk {{
-                background-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        spinner.setStyleSheet(Styles.get_progress_bar_style())
         l_layout.addWidget(spinner)
         
         lbl = QLabel("Calculating Statistics...")
-        lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; margin-top: 10px;")
+        lbl.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY) + "; margin-top: 10px;")
         l_layout.addWidget(lbl)
         
         self.content_layout.addWidget(loading_widget)
@@ -188,12 +168,12 @@ class MetricsWidget(QWidget):
         layout.setSpacing(20)
         
         lbl = QLabel(title_text)
-        lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True))
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl)
         
         msg = QLabel(msg_text)
-        msg.setStyleSheet(f"font-size: 16px; color: {Styles.COLOR_TEXT_SECONDARY};")
+        msg.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_SECONDARY))
         msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(msg)
         
@@ -212,10 +192,10 @@ class MetricsWidget(QWidget):
     def show_dashboard(self, stats):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setStyleSheet(Styles.get_scroll_area_style())
         
         dashboard = QWidget()
-        dashboard.setStyleSheet("background: transparent;")
+        dashboard.setStyleSheet(Styles.get_transparent_label_style())
         
         dashboard_layout = QVBoxLayout(dashboard)
         dashboard_layout.setSpacing(20)
