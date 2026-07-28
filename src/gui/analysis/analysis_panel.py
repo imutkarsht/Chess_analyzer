@@ -379,7 +379,7 @@ class AnalysisPanel(QWidget):
         
     def refresh_styles(self):
         """Re-applies styles to widgets."""
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.setStyleSheet(Styles.get_background_style())
 
         if hasattr(self, 'report_card') and self.report_card:
             self.report_card.setStyleSheet(Styles.get_frame_style(object_name="ReportCard", hover_accent=False))

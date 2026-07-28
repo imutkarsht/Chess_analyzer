@@ -57,6 +57,20 @@ class _StylesMeta(type):
     @property
     def COLOR_BOOK(cls): return ThemeManager.get_class_color("Book")
 
+    # Result colors for win/draw/loss bars
+    @property
+    def COLOR_RESULT_WIN(cls): return "#4FA859"
+    @property
+    def COLOR_RESULT_DRAW(cls): return "#8E9AA6"
+    @property
+    def COLOR_RESULT_LOSS(cls): return "#2F3640"
+
+    # Engine status colors
+    @property
+    def COLOR_ENGINE_READY(cls): return "#27ae60"
+    @property
+    def COLOR_ENGINE_BUSY(cls): return "#e67e22"
+
     @property
     def BOARD_THEMES(cls): return BOARD_THEMES
 
@@ -467,6 +481,297 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_delete_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {p.surface_light};
+                border: 1px solid {cls.COLOR_BLUNDER};
+            }}
+        """
+
+    @classmethod
+    def get_toggle_button_style(cls, active=False):
+        p = ThemeManager.palette()
+        bg = p.accent if active else p.surface_light
+        text_color = "#FFFFFF" if active else p.text_primary
+        border_color = p.accent if active else p.border
+        weight = "700" if active else "500"
+        return f"""
+            QPushButton {{
+                background-color: {bg};
+                color: {text_color} !important;
+                border: 1px solid {border_color};
+                border-radius: 5px;
+                padding: 0 10px;
+                font-size: 12px;
+                font-weight: {weight};
+            }}
+        """
+
+    @classmethod
+    def get_page_btn_style(cls, enabled=True):
+        p = ThemeManager.palette()
+        bg = p.surface_light if enabled else "transparent"
+        text = p.text_primary if enabled else p.text_muted
+        return f"""
+            QPushButton {{
+                background-color: {bg};
+                color: {text};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                padding: 0 12px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {p.accent};
+                color: {p.text_primary};
+                border-color: {p.accent};
+            }}
+            QPushButton:disabled {{
+                opacity: 0.4;
+            }}
+        """
+
+    @classmethod
+    def get_page_num_btn_style(cls, active=False):
+        p = ThemeManager.palette()
+        bg = p.accent if active else p.surface_light
+        text = "#FFFFFF" if active else p.text_primary
+        border = p.accent if active else p.border
+        weight = "700" if active else "400"
+        return f"""
+            QPushButton {{
+                background-color: {bg};
+                color: {text} !important;
+                border: 1px solid {border};
+                border-radius: 6px;
+                padding: 0px !important;
+                font-size: 12px;
+                font-weight: {weight};
+                text-align: center !important;
+            }}
+            QPushButton:hover {{
+                background-color: {p.accent};
+                border-color: {p.accent};
+                color: #FFFFFF !important;
+            }}
+        """
+
+    @classmethod
+    def get_header_bar_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QWidget {{
+                background-color: {p.surface};
+                border-bottom: 1px solid {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_pagination_bar_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QWidget {{
+                background-color: {p.surface};
+                border-top: 1px solid {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_list_widget_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QListWidget {{
+                background-color: {p.background};
+                border: none;
+                outline: none;
+            }}
+            QListWidget::item {{
+                background-color: {p.background};
+                border: none;
+                border-bottom: 1px solid {p.surface_light};
+                padding: 0px;
+                margin: 0px;
+            }}
+            QListWidget::item:hover {{
+                background-color: {p.surface};
+            }}
+        """
+
+    @classmethod
+    def get_background_style(cls):
+        p = ThemeManager.palette()
+        return f"background-color: {p.background};"
+
+    @classmethod
+    def get_surface_style(cls):
+        p = ThemeManager.palette()
+        return f"background-color: {p.surface};"
+
+    @classmethod
+    def get_line_edit_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QLineEdit {{
+                background-color: {p.surface};
+                color: {p.text_primary};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                padding: 2px 8px;
+                font-size: 12px;
+            }}
+            QLineEdit:focus {{
+                border-color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_line_edit_error_style(cls):
+        return """
+            QLineEdit {
+                background-color: #3d1a1a;
+                color: #FFFFFF;
+                border: 1px solid #e74c3c;
+                border-radius: 6px;
+                padding: 2px 8px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+        """
+
+    @classmethod
+    def get_action_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: {p.surface};
+                color: {p.text_secondary};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {p.surface_light};
+                border-color: {p.accent};
+                color: {p.text_primary};
+            }}
+        """
+
+    @classmethod
+    def get_book_toggle_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background: transparent;
+                border: none;
+                text-align: left;
+                font-size: 14px;
+                font-weight: bold;
+                color: {p.text_primary};
+                padding: 2px 0px;
+            }}
+            QPushButton:hover {{
+                color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_scroll_area_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QScrollArea {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+            }}
+            QScrollBar:vertical {{
+                background-color: {p.background};
+                width: 10px;
+                margin: 0px 0px 0px 0px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {p.border_light};
+                min-height: 20px;
+                border-radius: 5px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """
+
+    @classmethod
+    def get_book_row_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QWidget {{
+                border-bottom: 1px solid {p.border};
+            }}
+            QWidget:hover {{
+                background-color: {p.surface_light};
+            }}
+        """
+
+    @classmethod
+    def get_ratio_bar_segment_style(cls, color, top_left=False, top_right=False, bottom_left=False, bottom_right=False):
+        radii = []
+        if top_left: radii.append("4px")
+        else: radii.append("0px")
+        if top_right: radii.append("4px")
+        else: radii.append("0px")
+        if bottom_right: radii.append("4px")
+        else: radii.append("0px")
+        if bottom_left: radii.append("4px")
+        else: radii.append("0px")
+        radius = " ".join(radii)
+        return f"""
+            QLabel {{
+                background-color: {color};
+                color: #FFFFFF;
+                font-size: 9px;
+                font-weight: bold;
+                border: none;
+                border-radius: {radius};
+            }}
+        """
+
+    @classmethod
+    def get_engine_status_style(cls, color):
+        return f"""
+            font-size: 11px;
+            color: {color};
+            padding: 2px 0px;
+        """
+
+    @classmethod
+    def get_header_bar_ext_style(cls, bg_color=None):
+        p = ThemeManager.palette()
+        bg = bg_color or p.surface
+        return f"""
+            QFrame {{
+                background-color: {bg};
+                border-bottom: 1px solid {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_splitter_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QSplitter {{ background-color: {p.background}; }}
+            QSplitter::handle {{ background-color: {p.border}; }}
+        """
+
+    @classmethod
     def get_sidebar_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -591,6 +896,63 @@ class Styles(metaclass=_StylesMeta):
                 font-weight: bold;
                 font-family: monospace;
                 font-size: 12px;
+            }}
+        """
+
+    @classmethod
+    def get_result_badge_style(cls, color, font_size=12, padding="2px 8px", border_radius=4):
+        p = ThemeManager.palette()
+        return f"""
+            QLabel {{
+                color: {color};
+                font-weight: bold;
+                font-size: {font_size}px;
+                padding: {padding};
+                background-color: {p.surface_light};
+                border: 1px solid {p.border};
+                border-radius: {border_radius}px;
+            }}
+        """
+
+    @classmethod
+    def get_game_card_style(cls, border_radius=10, compact=False):
+        p = ThemeManager.palette()
+        hover_bg = f"background-color: {p.surface};" if compact else ""
+        card_padding = "10px 14px" if compact else "8px 14px"
+        return f"""
+            QFrame#GameCard {{
+                background-color: {p.surface_card};
+                border: 1px solid {p.border};
+                border-radius: {border_radius}px;
+                padding: {card_padding};
+            }}
+            QFrame#GameCard:hover {{
+                {hover_bg}
+                border-color: {p.accent};
+            }}
+            QFrame#GameCard QLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """
+
+    @classmethod
+    def get_menu_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QMenu {{
+                background-color: {p.surface_card};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 6px;
+            }}
+            QMenu::item {{
+                padding: 8px 16px;
+                border-radius: 6px;
+                color: {p.text_primary};
+            }}
+            QMenu::item:selected {{
+                background-color: {p.surface_light};
             }}
         """
 

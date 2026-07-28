@@ -233,7 +233,7 @@ class MoveListPanel(QWidget):
     
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.setStyleSheet(Styles.get_background_style())
         self.table.setStyleSheet(Styles.get_move_list_table_style())
 
         # Re-apply color for move numbers in column 0

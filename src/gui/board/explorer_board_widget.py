@@ -284,8 +284,9 @@ class ExplorerBoardWidget(BoardWidget):
             for sq in self.legal_destinations:
                 dot = QLabel("●")
                 dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                c = QColor(Styles.COLOR_ACCENT)
                 dot.setStyleSheet(
-                    Styles.get_label_style(size=24, color=f"{Styles.COLOR_ACCENT}80")
+                    Styles.get_label_style(size=24, color=f"rgba({c.red()},{c.green()},{c.blue()},0.5)")
                     + " " + Styles.get_transparent_label_style()
                 )
                 r, c = self._sq_to_grid(sq)
