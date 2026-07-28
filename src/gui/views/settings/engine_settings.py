@@ -20,6 +20,26 @@ class EngineSettings(QGroupBox):
         
         self.setup_ui()
 
+    def _combo_style(self):
+        return f"""
+            QComboBox {{
+                padding: 6px 12px;
+                min-width: 80px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QComboBox:hover {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                padding-right: 8px;
+            }}
+        """
+
     def setup_ui(self):
         engine_layout = QVBoxLayout(self)
         engine_layout.setContentsMargins(20, 25, 20, 20)
@@ -38,7 +58,7 @@ class EngineSettings(QGroupBox):
 
         # Validation status label
         self.validation_label = QLabel()
-        self.validation_label.setStyleSheet("font-size: 12px; font-weight: bold; background: transparent; margin-top: 2px;")
+        self.validation_label.setStyleSheet(Styles.get_validation_label_style())
         self.validation_label.setWordWrap(True)
         self.validation_label.setVisible(False)
         engine_layout.addWidget(self.validation_label)
@@ -56,7 +76,7 @@ class EngineSettings(QGroupBox):
 
         field_label_style = Styles.get_label_style(size=13)
         hint_style = Styles.get_secondary_label_style(size=11)
-        combo_style = Styles.get_combobox_style()
+        combo_style = self._combo_style()
 
         def _wrap(label_text, widget, hint_text):
             """Build a label + (input + hint) pair in form-layout style."""
@@ -309,7 +329,7 @@ class EngineSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         if hasattr(self, 'depth_combo'):
-            self.depth_combo.setStyleSheet(Styles.get_combobox_style())
+            self.depth_combo.setStyleSheet(self._combo_style())
         if hasattr(self, 'hash_input'):
             self.hash_input.refresh_styles()
         if hasattr(self, 'path_input'):

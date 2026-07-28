@@ -7,30 +7,6 @@ from ...theme.palette import BOARD_THEMES
 from ....utils.path_utils import get_resource_path
 from .helpers import create_icon_button
 
-RADIO_GROUP_TPL = """
-    QRadioButton {{
-        color: {text};
-        font-size: 13px;
-        spacing: 8px;
-        padding: 4px 0;
-    }}
-    QRadioButton::indicator {{
-        width: 18px;
-        height: 18px;
-        border: 1px solid {border};
-        border-radius: 10px;
-        background: {bg};
-    }}
-    QRadioButton::indicator:checked {{
-        background: {accent};
-        border-color: {accent};
-    }}
-    QRadioButton::indicator:hover {{
-        border-color: {accent};
-    }}
-"""
-
-
 class AppearanceSettings(QGroupBox):
     theme_refreshed = pyqtSignal()
 
@@ -43,14 +19,23 @@ class AppearanceSettings(QGroupBox):
     def _combo_style(self):
         return Styles.get_combobox_style()
 
+    def _accent_btn_style(self):
+        return f"""
+            QPushButton {{
+                padding: 6px 14px;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+        """
+
     def _radio_style(self):
-        p = ThemeManager.palette()
-        return RADIO_GROUP_TPL.format(
-            text=p.text_primary,
-            border=p.border,
-            bg=p.surface_light,
-            accent=p.accent,
-        )
+        return Styles.get_radio_group_style()
 
     def _label_style(self):
         return "background: transparent; font-size: 14px; border: none;"
@@ -183,7 +168,7 @@ class AppearanceSettings(QGroupBox):
             self._accent_group.addButton(rb)
             hbox.addWidget(rb)
         self.color_btn = QPushButton("Choose Color")
-        self.color_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        self.color_btn.setStyleSheet(self._accent_btn_style())
         self.color_btn.clicked.connect(self.change_accent_color)
         hbox.addWidget(self.color_btn)
         hbox.addStretch()
@@ -271,7 +256,7 @@ class AppearanceSettings(QGroupBox):
         if hasattr(self, 'piece_combo'):
             self.piece_combo.setStyleSheet(combo_style)
         if hasattr(self, 'color_btn'):
-            self.color_btn.setStyleSheet(Styles.get_settings_default_button_style())
+            self.color_btn.setStyleSheet(self._accent_btn_style())
         if hasattr(self, 'sound_checkbox'):
             tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
             self.sound_checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))

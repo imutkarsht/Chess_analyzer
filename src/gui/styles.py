@@ -909,6 +909,54 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_card_title_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            color: {p.text_secondary};
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: transparent;
+            border: none;
+        """
+
+    @classmethod
+    def get_validation_label_style(cls):
+        return """
+            font-size: 12px;
+            font-weight: bold;
+            background: transparent;
+            margin-top: 2px;
+        """
+
+    @classmethod
+    def get_radio_group_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QRadioButton {{
+                color: {p.text_primary};
+                font-size: 13px;
+                spacing: 8px;
+                padding: 4px 0;
+            }}
+            QRadioButton::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 1px solid {p.border};
+                border-radius: 10px;
+                background: {p.surface_light};
+            }}
+            QRadioButton::indicator:checked {{
+                background: {p.accent};
+                border-color: {p.accent};
+            }}
+            QRadioButton::indicator:hover {{
+                border-color: {p.accent};
+            }}
+        """
+
+    @classmethod
     def get_eval_badge_style(cls, bg_color, text_color):
         return f"""
             QLabel {{
