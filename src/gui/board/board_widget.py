@@ -185,7 +185,7 @@ class BoardWidget(QWidget):
             lbl = QLabel()
             lbl.setPixmap(icon.pixmap(32, 32)) # Size 32x32
             lbl.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-            lbl.setStyleSheet("background: transparent;")
+            lbl.setStyleSheet(Styles.get_transparent_label_style())
             
             # Ensure grid is 8x8
             for r in range(8):

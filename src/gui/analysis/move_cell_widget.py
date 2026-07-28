@@ -27,14 +27,14 @@ class MoveCellWidget(QWidget):
         self._icon_label = QLabel(self)
         self._icon_label.setFixedSize(18, 18)
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._icon_label.setStyleSheet("background: transparent; border: none;")
+        self._icon_label.setStyleSheet(Styles.get_transparent_label_style())
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._san_label = QLabel(self)
         self._san_label.setAlignment(
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
         )
-        self._san_label.setStyleSheet("background: transparent; border: none;")
+        self._san_label.setStyleSheet(Styles.get_transparent_label_style())
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self._time_label = QLabel(self)
@@ -42,7 +42,7 @@ class MoveCellWidget(QWidget):
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
         )
         self._time_label.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
+            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
         )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -51,7 +51,7 @@ class MoveCellWidget(QWidget):
         # Bottom row: a 2-pixel-tall coloured think-time bar (shown only if time_spent is present)
         self._bar = QLabel(self)
         self._bar.setFixedHeight(2)
-        self._bar.setStyleSheet("background: transparent; border: none;")
+        self._bar.setStyleSheet(Styles.get_transparent_label_style())
         self._bar.hide()
         outer.addWidget(self._bar)
 
@@ -81,7 +81,7 @@ class MoveCellWidget(QWidget):
 
         font_weight = "bold" if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
         self._san_label.setStyleSheet(
-            f"color: {color}; font-size: 13px; font-weight: {font_weight}; background: transparent; border: none;"
+            Styles.get_label_style(size=13, color=color, weight=font_weight) + " " + Styles.get_transparent_label_style()
         )
 
         if icon is not None and not icon.isNull():
@@ -114,21 +114,7 @@ class MoveCellWidget(QWidget):
             ratio = min(1.0, time_spent_val / safe_max)
             colour = self._bar_colour(ratio)
             track = Styles.COLOR_SURFACE_LIGHT
-            self._bar.setStyleSheet(
-                f"""
-                QLabel {{
-                    background: qlineargradient(
-                        x1:0, y1:0, x2:1, y2:0,
-                        stop:0 {colour},
-                        stop:{ratio:.4f} {colour},
-                        stop:{ratio:.4f} {track},
-                        stop:1 {track}
-                    );
-                    border: none;
-                    border-radius: 1px;
-                }}
-                """
-            )
+            self._bar.setStyleSheet(Styles.get_think_time_bar_style(colour, track, ratio))
             self._bar.show()
             self.setToolTip(
                 f"{move.classification + ': ' if move.classification else ''}"
@@ -150,11 +136,11 @@ class MoveCellWidget(QWidget):
 
         font_weight = "bold" if self._classification_name in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
         self._san_label.setStyleSheet(
-            f"color: {color}; font-size: 13px; font-weight: {font_weight}; background: transparent; border: none;"
+            Styles.get_label_style(size=13, color=color, weight=font_weight) + " " + Styles.get_transparent_label_style()
         )
         
         self._time_label.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
+            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
         )
 
         if self._last_time_spent is not None and self._last_time_spent > 0:
@@ -162,21 +148,7 @@ class MoveCellWidget(QWidget):
             ratio = min(1.0, self._last_time_spent / safe_max)
             colour = self._bar_colour(ratio)
             track = Styles.COLOR_SURFACE_LIGHT
-            self._bar.setStyleSheet(
-                f"""
-                QLabel {{
-                    background: qlineargradient(
-                        x1:0, y1:0, x2:1, y2:0,
-                        stop:0 {colour},
-                        stop:{ratio:.4f} {colour},
-                        stop:{ratio:.4f} {track},
-                        stop:1 {track}
-                    );
-                    border: none;
-                    border-radius: 1px;
-                }}
-                """
-            )
+            self._bar.setStyleSheet(Styles.get_think_time_bar_style(colour, track, ratio))
             self._bar.show()
         else:
             self._bar.hide()

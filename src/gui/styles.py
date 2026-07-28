@@ -238,6 +238,52 @@ class Styles(metaclass=_StylesMeta):
             padding: 2px;
         }
     """
+
+    @classmethod
+    def get_captured_pieces_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 5px;
+            }}
+            {cls.CAPTURED_PIECES_STYLE}
+        """
+
+    @classmethod
+    def get_piece_chip_style(cls, fg, bg):
+        return f"""
+            color: {fg}; background-color: {bg};
+            font-size: 26px; padding: 2px 6px; border-radius: 4px;
+        """
+
+    @classmethod
+    def get_advantage_chip_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            color: {p.text_primary};
+            background-color: {p.surface_light};
+            font-weight: bold; font-size: 16px;
+            padding: 4px 8px; border-radius: 4px;
+            margin-right: 4px;
+        """
+
+    @classmethod
+    def get_digital_clock_style(cls, bg, fg, border):
+        return f"""
+            QLabel {{
+                color: {fg};
+                background-color: {bg};
+                font-family: 'Courier New', 'Monospace', monospace;
+                font-size: 18px;
+                font-weight: bold;
+                padding: 4px 10px;
+                border-radius: 6px;
+                border: 1px solid {border};
+            }}
+        """
     
     @classmethod
     def get_control_button_style(cls):
@@ -264,6 +310,33 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface_light};
                 color: {p.text_muted};
                 border-color: {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_nav_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                padding: 6px 12px;
+                font-size: 16px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {p.surface};
+                border: 1px solid {p.accent};
+            }}
+            QPushButton:pressed {{
+                background-color: {p.accent};
+                color: white;
+            }}
+            QPushButton:disabled {{
+                color: {p.text_muted};
+                background-color: {p.surface_light};
             }}
         """
 
@@ -361,6 +434,39 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_outline_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                border: 1px solid {p.accent};
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {p.accent};
+                color: #FFFFFF;
+            }}
+        """
+
+    @classmethod
+    def get_icon_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background: {p.surface_light};
+                border: 2px solid {p.border};
+                border-radius: 8px;
+            }}
+            QPushButton:hover {{
+                background: {p.accent};
+                border-color: {p.accent};
+            }}
+        """
+
+    @classmethod
     def get_sidebar_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -437,12 +543,15 @@ class Styles(metaclass=_StylesMeta):
         """
     
     @classmethod
-    def get_label_style(cls, size=14, color=None, bold=False):
+    def get_label_style(cls, size=14, color=None, bold=False, weight=None):
         p = ThemeManager.palette()
         if color is None:
             color = p.text_primary
-        weight = "bold" if bold else "normal"
-        return f"font-size: {size}px; color: {color}; font-weight: {weight};"
+        if weight is not None:
+            w = str(weight)
+        else:
+            w = "bold" if bold else "normal"
+        return f"font-size: {size}px; color: {color}; font-weight: {w};"
     
     @classmethod
     def get_secondary_label_style(cls, size=13):
@@ -456,16 +565,47 @@ class Styles(metaclass=_StylesMeta):
         """
     
     @classmethod
-    def get_frame_style(cls, border_radius=12, hover_accent=True):
+    def get_badge_style(cls, size=11):
         p = ThemeManager.palette()
+        return f"""
+            QLabel {{
+                color: {p.text_muted};
+                font-size: {size}px;
+                font-family: monospace;
+                font-weight: 600;
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                padding: 2px 6px;
+            }}
+        """
+
+    @classmethod
+    def get_eval_badge_style(cls, bg_color, text_color):
+        return f"""
+            QLabel {{
+                background-color: {bg_color};
+                color: {text_color};
+                border-radius: 6px;
+                padding: 3px 8px;
+                font-weight: bold;
+                font-family: monospace;
+                font-size: 12px;
+            }}
+        """
+
+    @classmethod
+    def get_frame_style(cls, border_radius=12, hover_accent=True, object_name=None):
+        p = ThemeManager.palette()
+        selector = f"QFrame#{object_name}" if object_name else "QFrame"
         hover_style = f"""
-            QFrame:hover {{
+            {selector}:hover {{
                 border: 1px solid {p.accent};
             }}
         """ if hover_accent else ""
         
         return f"""
-            QFrame {{
+            {selector} {{
                 background-color: {p.surface};
                 border: 1px solid {p.border};
                 border-radius: {border_radius}px;
@@ -487,7 +627,193 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface_light};
             }}
         """
+
+    @classmethod
+    def get_dialog_surface_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            background-color: {p.surface};
+            border: 1px solid {p.border};
+            border-radius: 12px;
+        """
     
+    @classmethod
+    def get_analysis_lines_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 12px;
+                padding: 10px;
+            }}
+            QWidget#AnalysisRow {{
+                background-color: {p.surface_light};
+                border-radius: 8px;
+                border: 1px solid {p.border};
+            }}
+            QWidget#AnalysisRow:hover {{
+                background-color: {p.surface_light};
+                border: 1px solid {p.accent};
+            }}
+            QLabel {{
+                border: none;
+                background: transparent;
+            }}
+        """
+
+    @classmethod
+    def get_divider_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame {{
+                background-color: {p.border};
+                max-height: 1px;
+                border: none;
+            }}
+        """
+
+    @classmethod
+    def get_tab_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QTabWidget {{
+                background-color: {p.background};
+            }}
+            QTabWidget::pane {{
+                border: none;
+                background-color: transparent;
+            }}
+            QTabBar {{
+                qproperty-drawBase: 0;
+            }}
+            QTabBar::tab {{
+                background-color: {p.surface};
+                color: {p.text_secondary};
+                padding: 7px 18px;
+                font-weight: 600;
+                font-size: 12px;
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                margin-right: 6px;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                border-color: {p.accent};
+            }}
+            QTabBar::tab:hover:!selected {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                border-color: {p.border_light};
+            }}
+        """
+
+    @classmethod
+    def get_checkbox_style(cls, tick_path):
+        p = ThemeManager.palette()
+        return f"""
+            QCheckBox {{
+                color: {p.text_primary};
+                font-weight: 600;
+                font-size: 12px;
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 6px 12px;
+                spacing: 8px;
+            }}
+            QCheckBox:hover {{
+                background-color: {p.surface_light};
+                border-color: {p.border_light};
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 1px solid {p.border};
+                border-radius: 4px;
+                background-color: {p.surface_light};
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {p.accent};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {p.accent};
+                border-color: {p.accent};
+                image: url('{tick_path}');
+            }}
+        """
+
+    @classmethod
+    def get_explorer_table_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QTableWidget {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                gridline-color: transparent;
+                font-size: 14px;
+            }}
+            QTableWidget::item {{
+                padding: 4px 8px;
+                border-bottom: 1px solid {p.surface_light};
+            }}
+            QTableWidget::item:hover {{
+                background-color: {p.surface_light};
+            }}
+            QTableWidget::item:selected {{
+                background-color: {p.highlight};
+                color: {p.text_primary};
+                border-left: 3px solid {p.accent};
+            }}
+            QHeaderView::section {{
+                background-color: {p.surface_light};
+                color: {p.text_secondary};
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid {p.accent};
+                font-weight: 600;
+                font-size: 13px;
+            }}
+        """
+
+    @classmethod
+    def get_move_list_table_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QTableWidget {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                gridline-color: transparent;
+                font-size: 13px;
+            }}
+            QTableWidget::item {{
+                padding: 4px 6px;
+                border: none;
+                border-bottom: 1px solid {p.surface_light};
+            }}
+            QTableWidget::item:hover {{
+                background-color: {p.surface_light};
+                border-radius: 4px;
+            }}
+            QTableWidget::item:selected {{
+                background-color: {p.highlight};
+                color: {p.text_primary};
+                border-radius: 4px;
+            }}
+            QHeaderView::section {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                padding: 8px 6px;
+                border: none;
+                border-bottom: 2px solid {p.accent};
+                font-weight: 700;
+                font-size: 13px;
+            }}
+        """
+
     @classmethod
     def get_combobox_style(cls):
         p = ThemeManager.palette()
@@ -587,6 +913,22 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
     
+    @classmethod
+    def get_think_time_bar_style(cls, colour, track, ratio):
+        return f"""
+            QLabel {{
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {colour},
+                    stop:{ratio:.4f} {colour},
+                    stop:{ratio:.4f} {track},
+                    stop:1 {track}
+                );
+                border: none;
+                border-radius: 1px;
+            }}
+        """
+
     @classmethod
     def get_transparent_label_style(cls):
         return "border: none; background: transparent;"

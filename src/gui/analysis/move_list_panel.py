@@ -234,38 +234,7 @@ class MoveListPanel(QWidget):
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
         self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        self.table.setStyleSheet(f"""
-            QTableWidget {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                gridline-color: transparent;
-                font-size: 13px;
-            }}
-            QTableWidget::item {{
-                padding: 4px 6px;
-                border: none;
-                border-bottom: 1px solid {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QTableWidget::item:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 4px;
-            }}
-            QTableWidget::item:selected {{
-                background-color: {Styles.COLOR_HIGHLIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-radius: 4px;
-            }}
-            QHeaderView::section {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                padding: 8px 6px;
-                border: none;
-                border-bottom: 2px solid {Styles.COLOR_ACCENT};
-                font-weight: 700;
-                font-size: 13px;
-            }}
-        """)
+        self.table.setStyleSheet(Styles.get_move_list_table_style())
 
         # Re-apply color for move numbers in column 0
         from PyQt6.QtGui import QColor, QBrush
