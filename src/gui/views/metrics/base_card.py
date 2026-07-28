@@ -41,5 +41,27 @@ class MetricCard(QFrame):
                 header_layout.addWidget(action_widget)
             self.card_layout.addLayout(header_layout)
 
+    def refresh_styles(self):
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            QFrame:hover {{
+                border: 1px solid {Styles.COLOR_ACCENT};
+            }}
+        """)
+        if hasattr(self, 'lbl_title'):
+            self.lbl_title.setStyleSheet(f"""
+                color: {Styles.COLOR_TEXT_SECONDARY}; 
+                font-size: 12px; 
+                font-weight: 600; 
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                border: none; 
+                background: transparent;
+            """)
+
     def set_content(self, widget):
         self.card_layout.addWidget(widget)

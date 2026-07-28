@@ -300,12 +300,17 @@ class Styles(metaclass=_StylesMeta):
         """
     
     @classmethod
-    def get_control_button_style(cls):
+    def get_control_button_style(cls, danger=False):
         p = ThemeManager.palette()
+        color = p.text_primary
+        hover_color = p.text_primary
+        if danger:
+            color = cls.COLOR_BLUNDER
+            hover_color = cls.COLOR_BLUNDER
         return f"""
             QPushButton {{
                 background-color: {p.surface_light};
-                color: {p.text_primary};
+                color: {color};
                 border: 1px solid {p.border};
                 border-radius: 6px;
                 padding: 8px 16px;
@@ -314,6 +319,7 @@ class Styles(metaclass=_StylesMeta):
             }}
             QPushButton:hover {{
                 background-color: {p.surface};
+                color: {hover_color};
                 border: 1px solid {p.accent};
             }}
             QPushButton:pressed {{
@@ -629,6 +635,23 @@ class Styles(metaclass=_StylesMeta):
             }}
             QLineEdit:focus {{
                 border-color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_filter_input_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QLineEdit {{
+                padding: 6px 10px;
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {p.accent};
             }}
         """
 
@@ -1211,6 +1234,62 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
     
+    @classmethod
+    def get_settings_default_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                border: 1px solid {p.border};
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {p.surface};
+                border-color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_settings_danger_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: {p.background};
+                color: {cls.COLOR_BLUNDER};
+                border: 1px solid {cls.COLOR_BLUNDER};
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {cls.COLOR_BLUNDER};
+                color: #FFFFFF;
+            }}
+        """
+
+    @classmethod
+    def get_settings_square_icon_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                font-size: 16px; font-weight: bold;
+                min-width: 28px; max-width: 28px;
+                min-height: 28px; max-height: 28px;
+            }}
+            QPushButton:hover {{
+                background-color: {p.surface};
+                color: {p.text_primary};
+                border-color: {p.accent};
+            }}
+        """
+
     @classmethod
     def get_group_box_style(cls):
         p = ThemeManager.palette()

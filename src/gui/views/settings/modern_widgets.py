@@ -196,6 +196,9 @@ class ModernHashComboBox(QComboBox):
     def setMaximumWidth(self, w: int):
         super().setMaximumWidth(w)
 
+    def refresh_styles(self):
+        self.setStyleSheet(Styles.get_combobox_style())
+
 
 class PasswordFieldWrapper(QWidget):
     def __init__(self, parent=None):

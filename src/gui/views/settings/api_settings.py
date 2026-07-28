@@ -106,34 +106,9 @@ class ApiSettings(QGroupBox):
         api_layout.setContentsMargins(20, 25, 20, 20)
         api_layout.setSpacing(10)
 
-        lbl_style = f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
-        _combo_style = f"""
-            QComboBox {{
-                padding: 6px 12px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px; font-size: 13px;
-            }}
-            QComboBox:hover {{ border: 1px solid {Styles.COLOR_ACCENT}; }}
-            QComboBox::drop-down {{ border: none; padding-right: 8px; }}
-        """
-        _icon_btn_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 16px; font-weight: bold;
-                min-width: 28px; max-width: 28px;
-                min-height: 28px; max-height: 28px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """
+        lbl_style = Styles.get_label_style(size=13)
+        _combo_style = Styles.get_combobox_style()
+        sq_btn_style = Styles.get_settings_square_icon_style()
 
         # --- Profile selector row ---
         prof_row = QHBoxLayout()
@@ -152,7 +127,7 @@ class ApiSettings(QGroupBox):
             self.llm_add_btn.setIcon(qta.icon("fa5s.plus", color=Styles.COLOR_TEXT_PRIMARY))
         else:
             self.llm_add_btn.setText("+")
-        self.llm_add_btn.setStyleSheet(_icon_btn_style)
+        self.llm_add_btn.setStyleSheet(sq_btn_style)
         self.llm_add_btn.setToolTip("New profile")
         self.llm_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_add_btn.clicked.connect(self._new_llm_profile)
@@ -163,8 +138,7 @@ class ApiSettings(QGroupBox):
             self.llm_del_btn.setIcon(qta.icon("fa5s.minus", color=Styles.COLOR_BLUNDER))
         else:
             self.llm_del_btn.setText("−")
-        self.llm_del_btn.setStyleSheet(_icon_btn_style.replace(
-            Styles.COLOR_TEXT_PRIMARY, Styles.COLOR_BLUNDER))
+        self.llm_del_btn.setStyleSheet(sq_btn_style)
         self.llm_del_btn.setToolTip("Delete profile")
         self.llm_del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_del_btn.clicked.connect(self._delete_llm_profile)
@@ -174,7 +148,7 @@ class ApiSettings(QGroupBox):
 
         # --- Thin divider ---
         _div = QFrame(); _div.setFrameShape(QFrame.Shape.HLine)
-        _div.setStyleSheet(f"color: {Styles.COLOR_BORDER};")
+        _div.setStyleSheet(Styles.get_divider_style())
         api_layout.addWidget(_div)
 
         # --- Profile editor form ---
@@ -198,7 +172,6 @@ class ApiSettings(QGroupBox):
 
         self.lbl_llm_key = QLabel("API Key:"); self.lbl_llm_key.setStyleSheet(lbl_style)
         self.llm_key_input = PasswordFieldWrapper(self)
-        self.llm_key_input.setStyleSheet(Styles.get_input_style())
         pf.addRow(self.lbl_llm_key, self.llm_key_input)
 
         self._lbl_model = QLabel("Model:"); self._lbl_model.setStyleSheet(lbl_style)
@@ -224,18 +197,18 @@ class ApiSettings(QGroupBox):
         status_row = QHBoxLayout()
         self.llm_active_label = QLabel()
         self.llm_active_label.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
+            Styles.get_secondary_label_style(size=11))
         status_row.addWidget(self.llm_active_label)
         status_row.addStretch()
         self.llm_test_result = QLabel()
         self.llm_test_result.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
+            Styles.get_secondary_label_style(size=11))
         status_row.addWidget(self.llm_test_result)
         api_layout.addLayout(status_row)
 
         # --- Lichess token ---
         self._api_div2 = QFrame(); self._api_div2.setFrameShape(QFrame.Shape.HLine)
-        self._api_div2.setStyleSheet(f"color: {Styles.COLOR_BORDER};")
+        self._api_div2.setStyleSheet(Styles.get_divider_style())
         api_layout.addWidget(self._api_div2)
 
         lf = QFormLayout(); lf.setSpacing(10); lf.setContentsMargins(0, 0, 0, 0)
@@ -243,7 +216,6 @@ class ApiSettings(QGroupBox):
         self._lbl_lichess = QLabel("Lichess API Token:"); self._lbl_lichess.setStyleSheet(lbl_style)
         self.lichess_token_input = PasswordFieldWrapper(self)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
-        self.lichess_token_input.setStyleSheet(Styles.get_input_style())
         lf.addRow(self._lbl_lichess, self.lichess_token_input)
         api_layout.addLayout(lf)
 
@@ -453,7 +425,46 @@ class ApiSettings(QGroupBox):
         self._lbl_lichess.setVisible(visible)
         self.lichess_token_input.setVisible(visible)
 
+    def _refresh_label(self, attr_name):
+        lbl = getattr(self, attr_name, None)
+        if lbl:
+            lbl.setStyleSheet(Styles.get_label_style(size=13))
+
+    def _refresh_secondary_label(self, attr_name):
+        lbl = getattr(self, attr_name, None)
+        if lbl:
+            lbl.setStyleSheet(Styles.get_secondary_label_style(size=11))
+
     def refresh_styles(self, *args, **kwargs):
+        if hasattr(self, 'llm_profile_combo'):
+            self.llm_profile_combo.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'llm_provider_combo'):
+            self.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'llm_add_btn'):
+            self.llm_add_btn.setStyleSheet(Styles.get_settings_square_icon_style())
+        if hasattr(self, 'llm_del_btn'):
+            self.llm_del_btn.setStyleSheet(Styles.get_settings_square_icon_style())
+        if hasattr(self, 'llm_test_btn'):
+            self.llm_test_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'llm_profile_name'):
+            self.llm_profile_name.setStyleSheet(Styles.get_input_style())
+        if hasattr(self, 'llm_model_input'):
+            self.llm_model_input.setStyleSheet(Styles.get_input_style())
+        if hasattr(self, 'llm_url_input'):
+            self.llm_url_input.setStyleSheet(Styles.get_input_style())
         for widget in [self.llm_key_input, self.lichess_token_input]:
             if hasattr(widget, 'refresh_styles'):
                 widget.refresh_styles()
+        self._refresh_label('_lbl_prof')
+        self._refresh_label('_lbl_pname')
+        self._refresh_label('_lbl_prov')
+        self._refresh_label('lbl_llm_key')
+        self._refresh_label('_lbl_model')
+        self._refresh_label('lbl_llm_url')
+        self._refresh_label('_lbl_lichess')
+        self._refresh_secondary_label('llm_active_label')
+        self._refresh_secondary_label('llm_test_result')
+        if hasattr(self, '_div'):
+            self._div.setStyleSheet(Styles.get_divider_style())
+        if hasattr(self, '_api_div2'):
+            self._api_div2.setStyleSheet(Styles.get_divider_style())

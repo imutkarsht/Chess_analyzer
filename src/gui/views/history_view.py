@@ -32,19 +32,14 @@ class HistoryView(QWidget):
         
         # Header Bar Container
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
+        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(24, 12, 24, 12)
         header_layout.setSpacing(8)
         
         # Title
         self.header_lbl = QLabel("Game History")
-        self.header_lbl.setStyleSheet(f"font-size: 22px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        self.header_lbl.setStyleSheet(Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(self.header_lbl)
         
         header_layout.addStretch()
@@ -66,7 +61,7 @@ class HistoryView(QWidget):
         
         # Content Container Widget
         self.content_widget = QWidget()
-        self.content_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        self.content_widget.setStyleSheet(Styles.get_background_style())
         content_layout = QVBoxLayout(self.content_widget)
         content_layout.setContentsMargins(24, 16, 24, 16)
         content_layout.setSpacing(16)
@@ -79,19 +74,7 @@ class HistoryView(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search player, opening, date...")
         self.search_input.setMinimumWidth(220)
-        self.search_input.setStyleSheet(f"""
-            QLineEdit {{
-                padding: 6px 10px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """)
+        self.search_input.setStyleSheet(Styles.get_filter_input_style())
         self.search_input.textChanged.connect(self.apply_filters)
         filter_layout.addWidget(self.search_input, 1)
         
@@ -99,7 +82,7 @@ class HistoryView(QWidget):
         
         # Result Filter
         self.result_label = QLabel("Result:")
-        self.result_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
+        self.result_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
         filter_layout.addWidget(self.result_label)
         
         self.result_filter = create_combobox(
@@ -111,7 +94,7 @@ class HistoryView(QWidget):
 
         # Type / Speed Category Filter
         self.type_label = QLabel("Type:")
-        self.type_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
+        self.type_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
         filter_layout.addWidget(self.type_label)
 
         self.type_filter = create_combobox(
@@ -123,7 +106,7 @@ class HistoryView(QWidget):
         
         # Source Filter
         self.source_label = QLabel("Source:")
-        self.source_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
+        self.source_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
         filter_layout.addWidget(self.source_label)
         
         self.source_filter = create_combobox(
@@ -137,7 +120,7 @@ class HistoryView(QWidget):
         
         # Sort Dropdown
         self.sort_label = QLabel("Sort:")
-        self.sort_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; font-weight: 600;")
+        self.sort_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
         filter_layout.addWidget(self.sort_label)
         
         self.sort_dropdown = create_combobox(
@@ -163,42 +146,11 @@ class HistoryView(QWidget):
         """Create a styled button with qtawesome icon."""
         btn = QPushButton(f"  {text}")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet(Styles.get_control_button_style(danger=danger))
         
         if HAS_QTAWESOME:
             icon_color = Styles.COLOR_BLUNDER if danger else Styles.COLOR_TEXT_SECONDARY
             btn.setIcon(qta.icon(icon_name, color=icon_color))
-        
-        if danger:
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_BLUNDER};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-size: 13px;
-                }}
-                QPushButton:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    color: {Styles.COLOR_BLUNDER};
-                    border-color: {Styles.COLOR_ACCENT};
-                }}
-            """)
-        else:
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-size: 13px;
-                }}
-                QPushButton:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border-color: {Styles.COLOR_ACCENT};
-                }}
-            """)
         
         btn.clicked.connect(callback)
         return btn
@@ -593,8 +545,38 @@ class HistoryView(QWidget):
 
     def refresh_styles(self):
         """Re-applies styles to game history view components."""
+        if hasattr(self, 'header_bar'):
+            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
+        if hasattr(self, 'header_lbl'):
+            self.header_lbl.setStyleSheet(Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        if hasattr(self, 'content_widget'):
+            self.content_widget.setStyleSheet(Styles.get_background_style())
+        if hasattr(self, 'search_input'):
+            self.search_input.setStyleSheet(Styles.get_filter_input_style())
+        if hasattr(self, 'result_label'):
+            self.result_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        if hasattr(self, 'type_label'):
+            self.type_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        if hasattr(self, 'source_label'):
+            self.source_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        if hasattr(self, 'sort_label'):
+            self.sort_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        if hasattr(self, 'btn_import'):
+            self.btn_import.setStyleSheet(Styles.get_control_button_style())
+        if hasattr(self, 'btn_export'):
+            self.btn_export.setStyleSheet(Styles.get_control_button_style())
+        if hasattr(self, 'btn_clear'):
+            self.btn_clear.setStyleSheet(Styles.get_control_button_style(danger=True))
         if hasattr(self, 'btn_refresh'):
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
+        if hasattr(self, 'result_filter'):
+            self.result_filter.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'type_filter'):
+            self.type_filter.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'source_filter'):
+            self.source_filter.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'sort_dropdown'):
+            self.sort_dropdown.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, 'game_list'):
             self.game_list.refresh_styles()
 

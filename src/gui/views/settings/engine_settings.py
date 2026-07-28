@@ -54,42 +54,9 @@ class EngineSettings(QGroupBox):
         form.setVerticalSpacing(10)
         form.setContentsMargins(0, 0, 0, 0)
 
-        field_label_style = (
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;"
-        )
-        hint_style = (
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;"
-        )
-        input_style = f"""
-            QLineEdit {{
-                padding: 6px 10px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                background: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """
-        combo_style = f"""
-            QComboBox {{
-                padding: 6px 12px;
-                min-width: 80px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QComboBox:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-            QComboBox::drop-down {{
-                border: none;
-                padding-right: 8px;
-            }}
-        """
+        field_label_style = Styles.get_label_style(size=13)
+        hint_style = Styles.get_secondary_label_style(size=11)
+        combo_style = Styles.get_combobox_style()
 
         def _wrap(label_text, widget, hint_text):
             """Build a label + (input + hint) pair in form-layout style."""
@@ -341,6 +308,20 @@ class EngineSettings(QGroupBox):
         self._hash_row.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
+        if hasattr(self, 'depth_combo'):
+            self.depth_combo.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'hash_input'):
+            self.hash_input.refresh_styles()
+        if hasattr(self, 'path_input'):
+            self.path_input.setStyleSheet(Styles.get_input_style())
+        if hasattr(self, 'browse_btn'):
+            self.browse_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'validation_label'):
+            self.validate_engine_path()
         for widget in [self.multi_pv_input, self.live_time_input, self.threads_input]:
             if hasattr(widget, 'refresh_styles'):
                 widget.refresh_styles()
+        for attr_name in ('_depth_lbl', '_multi_pv_lbl', '_live_time_lbl', '_threads_lbl', '_hash_lbl'):
+            lbl = getattr(self, attr_name, None)
+            if lbl:
+                lbl.setStyleSheet(Styles.get_label_style(size=13))

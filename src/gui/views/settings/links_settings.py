@@ -69,4 +69,9 @@ class LinksSettings(QGroupBox):
         pass
 
     def refresh_styles(self, *args, **kwargs):
-        pass
+        if hasattr(self, 'website_btn'):
+            self.website_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'feedback_btn'):
+            self.feedback_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'update_btn'):
+            self.update_btn.setStyleSheet(Styles.get_settings_default_button_style())

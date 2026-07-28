@@ -23,7 +23,7 @@ class AICoachCard(MetricCard):
         self.btn_refresh_insights.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
+                color: white;
                 border-radius: 16px;
                 border: none;
                 font-size: 18px;
@@ -85,6 +85,22 @@ class AICoachCard(MetricCard):
 
     def get_insights(self):
         return self.current_insights
+
+    def refresh_styles(self):
+        self.btn_refresh_insights.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_ACCENT};
+                color: white;
+                border-radius: 16px;
+                border: none;
+                font-size: 18px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_ACCENT_HOVER};
+            }}
+        """)
+        super().refresh_styles()
 
     def _generate_insights(self):
         if not self.stats:

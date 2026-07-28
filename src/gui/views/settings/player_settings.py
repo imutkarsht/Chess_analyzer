@@ -31,16 +31,16 @@ class PlayerSettings(QGroupBox):
         self.lichess_input.setStyleSheet(Styles.get_input_style())
 
         self._lbl_chesscom = QLabel("Chess.com:")
-        self._lbl_chesscom.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        self._lbl_chesscom.setStyleSheet(Styles.get_label_style(size=13))
         
         self._lbl_lichess_user = QLabel("Lichess.org:")
-        self._lbl_lichess_user.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        self._lbl_lichess_user.setStyleSheet(Styles.get_label_style(size=13))
 
         self.games_limit_input = ModernSliderCounter(1, 30, step=1, value=self.config_manager.get("api_games_limit", 20), parent=self)
         self.games_limit_input.setMaximumWidth(220)
         
         self._lbl_games_limit = QLabel("Games Fetch Limit:")
-        self._lbl_games_limit.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; background: transparent;")
+        self._lbl_games_limit.setStyleSheet(Styles.get_label_style(size=13))
 
         username_layout.addRow(self._lbl_chesscom, self.chesscom_input)
         username_layout.addRow(self._lbl_lichess_user, self.lichess_input)
@@ -56,5 +56,15 @@ class PlayerSettings(QGroupBox):
         self.games_limit_input.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
+        if hasattr(self, 'chesscom_input'):
+            self.chesscom_input.setStyleSheet(Styles.get_input_style())
+        if hasattr(self, 'lichess_input'):
+            self.lichess_input.setStyleSheet(Styles.get_input_style())
+        if hasattr(self, '_lbl_chesscom'):
+            self._lbl_chesscom.setStyleSheet(Styles.get_label_style(size=13))
+        if hasattr(self, '_lbl_lichess_user'):
+            self._lbl_lichess_user.setStyleSheet(Styles.get_label_style(size=13))
+        if hasattr(self, '_lbl_games_limit'):
+            self._lbl_games_limit.setStyleSheet(Styles.get_label_style(size=13))
         if hasattr(self.games_limit_input, 'refresh_styles'):
             self.games_limit_input.refresh_styles()

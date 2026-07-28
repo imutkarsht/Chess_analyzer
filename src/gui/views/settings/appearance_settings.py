@@ -40,6 +40,9 @@ class AppearanceSettings(QGroupBox):
         self.setStyleSheet(Styles.get_group_box_style())
         self.setup_ui()
 
+    def _combo_style(self):
+        return Styles.get_combobox_style()
+
     def _radio_style(self):
         p = ThemeManager.palette()
         return RADIO_GROUP_TPL.format(
@@ -51,26 +54,6 @@ class AppearanceSettings(QGroupBox):
 
     def _label_style(self):
         return "background: transparent; font-size: 14px; border: none;"
-
-    def _combo_style(self):
-        return f"""
-            QComboBox {{
-                padding: 8px 12px;
-                min-width: 120px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 14px;
-            }}
-            QComboBox:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-            QComboBox::drop-down {{
-                border: none;
-                padding-right: 8px;
-            }}
-        """
 
     def setup_ui(self):
         layout = QFormLayout(self)
@@ -179,26 +162,7 @@ class AppearanceSettings(QGroupBox):
         self._sound_lbl.setStyleSheet(label_style)
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         self.sound_checkbox = QCheckBox("Enable Sound Effects")
-        self.sound_checkbox.setStyleSheet(f"""
-            QCheckBox {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-                background: transparent;
-                spacing: 8px;
-            }}
-            QCheckBox::indicator {{
-                width: 20px;
-                height: 20px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QCheckBox::indicator:checked {{
-                background-color: {Styles.COLOR_ACCENT};
-                border-color: {Styles.COLOR_ACCENT};
-                image: url('{tick_path}');
-            }}
-        """)
+        self.sound_checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
         self.sound_checkbox.setChecked(self.config_manager.get("sound_enabled", True))
         self.sound_checkbox.stateChanged.connect(self.change_sound_setting)
         layout.addRow(self._sound_lbl, self.sound_checkbox)
@@ -219,19 +183,7 @@ class AppearanceSettings(QGroupBox):
             self._accent_group.addButton(rb)
             hbox.addWidget(rb)
         self.color_btn = QPushButton("Choose Color")
-        self.color_btn.setStyleSheet(f"""
-            QPushButton {{
-                padding: 6px 14px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        self.color_btn.setStyleSheet(Styles.get_settings_default_button_style())
         self.color_btn.clicked.connect(self.change_accent_color)
         hbox.addWidget(self.color_btn)
         hbox.addStretch()
@@ -311,29 +263,22 @@ class AppearanceSettings(QGroupBox):
         pass
 
     def refresh_styles(self, *args, **kwargs):
-        label_style = self._label_style()
         combo_style = self._combo_style()
         radio_style = self._radio_style()
 
-        if hasattr(self, 'board_combo'):
-            self.board_combo.setStyleSheet(combo_style)
+        if hasattr(self, 'theme_combo'):
+            self.theme_combo.setStyleSheet(combo_style)
         if hasattr(self, 'piece_combo'):
             self.piece_combo.setStyleSheet(combo_style)
         if hasattr(self, 'color_btn'):
-            self.color_btn.setStyleSheet(f"""
-                QPushButton {{
-                    padding: 6px 14px;
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_ACCENT};
-                    border-radius: 6px;
-                    font-size: 13px;
-                }}
-                QPushButton:hover {{
-                    border-color: {Styles.COLOR_ACCENT_HOVER};
-                    background-color: {Styles.COLOR_SURFACE};
-                }}
-            """)
+            self.color_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'sound_checkbox'):
+            tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+            self.sound_checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
+        if hasattr(self, '_sound_lbl'):
+            self._sound_lbl.setStyleSheet(self._label_style())
+        if hasattr(self, 'import_theme_btn'):
+            self.import_theme_btn.setStyleSheet(Styles.get_settings_default_button_style())
         for rb in (
             getattr(self, '_theme_mode_system', None),
             getattr(self, '_theme_mode_light', None),

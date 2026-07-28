@@ -64,4 +64,7 @@ class DataSettings(QGroupBox):
         self.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        pass
+        if hasattr(self, 'clear_cache_btn'):
+            self.clear_cache_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'clear_data_btn'):
+            self.clear_data_btn.setStyleSheet(Styles.get_settings_danger_button_style())
