@@ -67,13 +67,13 @@ class TourOverlay(QWidget):
         self.text_label.setWordWrap(True)
         self.text_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.text_label.setStyleSheet(
-            "font-size: 14px; color: #FFFFFF;"
+            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};"
         )
         layout.addWidget(self.text_label)
 
         self.step_label = QLabel()
         self.step_label.setStyleSheet(
-            "font-size: 11px; color: #9CA3AF;"
+            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED};"
         )
         layout.addWidget(self.step_label)
 
@@ -86,14 +86,14 @@ class TourOverlay(QWidget):
         self.prev_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: #FFFFFF;
+                color: {Styles.COLOR_TEXT_PRIMARY};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
                 padding: 7px 16px;
                 font-size: 13px;
             }}
             QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
-            QPushButton:disabled {{ color: #6B7280; border-color: {Styles.COLOR_BORDER}; }}
+            QPushButton:disabled {{ color: {Styles.COLOR_TEXT_MUTED}; border-color: {Styles.COLOR_BORDER}; }}
         """)
         self.prev_btn.clicked.connect(self._on_prev)
         nav.addWidget(self.prev_btn)
@@ -123,13 +123,13 @@ class TourOverlay(QWidget):
         self.close_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
-                color: #9CA3AF;
+                color: {Styles.COLOR_TEXT_MUTED};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
                 padding: 7px 11px;
                 font-size: 13px;
             }}
-            QPushButton:hover {{ color: #FFFFFF; border-color: {Styles.COLOR_ACCENT}; }}
+            QPushButton:hover {{ color: {Styles.COLOR_TEXT_PRIMARY}; border-color: {Styles.COLOR_ACCENT}; }}
         """)
         self.close_btn.clicked.connect(self._on_close)
         nav.addWidget(self.close_btn)
@@ -173,25 +173,25 @@ class TourOverlay(QWidget):
         self.prev_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: #FFFFFF;
+                color: {Styles.COLOR_TEXT_PRIMARY};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
                 padding: 7px 16px;
                 font-size: 13px;
             }}
             QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
-            QPushButton:disabled {{ color: #6B7280; border-color: {Styles.COLOR_BORDER}; }}
+            QPushButton:disabled {{ color: {Styles.COLOR_TEXT_MUTED}; border-color: {Styles.COLOR_BORDER}; }}
         """)
         self.close_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
-                color: #9CA3AF;
+                color: {Styles.COLOR_TEXT_MUTED};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
                 padding: 7px 11px;
                 font-size: 13px;
             }}
-            QPushButton:hover {{ color: #FFFFFF; border-color: {Styles.COLOR_ACCENT}; }}
+            QPushButton:hover {{ color: {Styles.COLOR_TEXT_PRIMARY}; border-color: {Styles.COLOR_ACCENT}; }}
         """)
 
     # ── Internal ─────────────────────────────────────────────────────────

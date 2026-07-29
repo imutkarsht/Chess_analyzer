@@ -657,16 +657,16 @@ class Styles(metaclass=_StylesMeta):
 
     @classmethod
     def get_line_edit_error_style(cls):
-        return """
-            QLineEdit {
+        return f"""
+            QLineEdit {{
                 background-color: #3d1a1a;
                 color: #FFFFFF;
-                border: 1px solid #e74c3c;
+                border: 1px solid {cls.COLOR_BLUNDER};
                 border-radius: 6px;
                 padding: 2px 8px;
                 font-size: 12px;
                 font-weight: 600;
-            }
+            }}
         """
 
     @classmethod
@@ -953,6 +953,29 @@ class Styles(metaclass=_StylesMeta):
             }}
             QRadioButton::indicator:hover {{
                 border-color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_form_label_style(cls):
+        p = ThemeManager.palette()
+        return f"font-size: 13px; font-weight: 600; color: {p.text_primary};"
+
+    @classmethod
+    def get_panel_input_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QLineEdit {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                padding: 0 12px;
+                color: {p.text_primary};
+                font-size: 13px;
+                height: 36px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {p.accent};
             }}
         """
 
@@ -1313,8 +1336,9 @@ class Styles(metaclass=_StylesMeta):
                 font-size: 13px;
             }}
             QPushButton:hover {{
-                background-color: {cls.COLOR_BLUNDER};
-                color: #FFFFFF;
+                background-color: {p.surface_light};
+                color: {cls.COLOR_BLUNDER};
+                border: 1px solid {cls.COLOR_BLUNDER};
             }}
         """
 

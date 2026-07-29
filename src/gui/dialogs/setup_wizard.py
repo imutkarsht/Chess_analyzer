@@ -202,6 +202,19 @@ class SetupWizard(QDialog):
                     background-color: {c}CC;
                 }}
             """)
+        if hasattr(self, 'get_started_btn'):
+            self.get_started_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_ACCENT};
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 12px 40px;
+                    font-size: 15px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
+            """)
         if hasattr(self, 'sf_progress'):
             self.sf_progress.setStyleSheet(Styles.get_progress_bar_style())
         self._update_done_icon()
@@ -348,7 +361,7 @@ class SetupWizard(QDialog):
         if path:
             self.sf_status.setText("Stockfish ready")
             self.sf_status.setStyleSheet(
-                "font-size: 14px; color: #3AAA55; font-weight: bold; background: transparent;"
+                f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
             )
             self.sf_detail.setText(f"Found at {path}")
             self.sf_detail.setVisible(True)
@@ -358,7 +371,7 @@ class SetupWizard(QDialog):
         else:
             self.sf_status.setText("Stockfish not found")
             self.sf_status.setStyleSheet(
-                "font-size: 14px; color: #E67E22; background: transparent;"
+                f"font-size: 14px; color: {Styles.COLOR_MISTAKE}; background: transparent;"
             )
             self.sf_detail.setText("")
             self.sf_detail.setVisible(False)
@@ -388,7 +401,7 @@ class SetupWizard(QDialog):
         invalidate_engine_cache()
         self.sf_status.setText("Stockfish downloaded")
         self.sf_status.setStyleSheet(
-            "font-size: 14px; color: #3AAA55; font-weight: bold; background: transparent;"
+            f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
         )
         self.settings["engine_path"] = binary_path
         self.sf_detail.setText(f"Found at {binary_path}")
@@ -399,7 +412,7 @@ class SetupWizard(QDialog):
         logger.error("SetupWizard: Stockfish download failed: %s", err_msg)
         self.sf_status.setText(f"Download failed: {err_msg}")
         self.sf_status.setStyleSheet(
-            "font-size: 14px; color: #D02030; background: transparent;"
+            f"font-size: 14px; color: {Styles.COLOR_BLUNDER}; background: transparent;"
         )
         self.sf_download_btn.setText("Retry")
         self.sf_download_btn.setVisible(True)
@@ -409,7 +422,7 @@ class SetupWizard(QDialog):
         if not key:
             self.llm_test_result.setText("Enter an API key first")
             self.llm_test_result.setStyleSheet(
-                "font-size: 13px; color: #E67E22; margin-top: 4px; background: transparent;"
+                f"font-size: 13px; color: {Styles.COLOR_MISTAKE}; margin-top: 4px; background: transparent;"
             )
             return
 
@@ -428,13 +441,13 @@ class SetupWizard(QDialog):
             )
             self.llm_test_result.setText("Connection successful")
             self.llm_test_result.setStyleSheet(
-                "font-size: 13px; color: #3AAA55; background: transparent;"
+                f"font-size: 13px; color: {Styles.COLOR_BEST}; background: transparent;"
             )
             self.settings["groq_api_key"] = key
         except Exception as e:
             self.llm_test_result.setText(f"Failed: {e}")
             self.llm_test_result.setStyleSheet(
-                "font-size: 13px; color: #D02030; background: transparent;"
+                f"font-size: 13px; color: {Styles.COLOR_BLUNDER}; background: transparent;"
             )
         finally:
             self.llm_test_btn.setEnabled(True)

@@ -77,7 +77,7 @@ class LichessPanel(QWidget):
         input_layout.setSpacing(8)
 
         lbl = QLabel("Enter Username or Game URL:")
-        lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl.setStyleSheet(Styles.get_form_label_style())
         input_layout.addWidget(lbl)
 
         input_row = QHBoxLayout()
@@ -90,20 +90,7 @@ class LichessPanel(QWidget):
         if saved_username:
             self._input_edit.setText(saved_username)
 
-        self._input_edit.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 0 12px;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-                height: 36px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """)
+        self._input_edit.setStyleSheet(Styles.get_panel_input_style())
         self._input_edit.returnPressed.connect(self._fetch)
         input_row.addWidget(self._input_edit, stretch=1)
 

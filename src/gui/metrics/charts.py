@@ -144,7 +144,7 @@ def fig_to_label(fig: Figure) -> QLabel:
     pixmap = fig_to_pixmap(fig)
     lbl = QLabel()
     lbl.setPixmap(pixmap)
-    lbl.setStyleSheet("background: transparent; border: none;")
+    lbl.setStyleSheet(Styles.get_transparent_label_style())
     return lbl
 
 

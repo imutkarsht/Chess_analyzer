@@ -38,11 +38,11 @@ class ColorPerformanceCard(MetricCard):
             
             lbl_row = QHBoxLayout()
             lbl = QLabel(label)
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600; font-size: 14px; border: none; background: transparent;")
+            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600; font-size: 14px; {Styles.get_transparent_label_style()}")
             lbl_row.addWidget(lbl)
             lbl_row.addStretch()
             val = QLabel(f"{total} Games")
-            val.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; border: none; background: transparent;")
+            val.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; {Styles.get_transparent_label_style()}")
             lbl_row.addWidget(val)
             w_layout.addLayout(lbl_row)
             
@@ -75,7 +75,7 @@ class ColorPerformanceCard(MetricCard):
             
             def add_pill(txt, color):
                 l = QLabel(txt)
-                l.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: 600; border: none; background: transparent;")
+                l.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: 600; {Styles.get_transparent_label_style()}")
                 stat_row.addWidget(l)
                 
             add_pill(f"{wins_pct:.0f}% W", Styles.COLOR_BEST)

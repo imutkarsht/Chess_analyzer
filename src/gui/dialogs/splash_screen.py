@@ -4,6 +4,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap, QColor, QFont, QScreen
 from src.utils.logger import logger
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 import os
 
 class SplashScreen(QSplashScreen):
@@ -15,13 +16,14 @@ class SplashScreen(QSplashScreen):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
         # Layout container
+        p = ThemeManager.palette()
         self.container = QWidget(self)
-        self.container.setStyleSheet("""
-            QWidget {
-                background-color: #1e1e1e;
-                border: 1px solid #333333;
+        self.container.setStyleSheet(f"""
+            QWidget {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
                 border-radius: 10px;
-            }
+            }}
         """)
         self.container.setFixedSize(400, 300)
         self.setFixedSize(400, 300)
@@ -51,7 +53,7 @@ class SplashScreen(QSplashScreen):
         title_label = QLabel(app_name)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setFont(QFont("", 16, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: #ffffff; background: transparent; border: none;")
+        title_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; {Styles.get_transparent_label_style()}")
         layout.addWidget(title_label)
         
         layout.addStretch()
@@ -59,7 +61,7 @@ class SplashScreen(QSplashScreen):
         # Loading Status
         self.status_label = QLabel("Initializing...")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setStyleSheet("color: #aaaaaa; font-size: 12px; background: transparent; border: none;")
+        self.status_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; {Styles.get_transparent_label_style()}")
         layout.addWidget(self.status_label)
         
         # Progress Bar
@@ -68,7 +70,7 @@ class SplashScreen(QSplashScreen):
         self.progress_bar.setStyleSheet(f"""
             QProgressBar {{
                 border: none;
-                background-color: #2d2d2d;
+                background-color: {p.border};
                 height: 6px;
                 border-radius: 3px;
                 text-align: center;

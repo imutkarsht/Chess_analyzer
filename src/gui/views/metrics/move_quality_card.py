@@ -93,22 +93,22 @@ class MoveQualityCard(MetricCard):
                     row.addWidget(lbl_icon)
                 else:
                     dot = QLabel("●") 
-                    dot.setStyleSheet(f"color: {color_map[k]}; font-size: 20px; border: none; background: transparent;")
+                    dot.setStyleSheet(f"color: {color_map[k]}; font-size: 20px; {Styles.get_transparent_label_style()}")
                     row.addWidget(dot) 
             else:
                 dot = QLabel("●") 
-                dot.setStyleSheet(f"color: {color_map[k]}; font-size: 20px; border: none; background: transparent;")
+                dot.setStyleSheet(f"color: {color_map[k]}; font-size: 20px; {Styles.get_transparent_label_style()}")
                 row.addWidget(dot)
             
             stats_layout = QVBoxLayout()
             stats_layout.setSpacing(0)
             
             lbl_name = QLabel(k)
-            lbl_name.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; font-weight: 500; border: none; background: transparent;")
+            lbl_name.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; font-weight: 500; {Styles.get_transparent_label_style()}")
             
             pct = (v / total_moves * 100) if total_moves > 0 else 0
             lbl_val = QLabel(f"{v} ({pct:.0f}%)")
-            lbl_val.setStyleSheet(f"color: {color_map[k]}; font-size: 14px; font-weight: bold; border: none; background: transparent;")
+            lbl_val.setStyleSheet(f"color: {color_map[k]}; font-size: 14px; font-weight: bold; {Styles.get_transparent_label_style()}")
             
             stats_layout.addWidget(lbl_name)
             stats_layout.addWidget(lbl_val)

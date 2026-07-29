@@ -486,19 +486,19 @@ class MainWindow(QMainWindow):
                 self._spinner_timer.start(120)
             self._engine_pill.setText("⬤  Calculating")
             self._engine_pill.setStyleSheet(
-                "font-size: 12px; font-weight: 600; padding: 0 6px; color: #e67e22;"
+                f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};"
             )
         else:
             self._spinner_timer.stop()
             if state == "ready":
                 self._engine_pill.setText("⬤  Engine Ready")
                 self._engine_pill.setStyleSheet(
-                    "font-size: 12px; font-weight: 600; padding: 0 6px; color: #27ae60;"
+                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};"
                 )
             else:  # offline
                 self._engine_pill.setText("⬤  Engine Offline")
                 self._engine_pill.setStyleSheet(
-                    "font-size: 12px; font-weight: 600; padding: 0 6px; color: #e74c3c;"
+                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};"
                 )
 
     def _tick_spinner(self):
@@ -509,11 +509,11 @@ class MainWindow(QMainWindow):
 
     # status label states
     _STATUS_STYLES = {
-        "idle":       ("○",  "#888888"),
+        "idle":       ("○",  Styles.COLOR_TEXT_MUTED),
         "info":       ("◎",  "#3498db"),
-        "success":    ("✔",  "#27ae60"),
-        "warning":    ("⚠",  "#e67e22"),
-        "error":      ("✖",  "#e74c3c"),
+        "success":    ("✔",  Styles.COLOR_ENGINE_READY),
+        "warning":    ("⚠",  Styles.COLOR_ENGINE_BUSY),
+        "error":      ("✖",  Styles.COLOR_BLUNDER),
         "progress":   ("◌",  "#3498db"),
     }
 
@@ -721,11 +721,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, '_engine_pill'):
             state = self._engine_pill.text()
             if "Offline" in state:
-                self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; color: #e74c3c;")
+                self._engine_pill.setStyleSheet(f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};")
             elif "Calculating" in state:
-                self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; color: #e67e22;")
+                self._engine_pill.setStyleSheet(f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};")
             else:
-                self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; color: #27ae60;")
+                self._engine_pill.setStyleSheet(f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};")
 
         # Force full style re-evaluation for all children
         self.style().unpolish(self)

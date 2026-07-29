@@ -2,6 +2,7 @@ from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, pyqtProperty
 from PyQt6.QtGui import QPainter, QColor, QPen, QLinearGradient
 import math
+from src.gui.styles import Styles
 
 class LoadingOverlay(QWidget):
     def __init__(self, parent=None):
@@ -30,10 +31,10 @@ class LoadingOverlay(QWidget):
         self.layout.setSpacing(10)
         
         self.text_label = QLabel("")
-        self.text_label.setStyleSheet("color: white; font-weight: bold; font-size: 18px; background: transparent;")
+        self.text_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 18px; {Styles.get_transparent_label_style()}")
         
         self.sub_label = QLabel("")
-        self.sub_label.setStyleSheet("color: #cccccc; font-size: 14px; background: transparent;")
+        self.sub_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 14px; {Styles.get_transparent_label_style()}")
         
         self.layout.addStretch()
         self.layout.addSpacing(60)

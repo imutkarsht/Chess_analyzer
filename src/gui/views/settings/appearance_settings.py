@@ -38,7 +38,7 @@ class AppearanceSettings(QGroupBox):
         return Styles.get_radio_group_style()
 
     def _label_style(self):
-        return "background: transparent; font-size: 14px; border: none;"
+        return f"font-size: 14px; {Styles.get_transparent_label_style()}"
 
     def setup_ui(self):
         layout = QFormLayout(self)
@@ -59,7 +59,7 @@ class AppearanceSettings(QGroupBox):
 
     def _make_radio_group(self, labels, parent, radio_style):
         container = QWidget()
-        container.setStyleSheet("background: transparent;")
+        container.setStyleSheet(Styles.get_transparent_label_style())
         hbox = QHBoxLayout(container)
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.setSpacing(4)
@@ -156,7 +156,7 @@ class AppearanceSettings(QGroupBox):
         accent_lbl = QLabel("Accent Color:")
         accent_lbl.setStyleSheet(label_style)
         container = QWidget()
-        container.setStyleSheet("background: transparent;")
+        container.setStyleSheet(Styles.get_transparent_label_style())
         hbox = QHBoxLayout(container)
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.setSpacing(4)
