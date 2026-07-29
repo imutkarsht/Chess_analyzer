@@ -90,28 +90,11 @@ class AppearanceSettings(QGroupBox):
         group.buttonClicked.connect(self._on_theme_mode_clicked)
         layout.addRow(lbl, container)
 
-    def _prompt_restart(self):
-        from src.gui.utils.gui_utils import confirm_dialog
-        import sys
-        from PyQt6.QtCore import QProcess
-        from PyQt6.QtWidgets import QApplication
-
-        restart = confirm_dialog(
-            self,
-            title="Restart Required",
-            message="Theme settings updated. A restart is required to apply the new theme completely.\n\nWould you like to restart Chess Analyzer Pro now?",
-            confirm_label="Restart Now",
-            cancel_label="Not Now",
-        )
-        if restart:
-            QProcess.startDetached(sys.executable, sys.argv)
-            QApplication.instance().quit()
-
     def _on_theme_mode_clicked(self, btn):
         mapping = {self._theme_mode_system: "system", self._theme_mode_light: "light", self._theme_mode_dark: "dark"}
         mode = mapping.get(btn, "system")
         self.config_manager.set("theme_mode", mode)
-        self._prompt_restart()
+        ThemeManager.set_theme_mode(mode)
 
     def _add_board_theme_row(self, layout, label_style, combo_style):
         lbl = QLabel("Board Theme:")
@@ -248,6 +231,7 @@ class AppearanceSettings(QGroupBox):
         pass
 
     def refresh_styles(self, *args, **kwargs):
+        self.setStyleSheet(Styles.get_group_box_style())
         combo_style = self._combo_style()
         radio_style = self._radio_style()
 

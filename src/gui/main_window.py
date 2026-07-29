@@ -661,6 +661,7 @@ class MainWindow(QMainWindow):
                 self.metrics_view.refresh_styles()
             else:
                 self.metrics_view.refresh()
+        if hasattr(self, 'game_info_label'):
             self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
         
         # Update Menu Styles
@@ -692,16 +693,10 @@ class MainWindow(QMainWindow):
                 ev.refresh_styles()
             if hasattr(ev, 'move_list_widget') and hasattr(ev.move_list_widget, 'refresh_styles'):
                 ev.move_list_widget.refresh_styles()
+        # Update sidebar
+        if hasattr(self, 'sidebar'):
+            self.sidebar.apply_style()
 
-        # Update History View
-        if hasattr(self, 'history_view'):
-            if hasattr(self.history_view, 'refresh_styles'):
-                self.history_view.refresh_styles()
-            elif hasattr(self.history_view, 'game_list'):
-                self.history_view.game_list.refresh_styles()
-            elif hasattr(self.history_view, 'game_list_widget'):
-                self.history_view.game_list_widget.refresh_styles()
-            
         # Update tour overlay accent
         if hasattr(self, 'tour_overlay'):
             self.tour_overlay.refresh_accent()

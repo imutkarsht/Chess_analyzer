@@ -94,6 +94,7 @@ class BookSettings(QGroupBox):
         self.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
+        self.setStyleSheet(Styles.get_group_box_style())
         if hasattr(self, 'polyglot_path_input'):
             self.polyglot_path_input.setStyleSheet(Styles.get_input_style())
         if hasattr(self, 'polyglot_browse_btn'):

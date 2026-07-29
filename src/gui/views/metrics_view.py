@@ -61,9 +61,9 @@ class MetricsWidget(QWidget):
         header_layout.setContentsMargins(40, 12, 40, 12)
         
         # Title
-        title = QLabel("Performance Dashboard")
-        title.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
-        header_layout.addWidget(title)
+        self.title_lbl = QLabel("Performance Dashboard")
+        self.title_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        header_layout.addWidget(self.title_lbl)
         
         header_layout.addStretch()
         
@@ -84,6 +84,9 @@ class MetricsWidget(QWidget):
         """Re-applies styles and rebuilds the dashboard using cached stats/insights."""
         if hasattr(self, 'header_bar') and self.header_bar:
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
+
+        if hasattr(self, 'title_lbl') and self.title_lbl:
+            self.title_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
 
         if hasattr(self, 'btn_refresh') and self.btn_refresh:
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())

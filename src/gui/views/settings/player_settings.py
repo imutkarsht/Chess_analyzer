@@ -56,6 +56,7 @@ class PlayerSettings(QGroupBox):
         self.games_limit_input.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
+        self.setStyleSheet(Styles.get_group_box_style())
         if hasattr(self, 'chesscom_input'):
             self.chesscom_input.setStyleSheet(Styles.get_input_style())
         if hasattr(self, 'lichess_input'):
