@@ -16,7 +16,7 @@ class WizardNavBar(QWidget):
         layout.setContentsMargins(16, 8, 16, 8)
 
         self.dots_widget = QWidget()
-        self.dots_widget.setStyleSheet("background: transparent;")
+        self.dots_widget.setStyleSheet(Styles.get_transparent_label_style())
         self.dots_layout = QHBoxLayout(self.dots_widget)
         self.dots_layout.setContentsMargins(0, 0, 0, 0)
         self.dots_layout.setSpacing(6)
@@ -24,7 +24,7 @@ class WizardNavBar(QWidget):
         for i in range(7):
             dot = QLabel("o")
             dot.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent;"
+                f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; {Styles.get_transparent_label_style()}"
             )
             self.dot_labels.append(dot)
             self.dots_layout.addWidget(dot)
@@ -98,15 +98,15 @@ class WizardNavBar(QWidget):
         for i, dot in enumerate(self.dot_labels):
             if i == index:
                 dot.setStyleSheet(
-                    f"color: {Styles.COLOR_ACCENT}; font-size: 10px; background: transparent;"
+                    f"color: {Styles.COLOR_ACCENT}; font-size: 10px; {Styles.get_transparent_label_style()}"
                 )
             elif i < index:
                 dot.setStyleSheet(
-                    f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 10px; background: transparent;"
+                    f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 10px; {Styles.get_transparent_label_style()}"
                 )
             else:
                 dot.setStyleSheet(
-                    f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent;"
+                    f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; {Styles.get_transparent_label_style()}"
                 )
 
         is_last = index == total - 1

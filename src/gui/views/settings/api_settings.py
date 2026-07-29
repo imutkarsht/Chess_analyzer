@@ -436,6 +436,7 @@ class ApiSettings(QGroupBox):
             lbl.setStyleSheet(Styles.get_secondary_label_style(size=11))
 
     def refresh_styles(self, *args, **kwargs):
+        self.setStyleSheet(Styles.get_group_box_style())
         if hasattr(self, 'llm_profile_combo'):
             self.llm_profile_combo.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, 'llm_provider_combo'):

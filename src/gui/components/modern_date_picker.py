@@ -144,7 +144,7 @@ class ModernDatePicker(QFrame):
                 color: {Styles.COLOR_TEXT_PRIMARY};
                 background-color: {Styles.COLOR_SURFACE};
                 selection-background-color: {Styles.COLOR_ACCENT};
-                selection-color: #FFFFFF;
+                selection-color: {Styles.COLOR_TEXT_PRIMARY};
                 border-radius: 6px;
                 font-size: 12px;
                 font-weight: 500;
@@ -179,7 +179,7 @@ class ModernDatePicker(QFrame):
             }}
             QPushButton:hover {{
                 background-color: {Styles.COLOR_ACCENT};
-                color: #FFFFFF;
+                color: {Styles.COLOR_TEXT_PRIMARY};
                 border-color: {Styles.COLOR_ACCENT};
             }}
         """)

@@ -1,5 +1,6 @@
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QGraphicsOpacityEffect
+from src.gui.styles import Styles
 
 
 class Toast(QWidget):
@@ -24,7 +25,7 @@ class Toast(QWidget):
         self._is_dismissing = False
 
         kind_color = self.COLORS.get(kind, "#3498db")
-        dark_bg = "#2C2C30"
+        dark_bg = Styles.COLOR_SURFACE
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
@@ -47,7 +48,7 @@ class Toast(QWidget):
         layout.addWidget(icon)
 
         self._msg = QLabel(message)
-        self._msg.setStyleSheet("color: #F0F0F2; font-size: 14px; font-weight: 500; background: transparent;")
+        self._msg.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: 500; background: transparent;")
         self._msg.setWordWrap(True)
         layout.addWidget(self._msg)
 

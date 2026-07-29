@@ -227,7 +227,7 @@ class OnlineFetchPanel(QWidget):
 
         # Platform selector row
         lbl_platform = QLabel("Platform:")
-        lbl_platform.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_platform.setStyleSheet(Styles.get_form_label_style())
         self.platform_selector = SegmentedSelector([
             ("chesscom", "Chess.com", "assets/icons/chesscom.png"), 
             ("lichess", "Lichess", "assets/icons/lichess.png")
@@ -238,7 +238,7 @@ class OnlineFetchPanel(QWidget):
 
         # Mode selector row
         lbl_mode = QLabel("Mode:")
-        lbl_mode.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_mode.setStyleSheet(Styles.get_form_label_style())
         self.mode_selector = SegmentedSelector([
             ("recent", "Recent", "fa5s.history"), 
             ("date", "By Date", "fa5s.calendar-alt"), 

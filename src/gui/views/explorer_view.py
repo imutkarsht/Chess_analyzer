@@ -1080,18 +1080,43 @@ class ExplorerView(QWidget):
 
     def refresh_styles(self):
         """Re-applies styles to explorer view components."""
+        if hasattr(self, 'header_bar'):
+            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND))
+        if hasattr(self, 'title_lbl'):
+            self.title_lbl.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        if hasattr(self, 'opening_badge'):
+            self.opening_badge.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; padding: 0px 0px 0px 12px; " + Styles.get_transparent_label_style())
         if hasattr(self, 'btn_flip'):
             self.btn_flip.setStyleSheet(Styles.get_action_button_style())
         if hasattr(self, 'btn_copy_fen'):
             self.btn_copy_fen.setStyleSheet(Styles.get_action_button_style())
         if hasattr(self, 'btn_copy_pgn'):
             self.btn_copy_pgn.setStyleSheet(Styles.get_action_button_style())
+        if hasattr(self, 'splitter'):
+            self.splitter.setStyleSheet(Styles.get_splitter_style())
+        if hasattr(self, 'left_panel'):
+            self.left_panel.setStyleSheet(Styles.get_background_style())
+        if hasattr(self, 'lbl_black'):
+            self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        if hasattr(self, 'lbl_white'):
+            self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        if hasattr(self, 'right_panel'):
+            self.right_panel.setStyleSheet(Styles.get_background_style())
         if hasattr(self, 'book_toggle'):
             self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
+        if hasattr(self, 'book_scroll'):
+            self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
+        if hasattr(self, 'book_container'):
+            self.book_container.setStyleSheet(Styles.get_surface_style())
+        if hasattr(self, 'lichess_attribution'):
+            self.lichess_attribution.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + "; padding: 4px 14px; " + Styles.get_transparent_label_style())
+            self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
+        if hasattr(self, 'move_list_label'):
+            self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
         if hasattr(self, 'move_input'):
             self.move_input.setStyleSheet(Styles.get_line_edit_style())
-        if hasattr(self, 'lichess_attribution'):
-            self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
+        if hasattr(self, 'engine_status_label'):
+            self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED))
         if hasattr(self, 'lines_widget'):
             self.lines_widget.refresh_styles()
         if hasattr(self, 'captured_white'):

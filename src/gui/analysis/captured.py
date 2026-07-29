@@ -203,9 +203,9 @@ class CapturedPiecesWidget(QFrame):
             self.clock_label.setStyleSheet(Styles.get_digital_clock_style(Styles.COLOR_BLUNDER, "#FFFFFF", Styles.COLOR_BLUNDER))
         else:
             if self.side == "black":
-                bg, fg, border = "#FFFFFF", "#1A1A1D", "#D1D5DB"
+                bg, fg, border = Styles.COLOR_SURFACE, Styles.COLOR_TEXT_PRIMARY, Styles.COLOR_BORDER
             else:
-                bg, fg, border = "#111111", "#E4E4E7", Styles.COLOR_BORDER
+                bg, fg, border = Styles.COLOR_BACKGROUND, Styles.COLOR_TEXT_PRIMARY, Styles.COLOR_BORDER
             self.clock_label.setStyleSheet(Styles.get_digital_clock_style(bg, fg, border))
             
         self.clock_label.show()

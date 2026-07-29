@@ -38,7 +38,7 @@ class AppearanceSettings(QGroupBox):
         return Styles.get_radio_group_style()
 
     def _label_style(self):
-        return "background: transparent; font-size: 14px; border: none;"
+        return f"font-size: 14px; {Styles.get_transparent_label_style()}"
 
     def setup_ui(self):
         layout = QFormLayout(self)
@@ -59,7 +59,7 @@ class AppearanceSettings(QGroupBox):
 
     def _make_radio_group(self, labels, parent, radio_style):
         container = QWidget()
-        container.setStyleSheet("background: transparent;")
+        container.setStyleSheet(Styles.get_transparent_label_style())
         hbox = QHBoxLayout(container)
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.setSpacing(4)
@@ -90,28 +90,11 @@ class AppearanceSettings(QGroupBox):
         group.buttonClicked.connect(self._on_theme_mode_clicked)
         layout.addRow(lbl, container)
 
-    def _prompt_restart(self):
-        from src.gui.utils.gui_utils import confirm_dialog
-        import sys
-        from PyQt6.QtCore import QProcess
-        from PyQt6.QtWidgets import QApplication
-
-        restart = confirm_dialog(
-            self,
-            title="Restart Required",
-            message="Theme settings updated. A restart is required to apply the new theme completely.\n\nWould you like to restart Chess Analyzer Pro now?",
-            confirm_label="Restart Now",
-            cancel_label="Not Now",
-        )
-        if restart:
-            QProcess.startDetached(sys.executable, sys.argv)
-            QApplication.instance().quit()
-
     def _on_theme_mode_clicked(self, btn):
         mapping = {self._theme_mode_system: "system", self._theme_mode_light: "light", self._theme_mode_dark: "dark"}
         mode = mapping.get(btn, "system")
         self.config_manager.set("theme_mode", mode)
-        self._prompt_restart()
+        ThemeManager.set_theme_mode(mode)
 
     def _add_board_theme_row(self, layout, label_style, combo_style):
         lbl = QLabel("Board Theme:")
@@ -156,7 +139,7 @@ class AppearanceSettings(QGroupBox):
         accent_lbl = QLabel("Accent Color:")
         accent_lbl.setStyleSheet(label_style)
         container = QWidget()
-        container.setStyleSheet("background: transparent;")
+        container.setStyleSheet(Styles.get_transparent_label_style())
         hbox = QHBoxLayout(container)
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.setSpacing(4)
@@ -248,6 +231,7 @@ class AppearanceSettings(QGroupBox):
         pass
 
     def refresh_styles(self, *args, **kwargs):
+        self.setStyleSheet(Styles.get_group_box_style())
         combo_style = self._combo_style()
         radio_style = self._radio_style()
 

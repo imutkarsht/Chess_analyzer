@@ -41,9 +41,9 @@ class GameListWidget(QWidget):
         header_bar_layout = QHBoxLayout(self.header_bar_widget)
         header_bar_layout.setContentsMargins(16, 0, 16, 0)
 
-        title_lbl = QLabel("Games")
-        title_lbl.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
-        header_bar_layout.addWidget(title_lbl)
+        self.title_lbl = QLabel("Games")
+        self.title_lbl.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        header_bar_layout.addWidget(self.title_lbl)
 
         header_bar_layout.addStretch()
 
@@ -301,6 +301,8 @@ class GameListWidget(QWidget):
     def _apply_title_style(self):
         if hasattr(self, 'header_bar_widget') and self.header_bar_widget:
             self.header_bar_widget.setStyleSheet(Styles.get_header_bar_style())
+        if hasattr(self, 'title_lbl') and self.title_lbl:
+            self.title_lbl.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
 
     def _apply_list_style(self):
         self.list_widget.setStyleSheet(Styles.get_list_widget_style())

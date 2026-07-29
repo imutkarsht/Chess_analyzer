@@ -185,7 +185,7 @@ class AICoachCard(MetricCard):
                 if not pixmap.isNull():
                     pixmap = pixmap.scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
                     lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet("border: none; background: transparent;")
+                    lbl_icon.setStyleSheet(Styles.get_transparent_label_style())
                     icon_container = QWidget()
                     icon_container.setFixedWidth(30)
                     icon_layout = QVBoxLayout(icon_container)
@@ -194,11 +194,11 @@ class AICoachCard(MetricCard):
                     row.addWidget(icon_container)
                 else:
                     lbl_icon = QLabel("💡") 
-                    lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; border: none; background: transparent;")
+                    lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; {Styles.get_transparent_label_style()}")
                     row.addWidget(lbl_icon)
             else:
                 lbl_icon = QLabel("💡")
-                lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; border: none; background: transparent;")
+                lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; {Styles.get_transparent_label_style()}")
                 row.addWidget(lbl_icon)
  
             clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
@@ -210,7 +210,7 @@ class AICoachCard(MetricCard):
 
             lbl_text = QLabel(clean_text)
             lbl_text.setWordWrap(True)
-            lbl_text.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; line-height: 1.4; border: none; background: transparent;")
+            lbl_text.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; line-height: 1.4; {Styles.get_transparent_label_style()}")
             row.addWidget(lbl_text, stretch=1)
             
             self.insights_layout.addLayout(row)

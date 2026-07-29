@@ -328,6 +328,7 @@ class EngineSettings(QGroupBox):
         self._hash_row.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
+        self.setStyleSheet(Styles.get_group_box_style())
         if hasattr(self, 'depth_combo'):
             self.depth_combo.setStyleSheet(self._combo_style())
         if hasattr(self, 'hash_input'):
