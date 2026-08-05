@@ -10,8 +10,9 @@ class AccuracyTrendCard(MetricCard):
             self.card_layout.removeWidget(self.content_widget)
             self.content_widget.deleteLater()
             
-        full_history = stats.get('accuracy_history', [])
-        accuracies = full_history[:20][::-1] if full_history else []
+        history = stats.get('accuracy_history', [])
+        # history is a list of (timestamp, accuracy) sorted ascending by timestamp
+        accuracies = [acc for _, acc in history[-20:]] if history else []
         
         from src.gui.metrics.charts import create_line_chart_figure, fig_to_canvas
         fig = create_line_chart_figure(accuracies, figsize=(5, 3))

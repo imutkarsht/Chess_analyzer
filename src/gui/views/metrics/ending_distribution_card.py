@@ -18,12 +18,13 @@ class EndingDistributionCard(MetricCard):
             "Checkmate": Styles.COLOR_BEST,
             "Resignation": Styles.COLOR_ACCENT,
             "Time": "#e67e22",
-            "Abandon": Styles.COLOR_BLUNDER,
-            "Draw": "#888888"
+            "Abandonment": Styles.COLOR_BLUNDER,
+            "Draw": "#888888",
+            "Other": "#888888"
         }
         
         labels, sizes, colors = [], [], []
-        for k in ["Checkmate", "Resignation", "Time", "Abandon", "Draw"]:
+        for k in ["Checkmate", "Resignation", "Time", "Abandonment", "Draw", "Other"]:
             v = counts.get(k, 0)
             if v > 0:
                 labels.append(k)

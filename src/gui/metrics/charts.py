@@ -71,31 +71,38 @@ def create_line_chart_figure(
     figsize: tuple = (5, 3),
     dpi: int = 100,
     ylim: tuple = (0, 100),
-    fill: bool = True
+    fill: bool = True,
+    labels: list = None,
+    title: str = "",
+    color: str = None,
 ) -> Figure:
     """
     Creates a line chart figure with optional fill.
-    
+
     Args:
         values: List of y-values
         figsize: Figure size in inches
         dpi: Dots per inch
         ylim: Y-axis limits
         fill: Whether to fill under the line
-        
+        labels: Optional x-axis tick labels (must match len(values))
+        title: Optional chart title
+        color: Optional line color (defaults to accent)
+
     Returns:
         matplotlib Figure object
     """
+    line_color = color or Styles.COLOR_ACCENT
     fig = Figure(figsize=figsize, dpi=dpi, facecolor=Styles.COLOR_SURFACE)
     ax = fig.add_subplot(111)
     ax.set_facecolor(Styles.COLOR_SURFACE)
     
     if values:
         x = range(len(values))
-        ax.plot(x, values, color=Styles.COLOR_ACCENT, marker='o', linewidth=2, markersize=6)
+        ax.plot(x, values, color=line_color, marker='o', linewidth=2, markersize=6)
         
         if fill:
-            ax.fill_between(x, values, alpha=0.1, color=Styles.COLOR_ACCENT)
+            ax.fill_between(x, values, alpha=0.1, color=line_color)
         
         ax.set_ylim(ylim)
         ax.grid(True, color='#444', linestyle=':', alpha=0.3)
@@ -103,9 +110,77 @@ def create_line_chart_figure(
         # Remove spines
         for spine in ['top', 'right', 'left', 'bottom']:
             ax.spines[spine].set_visible(False)
+
+        if labels:
+            ax.set_xticks(list(x))
+            ax.set_xticklabels(labels, fontsize=8)
+
+        if title:
+            ax.set_title(title, color=Styles.COLOR_TEXT_SECONDARY, fontsize=11, pad=8)
     
     ax.tick_params(colors=Styles.COLOR_TEXT_SECONDARY, which='both', length=0)
     
+    return fig
+
+
+def create_stacked_bar_figure(
+    rows: list,
+    row_labels: list,
+    figsize: tuple = (6, 3),
+    dpi: int = 100,
+    center_text: str = "",
+) -> Figure:
+    """
+    Creates a horizontal stacked bar figure from multiple segment rows.
+
+    Args:
+        rows: List of rows; each row is a list of (value, color, label) segments.
+        row_labels: List of labels for each row.
+        figsize: Figure size in inches
+        dpi: Dots per inch
+        center_text: Optional text rendered as a centered legend-style hint
+
+    Returns:
+        matplotlib Figure object
+    """
+    fig = Figure(figsize=figsize, dpi=dpi, facecolor=Styles.COLOR_SURFACE)
+
+    # Reserve left space for the row labels so they are never clipped.
+    max_chars = max((len(lbl) for lbl in row_labels), default=0)
+    left_space = max(0.10, min(0.45, 0.06 + 0.022 * max_chars))
+    bottom_space = 0.18 if center_text else 0.06
+    fig.subplots_adjust(left=left_space, right=0.98, top=0.94, bottom=bottom_space)
+
+    ax = fig.add_subplot(111)
+    ax.set_facecolor(Styles.COLOR_SURFACE)
+
+    max_total = 0
+    for row in rows:
+        row_total = sum(v for v, _, _ in row)
+        max_total = max(max_total, row_total)
+
+    for i, (row, label) in enumerate(zip(rows, row_labels)):
+        y = len(rows) - i - 1
+        left = 0.0
+        for value, color, _ in row:
+            if value > 0:
+                width = value if max_total else 0
+                ax.barh(y, width, left=left, color=color, height=0.6,
+                        edgecolor='none')
+                left += width
+        ax.text(0, y, label, ha='right', va='center', clip_on=False,
+                color=Styles.COLOR_TEXT_PRIMARY, fontsize=11, fontweight='bold')
+
+    ax.set_yticks([])
+    for spine in ['top', 'right', 'left', 'bottom']:
+        ax.spines[spine].set_visible(False)
+    ax.set_xlim(0, max_total if max_total else 1)
+    ax.set_xticks([])
+
+    if center_text:
+        ax.text(max_total, -0.55, center_text, ha='right', va='top', clip_on=False,
+                color=Styles.COLOR_TEXT_MUTED, fontsize=9)
+
     return fig
 
 

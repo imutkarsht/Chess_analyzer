@@ -16,7 +16,11 @@ from src.gui.views.metrics import (
     AccuracyTrendCard,
     ColorPerformanceCard,
     OpeningsListCard,
-    AICoachCard
+    AICoachCard,
+    WinLossModeCard,
+    OpponentStrengthCard,
+    TimeControlCard,
+    TimeManagementCard
 )
 
 class MetricsWidget(QWidget):
@@ -210,7 +214,9 @@ class MetricsWidget(QWidget):
         self.stats_layout.addWidget(StatCard("Total Games", str(stats['total']), "Tracked this week", icon="games"))
         self.stats_layout.addWidget(StatCard("Win Rate", f"{stats['win_rate']:.1f}%", f"Vs last {stats['total']} games", icon="win_rate", color=Styles.COLOR_ACCENT))
         self.stats_layout.addWidget(StatCard("Avg Accuracy", f"{stats['avg_accuracy']:.1f}%", "Based on engine eval.", icon="accuracy"))
-        self.stats_layout.addWidget(StatCard("Best Win", str(stats['best_win']), "Keep playing!", icon="best_win"))
+        self.stats_layout.addWidget(StatCard("Avg Centipawn Loss", f"{stats.get('avg_acpl', 0):.0f}",
+                                             f"Best streak: {stats.get('best_streak', 0)} wins",
+                                             icon="accuracy", color=self._acpl_color(stats.get('avg_acpl', 0))))
         dashboard_layout.addWidget(self.stats_container)
         
         # 2. Donut charts — always 3 equal columns, fully dynamic width
@@ -233,17 +239,44 @@ class MetricsWidget(QWidget):
         
         dashboard_layout.addWidget(donuts_widget)
 
-        # 3. Remaining cards in a 2-column masonry (shortest-column packing)
+        # 3. Trends row — Accuracy Trend + Opponent Strength (side by side)
+        trends_widget = QWidget()
+        trends_layout = QHBoxLayout(trends_widget)
+        trends_layout.setSpacing(20)
+        trends_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.accuracy_card = AccuracyTrendCard()
+        self.accuracy_card.set_stats(stats)
+        trends_layout.addWidget(self.accuracy_card)
+
+        if stats.get('has_opponent_elo'):
+            self.opponent_card = OpponentStrengthCard()
+            self.opponent_card.set_stats(stats)
+            trends_layout.addWidget(self.opponent_card)
+
+        dashboard_layout.addWidget(trends_widget)
+
+        # 4. Remaining cards in a 2-column masonry (shortest-column packing)
         self.charts_container = QWidget()
         self.charts_layout = MasonryLayout(self.charts_container, margin=0, spacing=20, min_col_width=400)
         
-        self.accuracy_card = AccuracyTrendCard()
-        self.accuracy_card.set_stats(stats)
-        self.charts_layout.addWidget(self.accuracy_card)
+        self.win_loss_card = WinLossModeCard()
+        self.win_loss_card.set_stats(stats)
+        self.charts_layout.addWidget(self.win_loss_card)
         
         self.color_card = ColorPerformanceCard()
         self.color_card.set_stats(stats)
         self.charts_layout.addWidget(self.color_card)
+        
+        if stats.get('has_time_control'):
+            self.time_control_card = TimeControlCard()
+            self.time_control_card.set_stats(stats)
+            self.charts_layout.addWidget(self.time_control_card)
+        
+        if stats.get('has_clock'):
+            self.time_management_card = TimeManagementCard()
+            self.time_management_card.set_stats(stats)
+            self.charts_layout.addWidget(self.time_management_card)
         
         self.openings_card = OpeningsListCard()
         self.openings_card.set_stats(stats)
@@ -260,6 +293,17 @@ class MetricsWidget(QWidget):
         
         scroll.setWidget(dashboard)
         self.content_layout.addWidget(scroll)
+
+    @staticmethod
+    def _acpl_color(acpl):
+        """Maps an ACPL value to a semantic color (lower is better)."""
+        if acpl <= 0:
+            return Styles.COLOR_TEXT_PRIMARY
+        if acpl < 70:
+            return Styles.COLOR_BEST
+        if acpl <= 100:
+            return Styles.COLOR_ENGINE_BUSY
+        return Styles.COLOR_BLUNDER
 
     def _sync_insights_cache(self):
         if hasattr(self, 'ai_coach_card') and self.ai_coach_card:

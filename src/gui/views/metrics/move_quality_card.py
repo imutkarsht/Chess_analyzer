@@ -1,13 +1,20 @@
-import os
 import matplotlib
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QSizePolicy
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from src.gui.views.metrics.base_card import MetricCard
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import resolve_asset
+from src.gui.utils.gui_utils import load_icon_pixmap
+
+QUALITY_ICONS = {
+    "Good": "good",
+    "Inaccuracy": "inaccuracy",
+    "Mistake": "mistake",
+    "Blunder": "blunder",
+    "Miss": "missed_win",
+    "Book": "book",
+}
 
 class MoveQualityCard(MetricCard):
     def __init__(self, parent=None):
@@ -29,13 +36,18 @@ class MoveQualityCard(MetricCard):
         sizes = []
         colors = []
         color_map = {
-            "Best": Styles.COLOR_BEST, 
-            "Inaccuracy": Styles.COLOR_INACCURACY, 
-            "Mistake": Styles.COLOR_MISTAKE, 
-            "Blunder": Styles.COLOR_BLUNDER
+            "Good": Styles.COLOR_BEST,
+            "Inaccuracy": Styles.COLOR_INACCURACY,
+            "Mistake": Styles.COLOR_MISTAKE,
+            "Blunder": Styles.COLOR_BLUNDER,
+            "Miss": Styles.COLOR_MISS,
+            "Book": Styles.COLOR_BOOK,
         }
         
-        for k, v in counts.items():
+        order = ["Good", "Inaccuracy", "Mistake", "Blunder", "Miss", "Book"]
+        
+        for k in order:
+            v = counts.get(k, 0)
             if v > 0:
                 labels.append(k)
                 sizes.append(v)
@@ -64,7 +76,7 @@ class MoveQualityCard(MetricCard):
         legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         legend_layout.setSpacing(12)
         
-        order = ["Best", "Inaccuracy", "Mistake", "Blunder"]
+        order = ["Good", "Inaccuracy", "Mistake", "Blunder", "Miss", "Book"]
         total_moves = sum(counts.values())
         
         for k in order:
@@ -75,28 +87,14 @@ class MoveQualityCard(MetricCard):
             row = QHBoxLayout()
             row.setSpacing(10)
             
-            icon_name = k.lower() 
-            if icon_name == "best":
-                icon_name = "best_v2"
-            
-            icon_path = resolve_asset(f"{icon_name}.svg")
-            if not icon_path:
-                icon_path = resolve_asset(f"{icon_name}.png")
-            
-            if icon_path and os.path.exists(icon_path):
+            pixmap = load_icon_pixmap(QUALITY_ICONS.get(k, k.lower()), 24)
+            if not pixmap.isNull():
                 lbl_icon = QLabel()
-                pixmap = QPixmap(icon_path)
-                if not pixmap.isNull():
-                    pixmap = pixmap.scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                    lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet("border: none; background: transparent;")
-                    row.addWidget(lbl_icon)
-                else:
-                    dot = QLabel("●") 
-                    dot.setStyleSheet(f"color: {color_map[k]}; font-size: 20px; {Styles.get_transparent_label_style()}")
-                    row.addWidget(dot) 
+                lbl_icon.setPixmap(pixmap)
+                lbl_icon.setStyleSheet("border: none; background: transparent;")
+                row.addWidget(lbl_icon)
             else:
-                dot = QLabel("●") 
+                dot = QLabel("●")
                 dot.setStyleSheet(f"color: {color_map[k]}; font-size: 20px; {Styles.get_transparent_label_style()}")
                 row.addWidget(dot)
             

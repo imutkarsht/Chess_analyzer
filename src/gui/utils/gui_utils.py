@@ -5,8 +5,9 @@ import os
 from typing import Callable, Optional, List
 from PyQt6.QtWidgets import (QLayout, QPushButton, QComboBox, QLineEdit,
                              QLabel, QWidget, QHBoxLayout, QVBoxLayout)
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QPainter, QColor, QBrush, QLinearGradient, QIcon
+from PyQt6.QtCore import Qt, QSize, QByteArray
+from PyQt6.QtGui import QPainter, QColor, QBrush, QLinearGradient, QIcon, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
 from src.utils.path_utils import get_resource_path
 
 
@@ -51,6 +52,49 @@ def resolve_asset(filename: str) -> str:
         if os.path.exists(full_path):
             return full_path
     return None
+
+
+def load_icon_pixmap(name: str, size: int) -> QPixmap:
+    """
+    Loads an asset icon as a square QPixmap, rendering SVGs via QSvgRenderer.
+    
+    Args:
+        name: Icon name (with or without extension)
+        size: Target size in pixels
+        
+    Returns:
+        QPixmap of the icon, or an empty QPixmap if not found
+    """
+    pixmap = QPixmap()
+    if not name:
+        return pixmap
+
+    if not name.lower().endswith(('.svg', '.png')):
+        svg_path = resolve_asset(f"{name}.svg")
+        if svg_path:
+            name = f"{name}.svg"
+        else:
+            name = f"{name}.png"
+
+    path = resolve_asset(name)
+    if not path:
+        return pixmap
+
+    if name.lower().endswith('.svg'):
+        renderer = QSvgRenderer(path)
+        if renderer.isValid():
+            pixmap = QPixmap(size, size)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+        return pixmap
+
+    source = QPixmap(path)
+    if not source.isNull():
+        pixmap = source.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio,
+                               Qt.TransformationMode.SmoothTransformation)
+    return pixmap
 
 
 def get_user_color(game: dict, usernames: list) -> str:
