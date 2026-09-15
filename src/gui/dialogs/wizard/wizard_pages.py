@@ -12,12 +12,6 @@ from PyQt6.QtGui import QPixmap, QFont
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
 from src.backend.analysis.engine import resolve_engine_path
-from src.backend.engine.downloader import (
-    get_official_releases,
-    get_expected_asset_name,
-    get_download_url,
-    download_and_extract,
-)
 from src.gui.styles import Styles
 
 PAGE_BG = f"background-color: {Styles.COLOR_BACKGROUND};"

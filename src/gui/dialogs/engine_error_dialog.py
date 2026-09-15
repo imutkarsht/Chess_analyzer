@@ -10,8 +10,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 from ...backend.analysis.engine import resolve_engine_path, invalidate_engine_cache
 from ...backend.engine.downloader import (
-    get_official_releases, get_expected_asset_name, get_download_url,
-    download_and_extract
+    get_download_candidates,
+    download_and_extract,
+    try_package_manager_install
 )
 from ...utils.path_utils import get_engine_data_dir
 from ...utils.logger import logger
@@ -202,11 +203,26 @@ class EngineNotFoundDialog(QDialog):
         QApplication.processEvents()
 
         try:
-            releases = get_official_releases()
-            target = get_expected_asset_name()
-            url = get_download_url(releases, target)
-            if not url:
-                raise RuntimeError(f"No download found for {target}")
+            self._status.setText("Checking for Stockfish releases...")
+            QApplication.processEvents()
+            candidates = get_download_candidates()
+
+            if not candidates:
+                logger.warning(
+                    "EngineNotFoundDialog: no matching Stockfish asset; "
+                    "trying the system package manager"
+                )
+                pm_path = try_package_manager_install()
+                if pm_path:
+                    invalidate_engine_cache()
+                    self._engine_path = pm_path
+                    self._status.setText(f"Installed: {os.path.basename(pm_path)}")
+                    self._progress.setValue(100)
+                    QTimer.singleShot(600, self.accept)
+                    return
+                raise RuntimeError(
+                    "No compatible Stockfish download was found for this platform"
+                )
 
             dest_dir = get_engine_data_dir()
             self._status.setText("Downloading Stockfish...")
@@ -216,7 +232,12 @@ class EngineNotFoundDialog(QDialog):
                 pct = int(downloaded / total * 100) if total else 0
                 self._progress.setValue(pct)
 
-            binary_path = download_and_extract(url, dest_dir, progress_callback=progress)
+            binary_path = download_and_extract(
+                candidates[0],
+                dest_dir,
+                progress_callback=progress,
+                fallback_urls=candidates[1:],
+            )
             self._progress.setValue(100)
 
             invalidate_engine_cache()

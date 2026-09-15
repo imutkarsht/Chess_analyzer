@@ -10,10 +10,9 @@ from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path, get_engine_data_dir
 from src.backend.analysis.engine import resolve_engine_path, invalidate_engine_cache
 from src.backend.engine.downloader import (
-    get_official_releases,
-    get_expected_asset_name,
-    get_download_url,
+    get_download_candidates,
     download_and_extract,
+    try_package_manager_install,
 )
 from src.gui.styles import Styles
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
@@ -76,21 +75,37 @@ class StockfishDownloadWorker(QThread):
                 # If Homebrew failed or did not resolve the binary, fall back to Github releases.
 
         # 2. Github Releases download fallback
+        download_error = None
         try:
-            releases = get_official_releases()
-            target = get_expected_asset_name()
-            url = get_download_url(releases, target)
-            if not url:
-                raise RuntimeError(f"No download found for {target}")
+            candidates = get_download_candidates()
+            if not candidates:
+                raise RuntimeError(
+                    "No compatible Stockfish download was found for this platform"
+                )
 
             def progress_callback(downloaded, total):
                 pct = int(downloaded / total * 100) if total else 0
                 self.progress.emit(pct)
 
-            binary_path = download_and_extract(url, self.dest_dir, progress_callback=progress_callback)
+            binary_path = download_and_extract(
+                candidates[0],
+                self.dest_dir,
+                progress_callback=progress_callback,
+                fallback_urls=candidates[1:],
+            )
             self.finished.emit(binary_path)
+            return
         except Exception as e:
-            self.error.emit(str(e))
+            download_error = e
+            logger.warning("StockfishDownloadWorker: GitHub download failed: %s", e)
+
+        # 3. Distro package manager fallback (Linux and friends)
+        pm_path = try_package_manager_install()
+        if pm_path:
+            self.finished.emit(pm_path)
+            return
+
+        self.error.emit(str(download_error))
 
 
 class SetupWizard(QDialog):
