@@ -1245,8 +1245,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
             return
         
-        # Auto-detect engine if the configured path doesn't work
-        resolved = resolve_engine_path(self.config_manager)
+        # Auto-detect engine if the configured path doesn't work. Use a deep
+        # probe so a stale/broken binary is caught here (and triggers the
+        # download dialog) rather than failing mid-analysis.
+        resolved = resolve_engine_path(self.config_manager, deep_probe=True)
         if resolved:
             if resolved != self.engine_path:
                 self.engine_path = resolved

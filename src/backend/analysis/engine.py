@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any, Tuple, List
 from src.utils.logger import logger
 from src.utils.path_utils import get_stockfish_common_paths, get_engine_data_dir
 from src.constants import DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
+from src.backend.engine.downloader import probe_engine_binary
 
 
 def engine_options(threads: int, hash_mb: int) -> Dict[str, Any]:
@@ -63,7 +64,7 @@ def _save_fallback_to_config(config_manager, resolved_path: str) -> None:
         config_manager.save_config()
 
 
-def resolve_engine_path(config_manager=None) -> Optional[str]:
+def resolve_engine_path(config_manager=None, deep_probe: bool = False) -> Optional[str]:
     """Auto-detect a Stockfish binary using the priority table.
     Result is cached for the lifetime of the process (call
     invalidate_engine_cache() if the config changes).
@@ -78,48 +79,67 @@ def resolve_engine_path(config_manager=None) -> Optional[str]:
 
     When a fallback path is used (priorities 2-4), the config is updated
     so the Settings UI reflects the working path on next load.
+
+    Args:
+        deep_probe: When True, additionally run a UCI handshake on each
+            candidate (self-healing for a broken/stale engine). Disabled by
+            default because it spawns the engine and is comparatively slow.
+
     Returns the path string or ``None`` if nothing was found.
     """
     global _resolve_cache
-    if _resolve_cache is not None:
+    if not deep_probe and _resolve_cache is not None:
         return _resolve_cache
+
+    def _accept(path: str) -> bool:
+        if not _validate_engine_path(path):
+            return False
+        if deep_probe and not probe_engine_binary(path):
+            logger.warning("resolve_engine_path: %s failed UCI probe", path)
+            return False
+        return True
+
+    def _remember(path: str) -> None:
+        if not deep_probe:
+            _resolve_cache = path
 
     # Priority 1 – explicit user setting
     if config_manager is not None:
         cfg_path = config_manager.get("engine_path", "")
         if cfg_path:
             resolved = shutil.which(cfg_path) or cfg_path
-            if _validate_engine_path(resolved):
+            if _accept(resolved):
                 logger.info("resolve_engine_path: using config path %s", resolved)
-                _resolve_cache = resolved
+                _remember(resolved)
                 return resolved
 
     # Priority 2 – PATH lookup
     which_path = shutil.which("stockfish")
-    if which_path and _validate_engine_path(which_path):
+    if which_path and _accept(which_path):
         logger.info("resolve_engine_path: found via PATH at %s", which_path)
         _save_fallback_to_config(config_manager, which_path)
-        _resolve_cache = which_path
+        _remember(which_path)
         return which_path
 
     # Priority 3 – platform-specific common paths
     for candidate in get_stockfish_common_paths():
-        if _validate_engine_path(candidate):
+        if _accept(candidate):
             logger.info("resolve_engine_path: found at common path %s", candidate)
             _save_fallback_to_config(config_manager, candidate)
-            _resolve_cache = candidate
+            _remember(candidate)
             return candidate
 
     # Priority 4 – previously downloaded
     downloaded = os.path.join(get_engine_data_dir(), "stockfish")
-    if _validate_engine_path(downloaded):
+    if _accept(downloaded):
         logger.info("resolve_engine_path: found previously downloaded at %s", downloaded)
         _save_fallback_to_config(config_manager, downloaded)
-        _resolve_cache = downloaded
+        _remember(downloaded)
         return downloaded
 
     logger.info("resolve_engine_path: no Stockfish found, returning None")
-    _resolve_cache = None
+    if not deep_probe:
+        _resolve_cache = None
     return None
 
 
