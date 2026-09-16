@@ -796,95 +796,96 @@ class MainWindow(QMainWindow):
         if page_index == 0:  # ── Analysis ───────────────────────────────────
             steps.append(TourStep(
                 target=self.btn_load,
-                text='Load a game via PGN file, paste PGN text, or fetch directly from Chess.com / Lichess using "Load Game".',
+                text='Load a game from a PGN file, raw text, or fetch directly by username or date from Chess.com and Lichess.',
                 position="below", page_index=0,
             ))
             steps.append(TourStep(
                 target=self.btn_analyze,
-                text='Click "Analyze Game" to run Stockfish on every move. Each move gets classified: brilliant, best, excellent, good, inaccuracy, mistake, or blunder.',
+                text='Click "Analyze Game" to start Stockfish. Engine evaluations, best moves, and classification badges stream live onto the board and move list.',
                 position="below", page_index=0,
             ))
             steps.append(TourStep(
                 target=self.board_widget,
-                text="Navigate with the arrow keys or by clicking moves in the list. The board is interactive and shows the current position.",
+                text="Interactive chessboard showing the current move, best-move arrows, and material advantage counts.",
                 position="right", page_index=0,
             ))
             steps.append(TourStep(
                 target=self.move_list_panel,
-                text="The move list shows colour-coded badges (brilliant, best, inaccuracy, blunder). The live engine line updates as you navigate.",
-                position="right", page_index=0,
+                text="Colour-coded move list with classification badges (Brilliant, Great, Best, Inaccuracy, Blunder) and live engine lines.",
+                position="left", page_index=0,
             ))
             steps.append(TourStep(
                 target=self.analysis_panel,
-                text="The eval graph, engine lines, and AI Coach summary are here. Click any point on the graph to jump to that move.",
+                text="Evaluation graph with active move cursor pin, circular accuracy gauges, and AI Coach game summaries.",
                 position="left", page_index=0,
             ))
             steps.append(TourStep(
                 target=self.btn_explore,
-                text='"Explore from here" opens the Opening Explorer at the current board position so you can study master-level continuations.',
+                text='"Explore from here" opens the Opening Explorer at the current position to study master continuations.',
                 position="below", page_index=0,
             ))
 
         elif page_index == 1:  # ── Explorer ────────────────────────────────
-            steps.append(TourStep(
-                target=ev.header_bar if hasattr(ev, 'header_bar') else ev,
-                text="The ECO code and full opening name for the current position are shown in the header badge, updating with every move.",
-                position="below", page_index=1,
-            ))
-            steps.append(TourStep(
-                target=ev.board_widget if hasattr(ev, 'board_widget') else ev,
-                text="Click squares to make moves, or use the arrow keys to walk through your move history. The engine evaluates each position in real time.",
-                position="right", page_index=1,
-            ))
-            steps.append(TourStep(
-                target=ev.book_toggle if hasattr(ev, 'book_toggle') else ev,
-                text="Book Moves lists the most-played responses from master games. Click any move to play it instantly on the board.",
-                position="right", page_index=1,
-            ))
-            steps.append(TourStep(
-                target=ev.lines_widget if hasattr(ev, 'lines_widget') else ev,
-                text="Engine Lines shows Stockfish top candidate moves with evaluation scores. Raise multi-PV in Settings to see more alternatives.",
-                position="left", page_index=1,
-            ))
-            steps.append(TourStep(
-                target=ev.chk_classify if hasattr(ev, 'chk_classify') else ev,
-                text='Enable "Classify Moves" to get brilliant/blunder badges on every move you play in the explorer, just like full analysis mode.',
-                position="above", page_index=1,
-            ))
-            steps.append(TourStep(
-                target=ev.move_list_widget if hasattr(ev, 'move_list_widget') else ev,
-                text="Your move history. You can also type a move in SAN notation (e.g. e4, Nf3) in the input box to jump to any position quickly.",
-                position="left", page_index=1,
-            ))
+            if hasattr(ev, 'header_bar'):
+                steps.append(TourStep(
+                    target=ev.header_bar,
+                    text="Displays opening ECO code and opening name, updating with every played move.",
+                    position="below", page_index=1,
+                ))
+            if hasattr(ev, 'board_widget'):
+                steps.append(TourStep(
+                    target=ev.board_widget,
+                    text="Interactive board where you can play moves or walk through variations with real-time engine evaluations.",
+                    position="right", page_index=1,
+                ))
+            if hasattr(ev, 'chk_classify'):
+                steps.append(TourStep(
+                    target=ev.chk_classify,
+                    text='Toggle "Classify Moves" to get instant Brilliant, Great, and Blunder badges on every move you play.',
+                    position="below", page_index=1,
+                ))
+            if hasattr(ev, 'book_toggle'):
+                steps.append(TourStep(
+                    target=ev.book_toggle,
+                    text="Book Moves queries the Lichess Masters & Public database with interactive Win/Draw/Loss ratio bars and move statistics.",
+                    position="left", page_index=1,
+                ))
+            if hasattr(ev, 'btn_flip'):
+                steps.append(TourStep(
+                    target=ev.btn_flip,
+                    text="Use Flip Board, Copy FEN, and Copy PGN to easily export, analyze, or share any board position.",
+                    position="below", page_index=1,
+                ))
 
         elif page_index == 2:  # ── History ──────────────────────────────────
-            steps.append(TourStep(
-                target=hv.search_input if hasattr(hv, 'search_input') else hv,
-                text="Search your game history by player name, opening ECO, event, or result. The list filters instantly as you type.",
-                position="below", page_index=2,
-            ))
+            if hasattr(hv, 'search_input'):
+                steps.append(TourStep(
+                    target=hv.search_input,
+                    text="Search your game history by player handle, opening ECO, date, or match event in real time.",
+                    position="below", page_index=2,
+                ))
             if hasattr(hv, 'result_filter'):
                 steps.append(TourStep(
                     target=hv.result_filter,
-                    text="Filter by result (Win / Draw / Loss) or by source (Chess.com / Lichess / PGN file) using the dropdowns.",
+                    text="Filter by outcome (Wins / Draws / Losses), time control speed (Rapid, Blitz, Bullet), or platform source.",
                     position="below", page_index=2,
+                ))
+            if hasattr(hv, 'game_list'):
+                steps.append(TourStep(
+                    target=hv.game_list,
+                    text="Saved game archives displayed as rich cards with accuracy badges, termination reasons, and a Detailed vs. Compact view toggle.",
+                    position="above", page_index=2,
                 ))
             if hasattr(hv, 'btn_export'):
                 steps.append(TourStep(
                     target=hv.btn_export,
-                    text='"Export" saves all your analyzed games to a PGN file you can open in Lichess Studies, ChessBase, or any other chess app.',
-                    position="left", page_index=2,
-                ))
-            if hasattr(hv, 'btn_import'):
-                steps.append(TourStep(
-                    target=hv.btn_import,
-                    text='"Import" loads a previously exported PGN back into your history. Use this to restore a backup or transfer games between machines.',
+                    text='"Export" saves your analyzed games to standard PGN files compatible with any chess platform.',
                     position="left", page_index=2,
                 ))
             if hasattr(hv, 'btn_clear'):
                 steps.append(TourStep(
                     target=hv.btn_clear,
-                    text='"Clear History" permanently deletes all saved games. Always export a backup first if you want to keep the data.',
+                    text='"Clear History" permanently deletes saved games. Always export a backup first if you want to keep the data.',
                     position="left", page_index=2,
                 ))
 
@@ -892,76 +893,88 @@ class MainWindow(QMainWindow):
             if hasattr(mv, 'btn_refresh'):
                 steps.append(TourStep(
                     target=mv.btn_refresh,
-                    text="Stats update automatically when you open this page. Hit Refresh to pick up any games analyzed since the last load.",
+                    text="Stats update automatically when you open this page. Hit Refresh to recalculate with newly analyzed games.",
                     position="left", page_index=3,
                 ))
-            if hasattr(mv, 'accuracy_card'):
+            if hasattr(mv, 'stats_container') and mv.stats_container.isVisible():
                 steps.append(TourStep(
-                    target=mv.accuracy_card,
-                    text="Accuracy Trend shows your average move accuracy over time. Watch the line climb as your chess improves.",
-                    position="right", page_index=3,
+                    target=mv.stats_container,
+                    text="Key performance summary cards displaying total games analyzed, overall win rate, average accuracy, and best win.",
+                    position="below", page_index=3,
                 ))
-            if hasattr(mv, 'result_card'):
+            if hasattr(mv, 'result_card') and mv.result_card.isVisible():
                 steps.append(TourStep(
                     target=mv.result_card,
-                    text="Result Distribution breaks down your wins, draws, and losses by colour (White / Black).",
-                    position="right", page_index=3,
+                    text="Visual donut charts breaking down your win/loss distribution, game endings, and move quality ratings.",
+                    position="below", page_index=3,
                 ))
-            if hasattr(mv, 'openings_card'):
+            if hasattr(mv, 'accuracy_card') and mv.accuracy_card.isVisible():
+                steps.append(TourStep(
+                    target=mv.accuracy_card,
+                    text="Accuracy Trend charts your average move accuracy trajectory over time.",
+                    position="above", page_index=3,
+                ))
+            if hasattr(mv, 'openings_card') and mv.openings_card.isVisible():
                 steps.append(TourStep(
                     target=mv.openings_card,
-                    text="Top Openings ranks your most-played openings by win rate — double down on what works and study what doesn't.",
-                    position="left", page_index=3,
+                    text="Top Openings ranks your most successful repertoires and win rates.",
+                    position="above", page_index=3,
                 ))
-            if hasattr(mv, 'ai_coach_card'):
+            if hasattr(mv, 'ai_coach_card') and mv.ai_coach_card.isVisible():
                 steps.append(TourStep(
                     target=mv.ai_coach_card,
-                    text="AI Coach reads your stats and writes personalised advice: patterns to fix, openings to study, and training priorities.",
-                    position="left", page_index=3,
+                    text="AI Coach provides personalized tactical advice, pattern weaknesses, and tailored training priorities.",
+                    position="above", page_index=3,
                 ))
             if not steps:
                 steps.append(TourStep(
                     target=mv,
                     text="Your personal performance dashboard with accuracy trends, result breakdown, top openings, and AI Coach insights.",
-                    position="right", page_index=3,
+                    position="below", page_index=3,
                 ))
 
         elif page_index == 4:  # ── Settings ─────────────────────────────────
-            if hasattr(sv, 'path_input'):
+            eng = getattr(sv, 'engine_settings', None)
+            app = getattr(sv, 'appearance_settings', None)
+            api = getattr(sv, 'api_settings', None)
+            ply = getattr(sv, 'player_settings', None)
+            lnk = getattr(sv, 'links_settings', None)
+
+            if eng:
                 steps.append(TourStep(
-                    target=sv.path_input,
-                    text="Engine Path points to your Stockfish binary. Leave blank to auto-detect from PATH (works if installed via Homebrew or a package manager).",
+                    target=eng,
+                    text="Chess Engine: Configure your Stockfish executable path (or click Download), search depth, and thread allocations.",
                     position="below", page_index=4,
                 ))
-            if hasattr(sv, 'depth_combo'):
+            if app:
                 steps.append(TourStep(
-                    target=sv.depth_combo,
-                    text="Analysis Depth controls how deep Stockfish searches (default 18). Higher = more accurate, but slower. 15-20 is ideal for most hardware.",
+                    target=app,
+                    text="Appearance: Switch between Dark & Light themes, choose custom board themes, import custom piece SVGs, and pick live accent colors.",
                     position="below", page_index=4,
                 ))
-            if hasattr(sv, 'llm_profile_combo'):
+            if api:
                 steps.append(TourStep(
-                    target=sv.llm_profile_combo,
-                    text="LLM Profiles let you configure multiple AI providers (Groq, OpenAI, LM Studio, MiniMax). Switch between them or create new ones here.",
-                    position="below", page_index=4,
+                    target=api,
+                    text="API Configuration: Manage LLM profiles (Groq, OpenAI, LM Studio, MiniMax) for AI Coach game reviews.",
+                    position="above", page_index=4,
                 ))
-            if hasattr(sv, 'llm_key_input'):
+            if ply:
                 steps.append(TourStep(
-                    target=sv.llm_key_input,
-                    text="Paste your API key here. For Groq the free tier is very generous. For LM Studio, set the Base URL to your local server address.",
-                    position="below", page_index=4,
+                    target=ply,
+                    text="Player Accounts: Set your Chess.com and Lichess handles for automated performance stats and one-click game imports.",
+                    position="above", page_index=4,
                 ))
-            if hasattr(sv, 'theme_combo'):
+            if lnk:
                 steps.append(TourStep(
-                    target=sv.theme_combo,
-                    text="Board Theme and Piece Style let you personalise the look. Changes apply instantly without restarting.",
-                    position="below", page_index=4,
+                    target=lnk,
+                    text="Links & Feedback: Check for updates, rate the app, submit feature ideas, or report bugs with diagnostic logs.",
+                    position="above", page_index=4,
                 ))
             if not steps:  # fallback
                 steps.append(TourStep(
                     target=sv,
                     text="Configure Stockfish engine path, analysis depth, AI provider, board theme, and piece style here.",
-                    position="right", page_index=4,
+                    position="below", page_index=4,
                 ))
 
         return steps

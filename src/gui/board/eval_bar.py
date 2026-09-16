@@ -17,30 +17,38 @@ class EvalBarWidget(QWidget):
         # Timer started on demand in set_eval()
         
     def set_eval(self, cp=None, mate=None):
-        self.target_cp = cp if cp is not None else 0.0
-        self.mate = mate
-        # If mate, snap immediately
-        if mate is not None:
-            self.cp = self.target_cp
-        elif abs(self.target_cp - self.cp) > 1:
-            if not self.timer.isActive():
-                self.timer.start(16)
-        
-        self.update()
+        try:
+            self.target_cp = cp if cp is not None else 0.0
+            self.mate = mate
+            # If mate, snap immediately
+            if mate is not None:
+                self.cp = self.target_cp
+            elif abs(self.target_cp - self.cp) > 1:
+                if hasattr(self, 'timer') and self.timer and not self.timer.isActive():
+                    self.timer.start(16)
+            
+            self.update()
+        except (RuntimeError, AttributeError):
+            pass
         
     def animate(self):
-        if self.mate is not None:
-            self.timer.stop()
-            return
-            
-        diff = self.target_cp - self.cp
-        if abs(diff) < 1:
-            self.cp = self.target_cp
-            self.timer.stop()
-        else:
-            # Simple lerp
-            self.cp += diff * 0.1
-            self.update()
+        try:
+            if self.mate is not None:
+                if hasattr(self, 'timer') and self.timer:
+                    self.timer.stop()
+                return
+                
+            diff = self.target_cp - self.cp
+            if abs(diff) < 1:
+                self.cp = self.target_cp
+                if hasattr(self, 'timer') and self.timer:
+                    self.timer.stop()
+            else:
+                # Simple lerp
+                self.cp += diff * 0.1
+                self.update()
+        except (RuntimeError, AttributeError):
+            pass
         
     def paintEvent(self, event):
         painter = QPainter(self)

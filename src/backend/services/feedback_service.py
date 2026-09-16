@@ -28,7 +28,7 @@ def get_platform_name() -> str:
 
 
 def get_formatted_version() -> str:
-    """Return version string with 'v' prefix, e.g. v2.2.0."""
+    """Return version string with 'v' prefix, e.g. v2.3.0."""
     return f"v{APP_VERSION}" if not APP_VERSION.startswith("v") else APP_VERSION
 
 
