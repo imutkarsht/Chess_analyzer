@@ -44,6 +44,11 @@ class ConfigManager:
         "lichess_token": "",
         "chesscom_username": "",
         "lichess_username": "",
+        # In-app review prompt tracking
+        "games_analyzed_count": 0,
+        "review_submitted": False,
+        "review_prompt_dismissed": False,
+        "review_next_prompt_count": 3,
     }
 
     # Human-readable name used when creating the first migration profile.

@@ -216,7 +216,11 @@ class BoardWidget(QWidget):
 
         # Generate custom SVG with our piece definitions
         svg_data = self._generate_custom_board_svg(colors, piece_defs)
-        self.svg_widget.load(svg_data)
+        try:
+            self.svg_widget.load(svg_data)
+        except RuntimeError:
+            # Widget is being torn down
+            pass
     
     def _generate_custom_board_svg(self, colors, piece_defs):
         """

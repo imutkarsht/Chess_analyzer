@@ -25,6 +25,13 @@ CHESSCOM_CALLBACK_LIVE = "https://www.chess.com/callback/live/game"
 CHESSCOM_CALLBACK_DAILY = "https://www.chess.com/callback/daily/game"
 LICHESS_EXPLORER_URL = "https://explorer.lichess.ovh/lichess"
 
+# Feedback & Review API
+FEEDBACK_API_BASE = "https://chessanalyzer.xyz"
+FEEDBACK_REVIEWS_URL = "https://chessanalyzer.xyz/api/reviews"
+FEEDBACK_URL = "https://chessanalyzer.xyz/api/feedback"
+DEFAULT_REVIEW_PROMPT_THRESHOLD = 3
+REVIEW_SNOOZE_INTERVAL = 5
+
 # Matplotlib defaults
 MATPLOTLIB_DPI = 100
 
