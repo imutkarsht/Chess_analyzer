@@ -33,10 +33,10 @@ def test_engine_options_builds_uci_dict():
 
 
 def test_options_from_config_without_manager_uses_defaults():
-    """Without a ConfigManager we get the module-level defaults."""
+    """Without a ConfigManager we get the conservative laptop-safe defaults."""
     opts = options_from_config(None)
-    assert opts["Threads"] == DEFAULT_ENGINE_THREADS
-    assert opts["Hash"] == DEFAULT_ENGINE_HASH_MB
+    assert opts["Threads"] == DEFAULT_ENGINE_THREADS == 1
+    assert opts["Hash"] == DEFAULT_ENGINE_HASH_MB == 128
 
 
 def test_apply_settings_runs_on_running_engine(mocker):

@@ -235,10 +235,12 @@ class TourOverlay(QWidget):
     def _widget_rect_in_parent(self, widget: QWidget) -> QRect:
         parent = self.parent()
         try:
+            if not widget or not widget.isVisible():
+                return QRect()
             tl = widget.mapToGlobal(QPoint(0, 0))
             return QRect(parent.mapFromGlobal(tl), widget.size())
         except Exception:
-            return QRect(0, 0, 100, 30)
+            return QRect()
 
     def _position_bubble(self, position: str):
         target = self._highlight_rect
@@ -246,6 +248,26 @@ class TourOverlay(QWidget):
         bw = self.bubble.width()
         bh = self.bubble.height()
         gap = 18
+
+        if target.isNull() or target.isEmpty():
+            x = max(12, (pr.width() - bw) // 2)
+            y = max(12, (pr.height() - bh) // 2)
+            self.bubble.move(x, y)
+            return
+
+        # Smart flip if the requested placement overflows viewport edges
+        if position == "above" and (target.top() - bh - gap < 12):
+            if target.bottom() + gap + bh <= pr.height() - 12:
+                position = "below"
+        elif position == "below" and (target.bottom() + gap + bh > pr.height() - 12):
+            if target.top() - bh - gap >= 12:
+                position = "above"
+        elif position == "left" and (target.left() - bw - gap < 12):
+            if target.right() + gap + bw <= pr.width() - 12:
+                position = "right"
+        elif position == "right" and (target.right() + gap + bw > pr.width() - 12):
+            if target.left() - bw - gap >= 12:
+                position = "left"
 
         if position == "above":
             x = target.center().x() - bw // 2
@@ -260,9 +282,9 @@ class TourOverlay(QWidget):
             x = target.right() + gap
             y = target.center().y() - bh // 2
 
-        # Clamp inside the window
-        x = max(8, min(x, pr.width() - bw - 8))
-        y = max(8, min(y, pr.height() - bh - 8))
+        # Clamp inside the window margin
+        x = max(12, min(x, pr.width() - bw - 12))
+        y = max(12, min(y, pr.height() - bh - 12))
         self.bubble.move(x, y)
 
     # ── Pulse animation ───────────────────────────────────────────────────

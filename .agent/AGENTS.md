@@ -1,9 +1,10 @@
 # Chess Analyzer Pro — Agent Knowledge Base
 
 ## Project Purpose
+
 Chess Analyzer Pro is a local-first Python desktop application for analyzing chess games. It integrates Stockfish for engine evaluation, PyQt6 for the GUI, SQLite for persistence, and optional LLM providers (Groq, OpenAI, LM Studio, MiniMax) for AI-generated game summaries.
 
-Current version: **2.0.1** (`src/constants.py`)  
+Current version: **2.3.0** (`src/constants.py`)  
 Website: https://chess-analyzer-ut.vercel.app/
 
 ---
@@ -32,24 +33,26 @@ Backend (no Qt dependency):
 ---
 
 ## Main Technologies
-| Layer | Technology |
-|---|---|
-| Language | Python 3.10+ |
-| GUI | PyQt6 ≥ 6.4 |
-| Chess logic | python-chess ≥ 1.9 |
-| Engine | Stockfish (UCI protocol) |
-| Database | SQLite via `sqlite3` stdlib |
-| LLM | `openai` SDK (compatible with all providers) |
-| Charts | Matplotlib ≥ 3.7 |
-| Icons | qtawesome ≥ 1.2 |
-| HTTP | `requests` ≥ 2.31 (API imports) |
-| Config | JSON (`config.json` in platform user data dir) |
-| Packaging | PyInstaller (`build.spec`) |
-| Testing | pytest + pytest-qt + pytest-mock |
+
+| Layer       | Technology                                     |
+| ----------- | ---------------------------------------------- |
+| Language    | Python 3.10+                                   |
+| GUI         | PyQt6 ≥ 6.4                                    |
+| Chess logic | python-chess ≥ 1.9                             |
+| Engine      | Stockfish (UCI protocol)                       |
+| Database    | SQLite via `sqlite3` stdlib                    |
+| LLM         | `openai` SDK (compatible with all providers)   |
+| Charts      | Matplotlib ≥ 3.7                               |
+| Icons       | qtawesome ≥ 1.2                                |
+| HTTP        | `requests` ≥ 2.31 (API imports)                |
+| Config      | JSON (`config.json` in platform user data dir) |
+| Packaging   | PyInstaller (`build.spec`)                     |
+| Testing     | pytest + pytest-qt + pytest-mock               |
 
 ---
 
 ## Coding Conventions
+
 - **Python typing**: All public functions use type hints; `Optional[X]` for nullable.
 - **Dataclasses**: Core data models (`MoveAnalysis`, `GameMetadata`, `GameAnalysis`) live in `src/backend/storage/models.py` as `@dataclass`.
 - **QThread workers**: Long-running tasks (analysis, AI summary, downloads) run in `QThread` subclasses and communicate via `pyqtSignal`.
@@ -62,6 +65,7 @@ Backend (no Qt dependency):
 ---
 
 ## Important Commands
+
 ```bash
 # Run application
 python main.py
@@ -81,7 +85,7 @@ pyinstaller build.spec
 ## Directory Responsibilities
 
 | Path | Responsibility |
-|---|---|
+| --- | --- |
 | `main.py` | Entry point, splash screen, Qt app lifecycle |
 | `src/constants.py` | App version, API URLs, LLM provider catalogue, platform updater rules |
 | `src/backend/analysis/` | Stockfish engine wrapper, move analysis loop, classification, accuracy math |
@@ -106,12 +110,15 @@ pyinstaller build.spec
 ---
 
 ## User Data Storage (platform-specific)
+
 All runtime data is stored outside the project directory:
+
 - **macOS**: `~/Library/Application Support/ChessAnalyzerPro/`
 - **Windows**: `%APPDATA%\ChessAnalyzerPro\`
 - **Linux**: `~/.local/share/chessanalyzerpro/`
 
 Files stored:
+
 - `config.json` — user preferences
 - `analysis_cache.db` — SQLite: both `analysis` table (engine cache) and `games` table (history)
 
@@ -120,19 +127,23 @@ Files stored:
 ## Common Development Workflows
 
 ### Adding a new LLM provider
+
 1. Add entry to `PROVIDERS` dict in `src/constants.py`.
 2. `GroqService._connect()` auto-picks up the new provider — no changes needed there.
 3. Add to `_PROVIDER_LABELS` in `src/utils/config.py` for migration display name.
 
 ### Adding a new setting
+
 1. Add key + default to `ConfigManager.DEFAULT_CONFIG`.
 2. Add UI in `src/gui/views/settings_view.py`.
 3. Read via `config_manager.get("key", default)` wherever needed.
 
 ### Adding a new board theme
+
 1. Add entry to `Styles.BOARD_THEMES` in `src/gui/styles.py`.
 
 ### Running analysis manually (without GUI)
+
 ```python
 from src.backend.analysis.engine import EngineManager
 from src.backend.analysis.analyzer import Analyzer
@@ -147,6 +158,7 @@ analyzer.analyze_game(games[0])
 ---
 
 ## Critical Constraints
+
 - **Engine stops after analysis**: `engine_manager.stop_engine()` is called in `Analyzer.analyze_game()` finally block. The engine must be restarted for each analysis.
 - **Cache key is FEN + multi_pv** (not depth): Depth is stored separately and used as a "minimum depth" guard.
 - **ConfigManager shares state**: Do not instantiate in tight loops. One instance per class is fine; they share `_shared_config`.
