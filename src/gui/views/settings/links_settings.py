@@ -1,7 +1,7 @@
 """
 Links and Updates Settings group component.
 """
-from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QApplication
+from PyQt6.QtWidgets import QGroupBox, QGridLayout, QApplication
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
 from ...styles import Styles
@@ -18,24 +18,33 @@ class LinksSettings(QGroupBox):
         self.setup_ui()
 
     def setup_ui(self):
-        website_layout = QHBoxLayout(self)
-        website_layout.setContentsMargins(20, 25, 20, 20)
-        website_layout.setSpacing(12)
+        grid = QGridLayout(self)
+        grid.setContentsMargins(20, 25, 20, 20)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(10)
 
         self.website_btn = create_icon_button("Visit Website", "fa5s.globe", self.open_website, self)
-        website_layout.addWidget(self.website_btn)
-
-        self.feedback_btn = create_icon_button("Feedback", "fa5s.comment-dots", self.open_feedback, self)
-        website_layout.addWidget(self.feedback_btn)
-        
         self.update_btn = create_icon_button("Check for Updates", "fa5s.sync-alt", self.check_for_updates, self)
-        website_layout.addWidget(self.update_btn)
+        self.feedback_btn = create_icon_button("Feedback & Bugs", "fa5s.comment-dots", self.open_feedback, self)
+        self.rate_btn = create_icon_button("Rate App", "fa5s.star", self.open_review, self)
+
+        grid.addWidget(self.website_btn, 0, 0)
+        grid.addWidget(self.update_btn, 0, 1)
+        grid.addWidget(self.feedback_btn, 1, 0)
+        grid.addWidget(self.rate_btn, 1, 1)
 
     def open_website(self):
         QDesktopServices.openUrl(QUrl("https://chess-analyzer-ut.vercel.app/"))
 
     def open_feedback(self):
-        QDesktopServices.openUrl(QUrl("https://chess-analyzer-ut.vercel.app/feedback"))
+        from src.gui.dialogs.feedback_dialog import FeedbackDialog
+        dialog = FeedbackDialog(self, initial_tab="bug")
+        dialog.exec()
+
+    def open_review(self):
+        from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
+        dialog = ReviewPromptDialog(self, games_count=0)
+        dialog.exec()
 
     def check_for_updates(self):
         """Manually check for updates."""
@@ -74,5 +83,7 @@ class LinksSettings(QGroupBox):
             self.website_btn.setStyleSheet(Styles.get_settings_default_button_style())
         if hasattr(self, 'feedback_btn'):
             self.feedback_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, 'rate_btn'):
+            self.rate_btn.setStyleSheet(Styles.get_settings_default_button_style())
         if hasattr(self, 'update_btn'):
             self.update_btn.setStyleSheet(Styles.get_settings_default_button_style())

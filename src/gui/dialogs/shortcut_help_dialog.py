@@ -19,11 +19,15 @@ class ShortcutHelpDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Keyboard Shortcuts")
-        self.setMinimumSize(480, 420)
-        self.setMaximumSize(560, 550)
+        self.resize(520, 620)
+        self.setMinimumSize(480, 540)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {Styles.COLOR_BACKGROUND};
+            }}
+            QLabel {{
+                background: transparent;
             }}
         """)
         
@@ -135,6 +139,29 @@ class ShortcutHelpDialog(QDialog):
         scroll.setWidget(content)
         layout.addWidget(scroll)
         
+        # Footer buttons
+        btn_feedback = QPushButton("  Report Bug / Feedback")
+        btn_feedback.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                padding: 9px 18px;
+                border-radius: 6px;
+                font-weight: 500;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+        """)
+        btn_feedback.setCursor(Qt.CursorShape.PointingHandCursor)
+        if HAS_QTAWESOME:
+            btn_feedback.setIcon(qta.icon("fa5s.comment-dots", color=Styles.COLOR_TEXT_SECONDARY))
+        btn_feedback.clicked.connect(self._open_feedback)
+
         # Close button
         btn_close = QPushButton("Got it")
         btn_close.setStyleSheet(f"""
@@ -142,7 +169,7 @@ class ShortcutHelpDialog(QDialog):
                 background-color: {Styles.COLOR_ACCENT};
                 color: white;
                 border: none;
-                padding: 10px 28px;
+                padding: 9px 24px;
                 border-radius: 6px;
                 font-weight: 600;
                 font-size: 13px;
@@ -155,10 +182,15 @@ class ShortcutHelpDialog(QDialog):
         btn_close.clicked.connect(self.accept)
         
         btn_layout = QHBoxLayout()
+        btn_layout.addWidget(btn_feedback)
         btn_layout.addStretch()
         btn_layout.addWidget(btn_close)
-        btn_layout.addStretch()
         layout.addLayout(btn_layout)
+
+    def _open_feedback(self):
+        from .feedback_dialog import FeedbackDialog
+        dialog = FeedbackDialog(self, initial_tab="bug")
+        dialog.exec()
     
     def _create_shortcut_row(self, key, description):
         """Create a row with key badge and description."""

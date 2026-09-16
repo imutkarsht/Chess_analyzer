@@ -1371,6 +1371,24 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'history_view'):
             self.history_view.load_history()
 
+        # Track analyzed games count and check for in-app review prompt
+        count = self.config_manager.get("games_analyzed_count", 0) + 1
+        self.config_manager.set("games_analyzed_count", count)
+
+        next_prompt = self.config_manager.get("review_next_prompt_count", 3)
+        reviewed = self.config_manager.get("review_submitted", False)
+        dismissed = self.config_manager.get("review_prompt_dismissed", False)
+
+        if count >= next_prompt and not reviewed and not dismissed:
+            QTimer.singleShot(1500, lambda: self._prompt_review_if_active(count))
+
+    def _prompt_review_if_active(self, count: int):
+        """Display the review prompt if the main window is active."""
+        if self.isVisible() and not getattr(self, "_full_analysis_running", False):
+            from .dialogs.review_prompt_dialog import ReviewPromptDialog
+            dialog = ReviewPromptDialog(self, games_count=count)
+            dialog.exec()
+
     def on_analysis_error(self, error_msg):
         self._full_analysis_running = False
         self.analysis_panel.set_analysis_running(False)
@@ -1379,7 +1397,27 @@ class MainWindow(QMainWindow):
         logger.error(f"Analysis error: {error_msg}")
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
             self.move_list_panel.live_worker.start()
-        QMessageBox.critical(self, "Analysis Error", error_msg)
+
+        # Show error dialog with quick option to report bug
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Icon.Critical)
+        msg_box.setWindowTitle("Analysis Error")
+        msg_box.setText("An error occurred during engine analysis.")
+        msg_box.setInformativeText(str(error_msg))
+        report_btn = msg_box.addButton("Report Issue", QMessageBox.ButtonRole.ActionRole)
+        close_btn = msg_box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
+        msg_box.setDefaultButton(close_btn)
+        msg_box.exec()
+
+        if msg_box.clickedButton() == report_btn:
+            from .dialogs.feedback_dialog import FeedbackDialog
+            dialog = FeedbackDialog(
+                self,
+                initial_tab="bug",
+                initial_title="Analysis Engine Error",
+                initial_message=f"Analysis failed with error:\n{error_msg}",
+            )
+            dialog.exec()
 
     def open_load_dialog(self, initial_source: int = 0, initial_text: str = None):
         """Open the unified Load Game dialog."""
