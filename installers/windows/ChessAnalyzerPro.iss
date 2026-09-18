@@ -10,7 +10,20 @@
 ; ==============================================================================
 
 #define AppName        "Chess Analyzer Pro"
-#define AppVersion     "2.3.0"
+#ifndef AppVersion
+  ; Dynamically extract APP_VERSION from src/constants.py if not passed via /DAppVersion
+  #define FileHandle = FileOpen("..\..\src\constants.py")
+  #if FileHandle
+    #define Line = ""
+    #for {; !FileEof(FileHandle) && !Defined(AppVersion); } \
+      Line = FileRead(FileHandle), \
+      Pos("APP_VERSION", Line) ? (AppVersion = Copy(Line, Pos('"', Line) + 1, RPos('"', Line) - Pos('"', Line) - 1)) : 0
+    #expr FileClose(FileHandle)
+  #endif
+#endif
+#ifndef AppVersion
+  #error "AppVersion could not be detected from src/constants.py. Pass /DAppVersion=X.X.X to ISCC."
+#endif
 #define AppPublisher   "imutkarsht"
 #define AppURL         "https://github.com/imutkarsht/Chess_analyzer"
 #define AppExeName     "ChessAnalyzerPro.exe"

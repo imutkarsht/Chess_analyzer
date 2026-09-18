@@ -1,3 +1,4 @@
+import os
 import sys
 import pytest
 from src.constants import DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
@@ -83,6 +84,7 @@ class TestValidateEnginePath:
         p.chmod(0o755)
         assert _validate_engine_path(str(p)) is True
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="chmod exec bits have no effect on Windows")
     def test_non_executable_on_unix_returns_false(self, mocker, tmp_path):
         mocker.patch.object(sys, "platform", "linux")
         p = tmp_path / "stockfish"
@@ -210,16 +212,18 @@ class TestResolveEnginePath:
         mock_cfg = mocker.Mock()
         mock_cfg.get.return_value = ""
 
+        engine_data_dir = "/tmp/engine_data"
         mocker.patch("shutil.which", return_value=None)
         mocker.patch("src.backend.analysis.engine.get_stockfish_common_paths",
                      return_value=[])
         mocker.patch("src.backend.analysis.engine.get_engine_data_dir",
-                     return_value="/tmp/engine_data")
+                     return_value=engine_data_dir)
         mocker.patch("os.path.isfile", return_value=True)
         mocker.patch("os.access", return_value=True)
 
         result = resolve_engine_path(mock_cfg)
-        assert result == "/tmp/engine_data/stockfish"
+        # engine.py always joins "stockfish" (no .exe) for the downloaded path
+        assert result == os.path.join(engine_data_dir, "stockfish")
 
     def test_all_priorities_fail_returns_none(self, mocker):
         """When nothing is found, returns None."""

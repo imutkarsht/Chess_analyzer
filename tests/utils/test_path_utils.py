@@ -1,3 +1,4 @@
+import os
 import sys
 import pytest
 from src.utils.path_utils import (
@@ -37,12 +38,12 @@ class TestGetEngineDataDir:
         mocker.patch("src.utils.path_utils.get_user_data_dir", return_value="/base/data")
         mocker.patch("os.makedirs")
         engine_dir = get_engine_data_dir()
-        assert engine_dir == "/base/data/engine"
+        assert engine_dir == os.path.join("/base/data", "engine")
 
     def test_creates_directory(self, mocker, tmp_path):
         base = str(tmp_path / "data")
         mocker.patch("src.utils.path_utils.get_user_data_dir", return_value=base)
         engine_dir = get_engine_data_dir()
-        assert engine_dir == f"{base}/engine"
-        import os
+        assert engine_dir == os.path.join(base, "engine")
         assert os.path.isdir(engine_dir)
+

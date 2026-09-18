@@ -275,8 +275,11 @@ class TestGetDownloadCandidates:
 
 
 class TestDownloadAndExtract:
-    def create_tar_fixture(self, tmp_path, binary_name="stockfish", gz=True):
+    def create_tar_fixture(self, tmp_path, binary_name=None, gz=True):
         """Create a tar(.gz) with a Stockfish binary inside and return its path."""
+        # On Windows the downloader searches for 'stockfish.exe', on Unix 'stockfish'
+        if binary_name is None:
+            binary_name = "stockfish.exe" if sys.platform == "win32" else "stockfish"
         suffix = ".tar.gz" if gz else ".tar"
         archive = tmp_path / f"test{suffix}"
         inner_dir = tmp_path / "stockfish_dir"
@@ -319,8 +322,9 @@ class TestDownloadAndExtract:
             "https://example.com/test.tar.gz", dest, validate=False
         )
 
+        expected_name = "stockfish.exe" if sys.platform == "win32" else "stockfish"
         assert os.path.isfile(result)
-        assert result == os.path.join(dest, "stockfish")
+        assert result == os.path.join(dest, expected_name)
         assert os.access(result, os.X_OK)
 
     def test_download_and_extract_plain_tar(self, mocker, tmp_path):
