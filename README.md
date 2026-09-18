@@ -1,17 +1,17 @@
 # Chess Analyzer Pro
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg) ![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg) [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml) ![Version](https://img.shields.io/badge/version-2.3.0-green.svg)
 
 ![Chess Analyzer Pro Logo](assets/images/logo.png)
 
-> 🌐 **Official Website:** [chess-analyzer-ut.vercel.app](https://chess-analyzer-ut.vercel.app/)  
+> 🌐 **Official Website:** [chessanalyzer.xyz](https://chessanalyzer.xyz/)  
 > Visit the official site for detailed documentation, latest updates, and to report bugs or request features.
 
 ## 🎥 Showcase
 
 <p align="center">
   <a href="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/showcasevideo.mp4" target="_blank">
-    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/analysis_page.png" alt="Chess Analyzer Pro Showcase" width="80%">
+    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/analysis_page_dark.png" alt="Chess Analyzer Pro v2.3 Showcase" width="90%">
     <br>
     <sub>▶ Click to watch the showcase video</sub>
   </a>
@@ -21,21 +21,27 @@
 
 ## 📸 Screenshots
 
-| Analysis | Analysis (Graph) | Load Game |
-| :-: | :-: | :-: |
-| ![Analysis](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/analysis_page.png) | ![Analysis 2](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/analysis_page_2.png) | ![Load Game](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/load_game.png) |
+| Deep Analysis & Live Lines | Opening Explorer |
+| :-: | :-: |
+| ![Analysis View](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/analysis_page_dark.png) | ![Opening Explorer](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/explore_page_dark.png) |
 
-| History | Stats | Settings |
-| :-: | :-: | :-: |
-| ![History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/History_page.png) | ![Stats](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/stats_page.png) | ![Settings](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/settings_page1.png) |
+| Game History & Cards | Performance Metrics |
+| :-: | :-: |
+| ![Game History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/history_page_dark.png) | ![Performance Metrics](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/stats_dark.png) |
 
-| Explore | Explore (Tree) | Help |
-| :-: | :-: | :-: |
-| ![Explore](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/explore_page.png) | ![Explore 2](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/explore_page2.png) | ![Help](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/helpPopup.png) |
+<details>
+<summary><b>🔍 View More Screens (Settings, Game Import & Feedback)</b></summary>
+<br>
 
-|  | Settings (Engine) |  |
-| :-: | :-: | :-: |
-|  | ![Settings 2](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/settings_page2.png) |  |
+| Settings (Dark Mode) | Settings (Light Mode) |
+| :-: | :-: |
+| ![Settings Basic](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/settings_basic_dark.png) | ![Settings Advanced Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/settings_advanced_light.png) |
+
+| Online Game Fetcher | In-App Review & Diagnostics |
+| :-: | :-: |
+| ![Online Game Fetcher](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/game_fetch_list_dark.png) | ![Review Dialog](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/review_dialog_dark.png) |
+
+</details>
 
 ## 🚀 Features
 
@@ -104,8 +110,8 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
 1.  **Clone the Repository**
 
     ```bash
-    git clone https://github.com/yourusername/chess-analyzer-pro.git
-    cd chess-analyzer-pro
+    git clone https://github.com/imutkarsht/Chess_analyzer.git
+    cd Chess_analyzer
     ```
 
 2.  **Create a Virtual Environment (Recommended)** Using [uv](https://github.com/astral-sh/uv) (faster and more reliable):
@@ -165,8 +171,14 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
 Run the test suite to ensure everything is working correctly:
 
 ```bash
-python -m pytest tests/
+# Install dev dependencies first
+pip install -r requirements-dev.txt
+
+# Run all tests
+PYTHONPATH=. pytest tests/ -v
 ```
+
+> On Linux servers or CI without a display, set `QT_QPA_PLATFORM=offscreen` before running pytest.
 
 ## 🤝 Contributing
 
@@ -176,15 +188,15 @@ Contributions are welcome! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-> **Note:** The chess piece graphics in `assets/pieces/` are a separate work licensed under CC BY-SA 3.0 (see the [Third-Party Assets](#-third-party-assets) section below).
+> **Note:** The chess piece graphics in `assets/pieces/` are a separate third-party work dual-licensed upstream under GPLv2+ and CC BY-SA 3.0, used and distributed in this project under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) (see [Third-Party Assets](#third-party-assets) below).
 
 ## Third-Party Assets
 
 The chess piece graphics shipped in [`assets/pieces/`](assets/pieces/) come from the **Cburnett** SVG chess set by **Colin M.L. Burnett**.
 
 - Source: [Wikimedia Commons — SVG chess pieces](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces)
-- License: [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
-- Per-file notice: see [assets/pieces/THIRD-PARTY-README.md](assets/pieces/THIRD-PARTY-README.md)
+- Upstream License: Dual-licensed under **GPLv2+** and **CC BY-SA 3.0** (used here under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/))
+- Per-file notice: see [`assets/pieces/THIRD-PARTY-README.md`](assets/pieces/THIRD-PARTY-README.md) and [`LICENSE`](LICENSE)
 
 The SVGs are kept in a separate directory so they can be replaced or removed without touching the MIT-licensed source code.
 

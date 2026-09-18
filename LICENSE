@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 Chess Analyzer Pro contributors
+Copyright (c) 2024-2026 imutkarsht and Chess Analyzer Pro contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,8 +35,9 @@ The chess piece icons located in the `assets/pieces/` directory are:
 - Per-file attribution: see `assets/pieces/THIRD-PARTY-README.md`
 
 These graphical assets are NOT covered by the MIT License of this project.
-Instead, they are licensed under the terms of the Creative Commons
-Attribution-ShareAlike 3.0 Unported License (CC BY-SA 3.0).
+Upstream, they are dual-licensed under GPLv2+ and the Creative Commons
+Attribution-ShareAlike 3.0 Unported License (CC BY-SA 3.0). This project
+uses and distributes them under the terms of CC BY-SA 3.0.
 
 You can find a copy of this license at:
 https://creativecommons.org/licenses/by-sa/3.0/
