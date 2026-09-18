@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: 'requirements.txt'
+          cache-dependency-path: 'requirements-dev.txt'
 
       - name: Install Linux System Dependencies (Qt6 / XCB / OpenGL)
         if: runner.os == 'Linux'
@@ -63,7 +63,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Run Test Suite (pytest)
         run: |

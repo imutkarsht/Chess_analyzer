@@ -17,7 +17,7 @@ SRC_LICHESS = 3
 # API Constants
 CHESSCOM_BASE_URL = "https://api.chess.com/pub"
 CHESSCOM_HEADERS = {
-    "User-Agent": "ChessAnalyzer/1.0 (contact: your_email@example.com)"
+    "User-Agent": f"ChessAnalyzerPro/{APP_VERSION} (https://github.com/imutkarsht/Chess_analyzer)"
 }
 LICHESS_BASE_URL = "https://lichess.org/api/games/user"
 LICHESS_EXPORT_URL = "https://lichess.org/game/export"
