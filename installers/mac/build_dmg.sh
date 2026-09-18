@@ -19,12 +19,16 @@ set -euo pipefail
 # Configuration
 # ---------------------------------------------------------------------------
 APP_NAME="Chess Analyzer Pro"
-APP_VERSION="2.3.0"
 BUNDLE_NAME="ChessAnalyzerPro"
 
 # Paths (relative to project root — run this script from the project root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Dynamically resolve version from src/constants.py if not provided in environment
+if [ -z "${APP_VERSION:-}" ]; then
+    APP_VERSION=$(python3 -c "import re; print(re.search(r'APP_VERSION\s*=\s*[\"\'\']([^\"\'\']+)[\"\'\']', open('${PROJECT_ROOT}/src/constants.py').read()).group(1))" 2>/dev/null || echo "0.0.0")
+fi
 
 APP_BUNDLE="${PROJECT_ROOT}/dist/${BUNDLE_NAME}.app"
 DMG_OUTPUT_DIR="${SCRIPT_DIR}/Output"

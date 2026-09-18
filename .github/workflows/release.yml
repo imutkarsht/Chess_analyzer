@@ -1,0 +1,244 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Version tag to build (leave blank to read from src/constants.py)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-version:
+    name: Resolve Version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.ver.outputs.TAG }}
+      version: ${{ steps.ver.outputs.VERSION }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Release Version
+        id: ver
+        run: |
+          RAW_TAG="${{ github.event.inputs.tag_name }}"
+          if [ -z "$RAW_TAG" ]; then
+            if [[ "${{ github.ref_name }}" =~ ^v[0-9] ]]; then
+              RAW_TAG="${{ github.ref_name }}"
+            else
+              CONST_VER=$(python3 -c "import re; print(re.search(r'APP_VERSION\s*=\s*[\"\'\']([^\"\'\']+)[\"\'\']', open('src/constants.py').read()).group(1))")
+              RAW_TAG="v${CONST_VER}"
+            fi
+          fi
+          VERSION="${RAW_TAG#v}"
+          echo "TAG=${RAW_TAG}" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Resolved Tag: ${RAW_TAG}"
+          echo "Resolved Version: ${VERSION}"
+
+  build-macos:
+    name: Build macOS DMG
+    needs: [prepare-version]
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Install Prerequisites
+        run: |
+          brew install create-dmg
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build PyInstaller App Bundle
+        run: |
+          pyinstaller build.spec
+
+      - name: Build DMG Installer
+        env:
+          APP_VERSION: ${{ needs.prepare-version.outputs.version }}
+        run: |
+          chmod +x installers/mac/build_dmg.sh
+          ./installers/mac/build_dmg.sh
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: installers/mac/Output/*.dmg
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows Setup (.exe)
+    needs: [prepare-version]
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Install Inno Setup & Python Dependencies
+        shell: pwsh
+        run: |
+          choco install inno-setup -y --no-progress
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build PyInstaller Bundle
+        shell: pwsh
+        run: |
+          pyinstaller build.spec
+
+      - name: Build Windows Installer
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ needs.prepare-version.outputs.version }}
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\installers\windows\build_installer.ps1
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-setup
+          path: installers/windows/Output/*.exe
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux AppImage
+    needs: [prepare-version]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
+            libxcb-xfixes0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3 \
+            fuse libfuse2 desktop-file-utils
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build PyInstaller Bundle
+        run: |
+          pyinstaller build.spec
+
+      - name: Build AppImage
+        env:
+          APP_VERSION: ${{ needs.prepare-version.outputs.version }}
+        run: |
+          chmod +x installers/linux/build_appimage.sh
+          ./installers/linux/build_appimage.sh
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: installers/linux/Output/*.AppImage
+          if-no-files-found: error
+
+  create-draft-release:
+    name: Create Draft Release on GitHub
+    needs: [prepare-version, build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Release Notes from CHANGELOG.md
+        run: |
+          python - << 'EOF'
+          import os, sys
+
+          tag = "${{ needs.prepare-version.outputs.tag }}"
+          version = "${{ needs.prepare-version.outputs.version }}"
+
+          notes_lines = []
+          capturing = False
+
+          try:
+              if os.path.exists("CHANGELOG.md"):
+                  with open("CHANGELOG.md", "r", encoding="utf-8") as f:
+                      for line in f:
+                          clean = line.strip()
+                          if not capturing and (clean.startswith(f"## v{version}") or clean.startswith(f"## {version}")):
+                              capturing = True
+                              continue
+                          elif capturing:
+                              if clean.startswith("## ") or clean.startswith("---"):
+                                  break
+                              notes_lines.append(line)
+          except Exception as e:
+              print(f"Error reading changelog: {e}", file=sys.stderr)
+
+          notes = "".join(notes_lines).strip()
+          if not notes:
+              notes = f"Release {tag} of Chess Analyzer Pro.\n\nSee CHANGELOG.md for full details."
+
+          with open("RELEASE_NOTES.md", "w", encoding="utf-8") as f:
+              f.write(notes + "\n")
+          EOF
+
+      - name: Download All Built Installers
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets/
+          merge-multiple: true
+
+      - name: List Release Assets
+        run: |
+          ls -la release-assets/
+
+      - name: Create Draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-version.outputs.tag }}
+          name: Chess Analyzer Pro ${{ needs.prepare-version.outputs.tag }}
+          body_path: RELEASE_NOTES.md
+          draft: true
+          prerelease: false
+          files: release-assets/*

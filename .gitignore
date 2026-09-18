@@ -46,3 +46,5 @@ installers/mac/Output
 .agent/.DS_Store
 .agent/Thumbs.db
 .opencode/*
+
+/planning
