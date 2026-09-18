@@ -222,8 +222,8 @@ class TestResolveEnginePath:
         mocker.patch("os.access", return_value=True)
 
         result = resolve_engine_path(mock_cfg)
-        expected_name = "stockfish.exe" if sys.platform == "win32" else "stockfish"
-        assert result == os.path.join(engine_data_dir, expected_name)
+        # engine.py always joins "stockfish" (no .exe) for the downloaded path
+        assert result == os.path.join(engine_data_dir, "stockfish")
 
     def test_all_priorities_fail_returns_none(self, mocker):
         """When nothing is found, returns None."""
