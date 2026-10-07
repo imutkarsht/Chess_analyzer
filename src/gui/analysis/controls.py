@@ -1,27 +1,28 @@
 """
 Game navigation controls widget.
 """
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QWidget
+
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 
 
 class GameControlsWidget(QWidget):
     """Widget with navigation controls for stepping through game moves."""
-    
+
     first_clicked = pyqtSignal()
     prev_clicked = pyqtSignal()
     next_clicked = pyqtSignal()
     last_clicked = pyqtSignal()
     flip_clicked = pyqtSignal()
-    
+
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 10, 0, 10)
         layout.setSpacing(10)
-        
+
         self.btn_first = create_button("<<", style="secondary", on_click=self.first_clicked.emit)
         self.btn_prev = create_button("<", style="secondary", on_click=self.prev_clicked.emit)
         self.btn_next = create_button(">", style="secondary", on_click=self.next_clicked.emit)
@@ -35,7 +36,7 @@ class GameControlsWidget(QWidget):
         for btn in (self.btn_first, self.btn_prev, self.btn_next,
                     self.btn_last, self.btn_flip):
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        
+
         layout.addWidget(self.btn_first)
         layout.addWidget(self.btn_prev)
         layout.addWidget(self.btn_next)

@@ -1,11 +1,11 @@
 """
 Custom widget representing a horizontal bar visualising the time a side spent thinking on a move.
 """
-from typing import Optional
-from PyQt6.QtWidgets import QWidget
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QColor, QBrush, QLinearGradient
-from ..styles import Styles
+from PyQt6.QtGui import QBrush, QColor, QLinearGradient, QPainter
+from PyQt6.QtWidgets import QWidget
+
 
 class ThinkTimeBar(QWidget):
     """
@@ -19,12 +19,12 @@ class ThinkTimeBar(QWidget):
 
     def __init__(self, max_seconds: float = 30.0, parent: QWidget = None):
         super().__init__(parent)
-        self._value: Optional[float] = None
+        self._value: float | None = None
         self._max = max(1.0, float(max_seconds))
         self.setMinimumWidth(50)
         self.setMinimumHeight(18)
 
-    def set_value(self, seconds: Optional[float]) -> None:
+    def set_value(self, seconds: float | None) -> None:
         if seconds is not None:
             try:
                 self._value = float(seconds)
@@ -92,13 +92,13 @@ class ThinkTimeBar(QWidget):
         font.setPointSize(9)
         font.setBold(True)
         p.setFont(font)
-        
+
         if self._value >= 3600:
             time_str = f"{self._value / 3600:.1f}h"
         elif self._value >= 60:
             time_str = f"{self._value / 60:.1f}m"
         else:
             time_str = f"{self._value:.1f}s"
-            
+
         p.drawText(rect, Qt.AlignmentFlag.AlignCenter, time_str)
         p.end()

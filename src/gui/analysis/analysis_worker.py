@@ -1,6 +1,8 @@
 from PyQt6.QtCore import QThread, pyqtSignal
+
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.storage.models import GameAnalysis
+
 
 class AnalysisWorker(QThread):
     progress = pyqtSignal(int, int) # current, total

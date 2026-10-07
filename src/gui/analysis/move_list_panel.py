@@ -1,21 +1,31 @@
 """
 Move List Panel - Displays the list of played moves in a paginated/tabular layout.
 """
+import contextlib
+
 import chess
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView
-from PyQt6.QtCore import pyqtSignal, Qt, QTimer, QSize, QEvent
-from PyQt6.QtGui import QColor, QBrush
-from src.gui.styles import Styles
-from src.gui.analysis.move_cell_widget import MoveCellWidget
-from src.gui.analysis.think_time_bar import ThinkTimeBar
+from PyQt6.QtCore import QEvent, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QHeaderView,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
 from src.gui.analysis.live_analysis import LiveAnalysisWorker
-from src.utils.resources import ResourceManager
+from src.gui.analysis.move_cell_widget import MoveCellWidget
+from src.gui.styles import Styles
 from src.utils.logger import logger
+from src.utils.resources import ResourceManager
+
 
 class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)
     lines_updated = pyqtSignal(list, bool) # lines, is_white_turn
-    
+
     def __init__(self, engine_path="stockfish", config_manager=None):
         super().__init__()
         self.layout = QVBoxLayout(self)
@@ -33,7 +43,7 @@ class MoveListPanel(QWidget):
         self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=config_manager)
         self.live_worker.info_ready.connect(self.on_live_analysis_update)
         self.live_worker.start()
-        
+
         self.live_data = {}
         self.current_turn = chess.WHITE
         self.engine_lines_enabled = False # Off by default!
@@ -43,12 +53,12 @@ class MoveListPanel(QWidget):
         # and the table would render empty cells.
         self._think_bars: list[MoveCellWidget] = []
         self._move_widgets: dict[int, MoveCellWidget] = {}
-        
+
         self.analysis_timer = QTimer()
         self.analysis_timer.setSingleShot(True)
         self.analysis_timer.setInterval(1000) # 1 second delay (more responsive)
         self.analysis_timer.timeout.connect(self.start_live_analysis)
-        
+
         # Move List Table — 3 columns: #, White, Black
         # Think-time is rendered as a thin coloured bar at the bottom of the
         # move cell itself (no separate column) so the table stays readable
@@ -67,7 +77,7 @@ class MoveListPanel(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(False)  # Using custom hover instead
         self.table.setShowGrid(False)
@@ -79,12 +89,12 @@ class MoveListPanel(QWidget):
         # Redirect arrow / Home / End keys from the table back to the main
         # window so keyboard navigation always works regardless of focus.
         self.table.installEventFilter(self)
-        
+
         # Set default row height for better click targets
         self.table.verticalHeader().setDefaultSectionSize(40)
-        
+
         self.layout.addWidget(self.table)
-        
+
         # Stretch factors
         self.layout.setStretch(0, 1)  # Table
 
@@ -95,8 +105,11 @@ class MoveListPanel(QWidget):
             Qt.Key.Key_Up,   Qt.Key.Key_Down,
             Qt.Key.Key_Home, Qt.Key.Key_End,
         }
-        if source is self.table and event.type() == QEvent.Type.KeyPress:
-            if event.key() in _NAV_KEYS:
+        if (
+            source is self.table
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() in _NAV_KEYS
+        ):
                 # Walk up to the QMainWindow and let it handle the key
                 parent = self.parent()
                 while parent is not None:
@@ -111,7 +124,7 @@ class MoveListPanel(QWidget):
         self.current_game = game_analysis
         self.live_worker.set_chess960(game_analysis.metadata.chess960)
         self.refresh()
-        
+
     def refresh(self):
         if not self.current_game:
             self.table.clearContents()
@@ -143,17 +156,15 @@ class MoveListPanel(QWidget):
             tc = ""
             if hasattr(self.current_game, 'metadata') and self.current_game.metadata:
                 tc = getattr(self.current_game.metadata, 'time_control', None) or self.current_game.metadata.headers.get("TimeControl", "")
-                
+
             base_time = 0
             if tc and tc not in ("-", "?", ""):
                 for period in tc.split(":"):
                     base_part = period.split("+")[0]      # remove increment
                     sec_part = base_part.split("/")[-1]   # remove move count
-                    try:
+                    with contextlib.suppress(ValueError):
                         base_time += int(sec_part)
-                    except ValueError:
-                        pass
-            
+
             # Default max seconds if no time control is 30.
             # Otherwise use 10% of base time, capped between 10s and 600s
             max_seconds = 30.0
@@ -230,14 +241,14 @@ class MoveListPanel(QWidget):
     def _on_cell_widget_clicked(self, index: int):
         """Forward clicks from MoveCellWidget into the existing move_selected signal."""
         self.move_selected.emit(index)
-    
+
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
         self.setStyleSheet(Styles.get_background_style())
         self.table.setStyleSheet(Styles.get_move_list_table_style())
 
         # Re-apply color for move numbers in column 0
-        from PyQt6.QtGui import QColor, QBrush
+        from PyQt6.QtGui import QBrush, QColor
         secondary_color = QColor(Styles.COLOR_TEXT_SECONDARY)
         for row in range(self.table.rowCount()):
             item = self.table.item(row, 0)
@@ -257,26 +268,26 @@ class MoveListPanel(QWidget):
     def select_move(self, index):
         if not self.current_game:
             return
-            
+
         if index < 0:
             self.table.clearSelection()
             return
-            
+
         if index >= len(self.current_game.moves):
             return
-            
+
         row = index // 2
         col = 1 if index % 2 == 0 else 2
-        
+
         self.table.setCurrentCell(row, col)
         self.table.scrollToItem(self.table.item(row, col))
-        
+
         move = self.current_game.moves[index]
         turn = chess.WHITE if index % 2 == 0 else chess.BLACK
-        
+
         # Emit signal instead of updating directly
         self.lines_updated.emit(move.multi_pvs, turn == chess.WHITE)
-        
+
         self.current_turn = turn
         self.live_data = {}
         if self.engine_lines_enabled:
@@ -310,7 +321,7 @@ class MoveListPanel(QWidget):
         multipv_id = info.get("multipv", 1)
         self.live_data[multipv_id] = info
         sorted_lines = sorted(self.live_data.values(), key=lambda x: x.get("multipv", 1))
-        
+
         # Emit signal
         self.lines_updated.emit(sorted_lines, self.current_turn == chess.WHITE)
 
