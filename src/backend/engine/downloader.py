@@ -1,19 +1,18 @@
-import sys
 import os
 import re
-import tarfile
-import zipfile
-import tempfile
 import shutil
 import stat
 import subprocess
-from typing import Optional, Callable, Iterable
+import sys
+import tarfile
+import tempfile
+import zipfile
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import requests
 
 from src.utils.logger import logger
-
 
 GITHUB_API = "https://api.github.com/repos/official-stockfish/Stockfish/releases/latest"
 GITHUB_RELEASE_BY_TAG = (
@@ -86,7 +85,7 @@ class ReleaseAsset:
 # Platform detection
 # ---------------------------------------------------------------------------
 
-def _normalize_arch(machine: Optional[str]) -> Optional[str]:
+def _normalize_arch(machine: str | None) -> str | None:
     """Map a raw ``platform.machine()`` value to a canonical arch token."""
     if not machine:
         return None
@@ -168,7 +167,7 @@ def _tokenize(name: str) -> list[str]:
     return [t for t in re.split(r"[-_.]+", name.lower()) if t]
 
 
-def _asset_os(name: str) -> Optional[str]:
+def _asset_os(name: str) -> str | None:
     if "android" in name.lower():
         return "android"
     for token in _tokenize(name):
@@ -177,7 +176,7 @@ def _asset_os(name: str) -> Optional[str]:
     return None
 
 
-def _asset_arch(name: str) -> Optional[str]:
+def _asset_arch(name: str) -> str | None:
     """Best-effort architecture detection from an asset filename."""
     tokens = _tokenize(name)
     joined = "-".join(tokens)
@@ -205,7 +204,7 @@ def _container_rank(name: str) -> int:
     return 0
 
 
-def _score_asset(asset: ReleaseAsset, system: str, arch: str) -> Optional[tuple[int, int]]:
+def _score_asset(asset: ReleaseAsset, system: str, arch: str) -> tuple[int, int] | None:
     """Return a sort key for ``asset`` on the given platform, or None to skip.
 
     Key is ``(arch_rank, container_rank)``; higher is better. Assets for a
@@ -251,13 +250,13 @@ def select_assets(releases: Iterable[ReleaseAsset]) -> list[ReleaseAsset]:
     return [asset for _key, _order, asset in scored]
 
 
-def select_asset(releases: Iterable[ReleaseAsset]) -> Optional[ReleaseAsset]:
+def select_asset(releases: Iterable[ReleaseAsset]) -> ReleaseAsset | None:
     """Return the single best asset for the current platform, or None."""
     assets = select_assets(releases)
     return assets[0] if assets else None
 
 
-def get_download_url(releases: list[ReleaseAsset], target_asset: str = "") -> Optional[str]:
+def get_download_url(releases: list[ReleaseAsset], target_asset: str = "") -> str | None:
     """Find a download URL in ``releases``.
 
     An exact name match wins (back-compat); otherwise fall back to token-based
@@ -271,7 +270,7 @@ def get_download_url(releases: list[ReleaseAsset], target_asset: str = "") -> Op
     return best.url if best else None
 
 
-def get_download_candidates(releases: Optional[list[ReleaseAsset]] = None) -> list[str]:
+def get_download_candidates(releases: list[ReleaseAsset] | None = None) -> list[str]:
     """Return ranked download URLs, falling back to a pinned known-good tag.
 
     Order:
@@ -308,9 +307,9 @@ def get_download_candidates(releases: Optional[list[ReleaseAsset]] = None) -> li
 def download_and_extract(
     url: str,
     dest_dir: str,
-    progress_callback: Optional[Callable[[int, int], None]] = None,
+    progress_callback: Callable[[int, int], None] | None = None,
     validate: bool = True,
-    fallback_urls: Optional[list[str]] = None,
+    fallback_urls: list[str] | None = None,
 ) -> str:
     """Download a Stockfish archive, extract it, and return the binary path.
 
@@ -343,7 +342,7 @@ def download_and_extract(
 def _download_one(
     url: str,
     dest_dir: str,
-    progress_callback: Optional[Callable[[int, int], None]],
+    progress_callback: Callable[[int, int], None] | None,
     validate: bool,
 ) -> str:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".download") as tmp:
@@ -448,8 +447,7 @@ def probe_engine_binary(path: str, timeout: int = 10) -> bool:
         proc = subprocess.run(
             [path],
             input=b"uci\nquit\n",
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout,
         )
     except Exception as e:
@@ -489,7 +487,7 @@ _PACKAGE_MANAGERS = [
 ]
 
 
-def try_package_manager_install() -> Optional[str]:
+def try_package_manager_install() -> str | None:
     """Best-effort Stockfish install via the system package manager.
 
     Returns the resolved binary path on success, else None. Never raises and

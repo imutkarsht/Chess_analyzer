@@ -1,5 +1,5 @@
-from typing import Tuple, Optional, List
 import chess
+
 from .models import MoveAnalysis
 
 
@@ -12,10 +12,10 @@ class TerminationDetector:
     @staticmethod
     def detect_termination(
         headers: dict,
-        moves: List[MoveAnalysis],
-        starting_fen: Optional[str] = None,
-        chess960: bool = False
-    ) -> Tuple[str, str]:
+        moves: list[MoveAnalysis],
+        starting_fen: str | None = None,
+        chess960: bool = False,
+    ) -> tuple[str, str]:
         """
         Returns (termination_mode, termination_description).
         """
@@ -95,8 +95,6 @@ class TerminationDetector:
 
         # 3. Fallback when Header is Missing or Generic ("Normal")
         if moves:
-            last_move = moves[-1]
-
             # Check if losing player timed out (clock == 0)
             if result == "1-0":
                 # Black lost. If Black's last clock is 0, it's a timeout.

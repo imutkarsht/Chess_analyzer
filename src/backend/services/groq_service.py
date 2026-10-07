@@ -16,13 +16,11 @@ existing import sites.
 import locale
 import os
 import re
-from typing import Optional
 
 from openai import OpenAI
 
-from src.utils.config import ConfigManager
-
 from src.constants import PROVIDERS
+from src.utils.config import ConfigManager
 
 # ---------------------------------------------------------------------------
 # Language detection
@@ -196,9 +194,7 @@ class GroqService:
                 return True
         # Redaction artifact: 'xxxxxx' or 'XXXXXXXX' of any length >= 2
         # (single 'x' is too short to be a useful redaction marker)
-        if re.fullmatch(r"x{2,}", candidate, flags=re.IGNORECASE):
-            return True
-        return False
+        return bool(re.fullmatch(r"x{2,}", candidate, flags=re.IGNORECASE))
 
     def _connect(self, provider: str, api_key: str, model: str, base_url: str) -> None:
         provider = self._normalise_provider(provider)
@@ -227,7 +223,7 @@ class GroqService:
                 api_key=self._api_key or "not-needed",
                 base_url=self._base_url,
             )
-        except Exception as exc:
+        except Exception:
             self.client = None
 
     @property
@@ -238,7 +234,7 @@ class GroqService:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _chat(self, prompt: str, system: Optional[str] = None) -> str:
+    def _chat(self, prompt: str, system: str | None = None) -> str:
         """Send a single-turn chat message and return the response text.
 
         ``prompt`` is always sent as the user message. ``system``, if given,

@@ -1,16 +1,19 @@
-import sqlite3
 import json
-import uuid
+import os
+import sqlite3
 import time
-from typing import List, Optional, Dict, Any
-from .models import GameAnalysis, GameMetadata, MoveAnalysis
+import uuid
+from typing import Any
+
 from src.utils.logger import logger
+from src.utils.path_utils import get_user_data_dir
+
+from .models import GameAnalysis
+
 
 class GameHistoryManager:
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         if db_path is None:
-            import os
-            from src.utils.path_utils import get_user_data_dir
             self.db_path = os.path.join(get_user_data_dir(), "analysis_cache.db")
         else:
             self.db_path = db_path
@@ -20,7 +23,7 @@ class GameHistoryManager:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             # 1. Create table with basic schema if not exists
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS games (
@@ -35,7 +38,7 @@ class GameHistoryManager:
                     timestamp REAL
                 )
             """)
-            
+
             # 2. Schema Migration: Ensure new columns exist
             # List of (column_name, column_type)
             new_columns = [
@@ -48,13 +51,13 @@ class GameHistoryManager:
                 ("starting_fen", "TEXT"),
                 ("source", "TEXT"),
                 ("chess960", "INTEGER"),
-                ("moves_json", "TEXT")
+                ("moves_json", "TEXT"),
             ]
-            
+
             # Check existing columns
             cursor.execute("PRAGMA table_info(games)")
             existing_cols = {row[1] for row in cursor.fetchall()}
-            
+
             for col_name, col_type in new_columns:
                 if col_name not in existing_cols:
                     try:
@@ -62,9 +65,9 @@ class GameHistoryManager:
                         cursor.execute(f"ALTER TABLE games ADD COLUMN {col_name} {col_type}")
                     except Exception as e:
                         logger.error(f"Failed to add column {col_name}: {e}")
-            
+
             self._init_api_cache(cursor)
-            
+
             conn.commit()
             conn.close()
         except Exception as e:
@@ -104,11 +107,11 @@ class GameHistoryManager:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             game_id = game_analysis.game_id or str(uuid.uuid4())
-            
+
             summary_json = json.dumps(game_analysis.summary)
-            
+
             moves_data = []
             for m in game_analysis.moves:
                 moves_data.append({
@@ -139,7 +142,7 @@ class GameHistoryManager:
                     "raw_clk": m.raw_clk,
                 })
             moves_json = json.dumps(moves_data)
-            
+
             cursor.execute("""
                 INSERT OR REPLACE INTO games (
                     id, white, black, result, date, event, pgn, summary_json, timestamp,
@@ -166,69 +169,69 @@ class GameHistoryManager:
                 game_analysis.metadata.starting_fen,
                 game_analysis.metadata.source,
                 int(game_analysis.metadata.chess960),
-                moves_json
+                moves_json,
             ))
-            
+
             conn.commit()
             conn.close()
             logger.info(f"Game saved to history: {game_id}")
         except Exception as e:
             logger.error(f"Failed to save game to history: {e}")
 
-    def get_all_games(self) -> List[Dict[str, Any]]:
+    def get_all_games(self) -> list[dict[str, Any]]:
         """Returns a list of all games (metadata + summary) sorted by timestamp desc."""
         games = []
         try:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            
+
             cursor.execute("SELECT * FROM games ORDER BY timestamp DESC LIMIT 200")
             rows = cursor.fetchall()
-            
+
             for row in rows:
                 games.append(dict(row))
-                
+
             conn.close()
         except Exception as e:
             logger.error(f"Failed to fetch games from history: {e}")
-            
+
         return games
-            
-    def get_games_for_users(self, usernames: List[str]) -> List[Dict[str, Any]]:
+
+    def get_games_for_users(self, usernames: list[str]) -> list[dict[str, Any]]:
         """Returns games where either white or black player matches one of the usernames."""
         if not usernames:
             return []
-            
+
         games = []
         try:
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            
+
             # Case-insensitive matching
-            placeholders = ','.join(['?'] * len(usernames))
+            placeholders = ",".join(["?"] * len(usernames))
             query = f"""
-                SELECT * FROM games 
-                WHERE LOWER(white) IN ({placeholders}) 
+                SELECT * FROM games
+                WHERE LOWER(white) IN ({placeholders})
                    OR LOWER(black) IN ({placeholders})
                 ORDER BY timestamp DESC LIMIT 200
             """
-            
+
             # Duplicate params for both IN clauses
             lower_usernames = [u.lower() for u in usernames]
             params = lower_usernames + lower_usernames
-            
+
             cursor.execute(query, params)
             rows = cursor.fetchall()
-            
+
             for row in rows:
                 games.append(dict(row))
-                
+
             conn.close()
         except Exception as e:
             logger.error(f"Failed to fetch user games: {e}")
-            
+
         return games
 
     def delete_game(self, game_id: str):
@@ -243,7 +246,7 @@ class GameHistoryManager:
         except Exception as e:
             logger.error(f"Failed to delete game from history: {e}")
 
-    def get_game(self, game_id: str) -> Optional[Dict[str, Any]]:
+    def get_game(self, game_id: str) -> dict[str, Any] | None:
         """Retrieves a single game record."""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -252,7 +255,7 @@ class GameHistoryManager:
             cursor.execute("SELECT * FROM games WHERE id = ?", (game_id,))
             row = cursor.fetchone()
             conn.close()
-            
+
             if row:
                 return dict(row)
             return None
@@ -310,7 +313,7 @@ class GameHistoryManager:
                 info.time_class,
                 info.move_count,
                 info.opening,
-                cached_at
+                cached_at,
             ))
             conn.commit()
             conn.close()
@@ -344,7 +347,7 @@ class GameHistoryManager:
                     info.time_class,
                     info.move_count,
                     info.opening,
-                    c_at
+                    c_at,
                 ))
             conn.commit()
             conn.close()
@@ -355,6 +358,7 @@ class GameHistoryManager:
         """Retrieves a single GameInfo object from cache by its ID."""
         try:
             from src.backend.models.game_info import GameInfo
+
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -376,7 +380,7 @@ class GameHistoryManager:
                     time_class=d["time_class"],
                     move_count=d["move_count"],
                     opening=d["opening"],
-                    cached_at=d["cached_at"]
+                    cached_at=d["cached_at"],
                 )
             return None
         except Exception as e:
@@ -387,6 +391,7 @@ class GameHistoryManager:
         """Retrieves cached games matching source, date, and containing username (case-insensitive)."""
         try:
             from src.backend.models.game_info import GameInfo
+
             conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -413,7 +418,7 @@ class GameHistoryManager:
                     time_class=d["time_class"],
                     move_count=d["move_count"],
                     opening=d["opening"],
-                    cached_at=d["cached_at"]
+                    cached_at=d["cached_at"],
                 ))
             return games
         except Exception as e:
@@ -446,7 +451,7 @@ class GameHistoryManager:
         except Exception as e:
             logger.error(f"Failed to save explorer cache: {e}")
 
-    def get_explorer_cache(self, fen: str) -> Optional[str]:
+    def get_explorer_cache(self, fen: str) -> str | None:
         """Retrieves a cached explorer response json by FEN."""
         try:
             conn = sqlite3.connect(self.db_path)
