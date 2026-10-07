@@ -1,18 +1,18 @@
-"""Stateful local opening book traversal using FEN-based SQLite lookups."""
-import chess
 from dataclasses import dataclass, field
-from typing import List, Optional
+
+import chess
+
 from .opening_db import OpeningDB, _normalize_fen
 
 
 @dataclass
 class BookResult:
     is_book: bool
-    current_eco: Optional[str] = None
-    current_opening: Optional[str] = None
+    current_eco: str | None = None
+    current_opening: str | None = None
     book_move_count: int = 0
-    book_exit_move: Optional[int] = None
-    candidate_moves: List[str] = field(default_factory=list)
+    book_exit_move: int | None = None
+    candidate_moves: list[str] = field(default_factory=list)
 
 
 class LocalBookManager:
@@ -22,7 +22,7 @@ class LocalBookManager:
         self.db = db
         self._count = 0
         self._exited = False
-        self._exit_move: Optional[int] = None
+        self._exit_move: int | None = None
 
     def reset(self):
         """Reset traversal state for a new game."""
@@ -61,8 +61,8 @@ class LocalBookManager:
             openings = self.db.get_openings_at_node(node_id)
             candidates = self.db.get_children(node_id)
 
-            best_eco: Optional[str] = None
-            best_name: Optional[str] = None
+            best_eco: str | None = None
+            best_name: str | None = None
             if openings:
                 best_name = max(openings, key=lambda x: len(x[1]))[1]
                 best_eco = max(openings, key=lambda x: len(x[1]))[0]

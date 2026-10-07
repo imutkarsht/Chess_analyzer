@@ -1,16 +1,19 @@
-import chess.engine
-import chess
 import os
-import sys
 import shutil
-from typing import Optional, Dict, Any, Tuple, List
-from src.utils.logger import logger
-from src.utils.path_utils import get_stockfish_common_paths, get_engine_data_dir
-from src.constants import DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
+import subprocess
+import sys
+from typing import Any
+
+import chess
+import chess.engine
+
 from src.backend.engine.downloader import probe_engine_binary
+from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
+from src.utils.logger import logger
+from src.utils.path_utils import get_engine_data_dir, get_stockfish_common_paths
 
 
-def engine_options(threads: int, hash_mb: int) -> Dict[str, Any]:
+def engine_options(threads: int, hash_mb: int) -> dict[str, Any]:
     """Build a Stockfish UCI options dict from raw values.
 
     Centralised so callers can construct one without having to know
@@ -19,7 +22,7 @@ def engine_options(threads: int, hash_mb: int) -> Dict[str, Any]:
     return {"Threads": int(threads), "Hash": int(hash_mb)}
 
 
-def options_from_config(config_manager=None) -> Dict[str, Any]:
+def options_from_config(config_manager=None) -> dict[str, Any]:
     """Build the Stockfish UCI options dict from the user config.
 
     Falls back to conservative defaults if the ConfigManager is missing
@@ -58,13 +61,14 @@ def _save_fallback_to_config(config_manager, resolved_path: str) -> None:
     if current and current != resolved_path:
         logger.info(
             "resolve_engine_path: updating config from '%s' to fallback '%s'",
-            current, resolved_path,
+            current,
+            resolved_path,
         )
         config_manager.config["engine_path"] = resolved_path
         config_manager.save_config()
 
 
-def resolve_engine_path(config_manager=None, deep_probe: bool = False) -> Optional[str]:
+def resolve_engine_path(config_manager=None, deep_probe: bool = False) -> str | None:
     """Auto-detect a Stockfish binary using the priority table.
     Result is cached for the lifetime of the process (call
     invalidate_engine_cache() if the config changes).
@@ -100,6 +104,7 @@ def resolve_engine_path(config_manager=None, deep_probe: bool = False) -> Option
         return True
 
     def _remember(path: str) -> None:
+        global _resolve_cache
         if not deep_probe:
             _resolve_cache = path
 
@@ -151,14 +156,13 @@ class EngineManager:
         # NOT read from it — pass values explicitly via apply_settings()
         # so the manager stays trivially testable and CLI-friendly.
         self.config_manager = config_manager
-        self.engine: Optional[chess.engine.SimpleEngine] = None
-        self.options: Dict[str, Any] = options_from_config(config_manager)
+        self.engine: chess.engine.SimpleEngine | None = None
+        self.options: dict[str, Any] = options_from_config(config_manager)
 
     def start_engine(self):
         if not self.engine:
             try:
                 # Assuming UCI engine
-                import sys, subprocess
                 popen_args = {}
                 if sys.platform == "win32":
                     popen_args["creationflags"] = subprocess.CREATE_NO_WINDOW
@@ -173,7 +177,7 @@ class EngineManager:
             self.engine.quit()
             self.engine = None
 
-    def configure_engine(self, options: Dict[str, Any]):
+    def configure_engine(self, options: dict[str, Any]):
         self.options.update(options)
         logger.info(f"EngineManager: Configuring engine with options: {options}")
         if self.engine:
@@ -246,18 +250,24 @@ class EngineManager:
                 return False
         return self.engine is not None
 
-    def analyze_position(self, board: chess.Board, time_limit: float = 0.1, depth: Optional[int] = None, multi_pv: int = 1) -> chess.engine.InfoDict:
+    def analyze_position(
+        self,
+        board: chess.Board,
+        time_limit: float = 0.1,
+        depth: int | None = None,
+        multi_pv: int = 1,
+    ) -> chess.engine.InfoDict:
         if not self.engine:
             raise RuntimeError("Engine not started")
-        
+
         limit = chess.engine.Limit(time=time_limit, depth=depth)
         info = self.engine.analyse(board, limit, multipv=multi_pv)
         return info
 
-    def get_best_move(self, board: chess.Board, time_limit: float = 0.1) -> Optional[chess.Move]:
+    def get_best_move(self, board: chess.Board, time_limit: float = 0.1) -> chess.Move | None:
         if not self.engine:
             raise RuntimeError("Engine not started")
-        
+
         limit = chess.engine.Limit(time=time_limit)
         result = self.engine.play(board, limit)
         return result.move

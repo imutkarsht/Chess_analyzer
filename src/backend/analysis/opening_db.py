@@ -1,10 +1,9 @@
-"""Local opening database built from bundled Lichess ECO TSV files."""
-import sqlite3
 import csv
 import glob
 import os
+import sqlite3
+
 import chess
-from typing import List, Optional, Tuple
 
 
 def _normalize_fen(fen: str) -> str:
@@ -52,7 +51,7 @@ class OpeningDB:
 
     def __init__(self, db_path: str):
         self.db_path = db_path
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
 
     def connect(self):
         """Open or create the database and ensure schema exists."""
@@ -74,9 +73,7 @@ class OpeningDB:
 
     def is_populated(self) -> bool:
         """Return True if metadata table has a version row."""
-        row = self._conn.execute(
-            "SELECT COUNT(*) AS cnt FROM opening_book_metadata"
-        ).fetchone()
+        row = self._conn.execute("SELECT COUNT(*) AS cnt FROM opening_book_metadata").fetchone()
         return row["cnt"] > 0
 
     def initialize(self, tsv_dir: str) -> bool:
@@ -137,7 +134,7 @@ class OpeningDB:
             prev_id = cur_id
 
     @staticmethod
-    def _parse_pgn_moves(pgn_str: str) -> List[str]:
+    def _parse_pgn_moves(pgn_str: str) -> list[str]:
         """Extract SAN tokens from a PGN move string like '1. e4 c5 2. Nf3'."""
         tokens = pgn_str.split()
         moves = []
@@ -151,9 +148,7 @@ class OpeningDB:
 
     def _get_or_create_node(self, fen: str) -> int:
         """Return node id for *fen*, inserting if missing."""
-        row = self._conn.execute(
-            "SELECT id FROM opening_nodes WHERE fen = ?", (fen,)
-        ).fetchone()
+        row = self._conn.execute("SELECT id FROM opening_nodes WHERE fen = ?", (fen,)).fetchone()
         if row is not None:
             return row["id"]
         cur = self._conn.execute("INSERT INTO opening_nodes (fen) VALUES (?)", (fen,))
@@ -173,21 +168,19 @@ class OpeningDB:
 
     # ---- Lookups ----
 
-    def get_node_by_fen(self, fen: str) -> Optional[int]:
+    def get_node_by_fen(self, fen: str) -> int | None:
         """Return node id for a normalized FEN, or None."""
-        row = self._conn.execute(
-            "SELECT id FROM opening_nodes WHERE fen = ?", (fen,)
-        ).fetchone()
+        row = self._conn.execute("SELECT id FROM opening_nodes WHERE fen = ?", (fen,)).fetchone()
         return row["id"] if row is not None else None
 
-    def get_openings_at_node(self, node_id: int) -> List[Tuple[str, str]]:
+    def get_openings_at_node(self, node_id: int) -> list[tuple[str, str]]:
         """Return list of (eco, opening_name) for a given node."""
         rows = self._conn.execute(
             "SELECT eco, opening_name FROM node_openings WHERE node_id = ?", (node_id,)
         ).fetchall()
         return [(r["eco"], r["opening_name"]) for r in rows]
 
-    def get_children(self, node_id: int) -> List[str]:
+    def get_children(self, node_id: int) -> list[str]:
         """Return list of SAN moves available from this node."""
         rows = self._conn.execute(
             "SELECT move_san FROM opening_edges WHERE parent_id = ? ORDER BY move_san",
