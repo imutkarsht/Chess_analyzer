@@ -1,13 +1,26 @@
-import os
 import json
+import os
 import re
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea, QFrame, QSizePolicy, QDialog
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from src.gui.views.metrics.base_card import MetricCard
-from src.gui.styles import Styles
-from src.gui.utils.gui_utils import resolve_asset, clear_layout, show_error_dialog
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
+
 from src.gui.metrics.workers import InsightWorker
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import clear_layout, resolve_asset, show_error_dialog
+from src.gui.views.metrics.base_card import MetricCard
+
 
 class AICoachCard(MetricCard):
     def __init__(self, groq_service, parent=None):
@@ -15,7 +28,7 @@ class AICoachCard(MetricCard):
         self.stats = None
         self.worker = None
         self.current_insights = None
-        
+
         self.btn_refresh_insights = QPushButton("↻")
         self.btn_refresh_insights.setFixedSize(32, 32)
         self.btn_refresh_insights.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -34,7 +47,7 @@ class AICoachCard(MetricCard):
             }}
         """)
         self.btn_refresh_insights.clicked.connect(self._generate_insights)
-        
+
         super().__init__("AI Coach Insights", parent=parent, action_widget=self.btn_refresh_insights, min_height=400)
         self.setup_ui()
 
@@ -105,16 +118,16 @@ class AICoachCard(MetricCard):
     def _generate_insights(self):
         if not self.stats:
             return
-            
+
         clear_layout(self.insights_layout)
-        
+
         lbl_loading = QLabel("Asking Coach Groq...")
         lbl_loading.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY};")
         lbl_loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.insights_layout.addWidget(lbl_loading)
-        
+
         stats_str = json.dumps(self.stats, indent=2)
-        
+
         if self.worker is not None and self.worker.isRunning():
             try:
                 self.worker.finished.disconnect()
@@ -161,16 +174,16 @@ class AICoachCard(MetricCard):
                 "the details below for the full error.",
                 err_msg,
             )
-        
+
     def _populate_insights(self, insight_text):
         self.current_insights = insight_text
         clear_layout(self.insights_layout)
-        
+
         def add_insight(icon, text):
             row = QHBoxLayout()
             row.setSpacing(15)
             row.setAlignment(Qt.AlignmentFlag.AlignTop)
-            
+
             icon_path = None
             if icon.endswith(".png") or icon.endswith(".svg"):
                 icon_path = resolve_asset(icon)
@@ -178,7 +191,7 @@ class AICoachCard(MetricCard):
                 icon_path = resolve_asset(f"{icon}.png")
                 if not icon_path:
                     icon_path = resolve_asset(f"{icon}.svg")
-            
+
             if icon_path and os.path.exists(icon_path):
                 lbl_icon = QLabel()
                 pixmap = QPixmap(icon_path)
@@ -193,18 +206,18 @@ class AICoachCard(MetricCard):
                     icon_layout.addWidget(lbl_icon, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
                     row.addWidget(icon_container)
                 else:
-                    lbl_icon = QLabel("💡") 
+                    lbl_icon = QLabel("💡")
                     lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; {Styles.get_transparent_label_style()}")
                     row.addWidget(lbl_icon)
             else:
                 lbl_icon = QLabel("💡")
                 lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; {Styles.get_transparent_label_style()}")
                 row.addWidget(lbl_icon)
- 
+
             clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
             clean_text = clean_text.strip('"').strip("'")
             clean_text = re.sub(r'[^\x00-\x7F]+', '', clean_text).strip()
-            
+
             if clean_text and clean_text[0].islower():
                 clean_text = clean_text[0].upper() + clean_text[1:]
 
@@ -212,34 +225,31 @@ class AICoachCard(MetricCard):
             lbl_text.setWordWrap(True)
             lbl_text.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; line-height: 1.4; {Styles.get_transparent_label_style()}")
             row.addWidget(lbl_text, stretch=1)
-            
+
             self.insights_layout.addLayout(row)
-        
+
         lines = insight_text.split('\n')
         count = 0
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-            
-            is_item = False
+
             content = line
-            
+
             if line[0].isdigit() and ('.' in line[:4] or ')' in line[:4]):
                 parts = line.split('.', 1)
                 if len(parts) > 1:
                     content = parts[1].strip()
                 else:
                     content = line.split(')', 1)[-1].strip()
-                is_item = True
             elif line.startswith('- ') or line.startswith('* '):
                 content = line[2:].strip()
-                is_item = True
-            
-            if len(content) > 20: 
+
+            if len(content) > 20:
                 lower_text = content.lower()
                 icon = "idea"
-                
+
                 if "opening" in lower_text:
                     icon = "opening_icon.png"
                 elif any(x in lower_text for x in ["endgame", "mate", "queen"]):
@@ -250,9 +260,9 @@ class AICoachCard(MetricCard):
                     icon = "win_rate.png"
                 elif any(x in lower_text for x in ["best", "great", "brilliant"]):
                     icon = "best_v2.svg"
-                
+
                 add_insight(icon, content)
                 count += 1
-        
+
         if count == 0:
             add_insight("idea", insight_text)

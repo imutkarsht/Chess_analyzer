@@ -14,9 +14,10 @@ class LichessExplorerWorker(QThread):
 
     def run(self):
         try:
-            import requests
-            import urllib.parse
             import json
+            import urllib.parse
+
+            import requests
             parts = self.fen.split()
             norm_fen = " ".join(parts[:4])
 

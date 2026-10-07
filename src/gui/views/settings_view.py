@@ -2,24 +2,22 @@
 Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFrame
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
-from src.gui.styles import Styles
-from src.utils.path_utils import get_resource_path
+from src.constants import DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV
 from src.gui.components import MasonryLayout
+from src.gui.styles import Styles
 from src.utils.config import ConfigManager
-from src.constants import DEFAULT_MULTI_PV, DEFAULT_LIVE_ANALYSIS_TIME
 
 from .settings import (
-    EngineSettings,
-    BookSettings,
     ApiSettings,
-    PlayerSettings,
     AppearanceSettings,
+    BookSettings,
     DataSettings,
+    EngineSettings,
     LinksSettings,
-    test_llm_sync as _test_llm_sync
+    PlayerSettings,
 )
 
 try:
@@ -38,7 +36,7 @@ class SettingsView(QWidget):
     def __init__(self):
         super().__init__()
         self.config_manager = ConfigManager()
-        
+
         # Main layout for the widget itself (contains header and scroll area)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         main_layout = QVBoxLayout(self)
@@ -50,24 +48,24 @@ class SettingsView(QWidget):
         self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
-        
+
         # Title
         self.header_lbl = QLabel("Settings")
         self.header_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(self.header_lbl)
-        
+
         header_layout.addStretch()
-        
+
         # Mode toggle
         self._mode = self.config_manager.get("settings_mode", "basic")
         self.mode_toggle_btn = self._create_mode_toggle()
         header_layout.addWidget(self.mode_toggle_btn)
         header_layout.addSpacing(12)
-        
+
         # Create Save settings button
         self.save_settings_btn = self._create_save_button()
         header_layout.addWidget(self.save_settings_btn)
-        
+
         main_layout.addWidget(self.header_bar)
 
         # Scroll Area
@@ -75,14 +73,14 @@ class SettingsView(QWidget):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
-        
+
         # Container for content inside scroll area
         self.content_container = QWidget()
         self.content_container.setStyleSheet(Styles.get_background_style())
-        
+
         # Use MasonryLayout for 2-column/3-column dynamic design
         self.container_layout = MasonryLayout(self.content_container, margin=40, spacing=25)
-        
+
         self.scroll_area.setWidget(self.content_container)
         main_layout.addWidget(self.scroll_area)
 
@@ -154,15 +152,15 @@ class SettingsView(QWidget):
         self.api_settings._update_active_label()
 
     def _create_save_button(self):
-        from PyQt6.QtWidgets import QPushButton
         from PyQt6.QtCore import Qt
-        btn = QPushButton(f"  Save Settings")
+        from PyQt6.QtWidgets import QPushButton
+        btn = QPushButton("  Save Settings")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setStyleSheet(Styles.get_button_style())
-        
+
         if HAS_QTAWESOME:
             btn.setIcon(qta.icon("fa5s.save", color="#ffffff"))
-        
+
         btn.clicked.connect(self.save_all_settings)
         return btn
 
@@ -172,8 +170,8 @@ class SettingsView(QWidget):
             window.refresh_theme()
 
     def _create_mode_toggle(self):
-        from PyQt6.QtWidgets import QPushButton
         from PyQt6.QtCore import Qt
+        from PyQt6.QtWidgets import QPushButton
         btn = QPushButton()
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(self._toggle_mode)
@@ -198,7 +196,6 @@ class SettingsView(QWidget):
 
     def _apply_mode(self):
         is_advanced = self._mode == "advanced"
-        is_basic = not is_advanced
 
         self.engine_settings.set_advanced_visible(is_advanced)
         self.book_settings.set_advanced_visible(is_advanced)
@@ -231,14 +228,14 @@ class SettingsView(QWidget):
             limit = int(limit_text)
         except ValueError:
             limit = 20
-            
+
         if limit < 1:
             limit = 1
 
         # Check Lichess API Token presence
         import os
         token = self.api_settings.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
-        
+
         clamped = False
         warning_msg = ""
         if token:
@@ -283,12 +280,12 @@ class SettingsView(QWidget):
         self.config_manager.config["engine_threads"] = threads
         self.config_manager.config["engine_hash"] = hash_mb
         self.config_manager.config["polyglot_book_path"] = self.book_settings.polyglot_path_input.text().strip()
-        
+
         try:
             self.config_manager.config["multi_pv"] = int(self.engine_settings.multi_pv_input.text().strip())
         except ValueError:
             self.config_manager.config["multi_pv"] = DEFAULT_MULTI_PV
-            
+
         try:
             self.config_manager.config["live_analysis_time"] = float(self.engine_settings.live_time_input.text().strip())
         except ValueError:
@@ -379,7 +376,7 @@ class SettingsView(QWidget):
         if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
             self.mode_toggle_btn.setStyleSheet(Styles.get_control_button_style())
             self._update_mode_toggle_text(self.mode_toggle_btn)
-        
+
         cards = (
             getattr(self, 'engine_settings', None),
             getattr(self, 'book_settings', None),

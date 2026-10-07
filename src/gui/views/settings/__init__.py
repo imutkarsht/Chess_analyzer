@@ -1,13 +1,13 @@
 """
 Settings view modules.
 """
-from .engine_settings import EngineSettings
-from .book_settings import BookSettings
 from .api_settings import ApiSettings, test_llm_sync
-from .player_settings import PlayerSettings
 from .appearance_settings import AppearanceSettings
+from .book_settings import BookSettings
 from .data_settings import DataSettings
+from .engine_settings import EngineSettings
 from .links_settings import LinksSettings
+from .player_settings import PlayerSettings
 
 __all__ = [
     'EngineSettings',

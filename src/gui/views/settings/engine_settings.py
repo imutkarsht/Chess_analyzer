@@ -4,20 +4,39 @@ Engine Settings group component.
 import os
 import shutil
 import subprocess
-from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QFormLayout, QWidget, QComboBox, QFileDialog
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIntValidator, QDoubleValidator
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
+from src.constants import (
+    DEFAULT_ANALYSIS_DEPTH,
+    DEFAULT_ENGINE_HASH_MB,
+    DEFAULT_ENGINE_THREADS,
+    DEFAULT_LIVE_ANALYSIS_TIME,
+    DEFAULT_MULTI_PV,
+)
+
 from ...styles import Styles
 from .helpers import create_icon_button
-from .modern_widgets import ModernSliderCounter, ModernHashComboBox
-from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV, DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
+from .modern_widgets import ModernHashComboBox, ModernSliderCounter
+
 
 class EngineSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Chess Engine", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
-        
+
         self.setup_ui()
 
     def _combo_style(self):
@@ -43,17 +62,17 @@ class EngineSettings(QGroupBox):
     def setup_ui(self):
         engine_layout = QVBoxLayout(self)
         engine_layout.setContentsMargins(20, 25, 20, 20)
-        
+
         path_layout = QHBoxLayout()
         self.path_input = QLineEdit()
         self.path_input.setText(self.config_manager.get("engine_path", ""))
         self.path_input.setPlaceholderText("Path to Stockfish executable...")
         self.path_input.setStyleSheet(Styles.get_input_style())
         path_layout.addWidget(self.path_input)
-        
+
         self.browse_btn = create_icon_button("Browse", "fa5s.folder-open", self.browse_engine, self)
         path_layout.addWidget(self.browse_btn)
-        
+
         engine_layout.addLayout(path_layout)
 
         # Validation status label
@@ -64,9 +83,9 @@ class EngineSettings(QGroupBox):
         engine_layout.addWidget(self.validation_label)
 
         self.path_input.editingFinished.connect(self.validate_engine_path)
-        
 
-        
+
+
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
@@ -171,16 +190,16 @@ class EngineSettings(QGroupBox):
             self.validation_label.setStyleSheet(f"color: {Styles.COLOR_MISTAKE}; font-size: 12px; font-weight: bold; background: transparent;")
             self.validation_label.setVisible(True)
             return
-            
+
         is_in_path = shutil.which(path) is not None
         is_file = os.path.exists(path) and os.path.isfile(path)
-        
+
         if not (is_in_path or is_file):
             self.validation_label.setText("❌ File does not exist or is not executable")
             self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
             self.validation_label.setVisible(True)
             return
-            
+
         try:
             creationflags = 0
             if os.name == 'nt':
@@ -193,9 +212,9 @@ class EngineSettings(QGroupBox):
                 text=True,
                 creationflags=creationflags
             )
-            
+
             stdout, _ = proc.communicate(input="uci\nquit\n", timeout=1.0)
-            
+
             if "uciok" in stdout:
                 name = "Stockfish"
                 for line in stdout.split('\n'):
@@ -213,7 +232,7 @@ class EngineSettings(QGroupBox):
         except Exception as e:
             self.validation_label.setText(f"❌ Failed to execute binary: {str(e)}")
             self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
-            
+
         self.validation_label.setVisible(True)
 
     def change_analysis_depth(self, depth_str):

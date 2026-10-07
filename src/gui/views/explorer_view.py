@@ -1,37 +1,45 @@
 """
 Explorer View - The main container for the Opening Explorer.
 """
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QSplitter, 
-    QScrollArea, QCheckBox, QLineEdit, QPushButton, QSizePolicy
-)
-from PyQt6.QtCore import Qt, QTimer, QByteArray
-from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon
-from PyQt6.QtSvg import QSvgRenderer
-import chess
+import os
 
-from src.gui.styles import Styles
-from src.gui.board.explorer_board_widget import ExplorerBoardWidget
-from src.gui.analysis.analysis_lines_widget import AnalysisLinesWidget
-from src.gui.analysis.live_analysis import LiveAnalysisWorker
-from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
-from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
-from src.backend.analysis.polyglot_book import PolyglotBookManager
+import chess
+from PyQt6.QtCore import QByteArray, Qt, QTimer
+from PyQt6.QtGui import QPainter, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QScrollArea,
+    QSplitter,
+    QVBoxLayout,
+    QWidget,
+)
+
+from src.backend.analysis.engine import resolve_engine_path
 from src.backend.analysis.math_utils import get_win_probability
 from src.backend.analysis.move_classifier import classify_move
-from src.backend.analysis.engine import resolve_engine_path
-from src.utils.path_utils import get_resource_path, get_user_data_dir
-from src.utils.logger import logger
-from src.gui.utils.gui_utils import clear_layout
-from src.gui.components.loading_widget import LoadingOverlay
-import os
-from src.gui.analysis.captured import CapturedPiecesWidget
+from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
+from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.backend.storage.game_history import GameHistoryManager
-
-from src.gui.views.explorer_types import ClassificationContext
-from src.gui.views.explorer_ratio_bar import RatioBar
+from src.gui.analysis.analysis_lines_widget import AnalysisLinesWidget
+from src.gui.analysis.captured import CapturedPiecesWidget
+from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
+from src.gui.analysis.live_analysis import LiveAnalysisWorker
+from src.gui.board.explorer_board_widget import ExplorerBoardWidget
+from src.gui.components.loading_widget import LoadingOverlay
+from src.gui.styles import Styles
 from src.gui.views.explorer_book_row import BookRowWidget
 from src.gui.views.explorer_lichess_worker import LichessExplorerWorker
+from src.gui.views.explorer_ratio_bar import RatioBar
+from src.gui.views.explorer_types import ClassificationContext
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path, get_user_data_dir
+
 
 class ExplorerView(QWidget):
     def __init__(self, config_manager, parent=None):
@@ -43,7 +51,7 @@ class ExplorerView(QWidget):
         self.live_worker.info_ready.connect(self.on_live_analysis_update)
         self.live_worker.thinking_started.connect(self._on_engine_thinking_started)
         self.live_worker.thinking_stopped.connect(self._on_engine_thinking_stopped)
-        
+
         # State tracking
         self.live_data = {}
         self._position_seq = 0  # monotonic counter for stale-signal detection
@@ -51,17 +59,17 @@ class ExplorerView(QWidget):
         self.starting_fen = chess.STARTING_FEN
         self.board = chess.Board()
         self.move_history = [] # list of (Move object, FEN before, FEN after, SAN)
-        
+
         # Classification State
         self.last_eval = None
         self.pending_classification_index = -1
         self.pending_before_eval = None
         self._classify_queue: list[int] = []  # backlog indices to classify sequentially
         self._classify_before_eval: dict | None = None  # cached before-eval for backlog step
-        
+
         # Toggles
         self.classify_enabled = False
-        
+
         # Init Opening DB
         tsv_dir = get_resource_path("assets/openings")
         db_path = os.path.join(get_user_data_dir(), "openings.db")
@@ -71,23 +79,23 @@ class ExplorerView(QWidget):
         except Exception as e:
             logger.warning(f"Failed to initialize opening DB: {e}")
         self.opening_db.connect()
-        
+
         # Polyglot Book (loaded from config, optional — opened lazily)
         polyglot_path = self.config_manager.get("polyglot_book_path", "")
         self.polyglot_manager = PolyglotBookManager(polyglot_path if polyglot_path else None)
-        
+
         self.setup_ui()
-        
+
         # Loading overlay for background tasks
         self.loading_overlay = LoadingOverlay(self)
-        
+
         # Show loading while opening DB initializes (first launch imports TSV)
         if not self.opening_db.is_populated():
             QTimer.singleShot(50, lambda: self.loading_overlay.start(
                 "Loading Opening Book...",
                 "Importing Lichess ECO database (first launch only)"
             ))
-        
+
         self.live_worker.start()
         self._send_to_engine(self.board.fen())
         self.update_opening_db(self.board.fen())
@@ -98,7 +106,7 @@ class ExplorerView(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
+
         # Header Bar Container
         self.header_bar = QFrame()
         self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND))
@@ -137,12 +145,12 @@ class ExplorerView(QWidget):
         header_layout.addWidget(self.btn_copy_pgn)
 
         main_layout.addWidget(self.header_bar)
-        
+
         # Content Area - Splitter
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(2)
         self.splitter.setStyleSheet(Styles.get_splitter_style())
-        
+
         # ==========================================
         # LEFT PANEL (Board & Eval)
         # ==========================================
@@ -151,7 +159,7 @@ class ExplorerView(QWidget):
         self.left_layout = QVBoxLayout(self.left_panel)
         self.left_layout.setContentsMargins(8, 8, 8, 8)
         self.left_layout.setSpacing(6)
-        
+
         # Opponent Label (Top)
         self.black_header_widget = QWidget()
         black_header = QHBoxLayout(self.black_header_widget)
@@ -163,12 +171,12 @@ class ExplorerView(QWidget):
         black_header.addWidget(self.captured_black)
         black_header.addStretch()
         self.left_layout.addWidget(self.black_header_widget)
-        
+
         # Board (contains its own eval bar internally laid out)
         self.board_widget = ExplorerBoardWidget()
         self.board_widget.move_made.connect(self.on_move_made)
         self.left_layout.addWidget(self.board_widget, stretch=1)
-        
+
         # Player Label (Bottom)
         self.white_header_widget = QWidget()
         white_header = QHBoxLayout(self.white_header_widget)
@@ -180,9 +188,9 @@ class ExplorerView(QWidget):
         white_header.addWidget(self.captured_white)
         white_header.addStretch()
         self.left_layout.addWidget(self.white_header_widget)
-        
+
         self.splitter.addWidget(self.left_panel)
-        
+
         # ==========================================
         # RIGHT PANEL (Controls & Analysis)
         # ==========================================
@@ -191,41 +199,41 @@ class ExplorerView(QWidget):
         right_layout = QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(8, 8, 12, 8)
         right_layout.setSpacing(6)
-        
+
         # Toggles Bar
         toggles_layout = QHBoxLayout()
         toggles_layout.setContentsMargins(0, 0, 0, 4)
         toggles_layout.setSpacing(8)
-        
+
         self.chk_classify = QCheckBox("Classify Moves")
         self.chk_classify.setChecked(self.classify_enabled)
         self.chk_classify.toggled.connect(self.on_classify_toggled)
-        
+
         self.chk_legal = QCheckBox("Legal Moves")
         self.chk_legal.setChecked(True)
         self.chk_legal.toggled.connect(self.on_legal_moves_toggled)
-        
+
         self.chk_engine = QCheckBox("Engine Lines")
         self.chk_engine.setChecked(False)
         self.chk_engine.toggled.connect(self.on_engine_toggled)
-        
+
         self.chk_cache = QCheckBox("Use Cache")
         self.chk_cache.setChecked(True)
-        
+
         for chk in (self.chk_classify, self.chk_legal, self.chk_engine, self.chk_cache):
             chk.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500))
             chk.setCursor(Qt.CursorShape.PointingHandCursor)
             toggles_layout.addWidget(chk)
-            
+
         right_layout.addLayout(toggles_layout)
-        
+
         # Engine Lines
         self.lines_widget = AnalysisLinesWidget()
         self.lines_widget.line_clicked.connect(self.on_engine_line_clicked)
         right_layout.addWidget(self.lines_widget)
-        
+
         self.lines_widget.setVisible(False)
-        
+
         # Book Moves Toggle + Table
         self._current_book_count = 0
         self.book_toggle = QPushButton("▶  Book Moves")
@@ -235,11 +243,11 @@ class ExplorerView(QWidget):
         self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
         self.book_toggle.toggled.connect(self._toggle_book)
         right_layout.addWidget(self.book_toggle)
-        
+
         self.book_scroll = QScrollArea()
         self.book_scroll.setWidgetResizable(True)
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
-        
+
         self.book_container = QWidget()
         self.book_container.setStyleSheet(Styles.get_surface_style())
         self.book_layout = QVBoxLayout(self.book_container)
@@ -247,7 +255,7 @@ class ExplorerView(QWidget):
         self.book_layout.setSpacing(0)
         self.book_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.book_scroll.setWidget(self.book_container)
-        
+
         right_layout.addWidget(self.book_scroll, stretch=1)
 
         # Lichess Attribution footer
@@ -275,21 +283,21 @@ class ExplorerView(QWidget):
         moves_header.addWidget(self.move_input)
         moves_header.addStretch()
         right_layout.addLayout(moves_header)
-        
+
         self.move_list_widget = ExplorerMoveListWidget()
         self.move_list_widget.move_selected.connect(self.on_move_list_clicked)
         self.move_list_widget.nav_first.connect(lambda: self.on_move_list_clicked(-1))
         self.move_list_widget.nav_prev.connect(lambda: self.on_move_list_clicked(self.move_list_widget.current_index - 1))
         self.move_list_widget.nav_next.connect(lambda: self.on_move_list_clicked(self.move_list_widget.current_index + 1))
         self.move_list_widget.nav_last.connect(lambda: self.on_move_list_clicked(len(self.move_history) - 1))
-        
+
         right_layout.addWidget(self.move_list_widget, stretch=1)
-        
+
         # Engine Status
         self.engine_status_label = QLabel("")
         self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED))
         right_layout.addWidget(self.engine_status_label)
-        
+
         self.splitter.addWidget(self.right_panel)
         self.splitter.setSizes([700, 450])
         main_layout.addWidget(self.splitter, 1)
@@ -304,17 +312,17 @@ class ExplorerView(QWidget):
         except ValueError as e:
             logger.error(f"Invalid FEN: {fen} — {e}")
             return
-            
+
         self.board = test_board
         self.move_history = []
         self.move_list_widget.clear()
         self.pending_classification_index = -1
         self.last_eval = None
         self.pending_before_eval = None
-        
+
         self.board_widget.load_fen(fen, chess960=self.is_chess960)
         self.update_opening_db(fen)
-        
+
         self.live_data = {}
         if self.chk_engine.isChecked():
             self._send_to_engine(fen)
@@ -323,7 +331,7 @@ class ExplorerView(QWidget):
             self.board_widget.eval_bar.set_eval(0.0, None)
         # Trigger initial material update
         self._update_material()
-        
+
     def _send_to_engine(self, fen):
         """Send a position to the live engine with a fresh sequence number
         so stale results from previous positions are discarded."""
@@ -369,7 +377,7 @@ class ExplorerView(QWidget):
         the engine eval for the position BEFORE the move, then step
         forward to the position AFTER the move and run classification."""
         self._classify_queue = []
-        for i, m in enumerate(self.move_history):
+        for i, _m in enumerate(self.move_history):
             if not self.move_list_widget.moves[i].get('classification'):
                 self._classify_queue.append(i)
         if not self._classify_queue:
@@ -440,7 +448,7 @@ class ExplorerView(QWidget):
         self.move_list_widget.clear()
         self.pending_classification_index = -1
         self.last_eval = None
-        
+
         # We need to rebuild the visual state as if moves were played
         # We temporarily disconnect move_made to prevent triggering classifications
         try:
@@ -448,7 +456,7 @@ class ExplorerView(QWidget):
         except TypeError:
             pass
         self.board_widget.load_fen(fen=self.starting_fen, chess960=self.is_chess960)
-        
+
         # Play out the move stack
         for i, move in enumerate(replay_moves):
             fen_before = self.board.fen()
@@ -458,27 +466,27 @@ class ExplorerView(QWidget):
                 san = move.uci()
             self.board.push(move)
             fen_after = self.board.fen()
-            
+
             # Sync to board widget
             self.board_widget.board.push(move)
-            
+
             # Add to history
             self.move_history.append((move, fen_before, fen_after, san))
             self.move_list_widget.add_move(san)
-            
+
             if source_moves and i < len(source_moves) and source_moves[i].classification:
                 self.move_list_widget.update_classification(i, source_moves[i].classification)
-            
+
         self.board_widget.best_move_uci = None
         self.board_widget.last_move_classification = None
         self.board_widget.update_board()
         self.board_widget.draw_interactive_overlays()
         self.board_widget.move_made.connect(self.on_move_made)
-        
+
         fen = self.board.fen()
         self.update_opening_db(fen)
         self._update_material()
-        
+
         self.live_data = {}
         if self.chk_engine.isChecked():
             self._send_to_engine(fen)
@@ -494,11 +502,11 @@ class ExplorerView(QWidget):
         # Clear backlog classification when user makes a manual move
         self._classify_queue = []
         self._classify_before_eval = None
-        
+
         self._update_material()
         if not self.board_widget.board.move_stack:
             return
-            
+
         # We pushed a move to self.board_widget.board.
         # Find out what move it was.
         move = self.board_widget.board.peek()
@@ -506,36 +514,35 @@ class ExplorerView(QWidget):
             san = self.board.san(move)
         except (AssertionError, ValueError):
             san = move.uci()
-        
+
         # Update local board state
         fen_before = self.board.fen()
         self.board.push(move)
         fen_after = self.board.fen()
-        
+
         # Truncate history if we navigated back
         if self.move_list_widget.current_index < len(self.move_history) - 1:
             self.move_history = self.move_history[:self.move_list_widget.current_index + 1]
-            
+
         self.move_history.append((move, fen_before, fen_after, san))
         self.move_list_widget.add_move(san)
-        
+
         # Setup pending classification
         self.pending_classification_index = len(self.move_history) - 1
         self.pending_before_eval = dict(self.last_eval) if self.last_eval else None
-        
+
         # Show pending indicator if classification is enabled
         if self.classify_enabled:
             self.move_list_widget.set_pending_classification(self.pending_classification_index, True)
-        
+
         # Check if it's a book move instantly (compare by UCI to avoid SAN ambiguity)
         norm_fen = _normalize_fen(fen_before)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
-        if self._is_book_move(node_id, move.uci(), fen_before):
-            if self.classify_enabled:
-                self.move_list_widget.update_classification(self.pending_classification_index, "Book")
-                self.pending_classification_index = -1
-                self.board_widget.last_move_classification = "Book"
-                
+        if self._is_book_move(node_id, move.uci(), fen_before) and self.classify_enabled:
+            self.move_list_widget.update_classification(self.pending_classification_index, "Book")
+            self.pending_classification_index = -1
+            self.board_widget.last_move_classification = "Book"
+
         # Update engine and opening db
         self.live_data = {}
         if self.chk_engine.isChecked():
@@ -543,7 +550,7 @@ class ExplorerView(QWidget):
         else:
             self.lines_widget.clear()
             self.board_widget.eval_bar.set_eval(0.0, None)
-            
+
         self.update_opening_db(fen_after)
 
     def _get_piece_pixmap(self, symbol, size=18):
@@ -576,12 +583,12 @@ class ExplorerView(QWidget):
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(14, 8, 14, 8)
         row_layout.setSpacing(8)
-        
+
         # Left part
         left_layout = QHBoxLayout()
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(8)
-        
+
         if piece_symbol:
             pixmap = self._get_piece_pixmap(piece_symbol)
             if pixmap:
@@ -590,53 +597,53 @@ class ExplorerView(QWidget):
                 icon_label.setFixedSize(18, 18)
                 icon_label.setStyleSheet(Styles.get_transparent_label_style())
                 left_layout.addWidget(icon_label)
-        
+
         lbl_san = QLabel(san)
         lbl_san.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         left_layout.addWidget(lbl_san)
-        
+
         row_layout.addLayout(left_layout)
         row_layout.addStretch()
-        
+
         # Right part
         if stats:
             w_pct, d_pct, b_pct, count_str = stats
-            
+
             right_layout = QHBoxLayout()
             right_layout.setContentsMargins(0, 0, 0, 0)
             right_layout.setSpacing(12)
-            
+
             lbl_count = QLabel(count_str)
             lbl_count.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED, weight=500) + " " + Styles.get_transparent_label_style())
             right_layout.addWidget(lbl_count)
-            
+
             ratio_bar = RatioBar(w_pct, d_pct, b_pct, self)
             right_layout.addWidget(ratio_bar)
-            
+
             row_layout.addLayout(right_layout)
         elif info_text:
             lbl_info = QLabel(info_text)
             lbl_info.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; font-style: italic; " + Styles.get_transparent_label_style())
             lbl_info.setMinimumWidth(0)
             row_layout.addWidget(lbl_info)
-            
+
         return row_widget
 
     def update_opening_db(self, fen):
         norm_fen = _normalize_fen(fen)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
         self.board_widget.book_destinations = []
-        
+
         # Remove all existing book row widgets
         if hasattr(self, '_book_row_widgets'):
             for w in self._book_row_widgets:
                 self.book_layout.removeWidget(w)
                 w.deleteLater()
         self._book_row_widgets = []
-        
+
         if not self.board_widget.board.move_stack:
             self.opening_badge.setText("Opening: -")
-        
+
         # --- Update opening badge from SQLite (always) ---
         if node_id is not None:
             openings = self.opening_db.get_openings_at_node(node_id)
@@ -652,16 +659,19 @@ class ExplorerView(QWidget):
             self.book_scroll.hide()
             self.book_toggle.setText("▶  Book Moves  (loading...)")
             self.book_toggle.show()
-            
+
             # Start Lichess worker
-            if hasattr(self, '_lichess_worker') and self._lichess_worker is not None:
-                if self._lichess_worker.isRunning():
-                    try:
-                        self._lichess_worker.finished.disconnect()
-                        self._lichess_worker.error.disconnect()
-                    except (TypeError, RuntimeError):
-                        pass
-            
+            if (
+                hasattr(self, '_lichess_worker')
+                and self._lichess_worker is not None
+                and self._lichess_worker.isRunning()
+            ):
+                try:
+                    self._lichess_worker.finished.disconnect()
+                    self._lichess_worker.error.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+
             self._lichess_worker = LichessExplorerWorker(
                 self.board_widget.board.fen(),
                 self.chk_cache.isChecked(),
@@ -673,7 +683,7 @@ class ExplorerView(QWidget):
             self._lichess_worker.error.connect(self.on_lichess_explorer_error)
             self._lichess_worker.start()
             return
-        
+
         self.lichess_attribution.setVisible(False)
         # --- Try Polyglot book first (higher priority) ---
         polyglot_used = False
@@ -702,7 +712,7 @@ class ExplorerView(QWidget):
                         self._book_row_widgets.append(row_widget)
             except Exception as e:
                 logger.warning(f"Polyglot query failed: {e}", exc_info=True)
-        
+
         # --- Fall back to SQLite Opening DB ---
         if not polyglot_used and node_id is not None:
             candidates = self.opening_db.get_children(node_id)
@@ -717,14 +727,14 @@ class ExplorerView(QWidget):
                         child_fen = _normalize_fen(self.board_widget.board.fen())
                         self.board_widget.board.pop()
                         push_done = False
-                        
+
                         child_node_id = self.opening_db.get_node_by_fen(child_fen)
                         if child_node_id is not None:
                             child_openings = self.opening_db.get_openings_at_node(child_node_id)
                             if child_openings:
                                 best_name = max(child_openings, key=lambda x: len(x[1]))[1]
                                 move_name = best_name
-                        
+
                         self.board_widget.book_destinations.append(move.to_square)
                     except Exception as e:
                         logger.warning(f"Error processing SQLite book move {san}: {e}")
@@ -734,17 +744,17 @@ class ExplorerView(QWidget):
                             except Exception:
                                 pass
                         continue
-                    
+
                     piece = self.board_widget.board.piece_at(move.from_square)
                     piece_symbol = piece.symbol() if piece else None
                     row_widget = self._create_book_row_widget(san, move_name, piece_symbol)
                     self.book_layout.addWidget(row_widget)
                     self._book_row_widgets.append(row_widget)
-            
+
         self._current_book_count = len(self._book_row_widgets)
         arrow = "▼" if self.book_toggle.isChecked() else "▶"
         self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
-        
+
         if self._current_book_count > 0:
             self.book_toggle.show()
             if not self.book_toggle.isChecked():
@@ -754,7 +764,7 @@ class ExplorerView(QWidget):
         else:
             self.book_toggle.hide()
             self.book_scroll.hide()
-            
+
         self.board_widget.draw_interactive_overlays()
 
     def on_book_move_clicked(self, san):
@@ -832,8 +842,9 @@ class ExplorerView(QWidget):
         QTimer.singleShot(2000, self._reset_status)
 
     def _copy_pgn(self):
-        import chess.pgn
         from datetime import date
+
+        import chess.pgn
         game = chess.pgn.Game()
         game.headers["Event"] = "Chess Analyzer Pro"
         game.headers["Site"] = "Opening Explorer"
@@ -864,11 +875,11 @@ class ExplorerView(QWidget):
         # Prevent out-of-bounds
         if index < -1 or index >= len(self.move_history):
             return
-            
+
         current_idx = self.move_list_widget.current_index
         is_step_forward = (index == current_idx + 1)
         is_step_back = (index == current_idx - 1)
-        
+
         # Optimize: step forward/back by 1 move instead of full replay
         if is_step_forward and current_idx >= -1 and index < len(self.move_history):
             self.board.push(self.move_history[index][0])
@@ -879,7 +890,7 @@ class ExplorerView(QWidget):
             self.board = chess.Board(self.starting_fen, chess960=self.is_chess960)
             for i in range(index + 1):
                 self.board.push(self.move_history[i][0])
-            
+
         # Sync board widget
         self.board_widget.board = self.board.copy()
         self.board_widget.selected_square = None
@@ -888,10 +899,10 @@ class ExplorerView(QWidget):
         self.board_widget.last_move_classification = None
         self.board_widget.update_board()
         self.board_widget.draw_interactive_overlays()
-        
+
         # Sync move list
         self.move_list_widget.set_index(index)
-        
+
         # Sync engine & DB
         fen = self.board.fen()
         self.live_data = {}
@@ -900,9 +911,9 @@ class ExplorerView(QWidget):
         else:
             self.lines_widget.clear()
             self.board_widget.eval_bar.set_eval(0.0, None)
-            
+
         self.update_opening_db(fen)
-        
+
         if is_step_forward:
             # Only set pending if the move isn't already classified
             if not self.move_list_widget.moves[index].get('classification'):
@@ -942,7 +953,7 @@ class ExplorerView(QWidget):
             if not self.chk_engine.isChecked():
                 self.chk_engine.setChecked(True)
             self._start_backlog_classification()
-            
+
     def on_legal_moves_toggled(self, checked):
         self.board_widget.show_legal_moves = checked
         self.board_widget.draw_interactive_overlays()
@@ -962,23 +973,23 @@ class ExplorerView(QWidget):
         multipv_id = info.get("multipv", 1)
         self.live_data[multipv_id] = info
         sorted_lines = sorted(self.live_data.values(), key=lambda x: x.get("multipv", 1))
-        
+
         self.lines_widget.update_lines(sorted_lines, self.board_widget.board.turn)
-        
+
         best_mate = None
         best_cp = None
-        
+
         if len(sorted_lines) > 0:
             best_line = sorted_lines[0]
-            
+
             # Draw best move arrow
             if "pv_uci" in best_line and len(best_line["pv_uci"]) > 0:
                 self.board_widget.set_best_move(best_line["pv_uci"][0])
-                
+
             # Extract raw eval relative to side to move
             raw_cp = best_line.get("cp")
             raw_mate = best_line.get("mate")
-            
+
             # Only update if we actually received a score
             if raw_cp is not None or raw_mate is not None:
                 # Convert to White's perspective
@@ -988,7 +999,7 @@ class ExplorerView(QWidget):
                 else:
                     best_cp = raw_cp
                     best_mate = raw_mate
-                    
+
                 self.board_widget.eval_bar.set_eval(best_cp, best_mate)
 
                 depth = info.get("depth", 0)
@@ -1021,34 +1032,38 @@ class ExplorerView(QWidget):
                     return
 
                 # Instant Classification Logic
-                if self.classify_enabled and self.pending_classification_index >= 0 and depth >= 12:
-                    if self.pending_before_eval is not None:
-                        self._run_classification(best_cp, best_mate)
-                        # After classifying, process next backlog item
-                        if self._classify_queue:
-                            self._process_backlog_step()
+                if (
+                    self.classify_enabled
+                    and self.pending_classification_index >= 0
+                    and depth >= 12
+                    and self.pending_before_eval is not None
+                ):
+                    self._run_classification(best_cp, best_mate)
+                    # After classifying, process next backlog item
+                    if self._classify_queue:
+                        self._process_backlog_step()
 
     def _run_classification(self, after_cp, after_mate):
         if self.pending_classification_index < 0:
             return
-            
+
         move_obj, fen_before, fen_after, san = self.move_history[self.pending_classification_index]
-        
+
         # Check if it is a book move first (compare by UCI to avoid SAN ambiguity)
         norm_fen = _normalize_fen(fen_before)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
         is_book = self._is_book_move(node_id, move_obj.uci(), fen_before)
-                
+
         if is_book:
             self.move_list_widget.update_classification(self.pending_classification_index, "Book")
             self.board_widget.last_move_classification = "Book"
             self.board_widget.draw_interactive_overlays()
             self.pending_classification_index = -1
             return
-            
+
         turn_color = chess.Board(fen_before).turn
         side_str = "white" if turn_color == chess.WHITE else "black"
-        
+
         # Build classification context
         before_eval = self.pending_before_eval or {}
         ctx = ClassificationContext(
@@ -1062,16 +1077,16 @@ class ExplorerView(QWidget):
         )
         ctx.win_chance_before = get_win_probability(ctx.eval_before_cp, ctx.eval_before_mate)
         ctx.win_chance_after = get_win_probability(ctx.eval_after_cp, ctx.eval_after_mate)
-        
+
         wpl = abs(ctx.win_chance_before - ctx.win_chance_after)
-        
+
         classify_move(ctx, wpl, side_str)
-        
+
         if ctx.classification:
             self.move_list_widget.update_classification(self.pending_classification_index, ctx.classification)
             self.board_widget.last_move_classification = ctx.classification
             self.board_widget.draw_interactive_overlays()
-            
+
         self.pending_classification_index = -1
 
     def closeEvent(self, event):
@@ -1142,7 +1157,7 @@ class ExplorerView(QWidget):
             draws = m.get("draws", 0)
             black_wins = m.get("black", 0)
             total = white_wins + draws + black_wins
-            
+
             if total == 0:
                 continue
 
@@ -1158,7 +1173,7 @@ class ExplorerView(QWidget):
             b_pct = 100 - w_pct - d_pct
 
             stats = (w_pct, d_pct, b_pct, count_str)
-            
+
             piece_symbol = None
             try:
                 move_obj = self.board_widget.board.parse_san(san)
@@ -1176,7 +1191,7 @@ class ExplorerView(QWidget):
         self._current_book_count = len(self._book_row_widgets)
         arrow = "▼" if self.book_toggle.isChecked() else "▶"
         self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
-        
+
         self.lichess_attribution.setVisible(True)
         if self._current_book_count > 0:
             self.book_toggle.show()
@@ -1187,7 +1202,7 @@ class ExplorerView(QWidget):
         else:
             self.book_toggle.hide()
             self.book_scroll.hide()
-            
+
         self.board_widget.draw_interactive_overlays()
 
     def on_lichess_explorer_error(self, err):

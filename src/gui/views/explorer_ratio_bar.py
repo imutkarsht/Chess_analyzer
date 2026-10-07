@@ -1,5 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
 from src.gui.styles import Styles
 

@@ -1,11 +1,12 @@
 """
 Links and Updates Settings group component.
 """
-from PyQt6.QtWidgets import QGroupBox, QGridLayout, QApplication
-from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtWidgets import QApplication, QGridLayout, QGroupBox
+
 from ...styles import Styles
-from .helpers import create_icon_button, HAS_QTAWESOME
+from .helpers import HAS_QTAWESOME, create_icon_button
 
 if HAS_QTAWESOME:
     import qtawesome as qta
@@ -14,7 +15,7 @@ class LinksSettings(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Links", parent)
         self.setStyleSheet(Styles.get_group_box_style())
-        
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -48,17 +49,18 @@ class LinksSettings(QGroupBox):
 
     def check_for_updates(self):
         """Manually check for updates."""
-        from src.backend.updater.update_checker import UpdateChecker, APP_VERSION
+        from src.backend.updater.update_checker import APP_VERSION, UpdateChecker
+
         from ...dialogs import UpdateNotificationDialog
-        
+
         # Show checking message
         self.update_btn.setEnabled(False)
         self.update_btn.setText("  Checking...")
         QApplication.processEvents()
-        
+
         try:
             update_info = UpdateChecker.check_for_updates()
-            
+
             if update_info.available:
                 dialog = UpdateNotificationDialog(update_info, self)
                 dialog.exec()

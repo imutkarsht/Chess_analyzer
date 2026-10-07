@@ -1,11 +1,25 @@
-from PyQt6.QtWidgets import QGroupBox, QFormLayout, QLabel, QComboBox, QCheckBox, QColorDialog, QRadioButton, QHBoxLayout, QWidget, QPushButton, QButtonGroup, QFrame
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import (
+    QButtonGroup,
+    QCheckBox,
+    QColorDialog,
+    QComboBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QRadioButton,
+    QWidget,
+)
+
+from ....utils.path_utils import get_resource_path
 from ...styles import Styles
 from ...theme import ThemeManager
 from ...theme.palette import BOARD_THEMES
-from ....utils.path_utils import get_resource_path
 from .helpers import create_icon_button
+
 
 class AppearanceSettings(QGroupBox):
     theme_refreshed = pyqtSignal()
@@ -197,7 +211,9 @@ class AppearanceSettings(QGroupBox):
 
     def import_theme(self):
         from PyQt6.QtWidgets import QFileDialog
+
         from src.gui.main_window import MainWindow
+
         from ...board.piece_themes import (
             get_piece_theme_names,
             import_theme_from_folder,

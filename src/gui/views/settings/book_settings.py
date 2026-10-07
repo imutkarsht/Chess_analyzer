@@ -2,35 +2,38 @@
 Opening Book Settings group component.
 """
 import os
-from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, QFileDialog
+
+from PyQt6.QtWidgets import QFileDialog, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout
+
 from ...styles import Styles
 from .helpers import create_icon_button
+
 
 class BookSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Opening Book", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
-        
+
         self.setup_ui()
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 25, 20, 20)
-        
+
         path_layout = QHBoxLayout()
         self.polyglot_path_input = QLineEdit()
         self.polyglot_path_input.setText(self.config_manager.get("polyglot_book_path", ""))
         self.polyglot_path_input.setPlaceholderText("Path to Polyglot book (.bin)... (Optional)")
         self.polyglot_path_input.setStyleSheet(Styles.get_input_style())
         path_layout.addWidget(self.polyglot_path_input)
-        
+
         self.polyglot_browse_btn = create_icon_button("Browse", "fa5s.folder-open", self.browse_polyglot_book, self)
         path_layout.addWidget(self.polyglot_browse_btn)
-        
+
         self.polyglot_clear_btn = create_icon_button("Clear", "fa5s.times", self.clear_polyglot_book, self)
         path_layout.addWidget(self.polyglot_clear_btn)
-        
+
         layout.addLayout(path_layout)
 
         # Polyglot Validation status label
@@ -76,14 +79,14 @@ class BookSettings(QGroupBox):
 
         try:
             import chess.polyglot
-            with chess.polyglot.open_reader(path) as reader:
+            with chess.polyglot.open_reader(path):
                 pass
             self.polyglot_validation_label.setText("✓ Valid Polyglot Opening Book")
             self.polyglot_validation_label.setStyleSheet(f"color: {Styles.COLOR_BEST}; font-size: 12px; font-weight: bold; background: transparent;")
         except Exception as e:
             self.polyglot_validation_label.setText(f"❌ Failed to parse Polyglot book: {str(e)}")
             self.polyglot_validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
-            
+
         self.polyglot_validation_label.setVisible(True)
 
     def reload_from_config(self):

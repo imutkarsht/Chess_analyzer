@@ -1,40 +1,49 @@
-import json
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea, QProgressBar, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
+from src.backend.services.groq_service import GroqService
+from src.gui.components import MasonryLayout, StatCard, StatsLayout
+from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout, create_button
-from src.gui.components import StatCard, StatsLayout, MasonryLayout
-from src.backend.services.groq_service import GroqService
-from src.gui.metrics.workers import StatsWorker
 
 # Import modular cards
 from src.gui.views.metrics import (
-    ResultDistributionCard,
+    AccuracyTrendCard,
+    AICoachCard,
+    ColorPerformanceCard,
     EndingDistributionCard,
     MoveQualityCard,
-    AccuracyTrendCard,
-    ColorPerformanceCard,
     OpeningsListCard,
-    AICoachCard
+    ResultDistributionCard,
 )
+
 
 class MetricsWidget(QWidget):
     request_settings = pyqtSignal()
-    
+
     def __init__(self, config_manager, history_manager):
         super().__init__()
         self.config_manager = config_manager
         self.history_manager = history_manager
         self.usernames = []
         self.games_data = []
-        
+
         self._groq_service = GroqService()
-        
+
         # Cache stats and insights for dynamic style updates
         self.current_stats = None
         self.current_insights = None
-        
+
         self.setup_ui()
         self.refresh()
 
@@ -53,25 +62,25 @@ class MetricsWidget(QWidget):
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
-        
+
         # Header Bar Container
         self.header_bar = QFrame()
         self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
-        
+
         # Title
         self.title_lbl = QLabel("Performance Dashboard")
         self.title_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         header_layout.addWidget(self.title_lbl)
-        
+
         header_layout.addStretch()
-        
+
         self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.refresh, icon_name="fa5s.sync-alt")
         header_layout.addWidget(self.btn_refresh)
-        
+
         self.main_layout.addWidget(self.header_bar)
-        
+
         # Content Area
         self.content_widget = QWidget()
         self.content_widget.setStyleSheet(Styles.get_background_style())
@@ -103,38 +112,38 @@ class MetricsWidget(QWidget):
 
     def refresh(self, _=None):
         clear_layout(self.content_layout)
-        
+
         chesscom = self.config_manager.get("chesscom_username", "")
         lichess = self.config_manager.get("lichess_username", "")
         self.usernames = [u for u in [chesscom, lichess] if u]
-        
+
         if not self.usernames:
             self.show_setup_required()
             return
-            
+
         self.games_data = self.history_manager.get_games_for_users(self.usernames)
-        
+
         if not self.games_data:
             self.show_no_data()
             return
-            
+
         # Show Loading
         loading_widget = QWidget()
         l_layout = QVBoxLayout(loading_widget)
         l_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
         spinner = QProgressBar()
         spinner.setRange(0, 0) # Infinite loading
         spinner.setFixedWidth(200)
         spinner.setStyleSheet(Styles.get_progress_bar_style())
         l_layout.addWidget(spinner)
-        
+
         lbl = QLabel("Calculating Statistics...")
         lbl.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY) + "; margin-top: 10px;")
         l_layout.addWidget(lbl)
-        
+
         self.content_layout.addWidget(loading_widget)
-        
+
         # Start Worker
         if hasattr(self, 'stats_worker') and self.stats_worker is not None and self.stats_worker.isRunning():
             try:
@@ -155,7 +164,7 @@ class MetricsWidget(QWidget):
         self.show_dashboard(stats)
 
     def show_setup_required(self):
-        self._show_message_view("Setup Required", 
+        self._show_message_view("Setup Required",
             "Please configure your Chess.com or Lichess.org username in Settings to view your stats.",
             "Go to Settings", self.go_to_settings)
 
@@ -169,24 +178,24 @@ class MetricsWidget(QWidget):
         layout = QVBoxLayout(container)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(20)
-        
+
         lbl = QLabel(title_text)
         lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True))
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl)
-        
+
         msg = QLabel(msg_text)
         msg.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_SECONDARY))
         msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(msg)
-        
+
         if btn_text and btn_callback:
             btn = QPushButton(btn_text)
             btn.setStyleSheet(Styles.get_button_style())
             btn.setFixedWidth(200)
             btn.clicked.connect(btn_callback)
             layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
-        
+
         self.content_layout.addWidget(container)
 
     def go_to_settings(self):
@@ -196,14 +205,14 @@ class MetricsWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(Styles.get_scroll_area_style())
-        
+
         dashboard = QWidget()
         dashboard.setStyleSheet(Styles.get_transparent_label_style())
-        
+
         dashboard_layout = QVBoxLayout(dashboard)
         dashboard_layout.setSpacing(20)
         dashboard_layout.setContentsMargins(10, 10, 10, 10)
-        
+
         # 1. Key Metrics Row - uses custom adaptive StatsLayout
         self.stats_container = QWidget()
         self.stats_layout = StatsLayout(self.stats_container, spacing=20)
@@ -212,59 +221,58 @@ class MetricsWidget(QWidget):
         self.stats_layout.addWidget(StatCard("Avg Accuracy", f"{stats['avg_accuracy']:.1f}%", "Based on engine eval.", icon="accuracy"))
         self.stats_layout.addWidget(StatCard("Best Win", str(stats['best_win']), "Keep playing!", icon="best_win"))
         dashboard_layout.addWidget(self.stats_container)
-        
+
         # 2. Donut charts — always 3 equal columns, fully dynamic width
         donuts_widget = QWidget()
         donuts_layout = QHBoxLayout(donuts_widget)
         donuts_layout.setSpacing(20)
         donuts_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.result_card = ResultDistributionCard()
         self.result_card.set_stats(stats)
         donuts_layout.addWidget(self.result_card)
-        
+
         self.ending_card = EndingDistributionCard()
         self.ending_card.set_stats(stats)
         donuts_layout.addWidget(self.ending_card)
-        
+
         self.quality_card = MoveQualityCard()
         self.quality_card.set_stats(stats)
         donuts_layout.addWidget(self.quality_card)
-        
+
         dashboard_layout.addWidget(donuts_widget)
 
         # 3. Remaining cards in a 2-column masonry (shortest-column packing)
         self.charts_container = QWidget()
         self.charts_layout = MasonryLayout(self.charts_container, margin=0, spacing=20, min_col_width=400)
-        
+
         self.accuracy_card = AccuracyTrendCard()
         self.accuracy_card.set_stats(stats)
         self.charts_layout.addWidget(self.accuracy_card)
-        
+
         self.color_card = ColorPerformanceCard()
         self.color_card.set_stats(stats)
         self.charts_layout.addWidget(self.color_card)
-        
+
         self.openings_card = OpeningsListCard()
         self.openings_card.set_stats(stats)
         self.charts_layout.addWidget(self.openings_card)
-        
+
         self.ai_coach_card = AICoachCard(self.groq_service)
         self.ai_coach_card.set_stats(stats)
-        
+
         # Connect AI card's internal worker to capture insights cached text
         self.ai_coach_card.btn_refresh_insights.clicked.connect(self._sync_insights_cache)
         self.charts_layout.addWidget(self.ai_coach_card)
 
         dashboard_layout.addWidget(self.charts_container)
-        
+
         scroll.setWidget(dashboard)
         self.content_layout.addWidget(scroll)
 
     def _sync_insights_cache(self):
-        if hasattr(self, 'ai_coach_card') and self.ai_coach_card:
-            if self.ai_coach_card.worker:
-                self.ai_coach_card.worker.finished.connect(self._store_insights_cache)
+        if hasattr(self, 'ai_coach_card') and self.ai_coach_card and self.ai_coach_card.worker:
+            self.ai_coach_card.worker.finished.connect(self._store_insights_cache)
 
     def _store_insights_cache(self, insight_text):
         self.current_insights = insight_text
