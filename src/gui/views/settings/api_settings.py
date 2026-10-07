@@ -1,15 +1,22 @@
 """
 API Configuration Settings group component.
 """
-from PyQt6.QtWidgets import QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QFrame, QFormLayout, QLineEdit
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from src.gui.styles import Styles
-from .helpers import create_icon_button
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QFormLayout,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+)
 
-try:
-    from openai import OpenAI
-except ImportError:
-    pass
+from src.gui.styles import Styles
+
+from .helpers import create_icon_button
 
 try:
     import qtawesome as qta
@@ -20,7 +27,9 @@ except ImportError:
 from src.backend.services.groq_service import GroqService
 from src.constants import PROVIDERS
 from src.gui.utils.gui_utils import show_error_dialog
+
 from .modern_widgets import PasswordFieldWrapper
+
 
 def test_llm_sync(profile: dict) -> tuple:
     """Run a one-shot chat completion against the given profile.
@@ -94,7 +103,7 @@ class ApiSettings(QGroupBox):
         super().__init__("API Configuration", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
-        
+
         self._llm_providers = PROVIDERS
         self._loading_profile = False
         self._current_profile_index = -1
@@ -147,7 +156,8 @@ class ApiSettings(QGroupBox):
         api_layout.addLayout(prof_row)
 
         # --- Thin divider ---
-        _div = QFrame(); _div.setFrameShape(QFrame.Shape.HLine)
+        _div = QFrame()
+        _div.setFrameShape(QFrame.Shape.HLine)
         _div.setStyleSheet(Styles.get_divider_style())
         api_layout.addWidget(_div)
 
@@ -157,12 +167,14 @@ class ApiSettings(QGroupBox):
         pf.setContentsMargins(0, 0, 0, 0)
         pf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
-        self._lbl_pname = QLabel("Name:"); self._lbl_pname.setStyleSheet(lbl_style)
+        self._lbl_pname = QLabel("Name:")
+        self._lbl_pname.setStyleSheet(lbl_style)
         self.llm_profile_name = QLineEdit()
         self.llm_profile_name.setStyleSheet(Styles.get_input_style())
         pf.addRow(self._lbl_pname, self.llm_profile_name)
 
-        self._lbl_prov = QLabel("Provider:"); self._lbl_prov.setStyleSheet(lbl_style)
+        self._lbl_prov = QLabel("Provider:")
+        self._lbl_prov.setStyleSheet(lbl_style)
         self.llm_provider_combo = QComboBox()
         for pkey, pmeta in self._llm_providers.items():
             self.llm_provider_combo.addItem(pmeta["label"], userData=pkey)
@@ -170,16 +182,19 @@ class ApiSettings(QGroupBox):
         self.llm_provider_combo.currentIndexChanged.connect(self._on_provider_changed)
         pf.addRow(self._lbl_prov, self.llm_provider_combo)
 
-        self.lbl_llm_key = QLabel("API Key:"); self.lbl_llm_key.setStyleSheet(lbl_style)
+        self.lbl_llm_key = QLabel("API Key:")
+        self.lbl_llm_key.setStyleSheet(lbl_style)
         self.llm_key_input = PasswordFieldWrapper(self)
         pf.addRow(self.lbl_llm_key, self.llm_key_input)
 
-        self._lbl_model = QLabel("Model:"); self._lbl_model.setStyleSheet(lbl_style)
+        self._lbl_model = QLabel("Model:")
+        self._lbl_model.setStyleSheet(lbl_style)
         self.llm_model_input = QLineEdit()
         self.llm_model_input.setStyleSheet(Styles.get_input_style())
         pf.addRow(self._lbl_model, self.llm_model_input)
 
-        self.lbl_llm_url = QLabel("Base URL:"); self.lbl_llm_url.setStyleSheet(lbl_style)
+        self.lbl_llm_url = QLabel("Base URL:")
+        self.lbl_llm_url.setStyleSheet(lbl_style)
         self.llm_url_input = QLineEdit()
         self.llm_url_input.setPlaceholderText("http://localhost:1234/v1")
         self.llm_url_input.setStyleSheet(Styles.get_input_style())
@@ -207,13 +222,17 @@ class ApiSettings(QGroupBox):
         api_layout.addLayout(status_row)
 
         # --- Lichess token ---
-        self._api_div2 = QFrame(); self._api_div2.setFrameShape(QFrame.Shape.HLine)
+        self._api_div2 = QFrame()
+        self._api_div2.setFrameShape(QFrame.Shape.HLine)
         self._api_div2.setStyleSheet(Styles.get_divider_style())
         api_layout.addWidget(self._api_div2)
 
-        lf = QFormLayout(); lf.setSpacing(10); lf.setContentsMargins(0, 0, 0, 0)
+        lf = QFormLayout()
+        lf.setSpacing(10)
+        lf.setContentsMargins(0, 0, 0, 0)
         lf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self._lbl_lichess = QLabel("Lichess API Token:"); self._lbl_lichess.setStyleSheet(lbl_style)
+        self._lbl_lichess = QLabel("Lichess API Token:")
+        self._lbl_lichess.setStyleSheet(lbl_style)
         self.lichess_token_input = PasswordFieldWrapper(self)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         lf.addRow(self._lbl_lichess, self.lichess_token_input)
@@ -244,10 +263,10 @@ class ApiSettings(QGroupBox):
         if self._loading_profile:
             return
         profiles = self.config_manager.get_profiles()
-        
+
         if 0 <= self._current_profile_index < len(profiles):
             profiles[self._current_profile_index] = self._current_profile_dict()
-            
+
         if 0 <= index < len(profiles):
             self._load_profile_into_form(profiles[index])
             self._current_profile_index = index
@@ -381,7 +400,7 @@ class ApiSettings(QGroupBox):
         self._test_worker = worker
 
         def _on_done(success: bool, msg: str, details: str):
-            if self._test_worker is not worker:  
+            if self._test_worker is not worker:
                 return
             color = Styles.COLOR_GOOD if success else Styles.COLOR_BLUNDER
             self.llm_test_result.setStyleSheet(

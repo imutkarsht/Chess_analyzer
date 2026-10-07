@@ -5,17 +5,18 @@ Supports both "detailed" card view and "compact" list row view.
 """
 import os
 import re
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton
-from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtSvgWidgets import QSvgWidget
+
 import chess
 import chess.svg
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtSvgWidgets import QSvgWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
-from ..styles import Styles
+from ...utils.config import ConfigManager
 from ...utils.logger import logger
 from ...utils.path_utils import get_resource_path
-from ...utils.config import ConfigManager
+from ..styles import Styles
 from ..theme.palette import BOARD_THEMES
 
 try:
@@ -465,11 +466,8 @@ class GameListItemWidget(QWidget):
 
         if result_text == "1-0":
             return Styles.COLOR_BEST if user_is_white else Styles.COLOR_BLUNDER
-        elif result_text == "0-1":
+        if result_text == "0-1":
             return Styles.COLOR_BEST if user_is_black else Styles.COLOR_BLUNDER
-        elif result_text == "1/2-1/2":
-            return Styles.COLOR_TEXT_SECONDARY
-
         return Styles.COLOR_TEXT_SECONDARY
 
     def _format_time_control(self, time_control):
@@ -553,10 +551,7 @@ class GameListItemWidget(QWidget):
                 return True
 
         fen = game.metadata.starting_fen
-        if fen and fen.split()[0:4] != self._STANDARD_START_FEN.split()[0:4]:
-            return True
-
-        return False
+        return bool(fen and fen.split()[0:4] != self._STANDARD_START_FEN.split()[0:4])
 
     def _get_termination_icon(self, termination):
         term_lower = str(termination).lower()

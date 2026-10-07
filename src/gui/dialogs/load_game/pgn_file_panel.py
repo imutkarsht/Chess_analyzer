@@ -1,13 +1,16 @@
 """
 PGN File panel for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QFileDialog
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QFileDialog, QVBoxLayout, QWidget
+
 from src.gui.components.toast import Toast
-from PyQt6.QtCore import pyqtSignal, Qt
-from .drop_zone import DropZone
-from .inline_game_list import InlineGameList
-from .helpers import classify_time_control
 from src.gui.utils.gui_utils import create_button
+
+from .drop_zone import DropZone
+from .helpers import classify_time_control
+from .inline_game_list import InlineGameList
+
 
 class PgnFilePanel(QWidget):
     """
@@ -60,7 +63,7 @@ class PgnFilePanel(QWidget):
         from src.backend.storage.pgn_parser import PGNParser
         try:
             games = PGNParser.parse_pgn_file(path)
-        except Exception as e:
+        except Exception:
             Toast.show_message(self.window(),
                                "Could not read this PGN. It may be empty or corrupted.",
                                "error")
@@ -72,7 +75,7 @@ class PgnFilePanel(QWidget):
 
         self._parsed_games = games
         n = len(games)
-        
+
         self._drop_zone.setVisible(False)
 
         rows = []

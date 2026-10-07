@@ -57,8 +57,11 @@ venv\Scripts\activate           # Windows
 ### 3. Install dependencies
 
 ```bash
-# Production + dev dependencies
-pip install -r requirements.txt -r requirements-dev.txt
+# Using uv (recommended)
+uv pip install -r requirements-dev.txt
+
+# Or with standard pip
+pip install -r requirements-dev.txt
 ```
 
 ### 4. Run the app
@@ -67,17 +70,30 @@ pip install -r requirements.txt -r requirements-dev.txt
 python main.py
 ```
 
-### 5. Run the test suite
+### 5. Run linters & code formatting
+
+```bash
+# Check code style & logic with Ruff
+ruff check .
+
+# Automatically fix lint issues
+ruff check --fix .
+
+# Format code
+ruff format .
+```
+
+### 6. Run the test suite
 
 ```bash
 # All tests (headless Qt)
-PYTHONPATH=. pytest tests/ -v
+pytest tests/ -v
 
 # On Linux without a display
-QT_QPA_PLATFORM=offscreen PYTHONPATH=. pytest tests/ -v
+QT_QPA_PLATFORM=offscreen pytest tests/ -v
 
 # Windows (PowerShell)
-$env:PYTHONPATH="."; pytest tests/ -v
+pytest tests/ -v
 ```
 
 ---

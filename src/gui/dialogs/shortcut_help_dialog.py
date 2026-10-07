@@ -1,9 +1,18 @@
 """
 Keyboard Shortcuts Help Dialog for Chess Analyzer Pro.
 """
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QPushButton, QFrame, QScrollArea, QWidget)
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
+
 from ..styles import Styles
 
 try:
@@ -15,7 +24,7 @@ except ImportError:
 
 class ShortcutHelpDialog(QDialog):
     """Dialog showing all available keyboard shortcuts."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Keyboard Shortcuts")
@@ -30,23 +39,23 @@ class ShortcutHelpDialog(QDialog):
                 background: transparent;
             }}
         """)
-        
+
         self.setup_ui()
-    
+
     def setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
-        
+
         # Header with icon
         header_layout = QHBoxLayout()
         header_layout.setSpacing(12)
-        
+
         if HAS_QTAWESOME:
             icon_label = QLabel()
             icon_label.setPixmap(qta.icon('fa5s.keyboard', color=Styles.COLOR_ACCENT).pixmap(28, 28))
             header_layout.addWidget(icon_label)
-        
+
         title = QLabel("Keyboard Shortcuts")
         title.setStyleSheet(f"""
             font-size: 20px;
@@ -56,7 +65,7 @@ class ShortcutHelpDialog(QDialog):
         header_layout.addWidget(title)
         header_layout.addStretch()
         layout.addLayout(header_layout)
-        
+
         # Subtitle
         subtitle = QLabel("Master these shortcuts to analyze games faster")
         subtitle.setStyleSheet(f"""
@@ -66,18 +75,18 @@ class ShortcutHelpDialog(QDialog):
             margin-bottom: 8px;
         """)
         layout.addWidget(subtitle)
-        
+
         # Scroll Area for shortcuts
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND}; border: none;")
-        
+
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setSpacing(12)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Shortcuts grouped by category
         shortcuts = {
             "Navigation": [
@@ -97,23 +106,23 @@ class ShortcutHelpDialog(QDialog):
                 ("Esc", "Close dialogs"),
             ],
         }
-        
+
         for category, items in shortcuts.items():
             # Category Header
             cat_layout = QHBoxLayout()
             cat_layout.setSpacing(8)
-            
+
             if HAS_QTAWESOME:
                 cat_icons = {
                     "Navigation": "fa5s.arrows-alt",
-                    "Board": "fa5s.chess-board", 
+                    "Board": "fa5s.chess-board",
                     "Actions": "fa5s.bolt",
                     "General": "fa5s.cog"
                 }
                 cat_icon = QLabel()
                 cat_icon.setPixmap(qta.icon(cat_icons.get(category, "fa5s.circle"), color=Styles.COLOR_ACCENT).pixmap(14, 14))
                 cat_layout.addWidget(cat_icon)
-            
+
             category_label = QLabel(category)
             category_label.setStyleSheet(f"""
                 font-size: 13px;
@@ -122,23 +131,23 @@ class ShortcutHelpDialog(QDialog):
             """)
             cat_layout.addWidget(category_label)
             cat_layout.addStretch()
-            
+
             content_layout.addLayout(cat_layout)
-            
+
             # Shortcut items
             for key, description in items:
                 row = self._create_shortcut_row(key, description)
                 content_layout.addWidget(row)
-            
+
             # Add spacing between categories
             spacer = QWidget()
             spacer.setFixedHeight(4)
             content_layout.addWidget(spacer)
-        
+
         content_layout.addStretch()
         scroll.setWidget(content)
         layout.addWidget(scroll)
-        
+
         # Footer buttons
         btn_feedback = QPushButton("  Report Bug / Feedback")
         btn_feedback.setStyleSheet(f"""
@@ -180,7 +189,7 @@ class ShortcutHelpDialog(QDialog):
         """)
         btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_close.clicked.connect(self.accept)
-        
+
         btn_layout = QHBoxLayout()
         btn_layout.addWidget(btn_feedback)
         btn_layout.addStretch()
@@ -191,7 +200,7 @@ class ShortcutHelpDialog(QDialog):
         from .feedback_dialog import FeedbackDialog
         dialog = FeedbackDialog(self, initial_tab="bug")
         dialog.exec()
-    
+
     def _create_shortcut_row(self, key, description):
         """Create a row with key badge and description."""
         row = QFrame()
@@ -204,10 +213,10 @@ class ShortcutHelpDialog(QDialog):
                 background: transparent;
             }}
         """)
-        
+
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(12, 8, 12, 8)
-        
+
         # Key badge
         key_label = QLabel(key)
         key_label.setStyleSheet(f"""
@@ -223,7 +232,7 @@ class ShortcutHelpDialog(QDialog):
         key_label.setMinimumWidth(80)
         key_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         row_layout.addWidget(key_label)
-        
+
         # Description
         desc_label = QLabel(description)
         desc_label.setStyleSheet(f"""
@@ -233,5 +242,5 @@ class ShortcutHelpDialog(QDialog):
         """)
         row_layout.addWidget(desc_label)
         row_layout.addStretch()
-        
+
         return row

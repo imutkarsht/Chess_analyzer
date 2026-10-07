@@ -1,8 +1,11 @@
 import json
 import os
+
+from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV
+
 from .logger import logger
-from .path_utils import get_app_path, get_user_data_dir
-from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV, DEFAULT_LIVE_ANALYSIS_TIME
+from .path_utils import get_user_data_dir
+
 
 class ConfigManager:
     CONFIG_FILE = "config.json"
@@ -59,7 +62,7 @@ class ConfigManager:
 
     def __init__(self):
         self.config_path = os.path.join(get_user_data_dir(), self.CONFIG_FILE)
-        if (self.__class__._shared_config is None or 
+        if (self.__class__._shared_config is None or
                 self.__class__._shared_config_path != self.config_path):
             self.__class__._shared_config = self.load_config()
             self.__class__._shared_config_path = self.config_path
@@ -72,7 +75,7 @@ class ConfigManager:
             return cfg
 
         try:
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path) as f:
                 data = json.load(f)
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
@@ -104,7 +107,7 @@ class ConfigManager:
             data["llm_active_profile"] = name
             logger.info(f"Config: migrated single LLM config to profile '{name}'")
             migrated = True
-            
+
         # Always scrub legacy flat keys — covers both fresh migrations and
         # configs that were already migrated but still have the old fields
         # stamped in by a previous version of DEFAULT_CONFIG.

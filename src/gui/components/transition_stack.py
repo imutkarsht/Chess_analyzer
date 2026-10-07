@@ -1,6 +1,5 @@
-from PyQt6.QtCore import QPropertyAnimation, QEasingCurve
-from PyQt6.QtWidgets import QStackedWidget
-from PyQt6.QtWidgets import QGraphicsOpacityEffect
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation
+from PyQt6.QtWidgets import QGraphicsOpacityEffect, QStackedWidget
 
 
 class FadedStackedWidget(QStackedWidget):

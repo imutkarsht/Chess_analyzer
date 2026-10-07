@@ -1,9 +1,11 @@
 """
 Game card component for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QLabel, QSizePolicy
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QFrame, QLabel, QSizePolicy, QVBoxLayout
+
 from ...styles import Styles
+
 
 class GameCard(QFrame):
     """Single selectable game row inside the inline game list."""

@@ -1,44 +1,47 @@
-import requests
-from dotenv import load_dotenv
+import datetime
+import json
 import os
 import sys
-import json
-from typing import List, Dict
+
+import requests
+from dotenv import load_dotenv
+
+from src.constants import LICHESS_BASE_URL
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
-from src.constants import LICHESS_BASE_URL
 
 from .base_api import BaseChessAPI
+
 
 class LichessAPI(BaseChessAPI):
     BASE_URL = LICHESS_BASE_URL
 
     def __init__(self):
         self.config_manager = ConfigManager()
-        
+
         try:
-            if getattr(sys, 'frozen', False):
+            if getattr(sys, "frozen", False):
                 # If running as executable, load from bundled env.sample
                 base_path = sys._MEIPASS
-                load_dotenv(dotenv_path=os.path.join(base_path, '.env.sample'))
+                load_dotenv(dotenv_path=os.path.join(base_path, ".env.sample"))
             else:
                 # If running from source, load from local .env
                 load_dotenv()
         except Exception:
             pass
-        
+
     def get_headers(self):
         token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
         headers = BaseChessAPI.DEFAULT_HEADERS.copy()
         headers.update({
-            "Accept": "application/x-ndjson", 
-            "Content-Type": "application/json"
+            "Accept": "application/x-ndjson",
+            "Content-Type": "application/json",
         })
         if token:
             headers["Authorization"] = f"Bearer {token}"
         return headers
 
-    def get_user_games(self, username: str, max_games: int = 20) -> List[Dict]:
+    def get_user_games(self, username: str, max_games: int = 20) -> list[dict]:
         """
         Fetches last N games from Lichess and returns JSON (NDJSON parsed)
         """
@@ -48,15 +51,11 @@ class LichessAPI(BaseChessAPI):
                 "max": max_games,
                 "moves": "true",
                 "opening": "true",
-                "pgnInJson": "true",  
+                "pgnInJson": "true",
                 "clocks": "true",
             }
 
             # Use BaseChessAPI helper
-            # Note: Lichess returns NDJSON, so standard .json() might fail if we treated it as single JSON object
-            # But here we iterate lines, so we need the raw response object or a custom handler.
-            # BaseChessAPI._make_request returns response object.
-            
             response = BaseChessAPI._make_request(url, self.get_headers(), params)
             if not response:
                 return []
@@ -67,40 +66,38 @@ class LichessAPI(BaseChessAPI):
                     line = raw_line.decode("utf-8").strip()
                     try:
                         game_data = json.loads(line)
-                        
+
                         # Normalize to match Chess.com format expected by UI
                         normalized_game = {
                             "white": {
                                 "username": game_data.get("players", {}).get("white", {}).get("user", {}).get("name", "?"),
                                 "rating": game_data.get("players", {}).get("white", {}).get("rating", "?"),
-                                "result": "win" if game_data.get("winner") == "white" else "checkmated" if game_data.get("status") == "mate" else "agreed" # Simplified result mapping
+                                "result": "win" if game_data.get("winner") == "white" else "checkmated" if game_data.get("status") == "mate" else "agreed",
                             },
                             "black": {
                                 "username": game_data.get("players", {}).get("black", {}).get("user", {}).get("name", "?"),
                                 "rating": game_data.get("players", {}).get("black", {}).get("rating", "?"),
-                                "result": "win" if game_data.get("winner") == "black" else "checkmated" if game_data.get("status") == "mate" else "agreed"
+                                "result": "win" if game_data.get("winner") == "black" else "checkmated" if game_data.get("status") == "mate" else "agreed",
                             },
                             "time_class": game_data.get("speed", "standard"),
-                            "end_time": int(game_data.get("createdAt", 0) / 1000), # Convert ms to seconds
+                            "end_time": int(game_data.get("createdAt", 0) / 1000),  # Convert ms to seconds
                             "pgn": game_data.get("pgn", ""),
-                            "url": f"https://lichess.org/{game_data.get('id')}"
+                            "url": f"https://lichess.org/{game_data.get('id')}",
                         }
-                        
+
                         games.append(normalized_game)
                     except json.JSONDecodeError:
                         continue
             return games
 
-
         except Exception as e:
             BaseChessAPI._log_api_error("Lichess", "get_user_games", e)
             return []
 
-    def get_user_games_by_date(self, username: str, date) -> List[Dict]:
+    def get_user_games_by_date(self, username: str, date) -> list[dict]:
         """
         Fetches games for a specific user and date.
         """
-        import datetime
         try:
             start_dt = datetime.datetime.combine(date, datetime.time.min)
             since = int(start_dt.timestamp() * 1000)
@@ -113,9 +110,9 @@ class LichessAPI(BaseChessAPI):
                 "until": until,
                 "moves": "true",
                 "opening": "true",
-                "pgnInJson": "true",  
+                "pgnInJson": "true",
                 "clocks": "true",
-                "max": 100
+                "max": 100,
             }
 
             response = BaseChessAPI._make_request(url, self.get_headers(), params)
@@ -132,17 +129,17 @@ class LichessAPI(BaseChessAPI):
                             "white": {
                                 "username": game_data.get("players", {}).get("white", {}).get("user", {}).get("name", "?"),
                                 "rating": game_data.get("players", {}).get("white", {}).get("rating", "?"),
-                                "result": "win" if game_data.get("winner") == "white" else "checkmated" if game_data.get("status") == "mate" else "agreed"
+                                "result": "win" if game_data.get("winner") == "white" else "checkmated" if game_data.get("status") == "mate" else "agreed",
                             },
                             "black": {
                                 "username": game_data.get("players", {}).get("black", {}).get("user", {}).get("name", "?"),
                                 "rating": game_data.get("players", {}).get("black", {}).get("rating", "?"),
-                                "result": "win" if game_data.get("winner") == "black" else "checkmated" if game_data.get("status") == "mate" else "agreed"
+                                "result": "win" if game_data.get("winner") == "black" else "checkmated" if game_data.get("status") == "mate" else "agreed",
                             },
                             "time_class": game_data.get("speed", "standard"),
                             "end_time": int(game_data.get("createdAt", 0) / 1000),
                             "pgn": game_data.get("pgn", ""),
-                            "url": f"https://lichess.org/{game_data.get('id')}"
+                            "url": f"https://lichess.org/{game_data.get('id')}",
                         }
                         games.append(normalized_game)
                     except json.JSONDecodeError:
@@ -162,25 +159,25 @@ class LichessAPI(BaseChessAPI):
         """
         if "lichess.org" not in url.lower():
             return ""
-            
+
         try:
             # Remove trailing slash
             if url.endswith("/"):
                 url = url[:-1]
-                
+
             # Split by /
             parts = url.split("/")
             possible_id = parts[-1]
-            
-            # Lichess IDs are 8 or 12 chars usually. 
+
+            # Lichess IDs are 8 or 12 chars usually.
             # If "white" or "black" is at the end, go back one
             if possible_id.lower() in ["white", "black"] and len(parts) > 1:
                 possible_id = parts[-2]
-                
+
             # Basic validation: alphanumeric, length 8 or 12
             if len(possible_id) >= 8:
-                 return possible_id[:8] # First 8 chars are the game ID (remainder is for export/download auth sometimes or analysis)
-            
+                return possible_id[:8]  # First 8 chars are the game ID
+
             return ""
         except Exception:
             return ""
@@ -191,11 +188,10 @@ class LichessAPI(BaseChessAPI):
         """
         try:
             url = f"https://lichess.org/game/export/{game_id}"
-            
-            
+
             headers = self.get_headers()
-            headers["Accept"] = "application/json" # Enforce JSON to get metadata + PGN easily if needed
-            
+            headers["Accept"] = "application/json"  # Enforce JSON to get metadata + PGN easily if needed
+
             params = {
                 "moves": "true",
                 "pgnInJson": "true",
@@ -205,9 +201,9 @@ class LichessAPI(BaseChessAPI):
 
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
-            
+
             game_data = response.json()
-            
+
             # Normalize to return dict with "pgn"
             return {
                 "pgn": game_data.get("pgn", ""),
@@ -215,11 +211,9 @@ class LichessAPI(BaseChessAPI):
                 "white": game_data.get("players", {}).get("white", {}).get("user", {}).get("name", "?"),
                 "black": game_data.get("players", {}).get("black", {}).get("user", {}).get("name", "?"),
                 "white_rating": game_data.get("players", {}).get("white", {}).get("rating"),
-                "black_rating": game_data.get("players", {}).get("black", {}).get("rating")
+                "black_rating": game_data.get("players", {}).get("black", {}).get("rating"),
             }
-            
+
         except Exception as e:
             logger.error(f"Error fetching game {game_id}: {e}")
             return {}
-
-

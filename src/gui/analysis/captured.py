@@ -1,8 +1,9 @@
 """
 Captured pieces display widget.
 """
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QWidget, QSizePolicy
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QWidget
+
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
 
@@ -36,14 +37,14 @@ class CapturedPiecesWidget(QFrame):
         self.pieces_layout.setSpacing(2)
         self.pieces_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addLayout(self.pieces_layout)
-        
+
         # Add stretch widget so captured pieces stay left, and clock stays right
         self.spacer_widget = QWidget()
         self.spacer_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.spacer_widget.setStyleSheet(Styles.get_transparent_label_style())
         self.spacer_widget.hide()  # Hidden by default
         layout.addWidget(self.spacer_widget)
-        
+
         self.clock_label = QLabel()
         self.clock_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.clock_label.hide()
@@ -54,7 +55,7 @@ class CapturedPiecesWidget(QFrame):
         # enough that the piece symbols are easy to read.
         self.setMinimumHeight(56)
         self.setMaximumHeight(56)
-        
+
     def update_captured(self, fen):
         """Update captured pieces display based on current FEN.
 
@@ -194,10 +195,10 @@ class CapturedPiecesWidget(QFrame):
                 self.spacer_widget.hide()
             self._update_container_style()
             return
-            
+
         formatted = self._format_ui_clock(seconds)
         self.clock_label.setText(formatted)
-        
+
         # Color coding: red/orange if less than 20 seconds
         if seconds <= 20.0:
             self.clock_label.setStyleSheet(Styles.get_digital_clock_style(Styles.COLOR_BLUNDER, "#FFFFFF", Styles.COLOR_BLUNDER))
@@ -207,7 +208,7 @@ class CapturedPiecesWidget(QFrame):
             else:
                 bg, fg, border = Styles.COLOR_BACKGROUND, Styles.COLOR_TEXT_PRIMARY, Styles.COLOR_BORDER
             self.clock_label.setStyleSheet(Styles.get_digital_clock_style(bg, fg, border))
-            
+
         self.clock_label.show()
         if hasattr(self, 'spacer_widget'):
             self.spacer_widget.show()
@@ -217,7 +218,7 @@ class CapturedPiecesWidget(QFrame):
         """Show border and background only when there is something to display."""
         has_pieces = self.pieces_layout.count() > 0
         has_clock = hasattr(self, 'clock_label') and not self.clock_label.isHidden()
-        
+
         if has_pieces or has_clock:
             self.setStyleSheet(Styles.get_captured_pieces_style())
         else:
@@ -231,7 +232,7 @@ class CapturedPiecesWidget(QFrame):
         h = int(seconds // 3600)
         m = int((seconds % 3600) // 60)
         s = seconds - h * 3600 - m * 60
-        
+
         if h > 0:
             return f"{h}:{m:02d}:{int(s):02d}"
         if m > 0:

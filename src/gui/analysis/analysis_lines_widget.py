@@ -2,26 +2,36 @@
 Analysis Lines Widget - Renders candidate lines from the engine.
 """
 import chess
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QCheckBox, QWidget, QLabel, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSignal
-from ..styles import Styles
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
+
 from src.utils.logger import logger
+
+from ..styles import Styles
+
 
 class AnalysisRowWidget(QWidget):
     clicked = pyqtSignal(str)
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.uci_move = None
-        
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.uci_move:
             self.clicked.emit(self.uci_move)
 
 class AnalysisLinesWidget(QFrame):
     line_clicked = pyqtSignal(str)
-    
+
     def __init__(self):
         super().__init__()
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
@@ -30,7 +40,7 @@ class AnalysisLinesWidget(QFrame):
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(6)
         self.layout.setContentsMargins(8, 8, 8, 8)
-        
+
         # No header layout here anymore
 
         self._last_multi_pvs = None
@@ -92,24 +102,24 @@ class AnalysisLinesWidget(QFrame):
         # Ensure we have enough rows
         while len(self.rows) < len(multi_pvs):
             self._create_row()
-            
+
         # Update rows
         for i, pv_data in enumerate(multi_pvs):
             row_widget, lbl_depth, lbl_eval, lbl_pv = self.rows[i]
             row_widget.show()
-            
+
             # Depth
             depth = pv_data.get("depth", "?")
-            
+
             # Clickable move logic
             if pv_data.get("pv_uci"):
                 row_widget.uci_move = pv_data["pv_uci"][0]
             else:
                 row_widget.uci_move = None
-                
+
             lbl_depth.setText(f"d{depth}")
             lbl_depth.setStyleSheet(Styles.get_badge_style(size=11))
-            
+
             # Eval
             score_val = pv_data.get("score_value")
             display_score = score_val if score_val else "--"
@@ -160,13 +170,13 @@ class AnalysisLinesWidget(QFrame):
 
             lbl_eval.setText(display_score)
             lbl_eval.setStyleSheet(Styles.get_eval_badge_style(bg_color, text_color))
-            
+
             # PV
             pv_text = pv_data.get("pv_san", "")
             if not pv_text:
                 pv_moves = pv_data.get("pv", [])
-                pv_text = " ".join(pv_moves[:5]) 
-            
+                pv_text = " ".join(pv_moves[:5])
+
             formatted_pv = self._format_pv_to_html(pv_text)
             lbl_pv.setText(formatted_pv)
 
@@ -186,12 +196,12 @@ class AnalysisLinesWidget(QFrame):
         row_layout = QVBoxLayout(row_widget)
         row_layout.setContentsMargins(8, 8, 8, 8)
         row_layout.setSpacing(6)
-        
+
         # Bottom row layout for evaluation and depth badges
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(8)
-        
+
         # Eval Badge
         lbl_eval = QLabel("+0.00")
         lbl_eval.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -205,10 +215,10 @@ class AnalysisLinesWidget(QFrame):
         lbl_depth.setFixedWidth(40)
         lbl_depth.setAlignment(Qt.AlignmentFlag.AlignCenter)
         top_layout.addWidget(lbl_depth, alignment=Qt.AlignmentFlag.AlignVCenter)
-        
+
         top_layout.addStretch()
         row_layout.addLayout(top_layout)
-        
+
         # PV Move sequence line (rendered below the badges)
         lbl_pv = QLabel("")
         lbl_pv.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -216,6 +226,6 @@ class AnalysisLinesWidget(QFrame):
         lbl_pv.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         lbl_pv.setStyleSheet(Styles.get_label_style(size=12))
         row_layout.addWidget(lbl_pv)
-        
+
         self.lines_layout.addWidget(row_widget)
         self.rows.append((row_widget, lbl_depth, lbl_eval, lbl_pv))

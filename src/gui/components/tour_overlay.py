@@ -1,12 +1,17 @@
+from PyQt6.QtCore import QPoint, QRect, Qt, QTimer
+from PyQt6.QtGui import QColor, QPainter, QPen
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
+    QFrame,
     QGraphicsDropShadowEffect,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt, QRect, QPoint, QTimer
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush
 
-from src.gui.styles import Styles
 from src.gui.components.tour_manager import TourManager
+from src.gui.styles import Styles
 
 
 class TourOverlay(QWidget):
@@ -265,9 +270,12 @@ class TourOverlay(QWidget):
         elif position == "left" and (target.left() - bw - gap < 12):
             if target.right() + gap + bw <= pr.width() - 12:
                 position = "right"
-        elif position == "right" and (target.right() + gap + bw > pr.width() - 12):
-            if target.left() - bw - gap >= 12:
-                position = "left"
+        elif (
+            position == "right"
+            and (target.right() + gap + bw > pr.width() - 12)
+            and (target.left() - bw - gap >= 12)
+        ):
+            position = "left"
 
         if position == "above":
             x = target.center().x() - bw // 2

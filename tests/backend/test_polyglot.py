@@ -1,10 +1,9 @@
 """Tests for the Polyglot opening book manager."""
-import os
-import pytest
 from unittest.mock import MagicMock, patch
+
 import chess
+
 from src.backend.analysis.polyglot_book import PolyglotBookManager
-from src.backend.analysis.local_book import BookResult
 
 
 def test_polyglot_manager_init():
@@ -59,7 +58,7 @@ def test_polyglot_manager_process_move_success(mock_open_reader, mock_isfile, mo
     mock_reader.find_all.return_value = [mock_entry1, mock_entry2]
 
     mgr = PolyglotBookManager("/fake/path.bin")
-    
+
     # Process valid book move
     result = mgr.process_move(chess.STARTING_FEN, "e2e4", 1)
     assert result.is_book is True
@@ -84,7 +83,7 @@ def test_polyglot_manager_process_move_exit(mock_open_reader, mock_isfile, mock_
     mock_reader.find_all.return_value = []  # No moves found -> exit book
 
     mgr = PolyglotBookManager("/fake/path.bin")
-    
+
     # Process move leading to non-book position
     result = mgr.process_move(chess.STARTING_FEN, "h2h3", 1)
     assert result.is_book is False

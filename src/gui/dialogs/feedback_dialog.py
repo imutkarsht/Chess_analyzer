@@ -2,21 +2,30 @@
 Unified Feedback, Bug Report, and Feature Suggestion Dialog.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QLineEdit, QTextEdit, QStackedWidget,
-    QWidget, QCheckBox, QFrame, QButtonGroup
-)
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import (
+    QButtonGroup,
+    QCheckBox,
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QStackedWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from src.gui.styles import Styles
-from src.gui.components.star_rating_widget import StarRatingWidget
 from src.backend.services.feedback_service import (
     FeedbackService,
     FeedbackWorker,
     get_recent_logs,
 )
+from src.gui.components.star_rating_widget import StarRatingWidget
+from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
 try:

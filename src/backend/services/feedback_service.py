@@ -2,15 +2,17 @@
 Service for sending in-app reviews, bug reports, and feature suggestions
 to the Chess Analyzer Pro API (chessanalyzer.xyz).
 """
+
 import os
 import sys
+import time
+from typing import Any
+
 import requests
-from typing import Optional, Tuple, Dict, Any
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.constants import (
     APP_VERSION,
-    FEEDBACK_API_BASE,
     FEEDBACK_REVIEWS_URL,
     FEEDBACK_URL,
 )
@@ -42,7 +44,7 @@ def get_recent_logs(max_chars: int = 1000) -> str:
         if not os.path.exists(log_file):
             return ""
 
-        with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+        with open(log_file, encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
 
         # Take the most recent lines
@@ -55,8 +57,6 @@ def get_recent_logs(max_chars: int = 1000) -> str:
         return ""
 
 
-import time
-
 class FeedbackService:
     """
     Handles API communication with chessanalyzer.xyz for:
@@ -64,11 +64,12 @@ class FeedbackService:
       - Bug Reports (POST /api/feedback, type=bug)
       - Feature Requests (POST /api/feedback, type=feature)
     """
+
     _last_submission_times = {}
     COOLDOWN_SECONDS = 10  # Anti-spam delay between submissions
 
     @classmethod
-    def _check_cooldown(cls, action_type: str) -> Optional[str]:
+    def _check_cooldown(cls, action_type: str) -> str | None:
         now = time.time()
         last_time = cls._last_submission_times.get(action_type, 0)
         elapsed = now - last_time
@@ -86,10 +87,10 @@ class FeedbackService:
         rating: int,
         comment: str = "",
         username: str = "",
-        platform: Optional[str] = None,
-        app_version: Optional[str] = None,
+        platform: str | None = None,
+        app_version: str | None = None,
         timeout: int = 10,
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+    ) -> tuple[bool, str, dict[str, Any]]:
         """
         Submit star rating & review.
         Returns (success: bool, user_message: str, response_data: dict).
@@ -147,10 +148,10 @@ class FeedbackService:
         name: str = "",
         email: str = "",
         logs: str = "",
-        platform: Optional[str] = None,
-        app_version: Optional[str] = None,
+        platform: str | None = None,
+        app_version: str | None = None,
         timeout: int = 10,
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+    ) -> tuple[bool, str, dict[str, Any]]:
         """
         Submit a bug report.
         Returns (success: bool, user_message: str, response_data: dict).
@@ -213,10 +214,10 @@ class FeedbackService:
         message: str,
         name: str = "",
         email: str = "",
-        platform: Optional[str] = None,
-        app_version: Optional[str] = None,
+        platform: str | None = None,
+        app_version: str | None = None,
         timeout: int = 10,
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+    ) -> tuple[bool, str, dict[str, Any]]:
         """
         Submit a feature request.
         Returns (success: bool, user_message: str, response_data: dict).
@@ -270,7 +271,7 @@ class FeedbackService:
             return False, f"An unexpected error occurred: {e}", {}
 
     @staticmethod
-    def fetch_community_reviews(limit: int = 5, timeout: int = 5) -> Tuple[bool, Dict[str, Any]]:
+    def fetch_community_reviews(limit: int = 5, timeout: int = 5) -> tuple[bool, dict[str, Any]]:
         """
         Fetch community reviews & rating stats.
         Returns (success: bool, data: dict).
@@ -291,6 +292,7 @@ class FeedbackWorker(QThread):
     QThread worker to submit feedback / reviews asynchronously without
     blocking the PyQt GUI event loop.
     """
+
     finished = pyqtSignal(bool, str, dict)  # success, message, data
 
     def __init__(self, target_callable, *args, **kwargs):
@@ -306,4 +308,3 @@ class FeedbackWorker(QThread):
         except Exception as e:
             logger.error(f"FeedbackWorker exception: {e}")
             self.finished.emit(False, f"Error: {e}", {})
-

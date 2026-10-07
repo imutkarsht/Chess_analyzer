@@ -1,5 +1,7 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
+
 from src.gui.styles import Styles
+
 
 class MetricCard(QFrame):
     def __init__(self, title, parent=None, max_height=None, min_height=None, action_widget=None):
@@ -18,11 +20,11 @@ class MetricCard(QFrame):
             self.setMaximumHeight(max_height)
         if min_height is not None:
             self.setMinimumHeight(min_height)
-            
+
         self.card_layout = QVBoxLayout(self)
         self.card_layout.setContentsMargins(24, 20, 24, 20)
         self.card_layout.setSpacing(16)
-        
+
         if title:
             header_layout = QHBoxLayout()
             self.lbl_title = QLabel(title)

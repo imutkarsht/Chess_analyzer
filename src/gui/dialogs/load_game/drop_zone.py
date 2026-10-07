@@ -1,10 +1,12 @@
 """
 Drop zone component for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QLabel
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtWidgets import QLabel
+
 from ...styles import Styles
+
 
 class DropZone(QLabel):
     """Dashed-border drop target for .pgn files. Emits file_dropped(path)."""

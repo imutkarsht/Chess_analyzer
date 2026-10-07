@@ -1,9 +1,17 @@
+import time
+
 import chess
 import chess.engine
-from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QWaitCondition
+from PyQt6.QtCore import QMutex, QThread, QWaitCondition, pyqtSignal
+
+from src.constants import (
+    DEFAULT_ANALYSIS_DEPTH,
+    DEFAULT_ENGINE_HASH_MB,
+    DEFAULT_ENGINE_THREADS,
+    DEFAULT_LIVE_ANALYSIS_TIME,
+    DEFAULT_MULTI_PV,
+)
 from src.utils.logger import logger
-from src.constants import DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV, DEFAULT_ANALYSIS_DEPTH, DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
-import time
 
 
 class LiveAnalysisWorker(QThread):
@@ -55,7 +63,7 @@ class LiveAnalysisWorker(QThread):
             except (TypeError, ValueError):
                 pass
         return DEFAULT_MULTI_PV
-        
+
     def _live_depth(self) -> int:
         if self.config_manager is not None:
             try:
@@ -91,14 +99,14 @@ class LiveAnalysisWorker(QThread):
                 logger.info(f"Live engine reconfigured dynamically: Threads={self._threads()}, Hash={self._hash()}")
             except Exception as e:
                 logger.error(f"Failed to reconfigure live engine: {e}")
-        
+
     def set_chess960(self, enabled: bool):
         """Set Chess960 mode. Reconfigures the engine if running."""
         self.is_chess960 = enabled
         if self.engine:
             try:
                 self.engine.configure({"UCI_Chess960": "true" if enabled else "false"})
-            except Exception as e:
+            except Exception:
                 pass
 
     def set_position(self, fen, seq=0):
@@ -112,7 +120,7 @@ class LiveAnalysisWorker(QThread):
             self.new_position = True
             self.condition.wakeAll()
         self.mutex.unlock()
-        
+
     def start(self, priority=QThread.Priority.InheritPriority):
         self.running = True
         super().start(priority)
@@ -124,33 +132,34 @@ class LiveAnalysisWorker(QThread):
         self.condition.wakeAll()
         self.mutex.unlock()
         self.wait()
-        
+
     def run(self):
         self.running = True
         logger.info(f"LiveAnalysisWorker starting with engine: {self.engine_path}")
         try:
             # Start engine
-            import sys, subprocess
+            import subprocess
+            import sys
             popen_args = {}
             if sys.platform == "win32":
                 popen_args["creationflags"] = subprocess.CREATE_NO_WINDOW
             self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, **popen_args)
             self.engine.configure({"Threads": self._threads(), "Hash": self._hash()})
-            
+
             while self.running:
                 self.mutex.lock()
                 # Wait until there is a new position to analyze
                 while self.running and not self.new_position:
                     self.condition.wait(self.mutex)
-                
+
                 if not self.running:
                     self.mutex.unlock()
                     break
-                    
+
                 fen = self.current_fen
                 self.new_position = False
                 self.mutex.unlock()
-                
+
                 # Start analysis
                 if fen:
                     try:
@@ -172,7 +181,7 @@ class LiveAnalysisWorker(QThread):
                                 self.mutex.unlock()
                                 if should_break:
                                     break
-                                
+
                                 # Process info
                                 processed_info = self._process_info(info, board)
                                 processed_info["seq"] = batch_seq
@@ -182,7 +191,7 @@ class LiveAnalysisWorker(QThread):
                         self.thinking_stopped.emit()
                         logger.error(f"Live analysis error: {e}")
                         time.sleep(0.5) # Wait before retrying
-                
+
         except Exception as e:
             logger.error(f"Failed to start live analysis engine: {e}")
         finally:
@@ -193,12 +202,12 @@ class LiveAnalysisWorker(QThread):
     def _process_info(self, info, board):
         """Converts engine info to friendly format."""
         result = {}
-        
+
         # Depth
         result["depth"] = info.get("depth", 0)
         result["nodes"] = info.get("nodes", 0)
         result["nps"] = info.get("nps", 0)
-        
+
         # Score
         result["score_value"] = None
         score = info.get("score")
@@ -213,18 +222,18 @@ class LiveAnalysisWorker(QThread):
                 if cp is not None:
                     result["cp"] = cp
                     result["score_value"] = f"{cp/100:.2f}"
-        
+
         # PV
         pv_moves = info.get("pv", [])
         result["pv_uci"] = [m.uci() for m in pv_moves]
-        
+
         # SAN
         try:
             result["pv_san"] = board.variation_san(pv_moves)
-        except:
+        except Exception:
             result["pv_san"] = " ".join([m.uci() for m in pv_moves])
-            
+
         # MultiPV ID
         result["multipv"] = info.get("multipv", 1)
-        
+
         return result

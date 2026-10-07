@@ -1,5 +1,4 @@
 """Tests for MainWindow lifecycle and page switching."""
-from PyQt6.QtWidgets import QApplication
 from src.gui.main_window import MainWindow
 
 

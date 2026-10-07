@@ -1,21 +1,21 @@
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QColor, QBrush, QLinearGradient
 from PyQt6.QtCore import Qt, QTimer
-from ..styles import Styles
+from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtWidgets import QWidget
+
 
 class EvalBarWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.setFixedWidth(24) 
+        self.setFixedWidth(24)
         self.cp = 0.0
         self.target_cp = 0.0
         self.mate = None # None, positive int (White mate), negative int (Black mate)
-        
+
         # Animation
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
         # Timer started on demand in set_eval()
-        
+
     def set_eval(self, cp=None, mate=None):
         try:
             self.target_cp = cp if cp is not None else 0.0
@@ -23,21 +23,25 @@ class EvalBarWidget(QWidget):
             # If mate, snap immediately
             if mate is not None:
                 self.cp = self.target_cp
-            elif abs(self.target_cp - self.cp) > 1:
-                if hasattr(self, 'timer') and self.timer and not self.timer.isActive():
-                    self.timer.start(16)
-            
+            elif (
+                abs(self.target_cp - self.cp) > 1
+                and hasattr(self, "timer")
+                and self.timer
+                and not self.timer.isActive()
+            ):
+                self.timer.start(16)
+
             self.update()
         except (RuntimeError, AttributeError):
             pass
-        
+
     def animate(self):
         try:
             if self.mate is not None:
                 if hasattr(self, 'timer') and self.timer:
                     self.timer.stop()
                 return
-                
+
             diff = self.target_cp - self.cp
             if abs(diff) < 1:
                 self.cp = self.target_cp
@@ -49,20 +53,20 @@ class EvalBarWidget(QWidget):
                 self.update()
         except (RuntimeError, AttributeError):
             pass
-        
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+
         width = self.width()
         height = self.height()
-        
+
         # Background (Black/Dark Grey)
         painter.fillRect(0, 0, width, height, QColor("#404040"))
-        
+
         # Calculate White's height percentage
         white_pct = 0.5
-        
+
         if self.mate is not None:
             if self.mate > 0:
                 white_pct = 1.0 # White wins
@@ -74,31 +78,31 @@ class EvalBarWidget(QWidget):
             clamped_cp = max(-1000, min(1000, self.cp))
             # Map -1000..1000 to 0..1
             white_pct = (clamped_cp + 1000) / 2000
-            
+
         # Draw White bar
         white_height = height * white_pct
         white_top = height - white_height
-        
+
         # Draw Black part (top)
         painter.fillRect(0, 0, width, int(white_top), QColor("#404040"))
-        
+
         # Draw White part (bottom)
         painter.fillRect(0, int(white_top), width, int(white_height), QColor("#FFFFFF"))
-        
+
         # Draw numeric label if space permits
         if height > 50:
              font = painter.font()
              # Use setPointSize to avoid "Point size <= 0" warnings on some systems
-             font.setPointSize(8) 
+             font.setPointSize(8)
              font.setBold(True)
              painter.setFont(font)
-             
+
              label_text = ""
              if self.mate is not None:
                  label_text = f"M{abs(self.mate)}"
              else:
                  label_text = f"{abs(self.cp) / 100:.1f}"
-                 
+
              # Text color depends on background
              if white_pct > 0.5:
                  # White is winning, bar is high. Put text in the black area (top) if possible, or white area (bottom)

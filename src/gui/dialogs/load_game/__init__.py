@@ -1,17 +1,17 @@
 """
 Load game dialog panels and components.
 """
-from .source_button import SourceBtn
+from .api_worker import ApiWorker, register_worker, remove_worker
+from .chesscom_panel import ChessComPanel
 from .drop_zone import DropZone
 from .game_card import GameCard
+from .helpers import classify_time_control, icon_path
 from .inline_game_list import InlineGameList
-from .api_worker import ApiWorker, register_worker, remove_worker
-from .pgn_file_panel import PgnFilePanel
-from .pgn_text_panel import PgnTextPanel
-from .chesscom_panel import ChessComPanel
 from .lichess_panel import LichessPanel
 from .online_fetch_panel import OnlineFetchPanel
-from .helpers import classify_time_control, icon_path
+from .pgn_file_panel import PgnFilePanel
+from .pgn_text_panel import PgnTextPanel
+from .source_button import SourceBtn
 
 __all__ = [
     'SourceBtn',

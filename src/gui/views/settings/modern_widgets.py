@@ -1,8 +1,9 @@
 """
 Modern, custom UI widgets for the settings panel.
 """
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QSlider, QPushButton, QLabel, QLineEdit, QComboBox
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider, QWidget
+
 from ...styles import Styles
 
 try:

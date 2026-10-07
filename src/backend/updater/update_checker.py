@@ -9,12 +9,13 @@ by the release pipeline:
   Linux    → ChessAnalyzerPro-X.Y.Z-x86_64.AppImage      (AppImageKit)
 """
 import sys
+
 import requests
 from packaging import version
 from PyQt6.QtCore import QThread, pyqtSignal
-from src.utils.logger import logger
 
 from src.constants import APP_VERSION, GITHUB_RELEASES_API, PLATFORM_RULES
+from src.utils.logger import logger
 
 _PLATFORM_RULES = PLATFORM_RULES
 

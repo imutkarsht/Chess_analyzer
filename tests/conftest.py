@@ -1,9 +1,10 @@
 """
 Shared pytest fixtures for Chess Analyzer tests.
 """
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 from PyQt6.QtWidgets import QApplication
 
 # Ensure src is in path
@@ -91,9 +92,10 @@ def sample_pgn_file():
 @pytest.fixture
 def sample_game():
     """Creates a sample GameAnalysis object."""
-    from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
     import chess
-    
+
+    from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+
     metadata = GameMetadata(
         white="TestWhite",
         black="TestBlack",
@@ -105,12 +107,12 @@ def sample_game():
         black_elo="1400",
         source="chesscom"
     )
-    
+
     moves = [
         MoveAnalysis(1, 1, "e4", "e2e4", chess.STARTING_FEN),
         MoveAnalysis(1, 2, "e5", "e7e5", "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"),
     ]
-    
+
     return GameAnalysis(
         game_id="test_game_id",
         metadata=metadata,

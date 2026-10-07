@@ -1,8 +1,18 @@
 """
 Game List Widget - Paginated list container for chess games.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem, QFrame, QLabel, QPushButton
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from ..styles import Styles
 from .game_list_item_widget import GameListItemWidget
 
@@ -37,7 +47,7 @@ class GameListWidget(QWidget):
         # ── Header Bar ───────────────────────────────────────────────────────
         self.header_bar_widget = QWidget()
         self.header_bar_widget.setFixedHeight(44)
-        
+
         header_bar_layout = QHBoxLayout(self.header_bar_widget)
         header_bar_layout.setContentsMargins(16, 0, 16, 0)
 
@@ -180,10 +190,7 @@ class GameListWidget(QWidget):
         end = min(start + ps - 1, len(self._all_games))
         total_games = len(self._all_games)
 
-        if total_games == 0:
-            counter_text = "No games"
-        else:
-            counter_text = f"{start}–{end} of {total_games}"
+        counter_text = "No games" if total_games == 0 else f"{start}–{end} of {total_games}"
 
         counter = QLabel(counter_text)
         counter.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY) + " " + Styles.get_transparent_label_style())
@@ -222,8 +229,8 @@ class GameListWidget(QWidget):
 
     def _on_delete_requested(self, game_id: str):
         """Delete a single game from history after confirmation."""
-        from src.gui.utils.gui_utils import confirm_dialog
         from src.backend.storage.game_history import GameHistoryManager
+        from src.gui.utils.gui_utils import confirm_dialog
 
         if not confirm_dialog(self,
                               "Delete Game",

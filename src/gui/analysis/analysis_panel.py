@@ -2,24 +2,39 @@
 Analysis Panel - Coordinates evaluation graphs, stats summaries, and AI coach summaries.
 """
 import chess
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFrame, QTabWidget, 
-                             QSizePolicy, QLabel, QGridLayout, QPushButton, QTextEdit, QMessageBox, QDialog)
-from PyQt6.QtCore import pyqtSignal, Qt, QThread
-from src.gui.styles import Styles
-from src.gui.utils.gui_utils import (clear_layout, show_error_dialog, is_error_message, 
-                                     format_time_stats_for_llm)
-from src.gui.components import SimpleStatCard as StatCard
-from src.gui.components.graph_widget import GraphWidget
-from .analysis_lines_widget import AnalysisLinesWidget
-from src.utils.resources import ResourceManager
-from src.utils.logger import logger
-from src.utils.config import ConfigManager
-from src.utils.path_utils import get_resource_path
-from src.backend.services.groq_service import GroqService
-from src.gui.components.loading_widget import LoadingOverlay
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from src.gui.components import CircularAccuracyWidget
+from src.backend.services.groq_service import GroqService
 from src.backend.storage.termination_detector import TerminationDetector
+from src.gui.components import CircularAccuracyWidget
+from src.gui.components.graph_widget import GraphWidget
+from src.gui.components.loading_widget import LoadingOverlay
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import (
+    clear_layout,
+    format_time_stats_for_llm,
+    is_error_message,
+    show_error_dialog,
+)
+from src.utils.config import ConfigManager
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path
+from src.utils.resources import ResourceManager
+
+from .analysis_lines_widget import AnalysisLinesWidget
 
 
 class AnalysisPanel(QWidget):
@@ -30,7 +45,7 @@ class AnalysisPanel(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(10)
         self.layout.setContentsMargins(5, 5, 5, 5)
-        
+
         self.resource_manager = ResourceManager()
         self.config_manager = ConfigManager()
         self.groq_service = GroqService()
@@ -44,29 +59,29 @@ class AnalysisPanel(QWidget):
         self.tabs = QTabWidget()
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.layout.addWidget(self.tabs)
-        
+
         # --- Tab 1: Evaluation ---
         self.eval_tab = QWidget()
         self.eval_tab.setStyleSheet("background: transparent;")
         self.eval_layout = QVBoxLayout(self.eval_tab)
         self.eval_layout.setContentsMargins(5, 5, 5, 5)
-        
+
         # Graph
         self.graph_widget = GraphWidget()
         self.graph_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.eval_layout.addWidget(self.graph_widget, stretch=2)
-        
+
         # Toggles
         toggles_layout = QHBoxLayout()
         toggles_layout.setContentsMargins(0, 6, 0, 6)
         toggles_layout.setSpacing(10)
-        
+
         from PyQt6.QtWidgets import QCheckBox
         self.toggle_checkbox = QCheckBox("Engine Lines")
         self.toggle_checkbox.setChecked(False)
         self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         toggles_layout.addWidget(self.toggle_checkbox)
-        
+
         self.cache_checkbox = QCheckBox("Use Cache")
         self.cache_checkbox.setChecked(True)
         self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -75,14 +90,14 @@ class AnalysisPanel(QWidget):
         toggles_layout.addStretch()
         self.eval_layout.addLayout(toggles_layout)
         self._apply_toggle_style()
-        
+
         # Analysis Lines
         self.lines_widget = AnalysisLinesWidget()
         self.eval_layout.addWidget(self.lines_widget, stretch=1)
-        
+
         self.tabs.addTab(self.eval_tab, "Evaluation")
         self._apply_tabs_style()
-        
+
         # --- Tab 2: Report ---
         self.report_tab = QWidget()
         self.report_tab.setStyleSheet("background: transparent;")
@@ -129,7 +144,7 @@ class AnalysisPanel(QWidget):
         self.div1.setFrameShape(QFrame.Shape.HLine)
         self.div1.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div1)
-        
+
         # 2. Accuracy Gauges (Side by side White & Black)
         self.accuracy_frame = QFrame()
         self.accuracy_frame.setStyleSheet(Styles.get_transparent_label_style())
@@ -149,7 +164,7 @@ class AnalysisPanel(QWidget):
         self.div2.setFrameShape(QFrame.Shape.HLine)
         self.div2.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div2)
-        
+
         # 3. Move Quality Classification Table
         self.stats_frame = QFrame()
         self.stats_frame.setStyleSheet(Styles.get_transparent_label_style())
@@ -163,31 +178,31 @@ class AnalysisPanel(QWidget):
         self.div3.setFrameShape(QFrame.Shape.HLine)
         self.div3.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div3)
-        
+
         # 4. AI Coach Summary (Takes remaining vertical height)
         self.ai_summary_frame = QFrame()
         self.ai_summary_layout = QVBoxLayout(self.ai_summary_frame)
         self.ai_summary_layout.setContentsMargins(0, 4, 0, 0)
         self.ai_summary_layout.setSpacing(6)
-        
+
         self.btn_generate_summary = QPushButton(" ✨  Generate AI coach summary")
         self.btn_generate_summary.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_generate_summary.setFixedHeight(34)
         self.btn_generate_summary.setStyleSheet(Styles.get_outline_button_style())
         self.btn_generate_summary.clicked.connect(self.generate_ai_summary)
         self.ai_summary_layout.addWidget(self.btn_generate_summary)
-        
+
         self.txt_ai_summary = QTextEdit()
         self.txt_ai_summary.setReadOnly(True)
         self.txt_ai_summary.setPlaceholderText("AI Coach summary & key takeaways will appear here...")
         self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
         self.txt_ai_summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.ai_summary_layout.addWidget(self.txt_ai_summary)
-        
+
         self.report_layout.addWidget(self.ai_summary_frame, stretch=1)
-        
+
         self.tabs.addTab(self.report_tab, "Report")
-        
+
         # Loading Overlay
         self.loading_overlay = LoadingOverlay(self)
 
@@ -201,12 +216,12 @@ class AnalysisPanel(QWidget):
     def set_game(self, game_analysis):
         self.current_game = game_analysis
         self.refresh()
-        
+
     def refresh(self):
         if not self.current_game:
             self.lines_widget.clear()
             return
-            
+
         try:
             self.lines_widget.clear()
             self.graph_widget.plot_game(self.current_game)
@@ -233,7 +248,7 @@ class AnalysisPanel(QWidget):
 
             speed_cat = getattr(meta, "speed_category", "")
             num_moves = (len(self.current_game.moves) + 1) // 2 if hasattr(self.current_game, 'moves') and self.current_game.moves else 0
-            
+
             details_parts = []
             if speed_cat:
                 details_parts.append(speed_cat)
@@ -245,7 +260,7 @@ class AnalysisPanel(QWidget):
                 self.details_label.setVisible(True)
             else:
                 self.details_label.setVisible(False)
-            
+
             if self.current_game.ai_summary:
                 self.txt_ai_summary.setText(self.current_game.ai_summary)
                 self.btn_generate_summary.setVisible(False)
@@ -254,7 +269,7 @@ class AnalysisPanel(QWidget):
                 self.txt_ai_summary.clear()
                 self.btn_generate_summary.setVisible(True)
                 self.txt_ai_summary.setVisible(False)
-                
+
         except Exception as e:
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
 
@@ -282,7 +297,7 @@ class AnalysisPanel(QWidget):
 
     def _update_summary(self, summary):
         clear_layout(self.stats_layout)
-        
+
         if not summary or "white" not in summary:
             self.w_circular_acc.set_data(0.0, None)
             self.b_circular_acc.set_data(0.0, None)
@@ -295,23 +310,23 @@ class AnalysisPanel(QWidget):
 
         self.w_circular_acc.set_data(w_acc, w_acpl)
         self.b_circular_acc.set_data(b_acc, b_acpl)
-        
+
         # Stats Grid Header
         self.stats_layout.addWidget(QLabel(""), 0, 0)
         lbl_w = QLabel("White")
         lbl_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_w.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_w, 0, 1)
-        
+
         self.stats_layout.addWidget(QLabel(""), 0, 2)
-        
+
         lbl_b = QLabel("Black")
         lbl_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_b.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_b, 0, 3)
-        
+
         types = ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "Inaccuracy", "Mistake", "Miss", "Blunder"]
-        
+
         for i, type_name in enumerate(types):
             color = Styles.get_class_color(type_name)
             bg_tint = f"{color}15"
@@ -327,7 +342,7 @@ class AnalysisPanel(QWidget):
                 Styles.get_label_style(size=12, color=color, bold=True) + " " + Styles.get_transparent_label_style()
             )
             self.stats_layout.addWidget(lbl_type, i+1, 0)
-            
+
             val_w = summary['white'].get(type_name, 0)
             lbl_val_w = QLabel(str(val_w))
             lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -335,7 +350,7 @@ class AnalysisPanel(QWidget):
                 Styles.get_label_style(color=color, bold=True) + " " + Styles.get_transparent_label_style()
             )
             self.stats_layout.addWidget(lbl_val_w, i+1, 1)
-            
+
             icon_label = QLabel()
             icon = self.resource_manager.get_icon(type_name)
             if not icon.isNull():
@@ -345,7 +360,7 @@ class AnalysisPanel(QWidget):
                 icon_label.setText("-")
             icon_label.setStyleSheet(Styles.get_transparent_label_style())
             self.stats_layout.addWidget(icon_label, i+1, 2)
-            
+
             val_b = summary['black'].get(type_name, 0)
             lbl_val_b = QLabel(str(val_b))
             lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -376,7 +391,7 @@ class AnalysisPanel(QWidget):
         self.summary_thread = GenerateSummaryThread(self.groq_service, self.current_game)
         self.summary_thread.finished.connect(self.on_summary_generated)
         self.summary_thread.start()
-        
+
     def refresh_styles(self):
         """Re-applies styles to widgets."""
         self.setStyleSheet(Styles.get_background_style())
@@ -405,7 +420,7 @@ class AnalysisPanel(QWidget):
 
         if hasattr(self, 'btn_generate_summary'):
             self.btn_generate_summary.setStyleSheet(Styles.get_outline_button_style())
-            
+
         if hasattr(self, 'txt_ai_summary'):
             self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
 
@@ -422,7 +437,7 @@ class AnalysisPanel(QWidget):
 
         if hasattr(self, 'move_list_panel'):
             self.move_list_panel.refresh_styles()
-        
+
         if self.current_game:
             self._update_summary(self.current_game.summary)
 
@@ -471,7 +486,7 @@ class AnalysisPanel(QWidget):
         self.txt_ai_summary.setText(summary)
         self.txt_ai_summary.setVisible(True)
         self.btn_generate_summary.setVisible(False)
-        
+
     def resizeEvent(self, event):
         self.loading_overlay.resize(self.size())
         super().resizeEvent(event)
@@ -481,21 +496,21 @@ class AnalysisPanel(QWidget):
 
 class GenerateSummaryThread(QThread):
     finished = pyqtSignal(str)
-    
+
     def __init__(self, service, game):
         super().__init__()
         self.service = service
         self.game = game
-        
+
     def run(self):
         try:
             # Replay the moves onto a fresh board and export a valid PGN.
             # The previous inline string-concat produced invalid notation
             # like "b4 1. Nf6 c4 2. d5 …" because every move was prefixed
             # with its number regardless of side-to-move.
+
             import chess
             import chess.pgn
-            from io import StringIO
 
             is_chess960 = self.game.metadata.chess960
             if self.game.metadata.starting_fen:

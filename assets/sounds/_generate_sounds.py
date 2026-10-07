@@ -9,9 +9,9 @@ Dependencies: numpy (already in requirements for the engine evaluator).
 No external audio samples are used.
 """
 import math
-import struct
-import wave
 import os
+import wave
+
 import numpy as np
 
 SAMPLE_RATE = 44100

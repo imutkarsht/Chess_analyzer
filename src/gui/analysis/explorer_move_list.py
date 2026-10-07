@@ -4,10 +4,18 @@ Explorer Move List Widget - A lightweight move list for the Opening Explorer.
 NOTE: This shares ~70% code with move_list_panel.py. Future refactoring should
 extract a shared base class for both implementations.
 """
-import chess
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView, QHBoxLayout, QPushButton
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QColor, QBrush, QIcon
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QHBoxLayout,
+    QHeaderView,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.gui.styles import Styles
 from src.utils.resources import ResourceManager
@@ -40,14 +48,14 @@ class ExplorerMoveListWidget(QWidget):
         self.table.setHorizontalHeaderLabels(["#", "White", "Black"])
         self.table.horizontalHeader().setHighlightSections(False)
         self.table.horizontalHeader().setMinimumHeight(30)
-        
+
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         header.resizeSection(0, 46)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
-        
+
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(False)
         self.table.setShowGrid(False)
@@ -65,7 +73,7 @@ class ExplorerMoveListWidget(QWidget):
         nav_layout = QHBoxLayout()
         nav_layout.setContentsMargins(0, 4, 0, 0)
         nav_layout.setSpacing(10)
-        
+
         self.btn_first = QPushButton("⏮")
         self.btn_prev = QPushButton("◀")
         self.btn_next = QPushButton("▶")
@@ -94,7 +102,7 @@ class ExplorerMoveListWidget(QWidget):
         # If we are not at the end, truncate the list before adding
         if self.current_index < len(self.moves) - 1:
             self.moves = self.moves[:self.current_index + 1]
-            
+
         self.moves.append({'san': san, 'classification': classification})
         self.current_index = len(self.moves) - 1
         self.refresh()
@@ -140,7 +148,7 @@ class ExplorerMoveListWidget(QWidget):
             item = QTableWidgetItem(move_data['san'])
             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             item.setData(Qt.ItemDataRole.UserRole, i)
-            
+
             # Icon and Color based on classification
             classification = move_data.get('classification')
             if classification:
@@ -154,7 +162,7 @@ class ExplorerMoveListWidget(QWidget):
                     color_hex = Styles.get_class_color(classification)
                     if color_hex:
                         item.setForeground(QBrush(QColor(color_hex)))
-                    
+
                     # Make major classifications bold
                     if classification in ("Brilliant", "Blunder", "Mistake", "Miss"):
                         font = item.font()

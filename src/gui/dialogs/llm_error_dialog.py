@@ -2,8 +2,9 @@
 Error dialog for when the LLM is not configured,
 offering Configure Now and Skip actions.
 """
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+
 from ..styles import Styles
 
 

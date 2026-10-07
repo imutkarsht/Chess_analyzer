@@ -1,8 +1,7 @@
 """Tests for move classification bands and mathematical win probability calculation."""
-import pytest
-from src.backend.storage.models import MoveAnalysis
-from src.backend.analysis.math_utils import get_win_probability, calculate_move_accuracy, get_cp
+from src.backend.analysis.math_utils import calculate_move_accuracy, get_win_probability
 from src.backend.analysis.move_classifier import classify_move
+from src.backend.storage.models import MoveAnalysis
 
 
 def test_win_probability_calculations():

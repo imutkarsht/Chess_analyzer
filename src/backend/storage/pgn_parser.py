@@ -1,10 +1,11 @@
-import chess.pgn
+import hashlib
 import io
 import re
-from typing import List, Optional, Tuple
-from .models import GameAnalysis, GameMetadata, MoveAnalysis
-import uuid
 
+import chess.pgn
+
+from .models import GameAnalysis, GameMetadata, MoveAnalysis
+from .termination_detector import TerminationDetector
 
 # Matches [%clk H:MM:SS(.s)?] — chess.com style clock comments.
 # The colon-separated hours/minutes/seconds format with optional decimal
@@ -12,7 +13,7 @@ import uuid
 _CLK_RE = re.compile(r"\[%clk\s+(\d+):(\d{1,2}):(\d{1,2}(?:\.\d+)?)\]")
 
 
-def _parse_clk(comment: Optional[str]) -> Tuple[Optional[str], Optional[float]]:
+def _parse_clk(comment: str | None) -> tuple[str | None, float | None]:
     """
     Pull the first [%clk …] value out of a move comment.
 
@@ -45,9 +46,9 @@ def _parse_clk(comment: Optional[str]) -> Tuple[Optional[str], Optional[float]]:
 
 class PGNParser:
     @staticmethod
-    def parse_pgn_file(file_path: str) -> List[GameAnalysis]:
+    def parse_pgn_file(file_path: str) -> list[GameAnalysis]:
         games = []
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             while True:
                 game = chess.pgn.read_game(f)
                 if game is None:
@@ -61,7 +62,7 @@ class PGNParser:
         return games
 
     @staticmethod
-    def parse_pgn_text(text: str) -> List[GameAnalysis]:
+    def parse_pgn_text(text: str) -> list[GameAnalysis]:
         games = []
         pgn_io = io.StringIO(text)
         while True:
@@ -89,10 +90,10 @@ class PGNParser:
             time_control=headers.get("TimeControl"),
             eco=headers.get("ECO"),
             termination=headers.get("Termination"),
-            opening=headers.get("Opening"), # Some sites provide this
-            starting_fen=headers.get("FEN")  # If started from position
+            opening=headers.get("Opening"),  # Some sites provide this
+            starting_fen=headers.get("FEN"),  # If started from position
         )
-        
+
         # Infer source from Site header if present
         site = headers.get("Site", "").lower()
         if "chess.com" in site:
@@ -101,7 +102,7 @@ class PGNParser:
             metadata.source = "lichess"
         else:
             metadata.source = "file"
-        
+
         moves = []
         board = game.board()
         # python-chess reads Variant/FEN headers internally and creates the
@@ -122,7 +123,7 @@ class PGNParser:
         # chess.com PGN: [%clk H:MM:SS.s] on every move. We compute the delta
         # between consecutive clocks of the same side to derive time_spent.
         # We don't trust a single missing/invalid entry — fall back to None.
-        last_clk: dict[chess.Color, float] = {chess.WHITE: None, chess.BLACK: None}
+        last_clk: dict[chess.Color, float | None] = {chess.WHITE: None, chess.BLACK: None}
 
         # Derive the *initial* clock from the TimeControl header so we can
         # compute a delta for the very first move of each side. chess.com
@@ -130,7 +131,7 @@ class PGNParser:
         # just "blitz". We only need the leading integer (seconds) — the
         # increment does NOT change the starting clock, it gets added
         # *after* each move.
-        def _initial_clock_seconds() -> Optional[float]:
+        def _initial_clock_seconds() -> float | None:
             tc = headers.get("TimeControl", "")
             if not tc or tc == "-":
                 return None
@@ -143,7 +144,7 @@ class PGNParser:
 
         start_clock = _initial_clock_seconds()
 
-        for i, node in enumerate(game.mainline()):
+        for node in game.mainline():
             move = node.move
             san = node.san()
             uci = move.uci()
@@ -184,35 +185,33 @@ class PGNParser:
             )
             moves.append(move_analysis)
             board.push(move)
-            
+
         # Detect speed category (Bullet, Blitz, Rapid, Classical, UltraBullet)
         metadata.speed_category = PGNParser._detect_speed_category(metadata.time_control, metadata.event)
 
         # Detect termination mode and human-readable description
-        from .termination_detector import TerminationDetector
         term_mode, term_desc = TerminationDetector.detect_termination(
             headers=headers,
             moves=moves,
             starting_fen=metadata.starting_fen,
-            chess960=metadata.chess960
+            chess960=metadata.chess960,
         )
         metadata.termination_mode = term_mode
         metadata.termination_description = term_desc
 
         # Use hash of PGN content as ID to prevent duplicates
-        import hashlib
         pgn_content = str(game)
-        game_id = hashlib.md5(pgn_content.encode('utf-8')).hexdigest()
+        game_id = hashlib.md5(pgn_content.encode("utf-8")).hexdigest()
 
         return GameAnalysis(
             game_id=game_id,
             metadata=metadata,
             moves=moves,
-            pgn_content=pgn_content
+            pgn_content=pgn_content,
         )
 
     @staticmethod
-    def _detect_speed_category(time_control: Optional[str], event: Optional[str]) -> str:
+    def _detect_speed_category(time_control: str | None, event: str | None) -> str:
         """Classify game into UltraBullet, Bullet, Blitz, Rapid, or Classical."""
         tc = (time_control or "").strip()
         match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)

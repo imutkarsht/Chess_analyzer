@@ -3,19 +3,27 @@ Error dialog for when the chess engine is not found,
 offering Auto-detect, Download, and Browse actions.
 """
 import os
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFileDialog, QProgressBar, QApplication
-)
+
 from PyQt6.QtCore import Qt, QTimer
-from ...backend.analysis.engine import resolve_engine_path, invalidate_engine_cache
-from ...backend.engine.downloader import (
-    get_download_candidates,
-    download_and_extract,
-    try_package_manager_install
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
 )
-from ...utils.path_utils import get_engine_data_dir
+
+from ...backend.analysis.engine import invalidate_engine_cache, resolve_engine_path
+from ...backend.engine.downloader import (
+    download_and_extract,
+    get_download_candidates,
+    try_package_manager_install,
+)
 from ...utils.logger import logger
+from ...utils.path_utils import get_engine_data_dir
 from ..styles import Styles
 
 BUTTON_STYLE = f"""

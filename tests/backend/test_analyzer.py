@@ -1,9 +1,11 @@
-import pytest
 import chess
+
 from src.backend.analysis.analyzer import Analyzer
-from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.backend.analysis.engine import EngineManager
 from src.backend.analysis.local_book import BookResult
+from src.backend.analysis.math_utils import get_win_probability
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+
 
 def test_analyzer_init(mock_engine):
     """Test Analyzer initialization."""
@@ -12,7 +14,6 @@ def test_analyzer_init(mock_engine):
     analyzer = Analyzer(engine_manager)
     assert analyzer is not None
 
-from src.backend.analysis.math_utils import get_win_probability
 
 def test_get_win_probability():
     """Test win probability calculation."""
@@ -20,7 +21,7 @@ def test_get_win_probability():
     assert 0.4 < get_win_probability(0, None) < 0.6  # Equal position
     assert get_win_probability(100, None) > 0.5      # White advantage
     assert get_win_probability(-100, None) < 0.5     # Black advantage
-    
+
     # Test Mate values
     assert get_win_probability(None, 1) > 0.9        # Mate in 1 for White
     assert get_win_probability(None, -1) < 0.1       # Mate in 1 for Black
@@ -29,7 +30,7 @@ def test_process_analysis_results(mock_engine):
     import chess
     engine_manager = EngineManager("dummy_path")
     analyzer = Analyzer(engine_manager)
-    
+
     move_data = MoveAnalysis(
         move_number=1,
         ply=1,
@@ -37,7 +38,7 @@ def test_process_analysis_results(mock_engine):
         uci="e2e4",
         fen_before=chess.STARTING_FEN
     )
-    
+
     info_list = [
         {
             "pv": [chess.Move.from_uci("e2e4"), chess.Move.from_uci("e7e5")],
@@ -45,10 +46,10 @@ def test_process_analysis_results(mock_engine):
             "depth": 15
         }
     ]
-    
+
     board = chess.Board()
     analyzer._process_analysis_results(move_data, info_list, is_white_turn=True, board=board)
-    
+
     assert len(move_data.multi_pvs) == 1
     pv_data = move_data.multi_pvs[0]
     assert pv_data["depth"] == 15
@@ -58,13 +59,13 @@ def test_process_analysis_results(mock_engine):
 def test_classify_move():
     """Test move classification logic in move_classifier.py."""
     from src.backend.analysis.move_classifier import classify_move
-    
+
     # 1. Test checkmate SAN ends with '#'
     move = MoveAnalysis(move_number=1, ply=1, san="Qcb7#", uci="c6b7", fen_before="")
     classify_move(move, wpl=0.5, side="white")
     assert move.classification == "Best"
     assert move.explanation == "Delivered checkmate!"
-    
+
     # 2. Test Blunder: 70%→50% (wpl=0.20) qualifies with looser threshold
     move = MoveAnalysis(
         move_number=2, ply=2, san="Nxf4", uci="d5f4", fen_before="",
@@ -77,7 +78,7 @@ def test_classify_move():
     move = MoveAnalysis(move_number=3, ply=3, san="a6", uci="a7a6", fen_before="")
     classify_move(move, wpl=0.035, side="white")
     assert move.classification == "Good"
-    
+
     # 4. Test thresholds: Good (wpl = 2.5%, threshold at 2%)
     move = MoveAnalysis(move_number=4, ply=4, san="b6", uci="b7b6", fen_before="")
     classify_move(move, wpl=0.025, side="white")
@@ -128,7 +129,7 @@ def test_classify_move():
     )
     classify_move(move, wpl=0.35, side="white")
     assert move.classification == "Miss"
-    
+
     # 9.5. Test true blunder: WPL 30%, win chance before 85%, after 30% -> Blunder
     move = MoveAnalysis(
         move_number=10, ply=10, san="b6", uci="b7b6", fen_before="",
@@ -152,21 +153,21 @@ def test_drawing_repetition_protection(mock_engine):
     engine_manager = EngineManager("dummy_path")
     engine_manager.engine = mock_engine
     analyzer = Analyzer(engine_manager)
-    
+
     # Create a simple game ending in a draw by repetition
     metadata = GameMetadata(
         white="Player1", black="Player2",
         result="1/2-1/2", date="2026.06.21"
     )
-    
+
     # We will simulate a simple repetition:
     # 1. Nf3 Nf6 2. Ng1 Ng8 3. Nf3 Nf6 4. Ng1
     board = chess.Board()
     uci_moves = ["g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1"]
     san_moves = ["Nf3", "Nf6", "Ng1", "Ng8", "Nf3", "Nf6", "Ng1"]
-    
+
     moves = []
-    for i, (uci, san) in enumerate(zip(uci_moves, san_moves)):
+    for i, (uci, san) in enumerate(zip(uci_moves, san_moves, strict=False)):
         moves.append(MoveAnalysis(
             move_number=(i // 2) + 1,
             ply=i,
@@ -175,29 +176,29 @@ def test_drawing_repetition_protection(mock_engine):
             fen_before=board.fen()
         ))
         board.push_uci(uci)
-    
+
     # Let's fake evaluations so we would normally have blunders (e.g. going from +5.00 to 0.0)
     for m in moves:
         m.eval_before_cp = 500  # +5.00
         m.eval_before_mate = None
-    
+
     # Set the last move's next eval (which is final_score)
     final_score = chess.engine.PovScore(chess.engine.Cp(0), chess.WHITE)
-    
+
     game = GameAnalysis(
         game_id="fake_game_123",
         metadata=metadata,
         moves=moves
     )
-    
+
     summary_counts = {
         "white": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0, "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []},
         "black": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0, "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []}
     }
-    
+
     # Run classification
     analyzer._classify_and_calculate_stats(game, summary_counts, final_score)
-    
+
     # Let's check classifications of the repeating moves (ply 4, 5, 6)
     # They should be protected (WPL capped to 0), so they should be classified as Best/Excellent/Book, NOT Blunder/Mistake.
     # Book is also valid since Nf3/Nf6 are common book moves picked up by the improved book detection.
@@ -211,7 +212,7 @@ def test_analyzer_progress_logging(caplog, mocker, mock_engine):
     engine_manager = EngineManager("dummy_path")
     engine_manager.engine = mock_engine
     analyzer = Analyzer(engine_manager)
-    
+
     mocker.patch.object(analyzer, '_get_position_analysis', return_value=[])
     mocker.patch.object(analyzer, '_analyze_final_position', return_value=None)
     mocker.patch.object(analyzer, '_classify_and_calculate_stats')
@@ -219,7 +220,7 @@ def test_analyzer_progress_logging(caplog, mocker, mock_engine):
     mocker.patch.object(analyzer, '_log_classification_summary')
     mocker.patch.object(engine_manager, 'start_engine')
     mocker.patch.object(engine_manager, 'stop_engine')
-    
+
     moves = [
         MoveAnalysis(
             move_number=(i // 2) + 1,
@@ -232,16 +233,16 @@ def test_analyzer_progress_logging(caplog, mocker, mock_engine):
     ]
     metadata = GameMetadata(white="W", black="B", result="*", date="2026.06.21")
     game = GameAnalysis(game_id="log_test", metadata=metadata, moves=moves)
-    
+
     with caplog.at_level(logging.INFO):
         analyzer._analyze_positions(game)
-        
+
     log_messages = [rec.message for rec in caplog.records]
     assert "Analyzing move 1/25..." in log_messages
     assert "Analyzing move 10/25..." in log_messages
     assert "Analyzing move 20/25..." in log_messages
     assert "Analyzing move 25/25..." in log_messages
-    
+
     assert not any("Analyzing move 11/25..." in msg for msg in log_messages)
 
 
@@ -254,7 +255,7 @@ def test_check_book_move_merging(mocker, mock_engine):
     # Mock both books
     mock_polyglot = mocker.patch.object(analyzer.polyglot_book, 'process_move')
     mock_local = mocker.patch.object(analyzer.local_book, 'process_move')
-    
+
     # Enable polyglot availability
     mocker.patch.object(analyzer.polyglot_book, 'is_available', return_value=True)
 
@@ -291,7 +292,7 @@ def test_check_book_move_merging(mocker, mock_engine):
     )
 
     is_book = analyzer._check_book_move(move, "white", summary_counts, game_analysis)
-    
+
     assert is_book is True
     assert move.classification == "Book"
     assert move.is_book_move is True

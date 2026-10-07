@@ -1,23 +1,24 @@
-"""Stateful opening book traversal using Polyglot binary book (.bin) files."""
 import os
+
 import chess
 import chess.polyglot
-from typing import Optional, List
+
 from src.utils.logger import logger
+
 from .local_book import BookResult
 
 
 class PolyglotBookManager:
     """Manages traversal state and queries for a Polyglot opening book."""
 
-    def __init__(self, book_path: Optional[str] = None):
+    def __init__(self, book_path: str | None = None):
         self.book_path = book_path
-        self.reader: Optional[chess.polyglot.MemoryMappedReader] = None
+        self.reader: chess.polyglot.MemoryMappedReader | None = None
         self._count = 0
         self._exited = False
-        self._exit_move: Optional[int] = None
+        self._exit_move: int | None = None
 
-    def set_book_path(self, path: Optional[str]):
+    def set_book_path(self, path: str | None):
         """Close existing reader and set a new book path."""
         if self.book_path != path:
             self.close()
@@ -46,7 +47,7 @@ class PolyglotBookManager:
         if self.reader is not None:
             try:
                 self.reader.close()
-                logger.info(f"Closed Polyglot opening book reader.")
+                logger.info("Closed Polyglot opening book reader.")
             except Exception as e:
                 logger.error(f"Error closing Polyglot reader: {e}")
             finally:

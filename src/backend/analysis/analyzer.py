@@ -1,29 +1,30 @@
+import os
+
 import chess
 import chess.engine
-import os
-from src.backend.storage.models import GameAnalysis, MoveAnalysis
-from .engine import EngineManager
-from src.backend.storage.cache import AnalysisCache
-from .local_book import LocalBookManager, BookResult
-from .polyglot_book import PolyglotBookManager
-from .opening_db import OpeningDB
-from src.backend.storage.game_history import GameHistoryManager
-from src.utils.logger import logger
-from src.utils.config import ConfigManager
-from src.utils.path_utils import get_resource_path, get_user_data_dir
-from typing import Optional, List, Dict
-import math
 
-from src.constants import DEFAULT_MULTI_PV, DEFAULT_ANALYSIS_DEPTH
+from src.backend.storage.cache import AnalysisCache
+from src.backend.storage.game_history import GameHistoryManager
+from src.backend.storage.models import GameAnalysis, MoveAnalysis
+from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV
+from src.utils.config import ConfigManager
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path, get_user_data_dir
+
+from .engine import EngineManager
+from .local_book import BookResult, LocalBookManager
 from .math_utils import (
-    get_win_probability,
     calculate_move_accuracy,
-    get_cp,
     calculate_volatility_weights,
+    get_cp,
+    get_win_probability,
+    harmonic_mean,
     weighted_mean,
-    harmonic_mean
 )
 from .move_classifier import classify_move
+from .opening_db import OpeningDB
+from .polyglot_book import PolyglotBookManager
+
 
 class Analyzer:
     def __init__(self, engine_manager: EngineManager):
@@ -35,6 +36,7 @@ class Analyzer:
         tsv_dir = get_resource_path("assets/openings")
         db_path = os.path.join(get_user_data_dir(), "openings.db")
         self._opening_db = OpeningDB(db_path)
+        just_populated = False
         try:
             just_populated = self._opening_db.initialize(tsv_dir)
         except FileNotFoundError:
@@ -53,7 +55,7 @@ class Analyzer:
             # of laptop overheating because evaluating 3 PVs roughly
             # triples the search tree.
             "multi_pv": self.config_manager.get("multi_pv", DEFAULT_MULTI_PV),
-            "use_cache": True
+            "use_cache": True,
         }
 
     def analyze_game(self, game_analysis: GameAnalysis, callback=None):
@@ -61,19 +63,21 @@ class Analyzer:
         Analyzes a game structure in-place.
         """
         try:
-            logger.info(f"Analysis started: {game_analysis.metadata.white} vs {game_analysis.metadata.black}")
-            
+            logger.info(
+                f"Analysis started: {game_analysis.metadata.white} vs {game_analysis.metadata.black}"
+            )
+
             # 1. Analyze positions (Engine work)
             summary_counts = self._analyze_positions(game_analysis, callback)
-            
+
             # 2. Populate stats
             game_analysis.summary = summary_counts
-            
+
             # 3. Save to history
             if game_analysis.pgn_content:
                 self.history_manager.save_game(game_analysis, game_analysis.pgn_content)
                 logger.info("Game saved to history")
-            
+
             logger.info("Analysis complete")
 
         except Exception as e:
@@ -82,7 +86,7 @@ class Analyzer:
         finally:
             self.engine_manager.stop_engine()
 
-    def _analyze_positions(self, game_analysis: GameAnalysis, callback=None) -> Dict:
+    def _analyze_positions(self, game_analysis: GameAnalysis, callback=None) -> dict:
         """
         Runs the engine analysis loop for all moves in the game.
         Returns the raw summary counts/stats.
@@ -91,55 +95,76 @@ class Analyzer:
         self.config["time_per_move"] = self.config_manager.get("time_per_move", 1.0)
         self.config["depth"] = self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)
         self.config["multi_pv"] = self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)
-        
+
         # Update Polyglot book path from settings if changed
         new_polyglot_path = self.config_manager.get("polyglot_book_path", "")
         self.polyglot_book.set_book_path(new_polyglot_path)
-        
+
         # Reset local and polyglot books for sequential matching
         self.local_book.reset()
         self.polyglot_book.reset()
-        
-        logger.info(f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']})")
+
+        logger.info(
+            f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']})"
+        )
         self.engine_manager.start_engine()
-        
+
         is_chess960 = game_analysis.metadata.chess960
         if is_chess960:
             self.engine_manager.set_chess960_mode(True)
-        
+
         board = chess.Board(chess960=is_chess960)
         total_moves = len(game_analysis.moves)
-        
+
         # Initialize stats container
         summary_counts = {
             "white": {
-                "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0,
-                "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0,
-                "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []
+                "Brilliant": 0,
+                "Great": 0,
+                "Best": 0,
+                "Excellent": 0,
+                "Good": 0,
+                "Inaccuracy": 0,
+                "Mistake": 0,
+                "Blunder": 0,
+                "Miss": 0,
+                "Book": 0,
+                "acpl": 0,
+                "move_count": 0,
+                "accuracies": [],
+                "win_percents": [],
             },
             "black": {
-                "Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0,
-                "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0,
-                "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []
-            }
+                "Brilliant": 0,
+                "Great": 0,
+                "Best": 0,
+                "Excellent": 0,
+                "Good": 0,
+                "Inaccuracy": 0,
+                "Mistake": 0,
+                "Blunder": 0,
+                "Miss": 0,
+                "Book": 0,
+                "acpl": 0,
+                "move_count": 0,
+                "accuracies": [],
+                "win_percents": [],
+            },
         }
-        
-        in_book = True
-        opening_name = "Unknown Opening"
 
         for i, move_data in enumerate(game_analysis.moves):
             move_idx = i + 1
             if move_idx == 1 or move_idx % 10 == 0 or move_idx == total_moves:
                 logger.info(f"Analyzing move {move_idx}/{total_moves}...")
-            
+
             if callback:
-                callback(i+1, total_moves)
-            
+                callback(i + 1, total_moves)
+
             board.set_fen(move_data.fen_before)
             is_white_turn = board.turn
-            
+
             info_list = self._get_position_analysis(board, move_data)
-            
+
             self._process_analysis_results(move_data, info_list, is_white_turn, board)
 
             if i > 0 and callback:
@@ -147,43 +172,74 @@ class Analyzer:
                 if move_data.eval_before_cp is not None or move_data.eval_before_mate is not None:
                     prev_move.eval_after_cp = move_data.eval_before_cp
                     prev_move.eval_after_mate = move_data.eval_before_mate
-                    
+
                     # Progressive classification
                     temp_board = chess.Board(chess960=is_chess960)
                     temp_board.set_fen(prev_move.fen_before)
                     prev_side = "white" if temp_board.turn == chess.WHITE else "black"
-                    
-                    wp_before = get_win_probability(prev_move.eval_before_cp, prev_move.eval_before_mate)
-                    is_checkmate_move = prev_move.san.endswith('#') if prev_move.san else False
+
+                    wp_before = get_win_probability(
+                        prev_move.eval_before_cp, prev_move.eval_before_mate
+                    )
+                    is_checkmate_move = prev_move.san.endswith("#") if prev_move.san else False
                     if is_checkmate_move:
                         wp_after = 1.0 if prev_side == "white" else 0.0
                     else:
-                        wp_after = get_win_probability(prev_move.eval_after_cp, prev_move.eval_after_mate)
-                    
+                        wp_after = get_win_probability(
+                            prev_move.eval_after_cp, prev_move.eval_after_mate
+                        )
+
                     prev_move.win_chance_before = wp_before
                     prev_move.win_chance_after = wp_after
-                    
+
                     if prev_side == "white":
                         wpl = wp_before - wp_after
                     else:
                         wpl = wp_after - wp_before
-                    if wpl < 0: wpl = 0
-                    
+                    if wpl < 0:
+                        wpl = 0
+
                     classify_move(prev_move, wpl, prev_side, prev_move.multi_pvs)
-                    
+
                     dummy_counts = {
-                        "white": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0},
-                        "black": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0}
+                        "white": {
+                            "Brilliant": 0,
+                            "Great": 0,
+                            "Best": 0,
+                            "Excellent": 0,
+                            "Good": 0,
+                            "Inaccuracy": 0,
+                            "Mistake": 0,
+                            "Blunder": 0,
+                            "Miss": 0,
+                            "Book": 0,
+                        },
+                        "black": {
+                            "Brilliant": 0,
+                            "Great": 0,
+                            "Best": 0,
+                            "Excellent": 0,
+                            "Good": 0,
+                            "Inaccuracy": 0,
+                            "Mistake": 0,
+                            "Blunder": 0,
+                            "Miss": 0,
+                            "Book": 0,
+                        },
                     }
                     self._check_book_move(prev_move, prev_side, dummy_counts, game_analysis)
 
-                    callback(i, total_moves, {
-                        "index": i - 1,
-                        "classification": prev_move.classification or "",
-                        "eval_after_cp": prev_move.eval_after_cp,
-                        "eval_after_mate": prev_move.eval_after_mate,
-                        "multi_pvs": prev_move.multi_pvs,
-                    })
+                    callback(
+                        i,
+                        total_moves,
+                        {
+                            "index": i - 1,
+                            "classification": prev_move.classification or "",
+                            "eval_after_cp": prev_move.eval_after_cp,
+                            "eval_after_mate": prev_move.eval_after_mate,
+                            "multi_pvs": prev_move.multi_pvs,
+                        },
+                    )
 
         logger.info("Analyzing final position...")
         if callback:
@@ -203,94 +259,136 @@ class Analyzer:
                 last_cp = final_score.relative.score(mate_score=10000)
                 last_mate = None
             if turn_after_last == chess.BLACK:
-                if last_cp is not None: last_cp = -last_cp
-                if last_mate is not None: last_mate = -last_mate
+                if last_cp is not None:
+                    last_cp = -last_cp
+                if last_mate is not None:
+                    last_mate = -last_mate
             last_move.eval_after_cp = last_cp
             last_move.eval_after_mate = last_mate
-            
+
             # Progressive classification for last move
             last_side = "white" if (total_moves - 1) % 2 == 0 else "black"
             wp_before = get_win_probability(last_move.eval_before_cp, last_move.eval_before_mate)
-            is_checkmate_move = last_move.san.endswith('#') if last_move.san else False
+            is_checkmate_move = last_move.san.endswith("#") if last_move.san else False
             if is_checkmate_move:
                 wp_after = 1.0 if last_side == "white" else 0.0
             else:
                 wp_after = get_win_probability(last_cp, last_mate)
-            
+
             last_move.win_chance_before = wp_before
             last_move.win_chance_after = wp_after
-            
+
             if last_side == "white":
                 wpl = wp_before - wp_after
             else:
                 wpl = wp_after - wp_before
-            if wpl < 0: wpl = 0
-            
+            if wpl < 0:
+                wpl = 0
+
             classify_move(last_move, wpl, last_side, last_move.multi_pvs)
-            
+
             dummy_counts = {
-                "white": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0},
-                "black": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0}
+                "white": {
+                    "Brilliant": 0,
+                    "Great": 0,
+                    "Best": 0,
+                    "Excellent": 0,
+                    "Good": 0,
+                    "Inaccuracy": 0,
+                    "Mistake": 0,
+                    "Blunder": 0,
+                    "Miss": 0,
+                    "Book": 0,
+                },
+                "black": {
+                    "Brilliant": 0,
+                    "Great": 0,
+                    "Best": 0,
+                    "Excellent": 0,
+                    "Good": 0,
+                    "Inaccuracy": 0,
+                    "Mistake": 0,
+                    "Blunder": 0,
+                    "Miss": 0,
+                    "Book": 0,
+                },
             }
             self._check_book_move(last_move, last_side, dummy_counts, game_analysis)
 
-            callback(total_moves, total_moves, {
-                "index": total_moves - 1,
-                "classification": last_move.classification or "",
-                "eval_after_cp": last_cp,
-                "eval_after_mate": last_mate,
-                "multi_pvs": last_move.multi_pvs,
-            })
-        
+            callback(
+                total_moves,
+                total_moves,
+                {
+                    "index": total_moves - 1,
+                    "classification": last_move.classification or "",
+                    "eval_after_cp": last_cp,
+                    "eval_after_mate": last_mate,
+                    "multi_pvs": last_move.multi_pvs,
+                },
+            )
+
         # Classify moves and calculate stats (with callback for per-move progress)
         self._classify_and_calculate_stats(game_analysis, summary_counts, final_score, callback)
-        
+
         # Calculate final accuracy
         self._calculate_final_accuracy(summary_counts)
-        
+
         # Log classification summary
         self._log_classification_summary(summary_counts)
-        
+
         return summary_counts
-    
-    def _log_classification_summary(self, summary_counts: Dict):
+
+    def _log_classification_summary(self, summary_counts: dict):
         """Logs a summary of move classifications and accuracy."""
         for side in ["white", "black"]:
             s = summary_counts[side]
-            acc = s.get('accuracy', 0)
-            acpl = s.get('acpl', 0)
-            mc = s['move_count']
-            
+            acc = s.get("accuracy", 0)
+            acpl = s.get("acpl", 0)
+            mc = s["move_count"]
+
             # Build compact classification string
             classes = []
-            for cls in ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "Inaccuracy", "Mistake", "Miss", "Blunder"]:
+            for cls in [
+                "Brilliant",
+                "Great",
+                "Best",
+                "Excellent",
+                "Good",
+                "Book",
+                "Inaccuracy",
+                "Mistake",
+                "Miss",
+                "Blunder",
+            ]:
                 count = s.get(cls, 0)
                 if count > 0:
                     classes.append(f"{cls}:{count}")
             class_str = ", ".join(classes) if classes else "None"
-            
-            logger.info(f"{side.capitalize()}: {mc} moves, {acc:.1f}% accuracy, ACPL {acpl:.1f} | {class_str}")
-        
-    def _get_position_analysis(self, board, move_data) -> List:
+
+            logger.info(
+                f"{side.capitalize()}: {mc} moves, {acc:.1f}% accuracy, ACPL {acpl:.1f} | {class_str}"
+            )
+
+    def _get_position_analysis(self, board, move_data) -> list:
         """Gets analysis from cache or engine for the current position."""
         # Check cache
         if self.config.get("use_cache", True):
             cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
             if cached_result:
                 return cached_result
-        
+
         # Engine analysis
         info_list = self.engine_manager.analyze_position(
-            board, 
+            board,
             time_limit=self.config["time_per_move"],
             depth=self.config["depth"],
-            multi_pv=self.config["multi_pv"]
+            multi_pv=self.config["multi_pv"],
         )
-        
+
         # Ensure list
         if not isinstance(info_list, list):
             info_list = [info_list]
-        
+
         # Serialize and cache
         serializable_list = []
         for info in info_list:
@@ -301,31 +399,39 @@ class Analyzer:
                     s_info["mate"] = score.relative.mate()
                 else:
                     s_info["cp"] = score.relative.score(mate_score=10000)
-            
+
             pv = info.get("pv", [])
             s_info["pv"] = [m.uci() for m in pv]
             s_info["depth"] = info.get("depth", self.config["depth"])
             serializable_list.append(s_info)
-        
+
         if self.config.get("use_cache", True):
             self.cache.save_analysis(move_data.fen_before, self.config, serializable_list)
-            
+
         return info_list
 
-    def _process_analysis_results(self, move_data: MoveAnalysis, info_list: List, is_white_turn: bool, board: chess.Board):
+    def _process_analysis_results(
+        self, move_data: MoveAnalysis, info_list: list, is_white_turn: bool, board: chess.Board
+    ):
         """Processes raw engine analysis into move data."""
         # Normalize info
         best_pv_uci = []
         score_cp = None
         score_mate = None
-        
+
         # Process Multi-PVs
         move_data.multi_pvs = []
-        
+
         for idx, item in enumerate(info_list):
             pv_data = {}
-            
-            if isinstance(item, dict) and "pv" in item and isinstance(item["pv"], list) and len(item["pv"]) > 0 and isinstance(item["pv"][0], str):
+
+            if (
+                isinstance(item, dict)
+                and "pv" in item
+                and isinstance(item["pv"], list)
+                and len(item["pv"]) > 0
+                and isinstance(item["pv"][0], str)
+            ):
                 # Cached format
                 pv_uci = item.get("pv", [])
                 cp = item.get("cp")
@@ -345,23 +451,25 @@ class Analyzer:
                     else:
                         cp = score.relative.score(mate_score=100000)
                 depth = item.get("depth", "?")
-                        
+
             pv_data["pv"] = pv_uci
             pv_data["cp"] = cp
             pv_data["mate"] = mate
             pv_data["depth"] = depth
-            
+
             # Convert PV to SAN
             try:
                 pv_moves_obj = [chess.Move.from_uci(uci) for uci in pv_uci]
                 pv_data["pv_san"] = board.variation_san(pv_moves_obj)
             except Exception:
                 pv_data["pv_san"] = " ".join(pv_uci)
-            
-            pv_data["score_value"] = f"M{mate}" if mate is not None else f"{cp/100:.2f}" if cp is not None else "?"
-            
+
+            pv_data["score_value"] = (
+                f"M{mate}" if mate is not None else f"{cp / 100:.2f}" if cp is not None else "?"
+            )
+
             move_data.multi_pvs.append(pv_data)
-            
+
             if idx == 0:
                 best_pv_uci = pv_uci
                 score_cp = cp
@@ -370,11 +478,13 @@ class Analyzer:
         # Store RAW engine score (relative to side to move)
         final_cp = score_cp
         final_mate = score_mate
-        
+
         if not is_white_turn:
-            if final_cp is not None: final_cp = -final_cp
-            if final_mate is not None: final_mate = -final_mate
-        
+            if final_cp is not None:
+                final_cp = -final_cp
+            if final_mate is not None:
+                final_mate = -final_mate
+
         move_data.eval_before_cp = final_cp
         move_data.eval_before_mate = final_mate
         move_data.best_move = best_pv_uci[0] if best_pv_uci else None
@@ -384,10 +494,10 @@ class Analyzer:
         """Analyzes the final position of the game and returns the score."""
         if not game_analysis.moves:
             return None
-            
+
         board.set_fen(game_analysis.moves[-1].fen_before)
         board.push_uci(game_analysis.moves[-1].uci)
-        
+
         if board.is_game_over():
             if board.is_checkmate():
                 # Mate(-1) from the mated side's perspective: "the opponent
@@ -397,28 +507,30 @@ class Analyzer:
                 return chess.engine.PovScore(chess.engine.Mate(-1), board.turn)
             else:
                 return chess.engine.PovScore(chess.engine.Cp(0), board.turn)
-                
+
         final_info_list = self.engine_manager.analyze_position(
-            board, 
+            board,
             time_limit=self.config["time_per_move"],
             depth=self.config["depth"],
-            multi_pv=self.config["multi_pv"]
+            multi_pv=self.config["multi_pv"],
         )
-        
+
         if isinstance(final_info_list, list):
             final_info = final_info_list[0] if final_info_list else {}
         else:
             final_info = final_info_list
-        
+
         # Return the score object so it can be used for last move's eval_after
         return final_info.get("score") if final_info else None
-            
-    def _classify_and_calculate_stats(self, game_analysis: GameAnalysis, summary_counts: Dict, final_score, callback=None):
+
+    def _classify_and_calculate_stats(
+        self, game_analysis: GameAnalysis, summary_counts: dict, final_score, callback=None
+    ):
         """Iterates through moves to calculate win probabilities, classification, and ACPL."""
         is_chess960 = game_analysis.metadata.chess960
-        board = chess.Board(chess960=is_chess960) # For turn tracking
-        temp_board = chess.Board(chess960=is_chess960) # For FEN checks
-        
+        board = chess.Board(chess960=is_chess960)  # For turn tracking
+        temp_board = chess.Board(chess960=is_chess960)  # For FEN checks
+
         # Rebuild FEN history to detect repetitions
         clean_fens = []
         if game_analysis.moves:
@@ -436,7 +548,7 @@ class Analyzer:
         for fen in clean_fens:
             if fen:
                 fen_counts[fen] = fen_counts.get(fen, 0) + 1
-            
+
         self.local_book.reset()
         self.polyglot_book.reset()
         has_recorded_exit = False
@@ -445,28 +557,28 @@ class Analyzer:
             # Determine side
             temp_board.set_fen(move.fen_before)
             side = "white" if temp_board.turn == chess.WHITE else "black"
-            
+
             # S1 (Eval before)
             s1_cp = move.eval_before_cp
             s1_mate = move.eval_before_mate
-            
+
             # S2 (Eval after)
             s2_cp, s2_mate = self._get_next_eval(game_analysis, i, final_score, board)
 
             # Store eval_after
             move.eval_after_cp = s2_cp
             move.eval_after_mate = s2_mate
-            
+
             # Win Probabilities
             wp_before = get_win_probability(s1_cp, s1_mate)
-            
+
             # Check if this move is checkmate
-            is_checkmate_move = move.san.endswith('#') if move.san else False
+            is_checkmate_move = move.san.endswith("#") if move.san else False
             if is_checkmate_move:
                 wp_after = 1.0 if side == "white" else 0.0
             else:
                 wp_after = get_win_probability(s2_cp, s2_mate)
-                
+
             # Check if this move is protected due to drawing repetition
             is_protected_repetition = False
             if clean_fens:
@@ -481,66 +593,68 @@ class Analyzer:
                         if 0 <= idx < len(clean_fens):
                             f = clean_fens[idx]
                             if f and fen_counts.get(f, 0) > 1:
-                                player_wp_before = wp_before if side == "white" else (1.0 - wp_before)
+                                player_wp_before = (
+                                    wp_before if side == "white" else (1.0 - wp_before)
+                                )
                                 if player_wp_before < 0.70:
                                     is_protected_repetition = True
                                     break
-                                    
+
             if is_protected_repetition:
                 wp_after = wp_before
-            
+
             move.win_chance_before = wp_before
             move.win_chance_after = wp_after
-            
+
             # Win Probability Loss
             if side == "white":
                 wpl = wp_before - wp_after
             else:
                 wpl = wp_after - wp_before
-            
-            if wpl < 0: wpl = 0
-            
+
+            if wpl < 0:
+                wpl = 0
+
             # Classification
             classify_move(move, wpl, side, move.multi_pvs)
-            
+
             # Update counts
             summary_counts[side][move.classification] += 1
             summary_counts[side]["move_count"] += 1
-            
+
             # ACPL
             self._update_acpl(summary_counts, side, s1_cp, s1_mate, s2_cp, s2_mate)
-            
+
             # Book Check (do this before accuracy so we can adjust accuracy for book moves)
             is_book_move = self._check_book_move(move, side, summary_counts, game_analysis)
             if not is_book_move and not has_recorded_exit and not move.book_exit_move:
                 move.book_exit_move = True
                 has_recorded_exit = True
-                    
+
             # Accuracy Calculation
             player_wp_before = wp_before if side == "white" else (1.0 - wp_before)
             player_wp_after = wp_after if side == "white" else (1.0 - wp_after)
-            
+
             # Calculate raw accuracy
             move_acc = calculate_move_accuracy(player_wp_before, player_wp_after)
-            
+
             # Override accuracy for special cases:
             # 1. Book moves get 100% (theoretical opening theory)
             # 2. Checkmate moves get 100% (delivering mate is optimal)
             # 3. Moves leading to forced mate get 100%
             # 4. All moves get minimum 5% floor (prevent harmonic mean collapse)
-            is_checkmate_move = move.san.endswith('#') if move.san else False
-            is_mating_move = (move.eval_after_mate is not None and 
-                             ((side == "white" and move.eval_after_mate > 0) or
-                              (side == "black" and move.eval_after_mate < 0)))
-            
-            if is_book_move:
+            is_checkmate_move = move.san.endswith("#") if move.san else False
+            is_mating_move = move.eval_after_mate is not None and (
+                (side == "white" and move.eval_after_mate > 0)
+                or (side == "black" and move.eval_after_mate < 0)
+            )
+
+            if is_book_move or is_checkmate_move or is_mating_move:
                 move_acc = 100.0
-            elif is_checkmate_move or is_mating_move:
-                move_acc = 100.0
-            
+
             # Apply minimum floor to prevent harmonic mean collapse from outliers
             move_acc = max(move_acc, 5.0)
-            
+
             summary_counts[side]["accuracies"].append(move_acc)
             summary_counts[side]["win_percents"].append(player_wp_before)  # Store for volatility
 
@@ -556,15 +670,15 @@ class Analyzer:
                     "fen_before": move.fen_before,
                 }
                 callback(i + 1, len(game_analysis.moves), move_data)
-            
+
             # Advance board for turn tracking for next move logic
             board.set_fen(move.fen_before)
             board.push_uci(move.uci)
- 
+
     def _get_next_eval(self, game_analysis, index, final_score, current_board_context):
         """Determines the evaluation of the position AFTER the move."""
         if index < len(game_analysis.moves) - 1:
-            next_move = game_analysis.moves[index+1]
+            next_move = game_analysis.moves[index + 1]
             return next_move.eval_before_cp, next_move.eval_before_mate
         else:
             # Final position - need to figure out whose turn it is AFTER the last move
@@ -575,117 +689,130 @@ class Analyzer:
                 temp_board.set_fen(last_move.fen_before)
                 temp_board.push_uci(last_move.uci)
                 turn_after_last = temp_board.turn  # Who to move in final position
-                
+
                 if final_score.is_mate():
                     s2_mate = final_score.relative.mate()
                     s2_cp = None
                 else:
                     s2_cp = final_score.relative.score(mate_score=10000)
                     s2_mate = None
-                    
+
                 # Normalize: score is relative to side-to-move in final position
                 # We need it relative to White for consistency
                 if turn_after_last == chess.BLACK:
                     # Score is relative to Black, flip to White's perspective
-                    if s2_cp is not None: s2_cp = -s2_cp
-                    if s2_mate is not None: s2_mate = -s2_mate
+                    if s2_cp is not None:
+                        s2_cp = -s2_cp
+                    if s2_mate is not None:
+                        s2_mate = -s2_mate
                 return s2_cp, s2_mate
             else:
                 return None, None
- 
+
     def _update_acpl(self, summary_counts, side, s1_cp, s1_mate, s2_cp, s2_mate):
         """Calculates and updates ACPL stats."""
         val_s1 = get_cp(s1_cp, s1_mate)
         val_s2 = get_cp(s2_cp, s2_mate)
-        
+
         if side == "white":
             cp_loss = val_s1 - val_s2
         else:
             cp_loss = val_s2 - val_s1
-        
-        if cp_loss < 0: cp_loss = 0
-        if cp_loss > 1000: cp_loss = 1000
-        
+
+        if cp_loss < 0:
+            cp_loss = 0
+        if cp_loss > 1000:
+            cp_loss = 1000
+
         summary_counts[side]["acpl"] += cp_loss
- 
+
     def _check_book_move(self, move, side, summary_counts, game_analysis):
         """Check move against opening books. Returns True if it is a book move."""
         move_number = move.move_number * 2 - (1 if side == "white" else 0)
-        
+
         # Check polyglot book if available
         if self.polyglot_book.is_available():
-            polyglot_result = self.polyglot_book.process_move(move.fen_before, move.uci, move_number)
+            polyglot_result = self.polyglot_book.process_move(
+                move.fen_before, move.uci, move_number
+            )
             if polyglot_result.is_book:
-                logger.info(f"Polyglot book match at move {move_number} ({side}): {move.san} (candidate continuations: {polyglot_result.candidate_moves})")
+                logger.info(
+                    f"Polyglot book match at move {move_number} ({side}): {move.san} (candidate continuations: {polyglot_result.candidate_moves})"
+                )
         else:
             polyglot_result = BookResult(is_book=False)
-            
+
         # SQLite book is always checked
         sqlite_result = self.local_book.process_move(move.fen_before, move.uci, move_number)
         if sqlite_result.is_book:
-            logger.info(f"SQLite book match at move {move_number} ({side}): {move.san} - {sqlite_result.current_opening} ({sqlite_result.current_eco})")
+            logger.info(
+                f"SQLite book match at move {move_number} ({side}): {move.san} - {sqlite_result.current_opening} ({sqlite_result.current_eco})"
+            )
 
         is_book = polyglot_result.is_book or sqlite_result.is_book
         if is_book:
             summary_counts[side][move.classification] -= 1
             move.classification = "Book"
             move.is_book_move = True
-            
+
             # Combine stats
-            move.book_move_count = max(polyglot_result.book_move_count, sqlite_result.book_move_count)
+            move.book_move_count = max(
+                polyglot_result.book_move_count, sqlite_result.book_move_count
+            )
             # Candidates from polyglot (richer), fallback to sqlite
-            move.candidate_continuations = polyglot_result.candidate_moves or sqlite_result.candidate_moves
-            
+            move.candidate_continuations = (
+                polyglot_result.candidate_moves or sqlite_result.candidate_moves
+            )
+
             # Names from SQLite only (polyglot has no names)
             move.eco = sqlite_result.current_eco or ""
             move.opening_name = sqlite_result.current_opening or ""
-            
+
             summary_counts[side]["Book"] += 1
             if sqlite_result.current_opening:
                 game_analysis.metadata.opening = sqlite_result.current_opening
             if sqlite_result.current_eco:
                 game_analysis.metadata.eco = sqlite_result.current_eco
-                
+
         return is_book
- 
+
     def _calculate_final_accuracy(self, summary_counts):
         """
         Calculates final game accuracy using Lichess algorithm:
         Average of volatility-weighted mean and harmonic mean.
-        
+
         Source: https://github.com/lichess-org/lila/blob/master/modules/analyse/src/main/AccuracyPercent.scala
         """
         for side in ["white", "black"]:
             accuracies = summary_counts[side]["accuracies"]
             win_percents = summary_counts[side]["win_percents"]
             mc = summary_counts[side]["move_count"]
-            
+
             if mc > 0:
                 # Calculate ACPL for stats display
                 summary_counts[side]["acpl"] /= mc
-                
+
                 if len(accuracies) >= 2:
                     # Cap minimum accuracy to prevent div-by-zero in harmonic mean
                     capped_accs = [max(a, 0.1) for a in accuracies]
-                    
+
                     # Calculate sliding window volatility weights
                     window_size = max(2, min(8, len(accuracies) // 10))
                     weights = calculate_volatility_weights(win_percents, window_size)
-                    
+
                     # Volatility-weighted mean
                     weighted_mean_val = weighted_mean(capped_accs, weights)
-                    
+
                     # Harmonic mean
                     harmonic_mean_val = harmonic_mean(capped_accs)
-                    
+
                     # Final accuracy = average of both
                     accuracy = (weighted_mean_val + harmonic_mean_val) / 2
                 elif len(accuracies) == 1:
                     accuracy = accuracies[0]
                 else:
                     accuracy = 0
-                
+
                 summary_counts[side]["accuracy"] = max(0, min(100, accuracy))
             else:
                 summary_counts[side]["accuracy"] = 0
-

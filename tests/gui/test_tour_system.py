@@ -1,7 +1,8 @@
 """Tests for TourManager and TourOverlay components."""
 from unittest.mock import MagicMock
-from PyQt6.QtWidgets import QWidget, QLabel
-from PyQt6.QtCore import QRect
+
+from PyQt6.QtWidgets import QLabel, QWidget
+
 from src.gui.components.tour_manager import TourManager, TourStep
 from src.gui.components.tour_overlay import TourOverlay
 

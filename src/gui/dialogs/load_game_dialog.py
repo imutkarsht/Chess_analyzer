@@ -3,21 +3,35 @@ Unified Load Game Dialog
 Replaces the fragmented dropdown menu + multiple OS dialogs with a single,
 fully-styled modal that handles all load sources inline.
 """
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel, QWidget, QPushButton, QButtonGroup
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import (
+    QButtonGroup,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
+from src.constants import SRC_CHESSCOM, SRC_LICHESS, SRC_PGN_FILE, SRC_PGN_TEXT
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 
-from src.constants import SRC_PGN_FILE, SRC_PGN_TEXT, SRC_CHESSCOM, SRC_LICHESS
-
 from .load_game import (
+    OnlineFetchPanel,
     PgnFilePanel,
     PgnTextPanel,
-    OnlineFetchPanel,
-    icon_path,
 )
-from .load_game.online_fetch_panel import SegmentedSelector
+
+__all__ = [
+    "LoadGameDialog",
+    "SRC_CHESSCOM",
+    "SRC_LICHESS",
+    "SRC_PGN_FILE",
+    "SRC_PGN_TEXT",
+]
 
 
 class LoadGameDialog(QDialog):
@@ -101,7 +115,7 @@ class LoadGameDialog(QDialog):
         self.btn_online.setChecked(True)
         self.btn_online.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_online.setFixedHeight(48)
-        
+
         # Pgn tab button
         self.btn_pgn = QPushButton("  PGN Text / File")
         self.btn_pgn.setCheckable(True)
@@ -209,11 +223,12 @@ class LoadGameDialog(QDialog):
     def _refresh_nav_icons(self):
         import qtawesome as qta
         from PyQt6.QtGui import QIcon
+
         from src.utils.path_utils import get_resource_path
-        
+
         pgn_icon = QIcon(get_resource_path("assets/icons/file.png"))
         self.btn_pgn.setIcon(pgn_icon)
-        
+
         if self.btn_online.isChecked():
             self.btn_online.setIcon(qta.icon("fa5s.globe", color=Styles.COLOR_ACCENT))
         else:

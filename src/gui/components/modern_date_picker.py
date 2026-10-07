@@ -1,11 +1,19 @@
 """
 Modern Date Picker Widget - An ultra-sleek, unified desktop date picker with custom calendar popup.
 """
+from PyQt6.QtCore import QDate, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QLabel, QCalendarWidget, QMenu, QWidgetAction, QFrame, QPushButton, QGraphicsDropShadowEffect
+    QCalendarWidget,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+    QWidgetAction,
 )
-from PyQt6.QtCore import pyqtSignal, Qt, QDate
-from PyQt6.QtGui import QColor
+
 from ..styles import Styles
 
 try:

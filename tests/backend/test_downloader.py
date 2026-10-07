@@ -1,25 +1,23 @@
-import sys
 import os
+import sys
 import tarfile
 import zipfile
-import tempfile
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from src.backend.engine import downloader
+import pytest
+
 from src.backend.engine.downloader import (
+    ReleaseAsset,
+    download_and_extract,
     get_current_platform,
+    get_download_candidates,
+    get_download_url,
     get_expected_asset_name,
     get_official_releases,
-    get_download_url,
-    get_download_candidates,
+    probe_engine_binary,
     select_asset,
     select_assets,
-    download_and_extract,
-    probe_engine_binary,
     try_package_manager_install,
-    ReleaseAsset,
-    PLATFORM_ASSETS,
 )
 
 
@@ -310,7 +308,8 @@ class TestDownloadAndExtract:
     def _mock_download(self, mocker, archive_path):
         mock_resp = MagicMock()
         mock_resp.headers = {"content-length": str(os.path.getsize(archive_path))}
-        mock_resp.iter_content.return_value = [open(archive_path, "rb").read()]
+        with open(archive_path, "rb") as f:
+            mock_resp.iter_content.return_value = [f.read()]
         mocker.patch("requests.get", return_value=mock_resp)
 
     def test_download_and_extract_tar_gz(self, mocker, tmp_path):
@@ -381,7 +380,8 @@ class TestDownloadAndExtract:
 
         good_resp = MagicMock()
         good_resp.headers = {"content-length": str(os.path.getsize(good_archive))}
-        good_resp.iter_content.return_value = [open(good_archive, "rb").read()]
+        with open(good_archive, "rb") as f:
+            good_resp.iter_content.return_value = [f.read()]
 
         def side_effect(url, **kwargs):
             return bad_resp if "bad" in url else good_resp

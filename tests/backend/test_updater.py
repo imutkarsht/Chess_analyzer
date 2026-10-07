@@ -1,6 +1,7 @@
 """Tests for the GitHub update checker and platform asset resolution rules."""
-from unittest.mock import patch, MagicMock
-from src.backend.updater.update_checker import UpdateChecker, _pick_asset, UpdateInfo
+from unittest.mock import MagicMock, patch
+
+from src.backend.updater.update_checker import UpdateChecker, _pick_asset
 from src.constants import APP_VERSION
 
 

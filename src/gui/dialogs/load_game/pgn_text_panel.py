@@ -1,13 +1,16 @@
 """
 PGN Text panel for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
+
 from src.gui.components.toast import Toast
-from PyQt6.QtCore import pyqtSignal, Qt
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
-from .inline_game_list import InlineGameList
+
 from .helpers import classify_time_control
+from .inline_game_list import InlineGameList
+
 
 class PgnTextPanel(QWidget):
     """
@@ -76,7 +79,7 @@ class PgnTextPanel(QWidget):
         from src.backend.storage.pgn_parser import PGNParser
         try:
             games = PGNParser.parse_pgn_text(text)
-        except Exception as e:
+        except Exception:
             Toast.show_message(self.window(),
                                "Could not parse this PGN. It may be empty or corrupted.",
                                "error")

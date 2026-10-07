@@ -16,7 +16,7 @@ Run as a script to regenerate every icon in ``assets/images/``.
 from __future__ import annotations
 
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 # ---------------------------------------------------------------------------
 # Visual design tokens

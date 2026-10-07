@@ -23,8 +23,6 @@ These tests pin down the new behaviour:
 
 import os
 
-import pytest
-
 from src.gui.board.piece_themes import (
     PIECE_THEMES,
     STANDARD_THEME_FILES,
@@ -34,7 +32,6 @@ from src.gui.board.piece_themes import (
     get_piece_theme_names,
 )
 from src.utils.path_utils import get_resource_path
-
 
 # All 12 piece symbols, in the order returned by get_piece_defs().
 EXPECTED_PIECE_IDS = [
@@ -61,7 +58,7 @@ def test_standard_theme_files_contains_all_12_pieces():
 
 def test_every_svg_file_exists():
     """Each entry in STANDARD_THEME_FILES must point to a real file."""
-    for symbol, filename in STANDARD_THEME_FILES.items():
+    for _symbol, filename in STANDARD_THEME_FILES.items():
         path = get_resource_path(os.path.join("assets/pieces", filename))
         assert os.path.isfile(path), f"Missing piece file: {path}"
 
@@ -162,7 +159,7 @@ def test_piece_themes_caching():
     """get_piece_defs must hit the cache on subsequent calls."""
     from src.gui.board.piece_themes import _load_theme_cached
     _load_theme_cached.cache_clear()
-    
+
     info_before = _load_theme_cached.cache_info()
     assert info_before.hits == 0
     assert info_before.misses == 0

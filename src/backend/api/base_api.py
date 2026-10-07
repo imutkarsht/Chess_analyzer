@@ -2,25 +2,28 @@
 Base API class for chess platforms.
 Provides shared HTTP request handling and error logging.
 """
+
+from typing import Any
+
 import requests
-from typing import Optional, Dict, Any
+
 from src.utils.logger import logger
 
 
 class BaseChessAPI:
     """Base class for chess platform APIs."""
-    
+
     DEFAULT_HEADERS = {
         "User-Agent": "ChessAnalyzer/1.0"
     }
-    
+
     @staticmethod
     def _make_request(
-        url: str, 
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        timeout: int = 30
-    ) -> Optional[requests.Response]:
+        url: str,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+        timeout: int = 30,
+    ) -> requests.Response | None:
         """
         Makes an HTTP GET request with error handling.
         Returns Response object or None on failure.
@@ -38,7 +41,7 @@ class BaseChessAPI:
             return None
 
     @staticmethod
-    def _safe_json(response: requests.Response) -> Optional[Dict]:
+    def _safe_json(response: requests.Response) -> dict | None:
         """Safely parse JSON from response."""
         try:
             return response.json()

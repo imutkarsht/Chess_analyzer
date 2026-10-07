@@ -1,18 +1,21 @@
 import os
-import sys
-import subprocess
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QLineEdit, QProgressBar, QApplication,
-    QComboBox, QFrame,
-)
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPixmap, QFont
 
-from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
-from src.backend.analysis.engine import resolve_engine_path
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QProgressBar,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
 from src.gui.styles import Styles
+from src.utils.path_utils import get_resource_path
 
 PAGE_BG = f"background-color: {Styles.COLOR_BACKGROUND};"
 
@@ -239,8 +242,8 @@ def build_appearance_page(wizard) -> QWidget:
 
 
 def _pick_accent_color(wizard):
-    from PyQt6.QtWidgets import QColorDialog
     from PyQt6.QtGui import QColor
+    from PyQt6.QtWidgets import QColorDialog
     color = QColorDialog.getColor(initial=QColor(wizard.wizard_accent_color), parent=wizard, title="Select Accent Color")
     if color.isValid():
         wizard.wizard_accent_color = color.name()

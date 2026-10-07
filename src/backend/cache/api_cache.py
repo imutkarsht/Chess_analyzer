@@ -1,12 +1,25 @@
 import datetime
-import time
 import io
+import time
+from collections.abc import Callable
+
 import chess.pgn
-from typing import Callable, List, Optional
+
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_history import GameHistoryManager
 
-def parse_pgn_headers(pgn: str, default_white="?", default_black="?", default_result="*", default_date_str="????.??.??", default_white_elo=None, default_black_elo=None, default_time_class=None, default_opening=None):
+
+def parse_pgn_headers(
+    pgn: str,
+    default_white="?",
+    default_black="?",
+    default_result="*",
+    default_date_str="????.??.??",
+    default_white_elo=None,
+    default_black_elo=None,
+    default_time_class=None,
+    default_opening=None,
+):
     white = default_white
     black = default_black
     result = default_result
@@ -16,7 +29,7 @@ def parse_pgn_headers(pgn: str, default_white="?", default_black="?", default_re
     time_class = default_time_class
     opening = default_opening
     move_count = None
-    
+
     try:
         game = chess.pgn.read_game(io.StringIO(pgn))
         if game:
@@ -24,33 +37,33 @@ def parse_pgn_headers(pgn: str, default_white="?", default_black="?", default_re
             h_white = h.get("White")
             if h_white and h_white != "?":
                 white = h_white
-                
+
             h_black = h.get("Black")
             if h_black and h_black != "?":
                 black = h_black
-                
+
             h_result = h.get("Result")
             if h_result and h_result != "*":
                 result = h_result
-                
+
             h_date = h.get("Date")
             if h_date and h_date != "????.??.??":
                 date_str = h_date
             if date_str and "." in date_str:
                 date_str = date_str.replace(".", "-")
-                
+
             h_w_elo = h.get("WhiteElo")
             if h_w_elo and h_w_elo != "?":
                 white_elo = h_w_elo
-                
+
             h_b_elo = h.get("BlackElo")
             if h_b_elo and h_b_elo != "?":
                 black_elo = h_b_elo
-                
+
             h_event = h.get("Event")
             if h_event and h_event not in ["?", "Lichess Game", "Chess.com Game"]:
                 time_class = h_event
-                
+
             h_opening = h.get("Opening")
             if h_opening and h_opening != "?":
                 opening = h_opening
@@ -63,7 +76,7 @@ def parse_pgn_headers(pgn: str, default_white="?", default_black="?", default_re
             move_count = (cnt + 1) // 2
     except Exception:
         pass
-        
+
     return white, black, result, date_str, white_elo, black_elo, time_class, opening, move_count
 
 
@@ -71,7 +84,7 @@ class ApiGameCache:
     def __init__(self, history_manager: GameHistoryManager):
         self.history_manager = history_manager
 
-    def get_by_id(self, source: str, game_id: str, fetch_func: Callable) -> Optional[GameInfo]:
+    def get_by_id(self, source: str, game_id: str, fetch_func: Callable) -> GameInfo | None:
         """Check cache first; miss → call fetch_func → save to cache → return"""
         cached = self.history_manager.get_cached_game(game_id)
         if cached:
@@ -90,8 +103,15 @@ class ApiGameCache:
         default_opening = raw_result.get("opening")
 
         white, black, result, date_str, white_elo, black_elo, time_class, opening, move_count = parse_pgn_headers(
-            pgn, default_white, default_black, "*", "????.??.??",
-            default_white_elo, default_black_elo, default_time_class, default_opening
+            pgn,
+            default_white,
+            default_black,
+            "*",
+            "????.??.??",
+            default_white_elo,
+            default_black_elo,
+            default_time_class,
+            default_opening,
         )
 
         if white_elo is not None:
@@ -111,13 +131,18 @@ class ApiGameCache:
             black_elo=black_elo,
             time_class=time_class,
             move_count=move_count,
-            opening=opening
+            opening=opening,
         )
         self.history_manager.save_cached_game(info)
         return info
 
-    def get_by_date(self, source: str, username: str, date: datetime.date,
-                    fetch_func: Callable) -> List[GameInfo]:
+    def get_by_date(
+        self,
+        source: str,
+        username: str,
+        date: datetime.date,
+        fetch_func: Callable,
+    ) -> list[GameInfo]:
         """Check cache first for (source, date, username); miss → call fetch_func → bulk-save → return"""
         date_str = date.strftime("%Y-%m-%d")
         cached_games = self.history_manager.get_cached_games_for_date(source, date_str, username)
@@ -139,13 +164,16 @@ class ApiGameCache:
             game_id = ""
             if source == "lichess":
                 from src.backend.api.lichess_api import LichessAPI
+
                 game_id = LichessAPI().extract_game_id(url) or url.split("/")[-1]
             else:
                 from src.backend.api.chess_com_api import ChessComAPI
+
                 game_id = ChessComAPI.extract_game_id(url) or url.split("/")[-1]
 
             if not game_id:
                 import hashlib
+
                 game_id = hashlib.md5(pgn.encode("utf-8")).hexdigest()
 
             w_data = g.get("white", {})
@@ -159,8 +187,15 @@ class ApiGameCache:
             default_opening = g.get("opening")
 
             white, black, result, g_date, white_elo, black_elo, time_class, opening, move_count = parse_pgn_headers(
-                pgn, default_white, default_black, "*", date_str,
-                default_white_elo, default_black_elo, default_time_class, default_opening
+                pgn,
+                default_white,
+                default_black,
+                "*",
+                date_str,
+                default_white_elo,
+                default_black_elo,
+                default_time_class,
+                default_opening,
             )
 
             if white_elo is not None:
@@ -180,7 +215,7 @@ class ApiGameCache:
                 black_elo=black_elo,
                 time_class=time_class,
                 move_count=move_count,
-                opening=opening
+                opening=opening,
             )
             game_infos.append(info)
 
@@ -189,8 +224,13 @@ class ApiGameCache:
 
         return game_infos
 
-    def get_recent(self, source: str, username: str, limit: int,
-                   fetch_func: Callable) -> List[GameInfo]:
+    def get_recent(
+        self,
+        source: str,
+        username: str,
+        limit: int,
+        fetch_func: Callable,
+    ) -> list[GameInfo]:
         """Always fetch fresh. Return list."""
         raw_games = fetch_func()
         if not raw_games:
@@ -207,13 +247,16 @@ class ApiGameCache:
             game_id = ""
             if source == "lichess":
                 from src.backend.api.lichess_api import LichessAPI
+
                 game_id = LichessAPI().extract_game_id(url) or url.split("/")[-1]
             else:
                 from src.backend.api.chess_com_api import ChessComAPI
+
                 game_id = ChessComAPI.extract_game_id(url) or url.split("/")[-1]
 
             if not game_id:
                 import hashlib
+
                 game_id = hashlib.md5(pgn.encode("utf-8")).hexdigest()
 
             w_data = g.get("white", {})
@@ -228,8 +271,15 @@ class ApiGameCache:
             default_date = time.strftime("%Y-%m-%d")
 
             white, black, result, g_date, white_elo, black_elo, time_class, opening, move_count = parse_pgn_headers(
-                pgn, default_white, default_black, "*", default_date,
-                default_white_elo, default_black_elo, default_time_class, default_opening
+                pgn,
+                default_white,
+                default_black,
+                "*",
+                default_date,
+                default_white_elo,
+                default_black_elo,
+                default_time_class,
+                default_opening,
             )
 
             if white_elo is not None:
@@ -249,7 +299,7 @@ class ApiGameCache:
                 black_elo=black_elo,
                 time_class=time_class,
                 move_count=move_count,
-                opening=opening
+                opening=opening,
             )
             game_infos.append(info)
 

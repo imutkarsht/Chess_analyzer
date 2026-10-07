@@ -1,8 +1,17 @@
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QListWidget, QListWidgetItem, 
-                             QPushButton, QHBoxLayout, QLabel, QAbstractItemView, QWidget)
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QVBoxLayout,
+)
+
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
+
 
 class GameSelectionDialog(QDialog):
     def __init__(self, games_data, parent=None):
@@ -11,10 +20,10 @@ class GameSelectionDialog(QDialog):
         self.resize(550, 450)
         self.games_data = games_data
         self.selected_game_data = None
-        
+
         self.setup_ui()
         self.populate_list()
-        
+
     def setup_ui(self):
         self.setStyleSheet(f"""
             QDialog {{
@@ -24,17 +33,17 @@ class GameSelectionDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(16)
-        
+
         # Header
         lbl_header = QLabel(f"Found {len(self.games_data)} recent games. Select one to load:")
         lbl_header.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY}; 
-            font-size: 15px; 
+            color: {Styles.COLOR_TEXT_PRIMARY};
+            font-size: 15px;
             font-weight: 600;
             padding-bottom: 8px;
         """)
         layout.addWidget(lbl_header)
-        
+
         # List
         self.list_widget = QListWidget()
         self.list_widget.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -62,48 +71,50 @@ class GameSelectionDialog(QDialog):
         """)
         self.list_widget.itemDoubleClicked.connect(self.accept_selection)
         layout.addWidget(self.list_widget)
-        
+
         # Buttons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
         btn_layout.addStretch()
-        
+
         self.btn_cancel = create_button("Cancel", style="secondary", on_click=self.reject)
         btn_layout.addWidget(self.btn_cancel)
-        
+
         self.btn_load = create_button("Load Game", style="primary", on_click=self.accept_selection)
         btn_layout.addWidget(self.btn_load)
-        
+
         layout.addLayout(btn_layout)
-        
+
     def populate_list(self):
         import datetime
-        
+
         for i, game in enumerate(self.games_data):
             # Extract details
             white = game.get("white", {}).get("username", "?")
             white_rating = game.get("white", {}).get("rating", "?")
             black = game.get("black", {}).get("username", "?")
             black_rating = game.get("black", {}).get("rating", "?")
-            
+
             # Result
             w_res = game.get("white", {}).get("result", "")
             b_res = game.get("black", {}).get("result", "")
-            
+
             result_str = ""
-            if w_res == "win": result_str = "1-0"
-            elif b_res == "win": result_str = "0-1"
+            if w_res == "win":
+                result_str = "1-0"
+            elif b_res == "win":
+                result_str = "0-1"
             elif any(x in w_res for x in ["agreed", "repetition", "stalemate", "insufficient"]) or \
                  any(x in b_res for x in ["agreed", "repetition", "stalemate", "insufficient"]):
                 result_str = "1/2-1/2"
-                
+
             # Time class
             time_class = game.get("time_class", "").capitalize()
-            
+
             # Date
             end_time = game.get("end_time", 0)
             date_str = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M')
-            
+
             # Move count (estimate from PGN if available)
             move_count = ""
             pgn = game.get("pgn", "")
@@ -115,17 +126,17 @@ class GameSelectionDialog(QDialog):
                     move_nums = [int(m) for m in moves if int(m) <= 500]
                     if move_nums:
                         move_count = f" • {max(move_nums)} moves"
-            
+
             # Build display text
             line1 = f"{date_str}  •  {time_class}  •  {result_str}{move_count}"
             line2 = f"{white} ({white_rating}) vs {black} ({black_rating})"
-            
+
             text = f"{line1}\n{line2}"
-            
+
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, i)
             self.list_widget.addItem(item)
-            
+
         if self.list_widget.count() > 0:
             self.list_widget.setCurrentRow(0)
 

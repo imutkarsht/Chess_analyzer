@@ -21,9 +21,9 @@ Linux    → Download .AppImage to /tmp
 """
 
 import os
-import sys
 import stat
 import subprocess
+import sys
 import tempfile
 import urllib.request
 from pathlib import Path

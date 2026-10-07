@@ -1,20 +1,21 @@
-from PyQt6.QtWidgets import (QSplashScreen, QProgressBar, QVBoxLayout, 
-                               QWidget, QLabel, QApplication)
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPixmap, QColor, QFont, QScreen
-from src.utils.logger import logger
+import os
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont, QPixmap
+from PyQt6.QtWidgets import QApplication, QLabel, QProgressBar, QSplashScreen, QVBoxLayout, QWidget
+
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-import os
+
 
 class SplashScreen(QSplashScreen):
     def __init__(self, logo_path, app_name="Chess Analyzer Pro"):
         super().__init__()
-        
+
         # Basic Setup
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        
+
         # Layout container
         p = ThemeManager.palette()
         self.container = QWidget(self)
@@ -27,7 +28,7 @@ class SplashScreen(QSplashScreen):
         """)
         self.container.setFixedSize(400, 300)
         self.setFixedSize(400, 300)
-        
+
         # Center on screen
         screen = QApplication.primaryScreen()
         if screen:
@@ -35,11 +36,11 @@ class SplashScreen(QSplashScreen):
             x = (rect.width() - self.width()) // 2
             y = (rect.height() - self.height()) // 2
             self.move(rect.left() + x, rect.top() + y)
-        
+
         layout = QVBoxLayout(self.container)
         layout.setContentsMargins(20, 40, 20, 40)
         layout.setSpacing(20)
-        
+
         # Logo
         if os.path.exists(logo_path):
             logo_label = QLabel()
@@ -48,22 +49,22 @@ class SplashScreen(QSplashScreen):
             logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             logo_label.setStyleSheet("background: transparent; border: none;")
             layout.addWidget(logo_label)
-        
+
         # App Name
         title_label = QLabel(app_name)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setFont(QFont("", 16, QFont.Weight.Bold))
         title_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; {Styles.get_transparent_label_style()}")
         layout.addWidget(title_label)
-        
+
         layout.addStretch()
-        
+
         # Loading Status
         self.status_label = QLabel("Initializing...")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; {Styles.get_transparent_label_style()}")
         layout.addWidget(self.status_label)
-        
+
         # Progress Bar
         self.progress_bar = QProgressBar()
         accent_color = Styles.COLOR_ACCENT
@@ -84,7 +85,7 @@ class SplashScreen(QSplashScreen):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
-        
+
     def update_progress(self, value, message=None):
         self.progress_bar.setValue(value)
         if message:

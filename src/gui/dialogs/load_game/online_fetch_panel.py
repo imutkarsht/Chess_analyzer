@@ -1,18 +1,27 @@
 import datetime
+
+from PyQt6.QtCore import QDate, QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QDateEdit, QButtonGroup, QFormLayout
+    QButtonGroup,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
+
+from src.backend.cache.api_cache import ApiGameCache
+from src.backend.models.game_info import GameInfo
+from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components.toast import Toast
-from PyQt6.QtCore import pyqtSignal, Qt, QDate, QObject
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 from src.utils.config import ConfigManager
-from src.backend.storage.game_history import GameHistoryManager
-from src.backend.cache.api_cache import ApiGameCache
-from src.backend.models.game_info import GameInfo
-from .inline_game_list import InlineGameList
+
 from .api_worker import ApiWorker, register_worker, remove_worker
+from .inline_game_list import InlineGameList
 
 
 class DateClickFilter(QObject):
@@ -21,7 +30,7 @@ class DateClickFilter(QObject):
         self.date_picker = date_picker
 
     def eventFilter(self, obj, event):
-        from PyQt6.QtCore import QEvent, Qt, QCoreApplication
+        from PyQt6.QtCore import QCoreApplication, QEvent, Qt
         from PyQt6.QtGui import QKeyEvent
         if event.type() == QEvent.Type.MouseButtonRelease:
             self.date_picker.setFocus()
@@ -56,7 +65,7 @@ class SegmentedSelector(QWidget):
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
 
-        for i, opt in enumerate(self.options):
+        for opt in self.options:
             key = opt[0]
             label = opt[1]
             icon_name = opt[2] if len(opt) > 2 else None
@@ -96,6 +105,7 @@ class SegmentedSelector(QWidget):
     def refresh_styles(self):
         import qtawesome as qta
         from PyQt6.QtGui import QIcon
+
         from src.utils.path_utils import get_resource_path
 
         self.setStyleSheet(f"""
@@ -105,7 +115,7 @@ class SegmentedSelector(QWidget):
                 border-radius: 8px;
             }}
         """)
-        for key, btn in self.buttons.items():
+        for btn in self.buttons.values():
             icon_name = btn.property("icon_name")
             if btn.isChecked():
                 if icon_name:
@@ -151,28 +161,46 @@ def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date
     if mode == "recent":
         if platform == "lichess":
             from src.backend.api.lichess_api import LichessAPI
-            func = lambda: LichessAPI().get_user_games(username, limit)
+
+            def func_recent_li():
+                return LichessAPI().get_user_games(username, limit)
+            func = func_recent_li
         else:
             from src.backend.api.chess_com_api import ChessComAPI
-            func = lambda: ChessComAPI.get_last_games(username, limit)
+
+            def func_recent_cc():
+                return ChessComAPI.get_last_games(username, limit)
+            func = func_recent_cc
         return cache.get_recent(platform, username, limit, func)
 
     elif mode == "date":
         if platform == "lichess":
             from src.backend.api.lichess_api import LichessAPI
-            func = lambda: LichessAPI().get_user_games_by_date(username, date)
+
+            def func_date_li():
+                return LichessAPI().get_user_games_by_date(username, date)
+            func = func_date_li
         else:
             from src.backend.api.chess_com_api import ChessComAPI
-            func = lambda: ChessComAPI.get_user_games_by_date(username, date)
+
+            def func_date_cc():
+                return ChessComAPI.get_user_games_by_date(username, date)
+            func = func_date_cc
         return cache.get_by_date(platform, username, date, func)
 
     elif mode == "url":
         if platform == "lichess":
             from src.backend.api.lichess_api import LichessAPI
-            func = lambda: LichessAPI().get_game_by_id(game_id)
+
+            def func_url_li():
+                return LichessAPI().get_game_by_id(game_id)
+            func = func_url_li
         else:
             from src.backend.api.chess_com_api import ChessComAPI
-            func = lambda: ChessComAPI.get_game_by_id(game_id, url, username)
+
+            def func_url_cc():
+                return ChessComAPI.get_game_by_id(game_id, url, username)
+            func = func_url_cc
         res = cache.get_by_id(platform, game_id, func)
         return [res] if res else []
     return []
@@ -214,7 +242,7 @@ class OnlineFetchPanel(QWidget):
                 border-radius: 12px;
             }}
         """)
-        
+
         card_layout = QVBoxLayout(self.form_card)
         card_layout.setContentsMargins(16, 16, 16, 16)
         card_layout.setSpacing(12)
@@ -229,7 +257,7 @@ class OnlineFetchPanel(QWidget):
         lbl_platform = QLabel("Platform:")
         lbl_platform.setStyleSheet(Styles.get_form_label_style())
         self.platform_selector = SegmentedSelector([
-            ("chesscom", "Chess.com", "assets/icons/chesscom.png"), 
+            ("chesscom", "Chess.com", "assets/icons/chesscom.png"),
             ("lichess", "Lichess", "assets/icons/lichess.png")
         ], "chesscom")
         self.platform_selector.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
@@ -240,8 +268,8 @@ class OnlineFetchPanel(QWidget):
         lbl_mode = QLabel("Mode:")
         lbl_mode.setStyleSheet(Styles.get_form_label_style())
         self.mode_selector = SegmentedSelector([
-            ("recent", "Recent", "fa5s.history"), 
-            ("date", "By Date", "fa5s.calendar-alt"), 
+            ("recent", "Recent", "fa5s.history"),
+            ("date", "By Date", "fa5s.calendar-alt"),
             ("url", "By URL", "fa5s.link")
         ], "recent")
         self.mode_selector.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
@@ -255,11 +283,11 @@ class OnlineFetchPanel(QWidget):
         self.username_input.setPlaceholderText("Enter username")
         self.username_input.setStyleSheet(self._input_style())
         self.username_input.returnPressed.connect(self._fetch)
-        
+
         import qtawesome as qta
         user_icon = qta.icon("fa5s.user", color=Styles.COLOR_TEXT_SECONDARY)
         self.username_input.addAction(user_icon, QLineEdit.ActionPosition.LeadingPosition)
-        
+
         self.form_layout.addRow(self.username_label, self.username_input)
 
         # Form Field 2: Modern Date Picker
@@ -276,10 +304,10 @@ class OnlineFetchPanel(QWidget):
         self.url_input.setPlaceholderText("Paste chess.com or lichess.org game link")
         self.url_input.setStyleSheet(self._input_style())
         self.url_input.returnPressed.connect(self._fetch)
-        
+
         link_icon = qta.icon("fa5s.link", color=Styles.COLOR_TEXT_SECONDARY)
         self.url_input.addAction(link_icon, QLineEdit.ActionPosition.LeadingPosition)
-        
+
         self.form_layout.addRow(self.url_label, self.url_input)
 
         # Centered action button
@@ -305,7 +333,7 @@ class OnlineFetchPanel(QWidget):
                 color: {Styles.COLOR_TEXT_MUTED};
             }}
         """)
-        
+
         btn_box = QHBoxLayout()
         btn_box.setContentsMargins(0, 8, 0, 0)
         btn_box.addStretch()
@@ -401,7 +429,7 @@ class OnlineFetchPanel(QWidget):
             if not url:
                 Toast.show_message(self.window(), "Please enter a game URL.", "warning")
                 return
-            
+
             # Extract game ID
             if platform == "lichess":
                 from src.backend.api.lichess_api import LichessAPI

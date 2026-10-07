@@ -1,10 +1,12 @@
 """
 Custom widget representing a compact move cell that packs the classification icon, SAN, and think-time.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+
 from ..styles import Styles
+
 
 class MoveCellWidget(QWidget):
     """
@@ -107,9 +109,9 @@ class MoveCellWidget(QWidget):
                 time_str = f"{time_spent_val / 60:.1f}m"
             else:
                 time_str = f"{time_spent_val:.1f}s"
-                
+
             self._time_label.setText(time_str)
-            
+
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, time_spent_val / safe_max)
             colour = self._bar_colour(ratio)
@@ -138,7 +140,7 @@ class MoveCellWidget(QWidget):
         self._san_label.setStyleSheet(
             Styles.get_label_style(size=13, color=color, weight=font_weight) + " " + Styles.get_transparent_label_style()
         )
-        
+
         self._time_label.setStyleSheet(
             Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
         )

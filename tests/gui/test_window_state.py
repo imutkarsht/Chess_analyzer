@@ -5,7 +5,6 @@ Verifies that the last-known window position and size are saved on
 close and restored on the next launch.
 """
 import json
-import os
 from unittest.mock import patch
 
 import pytest

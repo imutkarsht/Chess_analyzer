@@ -1,6 +1,6 @@
 """Tests for ThemeManager, palettes, and dynamic theme switching."""
 from src.gui.theme.manager import ThemeManager
-from src.gui.theme.palette import DARK, LIGHT, CLASSIFICATION_COLORS, BOARD_THEMES
+from src.gui.theme.palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT
 
 
 def test_theme_manager_singleton(qapp):
@@ -14,14 +14,14 @@ def test_theme_mode_switching(qapp, qtbot):
     """Switching between dark and light modes updates background/surface colors and emits signal."""
     mgr = ThemeManager.instance()
 
-    with qtbot.waitSignal(mgr.theme_changed, timeout=1000) as blocker:
+    with qtbot.waitSignal(mgr.theme_changed, timeout=1000):
         mgr.set_mode("light")
 
     assert mgr.mode() == "light"
     assert mgr.palette().background == LIGHT.background
     assert mgr.palette().surface == LIGHT.surface
 
-    with qtbot.waitSignal(mgr.theme_changed, timeout=1000) as blocker:
+    with qtbot.waitSignal(mgr.theme_changed, timeout=1000):
         mgr.set_mode("dark")
 
     assert mgr.mode() == "dark"
