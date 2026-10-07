@@ -1,10 +1,9 @@
 import os
 import sys
-import pytest
+
 from src.utils.path_utils import (
-    get_stockfish_common_paths,
     get_engine_data_dir,
-    get_user_data_dir,
+    get_stockfish_common_paths,
 )
 
 

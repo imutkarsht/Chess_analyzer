@@ -1,5 +1,5 @@
-from src.backend.storage.termination_detector import TerminationDetector
 from src.backend.storage.pgn_parser import PGNParser
+from src.backend.storage.termination_detector import TerminationDetector
 
 
 def test_detect_checkmate_via_board():
@@ -17,13 +17,6 @@ def test_detect_checkmate_via_board():
 
 
 def test_detect_stalemate_via_board():
-    pgn = """[Event "Test"]
-[White "Player1"]
-[Black "Player2"]
-[Result "1/2-1/2"]
-[FEN "k7/8/1Q6/8/8/8/8/K7 b - - 0 1"]
-
-1... h5 1/2-1/2"""
     # Note: 1... h5 from that FEN is stalemate if illegal or no moves; let's test a clean stalemate FEN setup
     headers = {"Result": "1/2-1/2", "White": "Player1", "Black": "Player2"}
     # FEN where black has no moves and is not in check

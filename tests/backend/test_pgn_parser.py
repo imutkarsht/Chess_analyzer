@@ -2,17 +2,18 @@
 Tests for PGN Parser - parsing, source detection, edge cases.
 """
 import pytest
-from src.backend.storage.pgn_parser import PGNParser
+
 from src.backend.storage.models import GameAnalysis
+from src.backend.storage.pgn_parser import PGNParser
 
 
 class TestPGNParsing:
     """Tests for basic PGN parsing functionality."""
-    
+
     def test_parse_pgn_text_basic(self, sample_pgn_chesscom):
         """Test parsing a simple PGN string."""
         games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
-        
+
         assert len(games) == 1
         game = games[0]
         assert isinstance(game, GameAnalysis)
@@ -25,9 +26,9 @@ class TestPGNParsing:
         """Test parsing PGN from file."""
         pgn_file = tmp_path / "test.pgn"
         pgn_file.write_text(sample_pgn_chesscom, encoding="utf-8")
-        
+
         games = PGNParser.parse_pgn_file(str(pgn_file))
-        
+
         assert len(games) == 1
         assert games[0].metadata.white == "Player1"
 
@@ -35,7 +36,7 @@ class TestPGNParsing:
         """Test parsing multiple games in one PGN string."""
         combined_pgn = sample_pgn_chesscom + "\n\n" + sample_pgn_lichess
         games = PGNParser.parse_pgn_text(combined_pgn)
-        
+
         assert len(games) == 2
         assert games[0].metadata.white == "Player1"
         assert games[1].metadata.white == "LichessPlayer1"
@@ -54,7 +55,7 @@ class TestPGNParsing:
 
 class TestSourceDetection:
     """Tests for source detection from Site header."""
-    
+
     def test_detect_chesscom_source(self, sample_pgn_chesscom):
         """Test Chess.com source is detected correctly."""
         games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
@@ -73,12 +74,12 @@ class TestSourceDetection:
 
 class TestMetadataExtraction:
     """Tests for metadata extraction from PGN headers."""
-    
+
     def test_extract_elo_ratings(self, sample_pgn_chesscom):
         """Test ELO ratings are extracted."""
         games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
         game = games[0]
-        
+
         assert game.metadata.white_elo == "1500"
         assert game.metadata.black_elo == "1400"
 

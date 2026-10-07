@@ -1,12 +1,10 @@
 """Tests for the local opening book system."""
-import csv
 import os
-import tempfile
+
 import chess
-from dataclasses import dataclass
-from typing import List, Optional
-from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
+
 from src.backend.analysis.local_book import LocalBookManager
+from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
 
 SAMPLE_TSV = """eco	name	pgn
 B20	Sicilian Defense	1. e4 c5
@@ -155,9 +153,9 @@ class TestLocalBookManager:
 
     def test_transposition_same_fen(self, tmp_path):
         """Two different openings converging on the same FEN is naturally handled."""
-        db = _make_db(tmp_path)
-        b1 = chess.Board("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
-        b2 = chess.Board("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
+        _make_db(tmp_path)
+        chess.Board("rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
+        chess.Board("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
         # Both FENs are different → different nodes. This is expected — transpositions
         # (same FEN via different move orders) are handled automatically by FEN keying.
 

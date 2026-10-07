@@ -1,15 +1,16 @@
 import os
 import sys
+
 import pytest
-from src.constants import DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB
+
 from src.backend.analysis.engine import (
     EngineManager,
+    _validate_engine_path,
     engine_options,
     options_from_config,
     resolve_engine_path,
-    _validate_engine_path,
 )
-import chess.engine
+from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
 
 
 def test_engine_init():

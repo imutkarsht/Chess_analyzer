@@ -14,8 +14,8 @@ import pytest
 from src.backend.engine.downloader import (
     get_current_platform,
     get_download_candidates,
-    select_assets,
     get_official_releases,
+    select_assets,
 )
 
 pytestmark = pytest.mark.skipif(

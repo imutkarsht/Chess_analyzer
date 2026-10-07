@@ -6,7 +6,7 @@ from src.backend.api.lichess_api import LichessAPI
 
 class TestGameIdExtraction:
     """Tests for extracting game IDs from Lichess URLs."""
-    
+
     def test_extract_from_standard_url(self):
         """Test extracting ID from standard game URL."""
         api = LichessAPI()
@@ -54,7 +54,7 @@ class TestGameIdExtraction:
 
 class TestGetGameById:
     """Tests for fetching game by ID with mocked HTTP."""
-    
+
     def test_get_game_success(self, mock_requests):
         """Test successful game fetch returns expected data."""
         mock_response = mock_requests.return_value
@@ -68,27 +68,27 @@ class TestGetGameById:
                 "black": {"user": {"name": "Player2"}, "rating": 1400}
             }
         }
-        
+
         api = LichessAPI()
         result = api.get_game_by_id("testid12")
-        
+
         assert result is not None
         assert "pgn" in result
         assert result["pgn"] == "1. e4 e5 1-0"
-        
+
     def test_get_game_returns_empty_dict_on_error(self, mock_requests):
         """Test error returns empty dict."""
         mock_requests.side_effect = Exception("Network error")
-        
+
         api = LichessAPI()
         result = api.get_game_by_id("nonexistent")
-        
+
         assert result == {}
 
 
 class TestGetUserGames:
     """Tests for fetching user games."""
-    
+
     def test_get_user_games_success(self, mock_requests):
         """Test successful user games fetch with clocks parameter."""
         mock_response = mock_requests.return_value
@@ -97,15 +97,15 @@ class TestGetUserGames:
         mock_response.iter_lines.return_value = [
             b'{"id": "game1", "players": {"white": {"user": {"name": "UserW"}, "rating": 1800}, "black": {"user": {"name": "UserB"}, "rating": 1700}}, "winner": "white", "status": "mate", "pgn": "1. e4 e5"}'
         ]
-        
+
         api = LichessAPI()
         games = api.get_user_games("UserW", max_games=5)
-        
+
         assert len(games) == 1
         assert games[0]["white"]["username"] == "UserW"
         assert games[0]["black"]["username"] == "UserB"
         assert games[0]["pgn"] == "1. e4 e5"
-        
+
         # Verify requests.get was called with 'clocks': 'true'
         mock_requests.assert_called_once()
         args, kwargs = mock_requests.call_args

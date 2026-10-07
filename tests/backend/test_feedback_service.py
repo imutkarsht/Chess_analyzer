@@ -1,12 +1,14 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from src.backend.services.feedback_service import (
     FeedbackService,
-    get_platform_name,
     get_formatted_version,
+    get_platform_name,
     get_recent_logs,
 )
-from src.constants import FEEDBACK_REVIEWS_URL, FEEDBACK_URL, APP_VERSION
+from src.constants import FEEDBACK_REVIEWS_URL, FEEDBACK_URL
 
 
 @pytest.fixture(autouse=True)

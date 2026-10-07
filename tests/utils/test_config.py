@@ -1,22 +1,20 @@
 """
 Tests for ConfigManager - loading, saving, defaults.
 """
-import pytest
 import json
-import os
 from unittest.mock import patch
 
 
 class TestConfigManager:
     """Tests for ConfigManager functionality."""
-    
+
     def test_default_config(self, tmp_path):
         """Test default config values when no file exists."""
         # Patch get_user_data_dir to return temp directory
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
-            
+
             assert manager.get("engine_path") == "stockfish"
             assert manager.get("theme") == "dark"
             assert manager.get("multi_pv") == 2
@@ -29,7 +27,7 @@ class TestConfigManager:
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
-            
+
             assert manager.get("nonexistent") is None
             assert manager.get("nonexistent", "default_val") == "default_val"
 
@@ -38,7 +36,7 @@ class TestConfigManager:
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
-            
+
             manager.set("custom_key", "custom_value")
             assert manager.get("custom_key") == "custom_value"
 
@@ -47,16 +45,16 @@ class TestConfigManager:
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
-            
+
             manager.set("test_key", "test_value")
-            
+
             # Read the file directly
             config_file = tmp_path / "config.json"
             assert config_file.exists()
-            
-            with open(config_file, 'r') as f:
+
+            with open(config_file) as f:
                 saved_config = json.load(f)
-            
+
             assert saved_config["test_key"] == "test_value"
 
     def test_load_existing_config(self, tmp_path):
@@ -67,11 +65,11 @@ class TestConfigManager:
             "engine_path": "/custom/path",
             "theme": "light"
         }))
-        
+
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
-            
+
             assert manager.get("engine_path") == "/custom/path"
             assert manager.get("theme") == "light"
 
@@ -129,21 +127,21 @@ class TestConfigManager:
             from src.utils.config import ConfigManager
             manager1 = ConfigManager()
             manager2 = ConfigManager()
-            
+
             # Initially same
             assert manager1.get("theme") == "dark"
             assert manager2.get("theme") == "dark"
-            
+
             # Manually update config.json on disk to simulate external changes or reloads
             config_file = tmp_path / "config.json"
             config_file.write_text(json.dumps({
                 "engine_path": "stockfish",
                 "theme": "light"
             }))
-            
+
             # Reload on manager1
             manager1.reload_config()
-            
+
             # Verify both see it because dictionary is updated in-place
             assert manager1.get("theme") == "light"
             assert manager2.get("theme") == "light"

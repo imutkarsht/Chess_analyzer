@@ -1,12 +1,9 @@
-import json
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
 from src.backend.services.groq_service import GroqService
 from src.constants import PROVIDERS
-
 
 # ---------------------------------------------------------------------------
 # Test helpers
