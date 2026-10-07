@@ -25,9 +25,8 @@ from functools import lru_cache
 
 import chess
 
-from ...utils.path_utils import get_resource_path, get_user_data_dir
 from ...utils.logger import logger
-
+from ...utils.path_utils import get_resource_path, get_user_data_dir
 
 PIECE_ASSETS_DIR = "assets/pieces"
 USER_THEMES_DIR_NAME = "themes"
@@ -219,16 +218,19 @@ def _parse_path_points(d: str) -> list[tuple[float, float]]:
             if cmd in "Zz":
                 break
             elif cmd in "Hh":
-                x = nums[j]; j += 1
+                x = nums[j]
+                j += 1
                 cur_x = cur_x + x if cmd.islower() else x
                 points.append((cur_x, cur_y))
             elif cmd in "Vv":
-                y = nums[j]; j += 1
+                y = nums[j]
+                j += 1
                 cur_y = cur_y + y if cmd.islower() else y
                 points.append((cur_x, cur_y))
             elif cmd in "Aa":
                 if j + 7 <= len(nums):
-                    x = nums[j + 5]; y = nums[j + 6]
+                    x = nums[j + 5]
+                    y = nums[j + 6]
                     j += 7
                     cur_x = cur_x + x if cmd.islower() else x
                     cur_y = cur_y + y if cmd.islower() else y
@@ -237,47 +239,49 @@ def _parse_path_points(d: str) -> list[tuple[float, float]]:
                     break
             elif cmd in "Cc":
                 if j + 6 <= len(nums):
-                    pts = nums[j:j + 6]; j += 6
+                    pts = nums[j:j + 6]
+                    j += 6
                     if cmd.islower():
-                        pts[0] += cur_x; pts[1] += cur_y
-                        pts[2] += cur_x; pts[3] += cur_y
-                        pts[4] += cur_x; pts[5] += cur_y
+                        pts[0] += cur_x
+                        pts[1] += cur_y
+                        pts[2] += cur_x
+                        pts[3] += cur_y
+                        pts[4] += cur_x
+                        pts[5] += cur_y
                     points.extend([(pts[0], pts[1]), (pts[2], pts[3]), (pts[4], pts[5])])
                     cur_x, cur_y = pts[4], pts[5]
                 else:
                     break
-            elif cmd in "Ss":
+            elif cmd in "SsQq":
                 if j + 4 <= len(nums):
-                    pts = nums[j:j + 4]; j += 4
+                    pts = nums[j:j + 4]
+                    j += 4
                     if cmd.islower():
-                        pts[0] += cur_x; pts[1] += cur_y
-                        pts[2] += cur_x; pts[3] += cur_y
-                    points.extend([(pts[0], pts[1]), (pts[2], pts[3])])
-                    cur_x, cur_y = pts[2], pts[3]
-                else:
-                    break
-            elif cmd in "Qq":
-                if j + 4 <= len(nums):
-                    pts = nums[j:j + 4]; j += 4
-                    if cmd.islower():
-                        pts[0] += cur_x; pts[1] += cur_y
-                        pts[2] += cur_x; pts[3] += cur_y
+                        pts[0] += cur_x
+                        pts[1] += cur_y
+                        pts[2] += cur_x
+                        pts[3] += cur_y
                     points.extend([(pts[0], pts[1]), (pts[2], pts[3])])
                     cur_x, cur_y = pts[2], pts[3]
                 else:
                     break
             elif cmd in "Tt":
                 if j + 2 <= len(nums):
-                    x = nums[j]; y = nums[j + 1]; j += 2
+                    x = nums[j]
+                    y = nums[j + 1]
+                    j += 2
                     if cmd.islower():
-                        x += cur_x; y += cur_y
+                        x += cur_x
+                        y += cur_y
                     points.append((x, y))
                     cur_x, cur_y = x, y
                 else:
                     break
             else:  # M, L, m, l
                 if j + 2 <= len(nums):
-                    x = nums[j]; y = nums[j + 1]; j += 2
+                    x = nums[j]
+                    y = nums[j + 1]
+                    j += 2
                     if cmd.islower():
                         cur_x += x
                         cur_y += y
@@ -339,10 +343,10 @@ def _get_content_bbox(svg_path: str) -> tuple[float, float, float, float]:
 
     def _accumulate(x: float, y: float) -> None:
         nonlocal min_x, min_y, max_x, max_y
-        if x < min_x: min_x = x
-        if y < min_y: min_y = y
-        if x > max_x: max_x = x
-        if y > max_y: max_y = y
+        min_x = min(min_x, x)
+        min_y = min(min_y, y)
+        max_x = max(max_x, x)
+        max_y = max(max_y, y)
 
     for elem in root.iter():
         tag = elem.tag.split("}", 1)[1] if "}" in elem.tag else elem.tag
@@ -358,7 +362,7 @@ def _get_content_bbox(svg_path: str) -> tuple[float, float, float, float]:
         else:
             a, b, c, d_val, e, f = 1.0, 0.0, 0.0, 1.0, 0.0, 0.0
 
-        def _apply(x: float, y: float) -> tuple[float, float]:
+        def _apply(x: float, y: float, a=a, b=b, c=c, d_val=d_val, e=e, f=f) -> tuple[float, float]:
             return a * x + c * y + e, b * x + d_val * y + f
 
         if tag == "path":

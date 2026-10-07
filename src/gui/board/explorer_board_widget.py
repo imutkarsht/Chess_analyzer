@@ -2,16 +2,18 @@
 Explorer Board Widget - Interactive chessboard for the Opening Explorer.
 Extends BoardWidget with click-to-move, best-move arrows, and book move overlays.
 """
+import math
 import xml.etree.ElementTree as ET
-import chess
 
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QGridLayout, QFrame
-from PyQt6.QtCore import Qt, pyqtSignal, QEvent, QByteArray
-from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon
+import chess
+from PyQt6.QtCore import QByteArray, QEvent, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton
 
 from src.gui.board.board_widget import BoardWidget
 from src.gui.styles import Styles
+from src.utils.logger import logger
 
 
 class PromotionDialog(QDialog):
@@ -91,7 +93,7 @@ class ExplorerBoardWidget(BoardWidget):
         self.legal_destinations = []
         self.book_destinations = []
         self.last_move_classification = None
-        
+
         super().__init__()
         # Attributes that aren't needed during initial board render
         self.selected_square = None
@@ -131,7 +133,7 @@ class ExplorerBoardWidget(BoardWidget):
             return
 
         piece = self.board.piece_at(sq)
-        
+
         # Start drag if it's our piece
         if piece and piece.color == self.board.turn:
             self.selected_square = sq
@@ -152,14 +154,14 @@ class ExplorerBoardWidget(BoardWidget):
     def handle_move(self, x, y):
         if self.drag_start_pos is None:
             return
-            
+
         if not self.is_dragging:
             dx = x - self.drag_start_pos[0]
             dy = y - self.drag_start_pos[1]
             if dx*dx + dy*dy > 25: # 5px threshold
                 self.is_dragging = True
                 self._start_drag_visuals()
-                
+
         if self.is_dragging:
             sq_size = self.svg_widget.width() / 8
             self.drag_piece_label.resize(int(sq_size), int(sq_size))
@@ -169,17 +171,17 @@ class ExplorerBoardWidget(BoardWidget):
         if self.is_dragging:
             self.is_dragging = False
             self.drag_piece_label.hide()
-            
+
             sq = self._get_square_from_coords(x, y)
             if sq is not None and sq in self.legal_destinations:
                 self.attempt_move(self.drag_start_sq, sq)
                 self.drag_start_pos = None
                 return
-            
+
             # Snap back, restore piece visual
             self.update_board()
             self.draw_interactive_overlays()
-            
+
         self.drag_start_pos = None
 
     def _start_drag_visuals(self):
@@ -191,7 +193,7 @@ class ExplorerBoardWidget(BoardWidget):
         pieces = _load_theme_cached(get_current_theme_name())
         g_content = pieces.get(piece.symbol(), "")
         svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
-        
+
         sq_size = self.svg_widget.width() / 8
         renderer = QSvgRenderer(QByteArray(svg_str.encode('utf-8')))
         pixmap = QPixmap(int(sq_size), int(sq_size))
@@ -199,17 +201,17 @@ class ExplorerBoardWidget(BoardWidget):
         painter = QPainter(pixmap)
         renderer.render(painter)
         painter.end()
-        
+
         self.drag_piece_label.setPixmap(pixmap)
         self.drag_piece_label.setScaledContents(True)
-        
+
         # Hide original piece temporarily and re-render board
         self.board.remove_piece_at(self.drag_start_sq)
         try:
             self.update_board()
         finally:
             self.board.set_piece_at(self.drag_start_sq, piece)
-        
+
         self.drag_piece_label.show()
         self.drag_piece_label.raise_()
 
@@ -237,7 +239,7 @@ class ExplorerBoardWidget(BoardWidget):
         else:
             file_idx = 7 - file_click
             rank_idx = rank_click
-        
+
         return chess.square(file_idx, rank_idx)
 
     # ------------------------------------------------------------------ moves
@@ -296,17 +298,17 @@ class ExplorerBoardWidget(BoardWidget):
         if getattr(self, 'last_move_classification', None) and self.board.move_stack:
             last_move = self.board.peek()
             to_sq = last_move.to_square
-            
+
             badge = QLabel()
             badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             badge.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-            
+
             # Fetch icon
             from src.utils.resources import ResourceManager
             icon = ResourceManager().get_icon(self.last_move_classification)
             if not icon.isNull():
                 badge.setPixmap(icon.pixmap(32, 32))
-                
+
             r, c = self._sq_to_grid(to_sq)
             badge.setStyleSheet(Styles.get_transparent_label_style())
             self.overlay_layout.addWidget(badge, r, c, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
@@ -322,7 +324,7 @@ class ExplorerBoardWidget(BoardWidget):
     def _generate_custom_board_svg(self, colors, piece_defs):
         """Override parent to inject best-move arrow and selected-square highlight."""
         svg_bytes = super()._generate_custom_board_svg(colors, piece_defs)
-        
+
         # Skip XML parsing if there's no best move arrow to draw
         if not self.best_move_uci or len(self.best_move_uci) < 4:
             return svg_bytes
@@ -366,7 +368,6 @@ class ExplorerBoardWidget(BoardWidget):
 
     def _add_arrow(self, svg_root, x1, y1, x2, y2, color="#FF9500", opacity="0.4", width=14):
         """Append an SVG arrow to the root element."""
-        import math
         dx = x2 - x1
         dy = y2 - y1
         length = math.sqrt(dx * dx + dy * dy)

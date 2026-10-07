@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
+
 from PyQt6.QtWidgets import QWidget
 
 
@@ -31,7 +31,7 @@ class TourManager:
         return len(self._steps)
 
     @property
-    def current(self) -> Optional[TourStep]:
+    def current(self) -> TourStep | None:
         if 0 <= self._current_step < len(self._steps):
             return self._steps[self._current_step]
         return None

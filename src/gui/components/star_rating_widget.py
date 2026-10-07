@@ -1,9 +1,9 @@
 """
 Interactive 5-star rating widget for reviews and feedback.
 """
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
-from PyQt6.QtCore import pyqtSignal, Qt, QSize
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from src.gui.styles import Styles
 
@@ -69,10 +69,10 @@ class StarRatingWidget(QWidget):
             """)
             btn.setProperty("star_index", i)
             btn.clicked.connect(lambda checked, idx=i: self._on_star_clicked(idx))
-            
+
             # Install hover tracking
             btn.enterEvent = lambda event, idx=i: self._on_star_hover(idx)
-            
+
             stars_layout.addWidget(btn)
             self._star_buttons.append(btn)
 

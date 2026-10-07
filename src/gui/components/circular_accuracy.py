@@ -2,9 +2,10 @@
 CircularAccuracyWidget - Centered circular progress arc gauge for accuracy % and ACPL stats.
 Matches reference UI design with centered number inside gauge, side label, and ACPL text.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFrame, QHBoxLayout
-from PyQt6.QtCore import Qt, QRectF
-from PyQt6.QtGui import QPainter, QColor, QPen, QFont
+from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtGui import QColor, QFont, QPainter, QPen
+from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+
 from src.gui.styles import Styles
 
 

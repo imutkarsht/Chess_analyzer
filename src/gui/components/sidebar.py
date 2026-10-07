@@ -1,10 +1,20 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QPushButton, QApplication
-from PyQt6.QtCore import pyqtSignal, Qt, QSize, QPropertyAnimation, QEasingCurve, QTimer, pyqtProperty
+import os
+
+from PyQt6.QtCore import (
+    QEasingCurve,
+    QPropertyAnimation,
+    QSize,
+    Qt,
+    QTimer,
+    pyqtProperty,
+    pyqtSignal,
+)
 from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication, QFrame, QPushButton, QVBoxLayout
+
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.path_utils import get_resource_path
-import os
 
 try:
     import qtawesome as qta
@@ -150,7 +160,7 @@ class Sidebar(QFrame):
             ("Stats", "stats.png", 3),
             ("Settings", "settings.png", 4),
         ]
-        for btn, (text, icon_name, idx) in zip(self._nav_buttons, nav_specs):
+        for btn, (_text, icon_name, _idx) in zip(self._nav_buttons, nav_specs, strict=False):
             self._apply_icon(btn, icon_name)
         self._apply_icon(self.btn_help, "help.png")
         self._apply_icon(self.btn_exit, "exit.png")
@@ -158,7 +168,7 @@ class Sidebar(QFrame):
 
     def _update_labels_and_icons(self):
         nav_texts = ["Analyze", "Explorer", "History", "Stats", "Settings"]
-        for btn, txt in zip(self._nav_buttons, nav_texts):
+        for btn, txt in zip(self._nav_buttons, nav_texts, strict=False):
             btn.setText(f"  {txt}" if not self._collapsed else "")
         self.btn_help.setText("  Help (F1)" if not self._collapsed else "")
         self.btn_exit.setText("  Exit" if not self._collapsed else "")

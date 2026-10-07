@@ -4,7 +4,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 
-from .palette import ThemePalette, DARK, LIGHT, CLASSIFICATION_COLORS, BOARD_THEMES
+from .palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
 from .system import OSThemeWatcher, get_system_accent
 
 
@@ -99,8 +99,10 @@ class ThemeManager(QObject):
     @classmethod
     def apply_app_stylesheet(cls):
         """Compiles and applies the central QSS theme template globally to QApplication."""
-        from PyQt6.QtWidgets import QApplication
         import os
+
+        from PyQt6.QtWidgets import QApplication
+
         from src.utils.path_utils import get_resource_path
 
         qss_path = os.path.join(os.path.dirname(__file__), "theme_template.qss")
@@ -108,7 +110,7 @@ class ThemeManager(QObject):
             qss_path = get_resource_path("src/gui/theme/theme_template.qss")
 
         try:
-            with open(qss_path, "r", encoding="utf-8") as f:
+            with open(qss_path, encoding="utf-8") as f:
                 template = f.read()
 
             p = cls._palette

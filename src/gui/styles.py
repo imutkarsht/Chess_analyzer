@@ -100,11 +100,11 @@ class Styles(metaclass=_StylesMeta):
                 font-family: 'SF Pro', 'Inter', 'Segoe UI', 'Roboto', sans-serif;
                 font-size: 14px;
             }}
-            
+
             QFrame, QSplitter::handle {{
                 background-color: {p.surface};
             }}
-            
+
             QSplitter::handle {{
                 width: 3px;
                 background-color: {p.border};
@@ -112,7 +112,7 @@ class Styles(metaclass=_StylesMeta):
             QSplitter::handle:hover {{
                 background-color: {p.accent};
             }}
-            
+
             QTableWidget {{
                 background-color: {p.surface};
                 gridline-color: transparent;
@@ -121,22 +121,22 @@ class Styles(metaclass=_StylesMeta):
                 selection-background-color: {p.highlight};
                 selection-color: {p.text_primary};
             }}
-            
+
             QTableWidget::item {{
                 color: {p.text_primary};
                 padding: 10px 8px;
                 border-bottom: 1px solid {p.surface_light};
             }}
-            
+
             QTableWidget::item:hover {{
                 background-color: {p.surface_light};
             }}
-            
+
             QTableWidget::item:selected {{
                 background-color: {p.highlight};
                 border-left: 3px solid {p.accent};
             }}
-            
+
             QHeaderView::section {{
                 background-color: {p.surface_light};
                 color: {p.text_primary};
@@ -146,20 +146,20 @@ class Styles(metaclass=_StylesMeta):
                 font-weight: 600;
                 font-size: 13px;
             }}
-            
+
             QListWidget {{
                 background-color: {p.surface};
                 border: 1px solid {p.border};
                 border-radius: 8px;
                 padding: 6px;
             }}
-            
+
             QListWidget::item {{
                 padding: 10px 12px;
                 border-radius: 6px;
                 margin: 2px 0;
             }}
-            
+
             QListWidget::item:hover {{
                 background-color: {p.surface_light};
             }}
@@ -168,12 +168,12 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.accent};
                 color: white;
             }}
-            
+
             QLabel {{
                 color: {p.text_primary};
                 background: transparent;
             }}
-            
+
             QScrollBar:vertical {{
                 border: none;
                 background: {p.background};
@@ -191,7 +191,7 @@ class Styles(metaclass=_StylesMeta):
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
             }}
-            
+
             QScrollBar:horizontal {{
                 border: none;
                 background: {p.background};
@@ -209,7 +209,7 @@ class Styles(metaclass=_StylesMeta):
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
                 width: 0px;
             }}
-            
+
             QToolTip {{
                 background-color: {p.surface_light};
                 color: {p.text_primary};
@@ -474,9 +474,8 @@ class Styles(metaclass=_StylesMeta):
 
     @classmethod
     def get_import_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
+        return """
+            QPushButton {
                 background-color: #2D4A6B;
                 color: white;
                 border: 1px solid #3D5A7B;
@@ -484,14 +483,14 @@ class Styles(metaclass=_StylesMeta):
                 padding: 8px 14px;
                 font-size: 14px;
                 font-weight: 600;
-            }}
-            QPushButton:hover {{
+            }
+            QPushButton:hover {
                 background-color: #3A5F85;
                 border: 1px solid #4A7095;
-            }}
-            QPushButton:pressed {{
+            }
+            QPushButton:pressed {
                 background-color: #254060;
-            }}
+            }
         """
 
     @classmethod
@@ -714,8 +713,8 @@ class Styles(metaclass=_StylesMeta):
     def get_secondary_label_style(cls, size=13):
         p = ThemeManager.palette()
         return f"""
-            font-size: {size}px; 
-            color: {p.text_secondary}; 
+            font-size: {size}px;
+            color: {p.text_secondary};
             background-color: transparent;
             border: none;
             padding: 4px 0px;
@@ -824,7 +823,7 @@ class Styles(metaclass=_StylesMeta):
                 border: 1px solid {p.accent};
             }}
         """ if hover_accent else ""
-        
+
         return f"""
             {selector} {{
                 background-color: {p.surface};
@@ -1379,15 +1378,12 @@ class Styles(metaclass=_StylesMeta):
     # ═══════════════════════════════════════════════════════════════
     @classmethod
     def get_ratio_bar_segment_style(cls, color, top_left=False, top_right=False, bottom_left=False, bottom_right=False):
-        radii = []
-        if top_left: radii.append("4px")
-        else: radii.append("0px")
-        if top_right: radii.append("4px")
-        else: radii.append("0px")
-        if bottom_right: radii.append("4px")
-        else: radii.append("0px")
-        if bottom_left: radii.append("4px")
-        else: radii.append("0px")
+        radii = [
+            "4px" if top_left else "0px",
+            "4px" if top_right else "0px",
+            "4px" if bottom_right else "0px",
+            "4px" if bottom_left else "0px",
+        ]
         radius = " ".join(radii)
         return f"""
             QLabel {{
