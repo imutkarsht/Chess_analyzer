@@ -1,10 +1,10 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from PyQt6.QtWidgets import QApplication
 
 from src.gui.components.star_rating_widget import StarRatingWidget
-from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
 from src.gui.dialogs.feedback_dialog import FeedbackDialog
+from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
 from src.utils.config import ConfigManager
 
 

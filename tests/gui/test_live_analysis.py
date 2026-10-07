@@ -1,5 +1,6 @@
 """Tests for the LiveAnalysisWorker thread control loop and configuration handling."""
 from unittest.mock import MagicMock, patch
+
 from src.gui.analysis.live_analysis import LiveAnalysisWorker
 
 
