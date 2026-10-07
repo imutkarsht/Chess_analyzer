@@ -53,7 +53,7 @@ Backend (no Qt dependency):
 
 ## Coding Conventions
 
-- **Python typing**: All public functions use type hints; `Optional[X]` for nullable.
+- **Python typing**: All public functions use type hints; modern Python 3.10+ syntax (`X | None` for nullable, `list[T]`, `dict[K, V]`).
 - **Dataclasses**: Core data models (`MoveAnalysis`, `GameMetadata`, `GameAnalysis`) live in `src/backend/storage/models.py` as `@dataclass`.
 - **QThread workers**: Long-running tasks (analysis, AI summary, downloads) run in `QThread` subclasses and communicate via `pyqtSignal`.
 - **ConfigManager singleton**: `ConfigManager` uses class-level `_shared_config` — all instances share state. Call `reload_config()` after external changes.

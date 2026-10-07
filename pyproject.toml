@@ -1,0 +1,141 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chess-analyzer-pro"
+version = "2.3.0"
+description = "A local-first Python desktop application for analyzing chess games."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Utkarsh Tiwari" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment :: Board Games",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "python-chess>=1.9.0",
+    "PyQt6>=6.4.0",
+    "matplotlib>=3.7.0",
+    "requests>=2.31.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "qtawesome>=1.2.0",
+    "packaging>=23.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-qt>=4.2.0",
+    "pytest-mock>=3.10.0",
+    "pytest-cov>=4.1.0",
+    "pyinstaller>=6.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "types-requests>=2.31.0",
+    "pre-commit>=3.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+# -----------------------------------------------------------------------------
+# Ruff Configuration (Fast Linter & Formatter)
+# -----------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "dist",
+    "build",
+    "benchmark",
+    "installers",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes logic bugs
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (Python 3.10+ modern syntax)
+    "B",   # flake8-bugbear (common pitfalls)
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",   # Line length handled by formatter
+    "B008",   # Do not perform function calls in argument defaults
+    "SIM105", # Use contextlib.suppress instead of try-except-pass
+    "SIM108", # Use ternary operator instead of if-else
+    "SIM117", # Use multiple context managers in single with statement
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true
+
+# -----------------------------------------------------------------------------
+# Pytest Configuration
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra -q --durations=10"
+pythonpath = ["."]
+qt_api = "pyqt6"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# -----------------------------------------------------------------------------
+# Mypy Configuration (Static Type Checking)
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "src.backend.*"
+disallow_untyped_defs = false  # Incremental: will be enabled gradually
+
+# -----------------------------------------------------------------------------
+# Coverage Configuration
+# -----------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "src/gui/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+

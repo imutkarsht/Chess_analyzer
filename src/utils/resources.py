@@ -1,16 +1,19 @@
 import os
+
+from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QIcon
 from PyQt6.QtMultimedia import QSoundEffect
-from PyQt6.QtCore import QUrl
+
 from .logger import logger
 from .path_utils import get_resource_path
+
 
 class ResourceManager:
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(ResourceManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
@@ -18,24 +21,24 @@ class ResourceManager:
         if self._initialized:
             return
         self._initialized = True
-        
+
         # Base paths
         self.assets_dir = get_resource_path("assets")
         logger.info(f"ResourceManager: Assets dir resolved to: {self.assets_dir}")
-        
+
         self.images_path = os.path.join(self.assets_dir, "images")
         self.sounds_path = os.path.join(self.assets_dir, "sounds")
-        
+
         logger.info(f"ResourceManager: Images path: {self.images_path}")
         if not os.path.exists(self.images_path):
-            logger.error(f"ResourceManager: Images path does not exist!")
+            logger.error("ResourceManager: Images path does not exist!")
         else:
             try:
                 files = os.listdir(self.images_path)
                 logger.info(f"ResourceManager: Found {len(files)} files in images path")
             except Exception as e:
                 logger.error(f"ResourceManager: Failed to list images path: {e}")
-        
+
         # Cache
         self._icon_cache = {}
         # Each sound is backed by a small pool of QSoundEffect instances so
@@ -47,7 +50,7 @@ class ResourceManager:
         self.SOUND_POOL_SIZE = 4
         self.sounds = {}              # name -> list[QSoundEffect]
         self._sound_index = {}        # name -> next pool index (round-robin)
-        
+
         # Mappings
         self.icon_map = {
             "Brilliant": "brilliant.svg",
@@ -59,18 +62,18 @@ class ResourceManager:
             "Inaccuracy": "inaccuracy.svg",
             "Mistake": "mistake.svg",
             "Miss": "missed_win.svg",
-            "Blunder": "blunder.svg"
+            "Blunder": "blunder.svg",
         }
-        
+
         self.sound_map = {
             "move": "move.wav",
             "capture": "capture.wav",
             "check": "check.wav",
             "castle": "castle.wav",
             "game_end": "game_end.wav",
-            "notify": "game_start.wav"
+            "notify": "game_start.wav",
         }
-        
+
         # Pre-load sounds
         self._preload_sounds()
 
@@ -94,21 +97,21 @@ class ResourceManager:
         """Returns QIcon for the given classification name."""
         if name not in self.icon_map:
             return QIcon()
-            
+
         if name in self._icon_cache:
             return self._icon_cache[name]
-            
+
         filename = self.icon_map[name]
         path = os.path.join(self.images_path, filename)
-        
+
         if not os.path.exists(path):
             logger.error(f"Icon file not found: {path}")
             return QIcon()
-            
+
         icon = QIcon(path)
         if icon.isNull():
-             logger.error(f"Failed to load icon from {path}")
-             
+            logger.error(f"Failed to load icon from {path}")
+
         self._icon_cache[name] = icon
         return icon
 

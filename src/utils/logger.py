@@ -1,6 +1,8 @@
 import logging
-import sys
+import logging.handlers
 import os
+import sys
+
 
 def setup_logging():
     """
@@ -13,26 +15,30 @@ def setup_logging():
     # Create handlers
     c_handler = logging.StreamHandler(sys.stdout)
     c_handler.setLevel(logging.DEBUG)
-    
+
     # File handler
     try:
         from .path_utils import get_user_data_dir
+
         app_dir = get_user_data_dir()
-            
         log_file = os.path.join(app_dir, "chess_analyzer.log")
-        f_handler = logging.FileHandler(log_file, mode='w')
+        f_handler = logging.handlers.RotatingFileHandler(
+            log_file, maxBytes=5 * 1024 * 1024, backupCount=3, mode="a", encoding="utf-8"
+        )
         f_handler.setLevel(logging.DEBUG)
-        
+
         # Create formatters and add it to handlers
-        log_fmt = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s', datefmt='%H:%M:%S')
+        log_fmt = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s", datefmt="%H:%M:%S"
+        )
         c_handler.setFormatter(log_fmt)
         f_handler.setFormatter(log_fmt)
-        
+
         # Add handlers to the logger
         if not logger.handlers:
             logger.addHandler(c_handler)
             logger.addHandler(f_handler)
-            
+
     except Exception as e:
         # Fallback if file logging fails
         print(f"Failed to setup file logging: {e}")
@@ -40,6 +46,7 @@ def setup_logging():
             logger.addHandler(c_handler)
 
     return logger
+
 
 # Global logger instance
 logger = setup_logging()
