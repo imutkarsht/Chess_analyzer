@@ -2,25 +2,33 @@
 Shared GUI utility functions and widget factories.
 """
 import os
-from typing import Callable, Optional, List
-from PyQt6.QtWidgets import (QLayout, QPushButton, QComboBox, QLineEdit,
-                             QLabel, QWidget, QHBoxLayout, QVBoxLayout)
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QPainter, QColor, QBrush, QLinearGradient, QIcon
-from src.utils.path_utils import get_resource_path
+from collections.abc import Callable
 
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QLayout,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from src.utils.path_utils import get_resource_path
 
 
 def clear_layout(layout: QLayout) -> None:
     """
     Removes all widgets and sub-layouts from a QLayout.
-    
+
     Args:
         layout: The QLayout to clear
     """
     if layout is None:
         return
-        
+
     while layout.count():
         item = layout.takeAt(0)
         widget = item.widget()
@@ -33,10 +41,10 @@ def clear_layout(layout: QLayout) -> None:
 def resolve_asset(filename: str) -> str:
     """
     Robustly find assets using the project's standard resource resolver.
-    
+
     Args:
         filename: Asset filename (with or without extension)
-        
+
     Returns:
         Absolute path to asset, or None if not found
     """
@@ -45,7 +53,7 @@ def resolve_asset(filename: str) -> str:
         os.path.join("assets", "icons", filename),
         os.path.join("assets", filename)
     ]
-    
+
     for rel_path in candidates:
         full_path = get_resource_path(rel_path)
         if os.path.exists(full_path):
@@ -56,11 +64,11 @@ def resolve_asset(filename: str) -> str:
 def get_user_color(game: dict, usernames: list) -> str:
     """
     Determines the user's color in a game based on configured usernames.
-    
+
     Args:
         game: Game dictionary with 'white' and 'black' keys
         usernames: List of usernames to check against
-        
+
     Returns:
         'white' or 'black' depending on which player matches usernames
     """
@@ -73,29 +81,29 @@ def get_user_color(game: dict, usernames: list) -> str:
 # ============== Widget Factory Functions ==============
 
 def create_button(
-    text: str, 
+    text: str,
     style: str = "primary",
-    on_click: Optional[Callable] = None,
+    on_click: Callable | None = None,
     cursor: bool = True,
-    icon_name: Optional[str] = None
+    icon_name: str | None = None
 ) -> QPushButton:
     """
     Factory function to create styled buttons.
-    
+
     Args:
         text: Button text
         style: Style type - "primary", "secondary", "export", "import"
         on_click: Click handler callback
         cursor: Whether to show pointer cursor on hover
         icon_name: Optional icon name from qtawesome (e.g. "fa5s.save")
-        
+
     Returns:
         Configured QPushButton
     """
     from src.gui.styles import Styles  # Import here to avoid circular imports
-    
+
     btn = QPushButton(f"  {text}" if icon_name else text)
-    
+
     style_map = {
         "primary": Styles.get_button_style,
         "secondary": Styles.get_control_button_style,
@@ -103,10 +111,10 @@ def create_button(
         "import": Styles.get_import_button_style,
         "danger": Styles.get_danger_button_style,
     }
-    
+
     style_func = style_map.get(style, Styles.get_button_style)
     btn.setStyleSheet(style_func())
-    
+
     if icon_name:
         try:
             import qtawesome as qta
@@ -115,44 +123,44 @@ def create_button(
             btn.setIconSize(QSize(16, 16))
         except ImportError:
             pass
-    
+
     if cursor:
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-    
+
     if on_click:
         btn.clicked.connect(on_click)
-    
+
     return btn
 
 
 def create_combobox(
-    items: List[str],
-    current: Optional[str] = None,
-    on_change: Optional[Callable] = None
+    items: list[str],
+    current: str | None = None,
+    on_change: Callable | None = None
 ) -> QComboBox:
     """
     Factory function to create styled comboboxes.
-    
+
     Args:
         items: List of items to add
         current: Currently selected item
         on_change: Callback for selection changes
-        
+
     Returns:
         Configured QComboBox
     """
     from src.gui.styles import Styles
-    
+
     combo = QComboBox()
     combo.addItems(items)
     combo.setStyleSheet(Styles.get_combobox_style())
-    
+
     if current:
         combo.setCurrentText(current)
-    
+
     if on_change:
         combo.currentTextChanged.connect(on_change)
-    
+
     return combo
 
 
@@ -164,60 +172,60 @@ def create_labeled_input(
 ) -> tuple:
     """
     Factory function to create a labeled input field.
-    
+
     Args:
         label_text: Text for the label
         placeholder: Placeholder text for input
         password: Whether to mask input
         initial_value: Initial value for the input
-        
+
     Returns:
         Tuple of (QLabel, QLineEdit)
     """
     from src.gui.styles import Styles
-    
+
     label = QLabel(label_text)
     label.setStyleSheet(Styles.get_secondary_label_style())
-    
+
     input_field = QLineEdit()
     input_field.setStyleSheet(Styles.get_input_style())
     input_field.setPlaceholderText(placeholder)
-    
+
     if password:
         input_field.setEchoMode(QLineEdit.EchoMode.Password)
-    
+
     if initial_value:
         input_field.setText(initial_value)
-    
+
     return label, input_field
 
 
 def create_section_header(
     title: str,
-    action_button: Optional[tuple] = None
+    action_button: tuple | None = None
 ) -> QWidget:
     """
     Factory function to create a section header with optional action button.
-    
+
     Args:
         title: Header title text
         action_button: Optional tuple of (button_text, callback, style)
-        
+
     Returns:
         QWidget containing the header layout
     """
     from src.gui.styles import Styles
-    
+
     header = QWidget()
     layout = QHBoxLayout(header)
     layout.setContentsMargins(0, 0, 0, 0)
-    
+
     title_label = QLabel(title)
     title_label.setStyleSheet(Styles.get_label_style(size=18, bold=True))
     layout.addWidget(title_label)
-    
+
     layout.addStretch()
-    
+
     if action_button:
         btn_text, callback, btn_style = action_button
         btn = create_button(btn_text, style=btn_style or "secondary", on_click=callback)
@@ -234,8 +242,8 @@ def confirm_dialog(parent, title: str, message: str,
     Returns True if the user confirmed, False otherwise.
     Never uses the native QMessageBox so it respects the app theme.
     """
-    from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel
-    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel
+
     from src.gui.styles import Styles
 
     dlg = QDialog(parent)
@@ -296,8 +304,8 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
     caller was a thread that outlived its view), this falls back to a
     top-level dialog and never raises.
     """
-    from PyQt6.QtWidgets import QMessageBox
     from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QMessageBox
 
     # Drop a dead parent rather than letting QMessageBox crash on it.
     try:
@@ -341,6 +349,7 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
         # Last-resort: don't let a dialog failure propagate into the
         # caller (which may be a worker thread).
         import traceback
+
         from src.utils.logger import logger
         logger.error("show_error_dialog failed: %s", traceback.format_exc())
 
@@ -443,5 +452,3 @@ def format_time_stats_for_llm(moves) -> str:
     return "\n".join(lines)
 
 
-from src.gui.analysis.think_time_bar import ThinkTimeBar
-from src.gui.analysis.move_cell_widget import MoveCellWidget

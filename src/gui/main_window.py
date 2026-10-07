@@ -1,42 +1,47 @@
 import os
-import json
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QHBoxLayout, QSplitter, QFileDialog, QMenuBar,
-                             QStatusBar, QMessageBox, QInputDialog, QDialog,
-                             QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QStackedWidget, QTextEdit, QFrame)
 
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt6.QtGui import QAction, QIcon, QShortcut, QKeySequence, QPalette, QColor
-from PyQt6.QtWidgets import QMenu
-import shutil
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QColor, QIcon, QKeySequence, QPalette, QShortcut
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QSplitter,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from src.gui.board import BoardWidget  # From board package
-from src.gui.views.analysis_view import MoveListPanel, AnalysisPanel
-from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
-from src.gui.views.metrics_view import MetricsWidget
-from src.gui.analysis.analysis_worker import AnalysisWorker
-from src.gui.components.sidebar import Sidebar
-from src.gui.views.explorer_view import ExplorerView
-from src.gui.views import HistoryView, SettingsView  # From views package
-from src.backend.storage.pgn_parser import PGNParser
 from src.backend.analysis.analyzer import Analyzer
-from src.utils.resources import ResourceManager
-from src.utils.logger import logger
-from src.utils.config import ConfigManager
-from src.backend.analysis.engine import EngineManager, resolve_engine_path, invalidate_engine_cache
-from src.backend.api.chess_com_api import ChessComAPI
-from src.backend.api.lichess_api import LichessAPI
-from src.gui.styles import Styles
-from src.gui.theme import ThemeManager
-from src.gui.utils.gui_utils import create_button
-from src.backend.storage.models import MoveAnalysis, GameAnalysis, GameMetadata
+from src.backend.analysis.engine import EngineManager, invalidate_engine_cache, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
-from src.utils.path_utils import get_resource_path
+from src.backend.storage.pgn_parser import PGNParser
+from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget  # From analysis package
+from src.gui.analysis.analysis_worker import AnalysisWorker
+from src.gui.board import BoardWidget  # From board package
 from src.gui.components.loading_widget import LoadingOverlay
+from src.gui.components.sidebar import Sidebar
+from src.gui.components.toast import Toast
 from src.gui.components.tour_manager import TourManager, TourStep
 from src.gui.components.tour_overlay import TourOverlay
 from src.gui.components.transition_stack import FadedStackedWidget
-from src.gui.components.toast import Toast
+from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
+from src.gui.utils.gui_utils import create_button
+from src.gui.views import HistoryView, SettingsView  # From views package
+from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
+from src.gui.views.explorer_view import ExplorerView
+from src.gui.views.metrics_view import MetricsWidget
+from src.utils.config import ConfigManager
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path
+from src.utils.resources import ResourceManager
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -61,7 +66,7 @@ class MainWindow(QMainWindow):
         # setup_ui() so child layouts see the real size during their
         # first showEvent pass.
         self._restore_window_state()
-        
+
         # Set Window Icon
         icon_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
         if os.path.exists(icon_path):
@@ -85,7 +90,7 @@ class MainWindow(QMainWindow):
 
         # UI Setup
         self.setup_ui()
-        
+
         # Apply Theme
         self.refresh_theme()
 
@@ -129,41 +134,42 @@ class MainWindow(QMainWindow):
         self._spinner_timer.timeout.connect(self._tick_spinner)
 
         self._refresh_engine_status()
-        
+
         # Overlay
         self.loading_overlay = LoadingOverlay(self)
         self.loading_overlay.resize(self.size())
-        
+
         # Check for updates (in background)
         self.check_for_updates()
 
     def check_for_updates(self):
         """Start background update check after a delay (max once per day)."""
+        from datetime import datetime
+
         from PyQt6.QtCore import QTimer
-        from datetime import datetime, timedelta
-        
+
         # Check if we already checked today
         last_check = self.config_manager.get("last_update_check", "")
         today = datetime.now().strftime("%Y-%m-%d")
-        
+
         if last_check == today:
             # Already checked today, skip
             return
-        
+
         # Save today as last check date
         self.config_manager.set("last_update_check", today)
-        
+
         # Delay update check by 2 seconds to ensure splash is gone
         QTimer.singleShot(2000, self._start_update_check)
-    
+
     def _start_update_check(self):
         """Actually start the update check."""
         from src.backend.updater.update_checker import UpdateCheckerWorker
-        
+
         self.update_worker = UpdateCheckerWorker()
         self.update_worker.update_checked.connect(self.on_update_checked)
         self.update_worker.start()
-    
+
     def on_update_checked(self, update_info):
         """Handle update check result."""
         if update_info.available:
@@ -242,7 +248,7 @@ class MainWindow(QMainWindow):
             self._save_window_state()
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Failed to save window state: {e}")
-            
+
         # Stop live analysis worker thread cleanly
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
             try:
@@ -266,14 +272,19 @@ class MainWindow(QMainWindow):
                 logger.error(f"Failed to stop full analysis worker: {e}")
 
         # Stop AI Coach summary thread if running
-        if hasattr(self, 'analysis_panel') and self.analysis_panel:
-            if hasattr(self.analysis_panel, 'summary_thread') and self.analysis_panel.summary_thread and self.analysis_panel.summary_thread.isRunning():
-                try:
-                    self.analysis_panel.summary_thread.finished.disconnect()
-                except (TypeError, RuntimeError):
-                    pass
-                self.analysis_panel.summary_thread.quit()
-                self.analysis_panel.summary_thread.wait()
+        if (
+            hasattr(self, 'analysis_panel')
+            and self.analysis_panel
+            and hasattr(self.analysis_panel, 'summary_thread')
+            and self.analysis_panel.summary_thread
+            and self.analysis_panel.summary_thread.isRunning()
+        ):
+            try:
+                self.analysis_panel.summary_thread.finished.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            self.analysis_panel.summary_thread.quit()
+            self.analysis_panel.summary_thread.wait()
 
         # Stop metrics workers if running
         if hasattr(self, 'metrics_view') and self.metrics_view:
@@ -319,35 +330,35 @@ class MainWindow(QMainWindow):
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
+
         # Sidebar
         self.sidebar = Sidebar()
         self.sidebar.page_changed.connect(self.switch_page)
         main_layout.addWidget(self.sidebar)
-        
+
         # Stacked Widget for Pages
         self.stack = FadedStackedWidget()
         main_layout.addWidget(self.stack)
-        
+
         # --- Page 0: Analysis View ---
         self.analysis_page = QWidget()
         self.setup_analysis_page(self.analysis_page)
         self.stack.addWidget(self.analysis_page)
-        
+
         # --- Page 1: Explorer View ---
         self.explorer_view = ExplorerView(self.config_manager)
         self.stack.addWidget(self.explorer_view)
-        
+
         # --- Page 2: History View ---
         self.history_view = HistoryView(self.config_manager)
         self.history_view.game_selected.connect(self.load_game_from_history)
         self.stack.addWidget(self.history_view)
-        
+
         # --- Page 3: Metrics View ---
         self.metrics_view = MetricsWidget(self.config_manager, self.history_manager)
         self.metrics_view.request_settings.connect(lambda: (self.sidebar.set_active(4), self.switch_page(4)))
         self.stack.addWidget(self.metrics_view)
-        
+
         # --- Page 4: Settings View ---
         self.settings_view = SettingsView()
         self.settings_view.engine_path_changed.connect(self.update_engine_path)
@@ -355,39 +366,39 @@ class MainWindow(QMainWindow):
         self.settings_view.llm_config_changed.connect(self.update_llm_config)
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
-        
+
         self.sidebar.set_active(0)
         self.stack.setCurrentIndex(0)
-        
+
         self._setup_shortcuts()
-        
+
     def _setup_shortcuts(self):
         # File Operations
         self.shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
         self.shortcut_open.activated.connect(lambda: QTimer.singleShot(0, lambda: self.open_load_dialog(0)))
-        
+
         self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
         self.shortcut_paste.activated.connect(self._handle_paste)
 
         self.shortcut_analyze = QShortcut(QKeySequence("Ctrl+A"), self)
         self.shortcut_analyze.activated.connect(self.start_analysis)
-        
+
         # Navigation
         self.shortcut_left = QShortcut(QKeySequence("Left"), self)
         self.shortcut_left.activated.connect(self._nav_prev)
-        
+
         self.shortcut_right = QShortcut(QKeySequence("Right"), self)
         self.shortcut_right.activated.connect(self._nav_next)
-        
+
         self.shortcut_up = QShortcut(QKeySequence("Up"), self)
         self.shortcut_up.activated.connect(self._nav_last)
-        
+
         self.shortcut_end = QShortcut(QKeySequence("End"), self)
         self.shortcut_end.activated.connect(self._nav_last)
-        
+
         self.shortcut_down = QShortcut(QKeySequence("Down"), self)
         self.shortcut_down.activated.connect(self._nav_first)
-        
+
         self.shortcut_home = QShortcut(QKeySequence("Home"), self)
         self.shortcut_home.activated.connect(self._nav_first)
 
@@ -401,7 +412,7 @@ class MainWindow(QMainWindow):
             # Restore native paste functionality since the shortcut swallowed it
             focus_widget.paste()
             return
-            
+
         text = QApplication.clipboard().text().strip()
         if text and ("[Event" in text or "1." in text):
             QTimer.singleShot(0, lambda: self.open_load_dialog(initial_source=1, initial_text=text))
@@ -410,8 +421,9 @@ class MainWindow(QMainWindow):
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_prev.emit()
             return
-            
-        if not self.current_game: return
+
+        if not self.current_game:
+            return
         idx = max(-1, self.board_widget.current_move_index - 1)
         if idx != self.board_widget.current_move_index:
             self.on_move_selected(idx)
@@ -420,8 +432,9 @@ class MainWindow(QMainWindow):
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_next.emit()
             return
-            
-        if not self.current_game: return
+
+        if not self.current_game:
+            return
         idx = min(len(self.current_game.moves) - 1, self.board_widget.current_move_index + 1)
         if idx != self.board_widget.current_move_index:
             self.on_move_selected(idx)
@@ -430,8 +443,9 @@ class MainWindow(QMainWindow):
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_last.emit()
             return
-            
-        if not self.current_game: return
+
+        if not self.current_game:
+            return
         idx = len(self.current_game.moves) - 1
         if idx != self.board_widget.current_move_index:
             self.on_move_selected(idx)
@@ -440,8 +454,9 @@ class MainWindow(QMainWindow):
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_first.emit()
             return
-            
-        if not self.current_game: return
+
+        if not self.current_game:
+            return
         if self.board_widget.current_move_index != -1:
             self.on_move_selected(-1)
 
@@ -622,7 +637,7 @@ class MainWindow(QMainWindow):
         self._apply_palette()
         from src.gui.theme import ThemeManager
         ThemeManager.apply_app_stylesheet()
-        
+
         # Header Buttons
         if hasattr(self, 'btn_analyze'):
             self.btn_analyze.setStyleSheet(Styles.get_button_style())
@@ -646,7 +661,7 @@ class MainWindow(QMainWindow):
             self.board_widget.update_board()
         if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'board_widget'):
             self.explorer_view.board_widget.update_board()
-            
+
         # Refresh Matplotlib Evaluation Graphs & Custom Gauges
         if hasattr(self, 'analysis_panel'):
             self.analysis_panel.refresh_styles()
@@ -663,7 +678,7 @@ class MainWindow(QMainWindow):
                 self.metrics_view.refresh()
         if hasattr(self, 'game_info_label'):
             self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
-        
+
         # Update Menu Styles
         menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
         if hasattr(self, 'load_menu'):
@@ -674,7 +689,7 @@ class MainWindow(QMainWindow):
             self.menu_chesscom.setStyleSheet(menu_style)
         if hasattr(self, 'menu_lichess'):
             self.menu_lichess.setStyleSheet(menu_style)
-        
+
         # Update Captured Pieces
         for cp in ("captured_white", "captured_black"):
             if hasattr(self, cp):
@@ -988,7 +1003,7 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(parent_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
-        
+
         # Header Bar Container for Chess Analysis
         self.analysis_header_bar = QFrame()
         self.analysis_header_bar.setStyleSheet(f"""
@@ -1023,9 +1038,9 @@ class MainWindow(QMainWindow):
         # Analyze Game Button
         self.btn_analyze = create_button("Analyze Game", style="primary", on_click=self.start_analysis, icon_name="fa5s.play")
         header_layout.addWidget(self.btn_analyze)
-        
+
         main_layout.addWidget(self.analysis_header_bar)
-        
+
         # Splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(2)
@@ -1038,22 +1053,22 @@ class MainWindow(QMainWindow):
             }}
         """)
         main_layout.addWidget(splitter, 1)
-        
+
         # Left: Move List
         self.left_widget = QWidget()
         self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         left_layout = QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.move_list_panel = MoveListPanel(self.engine_path, config_manager=self.config_manager)
         self.move_list_panel.move_selected.connect(self.on_move_selected)
         # Wire live-engine thinking signals to the status bar indicator
         self.move_list_panel.live_worker.thinking_started.connect(self._on_live_thinking_started)
         self.move_list_panel.live_worker.thinking_stopped.connect(self._on_live_thinking_stopped)
         left_layout.addWidget(self.move_list_panel)
-        
+
         splitter.addWidget(self.left_widget)
-        
+
         # Center: Board
         self.center_widget = QWidget()
         self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
@@ -1061,7 +1076,7 @@ class MainWindow(QMainWindow):
         self.center_layout = center_layout  # needed for flip_board()
         center_layout.setContentsMargins(10, 10, 10, 10)
         center_layout.setSpacing(10)
-        
+
         self.game_info_label = QLabel("No Game Loaded")
         self.game_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
@@ -1076,7 +1091,7 @@ class MainWindow(QMainWindow):
         self.captured_black = CapturedPiecesWidget(side="black")
         # Backwards-compat alias — some code may still reference the old name.
         self.captured_widget = self.captured_white
- 
+
         self.board_widget = BoardWidget()
         # Layout order (indices shown):
         #   1 captured_black  (above board, near Black)
@@ -1090,7 +1105,7 @@ class MainWindow(QMainWindow):
         # sizeHint) collapses to its minimum size and the window is
         # dominated by empty space.
         center_layout.setStretch(1, 1)
-        
+
         self.controls = GameControlsWidget()
         self.controls.first_clicked.connect(self.go_first)
         self.controls.prev_clicked.connect(self.go_prev)
@@ -1098,9 +1113,9 @@ class MainWindow(QMainWindow):
         self.controls.last_clicked.connect(self.go_last)
         self.controls.flip_clicked.connect(self.flip_board)
         center_layout.addWidget(self.controls)
-        
+
         splitter.addWidget(self.center_widget)
-        
+
         # Right: Analysis
         self.analysis_panel = AnalysisPanel()
         if self.analysis_panel.layout:
@@ -1108,7 +1123,7 @@ class MainWindow(QMainWindow):
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
         self.analysis_panel.toggle_checkbox.toggled.connect(self.move_list_panel.set_engine_lines_enabled)
-        
+
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 630, 320])
         splitter.setStretchFactor(0, 1)  # Left: move list
@@ -1120,7 +1135,6 @@ class MainWindow(QMainWindow):
         Common pattern: Parse PGN text, attach source data, load first game.
         Returns True on success, False on failure.
         """
-        from src.backend.storage.pgn_parser import PGNParser
         self.games = PGNParser.parse_pgn_text(pgn_text)
         if self.games:
             if source_data:
@@ -1148,22 +1162,22 @@ class MainWindow(QMainWindow):
                 logger.error(f"Failed to parse PGN for history game: {e}")
                 QMessageBox.warning(self, "Error", "Failed to load game moves.")
                 return
-        
+
         # Metadata Enrichment from source data if available
         if hasattr(game, "source_data") and game.source_data:
             self.enrich_game_metadata(game, game.source_data)
 
         self.current_game = game
-        
+
         white = game.metadata.white
         black = game.metadata.black
         result = game.metadata.result
         w_elo = game.metadata.white_elo or game.metadata.headers.get("WhiteElo", "?")
         b_elo = game.metadata.black_elo or game.metadata.headers.get("BlackElo", "?")
-        
+
         info_text = f"{white} ({w_elo}) vs {black} ({b_elo})  [{result}]"
         self.game_info_label.setText(info_text)
-        
+
         self.board_widget.load_game(game)
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
@@ -1175,7 +1189,7 @@ class MainWindow(QMainWindow):
         if has_clocks:
             white_time = None
             black_time = None
-            
+
             # Find first white and black clock values to estimate starting time
             for m in game.moves:
                 if m.time_left is not None:
@@ -1184,7 +1198,7 @@ class MainWindow(QMainWindow):
                         white_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
                     elif idx % 2 == 1 and black_time is None:
                         black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
-            
+
             self.captured_white.update_clock(white_time)
             self.captured_black.update_clock(black_time)
         else:
@@ -1208,11 +1222,11 @@ class MainWindow(QMainWindow):
 
     def enrich_game_metadata(self, game, source_data):
         """
-        Enriches game metadata with information from API source data 
+        Enriches game metadata with information from API source data
         if the PGN parsing yielded missing or placeholder values.
         """
         md = game.metadata
-        
+
         # Helper to get rating from diverse source structures
         def get_rating(data, color):
             # Structure 1: Nested (Chess.com / Lichess User Games) -> data['white']['rating']
@@ -1227,37 +1241,34 @@ class MainWindow(QMainWindow):
         # White Elo
         if not md.white_elo or md.white_elo == "?" or md.white_elo == "None":
             r = get_rating(source_data, "white")
-            if r: 
+            if r:
                 md.white_elo = str(r)
                 md.headers["WhiteElo"] = str(r)
 
         # Black Elo
         if not md.black_elo or md.black_elo == "?" or md.black_elo == "None":
             r = get_rating(source_data, "black")
-            if r: 
+            if r:
                 md.black_elo = str(r)
                 md.headers["BlackElo"] = str(r)
-                    
+
         # Update source
         # If we loaded from API, we can set source if not already set
         if not getattr(md, "source", None) or md.source == "file":
              # Infer source?
              if "url" in source_data and "chess.com" in source_data["url"]:
                  md.source = "chesscom"
-             elif "url" in source_data and "lichess.org" in source_data["url"]:
-                 md.source = "lichess"
-             # Or check keys
-             elif "white_rating" in source_data: # Lichess ID structure
+             elif "url" in source_data and "lichess.org" in source_data["url"] or "white_rating" in source_data:
                  md.source = "lichess"
 
     def start_analysis(self):
         if not self.current_game:
             return
-            
+
         if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
             QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
             return
-        
+
         # Auto-detect engine if the configured path doesn't work. Use a deep
         # probe so a stale/broken binary is caught here (and triggers the
         # download dialog) rather than failing mid-analysis.
@@ -1292,7 +1303,7 @@ class MainWindow(QMainWindow):
             return
 
         logger.info("Starting analysis...")
-        
+
         # If cache is turned off, clear previous move evaluations so raw moves are shown as analysis begins
         if not self.analyzer.config.get("use_cache", True):
             for move in self.current_game.moves:
@@ -1326,7 +1337,7 @@ class MainWindow(QMainWindow):
 
         if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
             self.move_list_panel.live_worker.stop()
-            
+
         self.worker.start()
 
     def on_analysis_progress(self, current, total):
@@ -1439,7 +1450,7 @@ class MainWindow(QMainWindow):
         if initial_text and initial_source == 1:
             dialog._pgn_text_panel._text_edit.setPlainText(initial_text)
             dialog._pgn_text_panel._parse()
-            
+
         if dialog.exec() == QDialog.DialogCode.Accepted:
             if dialog._navigate_to_settings:
                 self.sidebar.set_active(4)
@@ -1448,8 +1459,8 @@ class MainWindow(QMainWindow):
                 pgn = dialog._pending_pgn
                 sd = dialog._pending_source_data
                 QTimer.singleShot(0, lambda: self._parse_and_load_game(
-                    pgn, 
-                    source_data=sd, 
+                    pgn,
+                    source_data=sd,
                     status_msg="Game loaded."
                 ))
 
@@ -1463,14 +1474,14 @@ class MainWindow(QMainWindow):
         if event.key() == Qt.Key.Key_F1 or (event.key() == Qt.Key.Key_Question):
             self.show_shortcuts_help()
             return
-        
+
         if event.key() == Qt.Key.Key_Slash and event.modifiers() == Qt.KeyboardModifier.ShiftModifier:
             # Shift+/ = ? on most keyboards
             self.show_shortcuts_help()
             return
-            
+
         super().keyPressEvent(event)
-    
+
     def show_shortcuts_help(self):
         """Show the keyboard shortcuts help dialog."""
         from .dialogs import ShortcutHelpDialog
@@ -1480,16 +1491,16 @@ class MainWindow(QMainWindow):
     def on_move_selected(self, index):
         self.board_widget.set_position(index)
         self.move_list_panel.select_move(index)
-        
+
         # Update evaluation chart current move indicator
         if hasattr(self, 'analysis_panel') and hasattr(self.analysis_panel, 'graph_widget'):
             self.analysis_panel.graph_widget.set_current_move(index)
-        
+
         if self.current_game:
             moves = self.current_game.moves
             fen = None
             if index == -1:
-                fen = None 
+                fen = None
             elif 0 <= index < len(moves):
                 if index + 1 < len(moves):
                     fen = moves[index+1].fen_before
@@ -1505,21 +1516,19 @@ class MainWindow(QMainWindow):
             if has_clocks:
                 white_time = None
                 black_time = None
-                
+
                 # Find the latest white time_left at or before index
                 for i in range(index, -1, -1):
-                    if i % 2 == 0:  # White's move
-                        if moves[i].time_left is not None:
-                            white_time = moves[i].time_left
-                            break
-                
+                    if i % 2 == 0 and moves[i].time_left is not None:  # White's move
+                        white_time = moves[i].time_left
+                        break
+
                 # Find the latest black time_left at or before index
                 for i in range(index, -1, -1):
-                    if i % 2 == 1:  # Black's move
-                        if moves[i].time_left is not None:
-                            black_time = moves[i].time_left
-                            break
-                
+                    if i % 2 == 1 and moves[i].time_left is not None:  # Black's move
+                        black_time = moves[i].time_left
+                        break
+
                 # Fall back to starting times if no move has been played yet on that side
                 if white_time is None:
                     for m in moves:
@@ -1531,7 +1540,7 @@ class MainWindow(QMainWindow):
                         if m.time_left is not None and moves.index(m) % 2 == 1:
                             black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
                             break
-                
+
                 self.captured_white.update_clock(white_time)
                 self.captured_black.update_clock(black_time)
             else:
@@ -1561,7 +1570,7 @@ class MainWindow(QMainWindow):
             # Switch to Explorer tab
             self.sidebar.set_active(1)
             self.switch_page(1)
-            
+
             # Load position and full move history
             moves = self.current_game.moves if self.current_game else None
             self.explorer_view.load_board_state(
@@ -1611,7 +1620,7 @@ class MainWindow(QMainWindow):
 
     def on_cache_toggled(self, checked):
         self.analyzer.config["use_cache"] = checked
-        
+
     def resizeEvent(self, event):
         if hasattr(self, 'loading_overlay'):
             self.loading_overlay.resize(self.size())
