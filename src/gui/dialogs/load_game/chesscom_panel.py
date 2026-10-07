@@ -1,20 +1,23 @@
 """
 Chess.com API Panel for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
+
 from src.gui.components.toast import Toast
-from PyQt6.QtCore import pyqtSignal, Qt
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
+
 from ....utils.config import ConfigManager
-from .inline_game_list import InlineGameList
-from .helpers import classify_time_control
 from .api_worker import ApiWorker, register_worker, remove_worker
+from .helpers import classify_time_control
+from .inline_game_list import InlineGameList
+
 
 def fetch_and_parse_chesscom(username: str, limit: int) -> list:
     from src.backend.api.chess_com_api import ChessComAPI
     from src.backend.storage.pgn_parser import PGNParser
-    
+
     raw_games = ChessComAPI.get_last_games(username, limit)
     parsed_games = []
     for g_data in raw_games:
@@ -33,11 +36,11 @@ def fetch_and_parse_chesscom(username: str, limit: int) -> list:
 def fetch_single_chesscom(game_id: str, url: str) -> list:
     from src.backend.api.chess_com_api import ChessComAPI
     from src.backend.storage.pgn_parser import PGNParser
-    
+
     result = ChessComAPI.get_game_by_id(game_id, url)
     if not result:
         return []
-        
+
     pgn = result.get("pgn", "")
     if pgn:
         try:
@@ -85,7 +88,7 @@ class ChessComPanel(QWidget):
 
         self._input_edit = QLineEdit()
         self._input_edit.setPlaceholderText("e.g. Hikaru  or  https://www.chess.com/game/...")
-        
+
         saved_username = ConfigManager().get("chesscom_username", "")
         if saved_username:
             self._input_edit.setText(saved_username)
@@ -107,7 +110,7 @@ class ChessComPanel(QWidget):
         self._help_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
         self.update_help_label()
         input_layout.addWidget(self._help_lbl)
-        
+
         input_layout.addStretch()
         root.addWidget(self._input_widget, stretch=1)
 
@@ -141,7 +144,7 @@ class ChessComPanel(QWidget):
                 pass
 
         from src.backend.api.chess_com_api import ChessComAPI
-        
+
         game_id = ChessComAPI.extract_game_id(text)
         if game_id:
             # It's a URL
@@ -175,8 +178,8 @@ class ChessComPanel(QWidget):
 
         self._parsed_games = parsed_games
         rows = []
-        
-        for game_obj, g_data in parsed_games:
+
+        for game_obj, _g_data in parsed_games:
             # Build display row from PGN metadata
             md = game_obj.metadata
             white = md.white or "?"
@@ -219,10 +222,10 @@ class ChessComPanel(QWidget):
         self._game_list.clear()
         self._input_widget.setVisible(True)
         self.update_help_label()
-        
+
         saved_username = ConfigManager().get("chesscom_username", "")
         self._input_edit.setText(saved_username)
-        
+
         self._input_edit.setFocus()
         self.pending_cleared.emit()
 

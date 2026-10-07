@@ -1,30 +1,35 @@
-import sys
 import os
 import subprocess
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QStackedWidget, QLabel, QApplication,
-)
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
+import sys
 
-from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path, get_engine_data_dir
-from src.backend.analysis.engine import resolve_engine_path, invalidate_engine_cache
+from PyQt6.QtCore import QThread, QTimer, pyqtSignal
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QStackedWidget,
+    QVBoxLayout,
+)
+
+from src.backend.analysis.engine import invalidate_engine_cache, resolve_engine_path
 from src.backend.engine.downloader import (
-    get_download_candidates,
     download_and_extract,
+    get_download_candidates,
     try_package_manager_install,
 )
-from src.gui.styles import Styles
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
 from src.gui.dialogs.wizard.wizard_pages import (
-    build_gatekeeper_page,
-    build_welcome_page,
-    build_profile_page,
     build_appearance_page,
-    build_stockfish_page,
-    build_llm_page,
     build_done_page,
+    build_gatekeeper_page,
+    build_llm_page,
+    build_profile_page,
+    build_stockfish_page,
+    build_welcome_page,
 )
+from src.gui.styles import Styles
+from src.utils.logger import logger
+from src.utils.path_utils import get_engine_data_dir
+
 
 class StockfishDownloadWorker(QThread):
     progress = pyqtSignal(int)
@@ -275,8 +280,10 @@ class SetupWizard(QDialog):
             cc = self.settings.get("chesscom_username") or self.config_manager.get("chesscom_username")
             li = self.settings.get("lichess_username") or self.config_manager.get("lichess_username")
             accounts = []
-            if cc: accounts.append("Chess.com")
-            if li: accounts.append("Lichess")
+            if cc:
+                accounts.append("Chess.com")
+            if li:
+                accounts.append("Lichess")
             if accounts:
                 parts.append(f"✓ Accounts: Linked ({', '.join(accounts)})")
             else:

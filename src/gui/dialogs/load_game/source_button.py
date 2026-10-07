@@ -2,10 +2,13 @@
 Source button component for the Load Game dialog.
 """
 import os
-from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QLabel, QSizePolicy
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy
+
 from ...styles import Styles
+
 
 class SourceBtn(QPushButton):
     def __init__(self, emoji: str | None, label: str,

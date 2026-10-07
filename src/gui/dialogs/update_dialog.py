@@ -12,26 +12,32 @@ DONE        → platform-specific finish panel:
 ERROR       → shows error text + "Open in Browser" fallback
 """
 
-import sys
 import os
 import re
 
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QTextEdit, QWidget, QProgressBar,
-    QStackedWidget, QSizePolicy,
-)
-from PyQt6.QtCore import Qt, QUrl, QTimer
+from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QPushButton,
+    QStackedWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from ..styles import Styles
-from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
 from src.backend.updater.updater import (
+    PLATFORM,
     DownloadWorker,
     get_download_destination,
     install_and_quit,
-    PLATFORM,
 )
+
+from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
+from ..styles import Styles
 
 try:
     import qtawesome as qta
@@ -483,7 +489,7 @@ class UpdateNotificationDialog(QDialog):
 
         elif PLATFORM == "darwin":
             filename = os.path.basename(local_path)
-            self._lbl_done_title.setText(f"Saved to ~/Downloads")
+            self._lbl_done_title.setText("Saved to ~/Downloads")
             self._lbl_done_sub.setText(
                 f"{filename} — open it, then drag Chess Analyzer Pro to Applications."
             )

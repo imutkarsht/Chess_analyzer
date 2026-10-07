@@ -2,7 +2,9 @@
 Helper utilities for the Load Game dialog panels.
 """
 import os
+
 from ....utils.path_utils import get_resource_path
+
 
 def icon_path(filename: str) -> str:
     return get_resource_path(os.path.join("assets", "icons", filename))
@@ -21,13 +23,16 @@ def classify_time_control(tc: str) -> str:
                 base += int(sec_part)
             except ValueError:
                 pass
-                
+
         if base == 0:
             return tc
-            
-        if base < 180:   return "Bullet"
-        if base < 600:   return "Blitz"
-        if base < 1800:  return "Rapid"
+
+        if base < 180:
+            return "Bullet"
+        if base < 600:
+            return "Blitz"
+        if base < 1800:
+            return "Rapid"
         return "Classical"
     except Exception:
         return tc

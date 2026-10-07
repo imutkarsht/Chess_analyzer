@@ -1,20 +1,23 @@
 """
 Lichess API Panel for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
+
 from src.gui.components.toast import Toast
-from PyQt6.QtCore import pyqtSignal, Qt
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
+
 from ....utils.config import ConfigManager
-from .inline_game_list import InlineGameList
-from .helpers import classify_time_control
 from .api_worker import ApiWorker, register_worker, remove_worker
+from .helpers import classify_time_control
+from .inline_game_list import InlineGameList
+
 
 def fetch_and_parse_lichess(username: str, limit: int) -> list:
     from src.backend.api.lichess_api import LichessAPI
     from src.backend.storage.pgn_parser import PGNParser
-    
+
     api = LichessAPI()
     raw_games = api.get_user_games(username, limit)
     parsed_games = []
@@ -34,12 +37,12 @@ def fetch_and_parse_lichess(username: str, limit: int) -> list:
 def fetch_single_lichess(game_id: str) -> list:
     from src.backend.api.lichess_api import LichessAPI
     from src.backend.storage.pgn_parser import PGNParser
-    
+
     api = LichessAPI()
     result = api.get_game_by_id(game_id)
     if not result:
         return []
-        
+
     pgn = result.get("pgn", "")
     if pgn:
         try:
@@ -85,7 +88,7 @@ class LichessPanel(QWidget):
 
         self._input_edit = QLineEdit()
         self._input_edit.setPlaceholderText("e.g. DrNykterstein  or  https://lichess.org/...")
-        
+
         saved_username = ConfigManager().get("lichess_username", "")
         if saved_username:
             self._input_edit.setText(saved_username)
@@ -106,7 +109,7 @@ class LichessPanel(QWidget):
         self._help_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
         self.update_help_label()
         input_layout.addWidget(self._help_lbl)
-        
+
         input_layout.addStretch()
         root.addWidget(self._input_widget, stretch=1)
 
@@ -139,7 +142,7 @@ class LichessPanel(QWidget):
 
         from src.backend.api.lichess_api import LichessAPI
         api = LichessAPI()
-        
+
         game_id = api.extract_game_id(text)
         if game_id:
             self._worker = ApiWorker(fetch_single_lichess, game_id, parent=self)
@@ -171,8 +174,8 @@ class LichessPanel(QWidget):
 
         self._parsed_games = parsed_games
         rows = []
-        
-        for game_obj, g_data in parsed_games:
+
+        for game_obj, _g_data in parsed_games:
             md = game_obj.metadata
             white = md.white or "?"
             black = md.black or "?"

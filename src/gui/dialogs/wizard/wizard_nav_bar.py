@@ -1,4 +1,5 @@
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
+
 from src.gui.styles import Styles
 
 
@@ -21,7 +22,7 @@ class WizardNavBar(QWidget):
         self.dots_layout.setContentsMargins(0, 0, 0, 0)
         self.dots_layout.setSpacing(6)
         self.dot_labels = []
-        for i in range(7):
+        for _ in range(7):
             dot = QLabel("o")
             dot.setStyleSheet(
                 f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; {Styles.get_transparent_label_style()}"

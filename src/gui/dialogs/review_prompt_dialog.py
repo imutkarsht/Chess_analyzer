@@ -2,19 +2,25 @@
 In-app rating & review prompt dialog for Chess Analyzer Pro.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QLineEdit, QTextEdit, QStackedWidget,
-    QWidget
-)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
+from PyQt6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QStackedWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from src.gui.styles import Styles
-from src.gui.components.star_rating_widget import StarRatingWidget
 from src.backend.services.feedback_service import FeedbackService, FeedbackWorker
-from src.utils.config import ConfigManager
 from src.constants import REVIEW_SNOOZE_INTERVAL
+from src.gui.components.star_rating_widget import StarRatingWidget
+from src.gui.styles import Styles
+from src.utils.config import ConfigManager
 
 try:
     import qtawesome as qta

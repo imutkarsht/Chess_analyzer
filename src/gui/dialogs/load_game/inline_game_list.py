@@ -1,10 +1,12 @@
 """
 Inline game list component for the Load Game dialog.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QScrollArea
-from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+
 from ...styles import Styles
 from .game_card import GameCard
+
 
 class InlineGameList(QWidget):
     """
@@ -202,14 +204,14 @@ class InlineGameList(QWidget):
         for card in self._cards:
             if card._index == self._selected_index:
                 card.set_selected(False)
-        
+
         self._selected_index = absolute_index
-        
+
         # Select new card on page
         for card in self._cards:
             if card._index == absolute_index:
                 card.set_selected(True)
-                
+
         self.game_chosen.emit(absolute_index)
 
     def _prev_page(self):
