@@ -19,6 +19,7 @@ class ChessComAPI(BaseChessAPI):
         Fetches the last 'limit' games for the given username.
         Returns a list of dictionaries containing game data (pgn, white, black, result, etc).
         """
+        logger.info("Fetching last %d games for user '%s' from Chess.com", limit, username)
         try:
             archives_url = f"{ChessComAPI.BASE_URL}/player/{username}/games/archives"
             response = BaseChessAPI._make_request(archives_url, ChessComAPI.HEADERS)
@@ -46,7 +47,9 @@ class ChessComAPI(BaseChessAPI):
                         if len(all_games) >= limit:
                             break
 
-            return all_games[:limit]
+            result = all_games[:limit]
+            logger.info("Successfully fetched %d games for user '%s' from Chess.com", len(result), username)
+            return result
 
         except Exception as e:
             BaseChessAPI._log_api_error("Chess.com", "get_last_games", e)

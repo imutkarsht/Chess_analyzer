@@ -1,4 +1,5 @@
 import os
+import time
 
 import chess
 import chess.engine
@@ -62,9 +63,14 @@ class Analyzer:
         """
         Analyzes a game structure in-place.
         """
+        start_time = time.time()
         try:
             logger.info(
-                f"Analysis started: {game_analysis.metadata.white} vs {game_analysis.metadata.black}"
+                "Analysis started: %s vs %s (ID: %s, %d moves)",
+                game_analysis.metadata.white,
+                game_analysis.metadata.black,
+                game_analysis.game_id,
+                len(game_analysis.moves),
             )
 
             # 1. Analyze positions (Engine work)
@@ -76,12 +82,19 @@ class Analyzer:
             # 3. Save to history
             if game_analysis.pgn_content:
                 self.history_manager.save_game(game_analysis, game_analysis.pgn_content)
-                logger.info("Game saved to history")
 
-            logger.info("Analysis complete")
+            elapsed = time.time() - start_time
+            white_acc = summary_counts.get("white", {}).get("accuracy", 0.0)
+            black_acc = summary_counts.get("black", {}).get("accuracy", 0.0)
+            logger.info(
+                "Analysis complete in %.2fs: White %.1f%%, Black %.1f%%",
+                elapsed,
+                white_acc,
+                black_acc,
+            )
 
         except Exception as e:
-            logger.error(f"Analysis failed: {e}")
+            logger.error("Analysis failed: %s", e)
             raise e
         finally:
             self.engine_manager.stop_engine()
@@ -375,8 +388,16 @@ class Analyzer:
         if self.config.get("use_cache", True):
             cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
             if cached_result:
+                logger.debug("Evaluation cache hit for FEN: %s", move_data.fen_before)
                 return cached_result
 
+        logger.debug(
+            "Evaluating position via engine (depth=%s, multi_pv=%s, time=%s): %s",
+            self.config["depth"],
+            self.config["multi_pv"],
+            self.config["time_per_move"],
+            move_data.fen_before,
+        )
         # Engine analysis
         info_list = self.engine_manager.analyze_position(
             board,

@@ -21,6 +21,7 @@ from openai import OpenAI
 
 from src.constants import PROVIDERS
 from src.utils.config import ConfigManager
+from src.utils.logger import logger
 
 # ---------------------------------------------------------------------------
 # Language detection
@@ -223,7 +224,9 @@ class GroqService:
                 api_key=self._api_key or "not-needed",
                 base_url=self._base_url,
             )
-        except Exception:
+            logger.info("LLM client initialized: provider=%s, model=%s, base_url=%s", provider, self._model, self._base_url)
+        except Exception as e:
+            logger.error("Failed to initialize OpenAI client for provider %s: %s", provider, e)
             self.client = None
 
     @property
@@ -243,20 +246,24 @@ class GroqService:
         system-style instruction when it appears inside the user message.
         """
         if not self.client:
+            logger.warning("Attempted LLM completion but client is not configured")
             return "Error: LLM not configured. Go to Settings → API Configuration."
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
+        logger.info("Sending LLM completion request: model=%s, prompt_len=%d", self._model, len(prompt))
         try:
             completion = self.client.chat.completions.create(
                 model=self._model,
                 messages=messages,
             )
             text = completion.choices[0].message.content
+            logger.info("Received LLM completion response (%d chars)", len(text.strip()) if text else 0)
             return text.strip() if text else "No response generated."
         except Exception as exc:
             exc_type = type(exc).__name__
+            logger.error("LLM completion failed [%s]: %s", exc_type, exc)
             return f"Error [{exc_type}]: {exc}"
 
     @staticmethod

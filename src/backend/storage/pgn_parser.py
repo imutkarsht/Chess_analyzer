@@ -4,6 +4,8 @@ import re
 
 import chess.pgn
 
+from src.utils.logger import logger
+
 from .models import GameAnalysis, GameMetadata, MoveAnalysis
 from .termination_detector import TerminationDetector
 
@@ -47,18 +49,24 @@ def _parse_clk(comment: str | None) -> tuple[str | None, float | None]:
 class PGNParser:
     @staticmethod
     def parse_pgn_file(file_path: str) -> list[GameAnalysis]:
+        logger.info("Parsing PGN file: %s", file_path)
         games = []
-        with open(file_path, encoding="utf-8") as f:
-            while True:
-                game = chess.pgn.read_game(f)
-                if game is None:
-                    break
-                # Skip games with no moves — garbage input like SQL text
-                # produces a default game object from python-chess but has
-                # no actual moves.
-                if game.next() is None:
-                    continue
-                games.append(PGNParser._convert_to_game_analysis(game))
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                while True:
+                    game = chess.pgn.read_game(f)
+                    if game is None:
+                        break
+                    # Skip games with no moves — garbage input like SQL text
+                    # produces a default game object from python-chess but has
+                    # no actual moves.
+                    if game.next() is None:
+                        continue
+                    games.append(PGNParser._convert_to_game_analysis(game))
+            logger.info("Successfully parsed %d game(s) from %s", len(games), file_path)
+        except Exception as e:
+            logger.error("Failed to parse PGN file %s: %s", file_path, e)
+            raise
         return games
 
     @staticmethod
@@ -73,6 +81,7 @@ class PGNParser:
             if game.next() is None:
                 continue
             games.append(PGNParser._convert_to_game_analysis(game))
+        logger.debug("Successfully parsed %d game(s) from PGN text", len(games))
         return games
 
     @staticmethod
