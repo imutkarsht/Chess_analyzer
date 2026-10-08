@@ -6,6 +6,8 @@ import re
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.utils.logger import logger
+
 
 class InsightWorker(QThread):
     """Worker thread for generating AI insights."""
@@ -18,10 +20,13 @@ class InsightWorker(QThread):
         self.stats_text = stats_text
 
     def run(self):
+        logger.info("InsightWorker: generating coach insights...")
         try:
             insight = self.service.generate_coach_insights(self.stats_text)
+            logger.info("InsightWorker: coach insights generated successfully")
             self.finished.emit(insight)
         except Exception as e:
+            logger.error(f"InsightWorker failed: {e}", exc_info=True)
             self.error.emit(str(e))
 
 
@@ -35,10 +40,13 @@ class StatsWorker(QThread):
         self.usernames = usernames
 
     def run(self):
+        logger.debug(f"StatsWorker: calculating stats for {len(self.games)} games")
         try:
             stats = self._calculate_stats()
+            logger.debug("StatsWorker: stats calculated successfully")
             self.finished.emit(stats)
-        except Exception:
+        except Exception as e:
+            logger.error(f"StatsWorker failed to calculate stats: {e}", exc_info=True)
             self.finished.emit({})
 
     def _get_user_color(self, game):

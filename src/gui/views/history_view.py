@@ -1,5 +1,4 @@
 import json
-import logging
 import re
 
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -18,6 +17,7 @@ from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button, create_combobox
+from src.utils.logger import logger
 
 try:
     import qtawesome as qta
@@ -231,7 +231,7 @@ class HistoryView(QWidget):
                             )
                             moves.append(move)
                     except Exception as e:
-                        logging.error(f"Failed to parse moves_json for game {g_dict['id']}: {e}")
+                        logger.error(f"Failed to parse moves_json for game {g_dict['id']}: {e}")
 
                 term_mode, term_desc = TerminationDetector.detect_termination(
                     headers={"Result": metadata.result, "White": metadata.white, "Black": metadata.black, "Termination": metadata.termination or ""},
@@ -260,7 +260,7 @@ class HistoryView(QWidget):
             # Apply filters after loading
             self.apply_filters()
         except Exception as e:
-            logging.error(f"Failed to load history: {e}")
+            logger.error(f"Failed to load history: {e}")
 
     def apply_filters(self):
         """Apply search, filter, and sort settings to the game list."""
@@ -399,6 +399,7 @@ class HistoryView(QWidget):
                           "Are you sure you want to clear all game history? This cannot be undone.",
                           confirm_label="Clear All"):
             self.history_manager.clear_history()
+            logger.info("Cleared all game history via UI")
             self.load_history()
 
     def export_games(self):
@@ -431,10 +432,11 @@ class HistoryView(QWidget):
                     row = {k: game_dict.get(k) for k in fieldnames}
                     writer.writerow(row)
 
+            logger.info(f"Exported {len(history_games)} games to {file_name}")
             Toast.show_message(self.window(), f"Exported {len(history_games)} games.", "success")
 
         except Exception as e:
-            logging.error(f"Export failed: {e}")
+            logger.error(f"Export failed: {e}")
             from src.gui.components.toast import Toast
             Toast.show_message(self.window(), f"Export failed: {e}", "error")
 
@@ -545,13 +547,14 @@ class HistoryView(QWidget):
                         imported_count += 1
 
                     except Exception as row_e:
-                        logging.warning(f"Failed to parse row {game_id}: {row_e}")
+                        logger.warning(f"Failed to parse row {game_id}: {row_e}")
 
+            logger.info(f"Imported {imported_count} games from {file_name} (skipped: {skipped_count})")
             self.load_history()
             Toast.show_message(self.window(), f"Imported: {imported_count}, Skipped: {skipped_count}", "success")
 
         except Exception as e:
-            logging.error(f"Import failed: {e}")
+            logger.error(f"Import failed: {e}")
             from src.gui.components.toast import Toast
             Toast.show_message(self.window(), f"Import failed: {e}", "error")
 

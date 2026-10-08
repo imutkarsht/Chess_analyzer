@@ -177,6 +177,7 @@ class ConfigManager:
         try:
             with open(self.config_path, 'w') as f:
                 json.dump(self.config, f, indent=4)
+            logger.debug("Configuration saved successfully")
         except Exception as e:
             logger.error(f"Failed to save config: {e}")
 
