@@ -4,6 +4,8 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QGridLayout, QLabel, QSizePolicy, QWidget
 
+from src.utils.logger import logger
+
 from ..styles import Styles
 from .eval_bar import EvalBarWidget
 
@@ -196,7 +198,7 @@ class BoardWidget(QWidget):
             self.overlay_layout.addWidget(lbl, row, col, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
 
         except Exception as e:
-            print(f"Error drawing overlay: {e}")
+            logger.debug(f"Error drawing overlay: {e}")
 
 
     def update_board(self):
@@ -270,7 +272,7 @@ class BoardWidget(QWidget):
             for piece_elem in wrapper_root:
                 defs.append(piece_elem)
         except ET.ParseError as e:
-            print(f"Error parsing piece defs: {e}")
+            logger.warning(f"Error parsing piece defs: {e}")
 
         # Draw squares
         for square in chess.SQUARES:
