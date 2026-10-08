@@ -3,6 +3,8 @@ API Worker thread for background network requests.
 """
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.utils.logger import logger
+
 _RUNNING_WORKERS = []
 
 def register_worker(worker):
@@ -31,10 +33,16 @@ class ApiWorker(QThread):
         self._cancelled = True
 
     def run(self):
+        func_name = getattr(self.api_func, "__name__", str(self.api_func))
+        logger.debug(f"ApiWorker started: {func_name}")
         try:
             res = self.api_func(*self.args, **self.kwargs)
-            if not self._cancelled:
-                self.finished.emit(res)
+            if self._cancelled:
+                logger.debug(f"ApiWorker cancelled: {func_name}")
+                return
+            logger.debug(f"ApiWorker completed: {func_name}")
+            self.finished.emit(res)
         except Exception as e:
             if not self._cancelled:
+                logger.error(f"ApiWorker failed ({func_name}): {e}")
                 self.error.emit(str(e))

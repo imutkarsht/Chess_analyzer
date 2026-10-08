@@ -351,6 +351,7 @@ class GameHistoryManager:
                 ))
             conn.commit()
             conn.close()
+            logger.debug(f"Saved {len(games)} games to API cache")
         except Exception as e:
             logger.error(f"Failed to save cached games bulk: {e}")
 

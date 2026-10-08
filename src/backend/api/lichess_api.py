@@ -45,6 +45,7 @@ class LichessAPI(BaseChessAPI):
         """
         Fetches last N games from Lichess and returns JSON (NDJSON parsed)
         """
+        logger.info("Fetching last %d games for user '%s' from Lichess", max_games, username)
         try:
             url = f"{LichessAPI.BASE_URL}/{username}"
             params = {
@@ -88,6 +89,7 @@ class LichessAPI(BaseChessAPI):
                         games.append(normalized_game)
                     except json.JSONDecodeError:
                         continue
+            logger.info("Successfully fetched %d games for user '%s' from Lichess", len(games), username)
             return games
 
         except Exception as e:

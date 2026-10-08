@@ -162,18 +162,20 @@ class EngineManager:
     def start_engine(self):
         if not self.engine:
             try:
-                # Assuming UCI engine
+                logger.info("Starting Stockfish engine binary: %s", self.engine_path)
                 popen_args = {}
                 if sys.platform == "win32":
                     popen_args["creationflags"] = subprocess.CREATE_NO_WINDOW
                 self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, **popen_args)
                 self.configure_engine(self.options)
+                logger.info("Stockfish engine successfully started and ready")
             except Exception as e:
-                logger.error(f"Failed to start engine at {self.engine_path}: {e}")
+                logger.error("Failed to start engine at %s: %s", self.engine_path, e)
                 raise
 
     def stop_engine(self):
         if self.engine:
+            logger.info("Stopping Stockfish engine process")
             self.engine.quit()
             self.engine = None
 

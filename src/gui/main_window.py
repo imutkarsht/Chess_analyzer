@@ -1177,6 +1177,7 @@ class MainWindow(QMainWindow):
 
         info_text = f"{white} ({w_elo}) vs {black} ({b_elo})  [{result}]"
         self.game_info_label.setText(info_text)
+        logger.info(f"Loaded game: {white} vs {black} [{result}], {len(game.moves)} moves")
 
         self.board_widget.load_game(game)
         self.move_list_panel.set_game(game)

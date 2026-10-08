@@ -503,6 +503,7 @@ class GenerateSummaryThread(QThread):
         self.game = game
 
     def run(self):
+        logger.info("GenerateSummaryThread started")
         try:
             # Replay the moves onto a fresh board and export a valid PGN.
             # The previous inline string-concat produced invalid notation
@@ -544,6 +545,7 @@ class GenerateSummaryThread(QThread):
             summary = self.service.generate_summary(
                 pgn_text, str(self.game.summary), time_stats
             )
+            logger.info("GenerateSummaryThread completed successfully")
             self.finished.emit(summary)
         except Exception as e:
             logger.error(f"GenerateSummaryThread failed: {e}", exc_info=True)

@@ -98,6 +98,7 @@ class StockfishDownloadWorker(QThread):
                 progress_callback=progress_callback,
                 fallback_urls=candidates[1:],
             )
+            logger.info(f"StockfishDownloadWorker: successfully downloaded Stockfish to {binary_path}")
             self.finished.emit(binary_path)
             return
         except Exception as e:
@@ -107,9 +108,11 @@ class StockfishDownloadWorker(QThread):
         # 3. Distro package manager fallback (Linux and friends)
         pm_path = try_package_manager_install()
         if pm_path:
+            logger.info(f"StockfishDownloadWorker: package manager installed Stockfish to {pm_path}")
             self.finished.emit(pm_path)
             return
 
+        logger.error(f"StockfishDownloadWorker: all download strategies failed: {download_error}")
         self.error.emit(str(download_error))
 
 

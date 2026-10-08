@@ -105,5 +105,6 @@ class AnalysisCache:
             cursor = self.conn.cursor()
             cursor.execute("DELETE FROM analysis")
             self.conn.commit()
+            logger.info("Analysis cache cleared")
         except Exception as e:
             logger.error(f"Failed to clear cache: {e}")

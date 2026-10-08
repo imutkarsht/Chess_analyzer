@@ -18,19 +18,15 @@ def qt_message_handler(mode, context, message):
 
     # Default behavior for other messages
     if mode == QtMsgType.QtInfoMsg:
-        mode_str = "Info"
+        logger.info(f"Qt: {message}")
     elif mode == QtMsgType.QtWarningMsg:
-        mode_str = "Warning"
+        logger.warning(f"Qt: {message}")
     elif mode == QtMsgType.QtCriticalMsg:
-        mode_str = "Critical"
+        logger.error(f"Qt: {message}")
     elif mode == QtMsgType.QtFatalMsg:
-        mode_str = "Fatal"
+        logger.critical(f"Qt: {message}")
     else:
-        mode_str = "Debug"
-
-    # We can print to stderr or use our logger.
-    # Since we have a logger, let's try to use it or just print to keep it simple and avoid recursion if logger uses Qt
-    print(f"Qt {mode_str}: {message}")
+        logger.debug(f"Qt: {message}")
 
 
 def main():

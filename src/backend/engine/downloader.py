@@ -350,6 +350,7 @@ def _download_one(
     staging = tempfile.mkdtemp(prefix="stockfish_extract_")
 
     try:
+        logger.info("Downloading Stockfish from %s", url)
         headers = {"User-Agent": _USER_AGENT}
         resp = requests.get(url, headers=headers, stream=True, timeout=30)
         resp.raise_for_status()
@@ -375,6 +376,7 @@ def _download_one(
 
         final_path = os.path.join(dest_dir, _binary_filename())
         shutil.move(binary, final_path)
+        logger.info("Stockfish engine extracted and verified successfully at %s", final_path)
         return final_path
     finally:
         if os.path.exists(tmp_path):
