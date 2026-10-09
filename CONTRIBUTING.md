@@ -113,8 +113,7 @@ pytest tests/ -v
 ## 📝 Code Style
 
 - Follow **PEP 8** for Python formatting.
-- All public functions must have **type hints**.
-- Use `Optional[X]` for nullable parameters (not `X | None` in public APIs).
+- All public functions must have **type hints** using modern Python 3.10+ syntax (`X | None`, `list[T]`, `dict[K, V]`).
 - Use `from src.utils.logger import logger` — **never** use `print()` for internal messages.
 - Never hardcode colors in widget files — use `Styles.COLOR_*` constants from `src/gui/styles.py`.
 - Write meaningful commit messages (we loosely follow [Conventional Commits](https://www.conventionalcommits.org/)):
@@ -133,4 +132,4 @@ pytest tests/ -v
 - **ConfigManager** is a singleton — do not instantiate in tight loops.
 - **Score convention**: evaluation scores are stored relative to White (positive = White better).
 
-See the full architecture reference in [`.agent/AGENTS.md`](.agent/AGENTS.md).
+See the full architecture and agent guidelines in [`AGENTS.md`](AGENTS.md).
