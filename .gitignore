@@ -30,21 +30,6 @@ installers/linux/AppDir/
 installers/linux/appimagetool*
 installers/mac/Output
 
-# Agent Ignore files
-.agent/session/
-.agent/scratch/
-.agent/tmp/
-.agent/cache/
-.agent/private/
-.agent/local/
-.agent/current_task.md
-.agent/session.md
-.agent/scratchpad.md
-.agent/debug.md
-.agent/.log
-.agent/**/.log
-.agent/.DS_Store
-.agent/Thumbs.db
 .opencode/*
 
 /planning
