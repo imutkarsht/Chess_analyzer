@@ -322,6 +322,23 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Failed to stop update worker: {e}")
 
+        # Clean up analyzer and database resources
+        if hasattr(self, 'analyzer') and self.analyzer:
+            try:
+                self.analyzer.close()
+            except Exception as e:
+                logger.error(f"Failed to close analyzer: {e}")
+
+        # Clean up explorer view databases
+        if hasattr(self, 'explorer_view') and self.explorer_view:
+            try:
+                if hasattr(self.explorer_view, 'opening_db') and self.explorer_view.opening_db:
+                    self.explorer_view.opening_db.close()
+                if hasattr(self.explorer_view, 'polyglot_manager') and self.explorer_view.polyglot_manager:
+                    self.explorer_view.polyglot_manager.close()
+            except Exception as e:
+                logger.error(f"Failed to close explorer view resources: {e}")
+
         super().closeEvent(event)
 
     def setup_ui(self):

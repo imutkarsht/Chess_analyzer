@@ -1,5 +1,8 @@
+import xml.etree.ElementTree as ET
+
 import chess
 import chess.svg
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from PyQt6.QtCore import Qt
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QGridLayout, QLabel, QSizePolicy, QWidget
@@ -228,8 +231,6 @@ class BoardWidget(QWidget):
         """
         Generate a custom SVG board with the given colors and piece definitions.
         """
-        import xml.etree.ElementTree as ET
-
         SQUARE_SIZE = 45
         MARGIN = 15
         BOARD_SIZE = 8 * SQUARE_SIZE
@@ -268,7 +269,7 @@ class BoardWidget(QWidget):
             f'<root xmlns="http://www.w3.org/2000/svg">{piece_defs}</root>'
         )
         try:
-            wrapper_root = ET.fromstring(wrapped)
+            wrapper_root = safe_fromstring(wrapped)
             for piece_elem in wrapper_root:
                 defs.append(piece_elem)
         except ET.ParseError as e:

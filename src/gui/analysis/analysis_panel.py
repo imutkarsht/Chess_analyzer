@@ -529,7 +529,8 @@ class GenerateSummaryThread(QThread):
                     # Fall back to SAN parsing for moves without a UCI
                     try:
                         chess_move = board.parse_san(move.san)
-                    except Exception:
+                    except Exception as e:
+                        logger.warning("Failed to parse SAN move '%s': %s", getattr(move, "san", "?"), e)
                         continue
                 node = node.add_variation(chess_move)
                 board.push(chess_move)

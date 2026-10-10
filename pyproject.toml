@@ -8,7 +8,7 @@ version = "2.3.0"
 description = "A local-first Python desktop application for analyzing chess games."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "GPL-3.0-or-later" }
+license = { text = "MIT" }
 authors = [
     { name = "Utkarsh Tiwari" }
 ]
@@ -29,6 +29,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "qtawesome>=1.2.0",
     "packaging>=23.0",
+    "defusedxml>=0.7.1",
 ]
 
 [project.optional-dependencies]

@@ -1,5 +1,7 @@
+import json
 import os
 import time
+from typing import Any
 
 import chess
 import chess.engine
@@ -58,6 +60,33 @@ class Analyzer:
             "multi_pv": self.config_manager.get("multi_pv", DEFAULT_MULTI_PV),
             "use_cache": True,
         }
+
+    def close(self):
+        """Clean up database connections and engine/book resources."""
+        if hasattr(self, "cache") and self.cache:
+            try:
+                self.cache.close()
+            except Exception:
+                pass
+        if hasattr(self, "_opening_db") and self._opening_db:
+            try:
+                self._opening_db.close()
+            except Exception:
+                pass
+        if hasattr(self, "polyglot_book") and self.polyglot_book:
+            try:
+                self.polyglot_book.close()
+            except Exception:
+                pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
+        self.close()
 
     def analyze_game(self, game_analysis: GameAnalysis, callback=None):
         """
@@ -386,10 +415,20 @@ class Analyzer:
         """Gets analysis from cache or engine for the current position."""
         # Check cache
         if self.config.get("use_cache", True):
-            cached_result = self.cache.get_analysis(move_data.fen_before, self.config)
-            if cached_result:
+            raw_cached = self.cache.get_analysis(move_data.fen_before, self.config)
+            if raw_cached:
                 logger.debug("Evaluation cache hit for FEN: %s", move_data.fen_before)
-                return cached_result
+                cached_list: Any = raw_cached
+                if isinstance(cached_list, str):
+                    try:
+                        cached_list = json.loads(cached_list)
+                    except Exception as e:
+                        logger.warning("Corrupted cached analysis JSON for FEN %s: %s", move_data.fen_before, e)
+                        cached_list = None
+                if cached_list is not None:
+                    if not isinstance(cached_list, list):
+                        cached_list = [cached_list]
+                    return cached_list
 
         logger.debug(
             "Evaluating position via engine (depth=%s, multi_pv=%s, time=%s): %s",
@@ -399,20 +438,20 @@ class Analyzer:
             move_data.fen_before,
         )
         # Engine analysis
-        info_list = self.engine_manager.analyze_position(
+        engine_res = self.engine_manager.analyze_position(
             board,
             time_limit=self.config["time_per_move"],
             depth=self.config["depth"],
             multi_pv=self.config["multi_pv"],
         )
 
-        # Ensure list
-        if not isinstance(info_list, list):
-            info_list = [info_list]
+        info_list: list[Any] = engine_res if isinstance(engine_res, list) else [engine_res]
 
         # Serialize and cache
-        serializable_list = []
+        serializable_list: list[dict[str, Any]] = []
         for info in info_list:
+            if not isinstance(info, dict):
+                continue
             s_info = {}
             score = info.get("score")
             if score:
@@ -444,11 +483,12 @@ class Analyzer:
         move_data.multi_pvs = []
 
         for idx, item in enumerate(info_list):
+            if not isinstance(item, dict):
+                continue
             pv_data = {}
 
             if (
-                isinstance(item, dict)
-                and "pv" in item
+                "pv" in item
                 and isinstance(item["pv"], list)
                 and len(item["pv"]) > 0
                 and isinstance(item["pv"][0], str)
@@ -565,7 +605,7 @@ class Analyzer:
                 except Exception:
                     clean_fens.append("")
 
-        fen_counts = {}
+        fen_counts: dict[str, int] = {}
         for fen in clean_fens:
             if fen:
                 fen_counts[fen] = fen_counts.get(fen, 0) + 1
