@@ -6,6 +6,7 @@ import math
 import xml.etree.ElementTree as ET
 
 import chess
+from defusedxml.ElementTree import fromstring as safe_fromstring
 from PyQt6.QtCore import QByteArray, QEvent, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
@@ -335,7 +336,7 @@ class ExplorerBoardWidget(BoardWidget):
             if svg_str.startswith("<?xml"):
                 svg_str = svg_str[svg_str.index("<svg"):]
 
-            root = ET.fromstring(svg_str)
+            root = safe_fromstring(svg_str)
 
             MARGIN = 15
             SQ = 45

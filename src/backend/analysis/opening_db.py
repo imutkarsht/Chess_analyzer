@@ -68,8 +68,21 @@ class OpeningDB:
 
     def close(self):
         if self._conn is not None:
-            self._conn.close()
+            try:
+                self._conn.close()
+            except Exception:
+                pass
             self._conn = None
+
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
+        self.close()
 
     def is_populated(self) -> bool:
         """Return True if metadata table has a version row."""

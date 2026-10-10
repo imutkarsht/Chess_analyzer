@@ -1091,6 +1091,16 @@ class ExplorerView(QWidget):
 
     def closeEvent(self, event):
         self.live_worker.stop()
+        if hasattr(self, 'opening_db') and self.opening_db:
+            try:
+                self.opening_db.close()
+            except Exception:
+                pass
+        if hasattr(self, 'polyglot_manager') and self.polyglot_manager:
+            try:
+                self.polyglot_manager.close()
+            except Exception:
+                pass
         super().closeEvent(event)
 
     def refresh_styles(self):

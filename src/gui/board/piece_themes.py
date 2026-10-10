@@ -24,6 +24,7 @@ import xml.etree.ElementTree as ET
 from functools import lru_cache
 
 import chess
+from defusedxml.ElementTree import parse as safe_parse
 
 from ...utils.logger import logger
 from ...utils.path_utils import get_resource_path, get_user_data_dir
@@ -335,7 +336,7 @@ def _get_svg_canvas(root: ET.Element) -> tuple[float, float] | None:
 @lru_cache(maxsize=128)
 def _get_content_bbox(svg_path: str) -> tuple[float, float, float, float]:
     """Return (min_x, min_y, max_x, max_y) of all graphical elements in *svg_path*."""
-    tree = ET.parse(svg_path)
+    tree = safe_parse(svg_path)
     root = tree.getroot()
 
     min_x = min_y = float("inf")
@@ -417,7 +418,7 @@ def _extract_g_element(
     """
     Read an SVG file and return the inner ``<g>...</g>`` string.
     """
-    tree = ET.parse(svg_path)
+    tree = safe_parse(svg_path)
     root = tree.getroot()
 
     g_elements = [
@@ -498,7 +499,7 @@ def _collect_theme_defs(theme_name: str) -> str:
             )
 
         try:
-            tree = ET.parse(svg_path)
+            tree = safe_parse(svg_path)
         except (FileNotFoundError, ET.ParseError):
             continue
         root = tree.getroot()
