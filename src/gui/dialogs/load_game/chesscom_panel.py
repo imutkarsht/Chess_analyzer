@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 from src.gui.components.toast import Toast
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
+from src.utils.logger import logger
 
 from ....utils.config import ConfigManager
 from .api_worker import ApiWorker, register_worker, remove_worker
@@ -28,7 +29,8 @@ def fetch_and_parse_chesscom(username: str, limit: int) -> list:
             parsed_list = PGNParser.parse_pgn_text(pgn)
             if parsed_list:
                 parsed_games.append((parsed_list[0], g_data))
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to parse Chess.com game PGN for user '%s': %s", username, e)
             continue
     return parsed_games
 
@@ -47,8 +49,8 @@ def fetch_single_chesscom(game_id: str, url: str) -> list:
             parsed_list = PGNParser.parse_pgn_text(pgn)
             if parsed_list:
                 return [(parsed_list[0], result)]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Failed to parse single Chess.com game PGN (id=%s): %s", game_id, e)
     return []
 
 

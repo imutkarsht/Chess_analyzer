@@ -22,23 +22,6 @@ def get_resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
 
 
-def get_app_path() -> str:
-    """
-    Get the absolute path to the application directory.
-    In dev: current working directory.
-    In frozen exe: the directory containing the executable.
-
-    Returns:
-        The absolute path to the application directory.
-    """
-    if getattr(sys, "frozen", False):
-        # If the application is run as a bundle, the PyInstaller bootloader
-        # extends the sys module by a flag frozen=True and sets the app
-        # path into variable _MEIPASS'.
-        return os.path.dirname(sys.executable)
-    else:
-        return os.path.abspath(".")
-
 def get_user_data_dir() -> str:
     """
     Get the platform-specific directory for user data.

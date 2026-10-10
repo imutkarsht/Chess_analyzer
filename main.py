@@ -67,8 +67,6 @@ def main():
             logger.warning(f"App icon not found at: {logo_path}")
 
         # --- Splash Screen Start ---
-        import time
-
         from src.gui.dialogs import SplashScreen
 
         splash = SplashScreen(logo_path)
@@ -77,20 +75,19 @@ def main():
         # Process events to ensure splash is painted
         app.processEvents()
 
-        splash.update_progress(10, "Loading configuration...")
-        time.sleep(0.3)  # Artificial delay for smoothness
+        splash.update_progress(20, "Loading configuration...")
+        app.processEvents()
 
-        splash.update_progress(30, "Initializing core engine...")
-        time.sleep(0.3)
+        splash.update_progress(45, "Initializing core engine...")
+        app.processEvents()
 
-        splash.update_progress(50, "Loading user interface...")
-
-        splash.update_progress(80, "Preparing dashboard...")
+        splash.update_progress(70, "Loading user interface...")
+        app.processEvents()
 
         window = MainWindow()
 
         splash.update_progress(95, "Starting up...")
-        time.sleep(0.2)
+        app.processEvents()
 
         # macOS Gatekeeper self-fix (only when bundled as .app)
         if getattr(sys, "frozen", False) and sys.platform == "darwin":

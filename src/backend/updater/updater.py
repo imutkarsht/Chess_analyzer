@@ -270,7 +270,7 @@ echo "[updater] AppImage updated successfully."
 
     with open(script_path, "w") as f:
         f.write(script)
-    os.chmod(script_path, 0o755)
+    os.chmod(script_path, 0o700)
 
     subprocess.Popen(
         ["bash", script_path],
