@@ -3,7 +3,12 @@ import chess
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager
 from src.backend.analysis.local_book import BookResult
-from src.backend.analysis.math_utils import get_win_probability
+from src.backend.analysis.math_utils import (
+    MIN_MOVE_ACCURACY,
+    apply_accuracy_floor,
+    calculate_move_accuracy,
+    get_win_probability,
+)
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 
 
@@ -305,5 +310,18 @@ def test_check_book_move_merging(mocker, mock_engine):
     assert game_analysis.metadata.opening == "King's Pawn Game"
     assert game_analysis.metadata.eco == "C20"
 
+def _side(accs: list[float]) -> dict:
+    return {"accuracies": accs, "win_percents": [0.5] * len(accs),
+            "move_count": len(accs), "acpl": 0}
 
 
+def test_mate_blunder_hits_accuracy_floor():
+    acc = apply_accuracy_floor(calculate_move_accuracy(0.9, 0.0))
+    assert acc == MIN_MOVE_ACCURACY == 10.0
+
+
+def test_single_blunder_does_not_collapse_accuracy():
+    blunder = apply_accuracy_floor(calculate_move_accuracy(0.9, 0.0))
+    counts = {"white": _side([95.0] * 39 + [blunder]), "black": _side([95.0] * 40)}
+    Analyzer._calculate_final_accuracy(None, counts)
+    assert 80 < counts["white"]["accuracy"] < counts["black"]["accuracy"]

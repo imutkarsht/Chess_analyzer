@@ -1,5 +1,11 @@
 import math
 
+MIN_MOVE_ACCURACY = 10.0
+
+def apply_accuracy_floor(accuracy: float) -> float:
+    """Clamp a per-move accuracy to the minimum floor."""
+    return max(accuracy, MIN_MOVE_ACCURACY)
+
 
 def get_win_probability(cp: int | None, mate: int | None) -> float:
     """

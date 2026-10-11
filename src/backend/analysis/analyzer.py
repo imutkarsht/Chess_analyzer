@@ -17,6 +17,7 @@ from src.utils.path_utils import get_resource_path, get_user_data_dir
 from .engine import EngineManager
 from .local_book import BookResult, LocalBookManager
 from .math_utils import (
+    apply_accuracy_floor,
     calculate_move_accuracy,
     calculate_volatility_weights,
     get_cp,
@@ -423,7 +424,9 @@ class Analyzer:
                     try:
                         cached_list = json.loads(cached_list)
                     except Exception as e:
-                        logger.warning("Corrupted cached analysis JSON for FEN %s: %s", move_data.fen_before, e)
+                        logger.warning(
+                            "Corrupted cached analysis JSON for FEN %s: %s", move_data.fen_before, e
+                        )
                         cached_list = None
                 if cached_list is not None:
                     if not isinstance(cached_list, list):
@@ -703,7 +706,6 @@ class Analyzer:
             # 1. Book moves get 100% (theoretical opening theory)
             # 2. Checkmate moves get 100% (delivering mate is optimal)
             # 3. Moves leading to forced mate get 100%
-            # 4. All moves get minimum 5% floor (prevent harmonic mean collapse)
             is_checkmate_move = move.san.endswith("#") if move.san else False
             is_mating_move = move.eval_after_mate is not None and (
                 (side == "white" and move.eval_after_mate > 0)
@@ -714,8 +716,7 @@ class Analyzer:
                 move_acc = 100.0
 
             # Apply minimum floor to prevent harmonic mean collapse from outliers
-            move_acc = max(move_acc, 5.0)
-
+            move_acc = apply_accuracy_floor(move_acc)
             summary_counts[side]["accuracies"].append(move_acc)
             summary_counts[side]["win_percents"].append(player_wp_before)  # Store for volatility
 
@@ -860,7 +861,7 @@ class Analyzer:
                     # Calculate sliding window volatility weights
                     window_size = max(2, min(8, len(accuracies) // 10))
                     weights = calculate_volatility_weights(win_percents, window_size)
-
+                    print(side, [(round(a, 1), round(w, 1)) for a, w in zip(accuracies, weights)])
                     # Volatility-weighted mean
                     weighted_mean_val = weighted_mean(capped_accs, weights)
 
