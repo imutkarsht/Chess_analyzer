@@ -1,4 +1,5 @@
 """Tests for move classification bands and mathematical win probability calculation."""
+
 from src.backend.analysis.math_utils import calculate_move_accuracy, get_win_probability
 from src.backend.analysis.move_classifier import classify_move
 from src.backend.storage.models import MoveAnalysis
@@ -39,8 +40,13 @@ def test_calculate_move_accuracy():
 def test_classify_checkmate():
     """Delivering checkmate is classified as Best move."""
     move = MoveAnalysis(
-        move_number=20, ply=40, san="Qxf7#", uci="d1f7",
-        fen_before="start", win_chance_before=0.99, win_chance_after=1.0
+        move_number=20,
+        ply=40,
+        san="Qxf7#",
+        uci="d1f7",
+        fen_before="start",
+        win_chance_before=0.99,
+        win_chance_after=1.0,
     )
     classify_move(move, wpl=0.0, side="white")
     assert move.classification == "Best"
@@ -50,36 +56,202 @@ def test_classify_checkmate():
 def test_classify_missed_mate():
     """Missing a forced checkmate is classified as Miss."""
     move = MoveAnalysis(
-        move_number=15, ply=29, san="Be3", uci="c1e3",
-        fen_before="start", win_chance_before=1.0, win_chance_after=0.7,
-        eval_before_mate=2, eval_after_mate=None,
-        best_move="d1h5"
+        move_number=15,
+        ply=29,
+        san="Be3",
+        uci="c1e3",
+        fen_before="start",
+        win_chance_before=1.0,
+        win_chance_after=0.7,
+        eval_before_mate=2,
+        eval_after_mate=None,
+        best_move="d1h5",
     )
     classify_move(move, wpl=0.3, side="white")
     assert move.classification == "Miss"
 
 
 def test_classify_brilliant_move():
-    """Best move with a massive second-choice gap and position improvement is Brilliant."""
+    """A sound piece sacrifice (e.g. Greek gift Bxh7+) is classified as Brilliant."""
+    # Classic bishop sacrifice setup:
+    # White bishop on d3 sacrifices on h7: 1. Bxh7+ Kxh7
+    fen_greek_gift = "r1bq1rk1/pppn1ppp/4p3/3p4/2PP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 0 8"
     move = MoveAnalysis(
-        move_number=18, ply=35, san="Nxf7", uci="e5f7",
-        fen_before="start", win_chance_before=0.55, win_chance_after=0.85,
-        best_move="e5f7", eval_before_cp=50, eval_after_cp=300
+        move_number=8,
+        ply=15,
+        san="Bxh7+",
+        uci="d3h7",
+        fen_before=fen_greek_gift,
+        win_chance_before=0.58,
+        win_chance_after=0.75,
+        best_move="d3h7",
+        eval_before_cp=50,
+        eval_after_cp=180,
+    )
+    classify_move(move, wpl=0.0, side="white")
+    assert move.classification == "Brilliant"
+    assert "sacrifice" in move.explanation.lower()
+
+
+def test_classify_brilliant_rook_sacrifice():
+    """A rook sacrifice is classified as Brilliant."""
+    # Position where White rook on e1 plays Re8+ or Rxe6
+    # Let's create a position: White Rook on e1, Black pawn on e6 defended by f7 pawn and d7 pawn
+    # White plays Rxe6: Rook (500cp) takes pawn (100cp), attacked by f7 pawn (100cp) -> net deficit
+    fen = "r2q1rk1/ppp2ppp/4b3/8/8/4R3/PPP2PPP/4R1K1 w - - 0 1"
+    # Rook on e3 plays Rxe6 (takes bishop, attacked by f7 pawn: moving 500, captured 325, attacked by 100)
+    move = MoveAnalysis(
+        move_number=19,
+        ply=37,
+        san="Rxe6",
+        uci="e3e6",
+        fen_before=fen,
+        win_chance_before=0.55,
+        win_chance_after=0.72,
+        best_move="e3e6",
+        eval_before_cp=40,
+        eval_after_cp=150,
+    )
+    classify_move(move, wpl=0.0, side="white")
+    assert move.classification == "Brilliant"
+
+
+def test_classify_brilliant_allowed_when_winning_if_forced_mate():
+    """A piece sacrifice in a winning position leading to forced mate is Brilliant."""
+    fen = "r1bq1rk1/pppn1ppp/4p3/3p4/2PP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 0 8"
+    move = MoveAnalysis(
+        move_number=8,
+        ply=15,
+        san="Bxh7+",
+        uci="d3h7",
+        fen_before=fen,
+        win_chance_before=0.96,  # Already winning by a landslide
+        win_chance_after=1.0,
+        best_move="d3h7",
+        eval_before_cp=700,
+        eval_after_mate=3,  # Leads to forced mate in 3
+    )
+    classify_move(move, wpl=0.0, side="white")
+    assert move.classification == "Brilliant"
+
+
+def test_classify_brilliant_during_forced_mate_sequence():
+    """Sacrifice played when player already had a forced mate (e.g. mate in 4 -> mate in 3) is Brilliant."""
+    fen = "r1b2rk1/2p2pp1/2n4p/1pbpN3/p3P3/1B1P2P1/PPPQN1q1/2KR3R w - - 0 17"
+    move = MoveAnalysis(
+        move_number=17,
+        ply=33,
+        san="Rxh6+",
+        uci="h1h6",
+        fen_before=fen,
+        win_chance_before=1.0,
+        win_chance_after=1.0,
+        best_move="h1h6",
+        eval_before_mate=4,  # Had mate in 4 before
+        eval_after_mate=3,  # Sacrifice advances to mate in 3
+        eval_before_cp=99996,
+        eval_after_cp=99997,
+    )
+    classify_move(move, wpl=0.0, side="white")
+    assert move.classification == "Brilliant"
+
+
+def test_classify_brilliant_not_given_when_already_winning_without_mate():
+    """Sacrifice in an overwhelmingly won position (win_chance >= 0.95) without forced mate is Best, not Brilliant."""
+    fen = "r1bq1rk1/pppn1ppp/4p3/3p4/2PP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 0 8"
+    move = MoveAnalysis(
+        move_number=8,
+        ply=15,
+        san="Bxh7+",
+        uci="d3h7",
+        fen_before=fen,
+        win_chance_before=0.96,  # Already winning by a landslide
+        win_chance_after=0.98,
+        best_move="d3h7",
+        eval_before_cp=600,
+        eval_after_cp=900,
+        eval_after_mate=None,
     )
     multi_pvs = [
-        {"uci": "e5f7", "cp": 300, "mate": None},
-        {"uci": "e5d3", "cp": -100, "mate": None},
+        {"uci": "d3h7", "cp": 900, "mate": None},
+        {"uci": "e1g1", "cp": 890, "mate": None},  # Alternative is just as crushing
     ]
     classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs)
-    assert move.classification in ("Brilliant", "Great")
+    assert move.classification == "Best"
+
+
+def test_classify_pinned_piece_not_sacrifice():
+    """A piece landing on a square attacked only by a pinned piece cannot be taken, so it is Best, not Brilliant."""
+    # Move 21 in game: White plays 21. Rxg6+. Black pawn on f7 is absolutely pinned to King on g8 by Queen on g5.
+    fen_before_21 = "r1b2rk1/2p2p2/5Rn1/ppb1p1Q1/4P3/1B1P2P1/PPP1N1q1/2KR4 w - - 3 21"
+    move = MoveAnalysis(
+        move_number=21,
+        ply=41,
+        san="Rxg6+",
+        uci="f6g6",
+        fen_before=fen_before_21,
+        win_chance_before=1.0,
+        win_chance_after=1.0,
+        best_move="f6g6",
+        eval_before_mate=2,
+        eval_after_mate=1,
+    )
+    classify_move(move, wpl=0.0, side="white")
+    assert move.classification == "Best"
+
+
+def test_classify_brilliant_not_given_for_equal_trade():
+    """Equal piece trade (e.g. QxQ or RxR) is Best, not Brilliant."""
+    # FEN with queens facing each other on open file
+    fen_queens = "r2q1rk1/ppp2ppp/8/8/8/8/PPP2PPP/R2Q1RK1 w - - 0 1"
+    move = MoveAnalysis(
+        move_number=15,
+        ply=29,
+        san="Qxd8",
+        uci="d1d8",
+        fen_before=fen_queens,
+        win_chance_before=0.52,
+        win_chance_after=0.52,
+        best_move="d1d8",
+        eval_before_cp=10,
+        eval_after_cp=10,
+    )
+    classify_move(move, wpl=0.0, side="white")
+    assert move.classification == "Best"
+
+
+def test_classify_brilliant_not_given_for_unsound_sacrifice():
+    """An unsound sacrifice (high WPL / blunder) is classified as Blunder, not Brilliant."""
+    fen = "r1bq1rk1/pppn1ppp/4p3/3p4/2PP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 0 8"
+    move = MoveAnalysis(
+        move_number=8,
+        ply=15,
+        san="Bxh7+??",
+        uci="d3h7",
+        fen_before=fen,
+        win_chance_before=0.55,
+        win_chance_after=0.15,  # Completely ruined position
+        best_move="e1g1",
+        eval_before_cp=30,
+        eval_after_cp=-350,
+    )
+    classify_move(move, wpl=0.40, side="white")
+    assert move.classification == "Blunder"
 
 
 def test_classify_blunder_tier():
     """A move with large win probability loss is classified as Blunder."""
     move = MoveAnalysis(
-        move_number=10, ply=19, san="Qxa8??", uci="d1a8",
-        fen_before="start", win_chance_before=0.60, win_chance_after=0.20,
-        eval_before_cp=50, eval_after_cp=-250, best_move="e1g1"
+        move_number=10,
+        ply=19,
+        san="Qxa8??",
+        uci="d1a8",
+        fen_before="start",
+        win_chance_before=0.60,
+        win_chance_after=0.20,
+        eval_before_cp=50,
+        eval_after_cp=-250,
+        best_move="e1g1",
     )
     classify_move(move, wpl=0.40, side="white")
     assert move.classification == "Blunder"
