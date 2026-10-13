@@ -71,13 +71,13 @@ def test_classify_move():
     assert move.classification == "Best"
     assert move.explanation == "Delivered checkmate!"
 
-    # 2. Test Blunder: 70%→50% (wpl=0.20) qualifies with looser threshold
+    # 2. Test Missed opportunity (Miss): 70%→50% (wpl=0.20) drops from advantage to equal
     move = MoveAnalysis(
         move_number=2, ply=2, san="Nxf4", uci="d5f4", fen_before="",
         win_chance_before=0.70, win_chance_after=0.50
     )
     classify_move(move, wpl=0.20, side="white")
-    assert move.classification == "Blunder"
+    assert move.classification == "Miss"
 
     # 3. Test thresholds: Good (wpl = 3.5%)
     move = MoveAnalysis(move_number=3, ply=3, san="a6", uci="a7a6", fen_before="")
