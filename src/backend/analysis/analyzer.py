@@ -855,13 +855,12 @@ class Analyzer:
                 summary_counts[side]["acpl"] /= mc
 
                 if len(accuracies) >= 2:
-                    # Cap minimum accuracy to prevent div-by-zero in harmonic mean
-                    capped_accs = [max(a, 0.1) for a in accuracies]
+                    # Apply the shared accuracy floor so outliers can't collapse the harmonic mean
+                    capped_accs = [apply_accuracy_floor(a) for a in accuracies]
 
                     # Calculate sliding window volatility weights
                     window_size = max(2, min(8, len(accuracies) // 10))
                     weights = calculate_volatility_weights(win_percents, window_size)
-                    print(side, [(round(a, 1), round(w, 1)) for a, w in zip(accuracies, weights)])
                     # Volatility-weighted mean
                     weighted_mean_val = weighted_mean(capped_accs, weights)
 

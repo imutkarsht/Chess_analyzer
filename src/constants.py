@@ -115,3 +115,6 @@ PROVIDERS = {
         "help_url": "",
     },
 }
+
+# Minimum per-move accuracy (%), prevents harmonic mean collapse from outliers
+MIN_MOVE_ACCURACY = 10.0
