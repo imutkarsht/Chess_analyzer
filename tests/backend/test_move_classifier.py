@@ -255,3 +255,57 @@ def test_classify_blunder_tier():
     )
     classify_move(move, wpl=0.40, side="white")
     assert move.classification == "Blunder"
+
+
+def test_classify_mistake_tier():
+    """A move losing 10% to 20% win chances is classified as Mistake."""
+    move = MoveAnalysis(
+        move_number=14,
+        ply=27,
+        san="Nd4",
+        uci="c2d4",
+        fen_before="start",
+        win_chance_before=0.55,
+        win_chance_after=0.42,
+        eval_before_cp=35,
+        eval_after_cp=-60,
+        best_move="e1g1",
+    )
+    classify_move(move, wpl=0.13, side="white")
+    assert move.classification == "Mistake"
+
+
+def test_classify_inaccuracy_tier():
+    """A move losing 5% to 10% win chances is classified as Inaccuracy."""
+    move = MoveAnalysis(
+        move_number=12,
+        ply=23,
+        san="h3",
+        uci="h2h3",
+        fen_before="start",
+        win_chance_before=0.52,
+        win_chance_after=0.45,
+        eval_before_cp=15,
+        eval_after_cp=-35,
+        best_move="c1e3",
+    )
+    classify_move(move, wpl=0.07, side="white")
+    assert move.classification == "Inaccuracy"
+
+
+def test_classify_miss_winning_opportunity():
+    """Blowing a clearly winning position (>=70% win chance down to <50% but >=42%) is classified as Miss."""
+    move = MoveAnalysis(
+        move_number=25,
+        ply=49,
+        san="Kh1",
+        uci="g1h1",
+        fen_before="start",
+        win_chance_before=0.78,
+        win_chance_after=0.45,
+        eval_before_cp=240,
+        eval_after_cp=-40,
+        best_move="f3f7",
+    )
+    classify_move(move, wpl=0.33, side="white")
+    assert move.classification == "Miss"

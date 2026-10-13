@@ -285,47 +285,87 @@ def classify_move(
         move.explanation = "Engine's top choice."
         return
 
-    # ============ PRIORITY 4: Blunder Check ============
-    # Only guard against false blunders when the position was already extreme (±500cp).
-    # A large eval swing (e.g. hanging a queen) IS a blunder — do NOT treat it as noise.
-    extreme_position = move.eval_before_cp is not None and abs(move.eval_before_cp) > 500
-    if wpl >= 0.19 and player_wc_after <= 0.50 and player_wc_before > 0.35 and not extreme_position:
-        move.classification = "Blunder"
-        move.explanation = f"Lost {wpl * 100:.1f}% winning chances."
+    # Noise guard: If the player remains overwhelmingly winning after the move
+    # (e.g. still +700 cp or higher, up multiple pieces), it is not a game-altering blunder/mistake.
+    still_crushing_after = move.eval_after_cp is not None and (
+        (side == "white" and move.eval_after_cp >= 700)
+        or (side == "black" and move.eval_after_cp <= -700)
+    )
+
+    # ============ PRIORITY 4: Miss Check (Missed Opportunity) ============
+    # A Miss occurs when the player had a clear winning or tactical advantage
+    # (player_wc_before >= 0.70) but failed to find the punish, letting the opponent
+    # off the hook back into an equal or roughly balanced game (player_wc_after >= 0.45).
+    # Since the player did NOT ruin their position into a loss, it is a MISS, not a Blunder!
+    is_missed_opportunity = (
+        player_wc_before >= 0.70
+        and wpl >= 0.15
+        and player_wc_after >= 0.42
+        and not still_crushing_after
+    )
+    if is_missed_opportunity:
+        move.classification = "Miss"
+        move.explanation = f"Missed opportunity (dropped from {player_wc_before * 100:.0f}% to {player_wc_after * 100:.0f}%)."
+        logger.debug(
+            "Move %s (%s) classified as Miss (wc_before=%.2f -> wc_after=%.2f)",
+            getattr(move, "san", getattr(move, "uci", "unknown")),
+            side,
+            player_wc_before,
+            player_wc_after,
+        )
         return
 
-    # ============ PRIORITY 5: Missed Winning/Better Position ============
-    was_extreme = move.eval_before_cp is not None and abs(move.eval_before_cp) > 300
-    if not was_extreme:
-        if player_wc_before > 0.70 and player_wc_after < 0.50:
-            move.classification = "Miss"
-            move.explanation = f"Missed win (dropped from {player_wc_before * 100:.0f}% to {player_wc_after * 100:.0f}%)."
-            return
+    # ============ PRIORITY 5: Blunder Check ============
+    # A Blunder is a catastrophic error that directly turns the position into a loss
+    # or severely damages winning chances:
+    # 1. Massive win chance loss (WPL >= 0.25) where player does not remain winning (wc_after < 0.60).
+    # 2. Or substantial win chance loss (WPL >= 0.20) that directly plunges player into losing territory (wc_after < 0.35).
+    is_blunder = (
+        (wpl >= 0.25 and player_wc_after < 0.60) or (wpl >= 0.20 and player_wc_after < 0.35)
+    ) and not still_crushing_after
 
-        if player_wc_before > 0.60 and wpl > 0.12:
-            move.classification = "Miss"
-            move.explanation = (
-                f"Missed winning opportunity (lost {wpl * 100:.0f}% winning chances)."
-            )
-            return
+    if is_blunder:
+        move.classification = "Blunder"
+        move.explanation = f"Blunder! Lost {wpl * 100:.1f}% winning chances."
+        logger.debug(
+            "Move %s (%s) classified as Blunder (wpl=%.3f, wc_after=%.2f)",
+            getattr(move, "san", getattr(move, "uci", "unknown")),
+            side,
+            wpl,
+            player_wc_after,
+        )
+        return
 
-        if player_wc_before >= 0.55 and player_wc_after < 0.40 and wpl >= 0.10:
-            move.classification = "Miss"
-            move.explanation = f"Missed opportunity (dropped from {player_wc_before * 100:.0f}% to {player_wc_after * 100:.0f}%)."
-            return
+    # If player had a big lead (wc >= 70%) and dropped down to losing (wc < 42%), that is also a Missed Win
+    if (
+        player_wc_before >= 0.70
+        and player_wc_after < 0.42
+        and wpl >= 0.25
+        and not still_crushing_after
+    ):
+        move.classification = "Miss"
+        move.explanation = f"Missed win (dropped from {player_wc_before * 100:.0f}% to {player_wc_after * 100:.0f}%)."
+        logger.debug(
+            "Move %s (%s) classified as Miss (wc_before=%.2f -> wc_after=%.2f)",
+            getattr(move, "san", getattr(move, "uci", "unknown")),
+            side,
+            player_wc_before,
+            player_wc_after,
+        )
+        return
 
-        if wpl >= 0.25 and player_wc_before > 0.50:
-            move.classification = "Miss"
-            move.explanation = f"Missed (lost {wpl * 100:.0f}% winning chances)."
-            return
-
-    # ============ PRIORITY 6: WPL-Based Classification ============
-    if wpl >= 0.08:
+    # ============ PRIORITY 6: Standard Expected Points Tiers ============
+    # Standard Chess.com Expected Points Loss (WPL) thresholds:
+    # Mistake:    0.10 <= WPL < 0.25
+    # Inaccuracy: 0.05 <= WPL < 0.10
+    # Good:       0.02 <= WPL < 0.05
+    # Excellent:  WPL < 0.02
+    if wpl >= 0.10 and not still_crushing_after:
         move.classification = "Mistake"
-        move.explanation = f"Lost {wpl * 100:.1f}% winning chances."
-    elif wpl >= 0.045:
+        move.explanation = f"Mistake (lost {wpl * 100:.1f}% winning chances)."
+    elif wpl >= 0.05 and not still_crushing_after:
         move.classification = "Inaccuracy"
-        move.explanation = f"Slight inaccuracy ({wpl * 100:.1f}% loss)."
+        move.explanation = f"Inaccuracy (lost {wpl * 100:.1f}% winning chances)."
     elif wpl >= 0.02:
         move.classification = "Good"
         move.explanation = "Solid move."
