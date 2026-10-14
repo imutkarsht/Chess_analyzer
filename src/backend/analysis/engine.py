@@ -158,6 +158,7 @@ class EngineManager:
         self.config_manager = config_manager
         self.engine: chess.engine.SimpleEngine | None = None
         self.options: dict[str, Any] = options_from_config(config_manager)
+        self._current_analysis: Any = None
 
     def start_engine(self):
         if not self.engine:
@@ -174,10 +175,24 @@ class EngineManager:
                 raise
 
     def stop_engine(self):
+        self.cancel_current_analysis()
         if self.engine:
             logger.info("Stopping Stockfish engine process")
-            self.engine.quit()
+            try:
+                self.engine.quit()
+            except Exception as e:
+                logger.debug("Error while quitting engine: %s", e)
             self.engine = None
+
+    def cancel_current_analysis(self):
+        """Immediately stop ongoing engine analysis computation if active."""
+        if self._current_analysis is not None:
+            try:
+                self._current_analysis.stop()
+            except Exception as e:
+                logger.debug("Error stopping active analysis: %s", e)
+            finally:
+                self._current_analysis = None
 
     def configure_engine(self, options: dict[str, Any]):
         self.options.update(options)
@@ -263,7 +278,13 @@ class EngineManager:
             raise RuntimeError("Engine not started")
 
         limit = chess.engine.Limit(time=time_limit, depth=depth)
-        info = self.engine.analyse(board, limit, multipv=multi_pv)
+        with self.engine.analysis(board, limit, multipv=multi_pv) as analysis_stream:
+            self._current_analysis = analysis_stream
+            try:
+                analysis_stream.wait()
+            finally:
+                self._current_analysis = None
+        info = analysis_stream.info if multi_pv == 1 else analysis_stream.multipv
         return info
 
     def get_best_move(self, board: chess.Board, time_limit: float = 0.1) -> chess.Move | None:

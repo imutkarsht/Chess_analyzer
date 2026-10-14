@@ -114,11 +114,75 @@ def _detect_sacrifice(fen_before: str | None, uci: str | None) -> bool:
         return False
 
 
+def _is_recapture_or_routine_capture(
+    fen_before: str | None,
+    uci: str | None,
+    prev_move: Any = None,
+) -> bool:
+    """
+    Determines if a move is a recapture, routine piece trade, or obvious capture of a hanging piece.
+    Such moves must be classified as 'Best', never 'Great', even if they are the only viable move.
+    """
+    # 1. Check direct recapture via move coordinates
+    # If the opponent moved to square X on the previous ply and this move lands on square X,
+    # it is capturing the piece that just moved/captured there (direct recapture or taking blunder).
+    if prev_move is not None and uci and len(uci) >= 4:
+        prev_uci = getattr(prev_move, "uci", None)
+        if prev_uci and len(prev_uci) >= 4 and prev_uci[2:4] == uci[2:4]:
+            logger.debug(
+                "Recapture detected via square matching: %s on %s",
+                uci,
+                uci[2:4],
+            )
+            return True
+
+    if not fen_before or not uci:
+        return False
+
+    try:
+        board = chess.Board(fen_before, chess960=True)
+        chess_move = chess.Move.from_uci(uci)
+
+        if chess_move not in board.legal_moves:
+            return False
+
+        # If it's not a capture, it cannot be a recapture or piece trade
+        if not board.is_capture(chess_move):
+            return False
+
+        dest_sq = chess_move.to_square
+
+        # En passant always captures the pawn that just moved
+        if board.is_en_passant(chess_move):
+            return True
+
+        moving_piece = board.piece_at(chess_move.from_square)
+        moving_val = _get_piece_value(moving_piece.piece_type if moving_piece else None)
+        captured_piece = board.piece_at(dest_sq)
+        captured_val = _get_piece_value(captured_piece.piece_type if captured_piece else chess.PAWN)
+
+        # Equal trade (e.g. QxQ, RxR, BxB, NxN, PxP)
+        if captured_val == moving_val:
+            return True
+
+        # Minor piece for minor piece trade (Bishop for Knight or Knight for Bishop)
+        return bool(
+            moving_piece
+            and captured_piece
+            and moving_piece.piece_type in (chess.KNIGHT, chess.BISHOP)
+            and captured_piece.piece_type in (chess.KNIGHT, chess.BISHOP)
+        )
+    except Exception as e:
+        logger.debug("Recapture check failed for move %s: %s", uci, e)
+        return False
+
+
 def classify_move(
     move: Any,
     wpl: float,
     side: str,
     multi_pvs: list[dict[str, Any]] | None = None,
+    prev_move: Any = None,
 ) -> None:
     """
     Classifies a move via WPL thresholds and special-case checks.
@@ -249,8 +313,25 @@ def classify_move(
                 return
 
         # --- GREAT MOVE DETECTION ---
-        # If multi-PV data is available, detect the only move that maintains advantage
-        if multi_pvs and len(multi_pvs) > 1:
+        # Chess.com criteria: An only move that is critical to saving the game or maintaining an advantage.
+        # Obvious recaptures, routine trades, and simple captures of hanging pieces are strictly excluded.
+        is_routine_or_recapture = _is_recapture_or_routine_capture(fen_before, uci, prev_move)
+
+        # Check if the move is forced or trivial escape from check
+        is_forced_or_trivial = False
+        if fen_before:
+            try:
+                temp_board = chess.Board(fen_before, chess960=True)
+                legal_count = temp_board.legal_moves.count()
+                if legal_count <= 1 or (temp_board.is_check() and legal_count <= 2):
+                    is_forced_or_trivial = True
+            except Exception:
+                pass
+
+        # Exclude direct recaptures, routine equal trades, or forced moves
+        can_be_great = not is_routine_or_recapture and not is_forced_or_trivial
+
+        if can_be_great and multi_pvs and len(multi_pvs) > 1:
             sb_data = multi_pvs[1]
             sb_cp = sb_data.get("cp")
             sb_mate = sb_data.get("mate")
@@ -269,8 +350,8 @@ def classify_move(
                 player_sb_wp = sb_wp if side == "white" else (1.0 - sb_wp)
                 diff = player_wc_after - player_sb_wp
 
-                # If alternatives were significantly worse (diff > 0.15), it is a Great move
-                if diff > 0.15:
+                # If alternatives were significantly worse (rest are worse), this is the only move -> Great!
+                if diff >= 0.15:
                     move.classification = "Great"
                     move.explanation = f"Only good move! Alternatives were {diff * 100:.0f}% worse."
                     logger.debug(

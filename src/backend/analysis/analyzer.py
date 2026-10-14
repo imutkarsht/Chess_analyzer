@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 import time
 from typing import Any
 
@@ -89,11 +90,23 @@ class Analyzer:
     def __del__(self):
         self.close()
 
-    def analyze_game(self, game_analysis: GameAnalysis, callback=None):
+    def cancel(self):
+        """Immediately cancel current analysis in both engine and analyzer loop."""
+        if hasattr(self, "_cancel_event"):
+            self._cancel_event.set()
+        self.engine_manager.cancel_current_analysis()
+
+    def analyze_game(
+        self,
+        game_analysis: GameAnalysis,
+        callback=None,
+        cancel_token: threading.Event | None = None,
+    ):
         """
         Analyzes a game structure in-place.
         """
         start_time = time.time()
+        self._cancel_event = cancel_token or threading.Event()
         try:
             logger.info(
                 "Analysis started: %s vs %s (ID: %s, %d moves)",
@@ -104,7 +117,9 @@ class Analyzer:
             )
 
             # 1. Analyze positions (Engine work)
-            summary_counts = self._analyze_positions(game_analysis, callback)
+            summary_counts = self._analyze_positions(
+                game_analysis, callback, cancel_token=self._cancel_event
+            )
 
             # 2. Populate stats
             game_analysis.summary = summary_counts
@@ -129,7 +144,12 @@ class Analyzer:
         finally:
             self.engine_manager.stop_engine()
 
-    def _analyze_positions(self, game_analysis: GameAnalysis, callback=None) -> dict:
+    def _analyze_positions(
+        self,
+        game_analysis: GameAnalysis,
+        callback=None,
+        cancel_token: threading.Event | None = None,
+    ) -> dict:
         """
         Runs the engine analysis loop for all moves in the game.
         Returns the raw summary counts/stats.
@@ -195,7 +215,18 @@ class Analyzer:
             },
         }
 
+        was_interrupted = False
+
         for i, move_data in enumerate(game_analysis.moves):
+            if cancel_token and cancel_token.is_set():
+                logger.info(
+                    "Analysis cancellation detected at move %d/%d; preserving partial results",
+                    i + 1,
+                    total_moves,
+                )
+                was_interrupted = True
+                break
+
             move_idx = i + 1
             if move_idx == 1 or move_idx % 10 == 0 or move_idx == total_moves:
                 logger.info(f"Analyzing move {move_idx}/{total_moves}...")
@@ -206,9 +237,24 @@ class Analyzer:
             board.set_fen(move_data.fen_before)
             is_white_turn = board.turn
 
-            info_list = self._get_position_analysis(board, move_data)
+            try:
+                info_list = self._get_position_analysis(board, move_data)
+            except Exception as e:
+                if cancel_token and cancel_token.is_set():
+                    logger.info("Engine call interrupted by cancellation: %s", e)
+                    was_interrupted = True
+                    break
+                raise
 
             self._process_analysis_results(move_data, info_list, is_white_turn, board)
+
+            if cancel_token and cancel_token.is_set():
+                logger.info(
+                    "Cancellation flag set after analyzing move %d; stopping",
+                    move_idx,
+                )
+                was_interrupted = True
+                break
 
             if i > 0 and callback:
                 prev_move = game_analysis.moves[i - 1]
@@ -242,7 +288,14 @@ class Analyzer:
                     if wpl < 0:
                         wpl = 0
 
-                    classify_move(prev_move, wpl, prev_side, prev_move.multi_pvs)
+                    prior_move = game_analysis.moves[i - 2] if i >= 2 else None
+                    classify_move(
+                        prev_move,
+                        wpl,
+                        prev_side,
+                        prev_move.multi_pvs,
+                        prev_move=prior_move,
+                    )
 
                     dummy_counts = {
                         "white": {
@@ -284,12 +337,14 @@ class Analyzer:
                         },
                     )
 
-        logger.info("Analyzing final position...")
-        if callback:
-            callback(total_moves + 1, total_moves)
-        final_score = self._analyze_final_position(game_analysis, board)
+        final_score = None
+        if not was_interrupted:
+            logger.info("Analyzing final position...")
+            if callback:
+                callback(total_moves + 1, total_moves)
+            final_score = self._analyze_final_position(game_analysis, board)
 
-        if total_moves > 0 and final_score and callback:
+        if total_moves > 0 and final_score and callback and not was_interrupted:
             last_move = game_analysis.moves[-1]
             temp_board = chess.Board(chess960=is_chess960)
             temp_board.set_fen(last_move.fen_before)
@@ -328,7 +383,14 @@ class Analyzer:
             if wpl < 0:
                 wpl = 0
 
-            classify_move(last_move, wpl, last_side, last_move.multi_pvs)
+            prior_move = game_analysis.moves[-2] if len(game_analysis.moves) >= 2 else None
+            classify_move(
+                last_move,
+                wpl,
+                last_side,
+                last_move.multi_pvs,
+                prev_move=prior_move,
+            )
 
             dummy_counts = {
                 "white": {
@@ -618,6 +680,10 @@ class Analyzer:
         has_recorded_exit = False
 
         for i, move in enumerate(game_analysis.moves):
+            # Only classify moves that were actually analyzed
+            if move.eval_before_cp is None and move.eval_before_mate is None:
+                continue
+
             # Determine side
             temp_board.set_fen(move.fen_before)
             side = "white" if temp_board.turn == chess.WHITE else "black"
@@ -680,7 +746,8 @@ class Analyzer:
                 wpl = 0
 
             # Classification
-            classify_move(move, wpl, side, move.multi_pvs)
+            prior_move = game_analysis.moves[i - 1] if i > 0 else None
+            classify_move(move, wpl, side, move.multi_pvs, prev_move=prior_move)
 
             # Update counts
             summary_counts[side][move.classification] += 1
@@ -741,7 +808,13 @@ class Analyzer:
         """Determines the evaluation of the position AFTER the move."""
         if index < len(game_analysis.moves) - 1:
             next_move = game_analysis.moves[index + 1]
-            return next_move.eval_before_cp, next_move.eval_before_mate
+            if next_move.eval_before_cp is not None or next_move.eval_before_mate is not None:
+                return next_move.eval_before_cp, next_move.eval_before_mate
+            # If the next move was not analyzed (e.g. analysis stopped), check if current move has eval_after
+            current_move = game_analysis.moves[index]
+            if current_move.eval_after_cp is not None or current_move.eval_after_mate is not None:
+                return current_move.eval_after_cp, current_move.eval_after_mate
+            return current_move.eval_before_cp, current_move.eval_before_mate
         else:
             # Final position - need to figure out whose turn it is AFTER the last move
             if final_score:

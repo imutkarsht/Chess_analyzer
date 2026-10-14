@@ -309,3 +309,121 @@ def test_classify_miss_winning_opportunity():
     )
     classify_move(move, wpl=0.33, side="white")
     assert move.classification == "Miss"
+
+
+def test_classify_recapture_is_best_not_great():
+    """Recapturing a piece on the square where opponent just captured is Best, not Great."""
+    # FEN where Black Knight just moved to d4 (captured on d4)
+    fen = "r1bqk2r/pp2bppp/2n5/3p4/3n4/2N2N2/PPP1BPPP/R1BQK2R w KQkq - 0 10"
+    prev_move = MoveAnalysis(
+        move_number=9,
+        ply=18,
+        san="Nxd4",
+        uci="c6d4",
+        fen_before="",
+    )
+    move = MoveAnalysis(
+        move_number=10,
+        ply=19,
+        san="Nxd4",
+        uci="f3d4",
+        fen_before=fen,
+        win_chance_before=0.52,
+        win_chance_after=0.52,
+        best_move="f3d4",
+    )
+    multi_pvs = [
+        {"uci": "f3d4", "cp": 15, "mate": None},
+        {"uci": "h2h3", "cp": -320, "mate": None},  # Blunders a piece if not recapturing
+    ]
+    classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs, prev_move=prev_move)
+    assert move.classification == "Best"
+    assert "Engine's top choice" in move.explanation
+
+
+def test_classify_equal_trade_is_best_not_great():
+    """Equal trades (QxQ, RxR, BxB) with only one viable move are Best, not Great."""
+    fen = "r2q1rk1/ppp2ppp/8/8/8/8/PPP2PPP/R2Q1RK1 w - - 0 1"
+    move = MoveAnalysis(
+        move_number=15,
+        ply=29,
+        san="Qxd8",
+        uci="d1d8",
+        fen_before=fen,
+        win_chance_before=0.50,
+        win_chance_after=0.50,
+        best_move="d1d8",
+    )
+    multi_pvs = [
+        {"uci": "d1d8", "cp": 0, "mate": None},
+        {"uci": "f1e1", "cp": -800, "mate": None},  # Dropping the Queen
+    ]
+    classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs)
+    assert move.classification == "Best"
+
+
+def test_classify_hanging_higher_piece_is_great():
+    """Capturing an undefended hanging higher-value piece where alternatives are worse is Great."""
+    # White pawn on c4 captures undefended Black Queen on d5
+    fen_pawn_takes_q = "r1b1kbnr/ppp1pppp/8/3q4/2P5/8/PP1P1PPP/RNBQKBNR w KQkq - 0 4"
+    take_q = MoveAnalysis(
+        move_number=4,
+        ply=7,
+        san="cxd5",
+        uci="c4d5",
+        fen_before=fen_pawn_takes_q,
+        win_chance_before=0.55,
+        win_chance_after=0.90,
+        best_move="c4d5",
+    )
+    multi_pvs = [
+        {"uci": "c4d5", "cp": 700, "mate": None},
+        {"uci": "d2d4", "cp": 20, "mate": None},  # Missing the free queen
+    ]
+    classify_move(take_q, wpl=0.0, side="white", multi_pvs=multi_pvs)
+    assert take_q.classification == "Great"
+
+
+def test_classify_only_move_where_rest_worse_is_great():
+    """Finding the only move in a position where the rest are worse is Great."""
+    fen = "r1bq1rk1/pppn1ppp/4p3/3p4/2PP4/2NBPN2/PP3PPP/R1BQK2R w KQ - 0 8"
+    move = MoveAnalysis(
+        move_number=18,
+        ply=35,
+        san="h3",
+        uci="h2h3",
+        fen_before=fen,
+        win_chance_before=0.60,
+        win_chance_after=0.65,
+        best_move="h2h3",
+    )
+    multi_pvs = [
+        {"uci": "h2h3", "cp": 80, "mate": None},
+        {"uci": "a2a3", "cp": -150, "mate": None},  # Rest of moves are worse
+    ]
+    classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs)
+    assert move.classification == "Great"
+    assert "Only good move" in move.explanation
+
+
+def test_classify_genuine_great_move():
+    """A critical quiet move in a balanced/sharp game where only it avoids a blunder is Great."""
+    # Quiet defensive queen move defending against a king attack
+    fen = "r1b1kb1r/pppp1ppp/8/4p3/7q/3P4/PPP2PPP/RNBQK2R w KQkq - 0 8"
+    move = MoveAnalysis(
+        move_number=8,
+        ply=15,
+        san="Qe2",
+        uci="d1e2",
+        fen_before=fen,
+        win_chance_before=0.52,
+        win_chance_after=0.54,
+        best_move="d1e2",
+    )
+    multi_pvs = [
+        {"uci": "d1e2", "cp": 20, "mate": None},
+        {"uci": "a2a3", "cp": -300, "mate": None},  # Alternative drops decisive attack/material
+    ]
+    classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs)
+    assert move.classification == "Great"
+    assert "Only good move" in move.explanation

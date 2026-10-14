@@ -115,7 +115,9 @@ class MainWindow(QMainWindow):
         """)
 
         self._engine_pill = QLabel()
-        self._engine_pill.setStyleSheet("font-size: 12px; font-weight: 600; padding: 0 6px; background: transparent;")
+        self._engine_pill.setStyleSheet(
+            "font-size: 12px; font-weight: 600; padding: 0 6px; background: transparent;"
+        )
         self.statusBar().addWidget(self._engine_pill)
 
         # Thin separator
@@ -124,11 +126,13 @@ class MainWindow(QMainWindow):
         self.statusBar().addWidget(sep)
 
         self._status_lbl = QLabel("Ready")
-        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;")
+        self._status_lbl.setStyleSheet(
+            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
+        )
         self.statusBar().addWidget(self._status_lbl)
 
         # Spinner timer for Calculating animation
-        self._spinner_frames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+        self._spinner_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         self._spinner_idx = 0
         self._spinner_timer = QTimer(self)
         self._spinner_timer.timeout.connect(self._tick_spinner)
@@ -174,6 +178,7 @@ class MainWindow(QMainWindow):
         """Handle update check result."""
         if update_info.available:
             from .dialogs import UpdateNotificationDialog
+
             dialog = UpdateNotificationDialog(update_info, self)
             dialog.exec()
 
@@ -235,12 +240,15 @@ class MainWindow(QMainWindow):
     def _save_window_state(self):
         """Persist the current window geometry to the user config."""
         frame = self.frameGeometry()
-        self.config_manager.set("window_state", {
-            "x": frame.x(),
-            "y": frame.y(),
-            "width": self.width(),
-            "height": self.height(),
-        })
+        self.config_manager.set(
+            "window_state",
+            {
+                "x": frame.x(),
+                "y": frame.y(),
+                "width": self.width(),
+                "height": self.height(),
+            },
+        )
 
     def closeEvent(self, event):
         """Save window geometry on close so the next launch can restore it."""
@@ -250,21 +258,21 @@ class MainWindow(QMainWindow):
             logger.error(f"Failed to save window state: {e}")
 
         # Stop live analysis worker thread cleanly
-        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             try:
                 self.move_list_panel.live_worker.stop()
             except Exception as e:
                 logger.error(f"Failed to stop analysis live worker: {e}")
 
         # Stop explorer's live analysis worker
-        if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'live_worker'):
+        if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "live_worker"):
             try:
                 self.explorer_view.live_worker.stop()
             except Exception as e:
                 logger.error(f"Failed to stop explorer live worker: {e}")
 
         # Stop full analysis worker if it is running
-        if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
             try:
                 self.worker.stop()
                 self.worker.wait()
@@ -273,9 +281,9 @@ class MainWindow(QMainWindow):
 
         # Stop AI Coach summary thread if running
         if (
-            hasattr(self, 'analysis_panel')
+            hasattr(self, "analysis_panel")
             and self.analysis_panel
-            and hasattr(self.analysis_panel, 'summary_thread')
+            and hasattr(self.analysis_panel, "summary_thread")
             and self.analysis_panel.summary_thread
             and self.analysis_panel.summary_thread.isRunning()
         ):
@@ -287,15 +295,23 @@ class MainWindow(QMainWindow):
             self.analysis_panel.summary_thread.wait()
 
         # Stop metrics workers if running
-        if hasattr(self, 'metrics_view') and self.metrics_view:
-            if hasattr(self.metrics_view, 'stats_worker') and self.metrics_view.stats_worker and self.metrics_view.stats_worker.isRunning():
+        if hasattr(self, "metrics_view") and self.metrics_view:
+            if (
+                hasattr(self.metrics_view, "stats_worker")
+                and self.metrics_view.stats_worker
+                and self.metrics_view.stats_worker.isRunning()
+            ):
                 try:
                     self.metrics_view.stats_worker.finished.disconnect()
                 except (TypeError, RuntimeError):
                     pass
                 self.metrics_view.stats_worker.quit()
                 self.metrics_view.stats_worker.wait()
-            if hasattr(self.metrics_view, 'worker') and self.metrics_view.worker and self.metrics_view.worker.isRunning():
+            if (
+                hasattr(self.metrics_view, "worker")
+                and self.metrics_view.worker
+                and self.metrics_view.worker.isRunning()
+            ):
                 try:
                     self.metrics_view.worker.finished.disconnect()
                     self.metrics_view.worker.error.disconnect()
@@ -305,7 +321,7 @@ class MainWindow(QMainWindow):
                 self.metrics_view.worker.wait()
 
         # Stop SettingsView test worker if running
-        if hasattr(self, 'settings_view') and self.settings_view:
+        if hasattr(self, "settings_view") and self.settings_view:
             prev = getattr(self.settings_view, "_test_worker", None)
             if prev is not None and prev.isRunning():
                 try:
@@ -316,25 +332,28 @@ class MainWindow(QMainWindow):
                 prev.wait(1000)
 
         # Stop update worker if running
-        if hasattr(self, 'update_worker') and self.update_worker and self.update_worker.isRunning():
+        if hasattr(self, "update_worker") and self.update_worker and self.update_worker.isRunning():
             try:
                 self.update_worker.wait(500)
             except Exception as e:
                 logger.error(f"Failed to stop update worker: {e}")
 
         # Clean up analyzer and database resources
-        if hasattr(self, 'analyzer') and self.analyzer:
+        if hasattr(self, "analyzer") and self.analyzer:
             try:
                 self.analyzer.close()
             except Exception as e:
                 logger.error(f"Failed to close analyzer: {e}")
 
         # Clean up explorer view databases
-        if hasattr(self, 'explorer_view') and self.explorer_view:
+        if hasattr(self, "explorer_view") and self.explorer_view:
             try:
-                if hasattr(self.explorer_view, 'opening_db') and self.explorer_view.opening_db:
+                if hasattr(self.explorer_view, "opening_db") and self.explorer_view.opening_db:
                     self.explorer_view.opening_db.close()
-                if hasattr(self.explorer_view, 'polyglot_manager') and self.explorer_view.polyglot_manager:
+                if (
+                    hasattr(self.explorer_view, "polyglot_manager")
+                    and self.explorer_view.polyglot_manager
+                ):
                     self.explorer_view.polyglot_manager.close()
             except Exception as e:
                 logger.error(f"Failed to close explorer view resources: {e}")
@@ -373,7 +392,9 @@ class MainWindow(QMainWindow):
 
         # --- Page 3: Metrics View ---
         self.metrics_view = MetricsWidget(self.config_manager, self.history_manager)
-        self.metrics_view.request_settings.connect(lambda: (self.sidebar.set_active(4), self.switch_page(4)))
+        self.metrics_view.request_settings.connect(
+            lambda: (self.sidebar.set_active(4), self.switch_page(4))
+        )
         self.stack.addWidget(self.metrics_view)
 
         # --- Page 4: Settings View ---
@@ -392,7 +413,9 @@ class MainWindow(QMainWindow):
     def _setup_shortcuts(self):
         # File Operations
         self.shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
-        self.shortcut_open.activated.connect(lambda: QTimer.singleShot(0, lambda: self.open_load_dialog(0)))
+        self.shortcut_open.activated.connect(
+            lambda: QTimer.singleShot(0, lambda: self.open_load_dialog(0))
+        )
 
         self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
         self.shortcut_paste.activated.connect(self._handle_paste)
@@ -496,12 +519,12 @@ class MainWindow(QMainWindow):
 
     def _on_live_thinking_started(self):
         """Live engine started computing — show Calculating unless full analysis is running."""
-        if not getattr(self, '_full_analysis_running', False):
+        if not getattr(self, "_full_analysis_running", False):
             self._set_engine_state("calculating")
 
     def _on_live_thinking_stopped(self):
         """Live engine finished computing — revert to Ready unless full analysis is running."""
-        if not getattr(self, '_full_analysis_running', False):
+        if not getattr(self, "_full_analysis_running", False):
             self._set_engine_state("ready")
 
     # Engine states: 'offline' | 'ready' | 'calculating'
@@ -541,12 +564,12 @@ class MainWindow(QMainWindow):
 
     # status label states
     _STATUS_STYLES = {
-        "idle":       ("○",  Styles.COLOR_TEXT_MUTED),
-        "info":       ("◎",  "#3498db"),
-        "success":    ("✔",  Styles.COLOR_ENGINE_READY),
-        "warning":    ("⚠",  Styles.COLOR_ENGINE_BUSY),
-        "error":      ("✖",  Styles.COLOR_BLUNDER),
-        "progress":   ("◌",  "#3498db"),
+        "idle": ("○", Styles.COLOR_TEXT_MUTED),
+        "info": ("◎", "#3498db"),
+        "success": ("✔", Styles.COLOR_ENGINE_READY),
+        "warning": ("⚠", Styles.COLOR_ENGINE_BUSY),
+        "error": ("✖", Styles.COLOR_BLUNDER),
+        "progress": ("◌", "#3498db"),
     }
 
     def _set_status(self, message: str, kind: str = "info"):
@@ -569,12 +592,14 @@ class MainWindow(QMainWindow):
             self.analyzer = Analyzer(
                 EngineManager(self.engine_path, config_manager=self.config_manager)
             )
-            if hasattr(self, 'move_list_panel'):
+            if hasattr(self, "move_list_panel"):
                 self.move_list_panel.update_engine_path(new_path)
             self.show_toast("Engine path updated. Future analyses will use the new engine.", "info")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
-            QMessageBox.warning(self, "Warning", f"Engine path updated, but failed to initialize: {e}")
+            QMessageBox.warning(
+                self, "Warning", f"Engine path updated, but failed to initialize: {e}"
+            )
         finally:
             self._refresh_engine_status()
 
@@ -589,10 +614,10 @@ class MainWindow(QMainWindow):
         if engine is not None:
             engine.apply_settings_from_config()
         # Also reconfigure the live analysis worker engine dynamically
-        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             logger.info("MainWindow: Reconfiguring live worker engine.")
             self.move_list_panel.live_worker.configure_engine()
-        if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'live_worker'):
+        if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "live_worker"):
             logger.info("MainWindow: Reconfiguring explorer live worker engine.")
             self.explorer_view.live_worker.configure_engine()
 
@@ -604,11 +629,12 @@ class MainWindow(QMainWindow):
         ConfigManager itself, so we don't have to pass anything here.
         """
         from src.backend.services.groq_service import GroqService
+
         logger.info("Updating LLM configuration in all views...")
-        if hasattr(self, 'metrics_view') and hasattr(self.metrics_view, 'groq_service'):
+        if hasattr(self, "metrics_view") and hasattr(self.metrics_view, "groq_service"):
             self.metrics_view.groq_service = GroqService()
             logger.info("LLM service in metrics_view refreshed.")
-        if hasattr(self, 'analysis_panel') and hasattr(self.analysis_panel, 'groq_service'):
+        if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "groq_service"):
             self.analysis_panel.groq_service = GroqService()
             logger.info("LLM service in analysis_panel refreshed.")
 
@@ -618,10 +644,10 @@ class MainWindow(QMainWindow):
         # Reload config in config_manager (it's a singleton pattern issue)
         self.config_manager.reload_config()
         # Refresh metrics view which uses usernames
-        if hasattr(self, 'metrics_view'):
+        if hasattr(self, "metrics_view"):
             self.metrics_view.refresh()
         # Refresh history view
-        if hasattr(self, 'history_view'):
+        if hasattr(self, "history_view"):
             self.history_view.load_history()
 
     def _apply_palette(self):
@@ -653,84 +679,97 @@ class MainWindow(QMainWindow):
         """Re-applies the global central QSS theme and updates non-QSS canvas/board widgets."""
         self._apply_palette()
         from src.gui.theme import ThemeManager
+
         ThemeManager.apply_app_stylesheet()
 
         # Header Buttons
-        if hasattr(self, 'btn_analyze'):
-            self.btn_analyze.setStyleSheet(Styles.get_button_style())
-        if hasattr(self, 'btn_explore'):
+        if hasattr(self, "btn_analyze"):
+            if getattr(self, "_full_analysis_running", False):
+                self.btn_analyze.setStyleSheet(Styles.get_danger_button_style())
+            else:
+                self.btn_analyze.setStyleSheet(Styles.get_button_style())
+        if hasattr(self, "btn_explore"):
             self.btn_explore.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'btn_load'):
+        if hasattr(self, "btn_load"):
             self.btn_load.setStyleSheet(Styles.get_control_button_style())
 
         # Analysis page header containers
-        if hasattr(self, 'analysis_header_bar'):
-            self.analysis_header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND) + " QFrame QLabel { background: transparent; }")
-        if hasattr(self, 'title_lbl'):
-            self.title_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
-        if hasattr(self, 'left_widget'):
+        if hasattr(self, "analysis_header_bar"):
+            self.analysis_header_bar.setStyleSheet(
+                Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND)
+                + " QFrame QLabel { background: transparent; }"
+            )
+        if hasattr(self, "title_lbl"):
+            self.title_lbl.setStyleSheet(
+                Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
+        if hasattr(self, "left_widget"):
             self.left_widget.setStyleSheet(Styles.get_background_style())
-        if hasattr(self, 'center_widget'):
+        if hasattr(self, "center_widget"):
             self.center_widget.setStyleSheet(Styles.get_background_style())
 
         # Update Chess Boards (Graphics / QPainter)
-        if hasattr(self, 'board_widget'):
+        if hasattr(self, "board_widget"):
             self.board_widget.update_board()
-        if hasattr(self, 'explorer_view') and hasattr(self.explorer_view, 'board_widget'):
+        if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "board_widget"):
             self.explorer_view.board_widget.update_board()
 
         # Refresh Matplotlib Evaluation Graphs & Custom Gauges
-        if hasattr(self, 'analysis_panel'):
+        if hasattr(self, "analysis_panel"):
             self.analysis_panel.refresh_styles()
-        if hasattr(self, 'move_list_panel'):
+        if hasattr(self, "move_list_panel"):
             self.move_list_panel.refresh_styles()
-        if hasattr(self, 'history_view'):
+        if hasattr(self, "history_view"):
             self.history_view.refresh_styles()
-        if hasattr(self, 'settings_view'):
+        if hasattr(self, "settings_view"):
             self.settings_view.refresh_styles()
-        if hasattr(self, 'metrics_view'):
-            if hasattr(self.metrics_view, 'refresh_styles'):
+        if hasattr(self, "metrics_view"):
+            if hasattr(self.metrics_view, "refresh_styles"):
                 self.metrics_view.refresh_styles()
             else:
                 self.metrics_view.refresh()
-        if hasattr(self, 'game_info_label'):
-            self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
+        if hasattr(self, "game_info_label"):
+            self.game_info_label.setStyleSheet(
+                f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;"
+            )
 
         # Update Menu Styles
         menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
-        if hasattr(self, 'load_menu'):
+        if hasattr(self, "load_menu"):
             self.load_menu.setStyleSheet(menu_style)
-        if hasattr(self, 'menu_pgn'):
+        if hasattr(self, "menu_pgn"):
             self.menu_pgn.setStyleSheet(menu_style)
-        if hasattr(self, 'menu_chesscom'):
+        if hasattr(self, "menu_chesscom"):
             self.menu_chesscom.setStyleSheet(menu_style)
-        if hasattr(self, 'menu_lichess'):
+        if hasattr(self, "menu_lichess"):
             self.menu_lichess.setStyleSheet(menu_style)
 
         # Update Captured Pieces
         for cp in ("captured_white", "captured_black"):
             if hasattr(self, cp):
                 w = getattr(self, cp)
-                if hasattr(w, 'refresh_styles'):
+                if hasattr(w, "refresh_styles"):
                     w.refresh_styles()
 
         # Update Game Controls
-        if hasattr(self, 'controls') and hasattr(self.controls, 'refresh_styles'):
+        if hasattr(self, "controls") and hasattr(self.controls, "refresh_styles"):
             self.controls.refresh_styles()
 
         # Update explorer view panels
-        if hasattr(self, 'explorer_view'):
+        if hasattr(self, "explorer_view"):
             ev = self.explorer_view
-            if hasattr(ev, 'refresh_styles'):
+            if hasattr(ev, "refresh_styles"):
                 ev.refresh_styles()
-            if hasattr(ev, 'move_list_widget') and hasattr(ev.move_list_widget, 'refresh_styles'):
+            if hasattr(ev, "move_list_widget") and hasattr(ev.move_list_widget, "refresh_styles"):
                 ev.move_list_widget.refresh_styles()
         # Update sidebar
-        if hasattr(self, 'sidebar'):
+        if hasattr(self, "sidebar"):
             self.sidebar.apply_style()
 
         # Update tour overlay accent
-        if hasattr(self, 'tour_overlay'):
+        if hasattr(self, "tour_overlay"):
             self.tour_overlay.refresh_accent()
 
         # Update status bar
@@ -743,16 +782,24 @@ class MainWindow(QMainWindow):
                 background: transparent;
             }}
         """)
-        if hasattr(self, '_status_lbl'):
-            self._status_lbl.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;")
-        if hasattr(self, '_engine_pill'):
+        if hasattr(self, "_status_lbl"):
+            self._status_lbl.setStyleSheet(
+                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
+            )
+        if hasattr(self, "_engine_pill"):
             state = self._engine_pill.text()
             if "Offline" in state:
-                self._engine_pill.setStyleSheet(f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};")
+                self._engine_pill.setStyleSheet(
+                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};"
+                )
             elif "Calculating" in state:
-                self._engine_pill.setStyleSheet(f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};")
+                self._engine_pill.setStyleSheet(
+                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};"
+                )
             else:
-                self._engine_pill.setStyleSheet(f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};")
+                self._engine_pill.setStyleSheet(
+                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};"
+                )
 
         # Force full style re-evaluation for all children
         self.style().unpolish(self)
@@ -767,7 +814,7 @@ class MainWindow(QMainWindow):
         if index == 3:  # Stats page
             self.metrics_view.refresh()
         # If a tour is active, close it silently (don't mark seen — user didn't finish it).
-        if hasattr(self, 'tour_overlay') and self.tour_overlay.isVisible():
+        if hasattr(self, "tour_overlay") and self.tour_overlay.isVisible():
             self.tour_overlay.close_silently()
         # Auto-start the tour the first time the user visits this page.
         if not self.tour_manager.has_seen_tour(index):
@@ -784,11 +831,13 @@ class MainWindow(QMainWindow):
         # so the tour retriggers on next visit once data becomes available).
         if page_index == 0 and self.current_game is None:
             return
-        if page_index == 2 and hasattr(self, 'history_view') and not self.history_view.games:
+        if page_index == 2 and hasattr(self, "history_view") and not self.history_view.games:
             return
-        if page_index == 3 and hasattr(self, 'metrics_view'):
+        if page_index == 3 and hasattr(self, "metrics_view"):
             mv = self.metrics_view
-            if not any(hasattr(mv, attr) for attr in ('accuracy_card', 'result_card', 'openings_card')):
+            if not any(
+                hasattr(mv, attr) for attr in ("accuracy_card", "result_card", "openings_card")
+            ):
                 return
 
         self._launch_tour(page_index)
@@ -814,7 +863,7 @@ class MainWindow(QMainWindow):
         """Called when the tour overlay closes. Uses the page the tour *started*
         on so a mid-tour page switch doesn't mark the wrong page.
         """
-        page_index = getattr(self, '_tour_page', self.stack.currentIndex())
+        page_index = getattr(self, "_tour_page", self.stack.currentIndex())
         self.tour_manager.mark_seen(page_index)
 
     def _build_tour_steps(self, page_index: int) -> list:
@@ -826,194 +875,281 @@ class MainWindow(QMainWindow):
         steps = []
 
         if page_index == 0:  # ── Analysis ───────────────────────────────────
-            steps.append(TourStep(
-                target=self.btn_load,
-                text='Load a game from a PGN file, raw text, or fetch directly by username or date from Chess.com and Lichess.',
-                position="below", page_index=0,
-            ))
-            steps.append(TourStep(
-                target=self.btn_analyze,
-                text='Click "Analyze Game" to start Stockfish. Engine evaluations, best moves, and classification badges stream live onto the board and move list.',
-                position="below", page_index=0,
-            ))
-            steps.append(TourStep(
-                target=self.board_widget,
-                text="Interactive chessboard showing the current move, best-move arrows, and material advantage counts.",
-                position="right", page_index=0,
-            ))
-            steps.append(TourStep(
-                target=self.move_list_panel,
-                text="Colour-coded move list with classification badges (Brilliant, Great, Best, Inaccuracy, Blunder) and live engine lines.",
-                position="left", page_index=0,
-            ))
-            steps.append(TourStep(
-                target=self.analysis_panel,
-                text="Evaluation graph with active move cursor pin, circular accuracy gauges, and AI Coach game summaries.",
-                position="left", page_index=0,
-            ))
-            steps.append(TourStep(
-                target=self.btn_explore,
-                text='"Explore from here" opens the Opening Explorer at the current position to study master continuations.',
-                position="below", page_index=0,
-            ))
+            steps.append(
+                TourStep(
+                    target=self.btn_load,
+                    text="Load a game from a PGN file, raw text, or fetch directly by username or date from Chess.com and Lichess.",
+                    position="below",
+                    page_index=0,
+                )
+            )
+            steps.append(
+                TourStep(
+                    target=self.btn_analyze,
+                    text='Click "Analyze Game" to start Stockfish. Engine evaluations, best moves, and classification badges stream live onto the board and move list.',
+                    position="below",
+                    page_index=0,
+                )
+            )
+            steps.append(
+                TourStep(
+                    target=self.board_widget,
+                    text="Interactive chessboard showing the current move, best-move arrows, and material advantage counts.",
+                    position="right",
+                    page_index=0,
+                )
+            )
+            steps.append(
+                TourStep(
+                    target=self.move_list_panel,
+                    text="Colour-coded move list with classification badges (Brilliant, Great, Best, Inaccuracy, Blunder) and live engine lines.",
+                    position="left",
+                    page_index=0,
+                )
+            )
+            steps.append(
+                TourStep(
+                    target=self.analysis_panel,
+                    text="Evaluation graph with active move cursor pin, circular accuracy gauges, and AI Coach game summaries.",
+                    position="left",
+                    page_index=0,
+                )
+            )
+            steps.append(
+                TourStep(
+                    target=self.btn_explore,
+                    text='"Explore from here" opens the Opening Explorer at the current position to study master continuations.',
+                    position="below",
+                    page_index=0,
+                )
+            )
 
         elif page_index == 1:  # ── Explorer ────────────────────────────────
-            if hasattr(ev, 'header_bar'):
-                steps.append(TourStep(
-                    target=ev.header_bar,
-                    text="Displays opening ECO code and opening name, updating with every played move.",
-                    position="below", page_index=1,
-                ))
-            if hasattr(ev, 'board_widget'):
-                steps.append(TourStep(
-                    target=ev.board_widget,
-                    text="Interactive board where you can play moves or walk through variations with real-time engine evaluations.",
-                    position="right", page_index=1,
-                ))
-            if hasattr(ev, 'chk_classify'):
-                steps.append(TourStep(
-                    target=ev.chk_classify,
-                    text='Toggle "Classify Moves" to get instant Brilliant, Great, and Blunder badges on every move you play.',
-                    position="below", page_index=1,
-                ))
-            if hasattr(ev, 'book_toggle'):
-                steps.append(TourStep(
-                    target=ev.book_toggle,
-                    text="Book Moves queries the Lichess Masters & Public database with interactive Win/Draw/Loss ratio bars and move statistics.",
-                    position="left", page_index=1,
-                ))
-            if hasattr(ev, 'btn_flip'):
-                steps.append(TourStep(
-                    target=ev.btn_flip,
-                    text="Use Flip Board, Copy FEN, and Copy PGN to easily export, analyze, or share any board position.",
-                    position="below", page_index=1,
-                ))
+            if hasattr(ev, "header_bar"):
+                steps.append(
+                    TourStep(
+                        target=ev.header_bar,
+                        text="Displays opening ECO code and opening name, updating with every played move.",
+                        position="below",
+                        page_index=1,
+                    )
+                )
+            if hasattr(ev, "board_widget"):
+                steps.append(
+                    TourStep(
+                        target=ev.board_widget,
+                        text="Interactive board where you can play moves or walk through variations with real-time engine evaluations.",
+                        position="right",
+                        page_index=1,
+                    )
+                )
+            if hasattr(ev, "chk_classify"):
+                steps.append(
+                    TourStep(
+                        target=ev.chk_classify,
+                        text='Toggle "Classify Moves" to get instant Brilliant, Great, and Blunder badges on every move you play.',
+                        position="below",
+                        page_index=1,
+                    )
+                )
+            if hasattr(ev, "book_toggle"):
+                steps.append(
+                    TourStep(
+                        target=ev.book_toggle,
+                        text="Book Moves queries the Lichess Masters & Public database with interactive Win/Draw/Loss ratio bars and move statistics.",
+                        position="left",
+                        page_index=1,
+                    )
+                )
+            if hasattr(ev, "btn_flip"):
+                steps.append(
+                    TourStep(
+                        target=ev.btn_flip,
+                        text="Use Flip Board, Copy FEN, and Copy PGN to easily export, analyze, or share any board position.",
+                        position="below",
+                        page_index=1,
+                    )
+                )
 
         elif page_index == 2:  # ── History ──────────────────────────────────
-            if hasattr(hv, 'search_input'):
-                steps.append(TourStep(
-                    target=hv.search_input,
-                    text="Search your game history by player handle, opening ECO, date, or match event in real time.",
-                    position="below", page_index=2,
-                ))
-            if hasattr(hv, 'result_filter'):
-                steps.append(TourStep(
-                    target=hv.result_filter,
-                    text="Filter by outcome (Wins / Draws / Losses), time control speed (Rapid, Blitz, Bullet), or platform source.",
-                    position="below", page_index=2,
-                ))
-            if hasattr(hv, 'game_list'):
-                steps.append(TourStep(
-                    target=hv.game_list,
-                    text="Saved game archives displayed as rich cards with accuracy badges, termination reasons, and a Detailed vs. Compact view toggle.",
-                    position="above", page_index=2,
-                ))
-            if hasattr(hv, 'btn_export'):
-                steps.append(TourStep(
-                    target=hv.btn_export,
-                    text='"Export" saves your analyzed games to standard PGN files compatible with any chess platform.',
-                    position="left", page_index=2,
-                ))
-            if hasattr(hv, 'btn_clear'):
-                steps.append(TourStep(
-                    target=hv.btn_clear,
-                    text='"Clear History" permanently deletes saved games. Always export a backup first if you want to keep the data.',
-                    position="left", page_index=2,
-                ))
+            if hasattr(hv, "search_input"):
+                steps.append(
+                    TourStep(
+                        target=hv.search_input,
+                        text="Search your game history by player handle, opening ECO, date, or match event in real time.",
+                        position="below",
+                        page_index=2,
+                    )
+                )
+            if hasattr(hv, "result_filter"):
+                steps.append(
+                    TourStep(
+                        target=hv.result_filter,
+                        text="Filter by outcome (Wins / Draws / Losses), time control speed (Rapid, Blitz, Bullet), or platform source.",
+                        position="below",
+                        page_index=2,
+                    )
+                )
+            if hasattr(hv, "game_list"):
+                steps.append(
+                    TourStep(
+                        target=hv.game_list,
+                        text="Saved game archives displayed as rich cards with accuracy badges, termination reasons, and a Detailed vs. Compact view toggle.",
+                        position="above",
+                        page_index=2,
+                    )
+                )
+            if hasattr(hv, "btn_export"):
+                steps.append(
+                    TourStep(
+                        target=hv.btn_export,
+                        text='"Export" saves your analyzed games to standard PGN files compatible with any chess platform.',
+                        position="left",
+                        page_index=2,
+                    )
+                )
+            if hasattr(hv, "btn_clear"):
+                steps.append(
+                    TourStep(
+                        target=hv.btn_clear,
+                        text='"Clear History" permanently deletes saved games. Always export a backup first if you want to keep the data.',
+                        position="left",
+                        page_index=2,
+                    )
+                )
 
         elif page_index == 3:  # ── Stats ────────────────────────────────────
-            if hasattr(mv, 'btn_refresh'):
-                steps.append(TourStep(
-                    target=mv.btn_refresh,
-                    text="Stats update automatically when you open this page. Hit Refresh to recalculate with newly analyzed games.",
-                    position="left", page_index=3,
-                ))
-            if hasattr(mv, 'stats_container') and mv.stats_container.isVisible():
-                steps.append(TourStep(
-                    target=mv.stats_container,
-                    text="Key performance summary cards displaying total games analyzed, overall win rate, average accuracy, and best win.",
-                    position="below", page_index=3,
-                ))
-            if hasattr(mv, 'result_card') and mv.result_card.isVisible():
-                steps.append(TourStep(
-                    target=mv.result_card,
-                    text="Visual donut charts breaking down your win/loss distribution, game endings, and move quality ratings.",
-                    position="below", page_index=3,
-                ))
-            if hasattr(mv, 'accuracy_card') and mv.accuracy_card.isVisible():
-                steps.append(TourStep(
-                    target=mv.accuracy_card,
-                    text="Accuracy Trend charts your average move accuracy trajectory over time.",
-                    position="above", page_index=3,
-                ))
-            if hasattr(mv, 'openings_card') and mv.openings_card.isVisible():
-                steps.append(TourStep(
-                    target=mv.openings_card,
-                    text="Top Openings ranks your most successful repertoires and win rates.",
-                    position="above", page_index=3,
-                ))
-            if hasattr(mv, 'ai_coach_card') and mv.ai_coach_card.isVisible():
-                steps.append(TourStep(
-                    target=mv.ai_coach_card,
-                    text="AI Coach provides personalized tactical advice, pattern weaknesses, and tailored training priorities.",
-                    position="above", page_index=3,
-                ))
+            if hasattr(mv, "btn_refresh"):
+                steps.append(
+                    TourStep(
+                        target=mv.btn_refresh,
+                        text="Stats update automatically when you open this page. Hit Refresh to recalculate with newly analyzed games.",
+                        position="left",
+                        page_index=3,
+                    )
+                )
+            if hasattr(mv, "stats_container") and mv.stats_container.isVisible():
+                steps.append(
+                    TourStep(
+                        target=mv.stats_container,
+                        text="Key performance summary cards displaying total games analyzed, overall win rate, average accuracy, and best win.",
+                        position="below",
+                        page_index=3,
+                    )
+                )
+            if hasattr(mv, "result_card") and mv.result_card.isVisible():
+                steps.append(
+                    TourStep(
+                        target=mv.result_card,
+                        text="Visual donut charts breaking down your win/loss distribution, game endings, and move quality ratings.",
+                        position="below",
+                        page_index=3,
+                    )
+                )
+            if hasattr(mv, "accuracy_card") and mv.accuracy_card.isVisible():
+                steps.append(
+                    TourStep(
+                        target=mv.accuracy_card,
+                        text="Accuracy Trend charts your average move accuracy trajectory over time.",
+                        position="above",
+                        page_index=3,
+                    )
+                )
+            if hasattr(mv, "openings_card") and mv.openings_card.isVisible():
+                steps.append(
+                    TourStep(
+                        target=mv.openings_card,
+                        text="Top Openings ranks your most successful repertoires and win rates.",
+                        position="above",
+                        page_index=3,
+                    )
+                )
+            if hasattr(mv, "ai_coach_card") and mv.ai_coach_card.isVisible():
+                steps.append(
+                    TourStep(
+                        target=mv.ai_coach_card,
+                        text="AI Coach provides personalized tactical advice, pattern weaknesses, and tailored training priorities.",
+                        position="above",
+                        page_index=3,
+                    )
+                )
             if not steps:
-                steps.append(TourStep(
-                    target=mv,
-                    text="Your personal performance dashboard with accuracy trends, result breakdown, top openings, and AI Coach insights.",
-                    position="below", page_index=3,
-                ))
+                steps.append(
+                    TourStep(
+                        target=mv,
+                        text="Your personal performance dashboard with accuracy trends, result breakdown, top openings, and AI Coach insights.",
+                        position="below",
+                        page_index=3,
+                    )
+                )
 
         elif page_index == 4:  # ── Settings ─────────────────────────────────
-            eng = getattr(sv, 'engine_settings', None)
-            app = getattr(sv, 'appearance_settings', None)
-            api = getattr(sv, 'api_settings', None)
-            ply = getattr(sv, 'player_settings', None)
-            lnk = getattr(sv, 'links_settings', None)
+            eng = getattr(sv, "engine_settings", None)
+            app = getattr(sv, "appearance_settings", None)
+            api = getattr(sv, "api_settings", None)
+            ply = getattr(sv, "player_settings", None)
+            lnk = getattr(sv, "links_settings", None)
 
             if eng:
-                steps.append(TourStep(
-                    target=eng,
-                    text="Chess Engine: Configure your Stockfish executable path (or click Download), search depth, and thread allocations.",
-                    position="below", page_index=4,
-                ))
+                steps.append(
+                    TourStep(
+                        target=eng,
+                        text="Chess Engine: Configure your Stockfish executable path (or click Download), search depth, and thread allocations.",
+                        position="below",
+                        page_index=4,
+                    )
+                )
             if app:
-                steps.append(TourStep(
-                    target=app,
-                    text="Appearance: Switch between Dark & Light themes, choose custom board themes, import custom piece SVGs, and pick live accent colors.",
-                    position="below", page_index=4,
-                ))
+                steps.append(
+                    TourStep(
+                        target=app,
+                        text="Appearance: Switch between Dark & Light themes, choose custom board themes, import custom piece SVGs, and pick live accent colors.",
+                        position="below",
+                        page_index=4,
+                    )
+                )
             if api:
-                steps.append(TourStep(
-                    target=api,
-                    text="API Configuration: Manage LLM profiles (Groq, OpenAI, LM Studio, MiniMax) for AI Coach game reviews.",
-                    position="above", page_index=4,
-                ))
+                steps.append(
+                    TourStep(
+                        target=api,
+                        text="API Configuration: Manage LLM profiles (Groq, OpenAI, LM Studio, MiniMax) for AI Coach game reviews.",
+                        position="above",
+                        page_index=4,
+                    )
+                )
             if ply:
-                steps.append(TourStep(
-                    target=ply,
-                    text="Player Accounts: Set your Chess.com and Lichess handles for automated performance stats and one-click game imports.",
-                    position="above", page_index=4,
-                ))
+                steps.append(
+                    TourStep(
+                        target=ply,
+                        text="Player Accounts: Set your Chess.com and Lichess handles for automated performance stats and one-click game imports.",
+                        position="above",
+                        page_index=4,
+                    )
+                )
             if lnk:
-                steps.append(TourStep(
-                    target=lnk,
-                    text="Links & Feedback: Check for updates, rate the app, submit feature ideas, or report bugs with diagnostic logs.",
-                    position="above", page_index=4,
-                ))
+                steps.append(
+                    TourStep(
+                        target=lnk,
+                        text="Links & Feedback: Check for updates, rate the app, submit feature ideas, or report bugs with diagnostic logs.",
+                        position="above",
+                        page_index=4,
+                    )
+                )
             if not steps:  # fallback
-                steps.append(TourStep(
-                    target=sv,
-                    text="Configure Stockfish engine path, analysis depth, AI provider, board theme, and piece style here.",
-                    position="below", page_index=4,
-                ))
+                steps.append(
+                    TourStep(
+                        target=sv,
+                        text="Configure Stockfish engine path, analysis depth, AI provider, board theme, and piece style here.",
+                        position="below",
+                        page_index=4,
+                    )
+                )
 
         return steps
 
     def load_game_from_history(self, game):
         self.load_game(game)
-        self.sidebar.set_active(0) # Switch to Analyze tab
+        self.sidebar.set_active(0)  # Switch to Analyze tab
         self.switch_page(0)
 
     def setup_analysis_page(self, parent_widget):
@@ -1037,23 +1173,37 @@ class MainWindow(QMainWindow):
 
         # Title
         self.title_lbl = QLabel("Chess Analysis")
-        self.title_lbl.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;")
+        self.title_lbl.setStyleSheet(
+            f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
+        )
         header_layout.addWidget(self.title_lbl)
 
         header_layout.addStretch()  # ← pushes buttons to the right, eating spare space
 
         # Explore Button
-        self.btn_explore = create_button("Explore from here", style="secondary", on_click=self.explore_current_position, icon_name="fa5s.compass")
+        self.btn_explore = create_button(
+            "Explore from here",
+            style="secondary",
+            on_click=self.explore_current_position,
+            icon_name="fa5s.compass",
+        )
         self.btn_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         header_layout.addWidget(self.btn_explore)
 
         # Load Game Button
-        self.btn_load = create_button("Load Game", style="secondary", on_click=self.open_load_dialog, icon_name="fa5s.folder-open")
+        self.btn_load = create_button(
+            "Load Game",
+            style="secondary",
+            on_click=self.open_load_dialog,
+            icon_name="fa5s.folder-open",
+        )
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         header_layout.addWidget(self.btn_load)
 
         # Analyze Game Button
-        self.btn_analyze = create_button("Analyze Game", style="primary", on_click=self.start_analysis, icon_name="fa5s.play")
+        self.btn_analyze = create_button(
+            "Analyze Game", style="primary", on_click=self.start_analysis, icon_name="fa5s.play"
+        )
         header_layout.addWidget(self.btn_analyze)
 
         main_layout.addWidget(self.analysis_header_bar)
@@ -1096,7 +1246,9 @@ class MainWindow(QMainWindow):
 
         self.game_info_label = QLabel("No Game Loaded")
         self.game_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.game_info_label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;")
+        self.game_info_label.setStyleSheet(
+            f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;"
+        )
         center_layout.addWidget(self.game_info_label)
 
         # Captured pieces: White sits at the BOTTOM of the board view,
@@ -1139,7 +1291,9 @@ class MainWindow(QMainWindow):
             self.analysis_panel.layout.setContentsMargins(5, 5, 5, 5)
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
-        self.analysis_panel.toggle_checkbox.toggled.connect(self.move_list_panel.set_engine_lines_enabled)
+        self.analysis_panel.toggle_checkbox.toggled.connect(
+            self.move_list_panel.set_engine_lines_enabled
+        )
 
         splitter.addWidget(self.analysis_panel)
         splitter.setSizes([250, 630, 320])
@@ -1162,7 +1316,9 @@ class MainWindow(QMainWindow):
                 self._set_status(status_msg, "success")
             return True
         else:
-            QMessageBox.warning(self, "Error", "Could not read this game.\nThe PGN data may be empty or corrupted.")
+            QMessageBox.warning(
+                self, "Error", "Could not read this game.\nThe PGN data may be empty or corrupted."
+            )
             return False
 
     def load_game(self, game):
@@ -1170,6 +1326,7 @@ class MainWindow(QMainWindow):
         if not game.moves and game.pgn_content:
             try:
                 from src.backend.storage.pgn_parser import PGNParser
+
                 parsed_games = PGNParser.parse_pgn_text(game.pgn_content)
                 if parsed_games:
                     parsed = parsed_games[0]
@@ -1213,9 +1370,13 @@ class MainWindow(QMainWindow):
                 if m.time_left is not None:
                     idx = game.moves.index(m)
                     if idx % 2 == 0 and white_time is None:
-                        white_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+                        white_time = m.time_left + (
+                            m.time_spent if m.time_spent is not None else 0.0
+                        )
                     elif idx % 2 == 1 and black_time is None:
-                        black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+                        black_time = m.time_left + (
+                            m.time_spent if m.time_spent is not None else 0.0
+                        )
 
             self.captured_white.update_clock(white_time)
             self.captured_black.update_clock(black_time)
@@ -1273,17 +1434,21 @@ class MainWindow(QMainWindow):
         # Update source
         # If we loaded from API, we can set source if not already set
         if not getattr(md, "source", None) or md.source == "file":
-             # Infer source?
-             if "url" in source_data and "chess.com" in source_data["url"]:
-                 md.source = "chesscom"
-             elif "url" in source_data and "lichess.org" in source_data["url"] or "white_rating" in source_data:
-                 md.source = "lichess"
+            # Infer source?
+            if "url" in source_data and "chess.com" in source_data["url"]:
+                md.source = "chesscom"
+            elif (
+                "url" in source_data
+                and "lichess.org" in source_data["url"]
+                or "white_rating" in source_data
+            ):
+                md.source = "lichess"
 
     def start_analysis(self):
         if not self.current_game:
             return
 
-        if hasattr(self, 'worker') and self.worker and self.worker.isRunning():
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
             QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
             return
 
@@ -1300,8 +1465,9 @@ class MainWindow(QMainWindow):
         else:
             logger.warning(f"Engine not found (configured: {self.engine_path})")
             from .dialogs.engine_error_dialog import EngineNotFoundDialog
+
             dialog = EngineNotFoundDialog(self)
-            if hasattr(self, 'config_manager'):
+            if hasattr(self, "config_manager"):
                 dialog.config_manager = lambda: self.config_manager
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 new_path = dialog.engine_path()
@@ -1337,26 +1503,72 @@ class MainWindow(QMainWindow):
             self.current_game.summary = {}
             self.current_game.ai_summary = ""
 
-            if hasattr(self, 'move_list_panel'):
+            if hasattr(self, "move_list_panel"):
                 self.move_list_panel.set_game(self.current_game)
-            if hasattr(self, 'analysis_panel'):
+            if hasattr(self, "analysis_panel"):
                 self.analysis_panel.set_game(self.current_game)
 
         self.worker = AnalysisWorker(self.analyzer, self.current_game)
         self.worker.progress.connect(self.on_analysis_progress)
         self.worker.move_analyzed.connect(self.on_move_analyzed)
         self.worker.finished.connect(self.on_analysis_finished)
+        self.worker.cancelled.connect(self.on_analysis_cancelled)
         self.worker.error.connect(self.on_analysis_error)
 
         self._full_analysis_running = True
+        self._update_analyze_button(running=True)
         self._set_engine_state("calculating", "Starting...")
         self._set_status("Starting analysis...", "progress")
         self.analysis_panel.set_analysis_running(True)
 
-        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.stop()
 
         self.worker.start()
+
+    def stop_analysis(self):
+        """Immediately stop running analysis and preserve partial results."""
+        if not getattr(self, "_full_analysis_running", False):
+            return
+        logger.info("MainWindow: stop_analysis requested by user.")
+        self._set_status("Stopping analysis...", "warning")
+        if hasattr(self, "btn_analyze"):
+            self.btn_analyze.setEnabled(False)
+
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
+            self.worker.cancel()
+
+    def _update_analyze_button(self, running: bool):
+        """Toggle the toolbar button between Analyze and Stop."""
+        import qtawesome as qta
+
+        if hasattr(self, "btn_analyze"):
+            if running:
+                self.btn_analyze.setText("  Stop Analysis")
+                self.btn_analyze.setStyleSheet(Styles.get_danger_button_style())
+                try:
+                    self.btn_analyze.setIcon(qta.icon("fa5s.stop", color="#ffffff"))
+                except Exception:
+                    pass
+                try:
+                    self.btn_analyze.clicked.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                self.btn_analyze.clicked.connect(self.stop_analysis)
+                self.btn_analyze.setEnabled(True)
+            else:
+                self.btn_analyze.setText("  Analyze Game")
+                self.btn_analyze.setStyleSheet(Styles.get_button_style())
+                try:
+                    self.btn_analyze.setIcon(qta.icon("fa5s.play", color="#ffffff"))
+                except Exception:
+                    pass
+                try:
+                    self.btn_analyze.clicked.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                self.btn_analyze.clicked.connect(self.start_analysis)
+                self.btn_analyze.setEnabled(True)
 
     def on_analysis_progress(self, current, total):
         if current > total:
@@ -1388,19 +1600,53 @@ class MainWindow(QMainWindow):
             self.board_widget.set_position(move_index)
 
             # Always update the progressive evaluation graph
-            if hasattr(self, 'analysis_panel') and hasattr(self.analysis_panel, 'graph_widget'):
+            if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
                 self.analysis_panel.graph_widget.plot_partial(self.current_game.moves, move_index)
                 self.analysis_panel.graph_widget.set_current_move(move_index)
 
+    def on_analysis_cancelled(self, game):
+        """Handle analysis cancellation while preserving partial results."""
+        self._full_analysis_running = False
+        self._update_analyze_button(running=False)
+        self.analysis_panel.set_analysis_running(False)
+        self._set_engine_state("ready")
+        self._set_status("Analysis stopped", "info")
+        self.show_toast("Analysis stopped", "info")
+        logger.info("Analysis cancelled; partial results preserved.")
+        self.current_game = game
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
+            self.move_list_panel.live_worker.start()
+        self.move_list_panel.set_game(game)
+        self.analysis_panel.set_game(game)
+
+        # Find the last analyzed move to position the board
+        analyzed_indices = [
+            idx
+            for idx, m in enumerate(game.moves)
+            if m.classification or m.eval_before_cp is not None
+        ]
+        if analyzed_indices:
+            last_analyzed = analyzed_indices[-1]
+            self.on_move_selected(last_analyzed)
+            if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
+                self.analysis_panel.graph_widget.plot_partial(game.moves, last_analyzed)
+                self.analysis_panel.graph_widget.set_current_move(last_analyzed)
+
+        if hasattr(self, "metrics_view"):
+            self.metrics_view.refresh()
+        if hasattr(self, "history_view"):
+            self.history_view.load_history()
+
     def on_analysis_finished(self, game):
         self._full_analysis_running = False
+        self._update_analyze_button(running=False)
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis complete", "success")
         self.show_toast("Analysis complete!", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game
-        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.start()
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
@@ -1408,9 +1654,9 @@ class MainWindow(QMainWindow):
         if game.moves and any(m.classification for m in game.moves):
             self.on_move_selected(len(game.moves) - 1)
         # Update other views with new data
-        if hasattr(self, 'metrics_view'):
+        if hasattr(self, "metrics_view"):
             self.metrics_view.refresh()
-        if hasattr(self, 'history_view'):
+        if hasattr(self, "history_view"):
             self.history_view.load_history()
 
         # Track analyzed games count and check for in-app review prompt
@@ -1428,16 +1674,18 @@ class MainWindow(QMainWindow):
         """Display the review prompt if the main window is active."""
         if self.isVisible() and not getattr(self, "_full_analysis_running", False):
             from .dialogs.review_prompt_dialog import ReviewPromptDialog
+
             dialog = ReviewPromptDialog(self, games_count=count)
             dialog.exec()
 
     def on_analysis_error(self, error_msg):
         self._full_analysis_running = False
+        self._update_analyze_button(running=False)
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status(f"Analysis failed: {error_msg}", "error")
         logger.error(f"Analysis error: {error_msg}")
-        if hasattr(self, 'move_list_panel') and hasattr(self.move_list_panel, 'live_worker'):
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.start()
 
         # Show error dialog with quick option to report bug
@@ -1453,6 +1701,7 @@ class MainWindow(QMainWindow):
 
         if msg_box.clickedButton() == report_btn:
             from .dialogs.feedback_dialog import FeedbackDialog
+
             dialog = FeedbackDialog(
                 self,
                 initial_tab="bug",
@@ -1464,6 +1713,7 @@ class MainWindow(QMainWindow):
     def open_load_dialog(self, initial_source: int = 0, initial_text: str = None):
         """Open the unified Load Game dialog."""
         from .dialogs.load_game_dialog import LoadGameDialog
+
         dialog = LoadGameDialog(self, initial_source=initial_source)
         if initial_text and initial_source == 1:
             dialog._pgn_text_panel._text_edit.setPlainText(initial_text)
@@ -1476,16 +1726,16 @@ class MainWindow(QMainWindow):
             elif dialog._pending_pgn:
                 pgn = dialog._pending_pgn
                 sd = dialog._pending_source_data
-                QTimer.singleShot(0, lambda: self._parse_and_load_game(
-                    pgn,
-                    source_data=sd,
-                    status_msg="Game loaded."
-                ))
+                QTimer.singleShot(
+                    0,
+                    lambda: self._parse_and_load_game(
+                        pgn, source_data=sd, status_msg="Game loaded."
+                    ),
+                )
 
     def _on_game_ready(self, pgn_text: str, source_data):
         """Deprecated: Kept for compatibility. Called by LoadGameDialog when the user confirms a game selection."""
-        self._parse_and_load_game(pgn_text, source_data=source_data,
-                                  status_msg="Game loaded.")
+        self._parse_and_load_game(pgn_text, source_data=source_data, status_msg="Game loaded.")
 
     def keyPressEvent(self, event):
         # Global shortcuts (help)
@@ -1493,7 +1743,10 @@ class MainWindow(QMainWindow):
             self.show_shortcuts_help()
             return
 
-        if event.key() == Qt.Key.Key_Slash and event.modifiers() == Qt.KeyboardModifier.ShiftModifier:
+        if (
+            event.key() == Qt.Key.Key_Slash
+            and event.modifiers() == Qt.KeyboardModifier.ShiftModifier
+        ):
             # Shift+/ = ? on most keyboards
             self.show_shortcuts_help()
             return
@@ -1503,6 +1756,7 @@ class MainWindow(QMainWindow):
     def show_shortcuts_help(self):
         """Show the keyboard shortcuts help dialog."""
         from .dialogs import ShortcutHelpDialog
+
         dialog = ShortcutHelpDialog(self)
         dialog.exec()
 
@@ -1511,7 +1765,7 @@ class MainWindow(QMainWindow):
         self.move_list_panel.select_move(index)
 
         # Update evaluation chart current move indicator
-        if hasattr(self, 'analysis_panel') and hasattr(self.analysis_panel, 'graph_widget'):
+        if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
             self.analysis_panel.graph_widget.set_current_move(index)
 
         if self.current_game:
@@ -1521,9 +1775,9 @@ class MainWindow(QMainWindow):
                 fen = None
             elif 0 <= index < len(moves):
                 if index + 1 < len(moves):
-                    fen = moves[index+1].fen_before
+                    fen = moves[index + 1].fen_before
                 else:
-                    if hasattr(self.board_widget, 'board'):
+                    if hasattr(self.board_widget, "board"):
                         fen = self.board_widget.board.fen()
 
             self.captured_white.update_captured(fen)
@@ -1551,12 +1805,16 @@ class MainWindow(QMainWindow):
                 if white_time is None:
                     for m in moves:
                         if m.time_left is not None and moves.index(m) % 2 == 0:
-                            white_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+                            white_time = m.time_left + (
+                                m.time_spent if m.time_spent is not None else 0.0
+                            )
                             break
                 if black_time is None:
                     for m in moves:
                         if m.time_left is not None and moves.index(m) % 2 == 1:
-                            black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
+                            black_time = m.time_left + (
+                                m.time_spent if m.time_spent is not None else 0.0
+                            )
                             break
 
                 self.captured_white.update_clock(white_time)
@@ -1584,7 +1842,7 @@ class MainWindow(QMainWindow):
         if not self.current_game:
             self._set_status("Load a game first before exploring", "warning")
             return
-        if hasattr(self, 'board_widget'):
+        if hasattr(self, "board_widget"):
             # Switch to Explorer tab
             self.sidebar.set_active(1)
             self.switch_page(1)
@@ -1640,8 +1898,8 @@ class MainWindow(QMainWindow):
         self.analyzer.config["use_cache"] = checked
 
     def resizeEvent(self, event):
-        if hasattr(self, 'loading_overlay'):
+        if hasattr(self, "loading_overlay"):
             self.loading_overlay.resize(self.size())
-        if hasattr(self, 'tour_overlay'):
+        if hasattr(self, "tour_overlay"):
             self.tour_overlay.setGeometry(self.rect())
         super().resizeEvent(event)
