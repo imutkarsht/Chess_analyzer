@@ -48,7 +48,9 @@ class ChessComAPI(BaseChessAPI):
                             break
 
             result = all_games[:limit]
-            logger.info("Successfully fetched %d games for user '%s' from Chess.com", len(result), username)
+            logger.info(
+                "Successfully fetched %d games for user '%s' from Chess.com", len(result), username
+            )
             return result
 
         except Exception as e:
@@ -76,9 +78,13 @@ class ChessComAPI(BaseChessAPI):
             games_list = data.get("games", [])
             matched_games = []
 
-            start_dt = datetime.datetime.combine(date, datetime.time.min, tzinfo=datetime.timezone.utc)
+            start_dt = datetime.datetime.combine(
+                date, datetime.time.min, tzinfo=datetime.timezone.utc
+            )
             start_ts = int(start_dt.timestamp())
-            end_dt = datetime.datetime.combine(date, datetime.time.max, tzinfo=datetime.timezone.utc)
+            end_dt = datetime.datetime.combine(
+                date, datetime.time.max, tzinfo=datetime.timezone.utc
+            )
             end_ts = int(end_dt.timestamp())
 
             for game in games_list:
@@ -92,7 +98,9 @@ class ChessComAPI(BaseChessAPI):
             return []
 
     @staticmethod
-    def get_game_by_id(game_id: str, url: str | None = None, username: str | None = None) -> dict | None:
+    def get_game_by_id(
+        game_id: str, url: str | None = None, username: str | None = None
+    ) -> dict | None:
         """
         Fetches a specific game by its ID using ONLY Chess.com Public API.
         Requires the player's username to search their archives.
@@ -172,3 +180,87 @@ class ChessComAPI(BaseChessAPI):
         if match:
             return match.group(1)
         return None
+
+    @staticmethod
+    def get_user_profile(username: str) -> dict | None:
+        """
+        Fetches public profile & live rating stats for a Chess.com user.
+        Returns normalized dictionary with avatar, ratings, total games, win rate, etc.
+        """
+        clean_user = username.strip().lower()
+        if not clean_user:
+            return None
+
+        profile_url = f"{ChessComAPI.BASE_URL}/player/{clean_user}"
+        stats_url = f"{ChessComAPI.BASE_URL}/player/{clean_user}/stats"
+
+        prof_resp = BaseChessAPI._make_request(profile_url, ChessComAPI.HEADERS)
+        if not prof_resp:
+            return None
+        prof_data = BaseChessAPI._safe_json(prof_resp)
+        if not prof_data:
+            return None
+
+        stats_data = {}
+        stats_resp = BaseChessAPI._make_request(stats_url, ChessComAPI.HEADERS)
+        if stats_resp:
+            stats_data = BaseChessAPI._safe_json(stats_resp) or {}
+
+        def parse_stat(key: str) -> dict:
+            item = stats_data.get(key, {})
+            last_r = item.get("last", {}).get("rating")
+            best_r = item.get("best", {}).get("rating")
+            record = item.get("record", {})
+            wins = record.get("win", 0)
+            losses = record.get("loss", 0)
+            draws = record.get("draw", 0)
+            return {
+                "rating": last_r,
+                "peak": best_r,
+                "games": wins + losses + draws,
+                "win": wins,
+                "loss": losses,
+                "draw": draws,
+            }
+
+        bullet = parse_stat("chess_bullet")
+        blitz = parse_stat("chess_blitz")
+        rapid = parse_stat("chess_rapid")
+        daily = parse_stat("chess_daily")
+
+        tactics_item = stats_data.get("tactics", {})
+        tactics_highest = tactics_item.get("highest", {}).get("rating")
+        tactics_lowest = tactics_item.get("lowest", {}).get("rating")
+        puzzle = {
+            "rating": tactics_highest or tactics_lowest,
+            "peak": tactics_highest,
+            "games": 0,
+        }
+
+        total_games = bullet["games"] + blitz["games"] + rapid["games"] + daily["games"]
+        total_wins = bullet["win"] + blitz["win"] + rapid["win"] + daily["win"]
+        total_losses = bullet["loss"] + blitz["loss"] + rapid["loss"] + daily["loss"]
+        total_draws = bullet["draw"] + blitz["draw"] + rapid["draw"] + daily["draw"]
+        win_rate = (total_wins / total_games * 100) if total_games > 0 else 0.0
+
+        return {
+            "platform": "chesscom",
+            "username": prof_data.get("username", clean_user),
+            "title": prof_data.get("title"),
+            "avatar": prof_data.get("avatar"),
+            "country": prof_data.get("country"),
+            "joined": prof_data.get("joined"),
+            "url": prof_data.get("url"),
+            "bullet": bullet,
+            "blitz": blitz,
+            "rapid": rapid,
+            "classical": daily,
+            "puzzle": puzzle,
+            "total_games": total_games,
+            "win_rate": win_rate,
+            "record": {
+                "win": total_wins,
+                "loss": total_losses,
+                "draw": total_draws,
+            },
+        }

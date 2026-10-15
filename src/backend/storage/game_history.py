@@ -75,6 +75,20 @@ class GameHistoryManager:
                     ("source", "TEXT"),
                     ("chess960", "INTEGER"),
                     ("moves_json", "TEXT"),
+                    ("speed_category", "TEXT"),
+                    ("book_exit_ply", "INTEGER"),
+                    ("white_opening_acc", "REAL"),
+                    ("black_opening_acc", "REAL"),
+                    ("white_middlegame_acc", "REAL"),
+                    ("black_middlegame_acc", "REAL"),
+                    ("white_endgame_acc", "REAL"),
+                    ("black_endgame_acc", "REAL"),
+                    ("white_pieces_hung", "INTEGER DEFAULT 0"),
+                    ("black_pieces_hung", "INTEGER DEFAULT 0"),
+                    ("white_brilliant_count", "INTEGER DEFAULT 0"),
+                    ("black_brilliant_count", "INTEGER DEFAULT 0"),
+                    ("white_great_count", "INTEGER DEFAULT 0"),
+                    ("black_great_count", "INTEGER DEFAULT 0"),
                 ]
 
                 # Check existing columns
@@ -135,63 +149,148 @@ class GameHistoryManager:
 
                 moves_data = []
                 for m in game_analysis.moves:
-                    moves_data.append({
-                        "move_number": m.move_number,
-                        "ply": m.ply,
-                        "san": m.san,
-                        "uci": m.uci,
-                        "fen_before": m.fen_before,
-                        "eval_before_cp": m.eval_before_cp,
-                        "eval_before_mate": m.eval_before_mate,
-                        "best_move": m.best_move,
-                        "best_eval_cp": m.best_eval_cp,
-                        "best_eval_mate": m.best_eval_mate,
-                        "pv": m.pv,
-                        "eval_after_cp": m.eval_after_cp,
-                        "eval_after_mate": m.eval_after_mate,
-                        "win_chance_before": m.win_chance_before,
-                        "win_chance_after": m.win_chance_after,
-                        "classification": m.classification,
-                        "explanation": m.explanation,
-                        "multi_pvs": m.multi_pvs,
-                        "is_book_move": m.is_book_move,
-                        "eco": m.eco,
-                        "opening_name": m.opening_name,
-                        "candidate_continuations": m.candidate_continuations,
-                        "time_left": m.time_left,
-                        "time_spent": m.time_spent,
-                        "raw_clk": m.raw_clk,
-                    })
+                    moves_data.append(
+                        {
+                            "move_number": m.move_number,
+                            "ply": m.ply,
+                            "san": m.san,
+                            "uci": m.uci,
+                            "fen_before": m.fen_before,
+                            "eval_before_cp": m.eval_before_cp,
+                            "eval_before_mate": m.eval_before_mate,
+                            "best_move": m.best_move,
+                            "best_eval_cp": m.best_eval_cp,
+                            "best_eval_mate": m.best_eval_mate,
+                            "pv": m.pv,
+                            "eval_after_cp": m.eval_after_cp,
+                            "eval_after_mate": m.eval_after_mate,
+                            "win_chance_before": m.win_chance_before,
+                            "win_chance_after": m.win_chance_after,
+                            "classification": m.classification,
+                            "explanation": m.explanation,
+                            "multi_pvs": m.multi_pvs,
+                            "is_book_move": m.is_book_move,
+                            "eco": m.eco,
+                            "opening_name": m.opening_name,
+                            "candidate_continuations": m.candidate_continuations,
+                            "time_left": m.time_left,
+                            "time_spent": m.time_spent,
+                            "raw_clk": m.raw_clk,
+                        }
+                    )
                 moves_json = json.dumps(moves_data)
 
-                cursor.execute("""
+                # Compute tactical analysis & phase metrics
+                from src.backend.analysis.tactics import analyze_game_tactics
+
+                tactics_white = analyze_game_tactics(
+                    moves_data, "white", game_analysis.metadata.result
+                )
+                tactics_black = analyze_game_tactics(
+                    moves_data, "black", game_analysis.metadata.result
+                )
+
+                # Enrich summary_json
+                summary_dict = (
+                    dict(game_analysis.summary)
+                    if game_analysis.summary
+                    else {"white": {}, "black": {}}
+                )
+                if "white" not in summary_dict:
+                    summary_dict["white"] = {}
+                if "black" not in summary_dict:
+                    summary_dict["black"] = {}
+
+                summary_dict["white"]["tactics"] = tactics_white
+                summary_dict["black"]["tactics"] = tactics_black
+                summary_json = json.dumps(summary_dict)
+
+                speed_category = game_analysis.metadata.speed_category
+                book_exit_ply = tactics_white.get("book_exit_ply")
+                white_phase = tactics_white.get("phase_accuracies", {})
+                black_phase = tactics_black.get("phase_accuracies", {})
+                white_hanging = tactics_white.get("hanging_metrics", {})
+                black_hanging = tactics_black.get("hanging_metrics", {})
+                white_brilliants = len(
+                    [
+                        b
+                        for b in tactics_white.get("brilliancies", [])
+                        if b.get("classification") == "Brilliant"
+                    ]
+                )
+                white_greats = len(
+                    [
+                        b
+                        for b in tactics_white.get("brilliancies", [])
+                        if b.get("classification") == "Great"
+                    ]
+                )
+                black_brilliants = len(
+                    [
+                        b
+                        for b in tactics_black.get("brilliancies", [])
+                        if b.get("classification") == "Brilliant"
+                    ]
+                )
+                black_greats = len(
+                    [
+                        b
+                        for b in tactics_black.get("brilliancies", [])
+                        if b.get("classification") == "Great"
+                    ]
+                )
+
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO games (
                         id, white, black, result, date, event, pgn, summary_json, timestamp,
                         white_elo, black_elo, time_control, eco, termination, opening, starting_fen, source,
-                        chess960, moves_json
+                        chess960, moves_json, speed_category, book_exit_ply,
+                        white_opening_acc, black_opening_acc,
+                        white_middlegame_acc, black_middlegame_acc,
+                        white_endgame_acc, black_endgame_acc,
+                        white_pieces_hung, black_pieces_hung,
+                        white_brilliant_count, black_brilliant_count,
+                        white_great_count, black_great_count
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    game_id,
-                    game_analysis.metadata.white,
-                    game_analysis.metadata.black,
-                    game_analysis.metadata.result,
-                    game_analysis.metadata.date,
-                    game_analysis.metadata.event,
-                    pgn_content,
-                    summary_json,
-                    time.time(),
-                    game_analysis.metadata.white_elo,
-                    game_analysis.metadata.black_elo,
-                    game_analysis.metadata.time_control,
-                    game_analysis.metadata.eco,
-                    game_analysis.metadata.termination,
-                    game_analysis.metadata.opening,
-                    game_analysis.metadata.starting_fen,
-                    game_analysis.metadata.source,
-                    int(game_analysis.metadata.chess960),
-                    moves_json,
-                ))
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        game_id,
+                        game_analysis.metadata.white,
+                        game_analysis.metadata.black,
+                        game_analysis.metadata.result,
+                        game_analysis.metadata.date,
+                        game_analysis.metadata.event,
+                        pgn_content,
+                        summary_json,
+                        time.time(),
+                        game_analysis.metadata.white_elo,
+                        game_analysis.metadata.black_elo,
+                        game_analysis.metadata.time_control,
+                        game_analysis.metadata.eco,
+                        game_analysis.metadata.termination,
+                        game_analysis.metadata.opening,
+                        game_analysis.metadata.starting_fen,
+                        game_analysis.metadata.source,
+                        int(game_analysis.metadata.chess960),
+                        moves_json,
+                        speed_category,
+                        book_exit_ply,
+                        white_phase.get("opening"),
+                        black_phase.get("opening"),
+                        white_phase.get("middlegame"),
+                        black_phase.get("middlegame"),
+                        white_phase.get("endgame"),
+                        black_phase.get("endgame"),
+                        white_hanging.get("total_hung", 0),
+                        black_hanging.get("total_hung", 0),
+                        white_brilliants,
+                        black_brilliants,
+                        white_greats,
+                        black_greats,
+                    ),
+                )
 
                 conn.commit()
             logger.info(f"Game saved to history: {game_id}")
@@ -305,46 +404,15 @@ class GameHistoryManager:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cached_at = info.cached_at or time.strftime("%Y-%m-%d %H:%M:%S")
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO api_game_cache (
                         id, source, white, black, result, date, pgn,
                         white_elo, black_elo, time_class, move_count, opening, cached_at
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    info.game_id,
-                    info.source,
-                    info.white,
-                    info.black,
-                    info.result,
-                    info.date,
-                    info.pgn,
-                    info.white_elo,
-                    info.black_elo,
-                    info.time_class,
-                    info.move_count,
-                    info.opening,
-                    cached_at,
-                ))
-                conn.commit()
-        except Exception as e:
-            logger.error(f"Failed to save cached game {info.game_id}: {e}")
-
-    def save_cached_games_bulk(self, games):
-        """Saves multiple GameInfo objects inside a single database transaction."""
-        try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                cached_at = time.strftime("%Y-%m-%d %H:%M:%S")
-                for info in games:
-                    c_at = info.cached_at or cached_at
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO api_game_cache (
-                            id, source, white, black, result, date, pgn,
-                            white_elo, black_elo, time_class, move_count, opening, cached_at
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
+                """,
+                    (
                         info.game_id,
                         info.source,
                         info.white,
@@ -357,8 +425,45 @@ class GameHistoryManager:
                         info.time_class,
                         info.move_count,
                         info.opening,
-                        c_at,
-                    ))
+                        cached_at,
+                    ),
+                )
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to save cached game {info.game_id}: {e}")
+
+    def save_cached_games_bulk(self, games):
+        """Saves multiple GameInfo objects inside a single database transaction."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cached_at = time.strftime("%Y-%m-%d %H:%M:%S")
+                for info in games:
+                    c_at = info.cached_at or cached_at
+                    cursor.execute(
+                        """
+                        INSERT OR REPLACE INTO api_game_cache (
+                            id, source, white, black, result, date, pgn,
+                            white_elo, black_elo, time_class, move_count, opening, cached_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            info.game_id,
+                            info.source,
+                            info.white,
+                            info.black,
+                            info.result,
+                            info.date,
+                            info.pgn,
+                            info.white_elo,
+                            info.black_elo,
+                            info.time_class,
+                            info.move_count,
+                            info.opening,
+                            c_at,
+                        ),
+                    )
                 conn.commit()
             logger.debug(f"Saved {len(games)} games to API cache")
         except Exception as e:
@@ -404,30 +509,35 @@ class GameHistoryManager:
             with self._get_connection() as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT * FROM api_game_cache
                     WHERE source = ? AND date = ?
                       AND (LOWER(white) = ? OR LOWER(black) = ?)
-                """, (source, date, username.lower(), username.lower()))
+                """,
+                    (source, date, username.lower(), username.lower()),
+                )
                 rows = cursor.fetchall()
                 games = []
                 for row in rows:
                     d = dict(row)
-                    games.append(GameInfo(
-                        game_id=d["id"],
-                        source=d["source"],
-                        white=d["white"],
-                        black=d["black"],
-                        result=d["result"],
-                        date=d["date"],
-                        pgn=d["pgn"],
-                        white_elo=d["white_elo"],
-                        black_elo=d["black_elo"],
-                        time_class=d["time_class"],
-                        move_count=d["move_count"],
-                        opening=d["opening"],
-                        cached_at=d["cached_at"],
-                    ))
+                    games.append(
+                        GameInfo(
+                            game_id=d["id"],
+                            source=d["source"],
+                            white=d["white"],
+                            black=d["black"],
+                            result=d["result"],
+                            date=d["date"],
+                            pgn=d["pgn"],
+                            white_elo=d["white_elo"],
+                            black_elo=d["black_elo"],
+                            time_class=d["time_class"],
+                            move_count=d["move_count"],
+                            opening=d["opening"],
+                            cached_at=d["cached_at"],
+                        )
+                    )
                 return games
         except Exception as e:
             logger.error(f"Failed to get cached games for date {date}: {e}")
@@ -449,10 +559,13 @@ class GameHistoryManager:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO explorer_cache (fen, response_json, cached_at)
                     VALUES (?, ?, ?)
-                """, (fen, response_json, time.strftime("%Y-%m-%d %H:%M:%S")))
+                """,
+                    (fen, response_json, time.strftime("%Y-%m-%d %H:%M:%S")),
+                )
                 conn.commit()
         except Exception as e:
             logger.error(f"Failed to save explorer cache: {e}")
@@ -462,7 +575,9 @@ class GameHistoryManager:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT response_json, cached_at FROM explorer_cache WHERE fen = ?", (fen,))
+                cursor.execute(
+                    "SELECT response_json, cached_at FROM explorer_cache WHERE fen = ?", (fen,)
+                )
                 row = cursor.fetchone()
                 if row:
                     response_json, cached_at = row

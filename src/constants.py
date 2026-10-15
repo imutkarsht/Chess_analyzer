@@ -20,6 +20,7 @@ CHESSCOM_HEADERS = {
     "User-Agent": f"ChessAnalyzerPro/{APP_VERSION} (https://github.com/imutkarsht/Chess_analyzer)"
 }
 LICHESS_BASE_URL = "https://lichess.org/api/games/user"
+LICHESS_USER_URL = "https://lichess.org/api/user"
 LICHESS_EXPORT_URL = "https://lichess.org/game/export"
 CHESSCOM_CALLBACK_LIVE = "https://www.chess.com/callback/live/game"
 CHESSCOM_CALLBACK_DAILY = "https://www.chess.com/callback/daily/game"

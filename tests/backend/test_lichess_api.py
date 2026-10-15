@@ -1,6 +1,7 @@
 """
 Tests for Lichess API - URL parsing, game ID extraction.
 """
+
 from src.backend.api.lichess_api import LichessAPI
 
 
@@ -65,8 +66,8 @@ class TestGetGameById:
             "pgn": "1. e4 e5 1-0",
             "players": {
                 "white": {"user": {"name": "Player1"}, "rating": 1500},
-                "black": {"user": {"name": "Player2"}, "rating": 1400}
-            }
+                "black": {"user": {"name": "Player2"}, "rating": 1400},
+            },
         }
 
         api = LichessAPI()
@@ -111,3 +112,46 @@ class TestGetUserGames:
         args, kwargs = mock_requests.call_args
         assert kwargs["params"]["clocks"] == "true"
         assert kwargs["params"]["max"] == 5
+
+
+class TestGetUserProfile:
+    """Tests for fetching Lichess user profile & ratings."""
+
+    def test_get_user_profile_success(self, mock_requests):
+        mock_response = mock_requests.return_value
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "magnus",
+            "username": "MagnusCarlsen",
+            "title": "GM",
+            "createdAt": 1300000000000,
+            "url": "https://lichess.org/@/MagnusCarlsen",
+            "perfs": {
+                "bullet": {"rating": 2900, "games": 500},
+                "blitz": {"rating": 3050, "games": 2000},
+                "rapid": {"rating": 2800, "games": 100},
+                "classical": {"rating": 2750, "games": 20},
+                "puzzle": {"rating": 2600, "games": 400},
+            },
+            "count": {
+                "all": 3020,
+                "win": 2100,
+                "loss": 620,
+                "draw": 300,
+            },
+            "profile": {
+                "country": "NO",
+            },
+        }
+
+        api = LichessAPI()
+        prof = api.get_user_profile("MagnusCarlsen")
+        assert prof is not None
+        assert prof["platform"] == "lichess"
+        assert prof["username"] == "MagnusCarlsen"
+        assert prof["title"] == "GM"
+        assert prof["bullet"]["rating"] == 2900
+        assert prof["blitz"]["rating"] == 3050
+        assert prof["puzzle"]["rating"] == 2600
+        assert prof["total_games"] == 3020
+        assert prof["country"] == "NO"
