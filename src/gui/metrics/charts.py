@@ -85,9 +85,9 @@ def create_line_chart_figure(
     Returns:
         matplotlib Figure object
     """
-    fig = Figure(figsize=figsize, dpi=dpi, facecolor=Styles.COLOR_SURFACE)
+    fig = Figure(figsize=figsize, dpi=dpi, facecolor='none')
     ax = fig.add_subplot(111)
-    ax.set_facecolor(Styles.COLOR_SURFACE)
+    ax.set_facecolor('none')
 
     if values:
         x = range(len(values))
@@ -175,6 +175,7 @@ def create_legend_widget(labels: list, colors: list, values: list = None) -> QWi
         QWidget containing the legend
     """
     legend_widget = QWidget()
+    legend_widget.setStyleSheet("background: transparent;")
     legend_layout = QVBoxLayout(legend_widget)
     legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
     legend_layout.setSpacing(8)

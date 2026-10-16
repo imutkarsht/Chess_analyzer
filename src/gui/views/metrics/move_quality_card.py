@@ -1,6 +1,5 @@
 import os
 
-import matplotlib
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt
@@ -24,9 +23,9 @@ class MoveQualityCard(MetricCard):
 
         counts = stats.get('quality_counts', {})
 
-        fig = Figure(figsize=(4, 3), dpi=100, facecolor=Styles.COLOR_SURFACE)
+        fig = Figure(figsize=(4, 3), dpi=100, facecolor='none')
         ax = fig.add_subplot(111)
-        ax.set_facecolor(Styles.COLOR_SURFACE)
+        ax.set_facecolor('none')
 
         labels = []
         sizes = []
@@ -45,9 +44,13 @@ class MoveQualityCard(MetricCard):
                 colors.append(color_map.get(k, '#888'))
 
         if sizes:
-            wedges, texts = ax.pie(sizes, labels=None, colors=colors, startangle=90)
-            centre_circle = matplotlib.patches.Circle((0,0), 0.70, fc=Styles.COLOR_SURFACE)
-            fig.gca().add_artist(centre_circle)
+            wedges, texts = ax.pie(
+                sizes,
+                labels=None,
+                colors=colors,
+                startangle=90,
+                wedgeprops=dict(width=0.30, edgecolor='none')
+            )
         else:
             ax.text(0, 0, "No moves", ha='center', va='center', color=Styles.COLOR_TEXT_SECONDARY)
 
@@ -57,12 +60,14 @@ class MoveQualityCard(MetricCard):
 
         # Container for Chart + Legend
         self.content_widget = QWidget()
+        self.content_widget.setStyleSheet("background: transparent;")
         layout = QHBoxLayout(self.content_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(canvas, stretch=3)
 
         # Custom Legend Sidebar
         legend_widget = QWidget()
+        legend_widget.setStyleSheet("background: transparent;")
         legend_layout = QVBoxLayout(legend_widget)
         legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         legend_layout.setSpacing(12)

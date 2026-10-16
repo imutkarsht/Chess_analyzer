@@ -28,6 +28,7 @@ class OpeningsListCard(MetricCard):
         sorted_ops = sorted(openings.items(), key=lambda x: x[1], reverse=True)
 
         self.content_widget = QWidget()
+        self.content_widget.setStyleSheet("background: transparent;")
         self.content_widget.setMinimumHeight(0)
         layout = QVBoxLayout(self.content_widget)
         layout.setSpacing(8)
@@ -46,6 +47,7 @@ class OpeningsListCard(MetricCard):
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("background: transparent; border: none;")
         scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: transparent;")
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setSpacing(4)
         scroll_layout.setContentsMargins(0, 0, 0, 0)

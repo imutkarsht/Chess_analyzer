@@ -7,86 +7,144 @@ class _StylesMeta(type):
     #  CORE PALETTE
     # ═══════════════════════════════════════════════════════════════
     @property
-    def COLOR_BACKGROUND(cls): return ThemeManager.palette().background
+    def COLOR_BACKGROUND(cls):
+        return ThemeManager.palette().background
+
     @property
-    def COLOR_SURFACE(cls): return ThemeManager.palette().surface
+    def COLOR_SURFACE(cls):
+        return ThemeManager.palette().surface
+
     @property
-    def COLOR_SURFACE_LIGHT(cls): return ThemeManager.palette().surface_light
+    def COLOR_SURFACE_LIGHT(cls):
+        return ThemeManager.palette().surface_light
+
     @property
-    def COLOR_SURFACE_CARD(cls): return ThemeManager.palette().surface_card
+    def COLOR_SURFACE_CARD(cls):
+        return ThemeManager.palette().surface_card
+
     @property
-    def COLOR_TEXT_PRIMARY(cls): return ThemeManager.palette().text_primary
+    def COLOR_TEXT_PRIMARY(cls):
+        return ThemeManager.palette().text_primary
+
     @property
-    def COLOR_TEXT_SECONDARY(cls): return ThemeManager.palette().text_secondary
+    def COLOR_TEXT_SECONDARY(cls):
+        return ThemeManager.palette().text_secondary
+
     @property
-    def COLOR_TEXT_MUTED(cls): return ThemeManager.palette().text_muted
+    def COLOR_TEXT_MUTED(cls):
+        return ThemeManager.palette().text_muted
+
     @property
-    def COLOR_ACCENT(cls): return ThemeManager.palette().accent
+    def COLOR_ACCENT(cls):
+        return ThemeManager.palette().accent
+
     @property
-    def COLOR_ACCENT_HOVER(cls): return ThemeManager.palette().accent_hover
+    def COLOR_ACCENT_HOVER(cls):
+        return ThemeManager.palette().accent_hover
+
     @property
-    def COLOR_ACCENT_SUBTLE(cls): return ThemeManager.palette().accent_subtle
+    def COLOR_ACCENT_SUBTLE(cls):
+        return ThemeManager.palette().accent_subtle
+
     @property
-    def COLOR_BORDER(cls): return ThemeManager.palette().border
+    def COLOR_BORDER(cls):
+        return ThemeManager.palette().border
+
     @property
-    def COLOR_BORDER_LIGHT(cls): return ThemeManager.palette().border_light
+    def COLOR_BORDER_LIGHT(cls):
+        return ThemeManager.palette().border_light
+
     @property
-    def COLOR_HIGHLIGHT(cls): return ThemeManager.palette().highlight
+    def COLOR_HIGHLIGHT(cls):
+        return ThemeManager.palette().highlight
+
     @property
-    def COLOR_PIECE_WHITE(cls): return ThemeManager.palette().piece_white
+    def COLOR_PIECE_WHITE(cls):
+        return ThemeManager.palette().piece_white
+
     @property
-    def COLOR_PIECE_BLACK(cls): return ThemeManager.palette().piece_black
+    def COLOR_PIECE_BLACK(cls):
+        return ThemeManager.palette().piece_black
+
     @property
-    def COLOR_BOARD_HIGHLIGHT(cls): return ThemeManager.palette().board_highlight
+    def COLOR_BOARD_HIGHLIGHT(cls):
+        return ThemeManager.palette().board_highlight
 
     # ═══════════════════════════════════════════════════════════════
     #  MOVE CLASSIFICATION COLORS
     # ═══════════════════════════════════════════════════════════════
     @property
-    def COLOR_BRILLIANT(cls): return ThemeManager.get_class_color("Brilliant")
+    def COLOR_BRILLIANT(cls):
+        return ThemeManager.get_class_color("Brilliant")
+
     @property
-    def COLOR_GREAT(cls): return ThemeManager.get_class_color("Great")
+    def COLOR_GREAT(cls):
+        return ThemeManager.get_class_color("Great")
+
     @property
-    def COLOR_BEST(cls): return ThemeManager.get_class_color("Best")
+    def COLOR_BEST(cls):
+        return ThemeManager.get_class_color("Best")
+
     @property
-    def COLOR_EXCELLENT(cls): return ThemeManager.get_class_color("Excellent")
+    def COLOR_EXCELLENT(cls):
+        return ThemeManager.get_class_color("Excellent")
+
     @property
-    def COLOR_GOOD(cls): return ThemeManager.get_class_color("Good")
+    def COLOR_GOOD(cls):
+        return ThemeManager.get_class_color("Good")
+
     @property
-    def COLOR_INACCURACY(cls): return ThemeManager.get_class_color("Inaccuracy")
+    def COLOR_INACCURACY(cls):
+        return ThemeManager.get_class_color("Inaccuracy")
+
     @property
-    def COLOR_MISTAKE(cls): return ThemeManager.get_class_color("Mistake")
+    def COLOR_MISTAKE(cls):
+        return ThemeManager.get_class_color("Mistake")
+
     @property
-    def COLOR_BLUNDER(cls): return ThemeManager.get_class_color("Blunder")
+    def COLOR_BLUNDER(cls):
+        return ThemeManager.get_class_color("Blunder")
+
     @property
-    def COLOR_MISS(cls): return ThemeManager.get_class_color("Miss")
+    def COLOR_MISS(cls):
+        return ThemeManager.get_class_color("Miss")
+
     @property
-    def COLOR_BOOK(cls): return ThemeManager.get_class_color("Book")
+    def COLOR_BOOK(cls):
+        return ThemeManager.get_class_color("Book")
 
     # ═══════════════════════════════════════════════════════════════
     #  SEMANTIC COLORS
     # ═══════════════════════════════════════════════════════════════
     @property
-    def COLOR_RESULT_WIN(cls): return "#4FA859"
-    @property
-    def COLOR_RESULT_DRAW(cls): return "#8E9AA6"
-    @property
-    def COLOR_RESULT_LOSS(cls): return "#2F3640"
+    def COLOR_RESULT_WIN(cls):
+        return "#4FA859"
 
     @property
-    def COLOR_ENGINE_READY(cls): return "#27ae60"
+    def COLOR_RESULT_DRAW(cls):
+        return "#8E9AA6"
+
     @property
-    def COLOR_ENGINE_BUSY(cls): return "#e67e22"
+    def COLOR_RESULT_LOSS(cls):
+        return "#2F3640"
+
+    @property
+    def COLOR_ENGINE_READY(cls):
+        return "#27ae60"
+
+    @property
+    def COLOR_ENGINE_BUSY(cls):
+        return "#e67e22"
 
     # ═══════════════════════════════════════════════════════════════
     #  BOARD THEMES
     # ═══════════════════════════════════════════════════════════════
     @property
-    def BOARD_THEMES(cls): return BOARD_THEMES
+    def BOARD_THEMES(cls):
+        return BOARD_THEMES
 
 
 class Styles(metaclass=_StylesMeta):
-
     # ═══════════════════════════════════════════════════════════════
     #  GLOBAL THEME
     # ═══════════════════════════════════════════════════════════════
@@ -818,11 +876,15 @@ class Styles(metaclass=_StylesMeta):
     def get_frame_style(cls, border_radius=12, hover_accent=True, object_name=None):
         p = ThemeManager.palette()
         selector = f"QFrame#{object_name}" if object_name else "QFrame"
-        hover_style = f"""
+        hover_style = (
+            f"""
             {selector}:hover {{
                 border: 1px solid {p.accent};
             }}
-        """ if hover_accent else ""
+        """
+            if hover_accent
+            else ""
+        )
 
         return f"""
             {selector} {{
@@ -1148,6 +1210,33 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_transparent_scroll_area_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QScrollArea {{
+                background-color: transparent;
+                border: none;
+            }}
+            QScrollBar:vertical {{
+                background-color: transparent;
+                width: 8px;
+                margin: 0px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {p.border};
+                min-height: 24px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {p.border_light};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """
+
+    @classmethod
     def get_splitter_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -1377,7 +1466,9 @@ class Styles(metaclass=_StylesMeta):
     #  STATS / METRICS PAGE
     # ═══════════════════════════════════════════════════════════════
     @classmethod
-    def get_ratio_bar_segment_style(cls, color, top_left=False, top_right=False, bottom_left=False, bottom_right=False):
+    def get_ratio_bar_segment_style(
+        cls, color, top_left=False, top_right=False, bottom_left=False, bottom_right=False
+    ):
         radii = [
             "4px" if top_left else "0px",
             "4px" if top_right else "0px",

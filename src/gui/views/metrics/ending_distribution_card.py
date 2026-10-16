@@ -38,6 +38,7 @@ class EndingDistributionCard(MetricCard):
         canvas = fig_to_canvas(fig)
 
         self.content_widget = QWidget()
+        self.content_widget.setStyleSheet("background: transparent;")
         layout = QHBoxLayout(self.content_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(canvas, stretch=3)

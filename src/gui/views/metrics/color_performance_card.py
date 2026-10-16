@@ -19,6 +19,7 @@ class ColorPerformanceCard(MetricCard):
                                                 'black': {'total': 0, 'wins': 0, 'losses': 0, 'draws': 0}})
 
         self.content_widget = QWidget()
+        self.content_widget.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(self.content_widget)
         layout.setSpacing(20)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -34,6 +35,7 @@ class ColorPerformanceCard(MetricCard):
                 losses_pct = stats_item['losses'] / total * 100
 
             wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent;")
             w_layout = QVBoxLayout(wrapper)
             w_layout.setSpacing(6)
             w_layout.setContentsMargins(0, 0, 0, 0)

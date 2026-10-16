@@ -18,6 +18,16 @@ QFrame#ReportCard, QFrame[card="true"] {{
     border-radius: 12px;
 }}
 
+QFrame#MetricCard, QFrame[metric_card="true"] {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+
+QFrame#MetricCard QWidget, QFrame[metric_card="true"] QWidget {{
+    background-color: transparent;
+}}
+
 QFrame#GameCard {{
     background-color: {SURFACE_CARD};
     border: 1px solid {BORDER};
