@@ -29,18 +29,23 @@ class StatCard(QFrame):
 
         # Cache properties for dynamic style refresh
         self._initial_color = color
-        self._use_accent_color = (color == Styles.COLOR_ACCENT)
+        self._use_accent_color = color == Styles.COLOR_ACCENT
 
+        self.setObjectName("StatCard")
         # Modern card styling with subtle gradient
         self.setStyleSheet(f"""
-            QFrame {{
+            QFrame#StatCard {{
                 background-color: {Styles.COLOR_SURFACE};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 12px;
             }}
-            QFrame:hover {{
+            QFrame#StatCard:hover {{
                 border: 1px solid {Styles.COLOR_ACCENT};
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QFrame#StatCard QLabel {{
+                border: none;
+                background: transparent;
             }}
         """)
 
@@ -68,7 +73,7 @@ class StatCard(QFrame):
         value_color = color if color else Styles.COLOR_TEXT_PRIMARY
         self.lbl_value.setStyleSheet(f"""
             color: {value_color};
-            font-size: 42px;
+            font-size: 40px;
             font-weight: 700;
             letter-spacing: -1px;
             border: none;
@@ -76,14 +81,14 @@ class StatCard(QFrame):
         """)
         layout.addWidget(self.lbl_value)
 
-        # Subtitle - Subtle, smaller
+        # Subtitle - Subtle, informative
         self.lbl_sub = None
         if subtitle:
             self.lbl_sub = QLabel(subtitle)
             self.lbl_sub.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_MUTED};
-                font-size: 12px;
-                font-weight: 400;
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 13px;
+                font-weight: 500;
                 border: none;
                 background: transparent;
             """)
@@ -95,23 +100,31 @@ class StatCard(QFrame):
     def refresh_styles(self):
         """Re-apply styles with the updated accent color."""
         self.setStyleSheet(f"""
-            QFrame {{
+            QFrame#StatCard {{
                 background-color: {Styles.COLOR_SURFACE};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 12px;
             }}
-            QFrame:hover {{
+            QFrame#StatCard:hover {{
                 border: 1px solid {Styles.COLOR_ACCENT};
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
+            }}
+            QFrame#StatCard QLabel {{
+                border: none;
+                background: transparent;
             }}
         """)
 
         self.lbl_title.setStyleSheet(Styles.get_card_title_style())
 
-        value_color = Styles.COLOR_ACCENT if self._use_accent_color else (self._initial_color if self._initial_color else Styles.COLOR_TEXT_PRIMARY)
+        value_color = (
+            Styles.COLOR_ACCENT
+            if self._use_accent_color
+            else (self._initial_color if self._initial_color else Styles.COLOR_TEXT_PRIMARY)
+        )
         self.lbl_value.setStyleSheet(f"""
             color: {value_color};
-            font-size: 42px;
+            font-size: 40px;
             font-weight: 700;
             letter-spacing: -1px;
             border: none;
@@ -120,9 +133,9 @@ class StatCard(QFrame):
 
         if self.lbl_sub:
             self.lbl_sub.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_MUTED};
-                font-size: 12px;
-                font-weight: 400;
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 13px;
+                font-weight: 500;
                 border: none;
                 background: transparent;
             """)

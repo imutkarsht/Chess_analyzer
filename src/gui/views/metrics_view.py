@@ -147,10 +147,17 @@ class MetricsWidget(QWidget):
         filter_layout.addWidget(self.lbl_period)
 
         self.combo_period = create_combobox(
-            items=["All Time", "Last 30 Days", "Last 90 Days", "This Year"],
+            items=[
+                "All Time",
+                "Last 24 Hours",
+                "Last 7 Days",
+                "Last 30 Days",
+                "Last 90 Days",
+                "This Year",
+            ],
             on_change=self.on_filter_changed,
         )
-        self.combo_period.setFixedWidth(125)
+        self.combo_period.setFixedWidth(135)
         filter_layout.addWidget(self.combo_period)
 
         filter_layout.addSpacing(10)
@@ -443,15 +450,37 @@ class MetricsWidget(QWidget):
         # 1. Key Metrics Row - uses custom adaptive StatsLayout
         self.stats_container = QWidget()
         self.stats_layout = StatsLayout(self.stats_container, spacing=16)
+
+        # Dynamic context subtitle based on active filters
+        filters = stats.get("filter_applied", {})
+        fmt_val = filters.get("format", "All Formats")
+        period_val = filters.get("date", "All Time")
+        color_val = filters.get("color", "All Colors")
+
+        context_parts = []
+        if fmt_val != "All Formats":
+            context_parts.append(fmt_val)
+        if color_val != "All Colors":
+            context_parts.append(f"as {color_val}")
+        if period_val != "All Time":
+            context_parts.append(period_val)
+
+        total_sub = " • ".join(context_parts) if context_parts else "All analyzed games"
+
+        # Win rate subtitle with exact record counts
+        wins = stats.get("wins", 0)
+        draws = stats.get("draws", 0)
+        losses = stats.get("losses", 0)
+        win_sub = f"{wins}W • {draws}D • {losses}L"
+
         self.stats_layout.addWidget(
-            StatCard("Total Games", str(stats["total"]), "Tracked this week", icon="games")
+            StatCard("Total Games", str(stats["total"]), total_sub)
         )
         self.stats_layout.addWidget(
             StatCard(
                 "Win Rate",
                 f"{stats['win_rate']:.1f}%",
-                f"Vs last {stats['total']} games",
-                icon="win_rate",
+                win_sub,
                 color=Styles.COLOR_ACCENT,
             )
         )
@@ -459,13 +488,25 @@ class MetricsWidget(QWidget):
             StatCard(
                 "Avg Accuracy",
                 f"{stats['avg_accuracy']:.1f}%",
-                "Based on engine eval.",
-                icon="accuracy",
+                "Weighted harmonic mean",
             )
         )
-        self.stats_layout.addWidget(
-            StatCard("Best Win", str(stats["best_win"]), "Keep playing!", icon="best_win")
+
+        total_games = stats.get("total", 0)
+        total_blunders = stats.get("detailed_quality_counts", {}).get(
+            "Blunder", stats.get("quality_counts", {}).get("Blunder", 0)
         )
+        bpg = (total_blunders / total_games) if total_games > 0 else 0.0
+        self.stats_layout.addWidget(
+            StatCard("Blunders / Game", f"{bpg:.1f}", "Average tactical errors")
+        )
+
+        clean_cnt = stats.get("clean_games", 0)
+        clean_pct = stats.get("clean_games_pct", 0.0)
+        self.stats_layout.addWidget(
+            StatCard("Clean Games", f"{clean_pct:.0f}%", f"{clean_cnt} zero-blunder matches")
+        )
+
         dashboard_layout.addWidget(self.stats_container)
 
         # 2. Donut charts — always 3 equal columns, fully dynamic width

@@ -135,6 +135,10 @@ class StatsWorker(QThread):
             if ts:
                 try:
                     ts_val = float(ts)
+                    if self.date_filter == "Last 24 Hours" and (now - ts_val) > 86400:
+                        return False
+                    if self.date_filter == "Last 7 Days" and (now - ts_val) > 7 * 86400:
+                        return False
                     if self.date_filter == "Last 30 Days" and (now - ts_val) > 30 * 86400:
                         return False
                     if self.date_filter == "Last 90 Days" and (now - ts_val) > 90 * 86400:
@@ -148,14 +152,36 @@ class StatsWorker(QThread):
                     pass
             else:
                 date_str = str(game.get("date") or "")
-                # Format: YYYY.MM.DD
-                match = re.match(r"^(\d{4})", date_str)
-                if (
-                    match
-                    and self.date_filter == "This Year"
-                    and int(match.group(1)) != time.localtime(now).tm_year
-                ):
-                    return False
+                # Format: YYYY.MM.DD or YYYY-MM-DD
+                try:
+                    import datetime
+
+                    d_clean = date_str.replace(".", "-")
+                    if len(d_clean) >= 10:
+                        dt = datetime.datetime.strptime(d_clean[:10], "%Y-%m-%d").replace(
+                            tzinfo=datetime.timezone.utc
+                        )
+                        d_ts = dt.timestamp()
+                        if self.date_filter == "Last 24 Hours" and (now - d_ts) > 86400:
+                            return False
+                        if self.date_filter == "Last 7 Days" and (now - d_ts) > 7 * 86400:
+                            return False
+                        if self.date_filter == "Last 30 Days" and (now - d_ts) > 30 * 86400:
+                            return False
+                        if self.date_filter == "Last 90 Days" and (now - d_ts) > 90 * 86400:
+                            return False
+                        if (
+                            self.date_filter == "This Year"
+                            and dt.year != time.localtime(now).tm_year
+                        ):
+                            return False
+                    elif (
+                        not d_clean.startswith(str(time.localtime(now).tm_year))
+                        and self.date_filter == "This Year"
+                    ):
+                        return False
+                except Exception:
+                    pass
 
         return True
 
@@ -234,6 +260,7 @@ class StatsWorker(QThread):
         }
 
         brilliancies: list[dict] = []
+        clean_games = 0
 
         for game, user_color in filtered_games:
             res = game.get("result", "*")
@@ -300,7 +327,10 @@ class StatsWorker(QThread):
                     for qk in quality_counts:
                         quality_counts[qk] += s_data.get(qk, 0)
 
-                    color_stats[user_color]["blunders"] += s_data.get("Blunder", 0)
+                    blunders_count = s_data.get("Blunder", 0)
+                    color_stats[user_color]["blunders"] += blunders_count
+                    if blunders_count == 0:
+                        clean_games += 1
                     tactics_data = s_data.get("tactics")
                 except (json.JSONDecodeError, KeyError, TypeError, ValueError):
                     pass
@@ -446,6 +476,8 @@ class StatsWorker(QThread):
             "opening_wins": opening_wins,
             "color_stats": color_stats,
             "hanging_stats": hanging_stats,
+            "clean_games": clean_games,
+            "clean_games_pct": (clean_games / total * 100) if total else 0.0,
             "phase_stats": {
                 "accuracies": phase_accuracies_final,
                 "blunders": {

@@ -47,9 +47,14 @@ class StatsLayout(QLayout):
         available_width = width - margins.left() - margins.right()
         spacing = self._spacing
 
-        if available_width >= 900:
-            cols = 4
-        elif available_width >= 500:
+        total_items = len(self._items)
+        if available_width >= 1000 and total_items >= 5:
+            cols = min(total_items, 5)
+        elif available_width >= 850:
+            cols = min(total_items, 4)
+        elif available_width >= 550:
+            cols = min(total_items, 3) if total_items == 3 else 2
+        elif available_width >= 400:
             cols = 2
         else:
             cols = 1
@@ -93,9 +98,14 @@ class StatsLayout(QLayout):
         spacing = self._spacing
         available_width = rect.width() - margins.left() - margins.right()
 
-        if available_width >= 900:
-            cols = 4
-        elif available_width >= 500:
+        total_items = len(self._items)
+        if available_width >= 1000 and total_items >= 5:
+            cols = min(total_items, 5)
+        elif available_width >= 850:
+            cols = min(total_items, 4)
+        elif available_width >= 550:
+            cols = min(total_items, 3) if total_items == 3 else 2
+        elif available_width >= 400:
             cols = 2
         else:
             cols = 1
