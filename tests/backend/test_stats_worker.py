@@ -17,6 +17,8 @@ def make_dummy_game(
     source="chess.com",
     ts=None,
     summary=None,
+    termination=None,
+    termination_mode=None,
 ):
     return {
         "id": game_id,
@@ -28,6 +30,8 @@ def make_dummy_game(
         "source": source,
         "timestamp": ts or time.time(),
         "summary_json": summary,
+        "termination": termination,
+        "termination_mode": termination_mode,
     }
 
 
@@ -109,3 +113,26 @@ def test_stats_worker_source_filter():
 
     w_file = StatsWorker(games, usernames, source_filter="File")
     assert w_file._calculate_stats()["total"] == 1
+
+
+def test_stats_worker_draw_term_counts():
+    """Test draw terminations aggregation into draw_term_counts buckets."""
+    games = [
+        make_dummy_game("g1", result="1/2-1/2", termination_mode="threefold_repetition"),
+        make_dummy_game("g2", result="1/2-1/2", termination_mode="stalemate"),
+        make_dummy_game("g3", result="1/2-1/2", termination_mode="agreed_draw"),
+        make_dummy_game("g4", result="1/2-1/2", termination_mode="timeout_insufficient"),
+        make_dummy_game("g5", result="1/2-1/2", termination_mode="insufficient_material"),
+        make_dummy_game("g6", result="1/2-1/2", termination_mode="fifty_moves"),
+    ]
+    worker = StatsWorker(games, ["PlayerA"])
+    stats = worker._calculate_stats()
+    assert stats["draws"] == 6
+    draws = stats["draw_term_counts"]
+    assert draws["3-Fold Repetition"] == 1
+    assert draws["Stalemate"] == 1
+    assert draws["Agreement"] == 1
+    assert draws["Insufficient vs Timeout"] == 1
+    assert draws["Insufficient Material"] == 1
+    assert draws["50-Move Rule"] == 1
+

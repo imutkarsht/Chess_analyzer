@@ -51,10 +51,14 @@ class TerminationDetector:
         if board.is_insufficient_material():
             return "insufficient_material", "Drawn by insufficient material"
 
-        if board.is_fivefold_repetition() or board.can_claim_threefold_repetition():
+        if (
+            board.is_fivefold_repetition()
+            or board.can_claim_threefold_repetition()
+            or board.is_repetition(3)
+        ):
             return "threefold_repetition", "Drawn by repetition"
 
-        if board.is_seventyfive_moves() or board.can_claim_fifty_moves():
+        if board.is_seventyfive_moves() or board.can_claim_fifty_moves() or board.is_fifty_moves():
             return "fifty_moves", "Drawn by 50-move rule"
 
         # 2. Explicit PGN Headers (Chess.com / Lichess strings)
@@ -99,12 +103,16 @@ class TerminationDetector:
             if result == "1-0":
                 # Black lost. If Black's last clock is 0, it's a timeout.
                 # Find Black's last move clock
-                black_clks = [m.time_left for m in moves if m.ply % 2 == 0 and m.time_left is not None]
+                black_clks = [
+                    m.time_left for m in moves if m.ply % 2 == 0 and m.time_left is not None
+                ]
                 if black_clks and black_clks[-1] == 0:
                     return "timeout", f"{headers.get('White', 'White')} won on time"
             elif result == "0-1":
                 # White lost. Find White's last move clock
-                white_clks = [m.time_left for m in moves if m.ply % 2 == 1 and m.time_left is not None]
+                white_clks = [
+                    m.time_left for m in moves if m.ply % 2 == 1 and m.time_left is not None
+                ]
                 if white_clks and white_clks[-1] == 0:
                     return "timeout", f"{headers.get('Black', 'Black')} won on time"
 

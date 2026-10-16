@@ -89,6 +89,7 @@ class GameHistoryManager:
                     ("black_brilliant_count", "INTEGER DEFAULT 0"),
                     ("white_great_count", "INTEGER DEFAULT 0"),
                     ("black_great_count", "INTEGER DEFAULT 0"),
+                    ("termination_mode", "TEXT"),
                 ]
 
                 # Check existing columns
@@ -102,6 +103,58 @@ class GameHistoryManager:
                             cursor.execute(f"ALTER TABLE games ADD COLUMN {col_name} {col_type}")
                         except Exception as e:
                             logger.error(f"Failed to add column {col_name}: {e}")
+
+                # Backfill termination_mode for any older games without it
+                cursor.execute(
+                    "SELECT id, result, termination, pgn, starting_fen, chess960 "
+                    "FROM games WHERE termination_mode IS NULL OR termination_mode = ''"
+                )
+                rows_to_migrate = cursor.fetchall()
+                if rows_to_migrate:
+                    import io
+
+                    import chess.pgn
+
+                    from src.backend.storage.models import MoveAnalysis
+                    from src.backend.storage.termination_detector import TerminationDetector
+
+                    for gid, res, term, pgn_str, s_fen, is_960 in rows_to_migrate:
+                        try:
+                            game = chess.pgn.read_game(io.StringIO(pgn_str)) if pgn_str else None
+                            headers = (
+                                dict(game.headers)
+                                if game
+                                else {"Result": res, "Termination": term or ""}
+                            )
+                            moves = []
+                            if game:
+                                for ply_idx, node in enumerate(game.mainline()):
+                                    moves.append(
+                                        MoveAnalysis(
+                                            move_number=ply_idx // 2 + 1,
+                                            ply=ply_idx + 1,
+                                            san=node.san(),
+                                            uci=node.move.uci(),
+                                            fen_before="",
+                                        )
+                                    )
+                            mode, desc = TerminationDetector.detect_termination(
+                                headers=headers,
+                                moves=moves,
+                                starting_fen=s_fen,
+                                chess960=bool(is_960),
+                            )
+                            clean_term = (
+                                desc
+                                if (not term or term.strip().lower() in ("", "normal", "unknown"))
+                                else term
+                            )
+                            cursor.execute(
+                                "UPDATE games SET termination_mode = ?, termination = ? WHERE id = ?",
+                                (mode, clean_term, gid),
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to backfill termination for game {gid}: {e}")
 
                 self._init_api_cache(cursor)
                 conn.commit()
@@ -240,11 +293,40 @@ class GameHistoryManager:
                     ]
                 )
 
+                # Ensure termination and termination_mode are detected
+                if (
+                    not game_analysis.metadata.termination_mode
+                    or not game_analysis.metadata.termination_description
+                ):
+                    from src.backend.storage.termination_detector import TerminationDetector
+
+                    term_mode, term_desc = TerminationDetector.detect_termination(
+                        headers=game_analysis.metadata.headers,
+                        moves=game_analysis.moves,
+                        starting_fen=game_analysis.metadata.starting_fen,
+                        chess960=game_analysis.metadata.chess960,
+                    )
+                    game_analysis.metadata.termination_mode = term_mode
+                    game_analysis.metadata.termination_description = term_desc
+
+                if (
+                    not game_analysis.metadata.termination
+                    or game_analysis.metadata.termination.strip().lower()
+                    in (
+                        "",
+                        "normal",
+                        "unknown",
+                    )
+                ):
+                    game_analysis.metadata.termination = (
+                        game_analysis.metadata.termination_description
+                    )
+
                 cursor.execute(
                     """
                     INSERT OR REPLACE INTO games (
                         id, white, black, result, date, event, pgn, summary_json, timestamp,
-                        white_elo, black_elo, time_control, eco, termination, opening, starting_fen, source,
+                        white_elo, black_elo, time_control, eco, termination, termination_mode, opening, starting_fen, source,
                         chess960, moves_json, speed_category, book_exit_ply,
                         white_opening_acc, black_opening_acc,
                         white_middlegame_acc, black_middlegame_acc,
@@ -253,7 +335,7 @@ class GameHistoryManager:
                         white_brilliant_count, black_brilliant_count,
                         white_great_count, black_great_count
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         game_id,
@@ -270,6 +352,7 @@ class GameHistoryManager:
                         game_analysis.metadata.time_control,
                         game_analysis.metadata.eco,
                         game_analysis.metadata.termination,
+                        game_analysis.metadata.termination_mode,
                         game_analysis.metadata.opening,
                         game_analysis.metadata.starting_fen,
                         game_analysis.metadata.source,

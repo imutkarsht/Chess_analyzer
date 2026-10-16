@@ -37,6 +37,16 @@ class InsightWorker(QThread):
             self.error.emit(str(e))
 
 
+DRAW_MODE_TO_BUCKET: dict[str, str] = {
+    "threefold_repetition": "3-Fold Repetition",
+    "agreed_draw": "Agreement",
+    "stalemate": "Stalemate",
+    "timeout_insufficient": "Insufficient vs Timeout",
+    "insufficient_material": "Insufficient Material",
+    "fifty_moves": "50-Move Rule",
+}
+
+
 class StatsWorker(QThread):
     """Worker thread for calculating filtered game statistics."""
 
@@ -198,6 +208,16 @@ class StatsWorker(QThread):
         total_acc = acc_count = best_win_rating = 0
 
         term_counts = {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0, "Draw": 0}
+        win_term_counts = {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0}
+        loss_term_counts = {"Checkmate": 0, "Resignation": 0, "Time": 0, "Abandon": 0}
+        draw_term_counts = {
+            "3-Fold Repetition": 0,
+            "Agreement": 0,
+            "Stalemate": 0,
+            "Insufficient vs Timeout": 0,
+            "Insufficient Material": 0,
+            "50-Move Rule": 0,
+        }
         quality_counts = {
             "Brilliant": 0,
             "Great": 0,
@@ -290,22 +310,43 @@ class StatsWorker(QThread):
 
             # 2. Termination
             term = (game.get("termination") or "").lower()
+            term_mode = (game.get("termination_mode") or "").strip().lower()
+            term_type = "Resignation"
             if res == "1/2-1/2":
-                term_counts["Draw"] += 1
-            elif "time" in term:
-                term_counts["Time"] += 1
-            elif "resign" in term:
-                term_counts["Resignation"] += 1
-            elif "abandon" in term:
-                term_counts["Abandon"] += 1
-            elif "mate" in term:
-                term_counts["Checkmate"] += 1
+                term_type = "Draw"
+                if term_mode in DRAW_MODE_TO_BUCKET:
+                    draw_type = DRAW_MODE_TO_BUCKET[term_mode]
+                elif "repetition" in term:
+                    draw_type = "3-Fold Repetition"
+                elif "stalemate" in term:
+                    draw_type = "Stalemate"
+                elif "insufficient" in term and "time" in term:
+                    draw_type = "Insufficient vs Timeout"
+                elif "insufficient" in term:
+                    draw_type = "Insufficient Material"
+                elif "50" in term or "fifty" in term:
+                    draw_type = "50-Move Rule"
+                else:
+                    draw_type = "Agreement"
+                draw_term_counts[draw_type] = draw_term_counts.get(draw_type, 0) + 1
+            elif term_mode == "checkmate" or "mate" in term:
+                term_type = "Checkmate"
+            elif term_mode == "timeout" or "time" in term:
+                term_type = "Time"
+            elif term_mode == "abandonment" or "abandon" in term:
+                term_type = "Abandon"
             else:
                 pgn = game.get("pgn", "")
                 if "#" in pgn:
-                    term_counts["Checkmate"] += 1
+                    term_type = "Checkmate"
                 else:
-                    term_counts["Resignation"] += 1
+                    term_type = "Resignation"
+
+            term_counts[term_type] = term_counts.get(term_type, 0) + 1
+            if is_win and term_type in win_term_counts:
+                win_term_counts[term_type] += 1
+            elif res != "1/2-1/2" and term_type in loss_term_counts:
+                loss_term_counts[term_type] += 1
 
             # 3. Accuracy & Move Quality
             game_acc = 0.0
@@ -469,6 +510,10 @@ class StatsWorker(QThread):
             "avg_accuracy": (total_acc / acc_count) if acc_count else 0.0,
             "best_win": str(best_win_rating) if best_win_rating > 0 else "N/A",
             "term_counts": term_counts,
+            "win_term_counts": win_term_counts,
+            "loss_term_counts": loss_term_counts,
+            "draw_term_counts": draw_term_counts,
+            "time_loss_pct": (loss_term_counts["Time"] / losses * 100) if losses > 0 else 0.0,
             "quality_counts": legacy_quality_counts,
             "detailed_quality_counts": quality_counts,
             "accuracy_history": accuracy_history,

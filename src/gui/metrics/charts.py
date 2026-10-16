@@ -16,7 +16,8 @@ def create_donut_figure(
     colors: list,
     center_text: str = "",
     figsize: tuple = (2.5, 2.5),
-    dpi: int = 100
+    dpi: int = 100,
+    text_color: str | None = None,
 ) -> Figure:
     """
     Creates a donut chart figure.
@@ -27,6 +28,7 @@ def create_donut_figure(
         center_text: Text to display in the center
         figsize: Figure size in inches
         dpi: Dots per inch
+        text_color: Optional override for center text color (defaults to Styles.COLOR_TEXT_PRIMARY)
 
     Returns:
         matplotlib Figure object
@@ -55,11 +57,29 @@ def create_donut_figure(
 
         # Center text - large and bold
         if center_text:
-            ax.text(0, 0, center_text, ha='center', va='center',
-                    fontsize=18, color='white', weight='bold')
+            text_c = text_color or Styles.COLOR_TEXT_PRIMARY
+            font_sz = 15 if "\n" in center_text else 18
+            ax.text(
+                0,
+                0,
+                center_text,
+                ha='center',
+                va='center',
+                fontsize=font_sz,
+                color=text_c,
+                weight='bold',
+            )
     else:
-        ax.text(0, 0, "No Data", ha='center', va='center',
-                fontsize=12, color=Styles.COLOR_TEXT_SECONDARY)
+        empty_c = text_color or Styles.COLOR_TEXT_SECONDARY
+        ax.text(
+            0,
+            0,
+            "No Data",
+            ha='center',
+            va='center',
+            fontsize=12,
+            color=empty_c,
+        )
 
     ax.set_aspect('equal')
     return fig

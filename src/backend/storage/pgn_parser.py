@@ -196,7 +196,9 @@ class PGNParser:
             board.push(move)
 
         # Detect speed category (Bullet, Blitz, Rapid, Classical, UltraBullet)
-        metadata.speed_category = PGNParser._detect_speed_category(metadata.time_control, metadata.event)
+        metadata.speed_category = PGNParser._detect_speed_category(
+            metadata.time_control, metadata.event
+        )
 
         # Detect termination mode and human-readable description
         term_mode, term_desc = TerminationDetector.detect_termination(
