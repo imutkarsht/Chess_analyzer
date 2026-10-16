@@ -135,4 +135,3 @@ def test_stats_worker_draw_term_counts():
     assert draws["Insufficient vs Timeout"] == 1
     assert draws["Insufficient Material"] == 1
     assert draws["50-Move Rule"] == 1
-

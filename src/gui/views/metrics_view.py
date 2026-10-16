@@ -24,7 +24,6 @@ from src.gui.views.metrics import (
     EndingDistributionCard,
     MoveQualityCard,
     OpeningsListCard,
-    ResultDistributionCard,
 )
 
 
@@ -473,9 +472,7 @@ class MetricsWidget(QWidget):
         losses = stats.get("losses", 0)
         win_sub = f"{wins}W • {draws}D • {losses}L"
 
-        self.stats_layout.addWidget(
-            StatCard("Total Games", str(stats["total"]), total_sub)
-        )
+        self.stats_layout.addWidget(StatCard("Total Games", str(stats["total"]), total_sub))
         self.stats_layout.addWidget(
             StatCard(
                 "Win Rate",
@@ -509,15 +506,11 @@ class MetricsWidget(QWidget):
 
         dashboard_layout.addWidget(self.stats_container)
 
-        # 2. Donut charts — always 3 equal columns, fully dynamic width
+        # 2. Donut charts — Ending Distribution and Move Quality Distribution
         donuts_widget = QWidget()
         donuts_layout = QHBoxLayout(donuts_widget)
         donuts_layout.setSpacing(20)
         donuts_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.result_card = ResultDistributionCard()
-        self.result_card.set_stats(stats)
-        donuts_layout.addWidget(self.result_card)
 
         self.ending_card = EndingDistributionCard()
         self.ending_card.set_stats(stats)
