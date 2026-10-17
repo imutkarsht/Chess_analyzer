@@ -25,6 +25,7 @@ from src.gui.views.metrics import (
     MoveQualityCard,
     OpeningsListCard,
     PhasePerformanceCard,
+    TimeManagementCard,
 )
 
 
@@ -548,6 +549,10 @@ class MetricsWidget(QWidget):
         self.color_card = ColorPerformanceCard()
         self.color_card.set_stats(stats)
         self.charts_layout.addWidget(self.color_card)
+
+        self.time_card = TimeManagementCard()
+        self.time_card.set_stats(stats)
+        self.charts_layout.addWidget(self.time_card)
 
         self.openings_card = OpeningsListCard()
         self.openings_card.set_stats(stats)

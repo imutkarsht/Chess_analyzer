@@ -148,6 +148,7 @@ def analyze_game_tactics(
     moves_data: list[dict],
     user_color: str,
     result: str = "*",
+    speed_category: str = "Blitz",
 ) -> dict:
     """
     Full comprehensive tactical, phase, and advantage analysis of a game's moves.
@@ -174,6 +175,7 @@ def analyze_game_tactics(
       }
     - brilliancies: list of dicts for user moves classified as 'Brilliant' or 'Great'
     - book_exit_ply: int | None
+    - clock_metrics: dict of time-spent and time-trouble indicators
     """
     is_user_white = user_color.lower() == "white"
     target_color = chess.WHITE if is_user_white else chess.BLACK
@@ -201,6 +203,31 @@ def analyze_game_tactics(
     lowest_eval = 0
     had_winning_advantage = False  # >= +300 cp from user perspective
     had_losing_position = False  # <= -300 cp from user perspective
+
+    # Time trouble threshold
+    sc_lower = (speed_category or "").lower()
+    if "ultrabullet" in sc_lower or "bullet" in sc_lower:
+        trouble_threshold = 15.0
+    elif "blitz" in sc_lower:
+        trouble_threshold = 30.0
+    elif "rapid" in sc_lower:
+        trouble_threshold = 60.0
+    elif "classical" in sc_lower:
+        trouble_threshold = 120.0
+    else:
+        trouble_threshold = 30.0
+
+    # Clock and time management tracking
+    total_timed_moves = 0
+    total_time_spent = 0.0
+    phase_time_spent = {"opening": 0.0, "middlegame": 0.0, "endgame": 0.0}
+    phase_timed_moves = {"opening": 0, "middlegame": 0, "endgame": 0}
+    quality_time_spent = {"best": 0.0, "blunder": 0.0, "other": 0.0}
+    quality_timed_moves = {"best": 0, "blunder": 0, "other": 0}
+    normal_moves = 0
+    normal_blunders = 0
+    trouble_moves = 0
+    trouble_blunders = 0
 
     # Brilliancies list
     brilliancies = []
@@ -335,6 +362,36 @@ def analyze_game_tactics(
                     }
                 )
 
+            # 5. Clock & Thinking Time Metrics
+            t_spent = m.get("time_spent")
+            t_left = m.get("time_left")
+
+            if t_spent is not None and 0.0 <= t_spent < 7200.0:
+                total_timed_moves += 1
+                total_time_spent += t_spent
+                phase_time_spent[phase] += t_spent
+                phase_timed_moves[phase] += 1
+
+                if classification in ("Brilliant", "Great", "Best"):
+                    quality_time_spent["best"] += t_spent
+                    quality_timed_moves["best"] += 1
+                elif classification in ("Blunder", "Mistake"):
+                    quality_time_spent["blunder"] += t_spent
+                    quality_timed_moves["blunder"] += 1
+                else:
+                    quality_time_spent["other"] += t_spent
+                    quality_timed_moves["other"] += 1
+
+            if t_left is not None and t_left >= 0.0:
+                if t_left <= trouble_threshold:
+                    trouble_moves += 1
+                    if classification in ("Blunder", "Mistake"):
+                        trouble_blunders += 1
+                else:
+                    normal_moves += 1
+                    if classification in ("Blunder", "Mistake"):
+                        normal_blunders += 1
+
     # Phase accuracy calculation using harmonic + volatility-weighted mean matching analyzer.py
     def compute_phase_acc(accs: list[float], wps: list[float]) -> float | None:
         if not accs:
@@ -391,4 +448,16 @@ def analyze_game_tactics(
         },
         "brilliancies": brilliancies,
         "book_exit_ply": book_exit_ply,
+        "clock_metrics": {
+            "total_timed_moves": total_timed_moves,
+            "total_time_spent": total_time_spent,
+            "phase_time_spent": phase_time_spent,
+            "phase_timed_moves": phase_timed_moves,
+            "quality_time_spent": quality_time_spent,
+            "quality_timed_moves": quality_timed_moves,
+            "normal_moves": normal_moves,
+            "normal_blunders": normal_blunders,
+            "trouble_moves": trouble_moves,
+            "trouble_blunders": trouble_blunders,
+        },
     }

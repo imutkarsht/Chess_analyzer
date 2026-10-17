@@ -6,6 +6,7 @@ from src.gui.views.metrics.ending_distribution_card import EndingDistributionCar
 from src.gui.views.metrics.move_quality_card import MoveQualityCard
 from src.gui.views.metrics.openings_list_card import OpeningsListCard
 from src.gui.views.metrics.phase_performance_card import PhasePerformanceCard
+from src.gui.views.metrics.time_management_card import TimeManagementCard
 
 __all__ = [
     "MetricCard",
@@ -15,5 +16,6 @@ __all__ = [
     "PhasePerformanceCard",
     "ColorPerformanceCard",
     "OpeningsListCard",
+    "TimeManagementCard",
     "AICoachCard",
 ]

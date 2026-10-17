@@ -135,3 +135,65 @@ def test_stats_worker_draw_term_counts():
     assert draws["Insufficient vs Timeout"] == 1
     assert draws["Insufficient Material"] == 1
     assert draws["50-Move Rule"] == 1
+
+
+def test_stats_worker_time_stats():
+    """Test format breakdown and time trouble aggregation in time_stats."""
+    import json
+
+    moves_bullet = json.dumps(
+        [
+            {
+                "ply": 0,
+                "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                "time_spent": 1.2,
+                "time_left": 55.0,
+                "classification": "Best",
+                "is_book_move": True,
+            },
+            {
+                "ply": 2,
+                "fen_before": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+                "time_spent": 14.0,
+                "time_left": 10.0,  # <= 15s in Bullet -> time trouble
+                "classification": "Blunder",
+                "is_book_move": False,
+            },
+        ]
+    )
+
+    games = [
+        make_dummy_game("g1", white="PlayerA", speed="Bullet", result="1-0"),
+        make_dummy_game(
+            "g2", white="PlayerA", speed="Blitz", result="0-1", termination_mode="timeout"
+        ),
+    ]
+    games[0]["moves_json"] = moves_bullet
+
+    worker = StatsWorker(games, ["PlayerA"])
+    stats = worker._calculate_stats()
+
+    assert "time_stats" in stats
+    ts = stats["time_stats"]
+    assert ts["has_clock_data"] is True
+    assert ts["total_timed_moves"] == 2
+    assert "Bullet" in ts["formats"]
+    assert "Blitz" in ts["formats"]
+
+    bullet_fmt = ts["formats"]["Bullet"]
+    assert bullet_fmt["games"] == 1
+    assert bullet_fmt["wins"] == 1
+    assert bullet_fmt["losses"] == 0
+
+    blitz_fmt = ts["formats"]["Blitz"]
+    assert blitz_fmt["games"] == 1
+    assert blitz_fmt["wins"] == 0
+    assert blitz_fmt["losses"] == 1
+    assert blitz_fmt["time_losses"] == 1
+
+    trouble = ts["time_trouble"]
+    assert trouble["normal_moves"] == 1
+    assert trouble["normal_blunders"] == 0
+    assert trouble["trouble_moves"] == 1
+    assert trouble["trouble_blunders"] == 1
+    assert trouble["total_time_losses"] == 1

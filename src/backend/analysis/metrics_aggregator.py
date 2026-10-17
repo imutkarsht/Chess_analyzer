@@ -240,6 +240,20 @@ class MetricsAggregator:
         brilliancies: list[dict[str, Any]] = []
         clean_games = 0
 
+        format_stats: dict[str, dict[str, Any]] = {}
+        clock_summary = {
+            "total_timed_moves": 0,
+            "total_time_spent": 0.0,
+            "phase_time": {"opening": 0.0, "middlegame": 0.0, "endgame": 0.0},
+            "phase_moves": {"opening": 0, "middlegame": 0, "endgame": 0},
+            "quality_time": {"best": 0.0, "blunder": 0.0, "other": 0.0},
+            "quality_moves": {"best": 0, "blunder": 0, "other": 0},
+            "normal_moves": 0,
+            "normal_blunders": 0,
+            "trouble_moves": 0,
+            "trouble_blunders": 0,
+        }
+
         for game, user_color in filtered_games:
             res = game.get("result", "*")
             color_stats[user_color]["total"] += 1
@@ -306,6 +320,47 @@ class MetricsAggregator:
             elif res != "1/2-1/2" and term_type in loss_term_counts:
                 loss_term_counts[term_type] += 1
 
+            # Format & Speed detection
+            is_960 = bool(game.get("chess960", 0))
+            if is_960:
+                speed = "Chess960"
+            else:
+                speed = (game.get("speed_category") or "").strip()
+                if not speed:
+                    speed = PGNParser._detect_speed_category(
+                        game.get("time_control"), game.get("event")
+                    )
+                if not speed:
+                    speed = "Other"
+
+            if speed not in format_stats:
+                format_stats[speed] = {
+                    "games": 0,
+                    "wins": 0,
+                    "draws": 0,
+                    "losses": 0,
+                    "acc_sum": 0.0,
+                    "acc_count": 0,
+                    "time_losses": 0,
+                    "total_time_spent": 0.0,
+                    "timed_moves": 0,
+                }
+            f_entry = format_stats[speed]
+            f_entry["games"] += 1
+            if is_win:
+                f_entry["wins"] += 1
+            elif res in ("1/2-1/2", "Draw"):
+                f_entry["draws"] += 1
+            else:
+                f_entry["losses"] += 1
+
+            if (
+                not is_win
+                and res not in ("1/2-1/2", "Draw")
+                and (term_type == "Time" or term_mode == "timeout" or "time" in term)
+            ):
+                f_entry["time_losses"] += 1
+
             # 3. Accuracy & Move Quality
             game_acc = 0.0
             tactics_data = None
@@ -336,19 +391,54 @@ class MetricsAggregator:
 
             if game_acc > 0:
                 accuracy_history.append(game_acc)
+                f_entry["acc_sum"] += game_acc
+                f_entry["acc_count"] += 1
 
-            # 4. Tactical analysis: recompute if missing or older format without phase_move_counts
+            # 4. Tactical analysis: recompute if missing or older format without phase_move_counts or clock_metrics
             if game.get("moves_json") and (
-                not tactics_data or "phase_move_counts" not in tactics_data
+                not tactics_data
+                or "phase_move_counts" not in tactics_data
+                or "clock_metrics" not in tactics_data
             ):
                 try:
                     moves_data = json.loads(game["moves_json"])
-                    tactics_data = analyze_game_tactics(moves_data, user_color, res)
+                    tactics_data = analyze_game_tactics(
+                        moves_data, user_color, res, speed_category=speed
+                    )
                 except Exception:
                     pass
 
             # 5. Aggregate tactical and phase stats
             if tactics_data:
+                cm = tactics_data.get("clock_metrics")
+                if cm:
+                    f_entry["total_time_spent"] += cm.get("total_time_spent", 0.0)
+                    f_entry["timed_moves"] += cm.get("total_timed_moves", 0)
+
+                    clock_summary["total_timed_moves"] += cm.get("total_timed_moves", 0)
+                    clock_summary["total_time_spent"] += cm.get("total_time_spent", 0.0)
+
+                    for ph in ("opening", "middlegame", "endgame"):
+                        clock_summary["phase_time"][ph] += cm.get("phase_time_spent", {}).get(
+                            ph, 0.0
+                        )
+                        clock_summary["phase_moves"][ph] += cm.get("phase_timed_moves", {}).get(
+                            ph, 0
+                        )
+
+                    for qk in ("best", "blunder", "other"):
+                        clock_summary["quality_time"][qk] += cm.get("quality_time_spent", {}).get(
+                            qk, 0.0
+                        )
+                        clock_summary["quality_moves"][qk] += cm.get("quality_timed_moves", {}).get(
+                            qk, 0
+                        )
+
+                    clock_summary["normal_moves"] += cm.get("normal_moves", 0)
+                    clock_summary["normal_blunders"] += cm.get("normal_blunders", 0)
+                    clock_summary["trouble_moves"] += cm.get("trouble_moves", 0)
+                    clock_summary["trouble_blunders"] += cm.get("trouble_blunders", 0)
+
                 h_metrics = tactics_data.get("hanging_metrics", {})
                 hanging_stats["total_hung"] += h_metrics.get("total_hung", 0)
                 color_stats[user_color]["pieces_hung"] += h_metrics.get("total_hung", 0)
@@ -523,6 +613,83 @@ class MetricsAggregator:
             d["win_rate"] = (d["wins"] / d["total"] * 100) if d["total"] > 0 else 0.0
             d["avg_acc"] = (d["total_acc"] / d["acc_count"]) if d["acc_count"] > 0 else 0.0
 
+        # Calculate format stats
+        format_stats_final: dict[str, dict[str, Any]] = {}
+        for sp, f_data in format_stats.items():
+            g_cnt = f_data["games"]
+            a_cnt = f_data["acc_count"]
+            t_cnt = f_data["timed_moves"]
+            format_stats_final[sp] = {
+                "name": sp,
+                "games": g_cnt,
+                "wins": f_data["wins"],
+                "draws": f_data["draws"],
+                "losses": f_data["losses"],
+                "win_rate": (f_data["wins"] / g_cnt * 100) if g_cnt > 0 else 0.0,
+                "avg_accuracy": (f_data["acc_sum"] / a_cnt) if a_cnt > 0 else 0.0,
+                "time_losses": f_data["time_losses"],
+                "avg_move_time": (f_data["total_time_spent"] / t_cnt) if t_cnt > 0 else 0.0,
+                "timed_moves": t_cnt,
+            }
+
+        # Calculate phase pace
+        phase_pace = {
+            ph: {
+                "avg_time": (
+                    clock_summary["phase_time"][ph] / clock_summary["phase_moves"][ph]
+                    if clock_summary["phase_moves"][ph] > 0
+                    else 0.0
+                ),
+                "moves_count": clock_summary["phase_moves"][ph],
+            }
+            for ph in ("opening", "middlegame", "endgame")
+        }
+
+        # Calculate move quality pace
+        quality_pace = {
+            qk: {
+                "avg_time": (
+                    clock_summary["quality_time"][qk] / clock_summary["quality_moves"][qk]
+                    if clock_summary["quality_moves"][qk] > 0
+                    else 0.0
+                ),
+                "moves_count": clock_summary["quality_moves"][qk],
+            }
+            for qk in ("best", "blunder", "other")
+        }
+
+        # Time trouble calculation
+        n_moves = clock_summary["normal_moves"]
+        n_blund = clock_summary["normal_blunders"]
+        t_moves = clock_summary["trouble_moves"]
+        t_blund = clock_summary["trouble_blunders"]
+
+        n_pct = (n_blund / n_moves * 100) if n_moves > 0 else 0.0
+        t_pct = (t_blund / t_moves * 100) if t_moves > 0 else 0.0
+        panic_mult = (t_pct / n_pct) if n_pct > 0 else (1.0 if t_pct > 0 else 0.0)
+
+        tot_timed = clock_summary["total_timed_moves"]
+        tot_time_spent = clock_summary["total_time_spent"]
+
+        time_stats = {
+            "has_clock_data": tot_timed > 0,
+            "total_timed_moves": tot_timed,
+            "overall_avg_time": (tot_time_spent / tot_timed) if tot_timed > 0 else 0.0,
+            "formats": format_stats_final,
+            "phase_pace": phase_pace,
+            "quality_pace": quality_pace,
+            "time_trouble": {
+                "normal_moves": n_moves,
+                "normal_blunders": n_blund,
+                "normal_blunder_pct": n_pct,
+                "trouble_moves": t_moves,
+                "trouble_blunders": t_blund,
+                "trouble_blunder_pct": t_pct,
+                "panic_multiplier": panic_mult,
+                "total_time_losses": sum(f["time_losses"] for f in format_stats_final.values()),
+            },
+        }
+
         return {
             "total": total,
             "wins": wins,
@@ -554,6 +721,7 @@ class MetricsAggregator:
             },
             "advantage_stats": advantage_stats,
             "brilliancies": brilliancies,
+            "time_stats": time_stats,
             "filter_applied": {
                 "color": color_filter,
                 "format": format_filter,

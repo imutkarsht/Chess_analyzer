@@ -203,3 +203,116 @@ def test_openings_list_card_widget(qapp, qtbot):
 
     # Refresh styles
     card.refresh_styles()
+
+
+def test_time_management_card_widget(qapp, qtbot):
+    """Test TimeManagementCard rendering, mode toggles, and fallback states."""
+    from src.gui.views.metrics.time_management_card import TimeManagementCard
+
+    card = TimeManagementCard()
+    qtbot.addWidget(card)
+
+    stats = {
+        "time_stats": {
+            "has_clock_data": True,
+            "total_timed_moves": 120,
+            "overall_avg_time": 4.5,
+            "formats": {
+                "Blitz": {
+                    "name": "Blitz",
+                    "games": 10,
+                    "wins": 6,
+                    "draws": 1,
+                    "losses": 3,
+                    "win_rate": 60.0,
+                    "avg_accuracy": 78.4,
+                    "avg_move_time": 4.2,
+                    "time_losses": 0,
+                    "timed_moves": 80,
+                },
+                "Bullet": {
+                    "name": "Bullet",
+                    "games": 5,
+                    "wins": 2,
+                    "draws": 1,
+                    "losses": 2,
+                    "win_rate": 40.0,
+                    "avg_accuracy": 71.0,
+                    "avg_move_time": 2.1,
+                    "time_losses": 1,
+                    "timed_moves": 40,
+                },
+            },
+            "phase_pace": {
+                "opening": {"avg_time": 1.5, "moves_count": 30},
+                "middlegame": {"avg_time": 6.2, "moves_count": 60},
+                "endgame": {"avg_time": 3.8, "moves_count": 30},
+            },
+            "quality_pace": {
+                "best": {"avg_time": 3.4, "moves_count": 50},
+                "blunder": {"avg_time": 7.8, "moves_count": 10},
+                "other": {"avg_time": 4.1, "moves_count": 60},
+            },
+            "time_trouble": {
+                "normal_moves": 105,
+                "normal_blunders": 7,
+                "normal_blunder_pct": 6.7,
+                "trouble_moves": 15,
+                "trouble_blunders": 3,
+                "trouble_blunder_pct": 20.0,
+                "panic_multiplier": 3.0,
+                "total_time_losses": 1,
+            },
+        }
+    }
+
+    card.set_stats(stats)
+    assert card.stack is not None
+    assert card.current_mode == "formats"
+    assert card.stack.currentWidget() == card.formats_page
+
+    # Switch to Move Pace view
+    card.btn_pace.click()
+    assert card.current_mode == "pace"
+    assert card.stack.currentWidget() == card.pace_page
+
+    # Switch to Time Trouble view
+    card.btn_trouble.click()
+    assert card.current_mode == "trouble"
+    assert card.stack.currentWidget() == card.trouble_page
+
+    # Switch back to Formats view
+    card.btn_formats.click()
+    assert card.current_mode == "formats"
+    assert card.stack.currentWidget() == card.formats_page
+
+    # Test fallback state when no clock data exists
+    stats_no_clock = {
+        "time_stats": {
+            "has_clock_data": False,
+            "total_timed_moves": 0,
+            "formats": {
+                "Rapid": {
+                    "name": "Rapid",
+                    "games": 3,
+                    "wins": 2,
+                    "draws": 0,
+                    "losses": 1,
+                    "win_rate": 66.7,
+                    "avg_accuracy": 81.0,
+                    "avg_move_time": 0.0,
+                    "time_losses": 0,
+                    "timed_moves": 0,
+                }
+            },
+        }
+    }
+    card.set_stats(stats_no_clock)
+    assert card.stack is not None
+
+    card.btn_pace.click()
+    assert card.current_mode == "pace"
+    assert card.stack.currentWidget() == card.pace_page
+
+    # Refresh styles
+    card.refresh_styles()

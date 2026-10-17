@@ -236,11 +236,18 @@ class GameHistoryManager:
                 # Compute tactical analysis & phase metrics
                 from src.backend.analysis.tactics import analyze_game_tactics
 
+                speed_category = game_analysis.metadata.speed_category or "Blitz"
                 tactics_white = analyze_game_tactics(
-                    moves_data, "white", game_analysis.metadata.result
+                    moves_data,
+                    "white",
+                    game_analysis.metadata.result,
+                    speed_category=speed_category,
                 )
                 tactics_black = analyze_game_tactics(
-                    moves_data, "black", game_analysis.metadata.result
+                    moves_data,
+                    "black",
+                    game_analysis.metadata.result,
+                    speed_category=speed_category,
                 )
 
                 # Enrich summary_json
