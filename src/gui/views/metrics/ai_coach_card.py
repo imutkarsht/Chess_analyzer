@@ -10,13 +10,19 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import (
+    QEasingCurve,
+    QPropertyAnimation,
+    QSequentialAnimationGroup,
+    Qt,
+    pyqtSignal,
+)
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
+    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
-    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -46,6 +52,7 @@ class AICoachCard(MetricCard):
         self.stats: dict[str, Any] = {}
         self.worker: InsightWorker | None = None
         self.current_insights: str | None = None
+        self._skeleton_anim: QSequentialAnimationGroup | None = None
 
         # Action widget container in card header
         self.header_action_widget = QWidget()
@@ -142,6 +149,7 @@ class AICoachCard(MetricCard):
     def set_insights(self, insight_text: str):
         if not insight_text:
             return
+        self._stop_skeleton_anim()
         self.current_insights = insight_text
         self._populate_insights(insight_text)
 
@@ -158,7 +166,17 @@ class AICoachCard(MetricCard):
                 return
         self.provider_badge.setText("AI Coach")
 
+    def _stop_skeleton_anim(self):
+        """Safely stops and cleans up the pulsing skeleton animation."""
+        if self._skeleton_anim is not None:
+            try:
+                self._skeleton_anim.stop()
+            except (RuntimeError, TypeError):
+                pass
+            self._skeleton_anim = None
+
     def _show_initial_state(self):
+        self._stop_skeleton_anim()
         clear_layout(self.insights_layout)
         total = self.stats.get("total", 0)
 
@@ -166,8 +184,8 @@ class AICoachCard(MetricCard):
         intro_container.setObjectName("coach_intro_container")
         intro_container.setStyleSheet("background: transparent;")
         vbox = QVBoxLayout(intro_container)
-        vbox.setContentsMargins(12, 28, 12, 28)
-        vbox.setSpacing(14)
+        vbox.setContentsMargins(16, 24, 16, 24)
+        vbox.setSpacing(10)
         vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         title = QLabel("Performance Diagnosis")
@@ -178,20 +196,19 @@ class AICoachCard(MetricCard):
         vbox.addWidget(title)
 
         desc = QLabel(
-            f"Synthesizes {total} analyzed games into coaching insights across "
-            "tactical blindspots, advantage conversion, clock management, and opening repertoire."
+            f"Synthesizes {total} analyzed games across tactical blindspots, conversion, and clock discipline."
             if total > 0
             else "Analyze your games to receive tailored coaching insights and practice recommendations."
         )
         desc.setWordWrap(True)
         desc.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.4; background: transparent;"
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent;"
         )
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        desc.setMaximumWidth(480)
+        desc.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         vbox.addWidget(desc)
 
-        vbox.addSpacing(4)
+        vbox.addSpacing(10)
 
         btn_analyze = create_button(
             "Generate Coach Insights",
@@ -200,7 +217,7 @@ class AICoachCard(MetricCard):
             icon_name="fa5s.robot",
         )
         btn_analyze.setFixedWidth(220)
-        btn_analyze.setFixedHeight(36)
+        btn_analyze.setFixedHeight(38)
         btn_analyze.setEnabled(total > 0)
         vbox.addWidget(btn_analyze, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -243,43 +260,151 @@ class AICoachCard(MetricCard):
         else:
             self._show_initial_state()
 
+    def _create_skeleton_row(
+        self,
+        width_ratio: float | None = None,
+        fixed_width: int | None = None,
+        height: int = 10,
+        radius: int = 5,
+    ) -> QWidget:
+        row_widget = QWidget()
+        row_widget.setStyleSheet("background: transparent;")
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(0)
+
+        bar = QFrame()
+        bar.setFixedHeight(height)
+        bar.setStyleSheet(f"""
+            background-color: {Styles.COLOR_SURFACE_LIGHT};
+            border: 1px solid {Styles.COLOR_BORDER};
+            border-radius: {radius}px;
+        """)
+
+        if fixed_width is not None:
+            bar.setFixedWidth(fixed_width)
+            row_layout.addWidget(bar)
+            row_layout.addStretch()
+        elif width_ratio is not None:
+            w_int = max(1, int(width_ratio * 100))
+            spacer_int = max(1, 100 - w_int)
+            row_layout.addWidget(bar, w_int)
+            spacer = QWidget()
+            spacer.setStyleSheet("background: transparent;")
+            row_layout.addWidget(spacer, spacer_int)
+        else:
+            bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            row_layout.addWidget(bar)
+
+        return row_widget
+
+    def _show_loading_skeleton(self):
+        """Displays a ChatGPT/Gemini-style pulsing skeleton UI while AI generates insights."""
+        self._stop_skeleton_anim()
+        clear_layout(self.insights_layout)
+
+        skeleton_container = QWidget()
+        skeleton_container.setObjectName("coach_skeleton_container")
+        skeleton_container.setStyleSheet("background: transparent;")
+        s_vbox = QVBoxLayout(skeleton_container)
+        s_vbox.setContentsMargins(4, 8, 4, 12)
+        s_vbox.setSpacing(14)
+
+        # Header status row with pulsing indicator
+        header_row = QHBoxLayout()
+        header_row.setSpacing(8)
+        header_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        dot = QLabel("●")
+        dot.setStyleSheet(
+            f"color: {Styles.COLOR_ACCENT}; font-size: 10px; background: transparent;"
+        )
+        header_row.addWidget(dot)
+
+        lbl_title = QLabel("AI Coach is analyzing performance patterns...")
+        lbl_title.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent;"
+        )
+        header_row.addWidget(lbl_title)
+        header_row.addStretch()
+        s_vbox.addLayout(header_row)
+
+        lbl_sub = QLabel(
+            "Synthesizing tactical motifs, advantage conversion, and clock discipline..."
+        )
+        lbl_sub.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent; padding-left: 16px;"
+        )
+        s_vbox.addWidget(lbl_sub)
+        s_vbox.addSpacing(6)
+
+        # Section 1 skeleton: Strengths & Superpowers (Header badge + 2 lines)
+        sec1 = QVBoxLayout()
+        sec1.setSpacing(8)
+        sec1.addWidget(self._create_skeleton_row(fixed_width=140, height=12, radius=6))
+        sec1.addWidget(self._create_skeleton_row(width_ratio=0.92, height=10, radius=5))
+        sec1.addWidget(self._create_skeleton_row(width_ratio=0.68, height=10, radius=5))
+        s_vbox.addLayout(sec1)
+
+        # Divider
+        div1 = QFrame()
+        div1.setFixedHeight(1)
+        div1.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
+        s_vbox.addWidget(div1)
+
+        # Section 2 skeleton: Critical Leaks & Blindspots (Header badge + 3 lines)
+        sec2 = QVBoxLayout()
+        sec2.setSpacing(8)
+        sec2.addWidget(self._create_skeleton_row(fixed_width=160, height=12, radius=6))
+        sec2.addWidget(self._create_skeleton_row(width_ratio=0.95, height=10, radius=5))
+        sec2.addWidget(self._create_skeleton_row(width_ratio=0.78, height=10, radius=5))
+        sec2.addWidget(self._create_skeleton_row(width_ratio=0.48, height=10, radius=5))
+        s_vbox.addLayout(sec2)
+
+        # Divider
+        div2 = QFrame()
+        div2.setFixedHeight(1)
+        div2.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
+        s_vbox.addWidget(div2)
+
+        # Section 3 skeleton: Training Prescription (Header badge + 2 lines)
+        sec3 = QVBoxLayout()
+        sec3.setSpacing(8)
+        sec3.addWidget(self._create_skeleton_row(fixed_width=135, height=12, radius=6))
+        sec3.addWidget(self._create_skeleton_row(width_ratio=0.90, height=10, radius=5))
+        sec3.addWidget(self._create_skeleton_row(width_ratio=0.60, height=10, radius=5))
+        s_vbox.addLayout(sec3)
+
+        self.insights_layout.addWidget(skeleton_container)
+
+        # Opacity pulse animation (Gemini / ChatGPT style breathing effect)
+        opacity_effect = QGraphicsOpacityEffect(skeleton_container)
+        opacity_effect.setOpacity(0.28)
+        skeleton_container.setGraphicsEffect(opacity_effect)
+
+        anim_in = QPropertyAnimation(opacity_effect, b"opacity")
+        anim_in.setDuration(900)
+        anim_in.setStartValue(0.28)
+        anim_in.setEndValue(0.85)
+        anim_in.setEasingCurve(QEasingCurve.Type.InOutSine)
+
+        anim_out = QPropertyAnimation(opacity_effect, b"opacity")
+        anim_out.setDuration(900)
+        anim_out.setStartValue(0.85)
+        anim_out.setEndValue(0.28)
+        anim_out.setEasingCurve(QEasingCurve.Type.InOutSine)
+
+        self._skeleton_anim = QSequentialAnimationGroup(self)
+        self._skeleton_anim.addAnimation(anim_in)
+        self._skeleton_anim.addAnimation(anim_out)
+        self._skeleton_anim.setLoopCount(-1)
+        self._skeleton_anim.start()
+
     def _generate_insights(self):
         if not self.stats or self.stats.get("total", 0) == 0:
             return
 
-        clear_layout(self.insights_layout)
-
-        loading_container = QWidget()
-        loading_container.setStyleSheet("background: transparent;")
-        l_vbox = QVBoxLayout(loading_container)
-        l_vbox.setContentsMargins(12, 32, 12, 32)
-        l_vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        l_vbox.setSpacing(14)
-
-        spinner = QProgressBar()
-        spinner.setRange(0, 0)
-        spinner.setFixedWidth(240)
-        spinner.setFixedHeight(6)
-        spinner.setStyleSheet(Styles.get_progress_bar_style())
-        l_vbox.addWidget(spinner, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        lbl_loading = QLabel("Analyzing Performance Data...")
-        lbl_loading.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: 600; background: transparent;"
-        )
-        lbl_loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        l_vbox.addWidget(lbl_loading)
-
-        lbl_sub = QLabel(
-            "Evaluating tactical motifs, advantage conversion, and clock discipline..."
-        )
-        lbl_sub.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;"
-        )
-        lbl_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        l_vbox.addWidget(lbl_sub)
-
-        self.insights_layout.addWidget(loading_container)
+        self._show_loading_skeleton()
 
         # Build clean high-density coach dossier
         dossier_text = MetricsAggregator.build_coach_dossier(self.stats)
@@ -299,11 +424,13 @@ class AICoachCard(MetricCard):
         self.worker.start()
 
     def _on_worker_finished(self, insight_text: str):
+        self._stop_skeleton_anim()
         self.current_insights = insight_text
         self.insights_generated.emit(insight_text)
         self._populate_insights(insight_text)
 
     def _handle_insight_error(self, err_msg: str):
+        self._stop_skeleton_anim()
         clear_layout(self.insights_layout)
 
         err_frame = QFrame()
@@ -380,7 +507,7 @@ class AICoachCard(MetricCard):
             fb_lbl = QLabel(insight_text)
             fb_lbl.setWordWrap(True)
             fb_lbl.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; line-height: 1.45; background: transparent;"
+                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; background: transparent;"
             )
             fb_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             fb_vbox.addWidget(fb_lbl)
@@ -453,7 +580,7 @@ class AICoachCard(MetricCard):
                 if item_body:
                     b_lbl = QLabel(item_body)
                     b_lbl.setStyleSheet(
-                        f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.4; background: transparent;"
+                        f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;"
                     )
                     b_lbl.setWordWrap(True)
                     ivbox.addWidget(b_lbl)

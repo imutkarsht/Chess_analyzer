@@ -661,6 +661,14 @@ def test_ai_coach_card_widget(qapp, qtbot):
     # 3. Refresh styles
     card.refresh_styles()
 
+    # 4. Pulsing skeleton loader test
+    card._show_loading_skeleton()
+    assert card.findChild(QWidget, "coach_skeleton_container") is not None
+    assert card._skeleton_anim is not None
+    assert card._skeleton_anim.state() == card._skeleton_anim.State.Running
+    card._stop_skeleton_anim()
+    assert card._skeleton_anim is None
+
 
 def test_metrics_widget_includes_advantage_and_ai_coach(qapp, qtbot):
     """Test MetricsWidget creates and renders AdvantageConversionCard and AICoachCard."""
