@@ -28,13 +28,27 @@ from src.utils.logger import logger
 # ---------------------------------------------------------------------------
 _LANG_NAMES: dict[str, str] = {
     "en": "English",  # Default language
-    "de": "German",   "fr": "French",    "es": "Spanish",
-    "it": "Italian",  "pt": "Portuguese", "nl": "Dutch",
-    "pl": "Polish",   "ru": "Russian",   "tr": "Turkish",
-    "ja": "Japanese", "zh": "Chinese",   "ko": "Korean",
-    "ar": "Arabic",   "sv": "Swedish",   "da": "Danish",
-    "fi": "Finnish",  "nb": "Norwegian", "cs": "Czech",
-    "sk": "Slovak",   "hu": "Hungarian", "ro": "Romanian",
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "ru": "Russian",
+    "tr": "Turkish",
+    "ja": "Japanese",
+    "zh": "Chinese",
+    "ko": "Korean",
+    "ar": "Arabic",
+    "sv": "Swedish",
+    "da": "Danish",
+    "fi": "Finnish",
+    "nb": "Norwegian",
+    "cs": "Czech",
+    "sk": "Slovak",
+    "hu": "Hungarian",
+    "ro": "Romanian",
 }
 
 # Localised section labels for the AI summary. Keys are the language
@@ -88,6 +102,7 @@ def _detect_ui_language() -> str:
 # Service class
 # ---------------------------------------------------------------------------
 
+
 class GroqService:
     """
     OpenAI-compatible LLM service with pluggable, multi-profile provider
@@ -116,8 +131,8 @@ class GroqService:
         profile = cfg.get_active_profile()
 
         provider = profile.get("provider", "groq")
-        api_key  = profile.get("api_key", "") or ""
-        model    = profile.get("model", "") or ""
+        api_key = profile.get("api_key", "") or ""
+        model = profile.get("model", "") or ""
         base_url = profile.get("base_url", "") or ""
 
         # Env-var fallback for Groq (honours existing .env / GROQ_API_KEY)
@@ -203,8 +218,8 @@ class GroqService:
         preset = PROVIDERS.get(provider, PROVIDERS["custom"])
 
         self._provider = provider
-        self._api_key  = api_key
-        self._model    = model or preset["default_model"]
+        self._api_key = api_key
+        self._model = model or preset["default_model"]
         self._base_url = base_url or preset["base_url"]
 
         requires_key = preset["requires_key"]
@@ -224,7 +239,12 @@ class GroqService:
                 api_key=self._api_key or "not-needed",
                 base_url=self._base_url,
             )
-            logger.info("LLM client initialized: provider=%s, model=%s, base_url=%s", provider, self._model, self._base_url)
+            logger.info(
+                "LLM client initialized: provider=%s, model=%s, base_url=%s",
+                provider,
+                self._model,
+                self._base_url,
+            )
         except Exception as e:
             logger.error("Failed to initialize OpenAI client for provider %s: %s", provider, e)
             self.client = None
@@ -252,14 +272,18 @@ class GroqService:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        logger.info("Sending LLM completion request: model=%s, prompt_len=%d", self._model, len(prompt))
+        logger.info(
+            "Sending LLM completion request: model=%s, prompt_len=%d", self._model, len(prompt)
+        )
         try:
             completion = self.client.chat.completions.create(
                 model=self._model,
                 messages=messages,
             )
             text = completion.choices[0].message.content
-            logger.info("Received LLM completion response (%d chars)", len(text.strip()) if text else 0)
+            logger.info(
+                "Received LLM completion response (%d chars)", len(text.strip()) if text else 0
+            )
             return text.strip() if text else "No response generated."
         except Exception as exc:
             exc_type = type(exc).__name__
@@ -282,7 +306,7 @@ class GroqService:
         """
         lang = _detect_ui_language()
         if lang == "English":
-            return ""   # LLMs default to English — no instruction needed
+            return ""  # LLMs default to English — no instruction needed
         return f"Write your entire response in {lang}."
 
     @staticmethod
@@ -298,8 +322,7 @@ class GroqService:
     # Public prompts
     # ------------------------------------------------------------------
 
-    def generate_summary(self, pgn_text: str, analysis_summary: str,
-                        time_stats: str = "") -> str:
+    def generate_summary(self, pgn_text: str, analysis_summary: str, time_stats: str = "") -> str:
         """Generate a chess-expert narrative summary for a single game."""
         if not self.client:
             return "Error: LLM not configured. Go to Settings → API Configuration."
@@ -328,8 +351,8 @@ class GroqService:
             "of the game.\n"
             f"Then provide a concise, insightful '{summary_lbl}' (max 200 words). "
             "Highlight key turning points, brilliant moves, and major mistakes."
-            + time_block +
-            "\n\nReply with EXACTLY this structure and nothing else — "
+            + time_block
+            + "\n\nReply with EXACTLY this structure and nothing else — "
             "do not include any other section headers, do not echo the input "
             "labels, do not add a preamble or closing remark:\n\n"
             f"{game_comment_lbl}: <one short phrase>\n\n"
@@ -342,19 +365,30 @@ class GroqService:
         return self._chat(prompt, system=self._lang_instruction())
 
     def generate_coach_insights(self, stats_text: str) -> str:
-        """Generate 3 coaching tips from aggregate player statistics."""
+        """Generate structured coaching diagnostics from player performance dossier."""
         if not self.client:
             return "Error: LLM not configured. Go to Settings → API Configuration."
 
         prompt = (
-            "You are a chess coach. Analyze the following statistics for your student:\n\n"
+            "You are an insightful, direct, and constructive chess coach analyzing a student's performance dossier.\n\n"
             f"{stats_text}\n\n"
-            "Provide 3 specific, actionable, and encouraging insights or tips based on "
-            "this data. Focus on win rate, accuracy, and opening or phase-specific trends. "
-            "Keep it concise (bullet points). Use emojis where appropriate.\n\n"
-            "Format:\n"
-            "1. [Insight 1]\n"
-            "2. [Insight 2]\n"
-            "3. [Insight 3]"
+            "Provide a rigorous, actionable coaching diagnostic divided into EXACTLY these 3 sections with markdown headers:\n\n"
+            "### Strengths & Superpowers\n"
+            "- **Title**: 1-2 concise sentences highlighting a specific proven strength (e.g. tactical vision, endgame technique, or opening preparation).\n"
+            "- **Title**: 1-2 concise sentences highlighting another proven strength.\n\n"
+            "### Critical Leaks & Blindspots\n"
+            "- **Title**: 1-2 concise sentences diagnosing the primary rating leak (e.g. hanging pieces, moving too fast in Rapid/Classical, squandered winning leads, or endgame collapses).\n"
+            "- **Title**: 1-2 concise sentences identifying another recurring mistake pattern.\n\n"
+            "### Personalized Training Prescription\n"
+            "- **Action**: Concrete practice routine addressing the primary leak (e.g. specific puzzle themes, clock pacing rules, or opening repertoire repairs).\n"
+            "- **Action**: Concrete practice routine addressing the secondary leak.\n\n"
+            "Critical Guidelines:\n"
+            "- TIME MANAGEMENT RULE: NEVER praise fast move times in Rapid or Classical games as a strength! "
+            "If the student moves in under 8 seconds per move in Rapid/Classical and leaves excess time on their clock while blundering, "
+            "classify this as a CRITICAL LEAK ('Moving Too Fast / Blitzing in Rapid'). Instruct them to slow down and calculate.\n"
+            "- Rely strictly on the data provided in the dossier.\n"
+            "- Do NOT use emojis.\n"
+            "- Keep the tone professional, direct, analytical, and encouraging.\n"
+            "- Do NOT include conversational pleasantries, introductory greetings, or sign-offs."
         )
         return self._chat(prompt, system=self._lang_instruction())

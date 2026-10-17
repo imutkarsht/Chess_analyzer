@@ -19,6 +19,7 @@ from src.gui.utils.gui_utils import clear_layout, create_button, create_combobox
 # Import modular cards
 from src.gui.views.metrics import (
     AccuracyTrendCard,
+    AdvantageConversionCard,
     AICoachCard,
     BrilliancyHallCard,
     EndingDistributionCard,
@@ -375,7 +376,6 @@ class MetricsWidget(QWidget):
 
     def on_stats_ready(self, stats):
         self.current_stats = stats
-        self.current_insights = None
         total = stats.get("total", 0)
         if hasattr(self, "lbl_games_badge") and self.lbl_games_badge:
             self.lbl_games_badge.setText(f"{total} Games")
@@ -560,6 +560,10 @@ class MetricsWidget(QWidget):
         self.tactics_card.set_stats(stats)
         self.charts_layout.addWidget(self.tactics_card)
 
+        self.advantage_card = AdvantageConversionCard()
+        self.advantage_card.set_stats(stats)
+        self.charts_layout.addWidget(self.advantage_card)
+
         self.brilliancy_card = BrilliancyHallCard()
         self.brilliancy_card.set_stats(stats)
         self.brilliancy_card.move_selected.connect(self._on_brilliancy_clicked)
@@ -571,8 +575,11 @@ class MetricsWidget(QWidget):
 
         self.ai_coach_card = AICoachCard(self.groq_service)
         self.ai_coach_card.set_stats(stats)
+        if self.current_insights:
+            self.ai_coach_card.set_insights(self.current_insights)
 
-        # Connect AI card's internal worker to capture insights cached text
+        # Connect AI card's signals to capture insights cache
+        self.ai_coach_card.insights_generated.connect(self._store_insights_cache)
         self.ai_coach_card.btn_refresh_insights.clicked.connect(self._sync_insights_cache)
         self.charts_layout.addWidget(self.ai_coach_card)
 

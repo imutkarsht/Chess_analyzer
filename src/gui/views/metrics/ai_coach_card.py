@@ -1,14 +1,22 @@
-import json
-import os
-import re
+"""
+AI Coach Insights Card.
+Generates clean, structured coaching diagnostics from aggregated metrics,
+highlighting Strengths & Superpowers, Critical Leaks, and a Personalized Training Prescription.
+Open, modern design with zero nested box clutter.
+"""
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -16,39 +24,84 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.analysis.metrics_aggregator import MetricsAggregator
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout, resolve_asset, show_error_dialog
+from src.gui.utils.gui_utils import clear_layout, create_button, show_error_dialog
 from src.gui.views.metrics.base_card import MetricCard
 
 
 class AICoachCard(MetricCard):
-    def __init__(self, groq_service, parent=None):
-        self.groq_service = groq_service
-        self.stats = None
-        self.worker = None
-        self.current_insights = None
+    """
+    Card displaying AI Coaching diagnostics:
+    - Strengths & Superpowers (Tactics, prep, endgame accuracy)
+    - Critical Leaks & Blindspots (Piece hangs, clock panic, rushing in Rapid, dropped leads)
+    - Personalized Training Prescription (Concrete practice routines)
+    """
 
-        self.btn_refresh_insights = QPushButton("↻")
-        self.btn_refresh_insights.setFixedSize(32, 32)
+    insights_generated = pyqtSignal(str)
+
+    def __init__(self, groq_service: Any, parent=None):
+        self.groq_service = groq_service
+        self.stats: dict[str, Any] = {}
+        self.worker: InsightWorker | None = None
+        self.current_insights: str | None = None
+
+        # Action widget container in card header
+        self.header_action_widget = QWidget()
+        self.header_action_widget.setStyleSheet("background: transparent;")
+        header_act_layout = QHBoxLayout(self.header_action_widget)
+        header_act_layout.setContentsMargins(0, 0, 0, 0)
+        header_act_layout.setSpacing(8)
+
+        # Provider / Model status badge
+        self.provider_badge = QLabel("AI Coach")
+        self.provider_badge.setStyleSheet(f"""
+            background-color: {Styles.COLOR_SURFACE_LIGHT};
+            color: {Styles.COLOR_TEXT_SECONDARY};
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid {Styles.COLOR_BORDER};
+            border-radius: 6px;
+            padding: 3px 8px;
+        """)
+        header_act_layout.addWidget(self.provider_badge)
+
+        # Refresh / Generate button
+        self.btn_refresh_insights = QPushButton()
+        self.btn_refresh_insights.setFixedSize(28, 28)
         self.btn_refresh_insights.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_refresh_insights.setToolTip("Refresh AI Insights")
+        self.btn_refresh_insights.setToolTip("Generate / Refresh AI Coaching")
         self.btn_refresh_insights.setStyleSheet(f"""
             QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border-radius: 16px;
-                border: none;
-                font-size: 18px;
-                font-weight: bold;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
             }}
             QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
+                background-color: {Styles.COLOR_SURFACE};
+                border-color: {Styles.COLOR_ACCENT};
             }}
         """)
-        self.btn_refresh_insights.clicked.connect(self._generate_insights)
+        try:
+            import qtawesome as qta
 
-        super().__init__("AI Coach Insights", parent=parent, action_widget=self.btn_refresh_insights, min_height=400)
+            self.btn_refresh_insights.setIcon(
+                qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
+            )
+        except ImportError:
+            self.btn_refresh_insights.setText("↻")
+
+        self.btn_refresh_insights.clicked.connect(self._generate_insights)
+        header_act_layout.addWidget(self.btn_refresh_insights)
+
+        super().__init__(
+            "AI Coach Insights",
+            parent=parent,
+            action_widget=self.header_action_widget,
+            min_height=380,
+        )
         self.setup_ui()
 
     def setup_ui(self):
@@ -72,61 +125,164 @@ class AICoachCard(MetricCard):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )
         self.insights_layout = QVBoxLayout(self.insights_container)
-        self.insights_layout.setSpacing(15)
-        self.insights_layout.setContentsMargins(10, 10, 10, 10)
+        self.insights_layout.setSpacing(16)
+        self.insights_layout.setContentsMargins(6, 6, 6, 8)
         self.insights_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-
-        lbl_placeholder = QLabel("Analysis ready. Click refresh to get insights.")
-        lbl_placeholder.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-style: italic;")
-        lbl_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.insights_layout.addWidget(lbl_placeholder)
-
-        for _ in range(3):
-            line = QFrame()
-            line.setFixedHeight(12)
-            line.setStyleSheet(f"background-color: {Styles.COLOR_SURFACE_LIGHT}; border-radius: 6px;")
-            self.insights_layout.addWidget(line)
 
         self.scroll.setWidget(self.insights_container)
         self.set_content(self.scroll)
+        self._show_initial_state()
 
-    def set_stats(self, stats):
-        self.stats = stats
+    def set_stats(self, stats: dict[str, Any]):
+        self.stats = stats or {}
+        self._update_provider_badge()
+        if not self.current_insights:
+            self._show_initial_state()
 
-    def set_insights(self, insight_text):
+    def set_insights(self, insight_text: str):
+        if not insight_text:
+            return
+        self.current_insights = insight_text
         self._populate_insights(insight_text)
 
-    def get_insights(self):
+    def get_insights(self) -> str | None:
         return self.current_insights
 
+    def _update_provider_badge(self):
+        """Reflect active provider and model in header badge without pretension."""
+        if hasattr(self.groq_service, "get_model_name"):
+            model = self.groq_service.get_model_name()
+            if model:
+                short_model = model.split("/")[-1].replace(":latest", "")
+                self.provider_badge.setText(short_model)
+                return
+        self.provider_badge.setText("AI Coach")
+
+    def _show_initial_state(self):
+        clear_layout(self.insights_layout)
+        total = self.stats.get("total", 0)
+
+        intro_container = QWidget()
+        intro_container.setObjectName("coach_intro_container")
+        intro_container.setStyleSheet("background: transparent;")
+        vbox = QVBoxLayout(intro_container)
+        vbox.setContentsMargins(12, 28, 12, 28)
+        vbox.setSpacing(14)
+        vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        title = QLabel("Performance Diagnosis")
+        title.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; font-weight: 700; background: transparent;"
+        )
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        vbox.addWidget(title)
+
+        desc = QLabel(
+            f"Synthesizes {total} analyzed games into coaching insights across "
+            "tactical blindspots, advantage conversion, clock management, and opening repertoire."
+            if total > 0
+            else "Analyze your games to receive tailored coaching insights and practice recommendations."
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.4; background: transparent;"
+        )
+        desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        desc.setMaximumWidth(480)
+        vbox.addWidget(desc)
+
+        vbox.addSpacing(4)
+
+        btn_analyze = create_button(
+            "Generate Coach Insights",
+            style="primary",
+            on_click=self._generate_insights,
+            icon_name="fa5s.robot",
+        )
+        btn_analyze.setFixedWidth(220)
+        btn_analyze.setFixedHeight(36)
+        btn_analyze.setEnabled(total > 0)
+        vbox.addWidget(btn_analyze, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        self.insights_layout.addWidget(intro_container)
+
     def refresh_styles(self):
+        self.provider_badge.setStyleSheet(f"""
+            background-color: {Styles.COLOR_SURFACE_LIGHT};
+            color: {Styles.COLOR_TEXT_SECONDARY};
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid {Styles.COLOR_BORDER};
+            border-radius: 6px;
+            padding: 3px 8px;
+        """)
         self.btn_refresh_insights.setStyleSheet(f"""
             QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border-radius: 16px;
-                border: none;
-                font-size: 18px;
-                font-weight: bold;
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
             }}
             QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
+                background-color: {Styles.COLOR_SURFACE};
+                border-color: {Styles.COLOR_ACCENT};
             }}
         """)
+        try:
+            import qtawesome as qta
+
+            self.btn_refresh_insights.setIcon(
+                qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
+            )
+        except ImportError:
+            pass
+
         super().refresh_styles()
+        if self.current_insights:
+            self._populate_insights(self.current_insights)
+        else:
+            self._show_initial_state()
 
     def _generate_insights(self):
-        if not self.stats:
+        if not self.stats or self.stats.get("total", 0) == 0:
             return
 
         clear_layout(self.insights_layout)
 
-        lbl_loading = QLabel("Asking Coach Groq...")
-        lbl_loading.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY};")
-        lbl_loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.insights_layout.addWidget(lbl_loading)
+        loading_container = QWidget()
+        loading_container.setStyleSheet("background: transparent;")
+        l_vbox = QVBoxLayout(loading_container)
+        l_vbox.setContentsMargins(12, 32, 12, 32)
+        l_vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        l_vbox.setSpacing(14)
 
-        stats_str = json.dumps(self.stats, indent=2)
+        spinner = QProgressBar()
+        spinner.setRange(0, 0)
+        spinner.setFixedWidth(240)
+        spinner.setFixedHeight(6)
+        spinner.setStyleSheet(Styles.get_progress_bar_style())
+        l_vbox.addWidget(spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        lbl_loading = QLabel("Analyzing Performance Data...")
+        lbl_loading.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: 600; background: transparent;"
+        )
+        lbl_loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        l_vbox.addWidget(lbl_loading)
+
+        lbl_sub = QLabel(
+            "Evaluating tactical motifs, advantage conversion, and clock discipline..."
+        )
+        lbl_sub.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+        )
+        lbl_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        l_vbox.addWidget(lbl_sub)
+
+        self.insights_layout.addWidget(loading_container)
+
+        # Build clean high-density coach dossier
+        dossier_text = MetricsAggregator.build_coach_dossier(self.stats)
 
         if self.worker is not None and self.worker.isRunning():
             try:
@@ -135,134 +291,250 @@ class AICoachCard(MetricCard):
             except (TypeError, RuntimeError):
                 pass
             self.worker.quit()
-            self.worker.wait()
+            self.worker.wait(1000)
 
-        self.worker = InsightWorker(self.groq_service, stats_str)
-        self.worker.finished.connect(self._populate_insights)
+        self.worker = InsightWorker(self.groq_service, dossier_text)
+        self.worker.finished.connect(self._on_worker_finished)
         self.worker.error.connect(self._handle_insight_error)
         self.worker.start()
 
-    def _handle_insight_error(self, err_msg):
-        clear_layout(self.insights_layout)
-        lbl_err = QLabel(f"Error: {err_msg}")
-        lbl_err.setStyleSheet(f"color: {Styles.COLOR_BLUNDER};")
-        lbl_err.setWordWrap(True)
-        lbl_err.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-            | Qt.TextInteractionFlag.TextSelectableByKeyboard
-        )
-        self.insights_layout.addWidget(lbl_err)
+    def _on_worker_finished(self, insight_text: str):
+        self.current_insights = insight_text
+        self.insights_generated.emit(insight_text)
+        self._populate_insights(insight_text)
 
-        btn_retry = QPushButton("Retry")
-        btn_retry.setStyleSheet(Styles.get_button_style())
-        btn_retry.clicked.connect(self._generate_insights)
-        self.insights_layout.addWidget(btn_retry)
+    def _handle_insight_error(self, err_msg: str):
+        clear_layout(self.insights_layout)
+
+        err_frame = QFrame()
+        err_frame.setStyleSheet(f"""
+            background-color: {Styles.COLOR_SURFACE_LIGHT};
+            border: 1px solid {Styles.COLOR_BLUNDER};
+            border-radius: 8px;
+            padding: 16px;
+        """)
+        vbox = QVBoxLayout(err_frame)
+        vbox.setSpacing(10)
+
+        lbl_title = QLabel("AI Coaching Unavailable")
+        lbl_title.setStyleSheet(
+            f"color: {Styles.COLOR_BLUNDER}; font-size: 14px; font-weight: 700; background: transparent;"
+        )
+        vbox.addWidget(lbl_title)
+
+        lbl_err = QLabel(f"{err_msg}")
+        lbl_err.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+        )
+        lbl_err.setWordWrap(True)
+        lbl_err.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        vbox.addWidget(lbl_err)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
 
         if "not configured" in err_msg.lower():
-            from ...dialogs.llm_error_dialog import LlmNotConfiguredDialog
-            dlg = LlmNotConfiguredDialog(self)
-            if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
-                window = self.window()
-                if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
-                    window.sidebar.set_active(4)
-                    window.switch_page(4)
+            btn_cfg = QPushButton("Configure LLM in Settings")
+            btn_cfg.setStyleSheet(Styles.get_button_style())
+            btn_cfg.clicked.connect(self._open_settings)
+            btn_row.addWidget(btn_cfg)
         else:
             show_error_dialog(
                 self,
                 "AI Coach Insights Failed",
-                "Could not generate AI insights. See the insight card and "
-                "the details below for the full error.",
+                "Could not generate AI insights. See details below.",
                 err_msg,
             )
 
-    def _populate_insights(self, insight_text):
+        btn_retry = QPushButton("Retry Analysis")
+        btn_retry.setStyleSheet(Styles.get_control_button_style())
+        btn_retry.clicked.connect(self._generate_insights)
+        btn_row.addWidget(btn_retry)
+        btn_row.addStretch()
+
+        vbox.addLayout(btn_row)
+        self.insights_layout.addWidget(err_frame)
+
+    def _open_settings(self):
+        from ...dialogs.llm_error_dialog import LlmNotConfiguredDialog
+
+        dlg = LlmNotConfiguredDialog(self)
+        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
+            window = self.window()
+            if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
+                window.sidebar.set_active(4)
+                window.switch_page(4)
+
+    def _populate_insights(self, insight_text: str):
         self.current_insights = insight_text
         clear_layout(self.insights_layout)
 
-        def add_insight(icon, text):
-            row = QHBoxLayout()
-            row.setSpacing(15)
-            row.setAlignment(Qt.AlignmentFlag.AlignTop)
+        sections = self._parse_structured_insights(insight_text)
 
-            icon_path = None
-            if icon.endswith(".png") or icon.endswith(".svg"):
-                icon_path = resolve_asset(icon)
-            else:
-                icon_path = resolve_asset(f"{icon}.png")
-                if not icon_path:
-                    icon_path = resolve_asset(f"{icon}.svg")
+        if not sections or not any(sections.values()):
+            # Fallback for plain text or unexpected formatting
+            fallback_widget = QWidget()
+            fallback_widget.setStyleSheet("background: transparent;")
+            fb_vbox = QVBoxLayout(fallback_widget)
+            fb_vbox.setContentsMargins(6, 6, 6, 6)
+            fb_lbl = QLabel(insight_text)
+            fb_lbl.setWordWrap(True)
+            fb_lbl.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; line-height: 1.45; background: transparent;"
+            )
+            fb_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            fb_vbox.addWidget(fb_lbl)
+            self.insights_layout.addWidget(fallback_widget)
+            return
 
-            if icon_path and os.path.exists(icon_path):
-                lbl_icon = QLabel()
-                pixmap = QPixmap(icon_path)
-                if not pixmap.isNull():
-                    pixmap = pixmap.scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                    lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet(Styles.get_transparent_label_style())
-                    icon_container = QWidget()
-                    icon_container.setFixedWidth(30)
-                    icon_layout = QVBoxLayout(icon_container)
-                    icon_layout.setContentsMargins(0,0,0,0)
-                    icon_layout.addWidget(lbl_icon, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
-                    row.addWidget(icon_container)
-                else:
-                    lbl_icon = QLabel("💡")
-                    lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; {Styles.get_transparent_label_style()}")
-                    row.addWidget(lbl_icon)
-            else:
-                lbl_icon = QLabel("💡")
-                lbl_icon.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 20px; {Styles.get_transparent_label_style()}")
-                row.addWidget(lbl_icon)
+        section_meta = {
+            "strengths": ("STRENGTHS & SUPERPOWERS", Styles.COLOR_RESULT_WIN),
+            "leaks": ("CRITICAL LEAKS & BLINDSPOTS", Styles.COLOR_BLUNDER),
+            "prescription": ("TRAINING PRESCRIPTION", Styles.COLOR_ACCENT),
+        }
 
-            clean_text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
-            clean_text = clean_text.strip('"').strip("'")
-            clean_text = re.sub(r'[^\x00-\x7F]+', '', clean_text).strip()
+        first_section = True
+        for sec_key, items in sections.items():
+            if not items:
+                continue
+            title_text, color_accent = section_meta.get(
+                sec_key, ("COACHING OBSERVATIONS", Styles.COLOR_TEXT_PRIMARY)
+            )
 
-            if clean_text and clean_text[0].islower():
-                clean_text = clean_text[0].upper() + clean_text[1:]
+            # Divider between sections
+            if not first_section:
+                divider = QFrame()
+                divider.setFixedHeight(1)
+                divider.setStyleSheet(
+                    f"background-color: {Styles.COLOR_BORDER}; margin-top: 6px; margin-bottom: 6px;"
+                )
+                self.insights_layout.addWidget(divider)
+            first_section = False
 
-            lbl_text = QLabel(clean_text)
-            lbl_text.setWordWrap(True)
-            lbl_text.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; line-height: 1.4; {Styles.get_transparent_label_style()}")
-            row.addWidget(lbl_text, stretch=1)
+            sec_container = QWidget()
+            sec_container.setObjectName(f"coach_sec_{sec_key}")
+            sec_container.setStyleSheet("background: transparent;")
+            sec_vbox = QVBoxLayout(sec_container)
+            sec_vbox.setContentsMargins(0, 2, 0, 4)
+            sec_vbox.setSpacing(10)
 
-            self.insights_layout.addLayout(row)
+            # Header row (clean, non-boxy)
+            h_row = QHBoxLayout()
+            h_row.setSpacing(6)
+            h_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        lines = insight_text.split('\n')
-        count = 0
+            h_lbl = QLabel(title_text)
+            h_lbl.setStyleSheet(f"""
+                color: {color_accent};
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.6px;
+                background: transparent;
+            """)
+            h_row.addWidget(h_lbl)
+            h_row.addStretch()
+            sec_vbox.addLayout(h_row)
+
+            # Items
+            for item_title, item_body in items:
+                item_widget = QWidget()
+                item_widget.setStyleSheet("background: transparent;")
+                ivbox = QVBoxLayout(item_widget)
+                ivbox.setContentsMargins(0, 0, 0, 0)
+                ivbox.setSpacing(3)
+
+                t_lbl = QLabel(item_title)
+                t_lbl.setStyleSheet(
+                    f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent;"
+                )
+                t_lbl.setWordWrap(True)
+                ivbox.addWidget(t_lbl)
+
+                if item_body:
+                    b_lbl = QLabel(item_body)
+                    b_lbl.setStyleSheet(
+                        f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.4; background: transparent;"
+                    )
+                    b_lbl.setWordWrap(True)
+                    ivbox.addWidget(b_lbl)
+
+                sec_vbox.addWidget(item_widget)
+
+            self.insights_layout.addWidget(sec_container)
+
+        # Footer attribution (clean, modest)
+        total = self.stats.get("total", 0)
+        footer_lbl = QLabel(f"Generated by AI Coach • Based on {total} analyzed games")
+        footer_lbl.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 10px; font-style: italic; background: transparent; padding-top: 10px;"
+        )
+        footer_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.insights_layout.addWidget(footer_lbl)
+
+    def _parse_structured_insights(self, text: str) -> dict[str, list[tuple[str, str]]]:
+        """
+        Parses 3-tier coaching response into clean, un-mangled title/body tuples.
+        Strips dangling asterisks, colons, and markdown artifacts.
+        """
+        result: dict[str, list[tuple[str, str]]] = {
+            "strengths": [],
+            "leaks": [],
+            "prescription": [],
+        }
+
+        current_section = None
+        lines = text.split("\n")
+
         for line in lines:
-            line = line.strip()
-            if not line:
+            line_s = line.strip()
+            if not line_s:
                 continue
 
-            content = line
+            lower = line_s.lower()
+            if "strength" in lower or "superpower" in lower:
+                current_section = "strengths"
+                continue
+            elif "leak" in lower or "blindspot" in lower or "weakness" in lower:
+                current_section = "leaks"
+                continue
+            elif "prescription" in lower or "training" in lower or "recommendation" in lower:
+                current_section = "prescription"
+                continue
 
-            if line[0].isdigit() and ('.' in line[:4] or ')' in line[:4]):
-                parts = line.split('.', 1)
-                if len(parts) > 1:
-                    content = parts[1].strip()
+            if not current_section:
+                continue
+
+            # Check if this is a bullet point or numbered item
+            if line_s.startswith(("- ", "* ", "• ")) or (
+                line_s[0].isdigit() and line_s[1:3] in (". ", ") ")
+            ):
+                content = re.sub(r"^[-*•\d.)\s]+", "", line_s).strip()
+
+                # Extract title and body
+                item_title = ""
+                item_body = ""
+
+                # Case 1: **Title**: Body or **Title** - Body
+                bold_match = re.search(r"\*\*(.*?)\*\*", content)
+                if bold_match:
+                    raw_title = bold_match.group(1)
+                    raw_body = content[bold_match.end() :].lstrip(":-— ").strip()
+                    item_title = raw_title
+                    item_body = raw_body
                 else:
-                    content = line.split(')', 1)[-1].strip()
-            elif line.startswith('- ') or line.startswith('* '):
-                content = line[2:].strip()
+                    parts = content.split(":", 1)
+                    if len(parts) == 2 and len(parts[0]) < 50:
+                        item_title = parts[0]
+                        item_body = parts[1]
+                    else:
+                        item_title = content
+                        item_body = ""
 
-            if len(content) > 20:
-                lower_text = content.lower()
-                icon = "idea"
+                # Robust cleanup: strip all lingering markdown symbols, asterisks, colons, quotes
+                clean_title = re.sub(r"[\*_#]+", "", item_title).strip(":-— \t")
+                clean_body = re.sub(r"[\*_#]+", "", item_body).strip(":-— \t")
 
-                if "opening" in lower_text:
-                    icon = "opening_icon.png"
-                elif any(x in lower_text for x in ["endgame", "mate", "queen"]):
-                    icon = "phase_icon.png"
-                elif any(x in lower_text for x in ["accuracy", "precision", "blunder"]):
-                    icon = "accuracy.png"
-                elif any(x in lower_text for x in ["win", "momentum", "streak", "victory"]):
-                    icon = "win_rate.png"
-                elif any(x in lower_text for x in ["best", "great", "brilliant"]):
-                    icon = "best_v2.svg"
+                if clean_title:
+                    result[current_section].append((clean_title, clean_body))
 
-                add_insight(icon, content)
-                count += 1
-
-        if count == 0:
-            add_insight("idea", insight_text)
+        return result

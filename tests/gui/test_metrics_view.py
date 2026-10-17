@@ -4,7 +4,7 @@ GUI tests for MetricsWidget and the filter toolbar.
 
 from unittest.mock import MagicMock
 
-from PyQt6.QtWidgets import QFrame
+from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
 from src.gui.views.metrics_view import MetricsWidget
 
@@ -566,3 +566,142 @@ def test_metrics_widget_brilliancy_selection_signal(qapp, qtbot):
 
     assert blocker.args[0] == mock_game
     assert blocker.args[1] == 20  # ply 21 -> index 20
+
+
+def test_advantage_conversion_card_widget(qapp, qtbot):
+    """Test AdvantageConversionCard rendering, conversion rate, thrown losses, and comebacks."""
+    from src.gui.views.metrics.advantage_card import AdvantageConversionCard
+
+    card = AdvantageConversionCard()
+    qtbot.addWidget(card)
+
+    # 1. Empty stats
+    card.set_stats({})
+    assert card.action_badge.text() == "Conversion Analytics"
+    assert card.content_widget is not None
+
+    # 2. Populated advantage metrics
+    stats = {
+        "total": 12,
+        "advantage_stats": {
+            "had_winning_advantage": 8,
+            "converted_advantage": 6,
+            "thrown_losses": 1,
+            "squandered_draws": 1,
+            "conversion_rate": 75.0,
+            "throw_rate": 12.5,
+            "had_losing_position": 4,
+            "comeback_drawn_or_won": 2,
+            "comeback_wins": 1,
+            "comeback_draws": 1,
+            "comeback_rate": 50.0,
+        },
+    }
+    card.set_stats(stats)
+    assert "75% Conversion • 1 Thrown" in card.action_badge.text()
+
+    adv_pillar = card.findChild(QFrame, "adv_pillar")
+    assert adv_pillar is not None
+
+    cb_pillar = card.findChild(QFrame, "comeback_pillar")
+    assert cb_pillar is not None
+
+    ins_frame = card.findChild(QFrame, "conversion_insight_frame")
+    assert ins_frame is not None
+
+    # 3. Refresh styles
+    card.refresh_styles()
+    assert card.action_badge.text().startswith("75% Conversion")
+
+
+def test_ai_coach_card_widget(qapp, qtbot):
+    """Test AICoachCard initial state, structured insight population, and error handling."""
+    from src.gui.views.metrics.ai_coach_card import AICoachCard
+
+    mock_service = MagicMock()
+    mock_service.get_model_name = MagicMock(return_value="groq/llama-3.3-70b-versatile")
+
+    card = AICoachCard(mock_service)
+    qtbot.addWidget(card)
+
+    stats = {
+        "total": 15,
+        "win_rate": 66.7,
+        "avg_accuracy": 84.0,
+    }
+    card.set_stats(stats)
+    assert card.provider_badge.text() == "llama-3.3-70b-versatile"
+    intro_container = card.findChild(QWidget, "coach_intro_container")
+    assert intro_container is not None
+
+    # 1. Populate structured insights
+    structured_insights = (
+        "### Strengths & Superpowers\n"
+        "- **Endgame Precision**: You hold a 91% endgame accuracy across matches.\n"
+        "- **Tactical Alertness**: You successfully executed 5 forks and 2 brilliancies.\n\n"
+        "### Critical Leaks & Blindspots\n"
+        "- **Piece Safety**: Dropped 3 undefended rooks in non-tactical positions.\n"
+        "- **Time Trouble Panic**: Blunder rate spikes 2.8x under 20 seconds.\n\n"
+        "### Personalized Training Prescription\n"
+        "- **Piece Safety Drills**: Spend 15 minutes daily on undefended piece tactics.\n"
+        "- **Clock Pacing**: Commit to a 5-second minimum think per move in complex middlegames.\n"
+    )
+    card.set_insights(structured_insights)
+
+    assert card.get_insights() == structured_insights
+    assert card.findChild(QWidget, "coach_sec_strengths") is not None
+    assert card.findChild(QWidget, "coach_sec_leaks") is not None
+    assert card.findChild(QWidget, "coach_sec_prescription") is not None
+
+    # 2. Error handling test
+    card._handle_insight_error("Error: LLM not configured. Go to Settings.")
+    buttons = card.findChildren(QPushButton)
+    assert any("Configure LLM" in b.text() for b in buttons)
+
+    # 3. Refresh styles
+    card.refresh_styles()
+
+
+def test_metrics_widget_includes_advantage_and_ai_coach(qapp, qtbot):
+    """Test MetricsWidget creates and renders AdvantageConversionCard and AICoachCard."""
+    mock_config = MagicMock()
+    mock_config.get.return_value = "PlayerA"
+
+    mock_history = MagicMock()
+    mock_history.get_games_for_users.return_value = [{"id": "g1"}]
+
+    widget = MetricsWidget(mock_config, mock_history)
+    qtbot.addWidget(widget)
+
+    stats = {
+        "total": 5,
+        "win_rate": 80.0,
+        "avg_accuracy": 82.0,
+        "advantage_stats": {
+            "had_winning_advantage": 3,
+            "converted_advantage": 3,
+            "thrown_losses": 0,
+            "squandered_draws": 0,
+            "conversion_rate": 100.0,
+            "had_losing_position": 1,
+            "comeback_drawn_or_won": 1,
+            "comeback_wins": 1,
+            "comeback_draws": 0,
+            "comeback_rate": 100.0,
+        },
+    }
+
+    widget.show_dashboard(stats)
+    assert hasattr(widget, "advantage_card")
+    assert hasattr(widget, "ai_coach_card")
+    assert widget.advantage_card is not None
+    assert widget.ai_coach_card is not None
+
+    # Test persistence of insights across dashboard rebuilds
+    test_insight = "### Strengths & Superpowers\n- **Vision**: Great eye."
+    widget.ai_coach_card.insights_generated.emit(test_insight)
+    assert widget.current_insights == test_insight
+
+    # Re-render dashboard (simulating page switch / refresh)
+    widget.show_dashboard(stats)
+    assert widget.ai_coach_card.get_insights() == test_insight
