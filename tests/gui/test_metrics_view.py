@@ -134,3 +134,72 @@ def test_phase_performance_card_widget(qapp, qtbot):
     # Refresh styles
     card.refresh_styles()
 
+
+def test_openings_list_card_widget(qapp, qtbot):
+    """Test OpeningsListCard rendering, repertoire filtering, and sorting."""
+    from src.gui.views.metrics.openings_list_card import OpeningsListCard
+
+    card = OpeningsListCard()
+    qtbot.addWidget(card)
+
+    # 1. Empty stats
+    card.set_stats({})
+    assert card.content_widget is not None
+
+    # 2. Rich detailed openings stats
+    stats = {
+        "detailed_openings": {
+            "Vienna Game": {
+                "name": "Vienna Game",
+                "eco": "C25",
+                "total": 4,
+                "wins": 2,
+                "draws": 1,
+                "losses": 1,
+                "as_white": 4,
+                "as_black": 0,
+                "white_wins": 2,
+                "black_wins": 0,
+                "win_rate": 50.0,
+                "avg_acc": 75.0,
+                "variations": ["Omaha Gambit", "Zhuravlev Countergambit"],
+            },
+            "Scotch Game": {
+                "name": "Scotch Game",
+                "eco": "C45",
+                "total": 1,
+                "wins": 1,
+                "draws": 0,
+                "losses": 0,
+                "as_white": 0,
+                "as_black": 1,
+                "white_wins": 0,
+                "black_wins": 1,
+                "win_rate": 100.0,
+                "avg_acc": 68.3,
+                "variations": ["Alekhine Gambit"],
+            },
+        }
+    }
+    card.set_stats(stats)
+    assert card.content_widget is not None
+    # Switch sorting to Win Rate
+    card.btn_sort_winrate.click()
+    assert card.current_sort == "winrate"
+
+    # Switch sorting to Most Played
+    card.btn_sort_played.click()
+    assert card.current_sort == "played"
+
+    # Test dynamic title based on color filter
+    card.set_stats({**stats, "filter_applied": {"color": "White"}})
+    assert card.lbl_title.text() == "White Repertoire"
+
+    card.set_stats({**stats, "filter_applied": {"color": "Black"}})
+    assert card.lbl_title.text() == "Black Defenses"
+
+    card.set_stats({**stats, "filter_applied": {"color": "All Colors"}})
+    assert card.lbl_title.text() == "Opening Repertoire"
+
+    # Refresh styles
+    card.refresh_styles()

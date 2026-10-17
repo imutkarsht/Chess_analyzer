@@ -1,3 +1,4 @@
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 from src.gui.styles import Styles
@@ -26,7 +27,7 @@ class MetricCard(QFrame):
             header_layout.addWidget(self.lbl_title)
             header_layout.addStretch()
             if action_widget:
-                header_layout.addWidget(action_widget)
+                header_layout.addWidget(action_widget, alignment=Qt.AlignmentFlag.AlignVCenter)
             self.card_layout.addLayout(header_layout)
 
     def _apply_theme(self):
@@ -46,9 +47,9 @@ class MetricCard(QFrame):
 
     def refresh_styles(self):
         self._apply_theme()
-        if hasattr(self, 'lbl_title'):
+        if hasattr(self, "lbl_title"):
             self.lbl_title.setStyleSheet(Styles.get_card_title_style())
 
     def set_content(self, widget):
         widget.setStyleSheet("background: transparent;")
-        self.card_layout.addWidget(widget)
+        self.card_layout.addWidget(widget, stretch=1)

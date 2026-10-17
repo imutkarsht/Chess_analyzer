@@ -190,6 +190,7 @@ class MetricsAggregator:
         accuracy_history: list[float] = []
         openings: dict[str, int] = {}
         opening_wins: dict[str, int] = {}
+        detailed_openings: dict[str, dict[str, Any]] = {}
 
         color_stats = {
             "white": {
@@ -428,19 +429,71 @@ class MetricsAggregator:
                 best_win_rating = opponent_elo
 
             # 7. Openings
-            op_name = game.get("opening")
-            if not op_name:
+            op_name = game.get("opening") or ""
+            eco_code = game.get("eco") or ""
+            if not op_name or not eco_code:
                 pgn = game.get("pgn", "")
-                if 'Opening "' in pgn:
-                    match = re.search(r'\[Opening "([^"]+)"\]', pgn)
-                    if match:
-                        op_name = match.group(1)
+                if not op_name and 'Opening "' in pgn:
+                    match_op = re.search(r'\[Opening "([^"]+)"\]', pgn)
+                    if match_op:
+                        op_name = match_op.group(1)
+                if not eco_code and 'ECO "' in pgn:
+                    match_eco = re.search(r'\[ECO "([^"]+)"\]', pgn)
+                    if match_eco:
+                        eco_code = match_eco.group(1)
 
             if op_name:
                 main_name = op_name.split(":")[0].split(",")[0].strip()
+                var_name = op_name[len(main_name) :].lstrip(":,").strip()
+
                 openings[main_name] = openings.get(main_name, 0) + 1
                 if is_win:
                     opening_wins[main_name] = opening_wins.get(main_name, 0) + 1
+
+                if main_name not in detailed_openings:
+                    detailed_openings[main_name] = {
+                        "name": main_name,
+                        "eco": eco_code,
+                        "total": 0,
+                        "wins": 0,
+                        "draws": 0,
+                        "losses": 0,
+                        "as_white": 0,
+                        "as_black": 0,
+                        "white_wins": 0,
+                        "black_wins": 0,
+                        "total_acc": 0.0,
+                        "acc_count": 0,
+                        "variations": [],
+                    }
+
+                d = detailed_openings[main_name]
+                d["total"] += 1
+                if not d["eco"] and eco_code:
+                    d["eco"] = eco_code
+
+                if is_win:
+                    d["wins"] += 1
+                elif res in ("1/2-1/2", "Draw"):
+                    d["draws"] += 1
+                else:
+                    d["losses"] += 1
+
+                if user_color == "white":
+                    d["as_white"] += 1
+                    if is_win:
+                        d["white_wins"] += 1
+                else:
+                    d["as_black"] += 1
+                    if is_win:
+                        d["black_wins"] += 1
+
+                if game_acc > 0:
+                    d["total_acc"] += game_acc
+                    d["acc_count"] += 1
+
+                if var_name and var_name not in d["variations"]:
+                    d["variations"].append(var_name)
 
         # Calculate final phase accuracy averages
         phase_accuracies_final = {}
@@ -465,6 +518,11 @@ class MetricsAggregator:
                 (color_stats[col]["total_acc"] / c_cnt) if c_cnt > 0 else 0.0
             )
 
+        # Calculate win_rate and avg_acc for detailed openings
+        for d in detailed_openings.values():
+            d["win_rate"] = (d["wins"] / d["total"] * 100) if d["total"] > 0 else 0.0
+            d["avg_acc"] = (d["total_acc"] / d["acc_count"]) if d["acc_count"] > 0 else 0.0
+
         return {
             "total": total,
             "wins": wins,
@@ -483,6 +541,7 @@ class MetricsAggregator:
             "accuracy_history": accuracy_history,
             "openings": openings,
             "opening_wins": opening_wins,
+            "detailed_openings": detailed_openings,
             "color_stats": color_stats,
             "hanging_stats": hanging_stats,
             "clean_games": clean_games,
