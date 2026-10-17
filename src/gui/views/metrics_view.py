@@ -25,6 +25,7 @@ from src.gui.views.metrics import (
     MoveQualityCard,
     OpeningsListCard,
     PhasePerformanceCard,
+    TacticalThemesCard,
     TimeManagementCard,
 )
 
@@ -552,6 +553,10 @@ class MetricsWidget(QWidget):
         self.hanging_card = HangingPiecesCard()
         self.hanging_card.set_stats(stats)
         self.charts_layout.addWidget(self.hanging_card)
+
+        self.tactics_card = TacticalThemesCard()
+        self.tactics_card.set_stats(stats)
+        self.charts_layout.addWidget(self.tactics_card)
 
         self.openings_card = OpeningsListCard()
         self.openings_card.set_stats(stats)

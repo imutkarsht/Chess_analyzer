@@ -223,3 +223,33 @@ def test_opp_hanging_captured_good_vs_trap():
     tactics_e5 = analyze_game_tactics(sound_capture_e5, user_color="white", result="1-0")
     assert tactics_e5["hanging_metrics"]["opponent_hanging_captured"] == 1
     assert tactics_e5["hanging_metrics"]["captured_by_piece"]["pawn"] == 1
+
+
+def test_detect_tactical_motifs():
+    """Test detection of forks, pins, and discovered attacks."""
+    from src.backend.analysis.tactics import detect_tactical_motifs
+
+    # 1. Knight fork on c7 attacking e8 (King) and a8 (Rook)
+    board_b = chess.Board("r3k2r/pppb1ppp/8/4N3/1b2P3/8/PPP2PPP/R1B1KB1R w KQkq - 1 10")
+    move_fork = chess.Move.from_uci("e5c7")
+    board_a = board_b.copy()
+    board_a.push(move_fork)
+    motifs_fork = detect_tactical_motifs(board_b, board_a, move_fork, chess.WHITE)
+    assert "fork" in motifs_fork
+
+    # 2. Pin: Bishop moving to b5 pins Knight on c6 to King on e8 (d7 is vacant)
+    board_pin_b = chess.Board("r1bqkbnr/pp2pppp/2n5/3p4/4P3/8/PPPPBPPP/RNBQK1NR w KQkq - 0 4")
+    move_pin = chess.Move.from_uci("e2b5")
+    board_pin_a = board_pin_b.copy()
+    board_pin_a.push(move_pin)
+    motifs_pin = detect_tactical_motifs(board_pin_b, board_pin_a, move_pin, chess.WHITE)
+    assert "pin" in motifs_pin
+
+    # 3. Discovered Check: Rook on e1, Knight on e4 moves away giving check from Rook
+    board_disc_b = chess.Board("4k3/8/8/8/4N3/8/8/4R2K w - - 0 1")
+    move_disc = chess.Move.from_uci("e4f6")
+    board_disc_a = board_disc_b.copy()
+    board_disc_a.push(move_disc)
+    motifs_disc = detect_tactical_motifs(board_disc_b, board_disc_a, move_disc, chess.WHITE)
+    assert "discovered_attack" in motifs_disc
+

@@ -107,6 +107,148 @@ def get_hanging_pieces(board: chess.Board, color: chess.Color) -> list[dict]:
     return hanging
 
 
+def detect_tactical_motifs(
+    board_before: chess.Board,
+    board_after: chess.Board,
+    move_obj: chess.Move,
+    color: chess.Color,
+    classification: str = "",
+) -> list[str]:
+    """
+    Detects tactical motifs executed by a move:
+    - 'fork': Piece attacks 2+ valuable/undefended enemy pieces or King + piece.
+    - 'pin': Establishes an absolute pin against the enemy King.
+    - 'skewer': Attacks high-value piece in front with another target behind on same ray.
+    - 'discovered_attack': Removing a piece unmasks a sliding attack/check from a piece behind it.
+    - 'sacrifice': Sound piece sacrifice for tactical advantage (Brilliant/Great).
+    - 'back_rank': Infiltrating or delivering check on the 8th/1st rank against a trapped King.
+    """
+    motifs: list[str] = []
+    enemy_color = not color
+    to_sq = move_obj.to_square
+    from_sq = move_obj.from_square
+    piece = board_after.piece_at(to_sq)
+    if not piece:
+        return motifs
+
+    piece_val = PIECE_VALUES.get(piece.piece_type, 0)
+    enemy_king_sq = board_after.king(enemy_color)
+
+    # 1. Sacrifice
+    if classification in ("Brilliant", "Great"):
+        motifs.append("sacrifice")
+
+    # 2. Fork / Double Attack
+    attacks = board_after.attacks(to_sq)
+    valuable_targets = 0
+    has_check = enemy_king_sq is not None and enemy_king_sq in attacks
+
+    if has_check:
+        valuable_targets += 1
+
+    for target_sq in attacks:
+        if target_sq == enemy_king_sq:
+            continue
+        target_p = board_after.piece_at(target_sq)
+        if target_p and target_p.color == enemy_color:
+            target_val = PIECE_VALUES.get(target_p.piece_type, 0)
+            defenders = board_after.attackers(enemy_color, target_sq)
+            if len(defenders) == 0 or target_val >= piece_val or target_val >= 3:
+                valuable_targets += 1
+
+    if valuable_targets >= 2:
+        motifs.append("fork")
+
+    # 3. Pin: Did this move establish a new absolute pin on an enemy piece?
+    if piece.piece_type in (chess.BISHOP, chess.ROOK, chess.QUEEN) and enemy_king_sq is not None:
+        for sq in board_after.piece_map():
+            if (
+                board_after.color_at(sq) == enemy_color
+                and sq != enemy_king_sq
+                and board_after.is_pinned(enemy_color, sq)
+                and not board_before.is_pinned(enemy_color, sq)
+                and to_sq in board_after.attackers(color, sq)
+            ):
+                motifs.append("pin")
+                break
+
+    # 4. Discovered Attack / Discovered Check
+    is_discovered = False
+    if board_after.is_check():
+        checkers = board_after.checkers()
+        if to_sq not in checkers and len(checkers) > 0:
+            is_discovered = True
+
+    if not is_discovered:
+        friendly_sliders = (
+            board_after.pieces(chess.ROOK, color)
+            | board_after.pieces(chess.BISHOP, color)
+            | board_after.pieces(chess.QUEEN, color)
+        )
+        for s_sq in friendly_sliders:
+            if s_sq != to_sq and from_sq in board_after.attacks(s_sq):
+                new_targets = board_after.attacks(s_sq) - board_before.attacks(s_sq)
+                for nt in new_targets:
+                    nt_piece = board_after.piece_at(nt)
+                    if (
+                        nt_piece
+                        and nt_piece.color == enemy_color
+                        and nt_piece.piece_type != chess.PAWN
+                    ):
+                        is_discovered = True
+                        break
+            if is_discovered:
+                break
+
+    if is_discovered:
+        motifs.append("discovered_attack")
+
+    # 5. Skewer
+    if piece.piece_type in (chess.BISHOP, chess.ROOK, chess.QUEEN):
+        for direct_target in board_after.attacks(to_sq):
+            dt_p = board_after.piece_at(direct_target)
+            if dt_p and dt_p.color == enemy_color:
+                dt_val = (
+                    10 if dt_p.piece_type == chess.KING else PIECE_VALUES.get(dt_p.piece_type, 0)
+                )
+                if dt_val >= 3:
+                    ray = chess.SquareSet.ray(to_sq, direct_target)
+                    behind_sqs = [
+                        sq
+                        for sq in ray
+                        if chess.square_distance(to_sq, sq)
+                        > chess.square_distance(to_sq, direct_target)
+                    ]
+                    for b_sq in behind_sqs:
+                        b_piece = board_after.piece_at(b_sq)
+                        if b_piece:
+                            if b_piece.color == enemy_color and dt_val > PIECE_VALUES.get(
+                                b_piece.piece_type, 0
+                            ):
+                                motifs.append("skewer")
+                            break
+
+    # 6. Back Rank Weakness / Infiltration
+    back_rank = 7 if enemy_color == chess.BLACK else 0
+    if (
+        chess.square_rank(to_sq) == back_rank
+        and piece.piece_type in (chess.ROOK, chess.QUEEN)
+        and enemy_king_sq is not None
+        and chess.square_rank(enemy_king_sq) == back_rank
+    ):
+        pawn_rank = 6 if enemy_color == chess.BLACK else 1
+        shield_pawns = [
+            sq
+            for sq in board_after.pieces(chess.PAWN, enemy_color)
+            if chess.square_rank(sq) == pawn_rank
+            and abs(chess.square_file(sq) - chess.square_file(enemy_king_sq)) <= 1
+        ]
+        if len(shield_pawns) >= 2 and (has_check or board_after.is_check()):
+            motifs.append("back_rank")
+
+    return motifs
+
+
 def classify_game_phase(
     board: chess.Board,
     ply: int,
@@ -221,6 +363,16 @@ def analyze_game_tactics(
     hanging_blunders = 0
     opp_hanging_captured = 0
     opp_hanging_missed = 0
+
+    # Tactical themes tracking
+    tactical_theme_counts: dict[str, int] = {
+        "fork": 0,
+        "pin": 0,
+        "skewer": 0,
+        "discovered_attack": 0,
+        "sacrifice": 0,
+        "back_rank": 0,
+    }
 
     # Advantage tracking
     peak_eval = 0
@@ -386,6 +538,15 @@ def analyze_game_tactics(
                 ):
                     opp_hanging_missed += 1
 
+                # 4. Tactical themes detection (sound moves only)
+                if classification not in ("Blunder", "Mistake") and wp_drop < 0.08:
+                    found_motifs = detect_tactical_motifs(
+                        board_before, board_after, move_obj, target_color, classification
+                    )
+                    for motif in found_motifs:
+                        if motif in tactical_theme_counts:
+                            tactical_theme_counts[motif] += 1
+
             except Exception:
                 pass
 
@@ -492,6 +653,7 @@ def analyze_game_tactics(
         },
         "brilliancies": brilliancies,
         "book_exit_ply": book_exit_ply,
+        "tactical_themes": tactical_theme_counts,
         "clock_metrics": {
             "total_timed_moves": total_timed_moves,
             "total_time_spent": total_time_spent,

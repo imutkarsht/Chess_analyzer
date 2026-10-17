@@ -347,3 +347,34 @@ def test_hanging_pieces_card_widget(qapp, qtbot):
     # Refresh styles
     card.refresh_styles()
 
+
+def test_tactical_themes_card_widget(qapp, qtbot):
+    """Test TacticalThemesCard rendering, motif breakdown grid, and hero pillars."""
+    from src.gui.views.metrics.tactical_themes_card import TacticalThemesCard
+
+    card = TacticalThemesCard()
+    qtbot.addWidget(card)
+
+    # 1. Empty state
+    card.set_stats({})
+    assert card.content_widget is not None
+
+    # 2. Rich tactical stats
+    stats = {
+        "total": 15,
+        "tactical_themes": {
+            "fork": 8,
+            "pin": 5,
+            "skewer": 2,
+            "discovered_attack": 4,
+            "sacrifice": 1,
+            "back_rank": 3,
+        },
+    }
+    card.set_stats(stats)
+    assert card.content_widget is not None
+
+    # Refresh styles
+    card.refresh_styles()
+
+

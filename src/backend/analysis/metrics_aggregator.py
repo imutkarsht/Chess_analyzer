@@ -241,6 +241,15 @@ class MetricsAggregator:
         brilliancies: list[dict[str, Any]] = []
         clean_games = 0
 
+        tactical_themes: dict[str, int] = {
+            "fork": 0,
+            "pin": 0,
+            "skewer": 0,
+            "discovered_attack": 0,
+            "sacrifice": 0,
+            "back_rank": 0,
+        }
+
         format_stats: dict[str, dict[str, Any]] = {}
         clock_summary = {
             "total_timed_moves": 0,
@@ -487,6 +496,11 @@ class MetricsAggregator:
                 if adv.get("comeback_drawn_or_won"):
                     advantage_stats["comeback_drawn_or_won"] += 1
 
+                # Tactical themes aggregation
+                for motif, count in tactics_data.get("tactical_themes", {}).items():
+                    if motif in tactical_themes:
+                        tactical_themes[motif] += count
+
                 # Brilliancies list
                 opp_key = "black" if user_color == "white" else "white"
                 opp_elo_key = "black_elo" if user_color == "white" else "white_elo"
@@ -726,6 +740,7 @@ class MetricsAggregator:
             },
             "advantage_stats": advantage_stats,
             "brilliancies": brilliancies,
+            "tactical_themes": tactical_themes,
             "time_stats": time_stats,
             "filter_applied": {
                 "color": color_filter,
