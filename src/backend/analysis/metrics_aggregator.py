@@ -223,9 +223,9 @@ class MetricsAggregator:
         }
 
         phase_stats = {
-            "opening": {"acc_sum": 0.0, "acc_count": 0, "blunders": 0},
-            "middlegame": {"acc_sum": 0.0, "acc_count": 0, "blunders": 0},
-            "endgame": {"acc_sum": 0.0, "acc_count": 0, "blunders": 0},
+            "opening": {"acc_sum": 0.0, "total_moves": 0, "blunders": 0},
+            "middlegame": {"acc_sum": 0.0, "total_moves": 0, "blunders": 0},
+            "endgame": {"acc_sum": 0.0, "total_moves": 0, "blunders": 0},
         }
 
         advantage_stats = {
@@ -336,8 +336,10 @@ class MetricsAggregator:
             if game_acc > 0:
                 accuracy_history.append(game_acc)
 
-            # 4. Tactical analysis fallback if not cached in summary
-            if not tactics_data and game.get("moves_json"):
+            # 4. Tactical analysis: recompute if missing or older format without phase_move_counts
+            if game.get("moves_json") and (
+                not tactics_data or "phase_move_counts" not in tactics_data
+            ):
                 try:
                     moves_data = json.loads(game["moves_json"])
                     tactics_data = analyze_game_tactics(moves_data, user_color, res)
@@ -361,14 +363,19 @@ class MetricsAggregator:
                     if p_type in hanging_stats["by_piece"]:
                         hanging_stats["by_piece"][p_type] += count
 
-                # Phase stats
+                # Phase stats (weighted by move counts in each phase)
                 p_acc = tactics_data.get("phase_accuracies", {})
                 p_blund = tactics_data.get("phase_blunders", {})
+                p_counts = tactics_data.get("phase_move_counts", {})
                 for phase in ("opening", "middlegame", "endgame"):
                     acc_val = p_acc.get(phase)
-                    if acc_val is not None and acc_val > 0:
+                    move_cnt = p_counts.get(phase, 0)
+                    if acc_val is not None and acc_val > 0 and move_cnt > 0:
+                        phase_stats[phase]["acc_sum"] += acc_val * move_cnt
+                        phase_stats[phase]["total_moves"] += move_cnt
+                    elif acc_val is not None and acc_val > 0:
                         phase_stats[phase]["acc_sum"] += acc_val
-                        phase_stats[phase]["acc_count"] += 1
+                        phase_stats[phase]["total_moves"] += 1
                     phase_stats[phase]["blunders"] += p_blund.get(phase, 0)
 
                 # Advantage stats
@@ -438,7 +445,7 @@ class MetricsAggregator:
         # Calculate final phase accuracy averages
         phase_accuracies_final = {}
         for phase in ("opening", "middlegame", "endgame"):
-            cnt = phase_stats[phase]["acc_count"]
+            cnt = phase_stats[phase]["total_moves"]
             phase_accuracies_final[phase] = (
                 (phase_stats[phase]["acc_sum"] / cnt) if cnt > 0 else 0.0
             )

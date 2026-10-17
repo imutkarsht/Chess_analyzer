@@ -24,6 +24,7 @@ from src.gui.views.metrics import (
     EndingDistributionCard,
     MoveQualityCard,
     OpeningsListCard,
+    PhasePerformanceCard,
 )
 
 
@@ -506,31 +507,43 @@ class MetricsWidget(QWidget):
 
         dashboard_layout.addWidget(self.stats_container)
 
-        # 2. Donut charts — Ending Distribution and Move Quality Distribution
-        donuts_widget = QWidget()
-        donuts_layout = QHBoxLayout(donuts_widget)
-        donuts_layout.setSpacing(20)
-        donuts_layout.setContentsMargins(0, 0, 0, 0)
+        # 2. Performance & Form Row — Accuracy Trend & Phase Performance (50% / 50%)
+        perf_row_widget = QWidget()
+        perf_row_layout = QHBoxLayout(perf_row_widget)
+        perf_row_layout.setSpacing(20)
+        perf_row_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.accuracy_card = AccuracyTrendCard()
+        self.accuracy_card.set_stats(stats)
+        perf_row_layout.addWidget(self.accuracy_card)
+
+        self.phase_card = PhasePerformanceCard()
+        self.phase_card.set_stats(stats)
+        perf_row_layout.addWidget(self.phase_card)
+
+        dashboard_layout.addWidget(perf_row_widget)
+
+        # 3. Distribution Row — Ending Distribution & Move Quality Distribution (50% / 50%)
+        dist_row_widget = QWidget()
+        dist_row_layout = QHBoxLayout(dist_row_widget)
+        dist_row_layout.setSpacing(20)
+        dist_row_layout.setContentsMargins(0, 0, 0, 0)
 
         self.ending_card = EndingDistributionCard()
         self.ending_card.set_stats(stats)
-        donuts_layout.addWidget(self.ending_card)
+        dist_row_layout.addWidget(self.ending_card)
 
         self.quality_card = MoveQualityCard()
         self.quality_card.set_stats(stats)
-        donuts_layout.addWidget(self.quality_card)
+        dist_row_layout.addWidget(self.quality_card)
 
-        dashboard_layout.addWidget(donuts_widget)
+        dashboard_layout.addWidget(dist_row_widget)
 
-        # 3. Remaining cards in a 2-column masonry (shortest-column packing)
+        # 4. Remaining cards in a 2-column masonry (shortest-column packing)
         self.charts_container = QWidget()
         self.charts_layout = MasonryLayout(
             self.charts_container, margin=0, spacing=20, min_col_width=400
         )
-
-        self.accuracy_card = AccuracyTrendCard()
-        self.accuracy_card.set_stats(stats)
-        self.charts_layout.addWidget(self.accuracy_card)
 
         self.color_card = ColorPerformanceCard()
         self.color_card.set_stats(stats)

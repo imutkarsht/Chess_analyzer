@@ -10,7 +10,13 @@ from __future__ import annotations
 
 import chess
 
-from src.backend.analysis.math_utils import apply_accuracy_floor, calculate_move_accuracy
+from src.backend.analysis.math_utils import (
+    apply_accuracy_floor,
+    calculate_move_accuracy,
+    calculate_volatility_weights,
+    harmonic_mean,
+    weighted_mean,
+)
 
 PIECE_VALUES: dict[chess.PieceType, int] = {
     chess.PAWN: 1,
@@ -174,6 +180,7 @@ def analyze_game_tactics(
 
     # Phase tracking
     phase_accuracies: dict[str, list[float]] = {"opening": [], "middlegame": [], "endgame": []}
+    phase_win_percents: dict[str, list[float]] = {"opening": [], "middlegame": [], "endgame": []}
     phase_blunders: dict[str, int] = {"opening": 0, "middlegame": 0, "endgame": 0}
 
     # Hanging tracking
@@ -210,16 +217,17 @@ def analyze_game_tactics(
         if not is_book and book_exit_ply is None:
             book_exit_ply = ply
 
-        # Is this move made by the user?
-        # Ply 1 = White, Ply 2 = Black, etc.
-        move_by_white = ply % 2 != 0
-        is_user_move = move_by_white == is_user_white
-
         # Parse board
         try:
             board_before = chess.Board(fen_before)
         except Exception:
             board_before = chess.Board()
+
+        # Is this move made by the user?
+        # board_before.turn is authoritative for side-to-move.
+        # Fall back to ply % 2 == 0 (0-indexed ply in python-chess) if fen_before is empty.
+        is_white_turn = board_before.turn == chess.WHITE if fen_before else (ply % 2 == 0)
+        is_user_move = is_white_turn == is_user_white
 
         phase = classify_game_phase(board_before, ply, is_book)
 
@@ -242,10 +250,25 @@ def analyze_game_tactics(
             # 1. Accuracy & Phase
             wp_before = m.get("win_chance_before", 0.5)
             wp_after = m.get("win_chance_after", 0.5)
-            # Both win chances are user-perspective in MoveAnalysis
-            acc = calculate_move_accuracy(wp_before, wp_after)
+            # In MoveAnalysis, win chances are White-perspective. Convert to user perspective:
+            player_wp_before = wp_before if is_user_white else (1.0 - wp_before)
+            player_wp_after = wp_after if is_user_white else (1.0 - wp_after)
+
+            eval_after_mate = m.get("eval_after_mate")
+            is_checkmate_move = san.endswith("#") if san else False
+            is_mating_move = eval_after_mate is not None and (
+                (is_user_white and eval_after_mate > 0)
+                or (not is_user_white and eval_after_mate < 0)
+            )
+
+            if is_book or is_checkmate_move or is_mating_move:
+                acc = 100.0
+            else:
+                acc = calculate_move_accuracy(player_wp_before, player_wp_after)
+
             acc = apply_accuracy_floor(acc)
             phase_accuracies[phase].append(acc)
+            phase_win_percents[phase].append(player_wp_before)
 
             if classification == "Blunder":
                 phase_blunders[phase] += 1
@@ -312,9 +335,17 @@ def analyze_game_tactics(
                     }
                 )
 
-    # Average accuracies per phase
-    def avg_acc(lst: list[float]) -> float | None:
-        return (sum(lst) / len(lst)) if lst else None
+    # Phase accuracy calculation using harmonic + volatility-weighted mean matching analyzer.py
+    def compute_phase_acc(accs: list[float], wps: list[float]) -> float | None:
+        if not accs:
+            return None
+        if len(accs) == 1:
+            return accs[0]
+        window_size = max(2, min(8, len(accs) // 10))
+        weights = calculate_volatility_weights(wps, window_size)
+        wm = weighted_mean(accs, weights)
+        hm = harmonic_mean(accs)
+        return (wm + hm) / 2
 
     # Conversion logic
     user_won = (result == "1-0" and is_user_white) or (result == "0-1" and not is_user_white)
@@ -326,9 +357,20 @@ def analyze_game_tactics(
 
     return {
         "phase_accuracies": {
-            "opening": avg_acc(phase_accuracies["opening"]),
-            "middlegame": avg_acc(phase_accuracies["middlegame"]),
-            "endgame": avg_acc(phase_accuracies["endgame"]),
+            "opening": compute_phase_acc(
+                phase_accuracies["opening"], phase_win_percents["opening"]
+            ),
+            "middlegame": compute_phase_acc(
+                phase_accuracies["middlegame"], phase_win_percents["middlegame"]
+            ),
+            "endgame": compute_phase_acc(
+                phase_accuracies["endgame"], phase_win_percents["endgame"]
+            ),
+        },
+        "phase_move_counts": {
+            "opening": len(phase_accuracies["opening"]),
+            "middlegame": len(phase_accuracies["middlegame"]),
+            "endgame": len(phase_accuracies["endgame"]),
         },
         "phase_blunders": phase_blunders,
         "hanging_metrics": {

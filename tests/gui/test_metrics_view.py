@@ -100,3 +100,37 @@ def test_accuracy_trend_card_widget(qapp, qtbot):
     # Refresh styles
     card.refresh_styles()
 
+
+def test_phase_performance_card_widget(qapp, qtbot):
+    """Test PhasePerformanceCard rendering and empty state."""
+    from src.gui.views.metrics.phase_performance_card import PhasePerformanceCard
+
+    card = PhasePerformanceCard()
+    qtbot.addWidget(card)
+
+    # 1. Empty stats
+    card.set_stats({})
+    assert card.content_widget is not None
+
+    # 2. Rich phase stats
+    stats = {
+        "total": 10,
+        "phase_stats": {
+            "accuracies": {
+                "opening": 86.5,
+                "middlegame": 74.2,
+                "endgame": 68.0,
+            },
+            "blunders": {
+                "opening": 0,
+                "middlegame": 4,
+                "endgame": 2,
+            },
+        },
+    }
+    card.set_stats(stats)
+    assert card.content_widget is not None
+
+    # Refresh styles
+    card.refresh_styles()
+
