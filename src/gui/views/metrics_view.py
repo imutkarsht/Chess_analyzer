@@ -21,6 +21,7 @@ from src.gui.views.metrics import (
     AccuracyTrendCard,
     AICoachCard,
     EndingDistributionCard,
+    HangingPiecesCard,
     MoveQualityCard,
     OpeningsListCard,
     PhasePerformanceCard,
@@ -547,6 +548,10 @@ class MetricsWidget(QWidget):
         self.time_card = TimeManagementCard()
         self.time_card.set_stats(stats)
         self.charts_layout.addWidget(self.time_card)
+
+        self.hanging_card = HangingPiecesCard()
+        self.hanging_card.set_stats(stats)
+        self.charts_layout.addWidget(self.hanging_card)
 
         self.openings_card = OpeningsListCard()
         self.openings_card.set_stats(stats)

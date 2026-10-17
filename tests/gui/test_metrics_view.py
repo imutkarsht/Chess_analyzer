@@ -316,3 +316,34 @@ def test_time_management_card_widget(qapp, qtbot):
 
     # Refresh styles
     card.refresh_styles()
+
+
+def test_hanging_pieces_card_widget(qapp, qtbot):
+    """Test HangingPiecesCard rendering, piece breakdowns, and vigilance progress."""
+    from src.gui.views.metrics.hanging_pieces_card import HangingPiecesCard
+
+    card = HangingPiecesCard()
+    qtbot.addWidget(card)
+
+    # 1. Empty state
+    card.set_stats({})
+    assert card.content_widget is not None
+
+    # 2. Rich hanging stats
+    stats = {
+        "total": 10,
+        "hanging_stats": {
+            "total_hung": 4,
+            "hanging_blunders": 2,
+            "by_piece": {"pawn": 1, "knight": 2, "bishop": 1, "rook": 0, "queen": 0},
+            "opponent_hanging_captured": 5,
+            "opponent_hanging_missed": 1,
+            "captured_by_piece": {"pawn": 2, "knight": 1, "bishop": 1, "rook": 1, "queen": 0},
+        },
+    }
+    card.set_stats(stats)
+    assert card.content_widget is not None
+
+    # Refresh styles
+    card.refresh_styles()
+

@@ -40,11 +40,15 @@ PIECE_NAMES: dict[chess.PieceType, str] = {
 def get_hanging_pieces(board: chess.Board, color: chess.Color) -> list[dict]:
     """
     Finds all pieces belonging to `color` that are hanging on `board`.
-    A piece is hanging if:
+    A piece is truly hanging if:
     1. It is attacked by at least one enemy piece, AND
-    2. Either it is completely undefended, OR
-       it is attacked by an enemy piece of strictly lower value, OR
-       enemy attackers outnumber friendly defenders (under-defended exchange).
+    2. Either:
+       a) It is completely undefended (no legal defenders), OR
+       b) It is attacked by an enemy piece of strictly lower value (e.g. Queen/Rook attacked by Pawn/Minor), OR
+       c) Enemy attackers outnumber friendly legal defenders AND the minimum attacker value
+          is less than or equal to the target piece value (meaning an exchange is profitable).
+    Pinned defenders that cannot legally move to the target square without exposing their King
+    to check are correctly filtered out as unable to defend.
     """
     hanging = []
     enemy_color = not color
@@ -58,20 +62,33 @@ def get_hanging_pieces(board: chess.Board, color: chess.Color) -> list[dict]:
             continue
 
         piece_val = PIECE_VALUES[piece.piece_type]
-        friendly_defenders = board.attackers(color, square)
 
-        # 1. Attacked by a lower-value piece (e.g., Queen attacked by Bishop/Pawn)
-        attacked_by_lesser = any(
-            PIECE_VALUES[board.piece_at(sq).piece_type] < piece_val
+        # Filter friendly defenders for absolute pins:
+        # A pinned defender can only defend squares along its legal pin ray
+        raw_defenders = board.attackers(color, square)
+        friendly_defenders = [sq for sq in raw_defenders if square in board.pin(color, sq)]
+
+        attacker_vals = [
+            PIECE_VALUES[board.piece_at(sq).piece_type]
             for sq in enemy_attackers
             if board.piece_at(sq)
-        )
+        ]
+        if not attacker_vals:
+            continue
 
-        # 2. Completely undefended
+        min_attacker_val = min(attacker_vals)
+
+        # 1. Completely undefended by legal pieces
         is_undefended = len(friendly_defenders) == 0
 
-        # 3. Under-defended (more attackers than defenders)
-        is_outnumbered = len(enemy_attackers) > len(friendly_defenders)
+        # 2. Attacked by a strictly lower-value piece (e.g., Queen attacked by Bishop/Pawn)
+        attacked_by_lesser = min_attacker_val < piece_val
+
+        # 3. Under-defended exchange: more attackers than defenders, AND the lowest attacker
+        # can profitably or equally initiate the trade (not a defended pawn attacked by minor/major pieces)
+        is_outnumbered = (len(enemy_attackers) > len(friendly_defenders)) and (
+            min_attacker_val <= piece_val
+        )
 
         if is_undefended or attacked_by_lesser or is_outnumbered:
             hanging.append(
@@ -193,6 +210,13 @@ def analyze_game_tactics(
         "rook": 0,
         "queen": 0,
     }
+    opp_pieces_captured_by_type: dict[str, int] = {
+        "pawn": 0,
+        "knight": 0,
+        "bishop": 0,
+        "rook": 0,
+        "queen": 0,
+    }
     total_hung = 0
     hanging_blunders = 0
     opp_hanging_captured = 0
@@ -306,38 +330,57 @@ def analyze_game_tactics(
                 board_after = board_before.copy()
                 board_after.push(move_obj)
 
-                # Did user leave a piece hanging on board_after?
-                user_hanging = get_hanging_pieces(board_after, target_color)
-                # Compare to hanging pieces before move to see if newly created or persisted
-                hanging_before = get_hanging_pieces(board_before, target_color)
-                hung_sqs_before = {h["square"] for h in hanging_before}
+                wp_drop = player_wp_before - player_wp_after
 
-                newly_hung = [
-                    h
-                    for h in user_hanging
-                    if h["square"] not in hung_sqs_before
-                    or h["square"] == chess.square_name(move_obj.to_square)
-                ]
-                if newly_hung:
-                    total_hung += len(newly_hung)
-                    for h in newly_hung:
-                        p_name = h["piece_name"]
-                        if p_name in pieces_hung_by_type:
-                            pieces_hung_by_type[p_name] += 1
+                # Robust filter: Do NOT count sacrifices, brilliant moves, or engine-best advantageous moves as hangs!
+                # If a move is Brilliant, Great, Best, or Excellent, leaving a piece attacked is intentional,
+                # advantageous (sacrifices, tactics, traps), and must never be recorded as an accidental hung piece.
+                is_advantageous_or_sound = (
+                    is_book
+                    or classification in ("Brilliant", "Great", "Best", "Excellent")
+                    or (classification == "Good" and wp_drop < 0.05)
+                    or (wp_drop < 0.03 and player_wp_after >= 0.50)
+                )
 
-                    if classification in ("Blunder", "Mistake"):
-                        hanging_blunders += 1
+                if not is_advantageous_or_sound:
+                    # Did user leave a piece hanging on board_after?
+                    user_hanging = get_hanging_pieces(board_after, target_color)
+                    # Compare to hanging pieces before move to see if newly created or persisted
+                    hanging_before = get_hanging_pieces(board_before, target_color)
+                    hung_sqs_before = {h["square"] for h in hanging_before}
+
+                    newly_hung = [
+                        h
+                        for h in user_hanging
+                        if h["square"] not in hung_sqs_before
+                        or h["square"] == chess.square_name(move_obj.to_square)
+                    ]
+                    if newly_hung:
+                        total_hung += len(newly_hung)
+                        for h in newly_hung:
+                            p_name = h["piece_name"]
+                            if p_name in pieces_hung_by_type:
+                                pieces_hung_by_type[p_name] += 1
+
+                        if classification in ("Blunder", "Mistake"):
+                            hanging_blunders += 1
 
                 # 3. Did user capture an opponent hanging piece that existed on board_before?
                 opp_color = not target_color
                 opp_hanging_before = get_hanging_pieces(board_before, opp_color)
-                opp_hanging_sqs = {h["square"] for h in opp_hanging_before}
+                opp_hanging_sqs = {h["square"]: h for h in opp_hanging_before}
 
-                if chess.square_name(move_obj.to_square) in opp_hanging_sqs:
-                    opp_hanging_captured += 1
+                to_sq_name = chess.square_name(move_obj.to_square)
+                if to_sq_name in opp_hanging_sqs:
+                    # Only count as a successful capture if user didn't blunder into a trap/poisoned piece
+                    if classification not in ("Blunder", "Mistake") and wp_drop < 0.08:
+                        opp_hanging_captured += 1
+                        captured_h = opp_hanging_sqs[to_sq_name]
+                        p_name = captured_h["piece_name"]
+                        if p_name in opp_pieces_captured_by_type:
+                            opp_pieces_captured_by_type[p_name] += 1
                 elif opp_hanging_before and classification in (
                     "Mistake",
-                    "Inaccuracy",
                     "Blunder",
                     "Miss",
                 ):
@@ -436,6 +479,7 @@ def analyze_game_tactics(
             "hanging_blunders": hanging_blunders,
             "opponent_hanging_captured": opp_hanging_captured,
             "opponent_hanging_missed": opp_hanging_missed,
+            "captured_by_piece": opp_pieces_captured_by_type,
         },
         "advantage_metrics": {
             "had_winning_advantage": had_winning_advantage,

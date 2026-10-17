@@ -221,6 +221,7 @@ class MetricsAggregator:
             "hanging_blunders": 0,
             "opponent_hanging_captured": 0,
             "opponent_hanging_missed": 0,
+            "captured_by_piece": {"pawn": 0, "knight": 0, "bishop": 0, "rook": 0, "queen": 0},
         }
 
         phase_stats = {
@@ -453,6 +454,10 @@ class MetricsAggregator:
                 for p_type, count in h_metrics.get("by_piece", {}).items():
                     if p_type in hanging_stats["by_piece"]:
                         hanging_stats["by_piece"][p_type] += count
+
+                for p_type, count in h_metrics.get("captured_by_piece", {}).items():
+                    if p_type in hanging_stats["captured_by_piece"]:
+                        hanging_stats["captured_by_piece"][p_type] += count
 
                 # Phase stats (weighted by move counts in each phase)
                 p_acc = tactics_data.get("phase_accuracies", {})
