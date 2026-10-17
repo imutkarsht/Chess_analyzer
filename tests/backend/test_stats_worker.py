@@ -197,3 +197,154 @@ def test_stats_worker_time_stats():
     assert trouble["trouble_moves"] == 1
     assert trouble["trouble_blunders"] == 1
     assert trouble["total_time_losses"] == 1
+
+
+def test_stats_worker_advantage_conversion_and_rates():
+    """Test aggregation of advantage conversion, throws, comebacks, and calculated rates."""
+    import json
+
+    # Game 1: Converted advantage (White had +350 cp, won 1-0)
+    g1_moves = json.dumps(
+        [
+            {
+                "ply": 0,
+                "san": "e4",
+                "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                "eval_before_cp": 350,
+                "win_chance_before": 0.85,
+                "win_chance_after": 0.85,
+                "classification": "Best",
+                "is_book_move": False,
+            }
+        ]
+    )
+
+    # Game 2: Thrown lead (White had +400 cp, lost 0-1)
+    g2_moves = json.dumps(
+        [
+            {
+                "ply": 0,
+                "san": "d4",
+                "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                "eval_before_cp": 400,
+                "win_chance_before": 0.90,
+                "win_chance_after": 0.90,
+                "classification": "Best",
+                "is_book_move": False,
+            }
+        ]
+    )
+
+    # Game 3: Comeback win (White was at -350 cp, won 1-0)
+    g3_moves = json.dumps(
+        [
+            {
+                "ply": 0,
+                "san": "Nf3",
+                "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                "eval_before_cp": -350,
+                "win_chance_before": 0.10,
+                "win_chance_after": 0.10,
+                "classification": "Best",
+                "is_book_move": False,
+            }
+        ]
+    )
+
+    games = [
+        make_dummy_game("g1", white="PlayerA", result="1-0"),
+        make_dummy_game("g2", white="PlayerA", result="0-1"),
+        make_dummy_game("g3", white="PlayerA", result="1-0"),
+    ]
+    games[0]["moves_json"] = g1_moves
+    games[1]["moves_json"] = g2_moves
+    games[2]["moves_json"] = g3_moves
+
+    worker = StatsWorker(games, ["PlayerA"])
+    stats = worker._calculate_stats()
+
+    assert "advantage_stats" in stats
+    adv = stats["advantage_stats"]
+    assert adv["had_winning_advantage"] == 2  # g1 and g2
+    assert adv["converted_advantage"] == 1  # g1
+    assert adv["thrown_losses"] == 1  # g2
+    assert adv["conversion_rate"] == 50.0  # 1 of 2
+    assert adv["throw_rate"] == 50.0  # 1 of 2
+
+    assert adv["had_losing_position"] == 1  # g3
+    assert adv["comeback_drawn_or_won"] == 1  # g3
+    assert adv["comeback_wins"] == 1  # g3
+    assert adv["comeback_rate"] == 100.0  # 1 of 1
+
+
+def test_metrics_aggregator_build_coach_dossier():
+    """Test generating a structured coaching dossier from aggregated stats."""
+    from src.backend.analysis.metrics_aggregator import MetricsAggregator
+
+    # 1. Empty stats
+    empty_dossier = MetricsAggregator.build_coach_dossier({"total": 0})
+    assert "No analyzed games available" in empty_dossier
+
+    # 2. Populated stats
+    sample_stats = {
+        "total": 10,
+        "wins": 6,
+        "draws": 1,
+        "losses": 3,
+        "win_rate": 60.0,
+        "avg_accuracy": 82.5,
+        "clean_games": 3,
+        "clean_games_pct": 30.0,
+        "phase_stats": {
+            "accuracies": {"opening": 88.0, "middlegame": 80.0, "endgame": 75.0},
+            "blunders": {"opening": 1, "middlegame": 4, "endgame": 2},
+        },
+        "advantage_stats": {
+            "had_winning_advantage": 5,
+            "converted_advantage": 4,
+            "thrown_losses": 1,
+            "squandered_draws": 0,
+            "conversion_rate": 80.0,
+            "had_losing_position": 3,
+            "comeback_drawn_or_won": 1,
+            "comeback_wins": 1,
+            "comeback_draws": 0,
+            "comeback_rate": 33.3,
+        },
+        "hanging_stats": {
+            "total_hung": 2,
+            "by_piece": {"pawn": 1, "knight": 0, "bishop": 0, "rook": 1, "queen": 0},
+            "opponent_hanging_captured": 4,
+            "opponent_hanging_missed": 1,
+        },
+        "tactical_themes": {"fork": 5, "pin": 3, "skewer": 1},
+        "brilliancies": [{"san": "Qh5"}],
+        "time_stats": {
+            "has_clock_data": True,
+            "overall_avg_time": 12.4,
+            "phase_pace": {
+                "opening": {"avg_time": 4.5},
+                "middlegame": {"avg_time": 16.2},
+                "endgame": {"avg_time": 11.0},
+            },
+            "time_trouble": {"panic_multiplier": 2.5, "total_time_losses": 1},
+        },
+        "detailed_openings": {
+            "Sicilian Defense": {
+                "name": "Sicilian Defense",
+                "eco": "B20",
+                "total": 4,
+                "win_rate": 75.0,
+                "avg_acc": 85.0,
+            }
+        },
+    }
+
+    dossier = MetricsAggregator.build_coach_dossier(sample_stats)
+    assert "STUDENT CHESS PERFORMANCE DOSSIER" in dossier
+    assert "Overall Win Rate: 60.0%" in dossier
+    assert "Average Accuracy: 82.5%" in dossier
+    assert "Conversion: 80.0%" in dossier
+    assert "Comeback Rate: 33.3%" in dossier
+    assert "Sicilian Defense (ECO B20)" in dossier
+    assert "Undefended Pieces Dropped: 2" in dossier

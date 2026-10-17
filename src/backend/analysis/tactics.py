@@ -611,10 +611,17 @@ def analyze_game_tactics(
     # Conversion logic
     user_won = (result == "1-0" and is_user_white) or (result == "0-1" and not is_user_white)
     is_draw = result in ("1/2-1/2", "Draw")
+    user_lost = not user_won and not is_draw
 
     converted_advantage = had_winning_advantage and user_won
     choked_advantage = had_winning_advantage and not user_won
+    thrown_losses = had_winning_advantage and user_lost
+    squandered_draws = had_winning_advantage and is_draw
+
     comeback_drawn_or_won = had_losing_position and (user_won or is_draw)
+    comeback_wins = had_losing_position and user_won
+    comeback_draws = had_losing_position and is_draw
+    lost_deficit = had_losing_position and user_lost
 
     return {
         "phase_accuracies": {
@@ -646,8 +653,13 @@ def analyze_game_tactics(
             "had_winning_advantage": had_winning_advantage,
             "converted_advantage": converted_advantage,
             "choked_advantage": choked_advantage,
+            "thrown_losses": thrown_losses,
+            "squandered_draws": squandered_draws,
             "had_losing_position": had_losing_position,
             "comeback_drawn_or_won": comeback_drawn_or_won,
+            "comeback_wins": comeback_wins,
+            "comeback_draws": comeback_draws,
+            "lost_deficit": lost_deficit,
             "peak_eval_cp": peak_eval,
             "lowest_eval_cp": lowest_eval,
         },

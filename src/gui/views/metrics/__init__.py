@@ -1,4 +1,5 @@
 from src.gui.views.metrics.accuracy_trend_card import AccuracyTrendCard
+from src.gui.views.metrics.advantage_card import AdvantageConversionCard
 from src.gui.views.metrics.ai_coach_card import AICoachCard
 from src.gui.views.metrics.base_card import MetricCard
 from src.gui.views.metrics.brilliancy_hall_card import BrilliancyHallCard
@@ -18,6 +19,7 @@ __all__ = [
     "PhasePerformanceCard",
     "HangingPiecesCard",
     "TacticalThemesCard",
+    "AdvantageConversionCard",
     "BrilliancyHallCard",
     "OpeningsListCard",
     "TimeManagementCard",

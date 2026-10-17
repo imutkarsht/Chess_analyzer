@@ -124,6 +124,10 @@ def test_analyze_game_tactics_advantage_conversion():
     assert adv["had_winning_advantage"] is True
     assert adv["converted_advantage"] is True
     assert adv["choked_advantage"] is False
+    assert adv["thrown_losses"] is False
+    assert adv["squandered_draws"] is False
+    assert adv["had_losing_position"] is False
+    assert adv["comeback_drawn_or_won"] is False
 
     # Brilliancies
     brilliancies = tactics["brilliancies"]
@@ -134,6 +138,51 @@ def test_analyze_game_tactics_advantage_conversion():
     # Phase accuracies
     phase_acc = tactics["phase_accuracies"]
     assert phase_acc["opening"] is not None
+
+
+def test_advantage_thrown_loss_and_comeback_win():
+    """Test advantage metrics for thrown loss (+3.0 lost) and comeback win (-3.0 won)."""
+    # 1. Thrown Loss: White was at +400 cp but lost (result 0-1)
+    moves_thrown = [
+        {
+            "ply": 0,
+            "san": "e4",
+            "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "eval_before_cp": 400,
+            "win_chance_before": 0.90,
+            "win_chance_after": 0.90,
+            "classification": "Best",
+            "is_book_move": False,
+        }
+    ]
+    tactics_thrown = analyze_game_tactics(moves_thrown, user_color="white", result="0-1")
+    adv_t = tactics_thrown["advantage_metrics"]
+    assert adv_t["had_winning_advantage"] is True
+    assert adv_t["converted_advantage"] is False
+    assert adv_t["choked_advantage"] is True
+    assert adv_t["thrown_losses"] is True
+    assert adv_t["squandered_draws"] is False
+
+    # 2. Comeback Win: White was at -450 cp but won (result 1-0)
+    moves_comeback = [
+        {
+            "ply": 0,
+            "san": "e4",
+            "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "eval_before_cp": -450,
+            "win_chance_before": 0.05,
+            "win_chance_after": 0.05,
+            "classification": "Best",
+            "is_book_move": False,
+        }
+    ]
+    tactics_cb = analyze_game_tactics(moves_comeback, user_color="white", result="1-0")
+    adv_cb = tactics_cb["advantage_metrics"]
+    assert adv_cb["had_losing_position"] is True
+    assert adv_cb["comeback_drawn_or_won"] is True
+    assert adv_cb["comeback_wins"] is True
+    assert adv_cb["comeback_draws"] is False
+    assert adv_cb["lost_deficit"] is False
 
 
 def test_pinned_defender_cannot_protect():
@@ -252,4 +301,3 @@ def test_detect_tactical_motifs():
     board_disc_a.push(move_disc)
     motifs_disc = detect_tactical_motifs(board_disc_b, board_disc_a, move_disc, chess.WHITE)
     assert "discovered_attack" in motifs_disc
-

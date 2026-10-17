@@ -234,8 +234,15 @@ class MetricsAggregator:
             "had_winning_advantage": 0,
             "converted_advantage": 0,
             "choked_advantage": 0,
+            "thrown_losses": 0,
+            "squandered_draws": 0,
             "had_losing_position": 0,
             "comeback_drawn_or_won": 0,
+            "comeback_wins": 0,
+            "comeback_draws": 0,
+            "conversion_rate": 0.0,
+            "comeback_rate": 0.0,
+            "throw_rate": 0.0,
         }
 
         brilliancies: list[dict[str, Any]] = []
@@ -491,10 +498,18 @@ class MetricsAggregator:
                     advantage_stats["converted_advantage"] += 1
                 if adv.get("choked_advantage"):
                     advantage_stats["choked_advantage"] += 1
+                if adv.get("thrown_losses"):
+                    advantage_stats["thrown_losses"] += 1
+                if adv.get("squandered_draws"):
+                    advantage_stats["squandered_draws"] += 1
                 if adv.get("had_losing_position"):
                     advantage_stats["had_losing_position"] += 1
                 if adv.get("comeback_drawn_or_won"):
                     advantage_stats["comeback_drawn_or_won"] += 1
+                if adv.get("comeback_wins"):
+                    advantage_stats["comeback_wins"] += 1
+                if adv.get("comeback_draws"):
+                    advantage_stats["comeback_draws"] += 1
 
                 # Tactical themes aggregation
                 for motif, count in tactics_data.get("tactical_themes", {}).items():
@@ -709,6 +724,19 @@ class MetricsAggregator:
             },
         }
 
+        # Advantage rates calculation
+        hwa = advantage_stats["had_winning_advantage"]
+        hlp = advantage_stats["had_losing_position"]
+        advantage_stats["conversion_rate"] = (
+            (advantage_stats["converted_advantage"] / hwa * 100) if hwa > 0 else 0.0
+        )
+        advantage_stats["throw_rate"] = (
+            (advantage_stats["thrown_losses"] / hwa * 100) if hwa > 0 else 0.0
+        )
+        advantage_stats["comeback_rate"] = (
+            (advantage_stats["comeback_drawn_or_won"] / hlp * 100) if hlp > 0 else 0.0
+        )
+
         return {
             "total": total,
             "wins": wins,
@@ -749,3 +777,131 @@ class MetricsAggregator:
                 "date": date_filter,
             },
         }
+
+    @classmethod
+    def build_coach_dossier(cls, stats: dict[str, Any]) -> str:
+        """
+        Builds a compact, high-signal performance dossier from aggregated stats
+        specifically tailored for the AI Chess Coach prompt.
+        """
+        total = stats.get("total", 0)
+        if total == 0:
+            return "No analyzed games available for coaching evaluation."
+
+        lines = [
+            f"=== STUDENT CHESS PERFORMANCE DOSSIER (Sample: {total} games) ===",
+            f"Overall Win Rate: {stats.get('win_rate', 0.0):.1f}% ({stats.get('wins', 0)}W / {stats.get('draws', 0)}D / {stats.get('losses', 0)}L)",
+            f"Average Accuracy: {stats.get('avg_accuracy', 0.0):.1f}% | Clean Games: {stats.get('clean_games_pct', 0.0):.1f}% ({stats.get('clean_games', 0)} games without blunders)",
+        ]
+
+        # Phase Performance
+        phases = stats.get("phase_stats", {})
+        accs = phases.get("accuracies", {})
+        blunds = phases.get("blunders", {})
+        lines.append("\nPhase Accuracies & Blunder Distribution:")
+        lines.append(
+            f"- Opening: {accs.get('opening', 0.0):.1f}% accuracy | {blunds.get('opening', 0)} blunders"
+        )
+        lines.append(
+            f"- Middlegame: {accs.get('middlegame', 0.0):.1f}% accuracy | {blunds.get('middlegame', 0)} blunders"
+        )
+        lines.append(
+            f"- Endgame: {accs.get('endgame', 0.0):.1f}% accuracy | {blunds.get('endgame', 0)} blunders"
+        )
+
+        # Advantage & Conversion
+        adv = stats.get("advantage_stats", {})
+        hwa = adv.get("had_winning_advantage", 0)
+        hlp = adv.get("had_losing_position", 0)
+        lines.append("\nAdvantage Conversion & Fighting Spirit:")
+        if hwa > 0:
+            lines.append(
+                f"- Decisive Lead (+3.0+ pawns) Conversion: {adv.get('conversion_rate', 0.0):.1f}% "
+                f"({adv.get('converted_advantage', 0)} wins out of {hwa} games ahead)"
+            )
+            lines.append(
+                f"- Squandered Leads: {adv.get('thrown_losses', 0)} losses, {adv.get('squandered_draws', 0)} draws from winning positions"
+            )
+        else:
+            lines.append("- Decisive Leads (+3.0+): None achieved in this sample.")
+
+        if hlp > 0:
+            lines.append(
+                f"- Deficit (-3.0- pawns) Comeback Rate: {adv.get('comeback_rate', 0.0):.1f}% "
+                f"({adv.get('comeback_wins', 0)} wins, {adv.get('comeback_draws', 0)} draws out of {hlp} games behind)"
+            )
+        else:
+            lines.append("- Decisive Deficits (-3.0-): None conceded in this sample.")
+
+        # Tactical Themes & Piece Safety
+        hanging = stats.get("hanging_stats", {})
+        lines.append("\nTactical Profile & Board Awareness:")
+        lines.append(
+            f"- Undefended Pieces Dropped: {hanging.get('total_hung', 0)} "
+            f"(P: {hanging.get('by_piece', {}).get('pawn', 0)}, "
+            f"N: {hanging.get('by_piece', {}).get('knight', 0)}, "
+            f"B: {hanging.get('by_piece', {}).get('bishop', 0)}, "
+            f"R: {hanging.get('by_piece', {}).get('rook', 0)}, "
+            f"Q: {hanging.get('by_piece', {}).get('queen', 0)})"
+        )
+        lines.append(
+            f"- Opponent Hanging Pieces Punished: {hanging.get('opponent_hanging_captured', 0)} captured "
+            f"vs {hanging.get('opponent_hanging_missed', 0)} missed opportunities"
+        )
+
+        tactics = stats.get("tactical_themes", {})
+        top_motifs = sorted(tactics.items(), key=lambda x: x[1], reverse=True)
+        motifs_str = ", ".join(f"{k}: {v}" for k, v in top_motifs if v > 0)
+        lines.append(f"- Tactical Motifs Executed: {motifs_str if motifs_str else 'None detected'}")
+
+        brills = len(stats.get("brilliancies", []))
+        lines.append(f"- Brilliant Moves (!!): {brills}")
+
+        # Clock & Time Management
+        time_s = stats.get("time_stats", {})
+        if time_s.get("has_clock_data"):
+            tt = time_s.get("time_trouble", {})
+            formats = time_s.get("formats", {})
+            lines.append("\nTime Management & Clock Discipline:")
+            lines.append(f"- Overall Average Move Time: {time_s.get('overall_avg_time', 0.0):.1f}s")
+            pp = time_s.get("phase_pace", {})
+            lines.append(
+                f"- Pace by Phase: Opening {pp.get('opening', {}).get('avg_time', 0.0):.1f}s | "
+                f"Middlegame {pp.get('middlegame', {}).get('avg_time', 0.0):.1f}s | "
+                f"Endgame {pp.get('endgame', {}).get('avg_time', 0.0):.1f}s"
+            )
+
+            # Detect playing too fast in longer formats (Rapid/Classical)
+            for fmt_name in ("Rapid", "Classical"):
+                if fmt_name in formats:
+                    amt = formats[fmt_name].get("avg_move_time", 0.0)
+                    if amt > 0 and amt < 8.0:
+                        lines.append(
+                            f"- CRITICAL ALERT [RUSHING IN {fmt_name.upper()}]: Student averages only {amt:.1f}s per move in {fmt_name}. "
+                            f"They are playing far too fast for a longer game, blitzing out moves impulsively and finishing with substantial unused time on their clock while blundering."
+                        )
+
+            qp = time_s.get("quality_pace", {})
+            blunder_pace = qp.get("blunder", {}).get("avg_time", 0.0)
+            if blunder_pace > 0 and blunder_pace < 6.0:
+                lines.append(
+                    f"- Hasty Blunders: Blunders were committed in an average of {blunder_pace:.1f}s (impulsive moves without calculating)."
+                )
+
+            lines.append(
+                f"- Panic Multiplier in Time Trouble: {tt.get('panic_multiplier', 1.0):.1f}x higher blunder rate"
+            )
+            lines.append(f"- Losses on Time: {tt.get('total_time_losses', 0)}")
+
+        # Opening Repertoire
+        detailed_ops = stats.get("detailed_openings", {})
+        if detailed_ops:
+            sorted_ops = sorted(detailed_ops.values(), key=lambda x: x["total"], reverse=True)
+            lines.append("\nOpening Repertoire Highlights:")
+            for op in sorted_ops[:5]:
+                lines.append(
+                    f"- {op['name']} (ECO {op.get('eco', 'N/A')}): "
+                    f"{op['total']} games, {op['win_rate']:.1f}% win rate, {op.get('avg_acc', 0.0):.1f}% accuracy"
+                )
+
+        return "\n".join(lines)
