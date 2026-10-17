@@ -85,14 +85,6 @@ class PhasePerformanceCard(MetricCard):
 
         total_games = self.stats.get("total", 0)
 
-        # Identify best phase
-        valid_phases = [
-            (k, accuracies.get(k, 0.0))
-            for k in ("opening", "middlegame", "endgame")
-            if accuracies.get(k, 0.0) > 0
-        ]
-        best_phase_key = max(valid_phases, key=lambda x: x[1])[0] if valid_phases else None
-
         # 3 Pillar Columns Layout
         col_row = QHBoxLayout()
         col_row.setContentsMargins(0, 0, 0, 0)
@@ -102,25 +94,23 @@ class PhasePerformanceCard(MetricCard):
             acc = accuracies.get(key, 0.0)
             b_cnt = blunders.get(key, 0)
             bpg = (b_cnt / total_games) if total_games > 0 else 0.0
-            is_best = (key == best_phase_key) and len(valid_phases) > 1
 
-            # Color coding for accuracy
-            if acc >= 85.0:
-                acc_color = Styles.COLOR_BEST
-            elif acc >= 75.0:
-                acc_color = Styles.COLOR_ACCENT
-            elif acc >= 65.0:
-                acc_color = Styles.COLOR_GOOD
+            # Progress bar color based on chess accuracy standards (never accent)
+            if acc >= 80.0:
+                bar_color = Styles.COLOR_BEST
+            elif acc >= 70.0:
+                bar_color = Styles.COLOR_GOOD
+            elif acc >= 55.0:
+                bar_color = Styles.COLOR_INACCURACY
             else:
-                acc_color = Styles.COLOR_BLUNDER
+                bar_color = Styles.COLOR_BLUNDER
 
             pillar = QFrame()
             pillar.setObjectName("phase_pillar")
-            border_c = Styles.COLOR_BEST if is_best else Styles.COLOR_BORDER
             pillar.setStyleSheet(f"""
                 QFrame#phase_pillar {{
                     background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 1px solid {border_c};
+                    border: 1px solid {Styles.COLOR_BORDER};
                     border-radius: 10px;
                 }}
             """)
@@ -128,7 +118,7 @@ class PhasePerformanceCard(MetricCard):
             p_layout.setContentsMargins(14, 14, 14, 14)
             p_layout.setSpacing(8)
 
-            # Top Line: Icon badge + Strongest Tag
+            # Top Line: Monochrome Icon badge
             top_line = QHBoxLayout()
             top_line.setContentsMargins(0, 0, 0, 0)
 
@@ -147,8 +137,9 @@ class PhasePerformanceCard(MetricCard):
                 import qtawesome as qta
 
                 ic_lbl = QLabel()
-                ic_c = Styles.COLOR_BEST if is_best else Styles.COLOR_ACCENT
-                ic_lbl.setPixmap(qta.icon(icon_name, color=ic_c).pixmap(16, 16))
+                ic_lbl.setPixmap(
+                    qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(16, 16)
+                )
                 ic_lbl.setStyleSheet("border: none; background: transparent;")
                 t_layout.addWidget(ic_lbl)
             except Exception:
@@ -156,19 +147,6 @@ class PhasePerformanceCard(MetricCard):
 
             top_line.addWidget(tile)
             top_line.addStretch()
-
-            if is_best:
-                best_tag = QLabel("STRONGEST")
-                best_tag.setStyleSheet(f"""
-                    background-color: {Styles.COLOR_BEST};
-                    color: white;
-                    font-size: 8px;
-                    font-weight: 800;
-                    border-radius: 3px;
-                    padding: 2px 6px;
-                """)
-                top_line.addWidget(best_tag)
-
             p_layout.addLayout(top_line)
 
             # Name and Move Range
@@ -194,10 +172,10 @@ class PhasePerformanceCard(MetricCard):
 
             p_layout.addSpacing(2)
 
-            # Big Hero Accuracy Number
+            # Big Hero Accuracy Number (Consistent white text)
             acc_lbl = QLabel(f"{acc:.1f}%" if acc > 0 else "N/A")
             acc_lbl.setStyleSheet(f"""
-                color: {acc_color};
+                color: {Styles.COLOR_TEXT_PRIMARY};
                 font-size: 22px;
                 font-weight: 800;
                 border: none;
@@ -218,7 +196,7 @@ class PhasePerformanceCard(MetricCard):
                     border-radius: 3px;
                 }}
                 QProgressBar::chunk {{
-                    background-color: {acc_color};
+                    background-color: {bar_color};
                     border-radius: 3px;
                 }}
             """)
@@ -227,7 +205,6 @@ class PhasePerformanceCard(MetricCard):
             p_layout.addSpacing(4)
 
             # Blunders Text
-            b_color = Styles.COLOR_TEXT_SECONDARY if b_cnt == 0 else Styles.COLOR_BLUNDER
             b_text = (
                 f"{b_cnt} blunders ({bpg:.1f}/g)"
                 if total_games > 1 and b_cnt > 0
@@ -235,9 +212,9 @@ class PhasePerformanceCard(MetricCard):
             )
             b_lbl = QLabel(b_text)
             b_lbl.setStyleSheet(f"""
-                color: {b_color};
+                color: {Styles.COLOR_TEXT_SECONDARY};
                 font-size: 11px;
-                font-weight: 600;
+                font-weight: 500;
                 border: none;
                 background: transparent;
             """)
@@ -246,39 +223,6 @@ class PhasePerformanceCard(MetricCard):
             col_row.addWidget(pillar)
 
         main_vbox.addLayout(col_row, stretch=1)
-
-        # Bottom Insight Strip
-        if len(valid_phases) >= 2:
-            best_phase = max(valid_phases, key=lambda x: x[1])
-            worst_phase = min(valid_phases, key=lambda x: x[1])
-
-            insight_frame = QFrame()
-            insight_frame.setObjectName("phase_insight_frame")
-            insight_frame.setStyleSheet(f"""
-                QFrame#phase_insight_frame {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 1px dashed {Styles.COLOR_BORDER};
-                    border-radius: 6px;
-                }}
-            """)
-            insight_layout = QHBoxLayout(insight_frame)
-            insight_layout.setContentsMargins(10, 6, 10, 6)
-
-            best_text = f"Strongest: {best_phase[0].capitalize()} ({best_phase[1]:.1f}%)"
-            focus_text = f"Focus Area: {worst_phase[0].capitalize()} ({worst_phase[1]:.1f}%)"
-
-            lbl_insight = QLabel(f"{best_text}  •  {focus_text}")
-            lbl_insight.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_insight.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 11px;
-                font-weight: 500;
-                border: none;
-                background: transparent;
-            """)
-            insight_layout.addWidget(lbl_insight)
-
-            main_vbox.addWidget(insight_frame, stretch=0)
 
         self.set_content(self.content_widget)
 

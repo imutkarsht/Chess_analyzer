@@ -188,7 +188,7 @@ class AccuracyTrendCard(MetricCard):
             layout.addWidget(val)
             return frame
 
-        stats_strip.addWidget(make_badge("Avg", f"{avg_acc:.1f}%", Styles.COLOR_ACCENT))
+        stats_strip.addWidget(make_badge("Avg", f"{avg_acc:.1f}%", Styles.COLOR_TEXT_PRIMARY))
         stats_strip.addWidget(make_badge("Peak", f"{peak_acc:.1f}%", Styles.COLOR_BEST))
         stats_strip.addWidget(make_badge("Low", f"{low_acc:.1f}%", Styles.COLOR_TEXT_SECONDARY))
 

@@ -317,7 +317,9 @@ class TimeManagementCard(MetricCard):
                 import qtawesome as qta
 
                 ic_lbl = QLabel()
-                ic_lbl.setPixmap(qta.icon(icon_name, color=Styles.COLOR_ACCENT).pixmap(16, 16))
+                ic_lbl.setPixmap(
+                    qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(16, 16)
+                )
                 ic_lbl.setStyleSheet("border: none; background: transparent;")
                 t_layout.addWidget(ic_lbl)
             except Exception:
@@ -384,7 +386,7 @@ class TimeManagementCard(MetricCard):
                 pace_badge = QLabel(f"{avg_t:.1f}s / mv")
                 pace_badge.setStyleSheet(f"""
                     background-color: {Styles.COLOR_SURFACE};
-                    color: {Styles.COLOR_ACCENT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
                     font-weight: 600;
                     font-size: 11px;
                     border: 1px solid {Styles.COLOR_BORDER};
@@ -491,7 +493,9 @@ class TimeManagementCard(MetricCard):
                 import qtawesome as qta
 
                 ic_lbl = QLabel()
-                ic_lbl.setPixmap(qta.icon(icon_name, color=Styles.COLOR_ACCENT).pixmap(14, 14))
+                ic_lbl.setPixmap(
+                    qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(14, 14)
+                )
                 ic_lbl.setStyleSheet("border: none; background: transparent;")
                 h_row.addWidget(ic_lbl)
             except Exception:

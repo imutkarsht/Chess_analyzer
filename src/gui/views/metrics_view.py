@@ -20,7 +20,6 @@ from src.gui.utils.gui_utils import clear_layout, create_button, create_combobox
 from src.gui.views.metrics import (
     AccuracyTrendCard,
     AICoachCard,
-    ColorPerformanceCard,
     EndingDistributionCard,
     MoveQualityCard,
     OpeningsListCard,
@@ -480,7 +479,6 @@ class MetricsWidget(QWidget):
                 "Win Rate",
                 f"{stats['win_rate']:.1f}%",
                 win_sub,
-                color=Styles.COLOR_ACCENT,
             )
         )
         self.stats_layout.addWidget(
@@ -545,10 +543,6 @@ class MetricsWidget(QWidget):
         self.charts_layout = MasonryLayout(
             self.charts_container, margin=0, spacing=20, min_col_width=400
         )
-
-        self.color_card = ColorPerformanceCard()
-        self.color_card.set_stats(stats)
-        self.charts_layout.addWidget(self.color_card)
 
         self.time_card = TimeManagementCard()
         self.time_card.set_stats(stats)
