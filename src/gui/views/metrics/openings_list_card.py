@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -31,9 +30,12 @@ class OpeningsListCard(MetricCard):
     - Average move accuracy per opening.
     """
 
+    PAGE_SIZE = 4
+
     def __init__(self, parent=None):
         self.stats = {}
         self.current_sort = "played"  # 'played', 'winrate'
+        self.current_page = 0
         self.content_widget = None
 
         # Header Action Widget: Sort Control [Most Played | Win Rate]
@@ -110,11 +112,13 @@ class OpeningsListCard(MetricCard):
         if self.current_sort == sort_by:
             return
         self.current_sort = sort_by
+        self.current_page = 0
         self._update_sort_styles()
         self._render_view()
 
     def set_stats(self, stats: dict):
         self.stats = stats or {}
+        self.current_page = 0
 
         # Update card title dynamically based on active color filter
         active_color = self.stats.get("filter_applied", {}).get("color", "All Colors")
@@ -220,48 +224,101 @@ class OpeningsListCard(MetricCard):
             self.set_content(self.content_widget)
             return
 
-        # 2. Scrollable List of Openings
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"""
-            QScrollArea {{
-                background: transparent;
-                border: none;
-            }}
-            QScrollBar:vertical {{
-                background: transparent;
-                width: 6px;
-                margin: 0;
-            }}
-            QScrollBar::handle:vertical {{
-                background: {Styles.COLOR_BORDER};
-                border-radius: 3px;
-                min-height: 20px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0;
-            }}
-        """)
+        # 2. Paginated List of Openings
+        total_openings = len(openings_list)
+        total_pages = max(1, (total_openings + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
+        self.current_page = max(0, min(self.current_page, total_pages - 1))
 
-        scroll_content = QWidget()
-        scroll_content.setStyleSheet("background: transparent;")
-        scroll_vbox = QVBoxLayout(scroll_content)
-        scroll_vbox.setContentsMargins(0, 0, 4, 0)
-        scroll_vbox.setSpacing(8)
+        start_idx = self.current_page * self.PAGE_SIZE
+        end_idx = min(start_idx + self.PAGE_SIZE, total_openings)
+        page_items = openings_list[start_idx:end_idx]
+
+        items_container = QWidget()
+        items_container.setStyleSheet("background: transparent;")
+        items_vbox = QVBoxLayout(items_container)
+        items_vbox.setContentsMargins(0, 0, 0, 0)
+        items_vbox.setSpacing(8)
 
         show_color_tag = active_color not in ("White", "Black")
 
-        for item in openings_list:
+        for item in page_items:
             row_card = self._create_opening_row(item, show_color_tag=show_color_tag)
-            scroll_vbox.addWidget(row_card)
+            items_vbox.addWidget(row_card)
 
-        scroll_vbox.addStretch()
-        scroll.setWidget(scroll_content)
-        main_vbox.addWidget(scroll, stretch=1)
+        items_vbox.addStretch()
+        main_vbox.addWidget(items_container, stretch=1)
+
+        # 3. Pagination Bar
+        if total_pages > 1:
+            pagination_bar = QHBoxLayout()
+            pagination_bar.setContentsMargins(4, 4, 4, 0)
+            pagination_bar.setSpacing(10)
+
+            self.btn_prev_page = QPushButton("◀ Prev")
+            self.btn_prev_page.setFixedHeight(26)
+            self.btn_prev_page.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_prev_page.setEnabled(self.current_page > 0)
+            self.btn_prev_page.clicked.connect(self._go_prev_page)
+
+            self.lbl_page_info = QLabel(f"Page {self.current_page + 1} of {total_pages}")
+            self.lbl_page_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.lbl_page_info.setStyleSheet(f"""
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 11px;
+                font-weight: 500;
+                background: transparent;
+            """)
+
+            self.btn_next_page = QPushButton("Next ▶")
+            self.btn_next_page.setFixedHeight(26)
+            self.btn_next_page.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_next_page.setEnabled(self.current_page < total_pages - 1)
+            self.btn_next_page.clicked.connect(self._go_next_page)
+
+            btn_style = f"""
+                QPushButton {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    color: {Styles.COLOR_TEXT_PRIMARY};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 4px;
+                    padding: 2px 10px;
+                    font-size: 11px;
+                    font-weight: 600;
+                }}
+                QPushButton:hover:enabled {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border-color: {Styles.COLOR_BORDER_LIGHT};
+                }}
+                QPushButton:disabled {{
+                    color: {Styles.COLOR_TEXT_MUTED};
+                    background-color: transparent;
+                    border-color: transparent;
+                }}
+            """
+            self.btn_prev_page.setStyleSheet(btn_style)
+            self.btn_next_page.setStyleSheet(btn_style)
+
+            pagination_bar.addWidget(self.btn_prev_page)
+            pagination_bar.addStretch()
+            pagination_bar.addWidget(self.lbl_page_info)
+            pagination_bar.addStretch()
+            pagination_bar.addWidget(self.btn_next_page)
+
+            main_vbox.addLayout(pagination_bar)
 
         self.set_content(self.content_widget)
+
+    def _go_prev_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._render_view()
+
+    def _go_next_page(self):
+        openings_list = self._get_openings_list()
+        total_pages = max(1, (len(openings_list) + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
+        if self.current_page < total_pages - 1:
+            self.current_page += 1
+            self._render_view()
 
     def _create_opening_row(self, item: dict, show_color_tag: bool = False) -> QFrame:
         """Creates an individual opening card row with stacked W/D/L bar."""

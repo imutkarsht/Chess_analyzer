@@ -7,6 +7,7 @@ import sys
 
 _SESSION_HEADER_LOGGED = False
 
+
 class SensitiveDataFilter(logging.Filter):
     """
     Redacts sensitive API keys, tokens, and credentials from log records
@@ -34,8 +35,7 @@ class SensitiveDataFilter(logging.Filter):
                 }
             elif isinstance(record.args, tuple):
                 record.args = tuple(
-                    (self.sanitize(arg) if isinstance(arg, str) else arg)
-                    for arg in record.args
+                    (self.sanitize(arg) if isinstance(arg, str) else arg) for arg in record.args
                 )
         return True
 
@@ -68,6 +68,42 @@ def get_default_log_level() -> int:
     return levels.get(env_level, logging.INFO)
 
 
+class SafeStreamHandler(logging.StreamHandler):
+    """
+    A StreamHandler that gracefully handles streams being closed during
+    test teardown or Python interpreter shutdown.
+    """
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            if self.stream is None or (hasattr(self.stream, "closed") and self.stream.closed):
+                return
+            super().emit(record)
+        except (ValueError, OSError):
+            pass
+
+    def flush(self):
+        try:
+            if self.stream is None or (hasattr(self.stream, "closed") and self.stream.closed):
+                return
+            super().flush()
+        except (ValueError, OSError):
+            pass
+
+    def handleError(self, record: logging.LogRecord):
+        if sys is None:
+            return
+        try:
+            if hasattr(sys.stderr, "closed") and sys.stderr.closed:
+                return
+        except Exception:
+            return
+        try:
+            super().handleError(record)
+        except (ValueError, OSError):
+            pass
+
+
 def setup_logging(custom_level: int | None = None) -> logging.Logger:
     """
     Configures the global logging setup with console and rotating file handlers,
@@ -92,7 +128,7 @@ def setup_logging(custom_level: int | None = None) -> logging.Logger:
     redactor = SensitiveDataFilter()
 
     # Console handler
-    c_handler = logging.StreamHandler(sys.stdout)
+    c_handler = SafeStreamHandler(sys.stdout)
     c_level = get_default_log_level() if custom_level is None else custom_level
     c_handler.setLevel(c_level)
     c_handler.addFilter(redactor)
@@ -151,6 +187,7 @@ def setup_logging(custom_level: int | None = None) -> logging.Logger:
         sys.stderr.write(f"Failed to setup file logging: {e}\n")
 
     return logger_instance
+
 
 # Global logger instance
 logger = setup_logging()

@@ -8,6 +8,7 @@ by the release pipeline:
   macOS    → ChessAnalyzerPro-X.Y.Z-macOS.dmg            (create-dmg)
   Linux    → ChessAnalyzerPro-X.Y.Z-x86_64.AppImage      (AppImageKit)
 """
+
 import sys
 
 import requests
@@ -80,11 +81,11 @@ class UpdateInfo:
         self.available = available
         self.current = current
         self.latest = latest
-        self.download_url = download_url   # Direct asset URL or release page
+        self.download_url = download_url  # Direct asset URL or release page
         self.changelog = changelog
-        self.html_url = html_url           # Always the GitHub release page
+        self.html_url = html_url  # Always the GitHub release page
         self.platform_label = platform_label  # e.g. "Windows Installer (.exe)"
-        self.install_hint = install_hint      # One-line user instruction
+        self.install_hint = install_hint  # One-line user instruction
 
 
 class UpdateChecker:
@@ -116,8 +117,7 @@ class UpdateChecker:
                 # Fall back to the release page so the user can download manually
                 download_url = html_url
                 logger.warning(
-                    "No platform-specific asset found in release; "
-                    "falling back to release page."
+                    "No platform-specific asset found in release; falling back to release page."
                 )
 
             # Compare versions
@@ -159,6 +159,16 @@ class UpdateCheckerWorker(QThread):
 
     update_checked = pyqtSignal(object)  # Emits UpdateInfo
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
+
     def run(self):
+        if self._is_cancelled:
+            return
         result = UpdateChecker.check_for_updates()
-        self.update_checked.emit(result)
+        if not self._is_cancelled:
+            self.update_checked.emit(result)

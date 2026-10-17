@@ -164,7 +164,10 @@ class MainWindow(QMainWindow):
         self.config_manager.set("last_update_check", today)
 
         # Delay update check by 2 seconds to ensure splash is gone
-        QTimer.singleShot(2000, self._start_update_check)
+        self._update_timer = QTimer(self)
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self._start_update_check)
+        self._update_timer.start(2000)
 
     def _start_update_check(self):
         """Actually start the update check."""
@@ -331,12 +334,20 @@ class MainWindow(QMainWindow):
                 prev.quit()
                 prev.wait(1000)
 
-        # Stop update worker if running
-        if hasattr(self, "update_worker") and self.update_worker and self.update_worker.isRunning():
-            try:
-                self.update_worker.wait(500)
-            except Exception as e:
-                logger.error(f"Failed to stop update worker: {e}")
+        # Stop update worker and timer if running
+        if hasattr(self, "_update_timer") and self._update_timer.isActive():
+            self._update_timer.stop()
+
+        if hasattr(self, "update_worker") and self.update_worker:
+            if hasattr(self.update_worker, "cancel"):
+                self.update_worker.cancel()
+            if self.update_worker.isRunning():
+                try:
+                    self.update_worker.update_checked.disconnect()
+                except (TypeError, RuntimeError):
+                    pass
+                self.update_worker.quit()
+                self.update_worker.wait(1000)
 
         # Clean up analyzer and database resources
         if hasattr(self, "analyzer") and self.analyzer:
@@ -395,6 +406,7 @@ class MainWindow(QMainWindow):
         self.metrics_view.request_settings.connect(
             lambda: (self.sidebar.set_active(4), self.switch_page(4))
         )
+        self.metrics_view.game_selected.connect(self.load_game_from_metrics)
         self.stack.addWidget(self.metrics_view)
 
         # --- Page 4: Settings View ---
@@ -1151,6 +1163,18 @@ class MainWindow(QMainWindow):
         self.load_game(game)
         self.sidebar.set_active(0)  # Switch to Analyze tab
         self.switch_page(0)
+
+    def load_game_from_metrics(self, game, move_index: int = -1):
+        if isinstance(game, str):
+            game = self.history_manager.get_game_analysis(game)
+        if not game:
+            logger.warning(f"Could not load game from metrics: {game}")
+            return
+        self.load_game(game)
+        self.sidebar.set_active(0)  # Switch to Analyze tab
+        self.switch_page(0)
+        if move_index >= 0:
+            self.on_move_selected(move_index)
 
     def setup_analysis_page(self, parent_widget):
         main_layout = QVBoxLayout(parent_widget)

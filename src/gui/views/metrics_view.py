@@ -20,6 +20,7 @@ from src.gui.utils.gui_utils import clear_layout, create_button, create_combobox
 from src.gui.views.metrics import (
     AccuracyTrendCard,
     AICoachCard,
+    BrilliancyHallCard,
     EndingDistributionCard,
     HangingPiecesCard,
     MoveQualityCard,
@@ -32,6 +33,7 @@ from src.gui.views.metrics import (
 
 class MetricsWidget(QWidget):
     request_settings = pyqtSignal()
+    game_selected = pyqtSignal(object, int)  # Emits (GameAnalysis, move_index)
 
     def __init__(self, config_manager, history_manager):
         super().__init__()
@@ -558,6 +560,11 @@ class MetricsWidget(QWidget):
         self.tactics_card.set_stats(stats)
         self.charts_layout.addWidget(self.tactics_card)
 
+        self.brilliancy_card = BrilliancyHallCard()
+        self.brilliancy_card.set_stats(stats)
+        self.brilliancy_card.move_selected.connect(self._on_brilliancy_clicked)
+        self.charts_layout.addWidget(self.brilliancy_card)
+
         self.openings_card = OpeningsListCard()
         self.openings_card.set_stats(stats)
         self.charts_layout.addWidget(self.openings_card)
@@ -573,6 +580,13 @@ class MetricsWidget(QWidget):
 
         self.scroll_area.setWidget(dashboard)
         self.content_layout.addWidget(self.scroll_area)
+
+    def _on_brilliancy_clicked(self, game_id: str, move_index: int):
+        if not game_id or not self.history_manager:
+            return
+        game = self.history_manager.get_game_analysis(game_id)
+        if game:
+            self.game_selected.emit(game, move_index)
 
     def _sync_insights_cache(self):
         if hasattr(self, "ai_coach_card") and self.ai_coach_card and self.ai_coach_card.worker:

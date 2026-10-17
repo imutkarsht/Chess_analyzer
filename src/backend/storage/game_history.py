@@ -466,6 +466,110 @@ class GameHistoryManager:
             logger.error(f"Failed to get game {game_id}: {e}")
             return None
 
+    def get_game_analysis(self, game_id: str) -> GameAnalysis | None:
+        """Retrieves a single game record as a fully-hydrated GameAnalysis object."""
+        row_dict = self.get_game(game_id)
+        if not row_dict:
+            return None
+        return self._row_to_game_analysis(row_dict)
+
+    def _row_to_game_analysis(self, g_dict: dict[str, Any]) -> GameAnalysis:
+        from .models import GameMetadata, MoveAnalysis
+        from .pgn_parser import PGNParser
+        from .termination_detector import TerminationDetector
+
+        metadata = GameMetadata(
+            white=g_dict.get("white", ""),
+            black=g_dict.get("black", ""),
+            result=g_dict.get("result", "*"),
+            date=g_dict.get("date", ""),
+            event=g_dict.get("event", ""),
+            white_elo=g_dict.get("white_elo"),
+            black_elo=g_dict.get("black_elo"),
+            time_control=g_dict.get("time_control"),
+            eco=g_dict.get("eco"),
+            opening=g_dict.get("opening"),
+            termination=g_dict.get("termination"),
+            source=g_dict.get("source", "file"),
+            chess960=bool(g_dict.get("chess960", 0)),
+        )
+        metadata.speed_category = PGNParser._detect_speed_category(
+            metadata.time_control, metadata.event
+        )
+
+        summary = {}
+        if g_dict.get("summary_json"):
+            try:
+                summary = json.loads(g_dict["summary_json"])
+            except (json.JSONDecodeError, TypeError, ValueError):
+                pass
+
+        moves = []
+        if g_dict.get("moves_json"):
+            try:
+                moves_data = json.loads(g_dict["moves_json"])
+                for md in moves_data:
+                    move = MoveAnalysis(
+                        move_number=md.get("move_number", 0),
+                        ply=md.get("ply", 0),
+                        san=md.get("san", ""),
+                        uci=md.get("uci", ""),
+                        fen_before=md.get("fen_before", ""),
+                        eval_before_cp=md.get("eval_before_cp"),
+                        eval_before_mate=md.get("eval_before_mate"),
+                        best_move=md.get("best_move"),
+                        best_eval_cp=md.get("best_eval_cp"),
+                        best_eval_mate=md.get("best_eval_mate"),
+                        pv=md.get("pv", []),
+                        eval_after_cp=md.get("eval_after_cp"),
+                        eval_after_mate=md.get("eval_after_mate"),
+                        win_chance_before=md.get("win_chance_before", 0.5),
+                        win_chance_after=md.get("win_chance_after", 0.5),
+                        classification=md.get("classification", ""),
+                        explanation=md.get("explanation", ""),
+                        multi_pvs=md.get("multi_pvs", []),
+                        is_book_move=md.get("is_book_move", False),
+                        eco=md.get("eco", ""),
+                        opening_name=md.get("opening_name", ""),
+                        candidate_continuations=md.get("candidate_continuations", []),
+                        time_left=md.get("time_left"),
+                        time_spent=md.get("time_spent"),
+                        raw_clk=md.get("raw_clk"),
+                    )
+                    moves.append(move)
+            except Exception as e:
+                logger.error(f"Failed to parse moves_json: {e}")
+
+        if not moves and g_dict.get("pgn"):
+            try:
+                parsed_games = PGNParser.parse_pgn_text(g_dict["pgn"])
+                if parsed_games:
+                    moves = parsed_games[0].moves
+            except Exception as e:
+                logger.error(f"Failed to parse pgn: {e}")
+
+        term_mode, term_desc = TerminationDetector.detect_termination(
+            headers={
+                "Result": metadata.result,
+                "White": metadata.white,
+                "Black": metadata.black,
+                "Termination": metadata.termination or "",
+            },
+            moves=moves,
+            starting_fen=metadata.starting_fen,
+            chess960=metadata.chess960,
+        )
+        metadata.termination_mode = term_mode
+        metadata.termination_description = term_desc
+
+        return GameAnalysis(
+            game_id=g_dict["id"],
+            metadata=metadata,
+            pgn_content=g_dict.get("pgn", ""),
+            summary=summary,
+            moves=moves,
+        )
+
     def game_exists(self, game_id: str) -> bool:
         """Checks if a game with the given ID already exists."""
         try:
