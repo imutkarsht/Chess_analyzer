@@ -367,6 +367,8 @@ class StatsAccumulator:
                 "comeback_draws": [],
             },
             "blunders": [],
+            "clean_games": [],
+            "openings": {},
         }
 
     def add(self, rec: GameRecord) -> None:
@@ -430,6 +432,22 @@ class StatsAccumulator:
         c_stat.blunders += rec.blunders_count
         if rec.blunders_count == 0:
             self.clean_games += 1
+            clean_item = {
+                **rec.game_meta,
+                "is_game": True,
+                "ply": 1,
+                "move_number": 1,
+                "move_display": "0 Blunders",
+                "classification": "Clean Game",
+                "description": (
+                    f"Accuracy: {rec.game_acc:.1f}% • 0 blunders"
+                    if rec.game_acc > 0
+                    else "0 blunders"
+                ),
+                "fen_before": rec.raw_game.get("starting_fen")
+                or "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            }
+            self.drill_down["clean_games"].append(clean_item)
 
         # 5. Best Win Rating
         if rec.is_win and rec.opp_elo > self.best_win_rating:
@@ -469,6 +487,26 @@ class StatsAccumulator:
 
             if var_name and var_name not in d_op.variations:
                 d_op.variations.append(var_name)
+
+            if main_name not in self.drill_down["openings"]:
+                self.drill_down["openings"][main_name] = []
+
+            opening_item = {
+                **rec.game_meta,
+                "is_game": True,
+                "ply": 1,
+                "move_number": 1,
+                "move_display": rec.eco or "Opening",
+                "classification": (
+                    f"{rec.game_acc:.1f}% Acc" if rec.game_acc > 0 else (rec.eco or "Opening")
+                ),
+                "description": (
+                    f"{rec.opening} • {rec.game_acc:.1f}% Acc" if rec.game_acc > 0 else rec.opening
+                ),
+                "fen_before": rec.raw_game.get("starting_fen")
+                or "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            }
+            self.drill_down["openings"][main_name].append(opening_item)
 
         # 7. Tactics Data
         tactics = rec.tactics_data

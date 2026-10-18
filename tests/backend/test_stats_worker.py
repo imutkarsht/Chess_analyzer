@@ -419,3 +419,32 @@ def test_metrics_aggregator_drill_down():
     assert hb["piece_name"] == "bishop"
     assert hb["square"] == "a6"
     assert hb["game_id"] == "drill_game_1"
+
+    # Openings drill-down for Game 1
+    vant_games = MetricsAggregator.get_drill_down_items(stats, "openings", "Van't Kruijs Opening")
+    assert len(vant_games) == 1
+    assert vant_games[0]["game_id"] == "drill_game_1"
+    assert vant_games[0]["is_game"] is True
+
+    # Test clean_games drill-down with a 0-blunder game
+    clean_game = {
+        "id": "drill_game_2",
+        "white": "Hero",
+        "black": "Opponent",
+        "result": "1-0",
+        "date": "2026.10.18",
+        "speed_category": "Rapid",
+        "opening": "Sicilian Defense",
+        "summary_json": json.dumps({"white": {"accuracy": 92.0, "Blunder": 0}}),
+    }
+    stats2 = MetricsAggregator.calculate_stats([game, clean_game], ["Hero"])
+    clean_list = MetricsAggregator.get_drill_down_items(stats2, "clean_games")
+    assert len(clean_list) == 1
+    assert clean_list[0]["game_id"] == "drill_game_2"
+    assert clean_list[0]["classification"] == "Clean Game"
+    assert clean_list[0]["is_game"] is True
+
+    # Case-insensitive opening lookup
+    sicilian_games = MetricsAggregator.get_drill_down_items(stats2, "openings", "sicilian defense")
+    assert len(sicilian_games) == 1
+    assert sicilian_games[0]["game_id"] == "drill_game_2"

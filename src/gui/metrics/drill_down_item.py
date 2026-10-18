@@ -134,11 +134,15 @@ class DrillDownItemWidget(QFrame):
         row2 = QHBoxLayout()
         row2.setSpacing(8)
 
-        move_num = self.item.get("move_number", (self.item.get("ply", 1) + 1) // 2)
-        san = self.item.get("san", "")
-        is_user_white = self.item.get("user_color", "white") == "white"
-        move_prefix = f"{move_num}." if is_user_white else f"{move_num}..."
-        move_display = f"{move_prefix} {san}".strip() if san else f"Ply {self.item.get('ply', 1)}"
+        move_display = self.item.get("move_display")
+        if not move_display:
+            move_num = self.item.get("move_number", (self.item.get("ply", 1) + 1) // 2)
+            san = self.item.get("san", "")
+            is_user_white = self.item.get("user_color", "white") == "white"
+            move_prefix = f"{move_num}." if is_user_white else f"{move_num}..."
+            move_display = (
+                f"{move_prefix} {san}".strip() if san else f"Ply {self.item.get('ply', 1)}"
+            )
 
         move_badge = QLabel(move_display)
         move_badge.setStyleSheet(f"""
@@ -158,7 +162,12 @@ class DrillDownItemWidget(QFrame):
         # Classification / Motif Badge
         classification = self.item.get("classification") or ""
         if classification:
-            class_color = Styles.get_class_color(classification)
+            if classification in ("Clean Game", "Clean"):
+                class_color = Styles.COLOR_BEST
+            elif self.item.get("is_game"):
+                class_color = Styles.COLOR_ACCENT
+            else:
+                class_color = Styles.get_class_color(classification)
             class_badge = QLabel(classification)
             class_badge.setStyleSheet(Styles.get_result_badge_style(class_color, 11, "3px 8px", 4))
             row2.addWidget(class_badge)
@@ -210,7 +219,10 @@ class DrillDownItemWidget(QFrame):
 
         right_layout.addStretch()
 
-        btn_action = QPushButton("Analyze Move →")
+        action_text = self.item.get("action_text") or (
+            "Analyze Game →" if self.item.get("is_game") else "Analyze Move →"
+        )
+        btn_action = QPushButton(action_text)
         btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_action.setStyleSheet(f"""
             QPushButton {{
@@ -256,6 +268,10 @@ class DrillDownItemWidget(QFrame):
         motif = self.item.get("motif")
         if motif and not piece_name:
             parts.append(f"Motif: {motif.replace('_', ' ').title()}")
+
+        desc = self.item.get("description")
+        if desc:
+            parts.append(desc)
 
         return "  •  ".join(parts)
 

@@ -532,9 +532,15 @@ class MetricsWidget(QWidget):
 
         clean_cnt = stats.get("clean_games", 0)
         clean_pct = stats.get("clean_games_pct", 0.0)
-        self.stats_layout.addWidget(
-            StatCard("Clean Games", f"{clean_pct:.0f}%", f"{clean_cnt} zero-blunder matches")
+        clean_card = StatCard(
+            "Clean Games",
+            f"{clean_pct:.0f}%",
+            f"{clean_cnt} zero-blunder matches",
+            clickable=True,
         )
+        clean_card.setToolTip("Click to inspect all clean games without blunders")
+        clean_card.clicked.connect(lambda: self._trigger_drill_down("clean_games"))
+        self.stats_layout.addWidget(clean_card)
 
         dashboard_layout.addWidget(self.stats_container)
 
@@ -602,6 +608,7 @@ class MetricsWidget(QWidget):
 
         self.openings_card = OpeningsListCard()
         self.openings_card.set_stats(stats)
+        self.openings_card.drill_down_requested.connect(self._trigger_drill_down)
         self.charts_layout.addWidget(self.openings_card)
 
         self.ai_coach_card = AICoachCard(self.groq_service)
@@ -640,7 +647,10 @@ class MetricsWidget(QWidget):
         items = MetricsAggregator.get_drill_down_items(self.current_stats, category, subcategory)
 
         title = custom_title or self._get_drill_down_title(category, subcategory)
-        subtitle = custom_subtitle or f"Showing {len(items)} matching game positions"
+        if category in ("clean_games", "openings"):
+            subtitle = custom_subtitle or f"Showing {len(items)} matching games"
+        else:
+            subtitle = custom_subtitle or f"Showing {len(items)} matching game positions"
 
         self.header_bar.setVisible(False)
         self.filter_bar.setVisible(False)
@@ -658,6 +668,10 @@ class MetricsWidget(QWidget):
         self._on_brilliancy_clicked(game_id, move_index)
 
     def _get_drill_down_title(self, category: str, subcategory: str | None) -> str:
+        if category == "clean_games":
+            return "Clean Games (Zero Blunders)"
+        if category == "openings":
+            return f"{subcategory} Games" if subcategory else "Opening Repertoire Games"
         if category == "blunders":
             return "Blunders & Tactical Oversights"
         if category == "hung_pieces":

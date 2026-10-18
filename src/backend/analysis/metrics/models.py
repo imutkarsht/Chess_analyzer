@@ -155,6 +155,11 @@ class GameRecord:
             except Exception as exc:
                 logger.warning("Failed to recompute tactics for game %s: %s", game.get("id"), exc)
 
+        if not game.get("summary_json") and tactics_data:
+            blunders_details = tactics_data.get("blunders_details", [])
+            blunders_count = len(blunders_details)
+            quality_counts["Blunder"] = blunders_count
+
         game_meta = {
             "game_id": game.get("id"),
             "opponent": opp_name,

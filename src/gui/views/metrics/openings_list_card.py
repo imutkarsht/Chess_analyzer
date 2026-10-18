@@ -5,7 +5,7 @@ ECO badges, sub-variation lines, and proportional win/draw/loss stacked bars.
 Automatically harmonizes with the global dashboard color filter.
 """
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -30,6 +30,7 @@ class OpeningsListCard(MetricCard):
     - Average move accuracy per opening.
     """
 
+    drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
     PAGE_SIZE = 4
 
     def __init__(self, parent=None):
@@ -320,6 +321,10 @@ class OpeningsListCard(MetricCard):
             self.current_page += 1
             self._render_view()
 
+    def _on_opening_clicked(self, event, opening_name: str) -> None:
+        if event is None or event.button() == Qt.MouseButton.LeftButton:
+            self.drill_down_requested.emit("openings", opening_name)
+
     def _create_opening_row(self, item: dict, show_color_tag: bool = False) -> QFrame:
         """Creates an individual opening card row with stacked W/D/L bar."""
         name = item.get("name", "Unknown Opening")
@@ -343,6 +348,9 @@ class OpeningsListCard(MetricCard):
             wr_color = Styles.COLOR_BLUNDER
 
         card = QFrame()
+        card.setCursor(Qt.CursorShape.PointingHandCursor)
+        card.setToolTip(f"Click to inspect games played in {name}")
+        card.mousePressEvent = lambda e, op_name=name: self._on_opening_clicked(e, op_name)
         card.setStyleSheet(f"""
             QFrame#opening_item {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
@@ -381,6 +389,8 @@ class OpeningsListCard(MetricCard):
             line1.addWidget(eco_badge)
 
         name_lbl = QLabel(name)
+        name_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+        name_lbl.setToolTip(f"Click to inspect games played in {name}")
         name_lbl.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 13px;

@@ -65,8 +65,23 @@ def get_drill_down_items(
         return cat_data
     if isinstance(cat_data, dict):
         if subcategory:
-            return cat_data.get(subcategory, [])
-        return cat_data.get("all", [])
+            if subcategory in cat_data:
+                return cat_data[subcategory]
+            sub_lower = subcategory.lower()
+            for k, v in cat_data.items():
+                if k.lower() == sub_lower:
+                    return v
+            for k, v in cat_data.items():
+                if k.lower().startswith(sub_lower) or sub_lower.startswith(k.lower()):
+                    return v
+            return []
+        if "all" in cat_data:
+            return cat_data["all"]
+        all_items: list[dict[str, Any]] = []
+        for v in cat_data.values():
+            if isinstance(v, list):
+                all_items.extend(v)
+        return all_items
     return []
 
 
@@ -77,4 +92,3 @@ class MetricsAggregator:
     matches_filters = staticmethod(matches_filters)
     calculate_stats = staticmethod(calculate_stats)
     get_drill_down_items = staticmethod(get_drill_down_items)
-
