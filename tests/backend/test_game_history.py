@@ -224,6 +224,15 @@ def test_get_all_games_limit_and_all_ids(temp_db):
     ids = manager.get_all_game_ids()
     assert ids == {f"game_{i}" for i in range(5)}
 
+    # Lightweight summaries projection test
+    summaries = manager.get_game_summaries(limit=3)
+    assert len(summaries) == 3
+    for s in summaries:
+        assert "white" in s
+        assert "summary_json" in s
+        assert "pgn" not in s
+        assert "moves_json" not in s
+
 
 def test_deterministic_md5_game_id_fallback(temp_db):
     """Verify that omitting game_id uses deterministic MD5 hash of PGN."""
