@@ -29,6 +29,7 @@ class GameListWidget(QWidget):
     """Container widget for the game list with pagination (10 games per page)."""
 
     game_selected = pyqtSignal(object)
+    game_action_requested = pyqtSignal(object, str)
     game_deleted = pyqtSignal(str)
     _PAGE_SIZE = 10
 
@@ -38,6 +39,7 @@ class GameListWidget(QWidget):
         self._current_page: int = 0
         self.usernames: list = []
         self.view_mode: str = "compact"  # "compact" or "detailed"
+        self.analyzing_game_id: str | None = None
 
         from src.gui.theme import ThemeManager
 
@@ -95,6 +97,7 @@ class GameListWidget(QWidget):
         self.list_widget = QListWidget()
         self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
         self.list_widget.setSpacing(0)
+        self.list_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         root.addWidget(self.list_widget, stretch=1)
 
@@ -128,6 +131,13 @@ class GameListWidget(QWidget):
         self.btn_compact.setStyleSheet(Styles.get_toggle_button_style(active=not is_detailed))
 
     # ── Public API ────────────────────────────────────────────────────────────
+
+    def set_analyzing_game_id(self, game_id: str | None):
+        """Update currently analyzing game ID so the active card reflects Analyzing state."""
+        if self.analyzing_game_id != game_id:
+            self.analyzing_game_id = game_id
+            if self._all_games:
+                self._render_page()
 
     def set_games(self, games, usernames=None):
         """Replace the game list and jump back to page 1."""
@@ -176,8 +186,14 @@ class GameListWidget(QWidget):
 
         for game in page_games:
             item = QListWidgetItem(self.list_widget)
-            widget = GameListItemWidget(game, self.usernames, view_mode=self.view_mode)
+            is_analyzing = bool(
+                self.analyzing_game_id and getattr(game, "game_id", None) == self.analyzing_game_id
+            )
+            widget = GameListItemWidget(
+                game, self.usernames, view_mode=self.view_mode, is_analyzing=is_analyzing
+            )
             widget.delete_requested.connect(self._on_delete_requested)
+            widget.action_requested.connect(self.game_action_requested.emit)
             item.setSizeHint(widget.sizeHint())
             self.list_widget.addItem(item)
             self.list_widget.setItemWidget(item, widget)

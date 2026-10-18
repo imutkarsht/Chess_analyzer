@@ -101,24 +101,26 @@ class Analyzer:
         game_analysis: GameAnalysis,
         callback=None,
         cancel_token: threading.Event | None = None,
+        resume: bool = True,
     ):
         """
-        Analyzes a game structure in-place.
+        Analyzes a game structure in-place. Supports resuming from partial analysis.
         """
         start_time = time.time()
         self._cancel_event = cancel_token or threading.Event()
         try:
             logger.info(
-                "Analysis started: %s vs %s (ID: %s, %d moves)",
+                "Analysis started: %s vs %s (ID: %s, %d moves, resume=%s)",
                 game_analysis.metadata.white,
                 game_analysis.metadata.black,
                 game_analysis.game_id,
                 len(game_analysis.moves),
+                resume,
             )
 
             # 1. Analyze positions (Engine work)
             summary_counts = self._analyze_positions(
-                game_analysis, callback, cancel_token=self._cancel_event
+                game_analysis, callback, cancel_token=self._cancel_event, resume=resume
             )
 
             # 2. Populate stats
@@ -126,7 +128,9 @@ class Analyzer:
 
             # 3. Save to history
             if game_analysis.pgn_content:
-                self.history_manager.save_game(game_analysis, game_analysis.pgn_content)
+                self.history_manager.save_game(
+                    game_analysis, game_analysis.pgn_content, force_overwrite=True
+                )
 
             elapsed = time.time() - start_time
             white_acc = summary_counts.get("white", {}).get("accuracy", 0.0)
@@ -138,8 +142,34 @@ class Analyzer:
                 black_acc,
             )
 
+        except InterruptedError:
+            logger.info("Analysis cancelled via InterruptedError; saving partial game to history")
+            if not game_analysis.summary:
+                game_analysis.summary = {}
+            game_analysis.summary["analysis_status"] = "paused"
+            game_analysis.summary["analyzed_moves"] = game_analysis.analyzed_moves_count
+            game_analysis.summary["total_moves"] = game_analysis.total_moves_count
+            if game_analysis.pgn_content:
+                self.history_manager.save_game(
+                    game_analysis, game_analysis.pgn_content, force_overwrite=True
+                )
+            raise
         except Exception as e:
-            logger.error("Analysis failed: %s", e)
+            if self._cancel_event.is_set():
+                logger.info(
+                    "Analysis stopped by cancel event; saving partial game to history: %s", e
+                )
+                if not game_analysis.summary:
+                    game_analysis.summary = {}
+                game_analysis.summary["analysis_status"] = "paused"
+                game_analysis.summary["analyzed_moves"] = game_analysis.analyzed_moves_count
+                game_analysis.summary["total_moves"] = game_analysis.total_moves_count
+                if game_analysis.pgn_content:
+                    self.history_manager.save_game(
+                        game_analysis, game_analysis.pgn_content, force_overwrite=True
+                    )
+            else:
+                logger.error("Analysis failed: %s", e)
             raise e
         finally:
             self.engine_manager.stop_engine()
@@ -149,9 +179,11 @@ class Analyzer:
         game_analysis: GameAnalysis,
         callback=None,
         cancel_token: threading.Event | None = None,
+        resume: bool = True,
     ) -> dict:
         """
         Runs the engine analysis loop for all moves in the game.
+        Supports resuming from partial analysis.
         Returns the raw summary counts/stats.
         """
         # Refresh configuration from global settings before starting
@@ -168,7 +200,7 @@ class Analyzer:
         self.polyglot_book.reset()
 
         logger.info(
-            f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']})"
+            f"Starting analysis for game: {game_analysis.game_id} (Depth: {self.config['depth']}, Multi-PV: {self.config['multi_pv']}, Resume: {resume})"
         )
         self.engine_manager.start_engine()
 
@@ -178,6 +210,43 @@ class Analyzer:
 
         board = chess.Board(chess960=is_chess960)
         total_moves = len(game_analysis.moves)
+
+        if not resume:
+            for m in game_analysis.moves:
+                m.eval_before_cp = None
+                m.eval_before_mate = None
+                m.eval_after_cp = None
+                m.eval_after_mate = None
+                m.classification = ""
+                m.best_move = None
+                m.pv = []
+                m.multi_pvs = []
+                m.win_chance_before = 0.5
+                m.win_chance_after = 0.5
+                m.is_book_move = False
+                m.book_move_count = 0
+                m.book_exit_move = False
+                m.candidate_continuations = []
+            game_analysis.summary = {}
+            start_index = 0
+        else:
+            start_index = game_analysis.first_unanalyzed_index
+
+        if start_index > 0:
+            logger.info(
+                "Resuming analysis from move %d/%d; fast-forwarding opening books...",
+                start_index + 1,
+                total_moves,
+            )
+            for idx in range(start_index):
+                m = game_analysis.moves[idx]
+                move_number = (idx // 2) + 1
+                try:
+                    self.local_book.process_move(m.fen_before, m.uci, move_number)
+                    if hasattr(self, "polyglot_book") and self.polyglot_book:
+                        self.polyglot_book.process_move(m.fen_before, m.uci, move_number)
+                except Exception as e:
+                    logger.debug("Error fast-forwarding book at move %d: %s", idx, e)
 
         # Initialize stats container
         summary_counts = {
@@ -217,7 +286,8 @@ class Analyzer:
 
         was_interrupted = False
 
-        for i, move_data in enumerate(game_analysis.moves):
+        for i in range(start_index, total_moves):
+            move_data = game_analysis.moves[i]
             if cancel_token and cancel_token.is_set():
                 logger.info(
                     "Analysis cancellation detected at move %d/%d; preserving partial results",
@@ -437,6 +507,15 @@ class Analyzer:
 
         # Calculate final accuracy
         self._calculate_final_accuracy(summary_counts)
+
+        if was_interrupted:
+            summary_counts["analysis_status"] = "paused"
+            summary_counts["analyzed_moves"] = game_analysis.analyzed_moves_count
+            summary_counts["total_moves"] = total_moves
+        else:
+            summary_counts["analysis_status"] = "completed"
+            summary_counts["analyzed_moves"] = total_moves
+            summary_counts["total_moves"] = total_moves
 
         # Log classification summary
         self._log_classification_summary(summary_counts)

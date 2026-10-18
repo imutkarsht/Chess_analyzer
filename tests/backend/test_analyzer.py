@@ -240,3 +240,122 @@ def test_single_blunder_does_not_collapse_accuracy():
     counts = {"white": _side([95.0] * 39 + [blunder]), "black": _side([95.0] * 40)}
     Analyzer._calculate_final_accuracy(None, counts)
     assert 80 < counts["white"]["accuracy"] < counts["black"]["accuracy"]
+
+
+def test_analyzer_resume_skips_already_analyzed_moves(mocker, tmp_path):
+    """Test that analyzer with resume=True resumes from first unanalyzed move."""
+    from src.backend.storage.game_history import GameHistoryManager
+
+    db_path = str(tmp_path / "resume_test.db")
+    history_mgr = GameHistoryManager(db_path)
+
+    engine_manager = EngineManager("dummy_path")
+    analyzer = Analyzer(engine_manager)
+    analyzer.history_manager = history_mgr
+
+    mocker.patch.object(engine_manager, "start_engine")
+    mocker.patch.object(engine_manager, "stop_engine")
+
+    mock_score = chess.engine.PovScore(chess.engine.Cp(25), chess.WHITE)
+    mocker.patch.object(
+        analyzer,
+        "_get_position_analysis",
+        return_value=[{"pv": [chess.Move.from_uci("g1f3")], "score": mock_score, "depth": 10}],
+    )
+    mocker.patch.object(analyzer, "_analyze_final_position", return_value=mock_score)
+
+    m1 = MoveAnalysis(
+        move_number=1,
+        ply=1,
+        san="e4",
+        uci="e2e4",
+        fen_before=chess.STARTING_FEN,
+        eval_before_cp=20,
+        eval_after_cp=20,
+        classification="Book",
+    )
+    b2 = chess.Board()
+    b2.push_san("e4")
+    m2 = MoveAnalysis(
+        move_number=1,
+        ply=2,
+        san="e5",
+        uci="e7e5",
+        fen_before=b2.fen(),
+        eval_before_cp=20,
+        eval_after_cp=25,
+        classification="Book",
+    )
+    b3 = b2.copy()
+    b3.push_san("e5")
+    m3 = MoveAnalysis(
+        move_number=2,
+        ply=3,
+        san="Nf3",
+        uci="g1f3",
+        fen_before=b3.fen(),
+    )
+    game = GameAnalysis(
+        game_id="resume_game",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=[m1, m2, m3],
+        pgn_content="1. e4 e5 2. Nf3 *",
+    )
+
+    analyzer.analyze_game(game, resume=True)
+
+    # Move 3 was evaluated
+    assert m3.eval_before_cp is not None
+    assert game.status == "completed"
+    assert game.summary.get("analysis_status") == "completed"
+    # And saved to history manager
+    saved = history_mgr.get_game("resume_game")
+    assert saved is not None
+
+
+def test_analyzer_persists_paused_on_cancellation(mocker, tmp_path):
+    """Test that analyzer persists partial progress with paused status on cancel."""
+    import threading
+
+    from src.backend.storage.game_history import GameHistoryManager
+
+    db_path = str(tmp_path / "cancel_test.db")
+    history_mgr = GameHistoryManager(db_path)
+
+    engine_manager = EngineManager("dummy_path")
+    analyzer = Analyzer(engine_manager)
+    analyzer.history_manager = history_mgr
+
+    mocker.patch.object(engine_manager, "start_engine")
+    mocker.patch.object(engine_manager, "stop_engine")
+
+    mock_score = chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)
+    mocker.patch.object(
+        analyzer,
+        "_get_position_analysis",
+        return_value=[{"pv": [chess.Move.from_uci("e2e4")], "score": mock_score, "depth": 10}],
+    )
+
+    cancel_token = threading.Event()
+
+    def callback(current, total, data=None):
+        if current >= 1:
+            cancel_token.set()
+
+    m1 = MoveAnalysis(move_number=1, ply=1, san="e4", uci="e2e4", fen_before=chess.STARTING_FEN)
+    b2 = chess.Board()
+    b2.push_san("e4")
+    m2 = MoveAnalysis(move_number=1, ply=2, san="e5", uci="e7e5", fen_before=b2.fen())
+
+    game = GameAnalysis(
+        game_id="cancel_game",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=[m1, m2],
+        pgn_content="1. e4 e5 *",
+    )
+
+    analyzer.analyze_game(game, callback=callback, cancel_token=cancel_token)
+
+    assert game.summary.get("analysis_status") == "paused"
+    saved = history_mgr.get_game("cancel_game")
+    assert saved is not None

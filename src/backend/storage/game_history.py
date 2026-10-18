@@ -109,13 +109,18 @@ class GameHistoryManager:
 
     # --- Games Repository Methods ---
 
-    def save_game(self, game_analysis: GameAnalysis, pgn_content: str) -> None:
-        """Saves a completed game analysis to the history."""
-        self._games_repo.save_game(game_analysis, pgn_content)
+    def save_game(
+        self,
+        game_analysis: GameAnalysis,
+        pgn_content: str,
+        force_overwrite: bool = False,
+    ) -> None:
+        """Saves a completed or partial game analysis to the history."""
+        self._games_repo.save_game(game_analysis, pgn_content, force_overwrite=force_overwrite)
 
-    def save_games_bulk(self, items: list[Any]) -> int:
+    def save_games_bulk(self, items: list[Any], force_overwrite: bool = False) -> int:
         """Saves multiple game analyses or game dictionaries inside a single transaction."""
-        return self._games_repo.save_games_bulk(items)
+        return self._games_repo.save_games_bulk(items, force_overwrite=force_overwrite)
 
     def get_all_game_ids(self) -> set[str]:
         """Returns a set of all game IDs currently in the database."""

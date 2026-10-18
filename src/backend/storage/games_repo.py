@@ -137,6 +137,10 @@ class GamesRepo:
         summary_dict = (
             dict(game_analysis.summary) if game_analysis.summary else {"white": {}, "black": {}}
         )
+        summary_dict["analysis_status"] = game_analysis.status
+        summary_dict["analyzed_moves"] = game_analysis.analyzed_moves_count
+        summary_dict["total_moves"] = game_analysis.total_moves_count
+
         summary_dict, tactics_white, tactics_black = _enrich_summary_with_tactics(
             summary_dict,
             moves_data,
@@ -354,7 +358,7 @@ class GamesRepo:
         row = self._prepare_game_dict_row(d)
         return self._row_to_legacy_tuple(row)
 
-    def save_games_bulk(self, items: list[Any]) -> int:
+    def save_games_bulk(self, items: list[Any], force_overwrite: bool = False) -> int:
         """
         Saves multiple game analyses or game dictionaries to the database
         inside a single transaction using named parameters.
@@ -380,6 +384,44 @@ class GamesRepo:
         if not param_rows:
             return 0
 
+        # Guard against wiping existing analyzed/paused games with unanalyzed copies
+        if not force_overwrite:
+            filtered_rows: list[dict[str, Any]] = []
+            for row in param_rows:
+                row_summary = {}
+                if row.get("summary_json"):
+                    try:
+                        row_summary = json.loads(row["summary_json"])
+                    except Exception:
+                        pass
+                if (
+                    row_summary.get("analysis_status") == "not_started"
+                    or row_summary.get("analyzed_moves", 0) == 0
+                ):
+                    existing = self.get_game(row["id"])
+                    if existing:
+                        ex_summary = {}
+                        if existing.get("summary_json"):
+                            try:
+                                ex_summary = json.loads(existing["summary_json"])
+                            except Exception:
+                                pass
+                        if (
+                            ex_summary.get("analysis_status") in ("completed", "paused")
+                            or ex_summary.get("analyzed_moves", 0) > 0
+                        ):
+                            logger.info(
+                                "Preserving existing %s analysis for game %s; skipping unanalyzed overwrite",
+                                ex_summary.get("analysis_status", "analyzed"),
+                                row["id"],
+                            )
+                            continue
+                filtered_rows.append(row)
+            param_rows = filtered_rows
+
+        if not param_rows:
+            return 0
+
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
@@ -391,9 +433,14 @@ class GamesRepo:
             logger.error("Failed to execute save_games_bulk: %s", e)
             return 0
 
-    def save_game(self, game_analysis: GameAnalysis, pgn_content: str) -> None:
-        """Saves a completed game analysis to the history."""
-        self.save_games_bulk([(game_analysis, pgn_content)])
+    def save_game(
+        self,
+        game_analysis: GameAnalysis,
+        pgn_content: str,
+        force_overwrite: bool = False,
+    ) -> None:
+        """Saves a completed or partial game analysis to the history."""
+        self.save_games_bulk([(game_analysis, pgn_content)], force_overwrite=force_overwrite)
 
     def get_all_game_ids(self) -> set[str]:
         """Returns a set of all game IDs currently in the database."""

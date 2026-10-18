@@ -449,6 +449,53 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_card_action_button_style(cls, primary=False):
+        p = ThemeManager.palette()
+        bg = p.accent if primary else p.surface_light
+        color = "#FFFFFF" if primary else p.text_primary
+        border = p.accent if primary else p.border
+        hover_bg = p.accent_hover if primary else p.surface
+        return f"""
+            QPushButton {{
+                background-color: {bg};
+                color: {color} !important;
+                border: 1px solid {border};
+                border-radius: 4px;
+                padding: 3px 8px;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {hover_bg};
+                color: #FFFFFF !important;
+                border-color: {p.accent};
+            }}
+            QPushButton:pressed {{
+                background-color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_card_action_icon_button_style(cls, status: str = "not_started"):
+        p = ThemeManager.palette()
+        hover_border = cls.COLOR_ENGINE_BUSY if status == "paused" else p.accent
+        return f"""
+            QPushButton {{
+                background-color: transparent;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                padding: 0px;
+            }}
+            QPushButton:hover {{
+                background-color: {p.surface_light};
+                border: 1px solid {hover_border};
+            }}
+            QPushButton:pressed {{
+                background-color: {p.surface};
+            }}
+        """
+
+    @classmethod
     def get_control_button_style(cls, danger=False):
         p = ThemeManager.palette()
         color = p.text_primary

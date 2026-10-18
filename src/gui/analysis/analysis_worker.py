@@ -14,15 +14,20 @@ class AnalysisWorker(QThread):
     cancelled = pyqtSignal(object)  # GameAnalysis (partial)
     error = pyqtSignal(str)
 
-    def __init__(self, analyzer: Analyzer, game: GameAnalysis):
+    def __init__(self, analyzer: Analyzer, game: GameAnalysis, resume: bool = True):
         super().__init__()
         self.analyzer = analyzer
         self.game = game
+        self.resume = resume
         self._is_running = True
         self._cancel_token = threading.Event()
 
     def run(self):
-        logger.info("AnalysisWorker thread started for game: %s", self.game.game_id)
+        logger.info(
+            "AnalysisWorker thread started for game: %s (resume=%s)",
+            self.game.game_id,
+            self.resume,
+        )
         try:
 
             def callback(current, total, move_data=None):
@@ -34,7 +39,10 @@ class AnalysisWorker(QThread):
                     self.move_analyzed.emit(move_index, move_data)
 
             self.analyzer.analyze_game(
-                self.game, callback=callback, cancel_token=self._cancel_token
+                self.game,
+                callback=callback,
+                cancel_token=self._cancel_token,
+                resume=self.resume,
             )
             if self._cancel_token.is_set():
                 logger.info(

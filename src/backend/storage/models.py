@@ -132,3 +132,73 @@ class GameAnalysis:
     summary: dict[str, Any] = field(default_factory=dict)
     ai_summary: str | None = None
     pgn_content: str | None = None
+
+    @property
+    def analyzed_moves_count(self) -> int:
+        """Returns the number of moves in this game that have position evaluations."""
+        if self.moves:
+            return sum(
+                1
+                for m in self.moves
+                if m.eval_before_cp is not None
+                or m.eval_before_mate is not None
+                or bool(m.classification)
+            )
+        if self.summary and "analyzed_moves" in self.summary:
+            return int(self.summary["analyzed_moves"])
+        return 0
+
+    @property
+    def total_moves_count(self) -> int:
+        """Returns the total number of moves in this game."""
+        if self.moves:
+            return len(self.moves)
+        if self.summary and "total_moves" in self.summary:
+            return int(self.summary["total_moves"])
+        return 0
+
+    @property
+    def first_unanalyzed_index(self) -> int:
+        """Returns the 0-based index of the first move that has not been analyzed."""
+        for i, m in enumerate(self.moves):
+            if m.eval_before_cp is None and m.eval_before_mate is None:
+                return i
+        return len(self.moves)
+
+    @property
+    def status(self) -> str:
+        """
+        Returns 'completed', 'paused', or 'not_started'.
+        """
+        if self.summary and self.summary.get("analysis_status") in (
+            "completed",
+            "paused",
+            "not_started",
+        ):
+            return self.summary["analysis_status"]
+
+        total = self.total_moves_count
+        if total == 0:
+            return "not_started"
+
+        analyzed = self.analyzed_moves_count
+        if analyzed == 0:
+            return "not_started"
+
+        has_acc = bool(
+            (
+                isinstance(self.summary.get("white"), dict)
+                and self.summary["white"].get("accuracy") is not None
+            )
+            or self.summary.get("white_accuracy") is not None
+        )
+        if analyzed >= total and has_acc:
+            return "completed"
+
+        if 0 < analyzed < total:
+            return "paused"
+
+        if analyzed >= total:
+            return "completed"
+
+        return "not_started"

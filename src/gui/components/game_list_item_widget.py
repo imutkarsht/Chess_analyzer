@@ -3,6 +3,7 @@ Game List Item Widget - Renders a clean, modern desktop card with mini board thu
 player details, speed category badges, accuracy stats, and human-readable termination text.
 Supports both "detailed" card view and "compact" list row view.
 """
+
 import os
 import re
 
@@ -21,6 +22,7 @@ from ..theme.palette import BOARD_THEMES
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -30,18 +32,24 @@ except ImportError:
 class GameListItemWidget(QWidget):
     """A modern, desktop-class game card supporting Detailed and Compact view modes."""
 
-    delete_requested = pyqtSignal(str)   # emits game_id
+    delete_requested = pyqtSignal(str)  # emits game_id
+    action_requested = pyqtSignal(
+        object, str
+    )  # emits (game, action: "reanalyze" | "resume" | "analyze")
 
     # Standard starting FEN
     _STANDARD_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-    def __init__(self, game, usernames=None, view_mode="detailed"):
+    def __init__(self, game, usernames=None, view_mode="detailed", is_analyzing: bool = False):
         super().__init__()
         self._game = game
         self.view_mode = view_mode
+        self._is_analyzing = is_analyzing
 
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 2 if view_mode == "compact" else 4, 0, 2 if view_mode == "compact" else 4)
+        root_layout.setContentsMargins(
+            0, 2 if view_mode == "compact" else 4, 0, 2 if view_mode == "compact" else 4
+        )
         root_layout.setSpacing(0)
 
         self.card_frame = QFrame()
@@ -58,7 +66,7 @@ class GameListItemWidget(QWidget):
 
         card_layout = QHBoxLayout(self.card_frame)
         card_layout.setContentsMargins(12, 8, 12, 8)
-        card_layout.setSpacing(12)
+        card_layout.setSpacing(8)
 
         # 1. Source & Speed Icon
         source = getattr(game.metadata, "source", "file")
@@ -66,7 +74,9 @@ class GameListItemWidget(QWidget):
         if source_icon:
             card_layout.addWidget(source_icon)
 
-        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(game.metadata.time_control)
+        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
+            game.metadata.time_control
+        )
         formatted_tc = self._format_time_control(game.metadata.time_control)
         tc_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc else speed_cat
         tc_icon = self._get_time_control_icon(game.metadata.time_control)
@@ -91,7 +101,11 @@ class GameListItemWidget(QWidget):
         w_row.setContentsMargins(0, 0, 0, 0)
         w_row.setSpacing(4)
         w_lbl = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        w_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
+        w_lbl.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         w_row.addWidget(w_lbl)
         if result_text == "1-0":
             crown = self._create_winner_crown()
@@ -104,7 +118,11 @@ class GameListItemWidget(QWidget):
         b_row.setContentsMargins(0, 0, 0, 0)
         b_row.setSpacing(4)
         b_lbl = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        b_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
+        b_lbl.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         b_row.addWidget(b_lbl)
         if result_text == "0-1":
             crown = self._create_winner_crown()
@@ -121,8 +139,13 @@ class GameListItemWidget(QWidget):
         eco = game.metadata.eco or ""
         opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
         op_lbl = QLabel(opening_text if opening_text else "-")
-        op_lbl.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY) + " " + Styles.get_transparent_label_style())
+        op_lbl.setStyleSheet(
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         op_lbl.setToolTip(opening_text)
+        op_lbl.setMinimumWidth(50)
         card_layout.addWidget(op_lbl, stretch=1)
 
         # 4. Result Badge
@@ -132,36 +155,50 @@ class GameListItemWidget(QWidget):
         card_layout.addWidget(result_label)
 
         # 5. Accuracy (if analyzed)
-        if hasattr(game, 'summary') and game.summary:
-            white_acc = game.summary.get('white', {}).get('accuracy') if isinstance(game.summary.get('white'), dict) else game.summary.get('white_accuracy')
-            black_acc = game.summary.get('black', {}).get('accuracy') if isinstance(game.summary.get('black'), dict) else game.summary.get('black_accuracy')
+        if hasattr(game, "summary") and game.summary:
+            white_acc = (
+                game.summary.get("white", {}).get("accuracy")
+                if isinstance(game.summary.get("white"), dict)
+                else game.summary.get("white_accuracy")
+            )
+            black_acc = (
+                game.summary.get("black", {}).get("accuracy")
+                if isinstance(game.summary.get("black"), dict)
+                else game.summary.get("black_accuracy")
+            )
             if white_acc is not None and black_acc is not None:
-                acc_widget = self._create_meta_item('fa5s.bullseye', f"{white_acc:.0f}% / {black_acc:.0f}%")
+                acc_widget = self._create_meta_item(
+                    "fa5s.bullseye", f"{white_acc:.0f}% / {black_acc:.0f}%"
+                )
                 card_layout.addWidget(acc_widget)
 
         # 6. Date & Move Count
         if game.metadata.date:
             date_lbl = QLabel(game.metadata.date)
-            date_lbl.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style())
+            date_lbl.setStyleSheet(
+                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
             card_layout.addWidget(date_lbl)
 
         move_count = self._get_move_count(game)
         if move_count:
             moves_lbl = QLabel(f"{move_count}m")
-            moves_lbl.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style())
+            moves_lbl.setStyleSheet(
+                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
             card_layout.addWidget(moves_lbl)
 
-        # 7. Delete button
-        del_btn = QPushButton()
-        del_btn.setFixedSize(22, 22)
-        del_btn.setToolTip("Delete game")
-        if HAS_QTAWESOME:
-            del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
-        else:
-            del_btn.setText("🗑")
-        del_btn.setStyleSheet(Styles.get_delete_button_style())
-        game_id = getattr(game, 'game_id', None)
-        del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
+        # 7. Status Badge & Action Button
+        status_lbl, action_btn = self._create_status_and_action_widgets(btn_size=22)
+        card_layout.addWidget(status_lbl)
+        card_layout.addWidget(action_btn)
+
+        # 8. Delete button
+        del_btn = self._create_delete_button(btn_size=22)
         card_layout.addWidget(del_btn)
 
         root_layout.addWidget(self.card_frame)
@@ -197,7 +234,11 @@ class GameListItemWidget(QWidget):
 
         # White player
         white_label = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        white_label.setStyleSheet(Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
+        white_label.setStyleSheet(
+            Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         header_layout.addWidget(white_label)
 
         if result_text == "1-0":
@@ -206,12 +247,20 @@ class GameListItemWidget(QWidget):
                 header_layout.addWidget(crown_label)
 
         vs_label = QLabel("vs")
-        vs_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED) + "; margin: 0 4px; " + Styles.get_transparent_label_style())
+        vs_label.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
+            + "; margin: 0 4px; "
+            + Styles.get_transparent_label_style()
+        )
         header_layout.addWidget(vs_label)
 
         # Black player
         black_label = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        black_label.setStyleSheet(Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY) + " " + Styles.get_transparent_label_style())
+        black_label.setStyleSheet(
+            Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         header_layout.addWidget(black_label)
 
         if result_text == "0-1":
@@ -227,17 +276,13 @@ class GameListItemWidget(QWidget):
         result_label.setStyleSheet(Styles.get_result_badge_style(result_color, 13, "3px 10px", 6))
         header_layout.addWidget(result_label)
 
+        # Status Badge & Action Button
+        status_lbl, action_btn = self._create_status_and_action_widgets(btn_size=26)
+        header_layout.addWidget(status_lbl)
+        header_layout.addWidget(action_btn)
+
         # Delete button on card
-        del_btn = QPushButton()
-        del_btn.setFixedSize(26, 26)
-        del_btn.setToolTip("Delete game")
-        if HAS_QTAWESOME:
-            del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
-        else:
-            del_btn.setText("🗑")
-        del_btn.setStyleSheet(Styles.get_delete_button_style())
-        game_id = getattr(game, 'game_id', None)
-        del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
+        del_btn = self._create_delete_button(btn_size=26)
         header_layout.addWidget(del_btn)
 
         content_layout.addLayout(header_layout)
@@ -254,14 +299,20 @@ class GameListItemWidget(QWidget):
             if os.path.exists(icon_path):
                 book_icon.setPixmap(QIcon(icon_path).pixmap(14, 14))
             elif HAS_QTAWESOME:
-                book_icon.setPixmap(qta.icon('fa5s.book-open', color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14))
+                book_icon.setPixmap(
+                    qta.icon("fa5s.book-open", color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14)
+                )
             book_icon.setFixedWidth(14)
             book_icon.setStyleSheet(Styles.get_transparent_label_style())
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
             opening_label = QLabel(opening_text)
-            opening_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500) + " " + Styles.get_transparent_label_style())
+            opening_label.setStyleSheet(
+                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
             opening_label.setToolTip(opening_text)
             opening_layout.addWidget(opening_label, 1)
 
@@ -272,16 +323,22 @@ class GameListItemWidget(QWidget):
         meta_layout.setSpacing(12)
 
         # Speed Category Badge
-        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(game.metadata.time_control)
+        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
+            game.metadata.time_control
+        )
         formatted_tc = self._format_time_control(game.metadata.time_control)
-        speed_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc and formatted_tc not in ("-", "?") else speed_cat
+        speed_display = (
+            f"{speed_cat} {formatted_tc}".strip()
+            if formatted_tc and formatted_tc not in ("-", "?")
+            else speed_cat
+        )
         tc_icon = self._get_time_control_icon(game.metadata.time_control)
         tc_widget = self._create_meta_item(tc_icon, speed_display)
         meta_layout.addWidget(tc_widget)
 
         # Date
         if game.metadata.date:
-            date_widget = self._create_meta_item('fa5s.calendar-alt', game.metadata.date)
+            date_widget = self._create_meta_item("fa5s.calendar-alt", game.metadata.date)
             meta_layout.addWidget(date_widget)
 
         # Chess960 badge
@@ -292,7 +349,7 @@ class GameListItemWidget(QWidget):
         # Move count
         move_count = self._get_move_count(game)
         if move_count:
-            moves_widget = self._create_meta_item('fa5s.chess-pawn', f"{move_count} moves")
+            moves_widget = self._create_meta_item("fa5s.chess-pawn", f"{move_count} moves")
             meta_layout.addWidget(moves_widget)
 
         # Human-Readable Termination Description
@@ -300,11 +357,17 @@ class GameListItemWidget(QWidget):
         term_mode = getattr(game.metadata, "termination_mode", None)
         if not term_desc or term_desc.lower() == "normal":
             from src.backend.storage.termination_detector import TerminationDetector
+
             term_mode, term_desc = TerminationDetector.detect_termination(
-                headers={"Result": game.metadata.result, "White": game.metadata.white, "Black": game.metadata.black, "Termination": game.metadata.termination or ""},
+                headers={
+                    "Result": game.metadata.result,
+                    "White": game.metadata.white,
+                    "Black": game.metadata.black,
+                    "Termination": game.metadata.termination or "",
+                },
                 moves=getattr(game, "moves", []) or [],
                 starting_fen=game.metadata.starting_fen,
-                chess960=self._is_chess960(game)
+                chess960=self._is_chess960(game),
             )
 
         if term_desc and term_desc.lower() != "normal":
@@ -315,12 +378,20 @@ class GameListItemWidget(QWidget):
         meta_layout.addStretch()
 
         # Accuracy (if analyzed)
-        if hasattr(game, 'summary') and game.summary:
-            white_acc = game.summary.get('white', {}).get('accuracy') if isinstance(game.summary.get('white'), dict) else game.summary.get('white_accuracy')
-            black_acc = game.summary.get('black', {}).get('accuracy') if isinstance(game.summary.get('black'), dict) else game.summary.get('black_accuracy')
+        if hasattr(game, "summary") and game.summary:
+            white_acc = (
+                game.summary.get("white", {}).get("accuracy")
+                if isinstance(game.summary.get("white"), dict)
+                else game.summary.get("white_accuracy")
+            )
+            black_acc = (
+                game.summary.get("black", {}).get("accuracy")
+                if isinstance(game.summary.get("black"), dict)
+                else game.summary.get("black_accuracy")
+            )
             if white_acc is not None and black_acc is not None:
                 acc_text = f"{white_acc:.0f}% / {black_acc:.0f}%"
-                acc_widget = self._create_meta_item('fa5s.bullseye', acc_text)
+                acc_widget = self._create_meta_item("fa5s.bullseye", acc_text)
                 meta_layout.addWidget(acc_widget)
 
         content_layout.addLayout(meta_layout)
@@ -328,12 +399,100 @@ class GameListItemWidget(QWidget):
         root_layout.addWidget(self.card_frame)
 
     # ===== HELPER METHODS =====
+    def _create_status_and_action_widgets(self, btn_size: int = 22):
+        status = getattr(self._game, "status", "not_started")
+        badge_font_size = 11 if btn_size == 22 else 12
+        badge_padding = "2px 6px" if btn_size == 22 else "3px 8px"
+
+        action_btn = QPushButton()
+        action_btn.setFixedSize(btn_size, btn_size)
+        action_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        if getattr(self, "_is_analyzing", False):
+            action_btn.setStyleSheet(Styles.get_card_action_icon_button_style("paused"))
+            status_lbl = QLabel("Analyzing...")
+            status_lbl.setStyleSheet(
+                Styles.get_result_badge_style(
+                    Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
+                )
+            )
+            action_btn.setToolTip("View ongoing analysis")
+            if HAS_QTAWESOME:
+                action_btn.setIcon(qta.icon("fa5s.arrow-right", color=Styles.COLOR_ENGINE_BUSY))
+            else:
+                action_btn.setText("👁")
+            action_btn.clicked.connect(
+                lambda: self.action_requested.emit(self._game, "view_analysis")
+            )
+            return status_lbl, action_btn
+
+        action_btn.setStyleSheet(Styles.get_card_action_icon_button_style(status))
+
+        if status == "completed":
+            status_lbl = QLabel("Analyzed")
+            status_lbl.setStyleSheet(
+                Styles.get_result_badge_style(
+                    Styles.COLOR_ENGINE_READY, badge_font_size, badge_padding, 4
+                )
+            )
+            action_btn.setToolTip("Reanalyze game")
+            if HAS_QTAWESOME:
+                action_btn.setIcon(qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY))
+            else:
+                action_btn.setText("🔄")
+            action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "reanalyze"))
+        elif status == "paused":
+            analyzed = getattr(self._game, "analyzed_moves_count", 0)
+            total = getattr(self._game, "total_moves_count", 0) or len(
+                getattr(self._game, "moves", [])
+            )
+            status_lbl = QLabel(f"Paused ({analyzed}/{total})")
+            status_lbl.setStyleSheet(
+                Styles.get_result_badge_style(
+                    Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
+                )
+            )
+            action_btn.setToolTip(f"Resume analysis ({analyzed}/{total})")
+            if HAS_QTAWESOME:
+                action_btn.setIcon(qta.icon("fa5s.play", color=Styles.COLOR_ENGINE_BUSY))
+            else:
+                action_btn.setText("▶")
+            action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "resume"))
+        else:
+            status_lbl = QLabel("Unanalyzed")
+            status_lbl.setStyleSheet(
+                Styles.get_result_badge_style(
+                    Styles.COLOR_TEXT_MUTED, badge_font_size, badge_padding, 4
+                )
+            )
+            action_btn.setToolTip("Analyze game")
+            if HAS_QTAWESOME:
+                action_btn.setIcon(qta.icon("fa5s.play", color=Styles.COLOR_TEXT_SECONDARY))
+            else:
+                action_btn.setText("▶")
+            action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "analyze"))
+
+        return status_lbl, action_btn
+
+    def _create_delete_button(self, btn_size: int = 22):
+        del_btn = QPushButton()
+        del_btn.setFixedSize(btn_size, btn_size)
+        del_btn.setToolTip("Delete game")
+        if HAS_QTAWESOME:
+            del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
+        else:
+            del_btn.setText("🗑")
+        del_btn.setStyleSheet(Styles.get_delete_button_style())
+        game_id = getattr(self._game, "game_id", None)
+        del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
+        return del_btn
+
     def _create_mini_board_widget(self, game) -> QWidget:
         """Create a compact 100x100 SVG mini chessboard matching the user's configured board theme."""
         board = chess.Board(chess960=self._is_chess960(game))
         last_move_obj = None
 
-        if hasattr(game, 'moves') and game.moves:
+        if hasattr(game, "moves") and game.moves:
             last_move = game.moves[-1]
             try:
                 board.set_fen(last_move.fen_before)
@@ -354,15 +513,11 @@ class GameListItemWidget(QWidget):
         }
 
         svg_str = chess.svg.board(
-            board=board,
-            size=100,
-            coordinates=False,
-            lastmove=last_move_obj,
-            colors=colors
+            board=board, size=100, coordinates=False, lastmove=last_move_obj, colors=colors
         )
 
         svg_widget = QSvgWidget()
-        svg_widget.load(svg_str.encode('utf-8'))
+        svg_widget.load(svg_str.encode("utf-8"))
         svg_widget.setFixedSize(100, 100)
         svg_widget.setStyleSheet(f"""
             QSvgWidget {{
@@ -417,7 +572,7 @@ class GameListItemWidget(QWidget):
             return lbl
 
         if HAS_QTAWESOME:
-            lbl.setPixmap(qta.icon('fa5s.crown', color='#EAB308').pixmap(16, 16))
+            lbl.setPixmap(qta.icon("fa5s.crown", color="#EAB308").pixmap(16, 16))
             return lbl
 
         lbl.setText("👑")
@@ -437,9 +592,18 @@ class GameListItemWidget(QWidget):
         if isinstance(icon, str) and icon.endswith(".svg"):
             icon_path = get_resource_path(icon)
             if os.path.exists(icon_path):
-                icon_lbl.setPixmap(QPixmap(icon_path).scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                icon_lbl.setPixmap(
+                    QPixmap(icon_path).scaled(
+                        14,
+                        14,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
             elif HAS_QTAWESOME:
-                icon_lbl.setPixmap(qta.icon('fa5s.clock', color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14))
+                icon_lbl.setPixmap(
+                    qta.icon("fa5s.clock", color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14)
+                )
         elif isinstance(icon, str) and HAS_QTAWESOME:
             icon_lbl.setPixmap(qta.icon(icon, color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14))
         else:
@@ -448,7 +612,11 @@ class GameListItemWidget(QWidget):
         layout.addWidget(icon_lbl)
 
         text_lbl = QLabel(str(text))
-        text_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style())
+        text_lbl.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         layout.addWidget(text_lbl)
 
         return container
@@ -475,6 +643,22 @@ class GameListItemWidget(QWidget):
             return ""
 
         tc = time_control.strip()
+        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
+        if slash_match:
+            try:
+                moves = int(slash_match.group(1))
+                seconds = int(slash_match.group(2))
+                if moves == 1 and seconds >= 86400:
+                    days = seconds // 86400
+                    return f"{days}d"
+                elif moves == 1 and seconds >= 3600:
+                    hours = seconds // 3600
+                    return f"{hours}h"
+                elif moves > 1:
+                    return f"{moves}m/{seconds // 60}m"
+            except ValueError:
+                pass
+
         match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
         if match:
             try:
@@ -486,7 +670,7 @@ class GameListItemWidget(QWidget):
                 elif base_seconds % 60 == 0:
                     base_str = str(base_seconds // 60)
                 else:
-                    base_str = f"{base_seconds / 60:.1f}".rstrip('0').rstrip('.')
+                    base_str = f"{base_seconds / 60:.1f}".rstrip("0").rstrip(".")
 
                 if increment > 0:
                     return f"{base_str}+{increment}"
@@ -499,13 +683,32 @@ class GameListItemWidget(QWidget):
 
     def _get_time_control_icon(self, time_control):
         tc_type = self._classify_time_control(time_control)
+        if tc_type == "Daily":
+            return "assets/images/classical.svg"
         return f"assets/images/{tc_type}.svg"
 
     def _classify_time_control(self, time_control):
         if not time_control or time_control in ("-", "?", "*", ""):
             return "Classical"
 
-        match = re.match(r"^(\d+)(?:\+(\d+))?$", time_control.strip())
+        tc = time_control.strip()
+        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
+        if slash_match:
+            try:
+                moves = int(slash_match.group(1))
+                seconds = int(slash_match.group(2))
+                if seconds >= 86400 or (moves == 1 and seconds >= 3600):
+                    return "Daily"
+                elif seconds >= 1800:
+                    return "Classical"
+                elif seconds >= 600:
+                    return "Rapid"
+                else:
+                    return "Blitz"
+            except ValueError:
+                pass
+
+        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
         if match:
             try:
                 base_seconds = int(match.group(1))
@@ -520,12 +723,14 @@ class GameListItemWidget(QWidget):
                     return "Blitz"
                 elif total_time < 1800:
                     return "Rapid"
+                elif total_time >= 86400:
+                    return "Daily"
                 else:
                     return "Classical"
             except ValueError:
                 pass
 
-        tc_lower = time_control.lower()
+        tc_lower = tc.lower()
         if "ultrabullet" in tc_lower:
             return "UltraBullet"
         elif "bullet" in tc_lower:
@@ -534,13 +739,15 @@ class GameListItemWidget(QWidget):
             return "Blitz"
         elif "rapid" in tc_lower:
             return "Rapid"
-        elif any(k in tc_lower for k in ("classical", "daily", "correspondence")):
+        elif any(k in tc_lower for k in ("daily", "correspondence")):
+            return "Daily"
+        elif "classical" in tc_lower:
             return "Classical"
 
         return "Blitz"
 
     def _is_chess960(self, game) -> bool:
-        headers = getattr(game.metadata, 'headers', {}) or {}
+        headers = getattr(game.metadata, "headers", {}) or {}
         variant = headers.get("Variant", "").lower()
         if any(k in variant for k in ("960", "fischer", "random", "frc")):
             return True
@@ -568,12 +775,12 @@ class GameListItemWidget(QWidget):
         return "fa5s.circle"
 
     def _get_move_count(self, game):
-        if hasattr(game, 'moves') and game.moves:
+        if hasattr(game, "moves") and game.moves:
             num_ply = len(game.moves)
             return (num_ply + 1) // 2
-        elif hasattr(game, 'pgn_content') and game.pgn_content:
+        elif hasattr(game, "pgn_content") and game.pgn_content:
             pgn = game.pgn_content
-            moves = re.findall(r'(?:^|\s)(\d{1,3})\.\s+[A-Za-z]', pgn, re.MULTILINE)
+            moves = re.findall(r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]", pgn, re.MULTILINE)
             if moves:
                 move_nums = [int(m) for m in moves if int(m) <= 500]
                 if move_nums:
@@ -585,11 +792,12 @@ class GameListItemWidget(QWidget):
 
     def contextMenuEvent(self, event):
         from PyQt6.QtWidgets import QMenu
+
         menu = QMenu(self)
         menu.setStyleSheet(Styles.get_menu_style())
         act_delete = menu.addAction("🗑  Delete from history")
         chosen = menu.exec(event.globalPos())
         if chosen is act_delete:
-            game_id = getattr(self._game, 'game_id', None)
+            game_id = getattr(self._game, "game_id", None)
             if game_id:
                 self.delete_requested.emit(game_id)

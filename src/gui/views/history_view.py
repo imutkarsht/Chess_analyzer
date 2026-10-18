@@ -68,6 +68,7 @@ class GameImportWorker(QThread):
 
 class HistoryView(QWidget):
     game_selected = pyqtSignal(object)  # Emits GameAnalysis object
+    game_action_requested = pyqtSignal(object, str)  # Emits (GameAnalysis, action)
     game_deleted = pyqtSignal(str)
     games_imported = pyqtSignal(int)
     history_cleared = pyqtSignal()
@@ -78,6 +79,7 @@ class HistoryView(QWidget):
         self.history_manager = GameHistoryManager()
         self.games = []
         self._import_worker: GameImportWorker | None = None
+        self.analyzing_game_id: str | None = None
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout(self)
@@ -163,7 +165,7 @@ class HistoryView(QWidget):
         filter_layout.addWidget(self.type_label)
 
         self.type_filter = create_combobox(
-            items=["All", "Rapid", "Blitz", "Bullet", "Classical", "UltraBullet"],
+            items=["All", "Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet"],
             on_change=self.apply_filters,
         )
         self.type_filter.setFixedWidth(110)
@@ -203,6 +205,7 @@ class HistoryView(QWidget):
         # Game List
         self.game_list = GameListWidget()
         self.game_list.game_selected.connect(self.on_game_selected)
+        self.game_list.game_action_requested.connect(self.game_action_requested.emit)
         self.game_list.game_deleted.connect(self.game_deleted)
         content_layout.addWidget(self.game_list)
 
@@ -223,6 +226,12 @@ class HistoryView(QWidget):
 
         btn.clicked.connect(callback)
         return btn
+
+    def set_analyzing_game_id(self, game_id: str | None):
+        """Inform HistoryView of the game currently being analyzed."""
+        self.analyzing_game_id = game_id
+        if hasattr(self, "game_list"):
+            self.game_list.set_analyzing_game_id(game_id)
 
     def load_history(self):
         try:

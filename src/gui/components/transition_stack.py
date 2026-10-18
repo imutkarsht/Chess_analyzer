@@ -5,19 +5,41 @@ from PyQt6.QtWidgets import QGraphicsOpacityEffect, QStackedWidget
 class FadedStackedWidget(QStackedWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._current = 0
+        self._fade_out = None
+        self._fade_in = None
+        self._target_index = None
 
     def setCurrentIndex(self, index):
-        if index == self._current:
+        if index < 0 or index >= self.count():
             return
 
-        current_widget = self.widget(self._current)
+        current_idx = self.currentIndex()
+        if index == current_idx and self._target_index is None:
+            return
+        if self._target_index == index:
+            return
+
+        # Stop any active animation cleanly
+        if self._fade_out and self._fade_out.state() == QPropertyAnimation.State.Running:
+            self._fade_out.stop()
+        if self._fade_in and self._fade_in.state() == QPropertyAnimation.State.Running:
+            self._fade_in.stop()
+
+        # Clean effects from any previous widgets
+        for i in range(self.count()):
+            w = self.widget(i)
+            if w and w.graphicsEffect():
+                w.setGraphicsEffect(None)
+
+        current_widget = self.currentWidget()
         next_widget = self.widget(index)
 
-        if current_widget is None or next_widget is None:
+        if current_widget is None or next_widget is None or current_widget == next_widget:
             super().setCurrentIndex(index)
-            self._current = index
+            self._target_index = None
             return
+
+        self._target_index = index
 
         opacity = QGraphicsOpacityEffect(current_widget)
         current_widget.setGraphicsEffect(opacity)
@@ -37,19 +59,14 @@ class FadedStackedWidget(QStackedWidget):
         self._fade_in.setEndValue(1.0)
         self._fade_in.setEasingCurve(QEasingCurve.Type.InQuad)
 
-        _parent_set = QStackedWidget.setCurrentIndex
-        _self = self
-        _fade_in = self._fade_in
-
         def on_fade_out_finished():
             current_widget.setGraphicsEffect(None)
-            _parent_set(_self, index)
-            _fade_in.start()
+            super(FadedStackedWidget, self).setCurrentIndex(index)
+            self._fade_in.start()
 
         def on_fade_in_finished():
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(0, lambda: next_widget.setGraphicsEffect(None))
-            _self._current = index
+            next_widget.setGraphicsEffect(None)
+            self._target_index = None
 
         self._fade_out.finished.connect(on_fade_out_finished)
         self._fade_in.finished.connect(on_fade_in_finished)

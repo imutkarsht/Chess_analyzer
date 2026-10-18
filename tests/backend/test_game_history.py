@@ -561,3 +561,99 @@ def test_prepare_game_dict_params_preserves_zero_hung_pieces(temp_db):
     #  white_pieces_hung, black_pieces_hung, ...)
     assert params[28] == 0  # white_pieces_hung should stay 0, not 5 from summary_dict!
     assert params[29] == 0  # black_pieces_hung should stay 0
+
+
+def test_game_analysis_status_and_progress_properties():
+    """Verify GameAnalysis status transitions, move counts, and unanalyzed index."""
+    from src.backend.storage.models import MoveAnalysis
+
+    # 1. Not started
+    m1 = MoveAnalysis(move_number=1, ply=1, san="e4", uci="e2e4", fen_before="fen1")
+    m2 = MoveAnalysis(move_number=1, ply=2, san="e5", uci="e7e5", fen_before="fen2")
+    m3 = MoveAnalysis(move_number=2, ply=3, san="Nf3", uci="g1f3", fen_before="fen3")
+    game = GameAnalysis(
+        game_id="g1",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=[m1, m2, m3],
+    )
+    assert game.status == "not_started"
+    assert game.analyzed_moves_count == 0
+    assert game.total_moves_count == 3
+    assert game.first_unanalyzed_index == 0
+
+    # 2. Paused (partial analysis)
+    m1.eval_before_cp = 25
+    m1.eval_after_cp = 30
+    m1.classification = "Good"
+    assert game.status == "paused"
+    assert game.analyzed_moves_count == 1
+    assert game.first_unanalyzed_index == 1
+
+    # 3. Completed
+    m2.eval_before_cp = 30
+    m2.eval_after_cp = 15
+    m2.classification = "Inaccuracy"
+    m3.eval_before_cp = 15
+    m3.eval_after_cp = 40
+    m3.classification = "Best"
+    game.summary = {"white": {"accuracy": 88.0}, "black": {"accuracy": 82.0}}
+    assert game.status == "completed"
+    assert game.analyzed_moves_count == 3
+    assert game.first_unanalyzed_index == 3
+
+
+def test_save_game_preserves_analyzed_progress_when_unanalyzed_loaded(temp_db):
+    """Verify save_game preserves existing analyzed/paused games when unanalyzed copy is saved."""
+    import json
+
+    from src.backend.storage.models import MoveAnalysis
+
+    manager = GameHistoryManager(temp_db)
+    m1 = MoveAnalysis(
+        move_number=1,
+        ply=1,
+        san="e4",
+        uci="e2e4",
+        fen_before="fen1",
+        eval_before_cp=20,
+        eval_after_cp=25,
+        classification="Best",
+    )
+    m2 = MoveAnalysis(move_number=1, ply=2, san="e5", uci="e7e5", fen_before="fen2")
+    game = GameAnalysis(
+        game_id="game_preserve",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=[m1, m2],
+        summary={"analysis_status": "paused", "analyzed_moves": 1, "total_moves": 2},
+    )
+
+    # 1. Save paused analysis
+    manager.save_game(game, "1. e4 e5 *", force_overwrite=True)
+    saved = manager.get_game("game_preserve")
+    saved_summary = json.loads(saved["summary_json"])
+    assert saved_summary["analysis_status"] == "paused"
+    assert saved_summary["analyzed_moves"] == 1
+
+    # 2. Simulate loading raw unanalyzed PGN for the same game
+    raw_m1 = MoveAnalysis(move_number=1, ply=1, san="e4", uci="e2e4", fen_before="fen1")
+    raw_m2 = MoveAnalysis(move_number=1, ply=2, san="e5", uci="e7e5", fen_before="fen2")
+    unanalyzed_game = GameAnalysis(
+        game_id="game_preserve",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=[raw_m1, raw_m2],
+    )
+    assert unanalyzed_game.status == "not_started"
+
+    # Default save_game (force_overwrite=False) must NOT wipe the paused analysis
+    manager.save_game(unanalyzed_game, "1. e4 e5 *", force_overwrite=False)
+    persisted = manager.get_game("game_preserve")
+    persisted_summary = json.loads(persisted["summary_json"])
+    assert persisted_summary["analysis_status"] == "paused"
+    assert persisted_summary["analyzed_moves"] == 1
+
+    # 3. Explicit force_overwrite=True (e.g. reanalyze) CAN overwrite
+    manager.save_game(unanalyzed_game, "1. e4 e5 *", force_overwrite=True)
+    overwritten = manager.get_game("game_preserve")
+    overwritten_summary = json.loads(overwritten["summary_json"])
+    assert overwritten_summary["analysis_status"] == "not_started"
+    assert overwritten_summary["analyzed_moves"] == 0

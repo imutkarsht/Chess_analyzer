@@ -407,6 +407,7 @@ class MainWindow(QMainWindow):
         # --- Page 2: History View ---
         self.history_view = HistoryView(self.config_manager)
         self.history_view.game_selected.connect(self.load_game_from_history)
+        self.history_view.game_action_requested.connect(self.on_game_action_requested)
         self.history_view.game_deleted.connect(self.on_history_changed)
         self.history_view.games_imported.connect(self.on_history_changed)
         self.history_view.history_cleared.connect(self.on_history_changed)
@@ -836,6 +837,17 @@ class MainWindow(QMainWindow):
 
     def _do_switch_page(self, index):
         self.stack.setCurrentIndex(index)
+        if index == 2 and hasattr(self, "history_view"):
+            analyzing_id = (
+                self.current_game.game_id
+                if hasattr(self, "worker")
+                and self.worker
+                and self.worker.isRunning()
+                and self.current_game
+                else None
+            )
+            self.history_view.set_analyzing_game_id(analyzing_id)
+            self.history_view.load_history()
         if index == 3 and hasattr(self, "metrics_view") and self.metrics_view.needs_refresh:
             self.metrics_view.refresh()
         # If a tour is active, close it silently (don't mark seen — user didn't finish it).
@@ -1173,9 +1185,51 @@ class MainWindow(QMainWindow):
         return steps
 
     def load_game_from_history(self, game):
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
+            if self.current_game and getattr(game, "game_id", None) == getattr(
+                self.current_game, "game_id", None
+            ):
+                self.sidebar.set_active(0)
+                self.switch_page(0)
+                return
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Analysis in Progress",
+                    "An analysis is currently in progress for another game. Please stop the ongoing analysis first.",
+                )
+                return
+
         self.load_game(game)
         self.sidebar.set_active(0)  # Switch to Analyze tab
         self.switch_page(0)
+
+    def on_game_action_requested(self, game, action: str):
+        """Handle action button requests from game cards ('reanalyze', 'resume', 'analyze', 'view_analysis')."""
+        if action == "view_analysis" or (
+            hasattr(self, "worker")
+            and self.worker
+            and self.worker.isRunning()
+            and self.current_game
+            and getattr(game, "game_id", None) == getattr(self.current_game, "game_id", None)
+        ):
+            self.sidebar.set_active(0)
+            self.switch_page(0)
+            return
+
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
+            QMessageBox.warning(
+                self,
+                "Analysis in Progress",
+                "An analysis is currently in progress for another game. Please stop the ongoing analysis first.",
+            )
+            return
+
+        self.load_game_from_history(game)
+        if action == "resume":
+            self.start_analysis(resume=True)
+        elif action in ("reanalyze", "analyze"):
+            self.start_analysis(resume=False)
 
     def load_game_from_metrics(self, game, move_index: int = -1):
         if isinstance(game, str):
@@ -1378,6 +1432,21 @@ class MainWindow(QMainWindow):
         if hasattr(game, "source_data") and game.source_data:
             self.enrich_game_metadata(game, game.source_data)
 
+        # If this game already exists in history and has more analyzed moves, hydrate from history
+        if getattr(game, "game_id", None):
+            existing = self.history_manager.get_game_analysis(game.game_id)
+            if existing and existing.analyzed_moves_count > game.analyzed_moves_count:
+                game = existing
+
+        # Persist loaded game to history immediately if not already saved
+        if getattr(game, "pgn_content", None):
+            try:
+                self.history_manager.save_game(game, game.pgn_content)
+                if hasattr(self, "history_view"):
+                    self.history_view.load_history()
+            except Exception as e:
+                logger.debug(f"Failed to auto-save loaded game to history: {e}")
+
         self.current_game = game
 
         white = game.metadata.white
@@ -1433,6 +1502,7 @@ class MainWindow(QMainWindow):
         if game.moves and any(m.classification for m in game.moves):
             self.on_move_selected(len(game.moves) - 1)
 
+        self._update_analyze_button(running=False)
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
         self.resource_manager.play_sound("notify")
 
@@ -1481,7 +1551,7 @@ class MainWindow(QMainWindow):
             ):
                 md.source = "lichess"
 
-    def start_analysis(self):
+    def start_analysis(self, resume: bool | None = None):
         if not self.current_game:
             return
 
@@ -1523,10 +1593,13 @@ class MainWindow(QMainWindow):
                 self.switch_page(3)
             return
 
-        logger.info("Starting analysis...")
+        if resume is None:
+            resume = getattr(self.current_game, "status", "") == "paused"
 
-        # If cache is turned off, clear previous move evaluations so raw moves are shown as analysis begins
-        if not self.analyzer.config.get("use_cache", True):
+        logger.info("Starting analysis (resume=%s)...", resume)
+
+        # If starting fresh or cache turned off, clear previous move evaluations so raw moves are shown as analysis begins
+        if not resume or not self.analyzer.config.get("use_cache", True):
             for move in self.current_game.moves:
                 move.eval_before_cp = None
                 move.eval_before_mate = None
@@ -1537,6 +1610,10 @@ class MainWindow(QMainWindow):
                 move.multi_pvs = []
                 move.win_chance_before = None
                 move.win_chance_after = None
+                move.is_book_move = False
+                move.book_move_count = 0
+                move.book_exit_move = False
+                move.candidate_continuations = []
             self.current_game.summary = {}
             self.current_game.ai_summary = ""
 
@@ -1545,7 +1622,7 @@ class MainWindow(QMainWindow):
             if hasattr(self, "analysis_panel"):
                 self.analysis_panel.set_game(self.current_game)
 
-        self.worker = AnalysisWorker(self.analyzer, self.current_game)
+        self.worker = AnalysisWorker(self.analyzer, self.current_game, resume=resume)
         self.worker.progress.connect(self.on_analysis_progress)
         self.worker.move_analyzed.connect(self.on_move_analyzed)
         self.worker.finished.connect(self.on_analysis_finished)
@@ -1557,6 +1634,9 @@ class MainWindow(QMainWindow):
         self._set_engine_state("calculating", "Starting...")
         self._set_status("Starting analysis...", "progress")
         self.analysis_panel.set_analysis_running(True)
+
+        if hasattr(self, "history_view") and self.current_game:
+            self.history_view.set_analyzing_game_id(getattr(self.current_game, "game_id", None))
 
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.stop()
@@ -1576,23 +1656,52 @@ class MainWindow(QMainWindow):
             self.worker.cancel()
 
     def _update_analyze_button(self, running: bool):
-        """Toggle the toolbar button between Analyze and Stop."""
+        """Toggle the toolbar button between Analyze, Resume, Reanalyze and Stop."""
         import qtawesome as qta
 
-        if hasattr(self, "btn_analyze"):
-            if running:
-                self.btn_analyze.setText("  Stop Analysis")
-                self.btn_analyze.setStyleSheet(Styles.get_danger_button_style())
+        if not hasattr(self, "btn_analyze"):
+            return
+
+        try:
+            self.btn_analyze.clicked.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+
+        if running:
+            self.btn_analyze.setText("  Stop Analysis")
+            self.btn_analyze.setStyleSheet(Styles.get_danger_button_style())
+            try:
+                self.btn_analyze.setIcon(qta.icon("fa5s.stop", color="#ffffff"))
+            except Exception:
+                pass
+            self.btn_analyze.clicked.connect(self.stop_analysis)
+            self.btn_analyze.setEnabled(True)
+        else:
+            game_status = (
+                getattr(self.current_game, "status", "not_started")
+                if self.current_game
+                else "not_started"
+            )
+            if game_status == "paused":
+                analyzed = getattr(self.current_game, "analyzed_moves_count", 0)
+                total = getattr(self.current_game, "total_moves_count", 0) or len(
+                    getattr(self.current_game, "moves", [])
+                )
+                self.btn_analyze.setText(f"  Resume ({analyzed}/{total})")
+                self.btn_analyze.setStyleSheet(Styles.get_button_style())
                 try:
-                    self.btn_analyze.setIcon(qta.icon("fa5s.stop", color="#ffffff"))
+                    self.btn_analyze.setIcon(qta.icon("fa5s.play", color="#ffffff"))
                 except Exception:
                     pass
+                self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=True))
+            elif game_status == "completed":
+                self.btn_analyze.setText("  Reanalyze Game")
+                self.btn_analyze.setStyleSheet(Styles.get_button_style())
                 try:
-                    self.btn_analyze.clicked.disconnect()
-                except (TypeError, RuntimeError):
+                    self.btn_analyze.setIcon(qta.icon("fa5s.sync-alt", color="#ffffff"))
+                except Exception:
                     pass
-                self.btn_analyze.clicked.connect(self.stop_analysis)
-                self.btn_analyze.setEnabled(True)
+                self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))
             else:
                 self.btn_analyze.setText("  Analyze Game")
                 self.btn_analyze.setStyleSheet(Styles.get_button_style())
@@ -1600,12 +1709,8 @@ class MainWindow(QMainWindow):
                     self.btn_analyze.setIcon(qta.icon("fa5s.play", color="#ffffff"))
                 except Exception:
                     pass
-                try:
-                    self.btn_analyze.clicked.disconnect()
-                except (TypeError, RuntimeError):
-                    pass
-                self.btn_analyze.clicked.connect(self.start_analysis)
-                self.btn_analyze.setEnabled(True)
+                self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))
+            self.btn_analyze.setEnabled(True)
 
     def on_analysis_progress(self, current, total):
         if current > total:
@@ -1644,13 +1749,19 @@ class MainWindow(QMainWindow):
     def on_analysis_cancelled(self, game):
         """Handle analysis cancellation while preserving partial results."""
         self._full_analysis_running = False
-        self._update_analyze_button(running=False)
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis stopped", "info")
         self.show_toast("Analysis stopped", "info")
         logger.info("Analysis cancelled; partial results preserved.")
         self.current_game = game
+        if game and game.pgn_content:
+            try:
+                self.history_manager.save_game(game, game.pgn_content, force_overwrite=True)
+            except Exception as e:
+                logger.error(f"Failed saving paused game to history: {e}")
+        self._update_analyze_button(running=False)
+
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.start()
         self.move_list_panel.set_game(game)
@@ -1674,6 +1785,7 @@ class MainWindow(QMainWindow):
             if self.stack.currentIndex() == 3:
                 self.metrics_view.refresh(force=True)
         if hasattr(self, "history_view"):
+            self.history_view.set_analyzing_game_id(None)
             self.history_view.load_history()
 
     def on_history_changed(self, *_):
@@ -1684,13 +1796,13 @@ class MainWindow(QMainWindow):
 
     def on_analysis_finished(self, game):
         self._full_analysis_running = False
-        self._update_analyze_button(running=False)
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis complete", "success")
         self.show_toast("Analysis complete!", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game
+        self._update_analyze_button(running=False)
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.start()
         self.move_list_panel.set_game(game)
@@ -1704,6 +1816,7 @@ class MainWindow(QMainWindow):
             if self.stack.currentIndex() == 3:
                 self.metrics_view.refresh(force=True)
         if hasattr(self, "history_view"):
+            self.history_view.set_analyzing_game_id(None)
             self.history_view.load_history()
 
         # Track analyzed games count and check for in-app review prompt
@@ -1734,6 +1847,9 @@ class MainWindow(QMainWindow):
         logger.error(f"Analysis error: {error_msg}")
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.start()
+        if hasattr(self, "history_view"):
+            self.history_view.set_analyzing_game_id(None)
+            self.history_view.load_history()
 
         # Show error dialog with quick option to report bug
         msg_box = QMessageBox(self)

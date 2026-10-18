@@ -144,8 +144,13 @@ class PGNParser:
             tc = headers.get("TimeControl", "")
             if not tc or tc == "-":
                 return None
-            # The first numeric chunk is the initial time in seconds.
             head = tc.split("+", 1)[0].strip()
+            slash_match = re.match(r"^1/(\d+)$", head)
+            if slash_match:
+                try:
+                    return float(slash_match.group(1))
+                except ValueError:
+                    pass
             try:
                 return float(head)
             except ValueError:
@@ -223,8 +228,26 @@ class PGNParser:
 
     @staticmethod
     def detect_speed_category(time_control: str | None, event: str | None) -> str:
-        """Classify game into UltraBullet, Bullet, Blitz, Rapid, or Classical."""
+        """Classify game into UltraBullet, Bullet, Blitz, Rapid, Classical, or Daily."""
         tc = (time_control or "").strip()
+
+        # Handle slash notation: e.g. "1/259200" (Daily) or "40/7200" (Classical)
+        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
+        if slash_match:
+            try:
+                moves_count = int(slash_match.group(1))
+                sec_count = int(slash_match.group(2))
+                if sec_count >= 86400 or (moves_count == 1 and sec_count >= 3600):
+                    return "Daily"
+                elif sec_count >= 1800:
+                    return "Classical"
+                elif sec_count >= 600:
+                    return "Rapid"
+                else:
+                    return "Blitz"
+            except ValueError:
+                pass
+
         match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
         if match:
             try:
@@ -239,21 +262,26 @@ class PGNParser:
                     return "Blitz"
                 elif total_sec < 1800:
                     return "Rapid"
+                elif total_sec >= 86400:
+                    return "Daily"
                 else:
                     return "Classical"
             except ValueError:
                 pass
 
         evt_lower = (event or "").lower()
-        if "ultrabullet" in evt_lower:
+        tc_lower = tc.lower()
+        if "ultrabullet" in evt_lower or "ultrabullet" in tc_lower:
             return "UltraBullet"
-        elif "bullet" in evt_lower:
+        elif "bullet" in evt_lower or "bullet" in tc_lower:
             return "Bullet"
-        elif "blitz" in evt_lower:
+        elif "blitz" in evt_lower or "blitz" in tc_lower:
             return "Blitz"
-        elif "rapid" in evt_lower:
+        elif "rapid" in evt_lower or "rapid" in tc_lower:
             return "Rapid"
-        elif any(k in evt_lower for k in ("classical", "daily", "correspondence")):
+        elif any(k in evt_lower or k in tc_lower for k in ("daily", "correspondence")):
+            return "Daily"
+        elif "classical" in evt_lower or "classical" in tc_lower:
             return "Classical"
 
         return "Blitz"

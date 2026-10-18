@@ -190,3 +190,15 @@ class TestClockIntegration:
         # side so time_spent stays None.
         assert moves[1].time_left == pytest.approx(600.0)
         assert moves[1].time_spent is None
+
+    def test_daily_time_control_calculates_time_spent(self):
+        """Chess.com daily format (e.g. 1/259200) parses initial clock and time spent."""
+        pgn = (
+            '[Event "Daily Game"]\n[White "W"]\n[Black "B"]\n'
+            '[TimeControl "1/259200"]\n[Result "*"]\n\n'
+            "1. e4 { [%clk 71:59:00] } 1... e5 *"
+        )
+        games = PGNParser.parse_pgn_text(pgn)
+        assert len(games) == 1
+        assert games[0].metadata.speed_category == "Daily"
+        assert games[0].moves[0].time_spent == pytest.approx(60.0)

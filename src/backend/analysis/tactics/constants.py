@@ -86,6 +86,7 @@ TROUBLE_SECONDS: Final[dict[str, float]] = {
     "blitz": 30.0,
     "rapid": 60.0,
     "classical": 120.0,
+    "daily": 300.0,
 }
 DEFAULT_TROUBLE_SECONDS: Final[float] = 30.0
 MAX_REASONABLE_TIME_SECONDS: Final[float] = 7200.0  # 2 hours per move cap
