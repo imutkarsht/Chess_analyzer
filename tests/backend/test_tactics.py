@@ -353,3 +353,57 @@ def test_drill_down_details_in_tactics():
     assert hang["square"] == "a6"
     assert hang["ply"] == 1
     assert hang["san"] == "Ba6"
+
+
+def test_routine_exchange_not_flagged_as_hanging_or_captured():
+    """
+    Test that routine captures and equal piece trades are NOT classified
+    as hanging pieces or opponent hanging pieces captured.
+    """
+    # Position: White has Knight on c3, Black has Knight on d5.
+    # Black plays 1... Nxc3, capturing White's Knight.
+    # White plays 2. bxc3, recapturing Black's Knight.
+    fen_start = "r1bqk2r/ppp1bppp/8/3n4/8/2N2N2/PPPPQPPP/R1B1KB1R b KQkq - 1 5"
+    board_b = chess.Board(fen_start)
+    move_black = chess.Move.from_uci("d5c3")
+    board_after_black = board_b.copy()
+    board_after_black.push(move_black)
+
+    move_white = chess.Move.from_uci("b2c3")
+    board_after_white = board_after_black.copy()
+    board_after_white.push(move_white)
+
+    moves_data = [
+        {
+            "ply": 10,
+            "move_number": 5,
+            "san": "Nxc3",
+            "uci": "d5c3",
+            "fen_before": board_b.fen(),
+            "fen_after": board_after_black.fen(),
+            "classification": "Best",
+            "is_book_move": False,
+        },
+        {
+            "ply": 11,
+            "move_number": 6,
+            "san": "bxc3",
+            "uci": "b2c3",
+            "fen_before": board_after_black.fen(),
+            "fen_after": board_after_white.fen(),
+            "classification": "Best",
+            "is_book_move": False,
+        },
+    ]
+
+    # White's perspective: White recaptures with bxc3
+    tactics_white = analyze_game_tactics(moves_data, user_color="white", result="1-0")
+    assert tactics_white["hanging_metrics"]["opponent_hanging_captured"] == 0
+    assert len(tactics_white["opp_captured_details"]) == 0
+    assert tactics_white["hanging_metrics"]["total_hung"] == 0
+    assert len(tactics_white["hung_pieces_details"]) == 0
+
+    # Black's perspective: Black took White's knight on c3
+    tactics_black = analyze_game_tactics(moves_data, user_color="black", result="0-1")
+    assert tactics_black["hanging_metrics"]["total_hung"] == 0
+    assert len(tactics_black["hung_pieces_details"]) == 0
