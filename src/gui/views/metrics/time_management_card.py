@@ -5,6 +5,8 @@ move pace and thinking time across game phases (Opening, Middlegame, Endgame),
 decision quality pace (Best vs Blunders), and time trouble panic metrics.
 """
 
+import math
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFrame,
@@ -859,7 +861,14 @@ class TimeManagementCard(MetricCard):
         b_info = QVBoxLayout()
         b_info.setSpacing(2)
 
-        if panic_mult > 1.2:
+        if math.isinf(panic_mult):
+            banner_title = "High Blunder Rate Under Time Pressure"
+            banner_desc = (
+                f"Your tactical errors increase under low clock ({t_pct:.1f}% vs {n_pct:.1f}%).\n"
+                "Focus on pace in the opening and middlegame to preserve time reserves."
+            )
+            title_color = Styles.COLOR_BLUNDER
+        elif panic_mult > 1.2:
             banner_title = f"{panic_mult:.1f}x Blunder Rate Under Time Pressure"
             banner_desc = (
                 f"Your tactical errors increase under low clock ({t_pct:.1f}% vs {n_pct:.1f}%).\n"

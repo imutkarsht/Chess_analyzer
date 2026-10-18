@@ -222,7 +222,7 @@ class PGNParser:
         )
 
     @staticmethod
-    def _detect_speed_category(time_control: str | None, event: str | None) -> str:
+    def detect_speed_category(time_control: str | None, event: str | None) -> str:
         """Classify game into UltraBullet, Bullet, Blitz, Rapid, or Classical."""
         tc = (time_control or "").strip()
         match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
@@ -257,3 +257,5 @@ class PGNParser:
             return "Classical"
 
         return "Blitz"
+
+    _detect_speed_category = detect_speed_category
