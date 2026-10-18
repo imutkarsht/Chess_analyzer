@@ -6,12 +6,15 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from src.backend.analysis.metrics_aggregator import MetricsAggregator
 from src.backend.services.groq_service import GroqService
 from src.gui.components import MasonryLayout, StatCard, StatsLayout
+from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout, create_button, create_combobox
@@ -186,13 +189,23 @@ class MetricsWidget(QWidget):
 
         self.main_layout.addWidget(self.filter_bar)
 
-        # Content Area
+        # Content Area Stack (Index 0 = Dashboard Container, Index 1 = DrillDownView)
+        self.stacked_widget = QStackedWidget()
+        self.stacked_widget.setStyleSheet(Styles.get_background_style())
+
         self.content_widget = QWidget()
         self.content_widget.setStyleSheet(Styles.get_background_style())
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(0)
-        self.main_layout.addWidget(self.content_widget, 1)
+        self.stacked_widget.addWidget(self.content_widget)
+
+        self.drill_down_view = DrillDownView()
+        self.drill_down_view.back_requested.connect(self._on_drill_down_back)
+        self.drill_down_view.position_selected.connect(self._on_drill_down_position_selected)
+        self.stacked_widget.addWidget(self.drill_down_view)
+
+        self.main_layout.addWidget(self.stacked_widget, 1)
 
     def refresh_styles(self):
         """Re-applies styles and rebuilds the dashboard using cached stats/insights."""
@@ -268,6 +281,9 @@ class MetricsWidget(QWidget):
         if hasattr(self, "scroll_area") and self.scroll_area:
             self.scroll_area.setStyleSheet(Styles.get_transparent_scroll_area_style())
 
+        if hasattr(self, "drill_down_view") and self.drill_down_view:
+            self.drill_down_view.refresh_styles()
+
         if self.current_stats:
             saved_insights = self.current_insights
             clear_layout(self.content_layout)
@@ -276,6 +292,10 @@ class MetricsWidget(QWidget):
                 self.ai_coach_card.set_insights(saved_insights)
 
     def refresh(self, _=None):
+        if hasattr(self, "stacked_widget") and self.stacked_widget:
+            self.stacked_widget.setCurrentIndex(0)
+            self.filter_bar.setVisible(True)
+
         clear_layout(self.content_layout)
 
         chesscom = self.config_manager.get("chesscom_username", "")
@@ -380,6 +400,10 @@ class MetricsWidget(QWidget):
         if hasattr(self, "lbl_games_badge") and self.lbl_games_badge:
             self.lbl_games_badge.setText(f"{total} Games")
 
+        if hasattr(self, "stacked_widget") and self.stacked_widget:
+            self.stacked_widget.setCurrentIndex(0)
+            self.filter_bar.setVisible(True)
+
         clear_layout(self.content_layout)
         if total == 0:
             self._show_message_view(
@@ -438,6 +462,7 @@ class MetricsWidget(QWidget):
         self.request_settings.emit()
 
     def show_dashboard(self, stats):
+        self.current_stats = stats
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
@@ -498,9 +523,12 @@ class MetricsWidget(QWidget):
             "Blunder", stats.get("quality_counts", {}).get("Blunder", 0)
         )
         bpg = (total_blunders / total_games) if total_games > 0 else 0.0
-        self.stats_layout.addWidget(
-            StatCard("Blunders / Game", f"{bpg:.1f}", "Average tactical errors")
+        blunders_card = StatCard(
+            "Blunders / Game", f"{bpg:.1f}", "Average tactical errors", clickable=True
         )
+        blunders_card.setToolTip("Click to inspect all blunder positions")
+        blunders_card.clicked.connect(lambda: self._trigger_drill_down("blunders"))
+        self.stats_layout.addWidget(blunders_card)
 
         clean_cnt = stats.get("clean_games", 0)
         clean_pct = stats.get("clean_games_pct", 0.0)
@@ -554,14 +582,17 @@ class MetricsWidget(QWidget):
 
         self.hanging_card = HangingPiecesCard()
         self.hanging_card.set_stats(stats)
+        self.hanging_card.drill_down_requested.connect(self._trigger_drill_down)
         self.charts_layout.addWidget(self.hanging_card)
 
         self.tactics_card = TacticalThemesCard()
         self.tactics_card.set_stats(stats)
+        self.tactics_card.drill_down_requested.connect(self._trigger_drill_down)
         self.charts_layout.addWidget(self.tactics_card)
 
         self.advantage_card = AdvantageConversionCard()
         self.advantage_card.set_stats(stats)
+        self.advantage_card.drill_down_requested.connect(self._trigger_drill_down)
         self.charts_layout.addWidget(self.advantage_card)
 
         self.brilliancy_card = BrilliancyHallCard()
@@ -594,6 +625,67 @@ class MetricsWidget(QWidget):
         game = self.history_manager.get_game_analysis(game_id)
         if game:
             self.game_selected.emit(game, move_index)
+
+    def _trigger_drill_down(
+        self,
+        category: str,
+        subcategory: str | None = None,
+        custom_title: str | None = None,
+        custom_subtitle: str | None = None,
+    ):
+        """Switches to drill-down view with matching occurrences from current_stats."""
+        if not self.current_stats:
+            return
+
+        items = MetricsAggregator.get_drill_down_items(self.current_stats, category, subcategory)
+
+        title = custom_title or self._get_drill_down_title(category, subcategory)
+        subtitle = custom_subtitle or f"Showing {len(items)} matching game positions"
+
+        self.header_bar.setVisible(False)
+        self.filter_bar.setVisible(False)
+        self.drill_down_view.set_data(title, subtitle, items)
+        self.stacked_widget.setCurrentIndex(1)
+
+    def _on_drill_down_back(self):
+        """Returns to the main performance dashboard."""
+        self.header_bar.setVisible(True)
+        self.filter_bar.setVisible(True)
+        self.stacked_widget.setCurrentIndex(0)
+
+    def _on_drill_down_position_selected(self, game_id: str, move_index: int):
+        """Loads game into Analysis view at the specified move."""
+        self._on_brilliancy_clicked(game_id, move_index)
+
+    def _get_drill_down_title(self, category: str, subcategory: str | None) -> str:
+        if category == "blunders":
+            return "Blunders & Tactical Oversights"
+        if category == "hung_pieces":
+            sub_name = (
+                f" • {subcategory.capitalize()}s" if subcategory and subcategory != "all" else ""
+            )
+            return f"Dropped Pieces{sub_name}"
+        if category == "opp_captured":
+            sub_name = (
+                f" • {subcategory.capitalize()}s" if subcategory and subcategory != "all" else ""
+            )
+            return f"Opponent Mistakes Punished{sub_name}"
+        if category == "tactical_themes":
+            sub_name = (
+                f" • {subcategory.replace('_', ' ').title()}"
+                if subcategory and subcategory != "all"
+                else ""
+            )
+            return f"Tactical Patterns{sub_name}"
+        if category == "advantage":
+            adv_map = {
+                "thrown_losses": "Thrown Losses (Lost Leads)",
+                "squandered_draws": "Squandered Draws (Drawn Leads)",
+                "comeback_wins": "Miracle Comeback Wins",
+                "comeback_draws": "Resilient Comeback Draws",
+            }
+            return adv_map.get(subcategory or "", "Advantage Turning Points")
+        return f"{category.replace('_', ' ').title()}"
 
     def _sync_insights_cache(self):
         if hasattr(self, "ai_coach_card") and self.ai_coach_card and self.ai_coach_card.worker:

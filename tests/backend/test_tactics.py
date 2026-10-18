@@ -301,3 +301,55 @@ def test_detect_tactical_motifs():
     board_disc_a.push(move_disc)
     motifs_disc = detect_tactical_motifs(board_disc_b, board_disc_a, move_disc, chess.WHITE)
     assert "discovered_attack" in motifs_disc
+
+
+def test_drill_down_details_in_tactics():
+    """Test that analyze_game_tactics populates drill-down detail lists."""
+    moves_data = [
+        # Move 1: White blunders and hangs a bishop
+        {
+            "ply": 1,
+            "move_number": 1,
+            "san": "Ba6",
+            "uci": "f1a6",
+            "fen_before": chess.STARTING_FEN,
+            "eval_before_cp": 50,
+            "eval_after_cp": -200,
+            "win_chance_before": 0.55,
+            "win_chance_after": 0.30,
+            "classification": "Blunder",
+            "is_book_move": False,
+        },
+        # Move 2: Opponent move
+        {
+            "ply": 2,
+            "move_number": 1,
+            "san": "e5",
+            "uci": "e7e5",
+            "fen_before": "rnbqkbnr/pppppppp/B7/8/8/8/PPPPPPPP/RNBQK1NR b KQkq - 1 1",
+            "eval_before_cp": -200,
+            "win_chance_before": 0.30,
+            "win_chance_after": 0.30,
+            "classification": "Best",
+            "is_book_move": False,
+        },
+    ]
+
+    tactics = analyze_game_tactics(moves_data, user_color="white", result="0-1")
+    assert "blunders_details" in tactics
+    assert len(tactics["blunders_details"]) == 1
+    blunder = tactics["blunders_details"][0]
+    assert blunder["san"] == "Ba6"
+    assert blunder["ply"] == 1
+    assert blunder["eval_before_cp"] == 50
+    assert blunder["eval_after_cp"] == -200
+    assert blunder["eval_drop"] == 250
+    assert blunder["wp_drop"] == 0.25
+
+    assert "hung_pieces_details" in tactics
+    assert len(tactics["hung_pieces_details"]) == 1
+    hang = tactics["hung_pieces_details"][0]
+    assert hang["piece_name"] == "bishop"
+    assert hang["square"] == "a6"
+    assert hang["ply"] == 1
+    assert hang["san"] == "Ba6"

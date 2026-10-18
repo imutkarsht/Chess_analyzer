@@ -7,7 +7,7 @@ Zero nested box clutter, ranked distribution bars, and DRY telemetry.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -29,6 +29,8 @@ class TacticalThemesCard(MetricCard):
     - Proportional tactical distribution ribbon.
     - Ranked arsenal breakdown list sorted by frequency (no nested box frames).
     """
+
+    drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
 
     MOTIF_CONFIG: dict[str, tuple[str, str, str, str]] = {
         # key: (Display Name, Icon, Description/Tooltip, Color Property Name)
@@ -159,6 +161,11 @@ class TacticalThemesCard(MetricCard):
         l_stat_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         lbl_tot_val = QLabel(str(total_tactics))
+        lbl_tot_val.setCursor(Qt.CursorShape.PointingHandCursor)
+        lbl_tot_val.setToolTip("Click to inspect all executed tactics positions")
+        lbl_tot_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
+            "tactical_themes", "all"
+        )
         lbl_tot_val.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 24px;
@@ -285,13 +292,19 @@ class TacticalThemesCard(MetricCard):
             theme_color = getattr(Styles, color_attr, Styles.COLOR_BEST)
 
             row = QWidget()
+            row.setCursor(Qt.CursorShape.PointingHandCursor)
+            row.mousePressEvent = lambda e, k=key: self.drill_down_requested.emit(
+                "tactical_themes", k
+            )
             row.setStyleSheet(f"""
                 QWidget:hover {{
                     background-color: {Styles.COLOR_SURFACE_LIGHT};
                     border-radius: 6px;
                 }}
             """)
-            row.setToolTip(f"{name}: {desc}\nExecuted {cnt} times ({pct:.1f}% of arsenal)")
+            row.setToolTip(
+                f"{name}: {desc}\nExecuted {cnt} times ({pct:.1f}% of arsenal)\nClick to view positions"
+            )
             row_l = QHBoxLayout(row)
             row_l.setContentsMargins(6, 4, 8, 4)
             row_l.setSpacing(10)

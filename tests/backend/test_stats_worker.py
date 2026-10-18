@@ -2,8 +2,12 @@
 Unit tests for StatsWorker filtering and statistical aggregation.
 """
 
+import json
 import time
 
+import chess
+
+from src.backend.analysis.metrics_aggregator import MetricsAggregator
 from src.gui.metrics.workers import StatsWorker
 
 
@@ -348,3 +352,70 @@ def test_metrics_aggregator_build_coach_dossier():
     assert "Comeback Rate: 33.3%" in dossier
     assert "Sicilian Defense (ECO B20)" in dossier
     assert "Undefended Pieces Dropped: 2" in dossier
+
+
+def test_metrics_aggregator_drill_down():
+    """Test that MetricsAggregator indexes occurrences for drill-down exploration."""
+    moves = [
+        {
+            "ply": 1,
+            "move_number": 1,
+            "san": "Ba6",
+            "uci": "f1a6",
+            "fen_before": chess.STARTING_FEN,
+            "eval_before_cp": 50,
+            "eval_after_cp": -200,
+            "win_chance_before": 0.55,
+            "win_chance_after": 0.30,
+            "classification": "Blunder",
+            "is_book_move": False,
+        },
+        {
+            "ply": 2,
+            "move_number": 1,
+            "san": "e5",
+            "uci": "e7e5",
+            "fen_before": "rnbqkbnr/pppppppp/B7/8/8/8/PPPPPPPP/RNBQK1NR b KQkq - 1 1",
+            "eval_before_cp": -200,
+            "win_chance_before": 0.30,
+            "win_chance_after": 0.30,
+            "classification": "Best",
+            "is_book_move": False,
+        },
+    ]
+
+    game = {
+        "id": "drill_game_1",
+        "white": "Hero",
+        "black": "Rival",
+        "black_elo": "1850",
+        "result": "0-1",
+        "date": "2026.10.18",
+        "speed_category": "Blitz",
+        "opening": "Van't Kruijs Opening",
+        "moves_json": json.dumps(moves),
+    }
+
+    stats = MetricsAggregator.calculate_stats([game], ["Hero"])
+    assert "drill_down" in stats
+
+    # Blunders drill-down
+    blunders = MetricsAggregator.get_drill_down_items(stats, "blunders")
+    assert len(blunders) == 1
+    b = blunders[0]
+    assert b["game_id"] == "drill_game_1"
+    assert b["opponent"] == "Rival"
+    assert b["opponent_elo"] == "1850"
+    assert b["san"] == "Ba6"
+    assert b["classification"] == "Blunder"
+    assert b["eval_drop"] == 250
+
+    # Hung piece drill-down
+    hung_all = MetricsAggregator.get_drill_down_items(stats, "hung_pieces")
+    assert len(hung_all) == 1
+    hung_bishops = MetricsAggregator.get_drill_down_items(stats, "hung_pieces", "bishop")
+    assert len(hung_bishops) == 1
+    hb = hung_bishops[0]
+    assert hb["piece_name"] == "bishop"
+    assert hb["square"] == "a6"
+    assert hb["game_id"] == "drill_game_1"

@@ -5,7 +5,7 @@ versus squandering them, and their fighting spirit / comeback rate when trailing
 Clean, open design with zero cluttered box-in-a-box frames.
 """
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -25,6 +25,8 @@ class AdvantageConversionCard(MetricCard):
     2. Choke / Throw Tracking: Distinguishing between drawn leads and thrown losses.
     3. Comeback / Resilience: Frequency of rescuing wins or draws from losing positions (<= -3.0 pawns).
     """
+
+    drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
 
     def __init__(self, parent=None):
         self.stats: dict = {}
@@ -200,11 +202,34 @@ class AdvantageConversionCard(MetricCard):
         stats_line.setContentsMargins(0, 4, 0, 0)
         stats_line.setSpacing(8)
 
-        def add_stat_col(layout: QHBoxLayout, value: int, label: str, color_hex: str):
+        def add_stat_col(
+            layout: QHBoxLayout,
+            value: int,
+            label: str,
+            color_hex: str,
+            subcategory: str | None = None,
+        ):
             w = QWidget()
-            w.setStyleSheet("background: transparent;")
+            if subcategory and value > 0:
+                w.setCursor(Qt.CursorShape.PointingHandCursor)
+                w.setToolTip(f"Click to inspect {value} {label.lower()} positions")
+                w.setStyleSheet(f"""
+                    QWidget {{
+                        background: transparent;
+                        border-radius: 4px;
+                    }}
+                    QWidget:hover {{
+                        background-color: {Styles.COLOR_SURFACE};
+                    }}
+                """)
+                w.mousePressEvent = lambda e, sc=subcategory: self.drill_down_requested.emit(
+                    "advantage", sc
+                )
+            else:
+                w.setStyleSheet("background: transparent;")
+
             vl = QVBoxLayout(w)
-            vl.setContentsMargins(0, 0, 0, 0)
+            vl.setContentsMargins(4, 2, 4, 2)
             vl.setSpacing(1)
             vl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -225,12 +250,19 @@ class AdvantageConversionCard(MetricCard):
             layout.addWidget(w)
 
         add_stat_col(stats_line, converted, "Wins", Styles.COLOR_RESULT_WIN)
-        add_stat_col(stats_line, squandered, "Draws", Styles.COLOR_TEXT_PRIMARY)
+        add_stat_col(
+            stats_line,
+            squandered,
+            "Draws",
+            Styles.COLOR_TEXT_PRIMARY,
+            subcategory="squandered_draws",
+        )
         add_stat_col(
             stats_line,
             thrown,
             "Thrown",
             Styles.COLOR_BLUNDER if thrown > 0 else Styles.COLOR_TEXT_SECONDARY,
+            subcategory="thrown_losses",
         )
         adv_vbox.addLayout(stats_line)
 
@@ -323,8 +355,20 @@ class AdvantageConversionCard(MetricCard):
         cb_stats_line.setContentsMargins(0, 4, 0, 0)
         cb_stats_line.setSpacing(8)
 
-        add_stat_col(cb_stats_line, comeback_wins, "Miracle Wins", Styles.COLOR_ACCENT)
-        add_stat_col(cb_stats_line, comeback_draws, "Saved Draws", Styles.COLOR_TEXT_PRIMARY)
+        add_stat_col(
+            cb_stats_line,
+            comeback_wins,
+            "Miracle Wins",
+            Styles.COLOR_ACCENT,
+            subcategory="comeback_wins",
+        )
+        add_stat_col(
+            cb_stats_line,
+            comeback_draws,
+            "Saved Draws",
+            Styles.COLOR_TEXT_PRIMARY,
+            subcategory="comeback_draws",
+        )
         add_stat_col(cb_stats_line, lost_deficit, "Defeats", Styles.COLOR_TEXT_SECONDARY)
         cb_vbox.addLayout(cb_stats_line)
 

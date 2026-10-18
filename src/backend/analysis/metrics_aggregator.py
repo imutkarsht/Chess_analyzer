@@ -257,6 +257,40 @@ class MetricsAggregator:
             "back_rank": 0,
         }
 
+        drill_down: dict[str, Any] = {
+            "hung_pieces": {
+                "all": [],
+                "queen": [],
+                "rook": [],
+                "bishop": [],
+                "knight": [],
+                "pawn": [],
+            },
+            "opp_captured": {
+                "all": [],
+                "queen": [],
+                "rook": [],
+                "bishop": [],
+                "knight": [],
+                "pawn": [],
+            },
+            "tactical_themes": {
+                "fork": [],
+                "pin": [],
+                "skewer": [],
+                "discovered_attack": [],
+                "sacrifice": [],
+                "back_rank": [],
+            },
+            "advantage": {
+                "thrown_losses": [],
+                "squandered_draws": [],
+                "comeback_wins": [],
+                "comeback_draws": [],
+            },
+            "blunders": [],
+        }
+
         format_stats: dict[str, dict[str, Any]] = {}
         clock_summary = {
             "total_timed_moves": 0,
@@ -378,6 +412,25 @@ class MetricsAggregator:
             ):
                 f_entry["time_losses"] += 1
 
+            # Opponent and Opening info
+            opp_key = "black" if user_color == "white" else "white"
+            opp_elo_key = "black_elo" if user_color == "white" else "white_elo"
+            opp_name = game.get(opp_key, "Unknown")
+            opp_rating = game.get(opp_elo_key, "")
+
+            op_name = game.get("opening") or ""
+            eco_code = game.get("eco") or ""
+            if not op_name or not eco_code:
+                pgn = game.get("pgn", "")
+                if not op_name and 'Opening "' in pgn:
+                    match_op = re.search(r'\[Opening "([^"]+)"\]', pgn)
+                    if match_op:
+                        op_name = match_op.group(1)
+                if not eco_code and 'ECO "' in pgn:
+                    match_eco = re.search(r'\[ECO "([^"]+)"\]', pgn)
+                    if match_eco:
+                        eco_code = match_eco.group(1)
+
             # 3. Accuracy & Move Quality
             game_acc = 0.0
             tactics_data = None
@@ -411,11 +464,12 @@ class MetricsAggregator:
                 f_entry["acc_sum"] += game_acc
                 f_entry["acc_count"] += 1
 
-            # 4. Tactical analysis: recompute if missing or older format without phase_move_counts or clock_metrics
+            # 4. Tactical analysis: recompute if missing or older format without phase_move_counts, clock_metrics, or hung_pieces_details
             if game.get("moves_json") and (
                 not tactics_data
                 or "phase_move_counts" not in tactics_data
                 or "clock_metrics" not in tactics_data
+                or "hung_pieces_details" not in tactics_data
             ):
                 try:
                     moves_data = json.loads(game["moves_json"])
@@ -516,20 +570,22 @@ class MetricsAggregator:
                     if motif in tactical_themes:
                         tactical_themes[motif] += count
 
-                # Brilliancies list
-                opp_key = "black" if user_color == "white" else "white"
-                opp_elo_key = "black_elo" if user_color == "white" else "white_elo"
-                opp_name = game.get(opp_key, "Unknown")
-                opp_rating = game.get(opp_elo_key, "")
+                game_meta = {
+                    "game_id": game.get("id"),
+                    "opponent": opp_name,
+                    "opponent_elo": opp_rating,
+                    "date": game.get("date", ""),
+                    "result": res,
+                    "user_color": user_color,
+                    "speed_category": speed,
+                    "opening": op_name or game.get("opening", ""),
+                }
 
+                # Brilliancies list
                 for b in tactics_data.get("brilliancies", []):
                     brilliancies.append(
                         {
-                            "game_id": game.get("id"),
-                            "opponent": opp_name,
-                            "opponent_elo": opp_rating,
-                            "date": game.get("date", ""),
-                            "user_color": user_color,
+                            **game_meta,
                             "san": b.get("san"),
                             "uci": b.get("uci"),
                             "fen_before": b.get("fen_before"),
@@ -537,9 +593,82 @@ class MetricsAggregator:
                             "move_number": b.get("move_number"),
                             "classification": b.get("classification"),
                             "explanation": b.get("explanation"),
-                            "opening_name": b.get("opening_name") or game.get("opening", ""),
+                            "opening_name": b.get("opening_name") or game_meta["opening"],
                         }
                     )
+
+                # Drill-Down Occurrence Aggregation
+                # 1. Hung Pieces
+                for h in tactics_data.get("hung_pieces_details", []):
+                    item = {**game_meta, **h}
+                    drill_down["hung_pieces"]["all"].append(item)
+                    p_name = h.get("piece_name", "").lower()
+                    if p_name in drill_down["hung_pieces"]:
+                        drill_down["hung_pieces"][p_name].append(item)
+
+                # 2. Opponent Pieces Captured
+                for c in tactics_data.get("opp_captured_details", []):
+                    item = {**game_meta, **c}
+                    drill_down["opp_captured"]["all"].append(item)
+                    p_name = c.get("piece_name", "").lower()
+                    if p_name in drill_down["opp_captured"]:
+                        drill_down["opp_captured"][p_name].append(item)
+
+                # 3. Tactical Themes
+                for tm in tactics_data.get("tactical_motifs_details", []):
+                    item = {**game_meta, **tm}
+                    motif = tm.get("motif", "").lower()
+                    if motif in drill_down["tactical_themes"]:
+                        drill_down["tactical_themes"][motif].append(item)
+
+                # 4. Blunders
+                for b_item in tactics_data.get("blunders_details", []):
+                    item = {**game_meta, **b_item}
+                    drill_down["blunders"].append(item)
+
+                # 5. Advantage Turning Points
+                lead_collapse = tactics_data.get("lead_collapse_move")
+                comeback_turn = tactics_data.get("comeback_turn_move")
+
+                if adv.get("thrown_losses"):
+                    if lead_collapse:
+                        drill_down["advantage"]["thrown_losses"].append(
+                            {**game_meta, **lead_collapse}
+                        )
+                    else:
+                        drill_down["advantage"]["thrown_losses"].append(
+                            {**game_meta, "san": "Lost Lead", "classification": "Lost Lead"}
+                        )
+
+                if adv.get("squandered_draws"):
+                    if lead_collapse:
+                        drill_down["advantage"]["squandered_draws"].append(
+                            {**game_meta, **lead_collapse}
+                        )
+                    else:
+                        drill_down["advantage"]["squandered_draws"].append(
+                            {**game_meta, "san": "Drawn Lead", "classification": "Drawn Lead"}
+                        )
+
+                if adv.get("comeback_wins"):
+                    if comeback_turn:
+                        drill_down["advantage"]["comeback_wins"].append(
+                            {**game_meta, **comeback_turn}
+                        )
+                    else:
+                        drill_down["advantage"]["comeback_wins"].append(
+                            {**game_meta, "san": "Comeback", "classification": "Comeback Win"}
+                        )
+
+                if adv.get("comeback_draws"):
+                    if comeback_turn:
+                        drill_down["advantage"]["comeback_draws"].append(
+                            {**game_meta, **comeback_turn}
+                        )
+                    else:
+                        drill_down["advantage"]["comeback_draws"].append(
+                            {**game_meta, "san": "Comeback", "classification": "Comeback Draw"}
+                        )
 
             # 6. Best Win
             opponent_elo = 0
@@ -553,19 +682,6 @@ class MetricsAggregator:
                 best_win_rating = opponent_elo
 
             # 7. Openings
-            op_name = game.get("opening") or ""
-            eco_code = game.get("eco") or ""
-            if not op_name or not eco_code:
-                pgn = game.get("pgn", "")
-                if not op_name and 'Opening "' in pgn:
-                    match_op = re.search(r'\[Opening "([^"]+)"\]', pgn)
-                    if match_op:
-                        op_name = match_op.group(1)
-                if not eco_code and 'ECO "' in pgn:
-                    match_eco = re.search(r'\[ECO "([^"]+)"\]', pgn)
-                    if match_eco:
-                        eco_code = match_eco.group(1)
-
             if op_name:
                 main_name = op_name.split(":")[0].split(",")[0].strip()
                 var_name = op_name[len(main_name) :].lstrip(":,").strip()
@@ -769,6 +885,7 @@ class MetricsAggregator:
             "advantage_stats": advantage_stats,
             "brilliancies": brilliancies,
             "tactical_themes": tactical_themes,
+            "drill_down": drill_down,
             "time_stats": time_stats,
             "filter_applied": {
                 "color": color_filter,
@@ -777,6 +894,34 @@ class MetricsAggregator:
                 "date": date_filter,
             },
         }
+
+    @classmethod
+    def get_drill_down_items(
+        cls,
+        stats: dict[str, Any],
+        category: str,
+        subcategory: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Retrieve drill-down items for a specific category and optional subcategory.
+        E.g. category='hung_pieces', subcategory='queen'
+             category='blunders'
+             category='tactical_themes', subcategory='fork'
+             category='advantage', subcategory='thrown_losses'
+             category='brilliancies'
+        """
+        if category == "brilliancies":
+            return stats.get("brilliancies", [])
+
+        drill_down = stats.get("drill_down", {})
+        cat_data = drill_down.get(category, {})
+        if isinstance(cat_data, list):
+            return cat_data
+        if isinstance(cat_data, dict):
+            if subcategory:
+                return cat_data.get(subcategory, [])
+            return cat_data.get("all", [])
+        return []
 
     @classmethod
     def build_coach_dossier(cls, stats: dict[str, Any]) -> str:

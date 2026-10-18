@@ -8,6 +8,8 @@ Zero Qt dependencies — headless and independently testable.
 
 from __future__ import annotations
 
+from typing import Any
+
 import chess
 
 from src.backend.analysis.math_utils import (
@@ -409,6 +411,17 @@ def analyze_game_tactics(
     brilliancies = []
     book_exit_ply = None
 
+    # Occurrence details for drill-down exploration
+    hung_pieces_details: list[dict[str, Any]] = []
+    opp_captured_details: list[dict[str, Any]] = []
+    tactical_motifs_details: list[dict[str, Any]] = []
+    blunders_details: list[dict[str, Any]] = []
+
+    lead_collapse_move: dict[str, Any] | None = None
+    max_lead_drop: float = 0.0
+    comeback_turn_move: dict[str, Any] | None = None
+    max_comeback_gain: float = 0.0
+
     for m in moves_data:
         ply = m.get("ply", 0)
         san = m.get("san", "")
@@ -473,16 +486,44 @@ def analyze_game_tactics(
             phase_accuracies[phase].append(acc)
             phase_win_percents[phase].append(player_wp_before)
 
-            if classification == "Blunder":
-                phase_blunders[phase] += 1
+            eval_after_raw = m.get("eval_after_cp")
+            eval_after_user = (
+                (eval_after_raw if is_user_white else -eval_after_raw)
+                if eval_after_raw is not None
+                else None
+            )
+            eval_diff = (
+                (eval_user_cp - eval_after_user)
+                if (eval_user_cp is not None and eval_after_user is not None)
+                else None
+            )
 
-            # 2. Hanging piece detection after user move
+            # 2. Hanging piece & tactical pattern detection after user move
             try:
                 move_obj = chess.Move.from_uci(uci) if uci else board_before.parse_san(san)
                 board_after = board_before.copy()
                 board_after.push(move_obj)
+                fen_after = board_after.fen()
 
                 wp_drop = player_wp_before - player_wp_after
+
+                if classification == "Blunder":
+                    phase_blunders[phase] += 1
+                    blunders_details.append(
+                        {
+                            "ply": ply,
+                            "move_number": m.get("move_number", (ply + 1) // 2),
+                            "san": san,
+                            "uci": uci,
+                            "fen_before": fen_before,
+                            "fen_after": fen_after,
+                            "classification": classification,
+                            "eval_before_cp": eval_user_cp,
+                            "eval_after_cp": eval_after_user,
+                            "eval_drop": eval_diff,
+                            "wp_drop": round(wp_drop, 3),
+                        }
+                    )
 
                 # Robust filter: Do NOT count sacrifices, brilliant moves, or engine-best advantageous moves as hangs!
                 # If a move is Brilliant, Great, Best, or Excellent, leaving a piece attacked is intentional,
@@ -514,6 +555,24 @@ def analyze_game_tactics(
                             if p_name in pieces_hung_by_type:
                                 pieces_hung_by_type[p_name] += 1
 
+                            hung_pieces_details.append(
+                                {
+                                    "piece_name": p_name,
+                                    "square": h["square"],
+                                    "ply": ply,
+                                    "move_number": m.get("move_number", (ply + 1) // 2),
+                                    "san": san,
+                                    "uci": uci,
+                                    "fen_before": fen_before,
+                                    "fen_after": fen_after,
+                                    "classification": classification,
+                                    "eval_before_cp": eval_user_cp,
+                                    "eval_after_cp": eval_after_user,
+                                    "eval_drop": eval_diff,
+                                    "wp_drop": round(wp_drop, 3),
+                                }
+                            )
+
                         if classification in ("Blunder", "Mistake"):
                             hanging_blunders += 1
 
@@ -531,6 +590,21 @@ def analyze_game_tactics(
                         p_name = captured_h["piece_name"]
                         if p_name in opp_pieces_captured_by_type:
                             opp_pieces_captured_by_type[p_name] += 1
+
+                        opp_captured_details.append(
+                            {
+                                "piece_name": p_name,
+                                "square": to_sq_name,
+                                "ply": ply,
+                                "move_number": m.get("move_number", (ply + 1) // 2),
+                                "san": san,
+                                "uci": uci,
+                                "fen_before": fen_before,
+                                "fen_after": fen_after,
+                                "classification": classification,
+                                "eval_before_cp": eval_user_cp,
+                            }
+                        )
                 elif opp_hanging_before and classification in (
                     "Mistake",
                     "Blunder",
@@ -546,6 +620,56 @@ def analyze_game_tactics(
                     for motif in found_motifs:
                         if motif in tactical_theme_counts:
                             tactical_theme_counts[motif] += 1
+                            tactical_motifs_details.append(
+                                {
+                                    "motif": motif,
+                                    "ply": ply,
+                                    "move_number": m.get("move_number", (ply + 1) // 2),
+                                    "san": san,
+                                    "uci": uci,
+                                    "fen_before": fen_before,
+                                    "fen_after": fen_after,
+                                    "classification": classification,
+                                    "eval_before_cp": eval_user_cp,
+                                    "eval_after_cp": eval_after_user,
+                                    "eval_drop": eval_diff,
+                                    "wp_drop": round(wp_drop, 3),
+                                }
+                            )
+
+                # 5. Advantage turning point tracking
+                if had_winning_advantage and wp_drop > max_lead_drop and wp_drop > 0.05:
+                    max_lead_drop = wp_drop
+                    lead_collapse_move = {
+                        "ply": ply,
+                        "move_number": m.get("move_number", (ply + 1) // 2),
+                        "san": san,
+                        "uci": uci,
+                        "fen_before": fen_before,
+                        "fen_after": fen_after,
+                        "classification": classification,
+                        "eval_before_cp": eval_user_cp,
+                        "eval_after_cp": eval_after_user,
+                        "eval_drop": eval_diff,
+                        "wp_drop": round(wp_drop, 3),
+                    }
+
+                wp_gain = player_wp_after - player_wp_before
+                if had_losing_position and wp_gain > max_comeback_gain and wp_gain > 0.05:
+                    max_comeback_gain = wp_gain
+                    comeback_turn_move = {
+                        "ply": ply,
+                        "move_number": m.get("move_number", (ply + 1) // 2),
+                        "san": san,
+                        "uci": uci,
+                        "fen_before": fen_before,
+                        "fen_after": fen_after,
+                        "classification": classification,
+                        "eval_before_cp": eval_user_cp,
+                        "eval_after_cp": eval_after_user,
+                        "eval_gain": -eval_diff if eval_diff is not None else None,
+                        "wp_gain": round(wp_gain, 3),
+                    }
 
             except Exception:
                 pass
@@ -666,6 +790,12 @@ def analyze_game_tactics(
         "brilliancies": brilliancies,
         "book_exit_ply": book_exit_ply,
         "tactical_themes": tactical_theme_counts,
+        "hung_pieces_details": hung_pieces_details,
+        "opp_captured_details": opp_captured_details,
+        "tactical_motifs_details": tactical_motifs_details,
+        "blunders_details": blunders_details,
+        "lead_collapse_move": lead_collapse_move,
+        "comeback_turn_move": comeback_turn_move,
         "clock_metrics": {
             "total_timed_moves": total_timed_moves,
             "total_time_spent": total_time_spent,

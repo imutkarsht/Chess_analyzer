@@ -7,7 +7,7 @@ Structured dual-pillar layout with zero duplication and zero cryptic fractions.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -28,6 +28,8 @@ class HangingPiecesCard(MetricCard):
     - Left Pillar: Defensive Leaks (Pieces dropped by user, blunders caused, worst piece blindspots).
     - Right Pillar: Tactical Vigilance (Capitalization rate on opponent free pieces, integrated progress bar).
     """
+
+    drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
 
     PIECE_CONFIG: dict[str, tuple[str, str]] = {
         "pawn": ("fa5s.chess-pawn", "Pawn"),
@@ -154,6 +156,11 @@ class HangingPiecesCard(MetricCard):
 
         # Hero Stat: Total Dropped
         lbl_hung_val = QLabel(f"{total_hung} Dropped")
+        lbl_hung_val.setCursor(Qt.CursorShape.PointingHandCursor)
+        lbl_hung_val.setToolTip("Click to inspect all dropped piece positions")
+        lbl_hung_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
+            "hung_pieces", "all"
+        )
         lbl_hung_val.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 22px;
@@ -210,7 +217,24 @@ class HangingPiecesCard(MetricCard):
             h_cnt = by_piece.get(p_key, 0)
             h_share = (h_cnt / total_hung * 100) if total_hung > 0 else 0.0
 
-            p_row = QHBoxLayout()
+            row_frame = QFrame()
+            row_frame.setCursor(Qt.CursorShape.PointingHandCursor)
+            row_frame.setToolTip(f"Click to inspect {h_cnt} dropped {p_name} positions")
+            row_frame.setStyleSheet(f"""
+                QFrame {{
+                    background: transparent;
+                    border-radius: 4px;
+                }}
+                QFrame:hover {{
+                    background-color: {Styles.COLOR_SURFACE};
+                }}
+            """)
+            row_frame.mousePressEvent = lambda e, k=p_key: self.drill_down_requested.emit(
+                "hung_pieces", k
+            )
+
+            p_row = QHBoxLayout(row_frame)
+            p_row.setContentsMargins(4, 2, 4, 2)
             p_row.setSpacing(6)
 
             try:
@@ -268,7 +292,7 @@ class HangingPiecesCard(MetricCard):
             """)
             p_row.addWidget(cnt_lbl)
 
-            piece_list_l.addLayout(p_row)
+            piece_list_l.addWidget(row_frame)
 
         l_layout.addLayout(piece_list_l)
         pillars_row.addWidget(leak_pillar)
@@ -325,6 +349,11 @@ class HangingPiecesCard(MetricCard):
         )
 
         lbl_vig_val = QLabel(f"{cap_rate:.0f}% Capitalized" if total_opp_hanging > 0 else "N/A")
+        lbl_vig_val.setCursor(Qt.CursorShape.PointingHandCursor)
+        lbl_vig_val.setToolTip("Click to inspect all opponent hanging pieces punished")
+        lbl_vig_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
+            "opp_captured", "all"
+        )
         lbl_vig_val.setStyleSheet(f"""
             color: {bar_pct_color if total_opp_hanging > 0 else Styles.COLOR_TEXT_PRIMARY};
             font-size: 22px;
@@ -399,7 +428,24 @@ class HangingPiecesCard(MetricCard):
             c_cnt = captured_by_piece.get(p_key, 0)
             c_share = (c_cnt / opp_captured * 100) if opp_captured > 0 else 0.0
 
-            p_row = QHBoxLayout()
+            row_frame = QFrame()
+            row_frame.setCursor(Qt.CursorShape.PointingHandCursor)
+            row_frame.setToolTip(f"Click to inspect {c_cnt} punished opponent {p_name} positions")
+            row_frame.setStyleSheet(f"""
+                QFrame {{
+                    background: transparent;
+                    border-radius: 4px;
+                }}
+                QFrame:hover {{
+                    background-color: {Styles.COLOR_SURFACE};
+                }}
+            """)
+            row_frame.mousePressEvent = lambda e, k=p_key: self.drill_down_requested.emit(
+                "opp_captured", k
+            )
+
+            p_row = QHBoxLayout(row_frame)
+            p_row.setContentsMargins(4, 2, 4, 2)
             p_row.setSpacing(6)
 
             try:
@@ -457,7 +503,7 @@ class HangingPiecesCard(MetricCard):
             """)
             p_row.addWidget(cnt_lbl)
 
-            piece_list_v.addLayout(p_row)
+            piece_list_v.addWidget(row_frame)
 
         v_layout.addLayout(piece_list_v)
         pillars_row.addWidget(vig_pillar)
