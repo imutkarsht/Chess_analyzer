@@ -21,12 +21,17 @@ from src.utils.logger import logger
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
 
+
 class HistoryView(QWidget):
-    game_selected = pyqtSignal(object) # Emits GameAnalysis object
+    game_selected = pyqtSignal(object)  # Emits GameAnalysis object
+    game_deleted = pyqtSignal(str)
+    games_imported = pyqtSignal(int)
+    history_cleared = pyqtSignal()
 
     def __init__(self, config_manager=None):
         super().__init__()
@@ -48,7 +53,11 @@ class HistoryView(QWidget):
 
         # Title
         self.header_lbl = QLabel("Game History")
-        self.header_lbl.setStyleSheet(Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        self.header_lbl.setStyleSheet(
+            Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         header_layout.addWidget(self.header_lbl)
 
         header_layout.addStretch()
@@ -60,10 +69,14 @@ class HistoryView(QWidget):
         self.btn_export = self._create_icon_button("Export", "fa5s.file-export", self.export_games)
         header_layout.addWidget(self.btn_export)
 
-        self.btn_clear = self._create_icon_button("Clear", "fa5s.trash-alt", self.clear_history, danger=True)
+        self.btn_clear = self._create_icon_button(
+            "Clear", "fa5s.trash-alt", self.clear_history, danger=True
+        )
         header_layout.addWidget(self.btn_clear)
 
-        self.btn_refresh = create_button("Refresh", style="secondary", on_click=self.load_history, icon_name="fa5s.sync-alt")
+        self.btn_refresh = create_button(
+            "Refresh", style="secondary", on_click=self.load_history, icon_name="fa5s.sync-alt"
+        )
         header_layout.addWidget(self.btn_refresh)
 
         self.layout.addWidget(self.header_bar)
@@ -91,36 +104,40 @@ class HistoryView(QWidget):
 
         # Result Filter
         self.result_label = QLabel("Result:")
-        self.result_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        self.result_label.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+        )
         filter_layout.addWidget(self.result_label)
 
         self.result_filter = create_combobox(
-            items=["All", "Wins", "Losses", "Draws"],
-            on_change=self.apply_filters
+            items=["All", "Wins", "Losses", "Draws"], on_change=self.apply_filters
         )
         self.result_filter.setFixedWidth(100)
         filter_layout.addWidget(self.result_filter)
 
         # Type / Speed Category Filter
         self.type_label = QLabel("Type:")
-        self.type_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        self.type_label.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+        )
         filter_layout.addWidget(self.type_label)
 
         self.type_filter = create_combobox(
             items=["All", "Rapid", "Blitz", "Bullet", "Classical", "UltraBullet"],
-            on_change=self.apply_filters
+            on_change=self.apply_filters,
         )
         self.type_filter.setFixedWidth(110)
         filter_layout.addWidget(self.type_filter)
 
         # Source Filter
         self.source_label = QLabel("Source:")
-        self.source_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        self.source_label.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+        )
         filter_layout.addWidget(self.source_label)
 
         self.source_filter = create_combobox(
-            items=["All", "Chess.com", "Lichess", "File"],
-            on_change=self.apply_filters
+            items=["All", "Chess.com", "Lichess", "File"], on_change=self.apply_filters
         )
         self.source_filter.setFixedWidth(110)
         filter_layout.addWidget(self.source_filter)
@@ -129,12 +146,14 @@ class HistoryView(QWidget):
 
         # Sort Dropdown
         self.sort_label = QLabel("Sort:")
-        self.sort_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
+        self.sort_label.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+        )
         filter_layout.addWidget(self.sort_label)
 
         self.sort_dropdown = create_combobox(
             items=["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
-            on_change=self.apply_filters
+            on_change=self.apply_filters,
         )
         self.sort_dropdown.setFixedWidth(135)
         filter_layout.addWidget(self.sort_dropdown)
@@ -144,6 +163,7 @@ class HistoryView(QWidget):
         # Game List
         self.game_list = GameListWidget()
         self.game_list.game_selected.connect(self.on_game_selected)
+        self.game_list.game_deleted.connect(self.game_deleted)
         content_layout.addWidget(self.game_list)
 
         self.layout.addWidget(self.content_widget)
@@ -182,13 +202,15 @@ class HistoryView(QWidget):
                     opening=g_dict.get("opening"),
                     termination=g_dict.get("termination"),
                     source=g_dict.get("source", "file"),
-                    chess960=bool(g_dict.get("chess960", 0))
+                    chess960=bool(g_dict.get("chess960", 0)),
                 )
 
                 from src.backend.storage.pgn_parser import PGNParser
                 from src.backend.storage.termination_detector import TerminationDetector
 
-                metadata.speed_category = PGNParser._detect_speed_category(metadata.time_control, metadata.event)
+                metadata.speed_category = PGNParser._detect_speed_category(
+                    metadata.time_control, metadata.event
+                )
 
                 summary = {}
                 if g_dict["summary_json"]:
@@ -234,10 +256,15 @@ class HistoryView(QWidget):
                         logger.error(f"Failed to parse moves_json for game {g_dict['id']}: {e}")
 
                 term_mode, term_desc = TerminationDetector.detect_termination(
-                    headers={"Result": metadata.result, "White": metadata.white, "Black": metadata.black, "Termination": metadata.termination or ""},
+                    headers={
+                        "Result": metadata.result,
+                        "White": metadata.white,
+                        "Black": metadata.black,
+                        "Termination": metadata.termination or "",
+                    },
                     moves=moves,
                     starting_fen=metadata.starting_fen,
-                    chess960=metadata.chess960
+                    chess960=metadata.chess960,
                 )
                 metadata.termination_mode = term_mode
                 metadata.termination_description = term_desc
@@ -247,7 +274,7 @@ class HistoryView(QWidget):
                     metadata=metadata,
                     pgn_content=g_dict["pgn"],
                     summary=summary,
-                    moves=moves
+                    moves=moves,
                 )
                 self.games.append(game)
 
@@ -296,10 +323,13 @@ class HistoryView(QWidget):
     def _filter_by_type(self, games, type_filter):
         """Filter games by speed category / game type."""
         from src.backend.storage.pgn_parser import PGNParser
+
         target = type_filter.lower()
         filtered = []
         for g in games:
-            cat = getattr(g.metadata, 'speed_category', None) or PGNParser._detect_speed_category(g.metadata.time_control, g.metadata.event)
+            cat = getattr(g.metadata, "speed_category", None) or PGNParser._detect_speed_category(
+                g.metadata.time_control, g.metadata.event
+            )
             if cat.lower() == target:
                 filtered.append(g)
         return filtered
@@ -318,12 +348,14 @@ class HistoryView(QWidget):
             eco = (game.metadata.eco or "").lower()
 
             # Check if query matches any field
-            if (query in white or
-                query in black or
-                query in opening or
-                query in event or
-                query in date or
-                query in eco):
+            if (
+                query in white
+                or query in black
+                or query in opening
+                or query in event
+                or query in date
+                or query in eco
+            ):
                 filtered.append(game)
 
         return filtered
@@ -355,14 +387,10 @@ class HistoryView(QWidget):
 
     def _filter_by_source(self, games, source_filter):
         """Filter games by source platform."""
-        source_map = {
-            "Chess.com": "chesscom",
-            "Lichess": "lichess",
-            "File": "file"
-        }
+        source_map = {"Chess.com": "chesscom", "Lichess": "lichess", "File": "file"}
         target_source = source_map.get(source_filter, "")
 
-        return [g for g in games if getattr(g.metadata, 'source', 'file') == target_source]
+        return [g for g in games if getattr(g.metadata, "source", "file") == target_source]
 
     def _sort_games(self, games, sort_option):
         """Sort games based on selected option."""
@@ -374,17 +402,19 @@ class HistoryView(QWidget):
         elif sort_option == "Most Moves" or sort_option == "Fewest Moves":
             # Calculate move count for sorting
             def get_move_count(game):
-                if hasattr(game, 'moves') and game.moves:
+                if hasattr(game, "moves") and game.moves:
                     return (len(game.moves) + 1) // 2
-                elif hasattr(game, 'pgn_content') and game.pgn_content:
-                    moves = re.findall(r'(?:^|\s)(\d{1,3})\.\s+[A-Za-z]', game.pgn_content, re.MULTILINE)
+                elif hasattr(game, "pgn_content") and game.pgn_content:
+                    moves = re.findall(
+                        r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]", game.pgn_content, re.MULTILINE
+                    )
                     if moves:
                         move_nums = [int(m) for m in moves if int(m) <= 500]
                         if move_nums:
                             return max(move_nums)
                 return 0
 
-            reverse = (sort_option == "Most Moves")
+            reverse = sort_option == "Most Moves"
             return sorted(games, key=get_move_count, reverse=reverse)
 
         return games
@@ -394,12 +424,16 @@ class HistoryView(QWidget):
 
     def clear_history(self):
         from src.gui.utils.gui_utils import confirm_dialog
-        if confirm_dialog(self,
-                          "Clear History",
-                          "Are you sure you want to clear all game history? This cannot be undone.",
-                          confirm_label="Clear All"):
+
+        if confirm_dialog(
+            self,
+            "Clear History",
+            "Are you sure you want to clear all game history? This cannot be undone.",
+            confirm_label="Clear All",
+        ):
             self.history_manager.clear_history()
             logger.info("Cleared all game history via UI")
+            self.history_cleared.emit()
             self.load_history()
 
     def export_games(self):
@@ -410,7 +444,9 @@ class HistoryView(QWidget):
 
             from src.gui.components.toast import Toast
 
-            file_name, _ = QFileDialog.getSaveFileName(self, "Export Games", "games.csv", "CSV Files (*.csv)")
+            file_name, _ = QFileDialog.getSaveFileName(
+                self, "Export Games", "games.csv", "CSV Files (*.csv)"
+            )
             if not file_name:
                 return
 
@@ -421,10 +457,29 @@ class HistoryView(QWidget):
 
             # Determine fields. We'll use database keys as headers.
             # Sample first game to get keys, but ensure consistent order
-            fieldnames = ["id", "white", "black", "result", "date", "event", "white_elo", "black_elo",
-                          "time_control", "eco", "termination", "opening", "source", "pgn", "summary_json", "moves_json", "timestamp", "starting_fen", "chess960"]
+            fieldnames = [
+                "id",
+                "white",
+                "black",
+                "result",
+                "date",
+                "event",
+                "white_elo",
+                "black_elo",
+                "time_control",
+                "eco",
+                "termination",
+                "opening",
+                "source",
+                "pgn",
+                "summary_json",
+                "moves_json",
+                "timestamp",
+                "starting_fen",
+                "chess960",
+            ]
 
-            with open(file_name, mode='w', newline='', encoding='utf-8') as csvfile:
+            with open(file_name, mode="w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
 
@@ -438,6 +493,7 @@ class HistoryView(QWidget):
         except Exception as e:
             logger.error(f"Export failed: {e}")
             from src.gui.components.toast import Toast
+
             Toast.show_message(self.window(), f"Export failed: {e}", "error")
 
     def import_games(self):
@@ -449,14 +505,23 @@ class HistoryView(QWidget):
             from src.backend.storage.pgn_parser import PGNParser
             from src.gui.components.toast import Toast
 
-            file_name, _ = QFileDialog.getOpenFileName(self, "Import Games", "", "CSV Files (*.csv)")
+            file_name, _ = QFileDialog.getOpenFileName(
+                self, "Import Games", "", "CSV Files (*.csv)"
+            )
             if not file_name:
                 return
 
             imported_count = 0
             skipped_count = 0
 
-            with open(file_name, newline='', encoding='utf-8') as csvfile:
+            # Increase CSV field size limit to allow large moves_json payloads
+            max_limit = 2147483647
+            try:
+                csv.field_size_limit(max_limit)
+            except OverflowError:
+                csv.field_size_limit(50 * 1024 * 1024)
+
+            with open(file_name, newline="", encoding="utf-8") as csvfile:
                 reader = csv.DictReader(csvfile)
 
                 for row in reader:
@@ -481,33 +546,37 @@ class HistoryView(QWidget):
                             try:
                                 moves_data = json.loads(row.get("moves_json"))
                                 for md in moves_data:
-                                    moves.append(MoveAnalysis(
-                                        move_number=md.get("move_number", 0),
-                                        ply=md.get("ply", 0),
-                                        san=md.get("san", ""),
-                                        uci=md.get("uci", ""),
-                                        fen_before=md.get("fen_before", ""),
-                                        eval_before_cp=md.get("eval_before_cp"),
-                                        eval_before_mate=md.get("eval_before_mate"),
-                                        best_move=md.get("best_move"),
-                                        best_eval_cp=md.get("best_eval_cp"),
-                                        best_eval_mate=md.get("best_eval_mate"),
-                                        pv=md.get("pv", []),
-                                        eval_after_cp=md.get("eval_after_cp"),
-                                        eval_after_mate=md.get("eval_after_mate"),
-                                        win_chance_before=md.get("win_chance_before", 0.5),
-                                        win_chance_after=md.get("win_chance_after", 0.5),
-                                        classification=md.get("classification", ""),
-                                        explanation=md.get("explanation", ""),
-                                        multi_pvs=md.get("multi_pvs", []),
-                                        is_book_move=md.get("is_book_move", False),
-                                        eco=md.get("eco", ""),
-                                        opening_name=md.get("opening_name", ""),
-                                        candidate_continuations=md.get("candidate_continuations", []),
-                                        time_left=md.get("time_left"),
-                                        time_spent=md.get("time_spent"),
-                                        raw_clk=md.get("raw_clk"),
-                                    ))
+                                    moves.append(
+                                        MoveAnalysis(
+                                            move_number=md.get("move_number", 0),
+                                            ply=md.get("ply", 0),
+                                            san=md.get("san", ""),
+                                            uci=md.get("uci", ""),
+                                            fen_before=md.get("fen_before", ""),
+                                            eval_before_cp=md.get("eval_before_cp"),
+                                            eval_before_mate=md.get("eval_before_mate"),
+                                            best_move=md.get("best_move"),
+                                            best_eval_cp=md.get("best_eval_cp"),
+                                            best_eval_mate=md.get("best_eval_mate"),
+                                            pv=md.get("pv", []),
+                                            eval_after_cp=md.get("eval_after_cp"),
+                                            eval_after_mate=md.get("eval_after_mate"),
+                                            win_chance_before=md.get("win_chance_before", 0.5),
+                                            win_chance_after=md.get("win_chance_after", 0.5),
+                                            classification=md.get("classification", ""),
+                                            explanation=md.get("explanation", ""),
+                                            multi_pvs=md.get("multi_pvs", []),
+                                            is_book_move=md.get("is_book_move", False),
+                                            eco=md.get("eco", ""),
+                                            opening_name=md.get("opening_name", ""),
+                                            candidate_continuations=md.get(
+                                                "candidate_continuations", []
+                                            ),
+                                            time_left=md.get("time_left"),
+                                            time_spent=md.get("time_spent"),
+                                            raw_clk=md.get("raw_clk"),
+                                        )
+                                    )
                             except Exception:
                                 pass
 
@@ -532,7 +601,7 @@ class HistoryView(QWidget):
                             opening=row.get("opening"),
                             starting_fen=row.get("starting_fen"),
                             source=row.get("source", "file"),
-                            chess960=row.get("chess960") == "1"
+                            chess960=row.get("chess960") == "1",
                         )
 
                         game = GameAnalysis(
@@ -540,7 +609,7 @@ class HistoryView(QWidget):
                             metadata=metadata,
                             moves=moves,
                             pgn_content=pgn_text,
-                            summary=summary
+                            summary=summary,
                         )
 
                         self.history_manager.save_game(game, pgn_text)
@@ -549,49 +618,67 @@ class HistoryView(QWidget):
                     except Exception as row_e:
                         logger.warning(f"Failed to parse row {game_id}: {row_e}")
 
-            logger.info(f"Imported {imported_count} games from {file_name} (skipped: {skipped_count})")
+            logger.info(
+                f"Imported {imported_count} games from {file_name} (skipped: {skipped_count})"
+            )
             self.load_history()
-            Toast.show_message(self.window(), f"Imported: {imported_count}, Skipped: {skipped_count}", "success")
+            if imported_count > 0:
+                self.games_imported.emit(imported_count)
+            Toast.show_message(
+                self.window(), f"Imported: {imported_count}, Skipped: {skipped_count}", "success"
+            )
 
         except Exception as e:
             logger.error(f"Import failed: {e}")
             from src.gui.components.toast import Toast
+
             Toast.show_message(self.window(), f"Import failed: {e}", "error")
 
     def refresh_styles(self):
         """Re-applies styles to game history view components."""
-        if hasattr(self, 'header_bar'):
+        if hasattr(self, "header_bar"):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-        if hasattr(self, 'header_lbl'):
-            self.header_lbl.setStyleSheet(Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
-        if hasattr(self, 'content_widget'):
+        if hasattr(self, "header_lbl"):
+            self.header_lbl.setStyleSheet(
+                Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
+        if hasattr(self, "content_widget"):
             self.content_widget.setStyleSheet(Styles.get_background_style())
-        if hasattr(self, 'search_input'):
+        if hasattr(self, "search_input"):
             self.search_input.setStyleSheet(Styles.get_filter_input_style())
-        if hasattr(self, 'result_label'):
-            self.result_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
-        if hasattr(self, 'type_label'):
-            self.type_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
-        if hasattr(self, 'source_label'):
-            self.source_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
-        if hasattr(self, 'sort_label'):
-            self.sort_label.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600))
-        if hasattr(self, 'btn_import'):
+        if hasattr(self, "result_label"):
+            self.result_label.setStyleSheet(
+                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+            )
+        if hasattr(self, "type_label"):
+            self.type_label.setStyleSheet(
+                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+            )
+        if hasattr(self, "source_label"):
+            self.source_label.setStyleSheet(
+                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+            )
+        if hasattr(self, "sort_label"):
+            self.sort_label.setStyleSheet(
+                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+            )
+        if hasattr(self, "btn_import"):
             self.btn_import.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'btn_export'):
+        if hasattr(self, "btn_export"):
             self.btn_export.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'btn_clear'):
+        if hasattr(self, "btn_clear"):
             self.btn_clear.setStyleSheet(Styles.get_control_button_style(danger=True))
-        if hasattr(self, 'btn_refresh'):
+        if hasattr(self, "btn_refresh"):
             self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'result_filter'):
+        if hasattr(self, "result_filter"):
             self.result_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'type_filter'):
+        if hasattr(self, "type_filter"):
             self.type_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'source_filter'):
+        if hasattr(self, "source_filter"):
             self.source_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'sort_dropdown'):
+        if hasattr(self, "sort_dropdown"):
             self.sort_dropdown.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'game_list'):
+        if hasattr(self, "game_list"):
             self.game_list.refresh_styles()
-

@@ -1,6 +1,7 @@
 """
 Game List Widget - Paginated list container for chess games.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
@@ -18,14 +19,17 @@ from .game_list_item_widget import GameListItemWidget
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
+
 
 class GameListWidget(QWidget):
     """Container widget for the game list with pagination (10 games per page)."""
 
     game_selected = pyqtSignal(object)
+    game_deleted = pyqtSignal(str)
     _PAGE_SIZE = 10
 
     def __init__(self):
@@ -36,6 +40,7 @@ class GameListWidget(QWidget):
         self.view_mode: str = "compact"  # "compact" or "detailed"
 
         from src.gui.theme import ThemeManager
+
         ThemeManager.instance().theme_changed.connect(lambda mode: self.refresh_styles())
         ThemeManager.instance().accent_changed.connect(lambda acc: self.refresh_styles())
 
@@ -52,7 +57,11 @@ class GameListWidget(QWidget):
         header_bar_layout.setContentsMargins(16, 0, 16, 0)
 
         self.title_lbl = QLabel("Games")
-        self.title_lbl.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        self.title_lbl.setStyleSheet(
+            Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         header_bar_layout.addWidget(self.title_lbl)
 
         header_bar_layout.addStretch()
@@ -109,7 +118,7 @@ class GameListWidget(QWidget):
             self._render_page()
 
     def _update_view_toggle_styles(self):
-        is_detailed = (self.view_mode == "detailed")
+        is_detailed = self.view_mode == "detailed"
         if HAS_QTAWESOME:
             detailed_icon_color = "#FFFFFF" if is_detailed else Styles.COLOR_TEXT_PRIMARY
             compact_icon_color = "#FFFFFF" if not is_detailed else Styles.COLOR_TEXT_PRIMARY
@@ -148,6 +157,7 @@ class GameListWidget(QWidget):
         if not self._all_games:
             return 1
         import math
+
         return math.ceil(len(self._all_games) / self.page_size)
 
     def _render_page(self):
@@ -193,7 +203,11 @@ class GameListWidget(QWidget):
         counter_text = "No games" if total_games == 0 else f"{start}–{end} of {total_games}"
 
         counter = QLabel(counter_text)
-        counter.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY) + " " + Styles.get_transparent_label_style())
+        counter.setStyleSheet(
+            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         self._page_bar_layout.addWidget(counter)
         self._page_bar_layout.addStretch()
 
@@ -232,16 +246,19 @@ class GameListWidget(QWidget):
         from src.backend.storage.game_history import GameHistoryManager
         from src.gui.utils.gui_utils import confirm_dialog
 
-        if not confirm_dialog(self,
-                              "Delete Game",
-                              "Remove this game from history? This cannot be undone.",
-                              confirm_label="Delete"):
+        if not confirm_dialog(
+            self,
+            "Delete Game",
+            "Remove this game from history? This cannot be undone.",
+            confirm_label="Delete",
+        ):
             return
 
         try:
             GameHistoryManager().delete_game(game_id)
         except Exception as e:
             from ...utils.logger import logger
+
             logger.error(f"Failed to delete game {game_id}: {e}")
             return
 
@@ -254,6 +271,7 @@ class GameListWidget(QWidget):
             self._current_page = max_page
 
         self._render_page()
+        self.game_deleted.emit(game_id)
 
     def _go_prev(self):
         if self._current_page > 0:
@@ -288,7 +306,7 @@ class GameListWidget(QWidget):
         return btn
 
     def _make_page_num_btn(self, page: int) -> QPushButton:
-        is_current = (page == self._current_page)
+        is_current = page == self._current_page
         btn = QPushButton(str(page + 1))
         btn.setFixedSize(30, 30)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -300,16 +318,24 @@ class GameListWidget(QWidget):
         lbl = QLabel("…")
         lbl.setFixedSize(20, 30)
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style())
+        lbl.setStyleSheet(
+            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         return lbl
 
     # ── Style refresh ─────────────────────────────────────────────────────────
 
     def _apply_title_style(self):
-        if hasattr(self, 'header_bar_widget') and self.header_bar_widget:
+        if hasattr(self, "header_bar_widget") and self.header_bar_widget:
             self.header_bar_widget.setStyleSheet(Styles.get_header_bar_style())
-        if hasattr(self, 'title_lbl') and self.title_lbl:
-            self.title_lbl.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        if hasattr(self, "title_lbl") and self.title_lbl:
+            self.title_lbl.setStyleSheet(
+                Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
 
     def _apply_list_style(self):
         self.list_widget.setStyleSheet(Styles.get_list_widget_style())
