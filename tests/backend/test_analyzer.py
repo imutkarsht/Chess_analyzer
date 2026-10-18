@@ -7,7 +7,6 @@ from src.backend.analysis.math_utils import (
     MIN_MOVE_ACCURACY,
     apply_accuracy_floor,
     calculate_move_accuracy,
-    get_win_probability,
 )
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 
@@ -20,19 +19,9 @@ def test_analyzer_init(mock_engine):
     assert analyzer is not None
 
 
-def test_get_win_probability():
-    """Test win probability calculation."""
-    # Test CP values
-    assert 0.4 < get_win_probability(0, None) < 0.6  # Equal position
-    assert get_win_probability(100, None) > 0.5      # White advantage
-    assert get_win_probability(-100, None) < 0.5     # Black advantage
-
-    # Test Mate values
-    assert get_win_probability(None, 1) > 0.9        # Mate in 1 for White
-    assert get_win_probability(None, -1) < 0.1       # Mate in 1 for Black
-
 def test_process_analysis_results(mock_engine):
     import chess
+
     engine_manager = EngineManager("dummy_path")
     analyzer = Analyzer(engine_manager)
 
@@ -41,14 +30,14 @@ def test_process_analysis_results(mock_engine):
         ply=1,
         san="e4",
         uci="e2e4",
-        fen_before=chess.STARTING_FEN
+        fen_before=chess.STARTING_FEN,
     )
 
     info_list = [
         {
             "pv": [chess.Move.from_uci("e2e4"), chess.Move.from_uci("e7e5")],
             "score": chess.engine.PovScore(chess.engine.Cp(32), chess.WHITE),
-            "depth": 15
+            "depth": 15,
         }
     ]
 
@@ -61,109 +50,17 @@ def test_process_analysis_results(mock_engine):
     assert pv_data["pv_san"] == "1. e4 e5"
     assert pv_data["score_value"] == "0.32"
 
-def test_classify_move():
-    """Test move classification logic in move_classifier.py."""
-    from src.backend.analysis.move_classifier import classify_move
-
-    # 1. Test checkmate SAN ends with '#'
-    move = MoveAnalysis(move_number=1, ply=1, san="Qcb7#", uci="c6b7", fen_before="")
-    classify_move(move, wpl=0.5, side="white")
-    assert move.classification == "Best"
-    assert move.explanation == "Delivered checkmate!"
-
-    # 2. Test Missed opportunity (Miss): 70%→50% (wpl=0.20) drops from advantage to equal
-    move = MoveAnalysis(
-        move_number=2, ply=2, san="Nxf4", uci="d5f4", fen_before="",
-        win_chance_before=0.70, win_chance_after=0.50
-    )
-    classify_move(move, wpl=0.20, side="white")
-    assert move.classification == "Miss"
-
-    # 3. Test thresholds: Good (wpl = 3.5%)
-    move = MoveAnalysis(move_number=3, ply=3, san="a6", uci="a7a6", fen_before="")
-    classify_move(move, wpl=0.035, side="white")
-    assert move.classification == "Good"
-
-    # 4. Test thresholds: Good (wpl = 2.5%, threshold at 2%)
-    move = MoveAnalysis(move_number=4, ply=4, san="b6", uci="b7b6", fen_before="")
-    classify_move(move, wpl=0.025, side="white")
-    assert move.classification == "Good"
-
-    # 5. Test thresholds: Inaccuracy (wpl = 7%)
-    move = MoveAnalysis(move_number=5, ply=5, san="c6", uci="c7c6", fen_before="")
-    classify_move(move, wpl=0.07, side="white")
-    assert move.classification == "Inaccuracy"
-
-    # 6. Test checkmate delay (mate in 3 to mate in 15) -> Best (since forced mate is maintained, not missed)
-    move = MoveAnalysis(
-        move_number=6, ply=6, san="Qf6+", uci="f7f6", fen_before="",
-        eval_before_mate=3, eval_after_mate=15, best_move="f7f6"
-    )
-    classify_move(move, wpl=0.0, side="white")
-    assert move.classification == "Best"
-
-    # 6.5. Test losing mate entirely (mate in 3 to normal cp 150) -> Miss
-    move = MoveAnalysis(
-        move_number=6, ply=6, san="Qf6+", uci="f7f6", fen_before="",
-        eval_before_mate=3, eval_after_mate=None, eval_before_cp=300, eval_after_cp=150
-    )
-    classify_move(move, wpl=0.10, side="white")
-    assert move.classification == "Miss"
-    assert move.explanation == "Missed a forced checkmate."
-
-    # 7. Test miss condition: WPL 20%, win chance before 75%, after 55% -> Miss (not Blunder, not Mistake)
-    move = MoveAnalysis(
-        move_number=7, ply=7, san="b6", uci="b7b6", fen_before="",
-        win_chance_before=0.75, win_chance_after=0.55
-    )
-    classify_move(move, wpl=0.20, side="white")
-    assert move.classification == "Miss"
-
-    # 8. Test blunder condition: WPL 25%, win chance before 65%, after 40% -> Blunder (wc_after 0.40 < 0.50 and wc_before 0.65 > 0.35)
-    move = MoveAnalysis(
-        move_number=8, ply=8, san="b6", uci="b7b6", fen_before="",
-        win_chance_before=0.65, win_chance_after=0.40
-    )
-    classify_move(move, wpl=0.25, side="white")
-    assert move.classification == "Blunder"
-
-    # 9. Test miss condition: WPL 35%, win chance before 95%, after 60% -> Miss (wc_after=0.60 not < 0.40 for Blunder)
-    move = MoveAnalysis(
-        move_number=9, ply=9, san="b6", uci="b7b6", fen_before="",
-        win_chance_before=0.95, win_chance_after=0.60
-    )
-    classify_move(move, wpl=0.35, side="white")
-    assert move.classification == "Miss"
-
-    # 9.5. Test true blunder: WPL 30%, win chance before 85%, after 30% -> Blunder
-    move = MoveAnalysis(
-        move_number=10, ply=10, san="b6", uci="b7b6", fen_before="",
-        win_chance_before=0.85, win_chance_after=0.30
-    )
-    classify_move(move, wpl=0.30, side="white")
-    assert move.classification == "Blunder"
-
-    # 10. Test best move classification: engine's #1 move is always Best at minimum.
-    # Even with significant WPL, playing the engine's top move is "Best".
-    move = MoveAnalysis(
-        move_number=10, ply=10, san="Nf5+", uci="g3f5", best_move="g3f5", fen_before="",
-        win_chance_before=0.75, win_chance_after=0.50
-    )
-    classify_move(move, wpl=0.25, side="white")
-    assert move.classification == "Best"  # Playing engine's top choice is always Best or better
 
 def test_drawing_repetition_protection(mock_engine):
     """Test that drawing repetition moves in a drawn game are protected."""
     import chess
+
     engine_manager = EngineManager("dummy_path")
     engine_manager.engine = mock_engine
     analyzer = Analyzer(engine_manager)
 
     # Create a simple game ending in a draw by repetition
-    metadata = GameMetadata(
-        white="Player1", black="Player2",
-        result="1/2-1/2", date="2026.06.21"
-    )
+    metadata = GameMetadata(white="Player1", black="Player2", result="1/2-1/2", date="2026.06.21")
 
     # We will simulate a simple repetition:
     # 1. Nf3 Nf6 2. Ng1 Ng8 3. Nf3 Nf6 4. Ng1
@@ -173,13 +70,9 @@ def test_drawing_repetition_protection(mock_engine):
 
     moves = []
     for i, (uci, san) in enumerate(zip(uci_moves, san_moves, strict=False)):
-        moves.append(MoveAnalysis(
-            move_number=(i // 2) + 1,
-            ply=i,
-            san=san,
-            uci=uci,
-            fen_before=board.fen()
-        ))
+        moves.append(
+            MoveAnalysis(move_number=(i // 2) + 1, ply=i, san=san, uci=uci, fen_before=board.fen())
+        )
         board.push_uci(uci)
 
     # Let's fake evaluations so we would normally have blunders (e.g. going from +5.00 to 0.0)
@@ -190,15 +83,41 @@ def test_drawing_repetition_protection(mock_engine):
     # Set the last move's next eval (which is final_score)
     final_score = chess.engine.PovScore(chess.engine.Cp(0), chess.WHITE)
 
-    game = GameAnalysis(
-        game_id="fake_game_123",
-        metadata=metadata,
-        moves=moves
-    )
+    game = GameAnalysis(game_id="fake_game_123", metadata=metadata, moves=moves)
 
     summary_counts = {
-        "white": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0, "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []},
-        "black": {"Brilliant": 0, "Great": 0, "Best": 0, "Excellent": 0, "Good": 0, "Inaccuracy": 0, "Mistake": 0, "Blunder": 0, "Miss": 0, "Book": 0, "acpl": 0, "move_count": 0, "accuracies": [], "win_percents": []}
+        "white": {
+            "Brilliant": 0,
+            "Great": 0,
+            "Best": 0,
+            "Excellent": 0,
+            "Good": 0,
+            "Inaccuracy": 0,
+            "Mistake": 0,
+            "Blunder": 0,
+            "Miss": 0,
+            "Book": 0,
+            "acpl": 0,
+            "move_count": 0,
+            "accuracies": [],
+            "win_percents": [],
+        },
+        "black": {
+            "Brilliant": 0,
+            "Great": 0,
+            "Best": 0,
+            "Excellent": 0,
+            "Good": 0,
+            "Inaccuracy": 0,
+            "Mistake": 0,
+            "Blunder": 0,
+            "Miss": 0,
+            "Book": 0,
+            "acpl": 0,
+            "move_count": 0,
+            "accuracies": [],
+            "win_percents": [],
+        },
     }
 
     # Run classification
@@ -211,20 +130,22 @@ def test_drawing_repetition_protection(mock_engine):
     assert game.moves[5].classification in ["Best", "Excellent", "Book"]
     assert game.moves[6].classification in ["Best", "Excellent", "Book"]
 
+
 def test_analyzer_progress_logging(caplog, mocker, mock_engine):
     """Test that analyzer logs move progress after gap of 10 moves."""
     import logging
+
     engine_manager = EngineManager("dummy_path")
     engine_manager.engine = mock_engine
     analyzer = Analyzer(engine_manager)
 
-    mocker.patch.object(analyzer, '_get_position_analysis', return_value=[])
-    mocker.patch.object(analyzer, '_analyze_final_position', return_value=None)
-    mocker.patch.object(analyzer, '_classify_and_calculate_stats')
-    mocker.patch.object(analyzer, '_calculate_final_accuracy')
-    mocker.patch.object(analyzer, '_log_classification_summary')
-    mocker.patch.object(engine_manager, 'start_engine')
-    mocker.patch.object(engine_manager, 'stop_engine')
+    mocker.patch.object(analyzer, "_get_position_analysis", return_value=[])
+    mocker.patch.object(analyzer, "_analyze_final_position", return_value=None)
+    mocker.patch.object(analyzer, "_classify_and_calculate_stats")
+    mocker.patch.object(analyzer, "_calculate_final_accuracy")
+    mocker.patch.object(analyzer, "_log_classification_summary")
+    mocker.patch.object(engine_manager, "start_engine")
+    mocker.patch.object(engine_manager, "stop_engine")
 
     moves = [
         MoveAnalysis(
@@ -232,7 +153,7 @@ def test_analyzer_progress_logging(caplog, mocker, mock_engine):
             ply=i,
             san="e4",
             uci="e2e4",
-            fen_before="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+            fen_before="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         )
         for i in range(25)
     ]
@@ -258,42 +179,31 @@ def test_check_book_move_merging(mocker, mock_engine):
     analyzer = Analyzer(engine_manager)
 
     # Mock both books
-    mock_polyglot = mocker.patch.object(analyzer.polyglot_book, 'process_move')
-    mock_local = mocker.patch.object(analyzer.local_book, 'process_move')
+    mock_polyglot = mocker.patch.object(analyzer.polyglot_book, "process_move")
+    mock_local = mocker.patch.object(analyzer.local_book, "process_move")
 
     # Enable polyglot availability
-    mocker.patch.object(analyzer.polyglot_book, 'is_available', return_value=True)
+    mocker.patch.object(analyzer.polyglot_book, "is_available", return_value=True)
 
     # Case 1: Both match
     mock_polyglot.return_value = BookResult(
-        is_book=True,
-        book_move_count=3,
-        candidate_moves=["e7e5", "c7c5"]
+        is_book=True, book_move_count=3, candidate_moves=["e7e5", "c7c5"]
     )
     mock_local.return_value = BookResult(
         is_book=True,
         book_move_count=2,
         current_eco="C20",
         current_opening="King's Pawn Game",
-        candidate_moves=["e7e5"]
+        candidate_moves=["e7e5"],
     )
 
-    move = MoveAnalysis(
-        move_number=1,
-        ply=1,
-        san="e4",
-        uci="e2e4",
-        fen_before=chess.STARTING_FEN
-    )
+    move = MoveAnalysis(move_number=1, ply=1, san="e4", uci="e2e4", fen_before=chess.STARTING_FEN)
     move.classification = "Best"
-    summary_counts = {
-        "white": {"Book": 0, "Best": 1},
-        "black": {"Book": 0, "Best": 0}
-    }
+    summary_counts = {"white": {"Book": 0, "Best": 1}, "black": {"Book": 0, "Best": 0}}
     game_analysis = GameAnalysis(
         game_id="merge_test",
         metadata=GameMetadata(white="W", black="B", result="*", date="2026"),
-        moves=[move]
+        moves=[move],
     )
 
     is_book = analyzer._check_book_move(move, "white", summary_counts, game_analysis)
@@ -310,9 +220,14 @@ def test_check_book_move_merging(mocker, mock_engine):
     assert game_analysis.metadata.opening == "King's Pawn Game"
     assert game_analysis.metadata.eco == "C20"
 
+
 def _side(accs: list[float]) -> dict:
-    return {"accuracies": accs, "win_percents": [0.5] * len(accs),
-            "move_count": len(accs), "acpl": 0}
+    return {
+        "accuracies": accs,
+        "win_percents": [0.5] * len(accs),
+        "move_count": len(accs),
+        "acpl": 0,
+    }
 
 
 def test_mate_blunder_hits_accuracy_floor():

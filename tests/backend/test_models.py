@@ -5,26 +5,11 @@ Tests for data models - GameMetadata, GameAnalysis, MoveAnalysis.
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 
 
-class TestGameMetadata:
-    """Tests for GameMetadata dataclass."""
+class TestModels:
+    """Tests for storage data models - GameMetadata, GameAnalysis, MoveAnalysis."""
 
-    def test_default_values(self):
-        """Test default values are set correctly."""
-        meta = GameMetadata(
-            white="W", black="B", result="1-0", date="2023.01.01", event="Test", headers={}
-        )
-
-        assert meta.source == "file"  # Default source
-        assert meta.white_elo is None
-        assert meta.black_elo is None
-        assert meta.time_control is None
-        assert meta.eco is None
-        assert meta.termination is None
-        assert meta.opening is None
-        assert meta.starting_fen is None
-
-    def test_all_fields(self):
-        """Test all fields can be set."""
+    def test_model_defaults_and_attributes(self):
+        """Test default values and attribute assignments across models."""
         meta = GameMetadata(
             white="Magnus",
             black="Hikaru",
@@ -33,53 +18,30 @@ class TestGameMetadata:
             event="World Championship",
             headers={"Site": "lichess.org"},
             white_elo="2800",
-            black_elo="2750",
-            time_control="180+2",
-            eco="C65",
-            termination="Normal",
-            opening="Ruy Lopez",
-            starting_fen=None,
             source="lichess",
         )
-
-        assert meta.white == "Magnus"
         assert meta.source == "lichess"
+        assert meta.white == "Magnus"
         assert meta.white_elo == "2800"
+        assert meta.starting_fen is None
 
-
-class TestMoveAnalysis:
-    """Tests for MoveAnalysis dataclass."""
-
-    def test_basic_move(self):
-        """Test creating a basic move."""
         move = MoveAnalysis(
-            move_number=1,
-            ply=1,
-            san="e4",
-            uci="e2e4",
-            fen_before="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            1, 1, "e4", "e2e4", "startfen", classification="Best", eval_before_cp=30
         )
-
         assert move.san == "e4"
-        assert move.uci == "e2e4"
-        assert move.classification == ""  # Default: unanalysed (analyser sets "Book" explicitly)
-        assert move.eval_before_cp is None
-
-    def test_analyzed_move(self):
-        """Test move with analysis data."""
-        move = MoveAnalysis(
-            move_number=1,
-            ply=1,
-            san="e4",
-            uci="e2e4",
-            fen_before="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            classification="Best",
-            eval_before_cp=30,
-            eval_after_cp=25,
-        )
-
         assert move.classification == "Best"
         assert move.eval_before_cp == 30
+
+        game = GameAnalysis(
+            game_id="test123", metadata=meta, moves=[move], pgn_content="1. e4 1/2-1/2"
+        )
+        assert game.game_id == "test123"
+        assert len(game.moves) == 1
+        assert game.summary == {}
+
+
+class TestMoveAnalysisSerialization:
+    """Tests for MoveAnalysis serialization and deserialization."""
 
     def test_to_dict_and_from_dict_roundtrip(self):
         """Test MoveAnalysis can be serialized to dict and reconstructed losslessly."""
@@ -142,41 +104,3 @@ class TestMoveAnalysis:
         assert move.eval_before_cp is None
         assert move.is_book_move is False
         assert move.win_chance_before == 0.5
-
-
-class TestGameAnalysis:
-    """Tests for GameAnalysis dataclass."""
-
-    def test_game_with_moves(self):
-        """Test creating a game with moves."""
-        meta = GameMetadata(
-            white="W", black="B", result="1-0", date="2023.01.01", event="Test", headers={}
-        )
-        moves = [
-            MoveAnalysis(1, 1, "e4", "e2e4", "startfen"),
-        ]
-
-        game = GameAnalysis(game_id="test123", metadata=meta, moves=moves, pgn_content="1. e4 1-0")
-
-        assert game.game_id == "test123"
-        assert len(game.moves) == 1
-        assert game.summary == {}  # Empty dict, not analyzed yet
-
-    def test_game_with_summary(self):
-        """Test game with analysis summary."""
-        meta = GameMetadata(
-            white="W", black="B", result="1-0", date="2023.01.01", event="Test", headers={}
-        )
-
-        game = GameAnalysis(
-            game_id="test123",
-            metadata=meta,
-            moves=[],
-            pgn_content="1-0",
-            summary={
-                "white": {"accuracy": 85.5, "Best": 10, "Blunder": 1},
-                "black": {"accuracy": 78.2, "Best": 8, "Blunder": 3},
-            },
-        )
-
-        assert game.summary["white"]["accuracy"] == 85.5

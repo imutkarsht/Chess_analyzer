@@ -4,6 +4,7 @@ Tests for MainWindow geometry persistence.
 Verifies that the last-known window position and size are saved on
 close and restored on the next launch.
 """
+
 import json
 from unittest.mock import patch
 
@@ -25,10 +26,11 @@ def _safe_origin(qtbot):
     return QPoint(screen.x() + 50, screen.y() + 50)
 
 
-def test_close_saves_current_geometry(qtbot, isolated_config):
-    """Closing the window writes the current geometry to config.json."""
+def test_window_geometry_save_and_restore(qtbot, isolated_config):
+    """Closing the window saves geometry, and a new window restores it."""
     from src.gui.main_window import MainWindow
 
+    # 1. Test save on close
     window = MainWindow()
     qtbot.addWidget(window)
 
@@ -36,7 +38,6 @@ def test_close_saves_current_geometry(qtbot, isolated_config):
     target_size = QSize(1200, 800)
     window.resize(target_size)
     window.move(target_pos)
-    # Process events so the resize/move are actually applied before save.
     QGuiApplication.processEvents()
 
     window.close()
@@ -48,127 +49,58 @@ def test_close_saves_current_geometry(qtbot, isolated_config):
 
     assert state["width"] == 1200
     assert state["height"] == 800
-    # Qt may apply a small offset for the window frame on some platforms;
-    # assert the saved point is the one we requested, exact match is the
-    # contract when running on a real desktop window manager.
     assert state["x"] == target_pos.x()
     assert state["y"] == target_pos.y()
 
+    # 2. Test restore on a new instance
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        restored = MainWindow()
+        qtbot.addWidget(restored)
 
-def test_restore_uses_saved_geometry(qtbot, isolated_config):
-    """A new MainWindow adopts the geometry stored in config.json."""
+    assert restored.width() == 1200
+    assert restored.height() == 800
+    assert restored.x() == target_pos.x()
+    assert restored.y() == target_pos.y()
+    restored.close()
+
+
+def test_restore_window_state_defensive(qtbot, isolated_config):
+    """_restore_window_state rejects offscreen coordinates, booleans, and malformed types."""
     from src.gui.main_window import MainWindow
 
-    # Seed a config with a known geometry on a real screen.
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        window = MainWindow()
+        qtbot.addWidget(window)
+
     screen = QGuiApplication.primaryScreen().availableGeometry()
-    seed = {
-        "engine_path": "stockfish",
-        "theme": "dark",
-        "window_state": {
-            "x": screen.x() + 25,
-            "y": screen.y() + 35,
-            "width": 1100,
-            "height": 700,
-        },
-    }
-    isolated_config.write_text(json.dumps(seed))
 
-    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
-        window = MainWindow()
-        qtbot.addWidget(window)
-
-    assert window.width() == 1100
-    assert window.height() == 700
-    assert window.x() == screen.x() + 25
-    assert window.y() == screen.y() + 35
-
-
-def test_offscreen_position_is_ignored(qtbot, isolated_config):
-    """A saved position that is off-screen must not be applied."""
-    from src.gui.main_window import MainWindow
-
-    # A position far outside any real monitor.
-    seed = {
-        "window_state": {
-            "x": -100_000,
-            "y": -100_000,
-            "width": 1024,
-            "height": 768,
-        },
-    }
-    isolated_config.write_text(json.dumps(seed))
-
-    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
-        window = MainWindow()
-        qtbot.addWidget(window)
-
-    # Size is still applied (we always trust it), but the position is
-    # left to Qt's default, which keeps the window reachable.
+    # Case 1: Off-screen position is rejected; size is applied
+    window.config_manager.set(
+        "window_state",
+        {"x": -100_000, "y": -100_000, "width": 1024, "height": 768},
+    )
+    window._restore_window_state()
     assert window.width() == 1024
     assert window.height() == 768
-    screen = QGuiApplication.primaryScreen().availableGeometry()
     assert screen.intersects(window.frameGeometry())
 
-
-# ---------------------------------------------------------------------------
-# Defensive parsing: config may hold surprising values (booleans, strings,
-# None, missing keys). _restore_window_state must never crash and must
-# never silently coerce a bool to 1 px.
-# ---------------------------------------------------------------------------
-
-def test_restore_ignores_boolean_dimensions(qtbot, isolated_config):
-    """A `True` value in the config must not be treated as the integer 1.
-
-    In Python, ``isinstance(True, int)`` is True and ``int(True) == 1``,
-    so the previous `isinstance(value, (int, float))` check would have
-    silently turned a stray boolean into a 1-pixel window. The fix is
-    to reject booleans explicitly.
-    """
-    from src.gui.main_window import MainWindow
-
-    seed = {
-        "window_state": {
-            "x": True,        # would otherwise become 1
-            "y": False,       # would otherwise become 0
-            "width": True,    # would otherwise become 1
-            "height": False,  # would otherwise become 0
-        },
-    }
-    isolated_config.write_text(json.dumps(seed))
-
-    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
-        window = MainWindow()
-        qtbot.addWidget(window)
-
-    # The window must keep a sensible default size and stay on a
-    # reachable position, i.e. it must not have been resized to 1×1.
+    # Case 2: Booleans are rejected (not coerced to 1px)
+    window.config_manager.set(
+        "window_state",
+        {"x": True, "y": False, "width": True, "height": False},
+    )
+    window._restore_window_state()
     assert window.width() > 100
     assert window.height() > 100
-    screen = QGuiApplication.primaryScreen().availableGeometry()
     assert screen.intersects(window.frameGeometry())
 
-
-def test_restore_ignores_non_numeric_dimensions(qtbot, isolated_config):
-    """String, None, and list values must not crash the restore code."""
-    from src.gui.main_window import MainWindow
-
-    seed = {
-        "window_state": {
-            "x": "100",        # str, not int
-            "y": None,
-            "width": [1024],   # list, not int
-            "height": {"v": 768},  # dict, not int
-        },
-    }
-    isolated_config.write_text(json.dumps(seed))
-
-    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
-        window = MainWindow()
-        qtbot.addWidget(window)
-
-    # All values were rejected, so we get Qt's default geometry, which
-    # is at least sane and visible.
+    # Case 3: Strings, lists, None, dicts are rejected safely
+    window.config_manager.set(
+        "window_state",
+        {"x": "100", "y": None, "width": [1024], "height": {"v": 768}},
+    )
+    window._restore_window_state()
     assert window.width() > 100
     assert window.height() > 100
-    screen = QGuiApplication.primaryScreen().availableGeometry()
     assert screen.intersects(window.frameGeometry())
+    window.close()

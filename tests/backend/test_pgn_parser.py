@@ -1,6 +1,7 @@
 """
 Tests for PGN Parser - parsing, source detection, edge cases.
 """
+
 import pytest
 
 from src.backend.storage.models import GameAnalysis
@@ -56,94 +57,70 @@ class TestPGNParsing:
 class TestSourceDetection:
     """Tests for source detection from Site header."""
 
-    def test_detect_chesscom_source(self, sample_pgn_chesscom):
-        """Test Chess.com source is detected correctly."""
-        games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
-        assert games[0].metadata.source == "chesscom"
-
-    def test_detect_lichess_source(self, sample_pgn_lichess):
-        """Test Lichess source is detected correctly."""
-        games = PGNParser.parse_pgn_text(sample_pgn_lichess)
-        assert games[0].metadata.source == "lichess"
-
-    def test_detect_file_source(self, sample_pgn_file):
-        """Test unknown site defaults to 'file' source."""
-        games = PGNParser.parse_pgn_text(sample_pgn_file)
-        assert games[0].metadata.source == "file"
+    def test_detect_source_platforms(
+        self, sample_pgn_chesscom, sample_pgn_lichess, sample_pgn_file
+    ):
+        """Test detection across Chess.com, Lichess, and generic file sources."""
+        assert PGNParser.parse_pgn_text(sample_pgn_chesscom)[0].metadata.source == "chesscom"
+        assert PGNParser.parse_pgn_text(sample_pgn_lichess)[0].metadata.source == "lichess"
+        assert PGNParser.parse_pgn_text(sample_pgn_file)[0].metadata.source == "file"
 
 
 class TestMetadataExtraction:
     """Tests for metadata extraction from PGN headers."""
 
-    def test_extract_elo_ratings(self, sample_pgn_chesscom):
-        """Test ELO ratings are extracted."""
+    def test_extract_all_metadata_headers(self, sample_pgn_chesscom):
+        """Test all standard headers (ELO, time control, ECO, termination) are extracted."""
         games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
-        game = games[0]
+        assert len(games) == 1
+        meta = games[0].metadata
 
-        assert game.metadata.white_elo == "1500"
-        assert game.metadata.black_elo == "1400"
-
-    def test_extract_time_control(self, sample_pgn_chesscom):
-        """Test time control is extracted."""
-        games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
-        assert games[0].metadata.time_control == "600"
-
-    def test_extract_eco(self, sample_pgn_chesscom):
-        """Test ECO code is extracted."""
-        games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
-        assert games[0].metadata.eco == "C65"
-
-    def test_extract_termination(self, sample_pgn_chesscom):
-        """Test termination is extracted."""
-        games = PGNParser.parse_pgn_text(sample_pgn_chesscom)
-        assert games[0].metadata.termination == "Normal"
+        assert meta.white_elo == "1500"
+        assert meta.black_elo == "1400"
+        assert meta.time_control == "600"
+        assert meta.eco == "C65"
+        assert meta.termination == "Normal"
 
 
 # ---------------------------------------------------------------------------
 # Clock parsing
 # ---------------------------------------------------------------------------
 
+
 class TestClockParser:
     """Unit tests for the private _parse_clk helper."""
 
-    def test_no_comment_returns_none_pair(self):
+    @pytest.mark.parametrize("raw_comment", [None, "", "Some unrelated comment"])
+    def test_missing_clk_returns_none_pair(self, raw_comment):
         from src.backend.storage.pgn_parser import _parse_clk
-        assert _parse_clk(None) == (None, None)
-        assert _parse_clk("") == (None, None)
 
-    def test_comment_without_clk_returns_none_pair(self):
-        from src.backend.storage.pgn_parser import _parse_clk
-        assert _parse_clk("Some unrelated comment") == (None, None)
+        assert _parse_clk(raw_comment) == (None, None)
 
-    def test_standard_chesscom_format(self):
+    def test_standard_formats(self):
         from src.backend.storage.pgn_parser import _parse_clk
+
         raw, secs = _parse_clk("[%clk 0:09:56.1]")
         assert raw == "0:09:56.1"
         assert secs == pytest.approx(9 * 60 + 56.1)
 
-    def test_whole_seconds_only(self):
-        from src.backend.storage.pgn_parser import _parse_clk
-        raw, secs = _parse_clk("[%clk 1:23:45]")
-        assert raw == "1:23:45"
-        assert secs == 3600 + 23 * 60 + 45
+        raw2, secs2 = _parse_clk("[%clk 1:23:45]")
+        assert raw2 == "1:23:45"
+        assert secs2 == 3600 + 23 * 60 + 45
 
-    def test_minute_overflow_is_rejected(self):
-        """[0:99:00] would be a malformed clock and must not silently
-        produce 99 minutes of 'time spent'."""
+    @pytest.mark.parametrize(
+        "invalid_clk",
+        ["[%clk 0:99:00]", "[%clk 0:00:99]", "[%clk 0:99:00.5]"],
+    )
+    def test_overflow_is_rejected(self, invalid_clk):
+        """Malformed clock values must not silently produce bogus times."""
         from src.backend.storage.pgn_parser import _parse_clk
-        assert _parse_clk("[%clk 0:99:00]") == (None, None)
 
-    def test_second_overflow_is_rejected(self):
-        from src.backend.storage.pgn_parser import _parse_clk
-        assert _parse_clk("[%clk 0:00:99]") == (None, None)
-
-    def test_minute_overflow_with_decimal_seconds_still_rejected(self):
-        from src.backend.storage.pgn_parser import _parse_clk
-        assert _parse_clk("[%clk 0:99:00.5]") == (None, None)
+        assert _parse_clk(invalid_clk) == (None, None)
 
     def test_picks_first_clk_in_multi_comment(self):
         """When a comment has multiple %clk tags, return the first one."""
         from src.backend.storage.pgn_parser import _parse_clk
+
         raw, secs = _parse_clk("blabla [%clk 0:00:10] extra [%clk 0:00:05]")
         assert raw == "0:00:10"
         assert secs == pytest.approx(10.0)
@@ -158,7 +135,7 @@ class TestClockIntegration:
         yield a 26-second time_spent for the second move."""
         pgn = (
             '[Event "Test"]\n[White "W"]\n[Black "B"]\n[Result "*"]\n\n'
-            '1. e4 { [%clk 0:09:56] } 1... e5 { [%clk 0:10:00] } *'
+            "1. e4 { [%clk 0:09:56] } 1... e5 { [%clk 0:10:00] } *"
         )
         games = PGNParser.parse_pgn_text(pgn)
         assert len(games) == 1
@@ -184,7 +161,7 @@ class TestClockIntegration:
         pgn = (
             '[Event "Test"]\n[White "W"]\n[Black "B"]\n'
             '[TimeControl "600"]\n[Result "*"]\n\n'
-            '1. e4 { [%clk 0:09:56] } 1... e5 { [%clk 0:10:00] } *'
+            "1. e4 { [%clk 0:09:56] } 1... e5 { [%clk 0:10:00] } *"
         )
         games = PGNParser.parse_pgn_text(pgn)
         moves = games[0].moves
@@ -203,7 +180,7 @@ class TestClockIntegration:
         a garbage delta to the next move."""
         pgn = (
             '[Event "Test"]\n[White "W"]\n[Black "B"]\n[Result "*"]\n\n'
-            '1. e4 { [%clk 0:99:00] } 1... e5 { [%clk 0:10:00] } *'
+            "1. e4 { [%clk 0:99:00] } 1... e5 { [%clk 0:10:00] } *"
         )
         games = PGNParser.parse_pgn_text(pgn)
         moves = games[0].moves
