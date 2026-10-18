@@ -459,3 +459,96 @@ def test_legacy_tactics_populates_direct_table_columns(temp_db):
     assert saved["white_opening_acc"] is not None
     assert saved["speed_category"] == "Blitz"
     assert "hung_pieces_details" in json.loads(saved["summary_json"])["white"]["tactics"]
+
+
+def test_row_to_game_analysis_preserves_starting_fen_and_metadata(temp_db):
+    """Test that get_game_analysis preserves starting_fen, speed_category, and termination_mode."""
+    manager = GameHistoryManager(temp_db)
+    custom_fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    raw_dict = {
+        "id": "fen_game_1",
+        "white": "Magnus",
+        "black": "Hikaru",
+        "result": "1-0",
+        "date": "2024.01.01",
+        "event": "Chess960 Championship",
+        "starting_fen": custom_fen,
+        "chess960": 1,
+        "speed_category": "Chess960",
+        "termination": "White won by resignation",
+        "termination_mode": "resignation",
+        "pgn": f'[Event "Chess960 Championship"]\n[FEN "{custom_fen}"]\n\n1. e4 e5 1-0',
+        "moves_json": "[]",
+    }
+    manager.save_games_bulk([raw_dict])
+
+    analysis = manager.get_game_analysis("fen_game_1")
+    assert analysis is not None
+    assert analysis.metadata.starting_fen == custom_fen
+    assert analysis.metadata.chess960 is True
+    assert analysis.metadata.speed_category == "Chess960"
+    assert analysis.metadata.termination_mode == "resignation"
+    assert analysis.metadata.termination == "White won by resignation"
+
+
+def test_explorer_cache_epoch_timestamp_and_pruning(temp_db):
+    """Test that explorer cache stores epoch timestamp as REAL and prunes reliably."""
+    import sqlite3
+    import time
+
+    manager = GameHistoryManager(temp_db)
+    fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    response_json = '{"moves": [{"san": "e5"}]}'
+
+    manager.save_explorer_cache(fen, response_json)
+
+    # 1. Verify stored cached_at is float/int epoch timestamp
+    with sqlite3.connect(temp_db) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT cached_at FROM explorer_cache WHERE fen = ?", (fen,))
+        row = cursor.fetchone()
+        assert float(row[0]) > 0
+        assert isinstance(manager._parse_cached_at_to_epoch(row[0]), float)
+
+    # 2. Verify retrieval works within TTL
+    assert manager.get_explorer_cache(fen) == response_json
+
+    # 3. Simulate expired entry (> 48 hours) using epoch timestamp
+    expired_epoch = time.time() - 200000.0
+    with sqlite3.connect(temp_db) as conn:
+        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (expired_epoch, fen))
+        conn.commit()
+
+    # 4. Verify get_explorer_cache deletes expired entry
+    assert manager.get_explorer_cache(fen) is None
+
+    # 5. Verify prune_explorer_cache cleans up expired epoch records
+    manager.save_explorer_cache(fen, response_json)
+    with sqlite3.connect(temp_db) as conn:
+        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (expired_epoch, fen))
+        conn.commit()
+    pruned = manager.prune_explorer_cache()
+    assert pruned == 1
+
+
+def test_prepare_game_dict_params_preserves_zero_hung_pieces(temp_db):
+    """Test that a legitimate 0 for pieces_hung is preserved and not overwritten."""
+    manager = GameHistoryManager(temp_db)
+    game_dict = {
+        "id": "zero_hung_game",
+        "white": "Alice",
+        "black": "Bob",
+        "result": "1-0",
+        "white_pieces_hung": 0,
+        "black_pieces_hung": 0,
+        "summary_json": '{"white": {"tactics": {"hanging_metrics": {"total_hung": 5}}}, "black": {}}',
+    }
+    params = manager._prepare_game_dict_params(game_dict)
+    # Parameter index 26 is white_pieces_hung, 27 is black_pieces_hung
+    # (gid, white, black, result, date_str, event, pgn, summary_json, timestamp,
+    #  white_elo, black_elo, time_control, eco, termination, termination_mode, opening, starting_fen, source,
+    #  chess960, moves_json, speed_category, book_exit_ply,
+    #  white_opening_acc, black_opening_acc, white_middlegame_acc, black_middlegame_acc, white_endgame_acc, black_endgame_acc,
+    #  white_pieces_hung, black_pieces_hung, ...)
+    assert params[28] == 0  # white_pieces_hung should stay 0, not 5 from summary_dict!
+    assert params[29] == 0  # black_pieces_hung should stay 0
