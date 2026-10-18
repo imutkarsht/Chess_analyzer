@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import sqlite3
@@ -11,6 +12,43 @@ from src.utils.path_utils import get_user_data_dir
 
 from .models import GameAnalysis
 
+GAME_CSV_COLUMNS: list[str] = [
+    "id",
+    "white",
+    "black",
+    "result",
+    "date",
+    "event",
+    "white_elo",
+    "black_elo",
+    "time_control",
+    "speed_category",
+    "eco",
+    "opening",
+    "termination",
+    "termination_mode",
+    "source",
+    "starting_fen",
+    "chess960",
+    "book_exit_ply",
+    "white_opening_acc",
+    "black_opening_acc",
+    "white_middlegame_acc",
+    "black_middlegame_acc",
+    "white_endgame_acc",
+    "black_endgame_acc",
+    "white_pieces_hung",
+    "black_pieces_hung",
+    "white_brilliant_count",
+    "black_brilliant_count",
+    "white_great_count",
+    "black_great_count",
+    "pgn",
+    "summary_json",
+    "moves_json",
+    "timestamp",
+]
+
 
 class GameHistoryManager:
     def __init__(self, db_path: str | None = None):
@@ -23,8 +61,10 @@ class GameHistoryManager:
     @contextmanager
     def _get_connection(self):
         """Context manager guaranteeing connection closure upon completion or error."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=10.0)
         try:
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA busy_timeout=5000")
             yield conn
         finally:
             try:
@@ -284,149 +324,436 @@ class GameHistoryManager:
                     cached_at TEXT NOT NULL
                 )
             """)
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_api_cache_date ON api_game_cache(source, date)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_api_cache_white ON api_game_cache(LOWER(white))"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_api_cache_black ON api_game_cache(LOWER(black))"
+            )
         except Exception as e:
             logger.error(f"Failed to initialize API/Explorer cache tables: {e}")
 
-    def save_game(self, game_analysis: GameAnalysis, pgn_content: str):
-        """Saves a completed game analysis to the history."""
+    def _prepare_game_analysis_params(
+        self,
+        game_analysis: GameAnalysis,
+        pgn_content: str,
+        timestamp: float | None = None,
+    ) -> tuple:
+        game_id = game_analysis.game_id
+        if not game_id:
+            if pgn_content:
+                game_id = hashlib.md5(pgn_content.encode("utf-8")).hexdigest()
+            else:
+                game_id = str(uuid.uuid4())
+
+        moves_data = []
+        for m in game_analysis.moves:
+            moves_data.append(
+                {
+                    "move_number": m.move_number,
+                    "ply": m.ply,
+                    "san": m.san,
+                    "uci": m.uci,
+                    "fen_before": m.fen_before,
+                    "eval_before_cp": m.eval_before_cp,
+                    "eval_before_mate": m.eval_before_mate,
+                    "best_move": m.best_move,
+                    "best_eval_cp": m.best_eval_cp,
+                    "best_eval_mate": m.best_eval_mate,
+                    "pv": m.pv,
+                    "eval_after_cp": m.eval_after_cp,
+                    "eval_after_mate": m.eval_after_mate,
+                    "win_chance_before": m.win_chance_before,
+                    "win_chance_after": m.win_chance_after,
+                    "classification": m.classification,
+                    "explanation": m.explanation,
+                    "multi_pvs": m.multi_pvs,
+                    "is_book_move": m.is_book_move,
+                    "eco": m.eco,
+                    "opening_name": m.opening_name,
+                    "candidate_continuations": m.candidate_continuations,
+                    "time_left": m.time_left,
+                    "time_spent": m.time_spent,
+                    "raw_clk": m.raw_clk,
+                }
+            )
+        moves_json = json.dumps(moves_data)
+
+        from src.backend.analysis.tactics import analyze_game_tactics
+
+        speed_category = game_analysis.metadata.speed_category or "Blitz"
+        tactics_white = analyze_game_tactics(
+            moves_data,
+            "white",
+            game_analysis.metadata.result,
+            speed_category=speed_category,
+        )
+        tactics_black = analyze_game_tactics(
+            moves_data,
+            "black",
+            game_analysis.metadata.result,
+            speed_category=speed_category,
+        )
+
+        summary_dict = (
+            dict(game_analysis.summary) if game_analysis.summary else {"white": {}, "black": {}}
+        )
+        if "white" not in summary_dict:
+            summary_dict["white"] = {}
+        if "black" not in summary_dict:
+            summary_dict["black"] = {}
+
+        summary_dict["white"]["tactics"] = tactics_white
+        summary_dict["black"]["tactics"] = tactics_black
+        summary_json = json.dumps(summary_dict)
+
+        book_exit_ply = tactics_white.get("book_exit_ply")
+        white_phase = tactics_white.get("phase_accuracies", {})
+        black_phase = tactics_black.get("phase_accuracies", {})
+        white_hanging = tactics_white.get("hanging_metrics", {})
+        black_hanging = tactics_black.get("hanging_metrics", {})
+        white_brilliants = len(
+            [
+                b
+                for b in tactics_white.get("brilliancies", [])
+                if b.get("classification") == "Brilliant"
+            ]
+        )
+        white_greats = len(
+            [b for b in tactics_white.get("brilliancies", []) if b.get("classification") == "Great"]
+        )
+        black_brilliants = len(
+            [
+                b
+                for b in tactics_black.get("brilliancies", [])
+                if b.get("classification") == "Brilliant"
+            ]
+        )
+        black_greats = len(
+            [b for b in tactics_black.get("brilliancies", []) if b.get("classification") == "Great"]
+        )
+
+        if (
+            not game_analysis.metadata.termination_mode
+            or not game_analysis.metadata.termination_description
+        ):
+            from src.backend.storage.termination_detector import TerminationDetector
+
+            term_mode, term_desc = TerminationDetector.detect_termination(
+                headers=game_analysis.metadata.headers,
+                moves=game_analysis.moves,
+                starting_fen=game_analysis.metadata.starting_fen,
+                chess960=game_analysis.metadata.chess960,
+            )
+            game_analysis.metadata.termination_mode = term_mode
+            game_analysis.metadata.termination_description = term_desc
+
+        if (
+            not game_analysis.metadata.termination
+            or game_analysis.metadata.termination.strip().lower() in ("", "normal", "unknown")
+        ):
+            game_analysis.metadata.termination = game_analysis.metadata.termination_description
+
+        save_ts = timestamp if timestamp is not None else time.time()
+
+        return (
+            game_id,
+            game_analysis.metadata.white,
+            game_analysis.metadata.black,
+            game_analysis.metadata.result,
+            game_analysis.metadata.date,
+            game_analysis.metadata.event,
+            pgn_content,
+            summary_json,
+            save_ts,
+            game_analysis.metadata.white_elo,
+            game_analysis.metadata.black_elo,
+            game_analysis.metadata.time_control,
+            game_analysis.metadata.eco,
+            game_analysis.metadata.termination,
+            game_analysis.metadata.termination_mode,
+            game_analysis.metadata.opening,
+            game_analysis.metadata.starting_fen,
+            game_analysis.metadata.source,
+            int(game_analysis.metadata.chess960),
+            moves_json,
+            speed_category,
+            book_exit_ply,
+            white_phase.get("opening"),
+            black_phase.get("opening"),
+            white_phase.get("middlegame"),
+            black_phase.get("middlegame"),
+            white_phase.get("endgame"),
+            black_phase.get("endgame"),
+            white_hanging.get("total_hung", 0),
+            black_hanging.get("total_hung", 0),
+            white_brilliants,
+            black_brilliants,
+            white_greats,
+            black_greats,
+        )
+
+    def _prepare_game_dict_params(self, d: dict[str, Any]) -> tuple:
+        pgn = str(d.get("pgn") or "")
+        gid = str(d.get("id") or "")
+        if not gid:
+            if pgn:
+                gid = hashlib.md5(pgn.encode("utf-8")).hexdigest()
+            else:
+                gid = str(uuid.uuid4())
+
+        white = str(d.get("white") or "")
+        black = str(d.get("black") or "")
+        result = str(d.get("result") or "*")
+        date_str = str(d.get("date") or "")
+        event = str(d.get("event") or "")
+
+        raw_ts = d.get("timestamp")
+        try:
+            timestamp = (
+                float(raw_ts) if raw_ts is not None and str(raw_ts).strip() != "" else time.time()
+            )
+        except (ValueError, TypeError):
+            timestamp = time.time()
+
+        white_elo = d.get("white_elo") or None
+        black_elo = d.get("black_elo") or None
+        time_control = d.get("time_control") or None
+        eco = d.get("eco") or None
+        termination = d.get("termination") or None
+        termination_mode = d.get("termination_mode") or None
+        opening = d.get("opening") or None
+        starting_fen = d.get("starting_fen") or None
+        source = d.get("source") or "file"
+
+        raw_960 = d.get("chess960")
+        chess960 = 1 if str(raw_960).strip() in ("1", "True", "true") else 0
+
+        moves_json = d.get("moves_json") or ""
+        summary_json = d.get("summary_json") or ""
+        speed_category = d.get("speed_category") or None
+
+        if not speed_category:
+            from src.backend.storage.pgn_parser import PGNParser
+
+            speed_category = PGNParser._detect_speed_category(time_control, event)
+
+        summary_dict = {}
+        if summary_json:
+            try:
+                summary_dict = json.loads(summary_json)
+            except Exception:
+                summary_dict = {}
+
+        has_tactics = (
+            isinstance(summary_dict.get("white"), dict)
+            and "tactics" in summary_dict["white"]
+            and isinstance(summary_dict.get("black"), dict)
+            and "tactics" in summary_dict["black"]
+        )
+
+        if not has_tactics and moves_json:
+            try:
+                moves_data = json.loads(moves_json)
+                if moves_data:
+                    from src.backend.analysis.tactics import analyze_game_tactics
+
+                    s_cat = speed_category or "Blitz"
+                    tw = analyze_game_tactics(moves_data, "white", result, speed_category=s_cat)
+                    tb = analyze_game_tactics(moves_data, "black", result, speed_category=s_cat)
+                    if "white" not in summary_dict or not isinstance(summary_dict["white"], dict):
+                        summary_dict["white"] = {}
+                    if "black" not in summary_dict or not isinstance(summary_dict["black"], dict):
+                        summary_dict["black"] = {}
+                    summary_dict["white"]["tactics"] = tw
+                    summary_dict["black"]["tactics"] = tb
+                    summary_json = json.dumps(summary_dict)
+            except Exception as e:
+                logger.debug("Failed computing tactics for dict row %s: %s", gid, e)
+
+        def _to_float(v):
+            try:
+                return float(v) if v is not None and str(v).strip() != "" else None
+            except (ValueError, TypeError):
+                return None
+
+        def _to_int(v):
+            try:
+                return int(v) if v is not None and str(v).strip() != "" else 0
+            except (ValueError, TypeError):
+                return 0
+
+        book_exit_ply = _to_float(d.get("book_exit_ply"))
+        if book_exit_ply is not None:
+            book_exit_ply = int(book_exit_ply)
+        else:
+            book_exit_ply = summary_dict.get("white", {}).get("tactics", {}).get("book_exit_ply")
+
+        white_opening_acc = _to_float(d.get("white_opening_acc"))
+        if white_opening_acc is None:
+            white_opening_acc = (
+                summary_dict.get("white", {})
+                .get("tactics", {})
+                .get("phase_accuracies", {})
+                .get("opening")
+            )
+
+        black_opening_acc = _to_float(d.get("black_opening_acc"))
+        if black_opening_acc is None:
+            black_opening_acc = (
+                summary_dict.get("black", {})
+                .get("tactics", {})
+                .get("phase_accuracies", {})
+                .get("opening")
+            )
+
+        white_middlegame_acc = _to_float(d.get("white_middlegame_acc"))
+        if white_middlegame_acc is None:
+            white_middlegame_acc = (
+                summary_dict.get("white", {})
+                .get("tactics", {})
+                .get("phase_accuracies", {})
+                .get("middlegame")
+            )
+
+        black_middlegame_acc = _to_float(d.get("black_middlegame_acc"))
+        if black_middlegame_acc is None:
+            black_middlegame_acc = (
+                summary_dict.get("black", {})
+                .get("tactics", {})
+                .get("phase_accuracies", {})
+                .get("middlegame")
+            )
+
+        white_endgame_acc = _to_float(d.get("white_endgame_acc"))
+        if white_endgame_acc is None:
+            white_endgame_acc = (
+                summary_dict.get("white", {})
+                .get("tactics", {})
+                .get("phase_accuracies", {})
+                .get("endgame")
+            )
+
+        black_endgame_acc = _to_float(d.get("black_endgame_acc"))
+        if black_endgame_acc is None:
+            black_endgame_acc = (
+                summary_dict.get("black", {})
+                .get("tactics", {})
+                .get("phase_accuracies", {})
+                .get("endgame")
+            )
+
+        white_pieces_hung = _to_int(d.get("white_pieces_hung"))
+        if not white_pieces_hung:
+            white_pieces_hung = (
+                summary_dict.get("white", {})
+                .get("tactics", {})
+                .get("hanging_metrics", {})
+                .get("total_hung", 0)
+            )
+
+        black_pieces_hung = _to_int(d.get("black_pieces_hung"))
+        if not black_pieces_hung:
+            black_pieces_hung = (
+                summary_dict.get("black", {})
+                .get("tactics", {})
+                .get("hanging_metrics", {})
+                .get("total_hung", 0)
+            )
+
+        white_brilliant_count = _to_int(d.get("white_brilliant_count"))
+        black_brilliant_count = _to_int(d.get("black_brilliant_count"))
+        white_great_count = _to_int(d.get("white_great_count"))
+        black_great_count = _to_int(d.get("black_great_count"))
+
+        if not termination_mode:
+            from src.backend.storage.termination_detector import TerminationDetector
+
+            t_mode, t_desc = TerminationDetector.detect_termination(
+                headers={
+                    "Result": result,
+                    "White": white,
+                    "Black": black,
+                    "Termination": termination or "",
+                },
+                moves=[],
+                starting_fen=starting_fen,
+                chess960=bool(chess960),
+            )
+            termination_mode = t_mode
+            if not termination:
+                termination = t_desc
+
+        return (
+            gid,
+            white,
+            black,
+            result,
+            date_str,
+            event,
+            pgn,
+            summary_json,
+            timestamp,
+            white_elo,
+            black_elo,
+            time_control,
+            eco,
+            termination,
+            termination_mode,
+            opening,
+            starting_fen,
+            source,
+            chess960,
+            moves_json,
+            speed_category,
+            book_exit_ply,
+            white_opening_acc,
+            black_opening_acc,
+            white_middlegame_acc,
+            black_middlegame_acc,
+            white_endgame_acc,
+            black_endgame_acc,
+            white_pieces_hung,
+            black_pieces_hung,
+            white_brilliant_count,
+            black_brilliant_count,
+            white_great_count,
+            black_great_count,
+        )
+
+    def save_games_bulk(self, items: list[Any]) -> int:
+        """
+        Saves multiple game analyses or game dictionaries to the database
+        inside a single transaction.
+        """
+        if not items:
+            return 0
+
+        param_rows = []
+        for item in items:
+            try:
+                if isinstance(item, dict):
+                    param_rows.append(self._prepare_game_dict_params(item))
+                elif isinstance(item, tuple) and len(item) >= 2:
+                    ts = item[2] if len(item) > 2 else None
+                    param_rows.append(
+                        self._prepare_game_analysis_params(item[0], item[1], timestamp=ts)
+                    )
+                elif isinstance(item, GameAnalysis):
+                    param_rows.append(self._prepare_game_analysis_params(item, item.pgn_content))
+            except Exception as exc:
+                logger.error("Failed preparing game record in save_games_bulk: %s", exc)
+
+        if not param_rows:
+            return 0
+
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-
-                game_id = game_analysis.game_id or str(uuid.uuid4())
-
-                summary_json = json.dumps(game_analysis.summary)
-
-                moves_data = []
-                for m in game_analysis.moves:
-                    moves_data.append(
-                        {
-                            "move_number": m.move_number,
-                            "ply": m.ply,
-                            "san": m.san,
-                            "uci": m.uci,
-                            "fen_before": m.fen_before,
-                            "eval_before_cp": m.eval_before_cp,
-                            "eval_before_mate": m.eval_before_mate,
-                            "best_move": m.best_move,
-                            "best_eval_cp": m.best_eval_cp,
-                            "best_eval_mate": m.best_eval_mate,
-                            "pv": m.pv,
-                            "eval_after_cp": m.eval_after_cp,
-                            "eval_after_mate": m.eval_after_mate,
-                            "win_chance_before": m.win_chance_before,
-                            "win_chance_after": m.win_chance_after,
-                            "classification": m.classification,
-                            "explanation": m.explanation,
-                            "multi_pvs": m.multi_pvs,
-                            "is_book_move": m.is_book_move,
-                            "eco": m.eco,
-                            "opening_name": m.opening_name,
-                            "candidate_continuations": m.candidate_continuations,
-                            "time_left": m.time_left,
-                            "time_spent": m.time_spent,
-                            "raw_clk": m.raw_clk,
-                        }
-                    )
-                moves_json = json.dumps(moves_data)
-
-                # Compute tactical analysis & phase metrics
-                from src.backend.analysis.tactics import analyze_game_tactics
-
-                speed_category = game_analysis.metadata.speed_category or "Blitz"
-                tactics_white = analyze_game_tactics(
-                    moves_data,
-                    "white",
-                    game_analysis.metadata.result,
-                    speed_category=speed_category,
-                )
-                tactics_black = analyze_game_tactics(
-                    moves_data,
-                    "black",
-                    game_analysis.metadata.result,
-                    speed_category=speed_category,
-                )
-
-                # Enrich summary_json
-                summary_dict = (
-                    dict(game_analysis.summary)
-                    if game_analysis.summary
-                    else {"white": {}, "black": {}}
-                )
-                if "white" not in summary_dict:
-                    summary_dict["white"] = {}
-                if "black" not in summary_dict:
-                    summary_dict["black"] = {}
-
-                summary_dict["white"]["tactics"] = tactics_white
-                summary_dict["black"]["tactics"] = tactics_black
-                summary_json = json.dumps(summary_dict)
-
-                speed_category = game_analysis.metadata.speed_category
-                book_exit_ply = tactics_white.get("book_exit_ply")
-                white_phase = tactics_white.get("phase_accuracies", {})
-                black_phase = tactics_black.get("phase_accuracies", {})
-                white_hanging = tactics_white.get("hanging_metrics", {})
-                black_hanging = tactics_black.get("hanging_metrics", {})
-                white_brilliants = len(
-                    [
-                        b
-                        for b in tactics_white.get("brilliancies", [])
-                        if b.get("classification") == "Brilliant"
-                    ]
-                )
-                white_greats = len(
-                    [
-                        b
-                        for b in tactics_white.get("brilliancies", [])
-                        if b.get("classification") == "Great"
-                    ]
-                )
-                black_brilliants = len(
-                    [
-                        b
-                        for b in tactics_black.get("brilliancies", [])
-                        if b.get("classification") == "Brilliant"
-                    ]
-                )
-                black_greats = len(
-                    [
-                        b
-                        for b in tactics_black.get("brilliancies", [])
-                        if b.get("classification") == "Great"
-                    ]
-                )
-
-                # Ensure termination and termination_mode are detected
-                if (
-                    not game_analysis.metadata.termination_mode
-                    or not game_analysis.metadata.termination_description
-                ):
-                    from src.backend.storage.termination_detector import TerminationDetector
-
-                    term_mode, term_desc = TerminationDetector.detect_termination(
-                        headers=game_analysis.metadata.headers,
-                        moves=game_analysis.moves,
-                        starting_fen=game_analysis.metadata.starting_fen,
-                        chess960=game_analysis.metadata.chess960,
-                    )
-                    game_analysis.metadata.termination_mode = term_mode
-                    game_analysis.metadata.termination_description = term_desc
-
-                if (
-                    not game_analysis.metadata.termination
-                    or game_analysis.metadata.termination.strip().lower()
-                    in (
-                        "",
-                        "normal",
-                        "unknown",
-                    )
-                ):
-                    game_analysis.metadata.termination = (
-                        game_analysis.metadata.termination_description
-                    )
-
-                cursor.execute(
+                cursor.executemany(
                     """
                     INSERT OR REPLACE INTO games (
                         id, white, black, result, date, event, pgn, summary_json, timestamp,
@@ -440,51 +767,32 @@ class GameHistoryManager:
                         white_great_count, black_great_count
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                    (
-                        game_id,
-                        game_analysis.metadata.white,
-                        game_analysis.metadata.black,
-                        game_analysis.metadata.result,
-                        game_analysis.metadata.date,
-                        game_analysis.metadata.event,
-                        pgn_content,
-                        summary_json,
-                        time.time(),
-                        game_analysis.metadata.white_elo,
-                        game_analysis.metadata.black_elo,
-                        game_analysis.metadata.time_control,
-                        game_analysis.metadata.eco,
-                        game_analysis.metadata.termination,
-                        game_analysis.metadata.termination_mode,
-                        game_analysis.metadata.opening,
-                        game_analysis.metadata.starting_fen,
-                        game_analysis.metadata.source,
-                        int(game_analysis.metadata.chess960),
-                        moves_json,
-                        speed_category,
-                        book_exit_ply,
-                        white_phase.get("opening"),
-                        black_phase.get("opening"),
-                        white_phase.get("middlegame"),
-                        black_phase.get("middlegame"),
-                        white_phase.get("endgame"),
-                        black_phase.get("endgame"),
-                        white_hanging.get("total_hung", 0),
-                        black_hanging.get("total_hung", 0),
-                        white_brilliants,
-                        black_brilliants,
-                        white_greats,
-                        black_greats,
-                    ),
+                    """,
+                    param_rows,
                 )
-
                 conn.commit()
-            logger.info(f"Game saved to history: {game_id}")
+            logger.info("Successfully bulk-saved %d games to history.", len(param_rows))
+            return len(param_rows)
         except Exception as e:
-            logger.error(f"Failed to save game to history: {e}")
+            logger.error(f"Failed to execute save_games_bulk: {e}")
+            return 0
 
-    def get_all_games(self) -> list[dict[str, Any]]:
+    def save_game(self, game_analysis: GameAnalysis, pgn_content: str):
+        """Saves a completed game analysis to the history."""
+        self.save_games_bulk([(game_analysis, pgn_content)])
+
+    def get_all_game_ids(self) -> set[str]:
+        """Returns a set of all game IDs currently in the database."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM games")
+                return {row[0] for row in cursor.fetchall()}
+        except Exception as e:
+            logger.error(f"Failed to fetch game IDs: {e}")
+            return set()
+
+    def get_all_games(self, limit: int | None = None) -> list[dict[str, Any]]:
         """Returns a list of all games (metadata + summary) sorted by timestamp desc."""
         games = []
         try:
@@ -492,7 +800,8 @@ class GameHistoryManager:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
 
-                cursor.execute("SELECT * FROM games ORDER BY timestamp DESC LIMIT 200")
+                limit_clause = f" LIMIT {int(limit)}" if limit is not None else ""
+                cursor.execute(f"SELECT * FROM games ORDER BY timestamp DESC{limit_clause}")
                 rows = cursor.fetchall()
 
                 for row in rows:

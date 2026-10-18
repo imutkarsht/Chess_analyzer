@@ -1,7 +1,7 @@
 import json
 import re
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.storage.game_history import GameHistoryManager
+from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.styles import Styles
@@ -27,6 +27,47 @@ except ImportError:
     HAS_QTAWESOME = False
 
 
+class GameImportWorker(QThread):
+    """Background worker for parsing CSV files and bulk-inserting games off the UI thread."""
+
+    finished = pyqtSignal(int, int)  # imported_count, skipped_count
+    error = pyqtSignal(str)
+
+    def __init__(self, history_manager: GameHistoryManager, file_path: str, parent=None):
+        super().__init__(parent)
+        self.history_manager = history_manager
+        self.file_path = file_path
+
+    def run(self):
+        try:
+            import csv
+
+            max_limit = 2147483647
+            try:
+                csv.field_size_limit(max_limit)
+            except OverflowError:
+                csv.field_size_limit(50 * 1024 * 1024)
+
+            existing_ids = self.history_manager.get_all_game_ids()
+            rows_to_save = []
+            skipped_count = 0
+
+            with open(self.file_path, newline="", encoding="utf-8") as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    game_id = row.get("id")
+                    if game_id and game_id in existing_ids:
+                        skipped_count += 1
+                        continue
+                    rows_to_save.append(row)
+
+            imported_count = self.history_manager.save_games_bulk(rows_to_save)
+            self.finished.emit(imported_count, skipped_count)
+        except Exception as e:
+            logger.error(f"Background game import failed: {e}")
+            self.error.emit(str(e))
+
+
 class HistoryView(QWidget):
     game_selected = pyqtSignal(object)  # Emits GameAnalysis object
     game_deleted = pyqtSignal(str)
@@ -38,6 +79,7 @@ class HistoryView(QWidget):
         self.config_manager = config_manager
         self.history_manager = GameHistoryManager()
         self.games = []
+        self._import_worker: GameImportWorker | None = None
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout(self)
@@ -208,9 +250,9 @@ class HistoryView(QWidget):
                 from src.backend.storage.pgn_parser import PGNParser
                 from src.backend.storage.termination_detector import TerminationDetector
 
-                metadata.speed_category = PGNParser._detect_speed_category(
-                    metadata.time_control, metadata.event
-                )
+                metadata.speed_category = g_dict.get(
+                    "speed_category"
+                ) or PGNParser._detect_speed_category(metadata.time_control, metadata.event)
 
                 summary = {}
                 if g_dict["summary_json"]:
@@ -255,19 +297,24 @@ class HistoryView(QWidget):
                     except Exception as e:
                         logger.error(f"Failed to parse moves_json for game {g_dict['id']}: {e}")
 
-                term_mode, term_desc = TerminationDetector.detect_termination(
-                    headers={
-                        "Result": metadata.result,
-                        "White": metadata.white,
-                        "Black": metadata.black,
-                        "Termination": metadata.termination or "",
-                    },
-                    moves=moves,
-                    starting_fen=metadata.starting_fen,
-                    chess960=metadata.chess960,
-                )
-                metadata.termination_mode = term_mode
-                metadata.termination_description = term_desc
+                stored_mode = g_dict.get("termination_mode")
+                if stored_mode:
+                    metadata.termination_mode = stored_mode
+                    metadata.termination_description = g_dict.get("termination") or ""
+                else:
+                    term_mode, term_desc = TerminationDetector.detect_termination(
+                        headers={
+                            "Result": metadata.result,
+                            "White": metadata.white,
+                            "Black": metadata.black,
+                            "Termination": metadata.termination or "",
+                        },
+                        moves=moves,
+                        starting_fen=metadata.starting_fen,
+                        chess960=metadata.chess960,
+                    )
+                    metadata.termination_mode = term_mode
+                    metadata.termination_description = term_desc
 
                 game = GameAnalysis(
                     game_id=g_dict["id"],
@@ -450,41 +497,20 @@ class HistoryView(QWidget):
             if not file_name:
                 return
 
-            history_games = self.history_manager.get_all_games()
+            history_games = self.history_manager.get_all_games(limit=None)
             if not history_games:
                 Toast.show_message(self.window(), "No games to export.", "warning")
                 return
 
-            # Determine fields. We'll use database keys as headers.
-            # Sample first game to get keys, but ensure consistent order
-            fieldnames = [
-                "id",
-                "white",
-                "black",
-                "result",
-                "date",
-                "event",
-                "white_elo",
-                "black_elo",
-                "time_control",
-                "eco",
-                "termination",
-                "opening",
-                "source",
-                "pgn",
-                "summary_json",
-                "moves_json",
-                "timestamp",
-                "starting_fen",
-                "chess960",
-            ]
-
             with open(file_name, mode="w", newline="", encoding="utf-8") as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer = csv.DictWriter(csvfile, fieldnames=GAME_CSV_COLUMNS)
                 writer.writeheader()
 
                 for game_dict in history_games:
-                    row = {k: game_dict.get(k) for k in fieldnames}
+                    row = {
+                        k: game_dict.get(k) if game_dict.get(k) is not None else ""
+                        for k in GAME_CSV_COLUMNS
+                    }
                     writer.writerow(row)
 
             logger.info(f"Exported {len(history_games)} games to {file_name}")
@@ -498,11 +524,8 @@ class HistoryView(QWidget):
 
     def import_games(self):
         try:
-            import csv
-
             from PyQt6.QtWidgets import QFileDialog
 
-            from src.backend.storage.pgn_parser import PGNParser
             from src.gui.components.toast import Toast
 
             file_name, _ = QFileDialog.getOpenFileName(
@@ -511,128 +534,38 @@ class HistoryView(QWidget):
             if not file_name:
                 return
 
-            imported_count = 0
-            skipped_count = 0
+            Toast.show_message(self.window(), "Importing games...", "info")
 
-            # Increase CSV field size limit to allow large moves_json payloads
-            max_limit = 2147483647
-            try:
-                csv.field_size_limit(max_limit)
-            except OverflowError:
-                csv.field_size_limit(50 * 1024 * 1024)
+            self._import_worker = GameImportWorker(self.history_manager, file_name, parent=self)
 
-            with open(file_name, newline="", encoding="utf-8") as csvfile:
-                reader = csv.DictReader(csvfile)
+            def _on_import_finished(imported_count: int, skipped_count: int):
+                logger.info(
+                    f"Imported {imported_count} games from {file_name} (skipped: {skipped_count})"
+                )
+                self.load_history()
+                if imported_count > 0:
+                    self.games_imported.emit(imported_count)
+                Toast.show_message(
+                    self.window(),
+                    f"Imported: {imported_count}, Skipped: {skipped_count}",
+                    "success",
+                )
+                self._import_worker = None
 
-                for row in reader:
-                    game_id = row.get("id")
-                    if not game_id:
-                        continue
+            def _on_import_error(err: str):
+                logger.error(f"Import failed: {err}")
+                Toast.show_message(self.window(), f"Import failed: {err}", "error")
+                self._import_worker = None
 
-                    if self.history_manager.game_exists(game_id):
-                        skipped_count += 1
-                        continue
-
-                    try:
-                        summary = {}
-                        if row.get("summary_json"):
-                            try:
-                                summary = json.loads(row.get("summary_json"))
-                            except Exception:
-                                pass
-
-                        moves = []
-                        if row.get("moves_json"):
-                            try:
-                                moves_data = json.loads(row.get("moves_json"))
-                                for md in moves_data:
-                                    moves.append(
-                                        MoveAnalysis(
-                                            move_number=md.get("move_number", 0),
-                                            ply=md.get("ply", 0),
-                                            san=md.get("san", ""),
-                                            uci=md.get("uci", ""),
-                                            fen_before=md.get("fen_before", ""),
-                                            eval_before_cp=md.get("eval_before_cp"),
-                                            eval_before_mate=md.get("eval_before_mate"),
-                                            best_move=md.get("best_move"),
-                                            best_eval_cp=md.get("best_eval_cp"),
-                                            best_eval_mate=md.get("best_eval_mate"),
-                                            pv=md.get("pv", []),
-                                            eval_after_cp=md.get("eval_after_cp"),
-                                            eval_after_mate=md.get("eval_after_mate"),
-                                            win_chance_before=md.get("win_chance_before", 0.5),
-                                            win_chance_after=md.get("win_chance_after", 0.5),
-                                            classification=md.get("classification", ""),
-                                            explanation=md.get("explanation", ""),
-                                            multi_pvs=md.get("multi_pvs", []),
-                                            is_book_move=md.get("is_book_move", False),
-                                            eco=md.get("eco", ""),
-                                            opening_name=md.get("opening_name", ""),
-                                            candidate_continuations=md.get(
-                                                "candidate_continuations", []
-                                            ),
-                                            time_left=md.get("time_left"),
-                                            time_spent=md.get("time_spent"),
-                                            raw_clk=md.get("raw_clk"),
-                                        )
-                                    )
-                            except Exception:
-                                pass
-
-                        # Fallback: re-parse PGN text if moves list is empty
-                        pgn_text = row.get("pgn")
-                        if not moves and pgn_text:
-                            parsed = PGNParser.parse_pgn_text(pgn_text)
-                            if parsed and parsed[0].moves:
-                                moves = parsed[0].moves
-
-                        metadata = GameMetadata(
-                            white=row.get("white"),
-                            black=row.get("black"),
-                            result=row.get("result"),
-                            date=row.get("date"),
-                            event=row.get("event"),
-                            white_elo=row.get("white_elo"),
-                            black_elo=row.get("black_elo"),
-                            time_control=row.get("time_control"),
-                            eco=row.get("eco"),
-                            termination=row.get("termination"),
-                            opening=row.get("opening"),
-                            starting_fen=row.get("starting_fen"),
-                            source=row.get("source", "file"),
-                            chess960=row.get("chess960") == "1",
-                        )
-
-                        game = GameAnalysis(
-                            game_id=game_id,
-                            metadata=metadata,
-                            moves=moves,
-                            pgn_content=pgn_text,
-                            summary=summary,
-                        )
-
-                        self.history_manager.save_game(game, pgn_text)
-                        imported_count += 1
-
-                    except Exception as row_e:
-                        logger.warning(f"Failed to parse row {game_id}: {row_e}")
-
-            logger.info(
-                f"Imported {imported_count} games from {file_name} (skipped: {skipped_count})"
-            )
-            self.load_history()
-            if imported_count > 0:
-                self.games_imported.emit(imported_count)
-            Toast.show_message(
-                self.window(), f"Imported: {imported_count}, Skipped: {skipped_count}", "success"
-            )
+            self._import_worker.finished.connect(_on_import_finished)
+            self._import_worker.error.connect(_on_import_error)
+            self._import_worker.start()
 
         except Exception as e:
-            logger.error(f"Import failed: {e}")
+            logger.error(f"Failed to start import: {e}")
             from src.gui.components.toast import Toast
 
-            Toast.show_message(self.window(), f"Import failed: {e}", "error")
+            Toast.show_message(self.window(), f"Failed to start import: {e}", "error")
 
     def refresh_styles(self):
         """Re-applies styles to game history view components."""
