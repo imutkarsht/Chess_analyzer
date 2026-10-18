@@ -1,6 +1,7 @@
 """
 Data Management Settings group component.
 """
+
 from PyQt6.QtWidgets import QGridLayout, QGroupBox
 
 from ...styles import Styles
@@ -19,28 +20,56 @@ class DataSettings(QGroupBox):
         data_layout.setContentsMargins(20, 25, 20, 20)
         data_layout.setSpacing(12)
 
-        self.clear_cache_btn = create_icon_button("Clear Cache", "fa5s.broom", self.clear_cache, self)
+        self.clear_cache_btn = create_icon_button(
+            "Clear Cache", "fa5s.broom", self.clear_cache, self
+        )
         data_layout.addWidget(self.clear_cache_btn, 0, 0)
 
-        self.clear_data_btn = create_icon_button("Reset All Data", "fa5s.trash-alt", self.clear_all_data, self, danger=True)
-        data_layout.addWidget(self.clear_data_btn, 0, 1)
+        self.optimize_db_btn = create_icon_button(
+            "Optimize DB", "fa5s.tools", self.optimize_db, self
+        )
+        data_layout.addWidget(self.optimize_db_btn, 0, 1)
+
+        self.clear_data_btn = create_icon_button(
+            "Reset All Data", "fa5s.trash-alt", self.clear_all_data, self, danger=True
+        )
+        data_layout.addWidget(self.clear_data_btn, 0, 2)
+
+    def optimize_db(self):
+        from src.backend.storage.game_history import GameHistoryManager
+        from src.gui.main_window import MainWindow
+
+        history = GameHistoryManager()
+        history.vacuum()
+        history.checkpoint()
+        MainWindow.toast_from_widget(self, "Database optimized and compacted.", "success")
 
     def clear_cache(self):
         from src.gui.utils.gui_utils import confirm_dialog
-        if confirm_dialog(self, "Clear Cache",
-                          "Clear the analysis cache? Your game history will not be deleted.",
-                          confirm_label="Clear Cache"):
+
+        if confirm_dialog(
+            self,
+            "Clear Cache",
+            "Clear the analysis cache? Your game history will not be deleted.",
+            confirm_label="Clear Cache",
+        ):
             from src.backend.storage.cache import AnalysisCache
+
             cache = AnalysisCache()
             cache.clear_cache()
             from src.gui.main_window import MainWindow
+
             MainWindow.toast_from_widget(self, "Analysis cache cleared.", "success")
 
     def clear_all_data(self):
         from src.gui.utils.gui_utils import confirm_dialog
-        if confirm_dialog(self, "Reset All Data",
-                          "This will delete your ENTIRE game history and analysis cache. This cannot be undone.",
-                          confirm_label="Reset All Data"):
+
+        if confirm_dialog(
+            self,
+            "Reset All Data",
+            "This will delete your ENTIRE game history and analysis cache. This cannot be undone.",
+            confirm_label="Reset All Data",
+        ):
             from src.backend.storage.cache import AnalysisCache
             from src.backend.storage.game_history import GameHistoryManager
 
@@ -60,6 +89,7 @@ class DataSettings(QGroupBox):
                     window.metrics_view.refresh([])
 
             from src.gui.main_window import MainWindow
+
             MainWindow.toast_from_widget(self, "All data cleared.", "success")
 
     def set_advanced_visible(self, visible):
@@ -67,7 +97,9 @@ class DataSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        if hasattr(self, 'clear_cache_btn'):
+        if hasattr(self, "clear_cache_btn"):
             self.clear_cache_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        if hasattr(self, 'clear_data_btn'):
+        if hasattr(self, "optimize_db_btn"):
+            self.optimize_db_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        if hasattr(self, "clear_data_btn"):
             self.clear_data_btn.setStyleSheet(Styles.get_settings_danger_button_style())

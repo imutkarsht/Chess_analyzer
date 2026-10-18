@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sqlite3
+import threading
 from typing import Any
 
 from src.constants import DEFAULT_MULTI_PV
@@ -17,22 +18,26 @@ class AnalysisCache:
         else:
             self.db_path = db_path
         self.conn = None
+        self._lock = threading.Lock()
         self._ensure_connection()
         self._init_db()
 
     def _ensure_connection(self):
         if not hasattr(self, "conn") or self.conn is None:
-            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=10.0)
             self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.execute("PRAGMA synchronous=NORMAL")
+            self.conn.execute("PRAGMA busy_timeout=5000")
 
     def close(self):
         """Explicitly closes the database connection."""
-        if hasattr(self, "conn") and self.conn is not None:
-            try:
-                self.conn.close()
-            except Exception:
-                pass
-            self.conn = None
+        with self._lock:
+            if hasattr(self, "conn") and self.conn is not None:
+                try:
+                    self.conn.close()
+                except Exception:
+                    pass
+                self.conn = None
 
     def __enter__(self):
         self._ensure_connection()
@@ -74,58 +79,96 @@ class AnalysisCache:
         Get cached analysis if it exists at sufficient depth.
         Returns cached result only if cached_depth >= requested_depth.
         """
-        self._ensure_connection()
-        requested_depth = engine_params.get("depth", 0) or 0
-        multi_pv = engine_params.get("multi_pv", DEFAULT_MULTI_PV)
-        key = self._generate_key(fen, multi_pv)
+        with self._lock:
+            self._ensure_connection()
+            requested_depth = engine_params.get("depth", 0) or 0
+            multi_pv = engine_params.get("multi_pv", DEFAULT_MULTI_PV)
+            key = self._generate_key(fen, multi_pv)
 
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT result, depth FROM analysis WHERE id = ?", (key,))
-        row = cursor.fetchone()
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT result, depth FROM analysis WHERE id = ?", (key,))
+            row = cursor.fetchone()
 
-        if row:
-            cached_result, cached_depth = row[0], row[1] or 0
-            # Only return cached result if it was analyzed at equal or higher depth
-            if cached_depth >= requested_depth:
-                return json.loads(cached_result)
-        return None
+            if row:
+                cached_result, cached_depth = row[0], row[1] or 0
+                # Only return cached result if it was analyzed at equal or higher depth
+                if cached_depth >= requested_depth:
+                    return json.loads(cached_result)
+            return None
 
     def save_analysis(self, fen: str, engine_params: dict[str, Any], result: Any):
         """
         Save analysis to cache. Overwrites if new depth is higher than cached depth.
         """
-        self._ensure_connection()
-        new_depth = engine_params.get("depth", 0) or 0
-        multi_pv = engine_params.get("multi_pv", DEFAULT_MULTI_PV)
-        key = self._generate_key(fen, multi_pv)
+        with self._lock:
+            self._ensure_connection()
+            new_depth = engine_params.get("depth", 0) or 0
+            multi_pv = engine_params.get("multi_pv", DEFAULT_MULTI_PV)
+            key = self._generate_key(fen, multi_pv)
 
-        cursor = self.conn.cursor()
+            cursor = self.conn.cursor()
 
-        # Check existing depth
-        cursor.execute("SELECT depth FROM analysis WHERE id = ?", (key,))
-        row = cursor.fetchone()
+            # Check existing depth
+            cursor.execute("SELECT depth FROM analysis WHERE id = ?", (key,))
+            row = cursor.fetchone()
 
-        should_save = True
-        if row:
-            cached_depth = row[0] or 0
-            # Only overwrite if new analysis is at higher depth
-            if new_depth <= cached_depth:
-                should_save = False
+            should_save = True
+            if row:
+                cached_depth = row[0] or 0
+                # Only overwrite if new analysis is at higher depth
+                if new_depth <= cached_depth:
+                    should_save = False
 
-        if should_save:
-            cursor.execute("""
-                INSERT OR REPLACE INTO analysis (id, fen, engine_params, depth, result)
-                VALUES (?, ?, ?, ?, ?)
-            """, (key, fen, json.dumps(engine_params, sort_keys=True), new_depth, json.dumps(result)))
-            self.conn.commit()
+            if should_save:
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO analysis (id, fen, engine_params, depth, result)
+                    VALUES (?, ?, ?, ?, ?)
+                """,
+                    (
+                        key,
+                        fen,
+                        json.dumps(engine_params, sort_keys=True),
+                        new_depth,
+                        json.dumps(result),
+                    ),
+                )
+                self.conn.commit()
+
+    def prune_cache(self, max_entries: int = 250_000) -> int:
+        """Prunes oldest entries if analysis table exceeds max_entries."""
+        try:
+            with self._lock:
+                self._ensure_connection()
+                cursor = self.conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM analysis")
+                total = cursor.fetchone()[0]
+                if total > max_entries:
+                    to_delete = total - max_entries
+                    cursor.execute(
+                        "DELETE FROM analysis WHERE rowid IN (SELECT rowid FROM analysis ORDER BY rowid ASC LIMIT ?)",
+                        (to_delete,),
+                    )
+                    self.conn.commit()
+                    logger.debug("Pruned %d excess analysis cache entries.", to_delete)
+                    return to_delete
+                return 0
+        except Exception as e:
+            logger.debug(f"Failed to prune analysis cache: {e}")
+            return 0
 
     def clear_cache(self):
-        """Clears all cached analysis."""
+        """Clears all cached analysis and reclaims disk space via VACUUM."""
         try:
-            self._ensure_connection()
-            cursor = self.conn.cursor()
-            cursor.execute("DELETE FROM analysis")
-            self.conn.commit()
-            logger.info("Analysis cache cleared")
+            with self._lock:
+                self._ensure_connection()
+                cursor = self.conn.cursor()
+                cursor.execute("DELETE FROM analysis")
+                self.conn.commit()
+                try:
+                    cursor.execute("VACUUM")
+                except Exception:
+                    pass
+                logger.info("Analysis cache cleared and vacuumed")
         except Exception as e:
             logger.error(f"Failed to clear cache: {e}")

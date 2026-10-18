@@ -72,9 +72,27 @@ class GameHistoryManager:
             except Exception:
                 pass
 
+    def checkpoint(self):
+        """Executes a WAL checkpoint to truncate sidecar WAL/SHM files into the main DB file."""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            logger.debug("Database WAL checkpoint (TRUNCATE) completed.")
+        except Exception as e:
+            logger.debug(f"Failed to execute WAL checkpoint: {e}")
+
+    def vacuum(self):
+        """Reclaims unused disk space from deleted rows."""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("VACUUM")
+            logger.info("Database vacuum completed.")
+        except Exception as e:
+            logger.error(f"Database vacuum failed: {e}")
+
     def close(self):
-        """Closes any active database resources."""
-        pass
+        """Closes any active database resources and checkpoints WAL."""
+        self.checkpoint()
 
     def __enter__(self):
         return self
@@ -243,7 +261,17 @@ class GameHistoryManager:
                 except Exception as e:
                     logger.debug(f"Could not enable WAL pragma: {e}")
 
+                # Check database integrity on launch
+                try:
+                    cursor.execute("PRAGMA quick_check(1)")
+                    check_res = cursor.fetchone()
+                    if check_res and check_res[0] != "ok":
+                        logger.warning("Database quick_check warning: %s", check_res[0])
+                except Exception as e:
+                    logger.debug(f"Could not execute PRAGMA quick_check: {e}")
+
                 self._init_api_cache(cursor)
+                self.prune_explorer_cache(cursor=cursor)
                 conn.commit()
         except Exception as e:
             logger.error(f"Failed to initialize game history DB: {e}")
@@ -1005,13 +1033,17 @@ class GameHistoryManager:
             return False
 
     def clear_history(self):
-        """Clears all games from history."""
+        """Clears all games from history and reclaims disk space via VACUUM."""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM games")
                 conn.commit()
-            logger.info("Game history cleared.")
+                try:
+                    cursor.execute("VACUUM")
+                except Exception as ve:
+                    logger.debug(f"VACUUM after clear_history skipped: {ve}")
+            logger.info("Game history cleared and database vacuumed.")
         except Exception as e:
             logger.error(f"Failed to clear history: {e}")
 
@@ -1161,13 +1193,17 @@ class GameHistoryManager:
             return []
 
     def clear_api_cache(self):
-        """Clears all games from the API cache."""
+        """Clears all games from the API cache and reclaims disk space via VACUUM."""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM api_game_cache")
                 conn.commit()
-            logger.info("API game cache cleared.")
+                try:
+                    cursor.execute("VACUUM")
+                except Exception as ve:
+                    logger.debug(f"VACUUM after clear_api_cache skipped: {ve}")
+            logger.info("API game cache cleared and database vacuumed.")
         except Exception as e:
             logger.error(f"Failed to clear API game cache: {e}")
 
@@ -1187,8 +1223,30 @@ class GameHistoryManager:
         except Exception as e:
             logger.error(f"Failed to save explorer cache: {e}")
 
+    def prune_explorer_cache(self, cursor: sqlite3.Cursor | None = None) -> int:
+        """Prunes cached opening explorer responses older than 48 hours."""
+        try:
+            if cursor is not None:
+                cursor.execute(
+                    "DELETE FROM explorer_cache WHERE cached_at < datetime('now', '-2 days')"
+                )
+                return cursor.rowcount
+            with self._get_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "DELETE FROM explorer_cache WHERE cached_at < datetime('now', '-2 days')"
+                )
+                pruned = cur.rowcount
+                conn.commit()
+                if pruned > 0:
+                    logger.debug("Pruned %d expired explorer cache entries.", pruned)
+                return pruned
+        except Exception as e:
+            logger.debug(f"Failed to prune explorer cache: {e}")
+            return 0
+
     def get_explorer_cache(self, fen: str) -> str | None:
-        """Retrieves a cached explorer response json by FEN."""
+        """Retrieves a cached explorer response json by FEN, deleting expired entries."""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
@@ -1203,6 +1261,9 @@ class GameHistoryManager:
                         cached_epoch = time.mktime(cached_time)
                         if time.time() - cached_epoch < 172800:
                             return response_json
+                        else:
+                            cursor.execute("DELETE FROM explorer_cache WHERE fen = ?", (fen,))
+                            conn.commit()
                     except Exception:
                         return response_json
             return None

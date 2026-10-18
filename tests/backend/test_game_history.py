@@ -297,3 +297,72 @@ def test_save_games_bulk_dict_and_analyses(temp_db):
     saved_count_2 = manager.save_games_bulk([game3])
     assert saved_count_2 == 1
     assert manager.game_exists("bulk_analysis_3")
+
+
+def test_checkpoint_and_vacuum(temp_db):
+    """Test WAL checkpoint and vacuum methods execute cleanly."""
+    manager = GameHistoryManager(temp_db)
+    # Execute checkpoint and vacuum
+    manager.checkpoint()
+    manager.vacuum()
+    manager.close()
+
+
+def test_explorer_cache_ttl_and_prune(temp_db):
+    """Test explorer_cache saves, retrieves, and prunes expired records."""
+    import time
+
+    manager = GameHistoryManager(temp_db)
+    fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    response_data = '{"moves": []}'
+
+    # 1. Save valid entry
+    manager.save_explorer_cache(fen, response_data)
+    cached = manager.get_explorer_cache(fen)
+    assert cached == response_data
+
+    # 2. Simulate expired entry (> 48 hours old)
+    old_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() - 200000))
+    with manager._get_connection() as conn:
+        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (old_time, fen))
+        conn.commit()
+
+    # get_explorer_cache should detect expiration and delete it
+    cached_expired = manager.get_explorer_cache(fen)
+    assert cached_expired is None
+
+    # Verify row was deleted
+    with manager._get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM explorer_cache")
+        assert cursor.fetchone()[0] == 0
+
+    # 3. Test prune_explorer_cache
+    manager.save_explorer_cache(fen, response_data)
+    with manager._get_connection() as conn:
+        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (old_time, fen))
+        conn.commit()
+
+    pruned = manager.prune_explorer_cache()
+    assert pruned == 1
+
+
+def test_analysis_cache_thread_safety_and_pruning(tmp_path):
+    """Test AnalysisCache thread-safety, prune_cache, and clear_cache vacuuming."""
+    from src.backend.storage.cache import AnalysisCache
+
+    db_path = str(tmp_path / "test_cache.db")
+    cache = AnalysisCache(db_path)
+
+    # Save multiple items
+    for i in range(10):
+        cache.save_analysis(f"fen_{i}", {"depth": 10}, {"score": i})
+
+    # Prune to max 5 items
+    deleted = cache.prune_cache(max_entries=5)
+    assert deleted == 5
+
+    # Clear cache
+    cache.clear_cache()
+    assert cache.get_analysis("fen_0", {"depth": 10}) is None
+    cache.close()

@@ -369,6 +369,14 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.error(f"Failed to close explorer view resources: {e}")
 
+        # Checkpoint SQLite database WAL sidecar files on exit
+        try:
+            from src.backend.storage.game_history import GameHistoryManager
+
+            GameHistoryManager().checkpoint()
+        except Exception as e:
+            logger.debug(f"Failed to checkpoint game history on exit: {e}")
+
         super().closeEvent(event)
 
     def setup_ui(self):
