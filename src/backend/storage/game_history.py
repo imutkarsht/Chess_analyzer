@@ -49,6 +49,8 @@ GAME_CSV_COLUMNS: list[str] = [
     "timestamp",
 ]
 
+CURRENT_SCHEMA_VERSION: int = 2
+
 
 class GameHistoryManager:
     def __init__(self, db_path: str | None = None):
@@ -120,139 +122,169 @@ class GameHistoryManager:
                     )
                 """)
 
-                # 2. Schema Migration: Ensure new columns exist
-                # List of (column_name, column_type)
-                new_columns = [
-                    ("white_elo", "TEXT"),
-                    ("black_elo", "TEXT"),
-                    ("time_control", "TEXT"),
-                    ("eco", "TEXT"),
-                    ("termination", "TEXT"),
-                    ("opening", "TEXT"),
-                    ("starting_fen", "TEXT"),
-                    ("source", "TEXT"),
-                    ("chess960", "INTEGER"),
-                    ("moves_json", "TEXT"),
-                    ("speed_category", "TEXT"),
-                    ("book_exit_ply", "INTEGER"),
-                    ("white_opening_acc", "REAL"),
-                    ("black_opening_acc", "REAL"),
-                    ("white_middlegame_acc", "REAL"),
-                    ("black_middlegame_acc", "REAL"),
-                    ("white_endgame_acc", "REAL"),
-                    ("black_endgame_acc", "REAL"),
-                    ("white_pieces_hung", "INTEGER DEFAULT 0"),
-                    ("black_pieces_hung", "INTEGER DEFAULT 0"),
-                    ("white_brilliant_count", "INTEGER DEFAULT 0"),
-                    ("black_brilliant_count", "INTEGER DEFAULT 0"),
-                    ("white_great_count", "INTEGER DEFAULT 0"),
-                    ("black_great_count", "INTEGER DEFAULT 0"),
-                    ("termination_mode", "TEXT"),
-                ]
+                # Check schema version
+                cursor.execute("PRAGMA user_version")
+                user_ver_row = cursor.fetchone()
+                current_version = user_ver_row[0] if user_ver_row else 0
 
-                # Check existing columns
-                cursor.execute("PRAGMA table_info(games)")
-                existing_cols = {row[1] for row in cursor.fetchall()}
-
-                for col_name, col_type in new_columns:
-                    if col_name not in existing_cols:
+                if current_version < CURRENT_SCHEMA_VERSION:
+                    # Pre-migration safety snapshot using native SQLite backup API
+                    if (
+                        self.db_path != ":memory:"
+                        and os.path.exists(self.db_path)
+                        and os.path.getsize(self.db_path) > 0
+                    ):
+                        backup_path = f"{self.db_path}.bak"
                         try:
-                            logger.info(f"Migrating DB: Adding column {col_name}")
-                            cursor.execute(f"ALTER TABLE games ADD COLUMN {col_name} {col_type}")
-                        except Exception as e:
-                            logger.error(f"Failed to add column {col_name}: {e}")
-
-                # Backfill termination_mode for any older games without it
-                cursor.execute(
-                    "SELECT id, result, termination, pgn, starting_fen, chess960 "
-                    "FROM games WHERE termination_mode IS NULL OR termination_mode = ''"
-                )
-                rows_to_migrate = cursor.fetchall()
-                if rows_to_migrate:
-                    import io
-
-                    import chess.pgn
-
-                    from src.backend.storage.models import MoveAnalysis
-                    from src.backend.storage.termination_detector import TerminationDetector
-
-                    for gid, res, term, pgn_str, s_fen, is_960 in rows_to_migrate:
-                        try:
-                            game = chess.pgn.read_game(io.StringIO(pgn_str)) if pgn_str else None
-                            headers = (
-                                dict(game.headers)
-                                if game
-                                else {"Result": res, "Termination": term or ""}
+                            with sqlite3.connect(backup_path) as bck:
+                                conn.backup(bck)
+                            logger.info(
+                                "Created pre-migration database snapshot at %s", backup_path
                             )
-                            moves = []
-                            if game:
-                                for ply_idx, node in enumerate(game.mainline()):
-                                    moves.append(
-                                        MoveAnalysis(
-                                            move_number=ply_idx // 2 + 1,
-                                            ply=ply_idx + 1,
-                                            san=node.san(),
-                                            uci=node.move.uci(),
-                                            fen_before="",
+                        except Exception as backup_err:
+                            logger.warning("Could not create pre-migration backup: %s", backup_err)
+
+                    # 2. Schema Migration: Ensure new columns exist
+                    new_columns = [
+                        ("white_elo", "TEXT"),
+                        ("black_elo", "TEXT"),
+                        ("time_control", "TEXT"),
+                        ("eco", "TEXT"),
+                        ("termination", "TEXT"),
+                        ("opening", "TEXT"),
+                        ("starting_fen", "TEXT"),
+                        ("source", "TEXT"),
+                        ("chess960", "INTEGER"),
+                        ("moves_json", "TEXT"),
+                        ("speed_category", "TEXT"),
+                        ("book_exit_ply", "INTEGER"),
+                        ("white_opening_acc", "REAL"),
+                        ("black_opening_acc", "REAL"),
+                        ("white_middlegame_acc", "REAL"),
+                        ("black_middlegame_acc", "REAL"),
+                        ("white_endgame_acc", "REAL"),
+                        ("black_endgame_acc", "REAL"),
+                        ("white_pieces_hung", "INTEGER DEFAULT 0"),
+                        ("black_pieces_hung", "INTEGER DEFAULT 0"),
+                        ("white_brilliant_count", "INTEGER DEFAULT 0"),
+                        ("black_brilliant_count", "INTEGER DEFAULT 0"),
+                        ("white_great_count", "INTEGER DEFAULT 0"),
+                        ("black_great_count", "INTEGER DEFAULT 0"),
+                        ("termination_mode", "TEXT"),
+                    ]
+
+                    # Check existing columns
+                    cursor.execute("PRAGMA table_info(games)")
+                    existing_cols = {row[1] for row in cursor.fetchall()}
+
+                    for col_name, col_type in new_columns:
+                        if col_name not in existing_cols:
+                            try:
+                                logger.info(f"Migrating DB: Adding column {col_name}")
+                                cursor.execute(
+                                    f"ALTER TABLE games ADD COLUMN {col_name} {col_type}"
+                                )
+                            except Exception as e:
+                                logger.error(f"Failed to add column {col_name}: {e}")
+
+                    # Backfill termination_mode for any older games without it
+                    cursor.execute(
+                        "SELECT id, result, termination, pgn, starting_fen, chess960 "
+                        "FROM games WHERE termination_mode IS NULL OR termination_mode = ''"
+                    )
+                    rows_to_migrate = cursor.fetchall()
+                    if rows_to_migrate:
+                        import io
+
+                        import chess.pgn
+
+                        from src.backend.storage.models import MoveAnalysis
+                        from src.backend.storage.termination_detector import TerminationDetector
+
+                        for gid, res, term, pgn_str, s_fen, is_960 in rows_to_migrate:
+                            try:
+                                game = (
+                                    chess.pgn.read_game(io.StringIO(pgn_str)) if pgn_str else None
+                                )
+                                headers = (
+                                    dict(game.headers)
+                                    if game
+                                    else {"Result": res, "Termination": term or ""}
+                                )
+                                moves = []
+                                if game:
+                                    for ply_idx, node in enumerate(game.mainline()):
+                                        moves.append(
+                                            MoveAnalysis(
+                                                move_number=ply_idx // 2 + 1,
+                                                ply=ply_idx + 1,
+                                                san=node.san(),
+                                                uci=node.move.uci(),
+                                                fen_before="",
+                                            )
                                         )
+                                mode, desc = TerminationDetector.detect_termination(
+                                    headers=headers,
+                                    moves=moves,
+                                    starting_fen=s_fen,
+                                    chess960=bool(is_960),
+                                )
+                                clean_term = (
+                                    desc
+                                    if (
+                                        not term
+                                        or term.strip().lower() in ("", "normal", "unknown")
                                     )
-                            mode, desc = TerminationDetector.detect_termination(
-                                headers=headers,
-                                moves=moves,
-                                starting_fen=s_fen,
-                                chess960=bool(is_960),
-                            )
-                            clean_term = (
-                                desc
-                                if (not term or term.strip().lower() in ("", "normal", "unknown"))
-                                else term
-                            )
-                            cursor.execute(
-                                "UPDATE games SET termination_mode = ?, termination = ? WHERE id = ?",
-                                (mode, clean_term, gid),
-                            )
+                                    else term
+                                )
+                                cursor.execute(
+                                    "UPDATE games SET termination_mode = ?, termination = ? WHERE id = ?",
+                                    (mode, clean_term, gid),
+                                )
+                            except Exception as e:
+                                logger.error(f"Failed to backfill termination for game {gid}: {e}")
+
+                    # 3. Performance Indexes for Scale (5,000+ games)
+                    indexes = [
+                        (
+                            "idx_games_white_lower",
+                            "CREATE INDEX IF NOT EXISTS idx_games_white_lower ON games(LOWER(white))",
+                        ),
+                        (
+                            "idx_games_black_lower",
+                            "CREATE INDEX IF NOT EXISTS idx_games_black_lower ON games(LOWER(black))",
+                        ),
+                        (
+                            "idx_games_timestamp",
+                            "CREATE INDEX IF NOT EXISTS idx_games_timestamp ON games(timestamp DESC)",
+                        ),
+                        (
+                            "idx_games_speed",
+                            "CREATE INDEX IF NOT EXISTS idx_games_speed ON games(speed_category)",
+                        ),
+                        (
+                            "idx_games_date",
+                            "CREATE INDEX IF NOT EXISTS idx_games_date ON games(date)",
+                        ),
+                        (
+                            "idx_games_opening",
+                            "CREATE INDEX IF NOT EXISTS idx_games_opening ON games(opening)",
+                        ),
+                        (
+                            "idx_games_source",
+                            "CREATE INDEX IF NOT EXISTS idx_games_source ON games(source)",
+                        ),
+                    ]
+                    for idx_name, idx_sql in indexes:
+                        try:
+                            cursor.execute(idx_sql)
                         except Exception as e:
-                            logger.error(f"Failed to backfill termination for game {gid}: {e}")
+                            logger.warning(f"Could not create index {idx_name}: {e}")
 
-                # 3. Backfill legacy tactics metrics into summary_json
+                    cursor.execute(f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}")
+
+                # Ensure any legacy tactics metrics are backfilled into summary_json and table columns
                 self._backfill_legacy_tactics(cursor)
-
-                # 4. Performance Indexes for Scale (5,000+ games)
-                indexes = [
-                    (
-                        "idx_games_white_lower",
-                        "CREATE INDEX IF NOT EXISTS idx_games_white_lower ON games(LOWER(white))",
-                    ),
-                    (
-                        "idx_games_black_lower",
-                        "CREATE INDEX IF NOT EXISTS idx_games_black_lower ON games(LOWER(black))",
-                    ),
-                    (
-                        "idx_games_timestamp",
-                        "CREATE INDEX IF NOT EXISTS idx_games_timestamp ON games(timestamp DESC)",
-                    ),
-                    (
-                        "idx_games_speed",
-                        "CREATE INDEX IF NOT EXISTS idx_games_speed ON games(speed_category)",
-                    ),
-                    (
-                        "idx_games_date",
-                        "CREATE INDEX IF NOT EXISTS idx_games_date ON games(date)",
-                    ),
-                    (
-                        "idx_games_opening",
-                        "CREATE INDEX IF NOT EXISTS idx_games_opening ON games(opening)",
-                    ),
-                    (
-                        "idx_games_source",
-                        "CREATE INDEX IF NOT EXISTS idx_games_source ON games(source)",
-                    ),
-                ]
-                for idx_name, idx_sql in indexes:
-                    try:
-                        cursor.execute(idx_sql)
-                    except Exception as e:
-                        logger.warning(f"Could not create index {idx_name}: {e}")
 
                 # Enable WAL mode and normal synchronous for fast concurrent reads
                 try:
@@ -279,7 +311,7 @@ class GameHistoryManager:
     def _backfill_legacy_tactics(self, cursor: sqlite3.Cursor) -> None:
         """
         One-time migration to backfill rich tactical metrics (hung pieces, blunders,
-        motifs, clock) directly into summary_json for legacy games.
+        motifs, clock) directly into summary_json and direct table columns for legacy games.
         This eliminates runtime move replay during stats aggregation, speeding up stats
         calculation by 20x-100x.
         """
@@ -313,9 +345,78 @@ class GameHistoryManager:
                     s_dict["white"]["tactics"] = tactics_w
                     s_dict["black"]["tactics"] = tactics_b
 
+                    w_hanging = tactics_w.get("hanging_metrics", {})
+                    b_hanging = tactics_b.get("hanging_metrics", {})
+                    w_phase = tactics_w.get("phase_accuracies", {})
+                    b_phase = tactics_b.get("phase_accuracies", {})
+                    w_brilliants = len(
+                        [
+                            b
+                            for b in tactics_w.get("brilliancies", [])
+                            if b.get("classification") == "Brilliant"
+                        ]
+                    )
+                    b_brilliants = len(
+                        [
+                            b
+                            for b in tactics_b.get("brilliancies", [])
+                            if b.get("classification") == "Brilliant"
+                        ]
+                    )
+                    w_greats = len(
+                        [
+                            b
+                            for b in tactics_w.get("brilliancies", [])
+                            if b.get("classification") == "Great"
+                        ]
+                    )
+                    b_greats = len(
+                        [
+                            b
+                            for b in tactics_b.get("brilliancies", [])
+                            if b.get("classification") == "Great"
+                        ]
+                    )
+                    b_exit = tactics_w.get("book_exit_ply")
+
                     cursor.execute(
-                        "UPDATE games SET summary_json = ? WHERE id = ?",
-                        (json.dumps(s_dict), gid),
+                        """
+                        UPDATE games SET
+                            summary_json = ?,
+                            speed_category = COALESCE(speed_category, ?),
+                            book_exit_ply = ?,
+                            white_opening_acc = ?,
+                            black_opening_acc = ?,
+                            white_middlegame_acc = ?,
+                            black_middlegame_acc = ?,
+                            white_endgame_acc = ?,
+                            black_endgame_acc = ?,
+                            white_pieces_hung = ?,
+                            black_pieces_hung = ?,
+                            white_brilliant_count = ?,
+                            black_brilliant_count = ?,
+                            white_great_count = ?,
+                            black_great_count = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            json.dumps(s_dict),
+                            s_cat,
+                            b_exit,
+                            w_phase.get("opening"),
+                            b_phase.get("opening"),
+                            w_phase.get("middlegame"),
+                            b_phase.get("middlegame"),
+                            w_phase.get("endgame"),
+                            b_phase.get("endgame"),
+                            w_hanging.get("total_hung", 0),
+                            b_hanging.get("total_hung", 0),
+                            w_brilliants,
+                            b_brilliants,
+                            w_greats,
+                            b_greats,
+                            gid,
+                        ),
                     )
                 except Exception as exc:
                     logger.warning("Failed backfilling tactics for game %s: %s", gid, exc)

@@ -366,3 +366,96 @@ def test_analysis_cache_thread_safety_and_pruning(tmp_path):
     cache.clear_cache()
     assert cache.get_analysis("fen_0", {"depth": 10}) is None
     cache.close()
+
+
+def test_schema_migration_creates_backup_and_sets_user_version(tmp_path):
+    """Test that upgrading a legacy v0 database creates a .bak snapshot and sets PRAGMA user_version to CURRENT_SCHEMA_VERSION."""
+    import os
+    import sqlite3
+
+    from src.backend.storage.game_history import CURRENT_SCHEMA_VERSION
+
+    legacy_db = str(tmp_path / "legacy_v0.db")
+    # Manually create a v0 schema with only base columns
+    with sqlite3.connect(legacy_db) as conn:
+        conn.execute("""
+            CREATE TABLE games (
+                id TEXT PRIMARY KEY,
+                white TEXT,
+                black TEXT,
+                result TEXT,
+                date TEXT,
+                event TEXT,
+                pgn TEXT,
+                summary_json TEXT,
+                timestamp REAL
+            )
+        """)
+        conn.execute(
+            "INSERT INTO games (id, white, black, result, date, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+            ("old_1", "Kasparov", "Deep Blue", "1-0", "1997.05.03", 1000.0),
+        )
+        conn.commit()
+
+    # Open with GameHistoryManager to trigger migration
+    manager = GameHistoryManager(legacy_db)
+
+    # 1. Assert backup snapshot was created
+    backup_file = legacy_db + ".bak"
+    assert os.path.exists(backup_file), "Expected pre-migration backup file to exist"
+    assert os.path.getsize(backup_file) > 0
+
+    # 2. Assert PRAGMA user_version is updated
+    with manager._get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA user_version")
+        ver = cursor.fetchone()[0]
+        assert ver == CURRENT_SCHEMA_VERSION
+
+    # 3. Assert game record is intact and new columns exist
+    game = manager.get_game("old_1")
+    assert game is not None
+    assert game["white"] == "Kasparov"
+    assert "white_pieces_hung" in game
+    assert "termination_mode" in game
+
+
+def test_legacy_tactics_populates_direct_table_columns(temp_db):
+    """Test that _backfill_legacy_tactics populates direct table columns as well as summary_json."""
+    import json
+    import sqlite3
+
+    GameHistoryManager(temp_db)
+
+    moves = [
+        {"move_number": 1, "ply": 1, "san": "e4", "uci": "e2e4", "fen_before": ""},
+        {"move_number": 1, "ply": 2, "san": "e5", "uci": "e7e5", "fen_before": ""},
+    ]
+    legacy_summary = {"white": {"accuracy": 85.0}, "black": {"accuracy": 80.0}}
+
+    with sqlite3.connect(temp_db) as conn:
+        conn.execute(
+            """
+            INSERT INTO games (id, white, black, result, moves_json, summary_json, speed_category)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "legacy_game_cols",
+                "Hero",
+                "Opponent",
+                "1-0",
+                json.dumps(moves),
+                json.dumps(legacy_summary),
+                "Blitz",
+            ),
+        )
+        conn.commit()
+
+    # Re-trigger init
+    manager2 = GameHistoryManager(temp_db)
+    saved = manager2.get_game("legacy_game_cols")
+    assert saved is not None
+    # Verify table columns got populated
+    assert saved["white_opening_acc"] is not None
+    assert saved["speed_category"] == "Blitz"
+    assert "hung_pieces_details" in json.loads(saved["summary_json"])["white"]["tactics"]
