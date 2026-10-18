@@ -38,6 +38,69 @@ class MoveAnalysis:
     opening_name: str = ""
     candidate_continuations: list[str] = field(default_factory=list)
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "move_number": self.move_number,
+            "ply": self.ply,
+            "san": self.san,
+            "uci": self.uci,
+            "fen_before": self.fen_before,
+            "eval_before_cp": self.eval_before_cp,
+            "eval_before_mate": self.eval_before_mate,
+            "best_move": self.best_move,
+            "best_eval_cp": self.best_eval_cp,
+            "best_eval_mate": self.best_eval_mate,
+            "pv": self.pv,
+            "eval_after_cp": self.eval_after_cp,
+            "eval_after_mate": self.eval_after_mate,
+            "win_chance_before": self.win_chance_before,
+            "win_chance_after": self.win_chance_after,
+            "classification": self.classification,
+            "explanation": self.explanation,
+            "multi_pvs": self.multi_pvs,
+            "is_book_move": self.is_book_move,
+            "book_move_count": self.book_move_count,
+            "book_exit_move": self.book_exit_move,
+            "eco": self.eco,
+            "opening_name": self.opening_name,
+            "candidate_continuations": self.candidate_continuations,
+            "time_left": self.time_left,
+            "time_spent": self.time_spent,
+            "raw_clk": self.raw_clk,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "MoveAnalysis":
+        return cls(
+            move_number=d.get("move_number", 0),
+            ply=d.get("ply", 0),
+            san=d.get("san", ""),
+            uci=d.get("uci", ""),
+            fen_before=d.get("fen_before", ""),
+            eval_before_cp=d.get("eval_before_cp"),
+            eval_before_mate=d.get("eval_before_mate"),
+            best_move=d.get("best_move"),
+            best_eval_cp=d.get("best_eval_cp"),
+            best_eval_mate=d.get("best_eval_mate"),
+            pv=d.get("pv", []),
+            eval_after_cp=d.get("eval_after_cp"),
+            eval_after_mate=d.get("eval_after_mate"),
+            win_chance_before=d.get("win_chance_before", 0.5),
+            win_chance_after=d.get("win_chance_after", 0.5),
+            classification=d.get("classification", ""),
+            explanation=d.get("explanation", ""),
+            multi_pvs=d.get("multi_pvs", []),
+            is_book_move=d.get("is_book_move", False),
+            book_move_count=d.get("book_move_count", 0),
+            book_exit_move=d.get("book_exit_move", False),
+            eco=d.get("eco", ""),
+            opening_name=d.get("opening_name", ""),
+            candidate_continuations=d.get("candidate_continuations", []),
+            time_left=d.get("time_left"),
+            time_spent=d.get("time_spent"),
+            raw_clk=d.get("raw_clk"),
+        )
+
 
 @dataclass
 class GameMetadata:

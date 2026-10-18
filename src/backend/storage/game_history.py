@@ -598,37 +598,7 @@ class GameHistoryManager:
     ) -> dict[str, Any]:
         game_id = game_analysis.game_id or _make_game_id(pgn_content)
 
-        moves_data = []
-        for m in game_analysis.moves:
-            moves_data.append(
-                {
-                    "move_number": m.move_number,
-                    "ply": m.ply,
-                    "san": m.san,
-                    "uci": m.uci,
-                    "fen_before": m.fen_before,
-                    "eval_before_cp": m.eval_before_cp,
-                    "eval_before_mate": m.eval_before_mate,
-                    "best_move": m.best_move,
-                    "best_eval_cp": m.best_eval_cp,
-                    "best_eval_mate": m.best_eval_mate,
-                    "pv": m.pv,
-                    "eval_after_cp": m.eval_after_cp,
-                    "eval_after_mate": m.eval_after_mate,
-                    "win_chance_before": m.win_chance_before,
-                    "win_chance_after": m.win_chance_after,
-                    "classification": m.classification,
-                    "explanation": m.explanation,
-                    "multi_pvs": m.multi_pvs,
-                    "is_book_move": m.is_book_move,
-                    "eco": m.eco,
-                    "opening_name": m.opening_name,
-                    "candidate_continuations": m.candidate_continuations,
-                    "time_left": m.time_left,
-                    "time_spent": m.time_spent,
-                    "raw_clk": m.raw_clk,
-                }
-            )
+        moves_data = [m.to_dict() for m in game_analysis.moves]
         moves_json = json.dumps(moves_data)
 
         speed_category = game_analysis.metadata.speed_category or "Blitz"
@@ -1033,9 +1003,9 @@ class GameHistoryManager:
         row_dict = self.get_game(game_id)
         if not row_dict:
             return None
-        return self._row_to_game_analysis(row_dict)
+        return self.row_to_game_analysis(row_dict)
 
-    def _row_to_game_analysis(self, g_dict: dict[str, Any]) -> GameAnalysis:
+    def row_to_game_analysis(self, g_dict: dict[str, Any]) -> GameAnalysis:
         from .models import GameMetadata, MoveAnalysis
         from .pgn_parser import PGNParser
         from .termination_detector import TerminationDetector
@@ -1079,37 +1049,9 @@ class GameHistoryManager:
         if g_dict.get("moves_json"):
             try:
                 moves_data = json.loads(g_dict["moves_json"])
-                for md in moves_data:
-                    move = MoveAnalysis(
-                        move_number=md.get("move_number", 0),
-                        ply=md.get("ply", 0),
-                        san=md.get("san", ""),
-                        uci=md.get("uci", ""),
-                        fen_before=md.get("fen_before", ""),
-                        eval_before_cp=md.get("eval_before_cp"),
-                        eval_before_mate=md.get("eval_before_mate"),
-                        best_move=md.get("best_move"),
-                        best_eval_cp=md.get("best_eval_cp"),
-                        best_eval_mate=md.get("best_eval_mate"),
-                        pv=md.get("pv", []),
-                        eval_after_cp=md.get("eval_after_cp"),
-                        eval_after_mate=md.get("eval_after_mate"),
-                        win_chance_before=md.get("win_chance_before", 0.5),
-                        win_chance_after=md.get("win_chance_after", 0.5),
-                        classification=md.get("classification", ""),
-                        explanation=md.get("explanation", ""),
-                        multi_pvs=md.get("multi_pvs", []),
-                        is_book_move=md.get("is_book_move", False),
-                        eco=md.get("eco", ""),
-                        opening_name=md.get("opening_name", ""),
-                        candidate_continuations=md.get("candidate_continuations", []),
-                        time_left=md.get("time_left"),
-                        time_spent=md.get("time_spent"),
-                        raw_clk=md.get("raw_clk"),
-                    )
-                    moves.append(move)
+                moves = [MoveAnalysis.from_dict(md) for md in moves_data if isinstance(md, dict)]
             except Exception as e:
-                logger.error(f"Failed to parse moves_json: {e}")
+                logger.error("Failed to parse moves_json: %s", e)
 
         if not moves and g_dict.get("pgn"):
             try:
@@ -1143,6 +1085,8 @@ class GameHistoryManager:
             summary=summary,
             moves=moves,
         )
+
+    _row_to_game_analysis = row_to_game_analysis
 
     def game_exists(self, game_id: str) -> bool:
         """Checks if a game with the given ID already exists."""
