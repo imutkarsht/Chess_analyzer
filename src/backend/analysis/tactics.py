@@ -39,70 +39,237 @@ PIECE_NAMES: dict[chess.PieceType, str] = {
 }
 
 
-def get_hanging_pieces(board: chess.Board, color: chess.Color) -> list[dict]:
+def find_slider_ray_targets(
+    board: chess.Board,
+    slider_sq: chess.Square,
+    color: chess.Color,
+) -> list[tuple[chess.Square, chess.Piece, chess.Square, chess.Piece]]:
+    """
+    Finds all aligned pairs of enemy pieces (front_sq, front_piece, rear_sq, rear_piece)
+    along straight rays extending outwards from `slider_sq`.
+    Guarantees physical order along each ray outwards from `slider_sq`.
+    """
+    enemy_color = not color
+    results: list[tuple[chess.Square, chess.Piece, chess.Square, chess.Piece]] = []
+    slider_piece = board.piece_at(slider_sq)
+    if not slider_piece:
+        return results
+
+    directions: list[tuple[int, int]] = []
+    if slider_piece.piece_type in (chess.BISHOP, chess.QUEEN):
+        directions.extend([(1, 1), (1, -1), (-1, 1), (-1, -1)])
+    if slider_piece.piece_type in (chess.ROOK, chess.QUEEN):
+        directions.extend([(1, 0), (-1, 0), (0, 1), (0, -1)])
+
+    s_f = chess.square_file(slider_sq)
+    s_r = chess.square_rank(slider_sq)
+
+    for df, dr in directions:
+        f = s_f + df
+        r = s_r + dr
+        front_sq: chess.Square | None = None
+        front_piece: chess.Piece | None = None
+
+        while 0 <= f < 8 and 0 <= r < 8:
+            sq = chess.square(f, r)
+            p = board.piece_at(sq)
+            if p is not None:
+                if front_sq is None:
+                    if p.color == enemy_color:
+                        front_sq = sq
+                        front_piece = p
+                    else:
+                        break  # Friendly piece blocks ray immediately
+                else:
+                    if p.color == enemy_color and front_piece is not None:
+                        results.append((front_sq, front_piece, sq, p))
+                    break  # Second piece blocks further vision on this ray
+            f += df
+            r += dr
+
+    return results
+
+
+def is_on_segment(a: chess.Square, b: chess.Square, c: chess.Square) -> bool:
+    """Returns True if square `c` lies strictly between `a` and `b` on a straight ray."""
+    af, ar = chess.square_file(a), chess.square_rank(a)
+    bf, br = chess.square_file(b), chess.square_rank(b)
+    cf, cr = chess.square_file(c), chess.square_rank(c)
+    df, dr = bf - af, br - ar
+    if df != 0 and dr != 0 and abs(df) != abs(dr):
+        return False
+    step_f = 0 if df == 0 else (1 if df > 0 else -1)
+    step_r = 0 if dr == 0 else (1 if dr > 0 else -1)
+    f, r = af + step_f, ar + step_r
+    while (f, r) != (bf, br):
+        if (f, r) == (cf, cr):
+            return True
+        f += step_f
+        r += step_r
+    return False
+
+
+def static_exchange_evaluation(
+    board: chess.Board,
+    square: chess.Square,
+    attacking_color: chess.Color | None = None,
+) -> int:
+    """
+    Computes Static Exchange Evaluation (SEE) score on `square` in centipawns.
+    Positive value indicates `attacking_color` gains material on that square.
+    """
+    target_piece = board.piece_at(square)
+    if not target_piece:
+        return 0
+
+    if attacking_color is None:
+        attacking_color = board.turn
+
+    color = attacking_color
+    enemy_color = not color
+
+    attackers = board.attackers(color, square)
+    if not attackers:
+        return 0
+
+    best_attacker = None
+    min_val = 99999
+    enemy_attacks = board.attackers(enemy_color, square)
+    for sq in attackers:
+        if board.is_pinned(color, sq) and square not in board.pin(color, sq):
+            continue
+        p = board.piece_at(sq)
+        if not p:
+            continue
+        # King cannot legally capture on a defended square
+        if p.piece_type == chess.KING and enemy_attacks:
+            continue
+        val = PIECE_VALUES.get(p.piece_type, 0)
+        if val < min_val:
+            min_val = val
+            best_attacker = sq
+
+    if best_attacker is None:
+        return 0
+
+    captured_val = PIECE_VALUES.get(target_piece.piece_type, 0) * 100
+
+    b_copy = board.copy(stack=False)
+    attacker_p = board.piece_at(best_attacker)
+    promotion = None
+    if attacker_p and attacker_p.piece_type == chess.PAWN and chess.square_rank(square) in (0, 7):
+        promotion = chess.QUEEN
+        captured_val += 800  # Promotion adds net Queen value over pawn
+
+    b_copy.push(chess.Move(best_attacker, square, promotion=promotion))
+
+    recapture_gain = static_exchange_evaluation(b_copy, square, enemy_color)
+    return max(0, captured_val - recapture_gain)
+
+
+def is_piece_hanging(
+    board: chess.Board,
+    square: chess.Square,
+    color: chess.Color,
+    last_move: chess.Move | None = None,
+    board_before: chess.Board | None = None,
+) -> bool:
+    """
+    Determines if the piece on `square` belonging to `color` is hanging on `board`.
+    Strictly follows SPEC.md:
+    1. Not a King.
+    2. Attacked by >= 1 enemy piece.
+    3. Undefended, attacked by lesser value, or enemy SEE > 0.
+    4. Excludes equal or winning recaptures/trades on `last_move` (including en passant).
+    """
+    piece = board.piece_at(square)
+    if not piece or piece.color != color or piece.piece_type == chess.KING:
+        return False
+
+    enemy_color = not color
+    enemy_attackers = board.attackers(enemy_color, square)
+    if not enemy_attackers:
+        return False
+
+    piece_val = PIECE_VALUES.get(piece.piece_type, 0)
+
+    # Filter legal friendly defenders (excluding pinned defenders)
+    raw_defenders = board.attackers(color, square)
+    friendly_defenders = [
+        sq
+        for sq in raw_defenders
+        if not (board.is_pinned(color, sq) and square not in board.pin(color, sq))
+    ]
+
+    attacker_vals = [
+        PIECE_VALUES.get(board.piece_at(sq).piece_type, 0)
+        for sq in enemy_attackers
+        if board.piece_at(sq)
+    ]
+    min_attacker_val = min(attacker_vals) if attacker_vals else 99
+
+    is_undefended = len(friendly_defenders) == 0
+    attacked_by_lesser = min_attacker_val < piece_val
+    enemy_see_gain = static_exchange_evaluation(board, square, enemy_color)
+    is_underdefended = enemy_see_gain > 0
+
+    if not (is_undefended or attacked_by_lesser or is_underdefended):
+        return False
+
+    # RECAPTURE / TRADE EXCLUSION (Resolves Queen/Piece exchange bug):
+    if last_move and board_before is not None and last_move.to_square == square:
+        captured = board_before.piece_at(square)
+        if captured is None and board_before.is_en_passant(last_move):
+            ep_sq = chess.square(
+                chess.square_file(last_move.to_square),
+                chess.square_rank(last_move.from_square),
+            )
+            captured = board_before.piece_at(ep_sq)
+        if captured and PIECE_VALUES.get(captured.piece_type, 0) >= piece_val:
+            return False
+
+    return True
+
+
+def get_hanging_pieces(
+    board: chess.Board,
+    color: chess.Color,
+    last_move: chess.Move | None = None,
+    board_before: chess.Board | None = None,
+) -> list[dict]:
     """
     Finds all pieces belonging to `color` that are hanging on `board`.
-    A piece is truly hanging if:
-    1. It is attacked by at least one enemy piece, AND
-    2. Either:
-       a) It is completely undefended (no legal defenders), OR
-       b) It is attacked by an enemy piece of strictly lower value (e.g. Queen/Rook attacked by Pawn/Minor), OR
-       c) Enemy attackers outnumber friendly legal defenders AND the minimum attacker value
-          is less than or equal to the target piece value (meaning an exchange is profitable).
-    Pinned defenders that cannot legally move to the target square without exposing their King
-    to check are correctly filtered out as unable to defend.
     """
     hanging = []
     enemy_color = not color
 
     for square, piece in board.piece_map().items():
-        if piece.color != color or piece.piece_type == chess.KING:
-            continue
+        if piece.color == color and is_piece_hanging(board, square, color, last_move, board_before):
+            piece_val = PIECE_VALUES.get(piece.piece_type, 0)
+            enemy_attackers = board.attackers(enemy_color, square)
+            attacker_vals = [
+                PIECE_VALUES.get(board.piece_at(sq).piece_type, 0)
+                for sq in enemy_attackers
+                if board.piece_at(sq)
+            ]
+            min_attacker = min(attacker_vals) if attacker_vals else 99
+            raw_defenders = board.attackers(color, square)
+            friendly_defenders = [
+                sq
+                for sq in raw_defenders
+                if not (board.is_pinned(color, sq) and square not in board.pin(color, sq))
+            ]
 
-        enemy_attackers = board.attackers(enemy_color, square)
-        if not enemy_attackers:
-            continue
-
-        piece_val = PIECE_VALUES[piece.piece_type]
-
-        # Filter friendly defenders for absolute pins:
-        # A pinned defender can only defend squares along its legal pin ray
-        raw_defenders = board.attackers(color, square)
-        friendly_defenders = [sq for sq in raw_defenders if square in board.pin(color, sq)]
-
-        attacker_vals = [
-            PIECE_VALUES[board.piece_at(sq).piece_type]
-            for sq in enemy_attackers
-            if board.piece_at(sq)
-        ]
-        if not attacker_vals:
-            continue
-
-        min_attacker_val = min(attacker_vals)
-
-        # 1. Completely undefended by legal pieces
-        is_undefended = len(friendly_defenders) == 0
-
-        # 2. Attacked by a strictly lower-value piece (e.g., Queen attacked by Bishop/Pawn)
-        attacked_by_lesser = min_attacker_val < piece_val
-
-        # 3. Under-defended exchange: more attackers than defenders, AND the lowest attacker
-        # can profitably or equally initiate the trade (not a defended pawn attacked by minor/major pieces)
-        is_outnumbered = (len(enemy_attackers) > len(friendly_defenders)) and (
-            min_attacker_val <= piece_val
-        )
-
-        if is_undefended or attacked_by_lesser or is_outnumbered:
             hanging.append(
                 {
                     "square": chess.square_name(square),
                     "square_index": square,
                     "piece_type": piece.piece_type,
-                    "piece_name": PIECE_NAMES[piece.piece_type],
+                    "piece_name": PIECE_NAMES.get(piece.piece_type, "piece"),
                     "piece_val": piece_val,
-                    "is_undefended": is_undefended,
-                    "attacked_by_lesser": attacked_by_lesser,
-                    "is_outnumbered": is_outnumbered,
+                    "is_undefended": len(friendly_defenders) == 0,
+                    "attacked_by_lesser": min_attacker < piece_val,
+                    "is_outnumbered": len(enemy_attackers) > len(friendly_defenders),
                 }
             )
 
@@ -118,12 +285,12 @@ def detect_tactical_motifs(
 ) -> list[str]:
     """
     Detects tactical motifs executed by a move:
-    - 'fork': Piece attacks 2+ valuable/undefended enemy pieces or King + piece.
-    - 'pin': Establishes an absolute pin against the enemy King.
-    - 'skewer': Attacks high-value piece in front with another target behind on same ray.
-    - 'discovered_attack': Removing a piece unmasks a sliding attack/check from a piece behind it.
-    - 'sacrifice': Sound piece sacrifice for tactical advantage (Brilliant/Great).
-    - 'back_rank': Infiltrating or delivering check on the 8th/1st rank against a trapped King.
+    - 'fork': Piece attacks 2+ tactical targets (King, undefended, higher value, or SEE > 0).
+    - 'pin': Establishes or exploits an absolute or relative pin.
+    - 'skewer': Attacks higher-value piece in front with target behind on same ray.
+    - 'discovered_attack': Removing a piece unmasks a sliding attack creating a real threat.
+    - 'sacrifice': Sound piece sacrifice or material investment.
+    - 'back_rank': Delivers or threatens back-rank mate against a trapped King.
     """
     motifs: list[str] = []
     enemy_color = not color
@@ -137,42 +304,122 @@ def detect_tactical_motifs(
     enemy_king_sq = board_after.king(enemy_color)
 
     # 1. Sacrifice
-    if classification in ("Brilliant", "Great"):
-        motifs.append("sacrifice")
+    # A true sacrifice requires voluntarily giving up material (net >= 200 cp) for tactical/positional gain.
+    # Exclusions:
+    # - Equal trades (QxQ, RxR, BxB, NxN, etc.) are fair exchanges, NEVER sacrifices.
+    # - Defended pieces where opponent cannot capture profitably (enemy SEE gain < 200) are NEVER sacrifices.
+    # - Pawn moves / gambits (net deficit 100 cp) are not piece sacrifices.
+    # - Routine "Great" or "Best" moves without actual material deficit are NEVER sacrifices.
+    if piece.piece_type not in (chess.PAWN, chess.KING):
+        captured_piece = board_before.piece_at(to_sq)
+        captured_val = PIECE_VALUES.get(captured_piece.piece_type, 0) if captured_piece else 0
+        if captured_val < piece_val:
+            is_pinned_before = board_before.is_pinned(color, from_sq)
+            attacked_by_target = to_sq in board_before.attackers(enemy_color, from_sq)
+            under_attack_by_lesser = False
+            for att_sq in board_before.attackers(enemy_color, from_sq):
+                att_p = board_before.piece_at(att_sq)
+                if att_p and PIECE_VALUES.get(att_p.piece_type, 0) < piece_val:
+                    under_attack_by_lesser = True
+                    break
+
+            if not (is_pinned_before or attacked_by_target or under_attack_by_lesser):
+                enemy_gain = static_exchange_evaluation(board_after, to_sq, enemy_color)
+                net_deficit = enemy_gain - (captured_val * 100)
+                if net_deficit >= 200:
+                    motifs.append("sacrifice")
 
     # 2. Fork / Double Attack
-    attacks = board_after.attacks(to_sq)
-    valuable_targets = 0
-    has_check = enemy_king_sq is not None and enemy_king_sq in attacks
+    if piece.piece_type != chess.KING:
+        attacks = board_after.attacks(to_sq)
+        valuable_targets = 0
+        has_check = enemy_king_sq is not None and enemy_king_sq in attacks
+        if has_check:
+            valuable_targets += 1
 
-    if has_check:
-        valuable_targets += 1
+        for target_sq in attacks:
+            if target_sq == enemy_king_sq:
+                continue
+            target_p = board_after.piece_at(target_sq)
+            if target_p and target_p.color == enemy_color:
+                # Fork targets must strictly be pieces (Knight, Bishop, Rook, Queen), NOT pawns!
+                # Attacking a Queen/Rook and a pawn (e.g. Nd5 attacking Qf6 and Pc7) is NOT a fork.
+                if target_p.piece_type == chess.PAWN:
+                    continue
 
-    for target_sq in attacks:
-        if target_sq == enemy_king_sq:
-            continue
-        target_p = board_after.piece_at(target_sq)
-        if target_p and target_p.color == enemy_color:
-            target_val = PIECE_VALUES.get(target_p.piece_type, 0)
-            defenders = board_after.attackers(enemy_color, target_sq)
-            if len(defenders) == 0 or target_val >= piece_val or target_val >= 3:
-                valuable_targets += 1
+                target_val = PIECE_VALUES.get(target_p.piece_type, 0)
+                defenders = board_after.attackers(enemy_color, target_sq)
+                if (
+                    len(defenders) == 0
+                    or target_val > piece_val
+                    or static_exchange_evaluation(board_after, target_sq, color) > 0
+                ):
+                    valuable_targets += 1
 
-    if valuable_targets >= 2:
-        motifs.append("fork")
+        if valuable_targets >= 2:
+            # Safety check: A move is NOT a fork if the forking piece itself can be immediately
+            # captured without compensation (e.g. undefended rook or capturable pawn).
+            can_be_captured = any(m.to_square == to_sq for m in board_after.legal_moves)
+            if can_be_captured:
+                forker_defenders = board_after.attackers(color, to_sq)
+                # If undefended, or opponent captures at a profit (SEE > 0):
+                if (
+                    len(forker_defenders) == 0
+                    or static_exchange_evaluation(board_after, to_sq, enemy_color) > 0
+                ):
+                    valuable_targets = 0
 
-    # 3. Pin: Did this move establish a new absolute pin on an enemy piece?
-    if piece.piece_type in (chess.BISHOP, chess.ROOK, chess.QUEEN) and enemy_king_sq is not None:
-        for sq in board_after.piece_map():
-            if (
-                board_after.color_at(sq) == enemy_color
-                and sq != enemy_king_sq
-                and board_after.is_pinned(enemy_color, sq)
-                and not board_before.is_pinned(enemy_color, sq)
-                and to_sq in board_after.attackers(color, sq)
-            ):
-                motifs.append("pin")
+        if valuable_targets >= 2:
+            motifs.append("fork")
+
+    # 3. Pin: Absolute or Relative (Created by slider move or unmasking)
+    pin_found = False
+    friendly_sliders = (
+        board_after.pieces(chess.BISHOP, color)
+        | board_after.pieces(chess.ROOK, color)
+        | board_after.pieces(chess.QUEEN, color)
+    )
+    for s_sq in friendly_sliders:
+        is_moved = s_sq == to_sq
+        alignments = find_slider_ray_targets(board_after, s_sq, color)
+        slider_p = board_after.piece_at(s_sq)
+        slider_type = slider_p.piece_type if slider_p else None
+
+        for front_sq, front_p, rear_sq, rear_p in alignments:
+            if not is_moved and not is_on_segment(s_sq, front_sq, from_sq):
+                continue
+
+            # 1. Absolute Pin: Rear piece is enemy King.
+            # Front piece cannot legally move off the pin ray.
+            if rear_p.piece_type == chess.KING:
+                pin_found = True
                 break
+
+            # 2. Relative Pin: Rear piece is NOT King.
+            # Tactical requirements:
+            # - Front piece CANNOT be a pawn (pawns are never relatively pinned to pieces).
+            # - Rear piece CANNOT be a pawn or minor piece (cannot pin to a pawn/knight/bishop).
+            # - Valid relative pin targets:
+            #   * Rear piece is Queen (val 9), front piece is Minor (val 3) or Rook (val 5).
+            #   * Rear piece is Rook (val 5), front piece is Minor (val 3), and slider is Bishop (exchange win) or Rook is undefended.
+            if front_p.piece_type != chess.PAWN:
+                if rear_p.piece_type == chess.QUEEN:
+                    pin_found = True
+                    break
+                elif rear_p.piece_type == chess.ROOK and front_p.piece_type in (
+                    chess.KNIGHT,
+                    chess.BISHOP,
+                ):
+                    rear_defenders = board_after.attackers(enemy_color, rear_sq)
+                    if slider_type == chess.BISHOP or len(rear_defenders) == 0:
+                        pin_found = True
+                        break
+
+        if pin_found:
+            break
+
+    if pin_found:
+        motifs.append("pin")
 
     # 4. Discovered Attack / Discovered Check
     is_discovered = False
@@ -182,20 +429,31 @@ def detect_tactical_motifs(
             is_discovered = True
 
     if not is_discovered:
-        friendly_sliders = (
-            board_after.pieces(chess.ROOK, color)
-            | board_after.pieces(chess.BISHOP, color)
-            | board_after.pieces(chess.QUEEN, color)
-        )
         for s_sq in friendly_sliders:
             if s_sq != to_sq and from_sq in board_after.attacks(s_sq):
                 new_targets = board_after.attacks(s_sq) - board_before.attacks(s_sq)
+                slider_piece = board_after.piece_at(s_sq)
+                slider_val = PIECE_VALUES.get(slider_piece.piece_type, 0) if slider_piece else 0
+
                 for nt in new_targets:
                     nt_piece = board_after.piece_at(nt)
+                    if not nt_piece or nt_piece.color != enemy_color:
+                        continue
+
+                    target_val = PIECE_VALUES.get(nt_piece.piece_type, 0)
+                    defenders = board_after.attackers(enemy_color, nt)
+
+                    # Real tactical threat check:
+                    # 1. Undefended
+                    # 2. Target has strictly higher value than slider (e.g. Rook attacks Queen)
+                    # 3. Under-defended: SEE > 0 for this slider
                     if (
-                        nt_piece
-                        and nt_piece.color == enemy_color
-                        and nt_piece.piece_type != chess.PAWN
+                        len(defenders) == 0
+                        or target_val > slider_val
+                        or (
+                            nt_piece.piece_type != chess.PAWN
+                            and static_exchange_evaluation(board_after, nt, color) > 0
+                        )
                     ):
                         is_discovered = True
                         break
@@ -206,47 +464,100 @@ def detect_tactical_motifs(
         motifs.append("discovered_attack")
 
     # 5. Skewer
-    if piece.piece_type in (chess.BISHOP, chess.ROOK, chess.QUEEN):
-        for direct_target in board_after.attacks(to_sq):
-            dt_p = board_after.piece_at(direct_target)
-            if dt_p and dt_p.color == enemy_color:
-                dt_val = (
-                    10 if dt_p.piece_type == chess.KING else PIECE_VALUES.get(dt_p.piece_type, 0)
-                )
-                if dt_val >= 3:
-                    ray = chess.SquareSet.ray(to_sq, direct_target)
-                    behind_sqs = [
-                        sq
-                        for sq in ray
-                        if chess.square_distance(to_sq, sq)
-                        > chess.square_distance(to_sq, direct_target)
-                    ]
-                    for b_sq in behind_sqs:
-                        b_piece = board_after.piece_at(b_sq)
-                        if b_piece:
-                            if b_piece.color == enemy_color and dt_val > PIECE_VALUES.get(
-                                b_piece.piece_type, 0
-                            ):
-                                motifs.append("skewer")
-                            break
+    skewer_found = False
+    for s_sq in friendly_sliders:
+        is_moved = s_sq == to_sq
+        alignments = find_slider_ray_targets(board_after, s_sq, color)
+        s_piece = board_after.piece_at(s_sq)
+        s_val = PIECE_VALUES.get(s_piece.piece_type, 0) if s_piece else 0
+
+        for front_sq, front_p, _rear_sq, rear_p in alignments:
+            if not is_moved and not is_on_segment(s_sq, front_sq, from_sq):
+                continue
+
+            # In a true tactical skewer:
+            # 1. The rear piece must be a non-pawn piece (Queen, Rook, Minor piece).
+            #    A piece is never skewered to win a pawn.
+            if rear_p.piece_type == chess.PAWN:
+                continue
+
+            front_val = (
+                100 if front_p.piece_type == chess.KING else PIECE_VALUES.get(front_p.piece_type, 0)
+            )
+            rear_val = PIECE_VALUES.get(rear_p.piece_type, 0)
+
+            # 2. Front piece must be strictly more valuable than rear piece.
+            if front_val <= rear_val:
+                continue
+
+            # 3. Front piece must be genuinely compelled to move:
+            # - King in check: legally compelled to move, exposing rear piece.
+            # - Queen: attacked by lesser slider (Rook or Bishop) or completely undefended.
+            # - Rook: attacked by lesser slider (Bishop) or completely undefended.
+            front_defenders = board_after.attackers(enemy_color, front_sq)
+            is_compelled = False
+
+            if front_p.piece_type == chess.KING:
+                is_compelled = True
+            elif front_p.piece_type == chess.QUEEN:
+                if s_val < 9 or len(front_defenders) == 0:
+                    is_compelled = True
+            elif front_p.piece_type == chess.ROOK:
+                if s_val < 5 or len(front_defenders) == 0:
+                    is_compelled = True
+            elif len(front_defenders) == 0:
+                is_compelled = True
+
+            if is_compelled:
+                skewer_found = True
+                break
+
+        if skewer_found:
+            break
+
+    if skewer_found:
+        motifs.append("skewer")
 
     # 6. Back Rank Weakness / Infiltration
     back_rank = 7 if enemy_color == chess.BLACK else 0
-    if (
-        chess.square_rank(to_sq) == back_rank
-        and piece.piece_type in (chess.ROOK, chess.QUEEN)
-        and enemy_king_sq is not None
-        and chess.square_rank(enemy_king_sq) == back_rank
-    ):
-        pawn_rank = 6 if enemy_color == chess.BLACK else 1
-        shield_pawns = [
-            sq
-            for sq in board_after.pieces(chess.PAWN, enemy_color)
-            if chess.square_rank(sq) == pawn_rank
-            and abs(chess.square_file(sq) - chess.square_file(enemy_king_sq)) <= 1
+    if enemy_king_sq is not None and chess.square_rank(enemy_king_sq) == back_rank:
+        adj_rank = 6 if enemy_color == chess.BLACK else 1
+        king_file = chess.square_file(enemy_king_sq)
+        escape_sqs = [
+            chess.square(f, adj_rank) for f in range(max(0, king_file - 1), min(8, king_file + 2))
         ]
-        if len(shield_pawns) >= 2 and (has_check or board_after.is_check()):
-            motifs.append("back_rank")
+        has_luft = False
+        for esq in escape_sqs:
+            occ = board_after.piece_at(esq)
+            if occ is None and esq not in board_after.attacks(color):
+                has_luft = True
+                break
+
+        if not has_luft:
+            if board_after.is_checkmate() and any(
+                chess.square_rank(c) == back_rank for c in board_after.checkers()
+            ):
+                motifs.append("back_rank")
+            elif (
+                piece.piece_type in (chess.ROOK, chess.QUEEN)
+                and chess.square_rank(to_sq) == back_rank
+                and ((enemy_king_sq in board_after.attacks(to_sq)) or board_after.is_check())
+            ):
+                # When not checkmate, ensure it is a real back-rank threat:
+                # It is NOT a back-rank threat if the enemy can simply capture it on to_sq:
+                # - If undefended (e.g. Rd1+ where enemy rook can simply take it)
+                # - If it was a capture (e.g. "rook takes rook") and can be recaptured
+                can_be_captured = any(m.to_square == to_sq for m in board_after.legal_moves)
+                if can_be_captured:
+                    defenders = board_after.attackers(color, to_sq)
+                    is_undefended = len(defenders) == 0
+                    is_recapturable_trade = board_before.is_capture(move_obj)
+                    if not (is_undefended or is_recapturable_trade):
+                        enemy_see = static_exchange_evaluation(board_after, to_sq, enemy_color)
+                        if enemy_see <= 0:
+                            motifs.append("back_rank")
+                else:
+                    motifs.append("back_rank")
 
     return motifs
 
@@ -537,7 +848,9 @@ def analyze_game_tactics(
 
                 if not is_advantageous_or_sound:
                     # Did user leave a piece hanging on board_after?
-                    user_hanging = get_hanging_pieces(board_after, target_color)
+                    user_hanging = get_hanging_pieces(
+                        board_after, target_color, last_move=move_obj, board_before=board_before
+                    )
                     # Compare to hanging pieces before move to see if newly created or persisted
                     hanging_before = get_hanging_pieces(board_before, target_color)
                     hung_sqs_before = {h["square"] for h in hanging_before}
