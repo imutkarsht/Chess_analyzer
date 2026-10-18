@@ -62,6 +62,12 @@ src/
 - **Paths**: Use `src/utils/path_utils.py` (`get_resource_path`, `get_user_data_dir`). Never hardcode `/` or `\\`. Never propose `cd` in terminal commands.
 - **Config**: `ConfigManager` uses class-level `_shared_config`. Do not instantiate in tight loops; call `config_manager.reload_config()` after external file changes.
 - **Comments**: Explain non-obvious domain rationale (e.g. why a formula requires a 10% floor), not self-evident code syntax.
+- **DRY & Single Source of Truth**:
+  - **Schema & SQL**: Maintain a single column specification tuple/list (`GAME_COLUMNS`, `GAME_CSV_COLUMNS`). Derive DDL, INSERT statements with named parameters (`:col`), and row dicts from it. Never maintain separate out-of-sync column lists.
+  - **Mappers & Serialization**: Model serialization belongs on the models (`MoveAnalysis.to_dict()` and `MoveAnalysis.from_dict()`). Never hand-write ad-hoc dictionary conversions in UI panels or backend repos.
+  - **Connection & Transaction Management**: Centralize DB connections, pragmas, commits, and rollbacks in a context manager (`_connect()`). Do not repeat manual `conn.commit()` / `conn.rollback()` in every query method.
+  - **Symmetric Logic**: Never copy-paste near-identical blocks for White and Black (e.g., phase accuracies, tactics extraction). Iterate over `("white", "black")` or extract unified helper functions.
+  - **Separation of Storage and Domain**: Repositories persist data; domain calculations (tactics, classification, termination detection) must be computed in backend domain services before passing to storage. Avoid circular dependencies or function-level lazy imports to mask design duplication.
 
 ---
 
@@ -77,10 +83,19 @@ src/
 ---
 
 ## 7. Testing & Verification
-- All pull requests must maintain 100% pass rate: `pytest tests/` (270+ unit and GUI tests).
+- All pull requests must maintain 100% pass rate: `pytest tests/` (320+ unit and GUI tests) with suite runtime under 15 seconds.
 - Backend logic changes require headless unit tests in `tests/backend/`.
 - GUI widget changes require tests using `pytest-qt` in `tests/gui/`.
 - Linting must report 0 errors: `ruff check . && ruff format --check .`.
+
+### Meaningful Testing Guidelines (No Bloat, No Tautologies)
+- **Zero Language Tautologies**: Never write tests that merely verify Python's standard library or language behavior (e.g. asserting that a `@dataclass` assigns fields: `m = Model(x=1); assert m.x == 1`). Tests must assert domain logic, state mutations, calculations, or defensive fallbacks.
+- **Black-Box Over Private Implementation**: Test through public contracts and interfaces. Do not write redundant unit tests for private helper functions whose outputs are already asserted by the public API.
+- **Eliminate Cross-Module Duplication**: If domain behavior is exhaustively tested in a dedicated test file (e.g. `test_move_classifier.py` for classifications and win probabilities), do not copy-paste duplicate tests into other test suites (`test_analyzer.py`).
+- **Heavy GUI Test Conservation**: Instantiating full-app windows (`MainWindow`) is expensive (~2-3s per instance). Never boot multiple full `MainWindow` instances to test simple defensive or config parsing branches. Consolidate save/restore tests into a single lifecycle test, and test defensive methods directly on the instance. Keep the total test suite duration under 15 seconds.
+- **Parameterize Over Duplication**: Use `@pytest.mark.parametrize` for multiple input variants, malformed strings, or platform formats rather than copy-pasting 4-5 near-identical test functions.
+- **Consolidated Metadata Assertions**: Avoid re-reading or re-parsing the same fixture across multiple tests to assert one field at a time. Assert the full record in a single coherent test.
+- **Guard Critical Invariants**: Tests must strictly protect core invariants: Stockfish UCI lifecycle, 10% accuracy floor, White-perspective scores, thermal safety defaults, deterministic MD5 hashing, and Chess960 castling.
 
 ---
 
