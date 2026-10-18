@@ -448,3 +448,33 @@ def test_metrics_aggregator_drill_down():
     sicilian_games = MetricsAggregator.get_drill_down_items(stats2, "openings", "sicilian defense")
     assert len(sicilian_games) == 1
     assert sicilian_games[0]["game_id"] == "drill_game_2"
+
+
+def test_drill_down_items_capping():
+    """Verify that drill-down item collections are capped at MAX_DRILL_DOWN_ITEMS for scale."""
+    from src.backend.analysis.metrics.constants import MAX_DRILL_DOWN_ITEMS
+
+    # Create 600 clean games
+    many_games = []
+    for i in range(MAX_DRILL_DOWN_ITEMS + 100):
+        many_games.append(
+            {
+                "id": f"clean_game_{i}",
+                "white": "Hero",
+                "black": "Opponent",
+                "result": "1-0",
+                "date": "2026.10.18",
+                "speed_category": "Rapid",
+                "opening": "Italian Game",
+                "summary_json": json.dumps({"white": {"accuracy": 95.0, "Blunder": 0}}),
+            }
+        )
+
+    stats = MetricsAggregator.calculate_stats(many_games, ["Hero"])
+    clean_list = MetricsAggregator.get_drill_down_items(stats, "clean_games")
+    # Clean games drill-down list should be capped at MAX_DRILL_DOWN_ITEMS
+    assert len(clean_list) == MAX_DRILL_DOWN_ITEMS
+    # But clean games summary counter aggregates all games
+    assert stats["clean_games"] == MAX_DRILL_DOWN_ITEMS + 100
+    italian_games = MetricsAggregator.get_drill_down_items(stats, "openings", "italian game")
+    assert len(italian_games) == MAX_DRILL_DOWN_ITEMS

@@ -92,3 +92,109 @@ def test_get_game_analysis(temp_db):
     assert retrieved.moves[0].classification == "Best"
 
     assert manager.get_game_analysis("non_existent_id") is None
+
+
+def test_get_games_for_users_and_stats(temp_db):
+    """Test get_games_for_users and get_games_for_stats projection and limits."""
+    manager = GameHistoryManager(temp_db)
+
+    # Insert 3 games for Player1
+    for i in range(3):
+        meta = GameMetadata(
+            white="Player1",
+            black=f"Opponent{i}",
+            result="1-0",
+            date=f"2024.01.0{i + 1}",
+            event="Tournament",
+            headers={},
+        )
+        game = GameAnalysis(
+            game_id=f"game_{i}",
+            metadata=meta,
+            moves=[],
+            pgn_content="1. e4 1-0",
+        )
+        manager.save_game(game, "1. e4 1-0")
+
+    # 1. Test get_games_for_users
+    games = manager.get_games_for_users(["player1"])
+    assert len(games) == 3
+
+    limited_games = manager.get_games_for_users(["player1"], limit=2)
+    assert len(limited_games) == 2
+
+    # 2. Test get_games_for_stats returns full payload for backward-compatible statistics
+    stats_games = manager.get_games_for_stats(["player1"])
+    assert len(stats_games) == 3
+    for g in stats_games:
+        assert "summary_json" in g
+        assert "moves_json" in g
+        assert g["white"] == "Player1"
+
+    # Empty usernames returns empty list
+    assert manager.get_games_for_users([]) == []
+    assert manager.get_games_for_stats([]) == []
+
+
+def test_database_indexes_created(temp_db):
+    """Verify that expected performance indexes exist."""
+    import sqlite3
+
+    GameHistoryManager(temp_db)
+    with sqlite3.connect(temp_db) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='index'")
+        indexes = {row[0] for row in cursor.fetchall()}
+
+    expected = {
+        "idx_games_white_lower",
+        "idx_games_black_lower",
+        "idx_games_timestamp",
+        "idx_games_speed",
+        "idx_games_date",
+        "idx_games_opening",
+        "idx_games_source",
+    }
+    assert expected.issubset(indexes)
+
+
+def test_legacy_tactics_backfill(temp_db):
+    """Test that legacy games lacking hung_pieces_details in summary_json are backfilled automatically."""
+    import json
+    import sqlite3
+
+    # Initialize DB first
+    GameHistoryManager(temp_db)
+
+    # Insert a legacy game row with moves_json and legacy summary_json (lacking hung_pieces_details)
+    moves = [
+        {"move_number": 1, "ply": 1, "san": "e4", "uci": "e2e4", "fen_before": ""},
+        {"move_number": 1, "ply": 2, "san": "e5", "uci": "e7e5", "fen_before": ""},
+    ]
+    legacy_summary = {"white": {"accuracy": 80.0}, "black": {"accuracy": 75.0}}
+
+    with sqlite3.connect(temp_db) as conn:
+        conn.execute(
+            """
+            INSERT INTO games (id, white, black, result, moves_json, summary_json, speed_category)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "legacy_game_1",
+                "Hero",
+                "Opponent",
+                "1-0",
+                json.dumps(moves),
+                json.dumps(legacy_summary),
+                "Blitz",
+            ),
+        )
+        conn.commit()
+
+    # Re-initialize GameHistoryManager to trigger _init_db and _backfill_legacy_tactics
+    manager2 = GameHistoryManager(temp_db)
+    saved = manager2.get_game("legacy_game_1")
+    assert saved is not None
+    summary = json.loads(saved["summary_json"])
+    assert "tactics" in summary["white"]
+    assert "hung_pieces_details" in summary["white"]["tactics"]

@@ -23,6 +23,7 @@ from .constants import (
     COLORS,
     DRAW_BUCKETS,
     DRAW_MODE_TO_BUCKET,
+    MAX_DRILL_DOWN_ITEMS,
     MOTIF_NAMES,
     NON_DRAW_TERM_TYPES,
     PHASES,
@@ -42,6 +43,7 @@ __all__ = [
     "COLORS",
     "DRAW_BUCKETS",
     "DRAW_MODE_TO_BUCKET",
+    "MAX_DRILL_DOWN_ITEMS",
     "MOTIF_NAMES",
     "NON_DRAW_TERM_TYPES",
     "PHASES",
@@ -71,4 +73,3 @@ __all__ = [
     "outcome_for",
     "pct",
 ]
-

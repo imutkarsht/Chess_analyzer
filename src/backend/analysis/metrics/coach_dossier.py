@@ -180,4 +180,3 @@ def build_coach_dossier(stats: dict[str, Any]) -> str:
     lines.extend(_openings_section(stats))
 
     return "\n".join(lines)
-

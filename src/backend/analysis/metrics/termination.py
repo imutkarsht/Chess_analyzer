@@ -88,4 +88,3 @@ def classify_termination(
         return "Checkmate", None
 
     return "Resignation", None
-

@@ -85,3 +85,5 @@ VALID_DATE_FILTERS: set[str] = {
     "This Year",
 }
 
+# Maximum occurrences per bucket to prevent memory explosion at 10,000+ games
+MAX_DRILL_DOWN_ITEMS: int = 500

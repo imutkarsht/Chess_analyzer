@@ -183,4 +183,3 @@ def filter_games(
             matched.append((g, user_color))
 
     return matched
-

@@ -13,6 +13,7 @@ from .constants import (
     ADVANTAGE_KEYS,
     COLORS,
     DRAW_BUCKETS,
+    MAX_DRILL_DOWN_ITEMS,
     MOTIF_NAMES,
     NON_DRAW_TERM_TYPES,
     PHASES,
@@ -27,6 +28,12 @@ from .models import GameRecord
 def pct(num: float | int, denom: float | int) -> float:
     """Calculate percentage, safely returning 0.0 when denominator is zero."""
     return (num / denom * 100.0) if denom else 0.0
+
+
+def _append_capped(target_list: list, item: Any, max_len: int = MAX_DRILL_DOWN_ITEMS) -> None:
+    """Append item to target_list only if length is within maximum threshold."""
+    if len(target_list) < max_len:
+        target_list.append(item)
 
 
 @dataclass
@@ -447,7 +454,7 @@ class StatsAccumulator:
                 "fen_before": rec.raw_game.get("starting_fen")
                 or "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             }
-            self.drill_down["clean_games"].append(clean_item)
+            _append_capped(self.drill_down["clean_games"], clean_item)
 
         # 5. Best Win Rating
         if rec.is_win and rec.opp_elo > self.best_win_rating:
@@ -506,7 +513,7 @@ class StatsAccumulator:
                 "fen_before": rec.raw_game.get("starting_fen")
                 or "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             }
-            self.drill_down["openings"][main_name].append(opening_item)
+            _append_capped(self.drill_down["openings"][main_name], opening_item)
 
         # 7. Tactics Data
         tactics = rec.tactics_data
@@ -548,7 +555,8 @@ class StatsAccumulator:
 
         # Brilliancies
         for b in tactics.get("brilliancies", []):
-            self.brilliancies.append(
+            _append_capped(
+                self.brilliancies,
                 {
                     **rec.game_meta,
                     "san": b.get("san"),
@@ -559,42 +567,43 @@ class StatsAccumulator:
                     "classification": b.get("classification"),
                     "explanation": b.get("explanation"),
                     "opening_name": b.get("opening_name") or rec.game_meta["opening"],
-                }
+                },
             )
 
         # Drill-Down items
         for h in tactics.get("hung_pieces_details", []):
             item = {**rec.game_meta, **h}
-            self.drill_down["hung_pieces"]["all"].append(item)
+            _append_capped(self.drill_down["hung_pieces"]["all"], item)
             p_name = h.get("piece_name", "").lower()
             if p_name in self.drill_down["hung_pieces"]:
-                self.drill_down["hung_pieces"][p_name].append(item)
+                _append_capped(self.drill_down["hung_pieces"][p_name], item)
 
         for c in tactics.get("opp_captured_details", []):
             item = {**rec.game_meta, **c}
-            self.drill_down["opp_captured"]["all"].append(item)
+            _append_capped(self.drill_down["opp_captured"]["all"], item)
             p_name = c.get("piece_name", "").lower()
             if p_name in self.drill_down["opp_captured"]:
-                self.drill_down["opp_captured"][p_name].append(item)
+                _append_capped(self.drill_down["opp_captured"][p_name], item)
 
         for tm in tactics.get("tactical_motifs_details", []):
             item = {**rec.game_meta, **tm}
             motif = tm.get("motif", "").lower()
             if motif in self.drill_down["tactical_themes"]:
-                self.drill_down["tactical_themes"][motif].append(item)
+                _append_capped(self.drill_down["tactical_themes"][motif], item)
 
         for b_item in tactics.get("blunders_details", []):
-            self.drill_down["blunders"].append({**rec.game_meta, **b_item})
+            _append_capped(self.drill_down["blunders"], {**rec.game_meta, **b_item})
 
         # Advantage turning points
         for adv_key, move_key, fallback_san, fallback_class in ADVANTAGE_DRILLS:
             if adv.get(adv_key):
                 mv = tactics.get(move_key)
                 if mv:
-                    self.drill_down["advantage"][adv_key].append({**rec.game_meta, **mv})
+                    _append_capped(self.drill_down["advantage"][adv_key], {**rec.game_meta, **mv})
                 else:
-                    self.drill_down["advantage"][adv_key].append(
-                        {**rec.game_meta, "san": fallback_san, "classification": fallback_class}
+                    _append_capped(
+                        self.drill_down["advantage"][adv_key],
+                        {**rec.game_meta, "san": fallback_san, "classification": fallback_class},
                     )
 
     def finalize(
