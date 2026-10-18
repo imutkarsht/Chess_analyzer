@@ -1,3 +1,5 @@
+from typing import Any
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
@@ -51,9 +53,21 @@ class MetricsWidget(QWidget):
         # Cache stats and insights for dynamic style updates
         self.current_stats = None
         self.current_insights = None
+        self._needs_refresh: bool = True
+        self._filter_cache: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 
         self.setup_ui()
         self.refresh()
+
+    @property
+    def needs_refresh(self) -> bool:
+        """Returns True if the dashboard data needs to be re-fetched or recomputed."""
+        return self._needs_refresh
+
+    def mark_dirty(self) -> None:
+        """Marks the dashboard as dirty so it refreshes on the next view."""
+        self._needs_refresh = True
+        self._filter_cache.clear()
 
     @property
     def groq_service(self):
@@ -89,7 +103,10 @@ class MetricsWidget(QWidget):
         header_layout.addStretch()
 
         self.btn_refresh = create_button(
-            "Refresh", style="secondary", on_click=self.refresh, icon_name="fa5s.sync-alt"
+            "Refresh",
+            style="secondary",
+            on_click=lambda: self.refresh(force=True),
+            icon_name="fa5s.sync-alt",
         )
         header_layout.addWidget(self.btn_refresh)
 
@@ -291,7 +308,13 @@ class MetricsWidget(QWidget):
             if saved_insights and hasattr(self, "ai_coach_card") and self.ai_coach_card:
                 self.ai_coach_card.set_insights(saved_insights)
 
-    def refresh(self, _=None):
+    def refresh(self, _=None, force: bool = False):
+        if not force and not self._needs_refresh and self.current_stats is not None:
+            if hasattr(self, "stacked_widget") and self.stacked_widget:
+                self.stacked_widget.setCurrentIndex(0)
+                self.filter_bar.setVisible(True)
+            return
+
         if hasattr(self, "stacked_widget") and self.stacked_widget:
             self.stacked_widget.setCurrentIndex(0)
             self.filter_bar.setVisible(True)
@@ -315,6 +338,7 @@ class MetricsWidget(QWidget):
             return
 
         self.filter_bar.setVisible(True)
+        self._filter_cache.clear()
         self.on_filter_changed()
 
     def on_filter_changed(self, _=None):
@@ -325,6 +349,12 @@ class MetricsWidget(QWidget):
         fmt = self.combo_format.currentText()
         source = self.combo_source.currentText()
         period = self.combo_period.currentText()
+        filter_key = (color, fmt, source, period)
+
+        # Serve from in-memory cache if data has not changed
+        if not self._needs_refresh and filter_key in self._filter_cache:
+            self.on_stats_ready(self._filter_cache[filter_key])
+            return
 
         # Show Loading in content area
         clear_layout(self.content_layout)
@@ -355,8 +385,16 @@ class MetricsWidget(QWidget):
             source_filter=source,
             date_filter=period,
         )
-        self.stats_worker.finished.connect(self.on_stats_ready)
+        self.stats_worker.finished.connect(
+            lambda stats, fk=filter_key: self._on_worker_stats_ready(stats, fk)
+        )
         self.stats_worker.start()
+
+    def _on_worker_stats_ready(
+        self, stats: dict[str, Any], filter_key: tuple[str, str, str, str]
+    ) -> None:
+        self._filter_cache[filter_key] = stats
+        self.on_stats_ready(stats)
 
     def stop_worker(self):
         """Safely stops any active background stats worker."""
@@ -395,6 +433,7 @@ class MetricsWidget(QWidget):
         self.on_filter_changed()
 
     def on_stats_ready(self, stats):
+        self._needs_refresh = False
         self.current_stats = stats
         total = stats.get("total", 0)
         if hasattr(self, "lbl_games_badge") and self.lbl_games_badge:

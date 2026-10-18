@@ -713,3 +713,49 @@ def test_metrics_widget_includes_advantage_and_ai_coach(qapp, qtbot):
     # Re-render dashboard (simulating page switch / refresh)
     widget.show_dashboard(stats)
     assert widget.ai_coach_card.get_insights() == test_insight
+
+
+def test_metrics_widget_smart_invalidation_and_filter_cache(qapp, qtbot):
+    """Test that MetricsWidget dirty flag avoids redundant recalculations and caches filter states."""
+    mock_config = MagicMock()
+    mock_config.get.return_value = "PlayerA"
+
+    mock_history = MagicMock()
+    mock_history.get_games_for_users.return_value = [
+        {
+            "id": "g1",
+            "white": "PlayerA",
+            "black": "Opponent",
+            "result": "1-0",
+            "summary_json": '{"white": {"accuracy": 85.0}}',
+            "speed_category": "Blitz",
+        }
+    ]
+
+    widget = MetricsWidget(mock_config, mock_history)
+    qtbot.addWidget(widget)
+
+    # Wait for the background worker to finish calculating initial stats
+    qtbot.waitUntil(lambda: not widget.needs_refresh, timeout=3000)
+    assert widget.needs_refresh is False
+    call_count = mock_history.get_games_for_users.call_count
+    assert call_count >= 1
+
+    # Calling refresh() without force when not dirty should be a no-op
+    widget.refresh()
+    assert mock_history.get_games_for_users.call_count == call_count
+
+    # Calling mark_dirty() sets needs_refresh to True and clears filter cache
+    widget.mark_dirty()
+    assert widget.needs_refresh is True
+    assert len(widget._filter_cache) == 0
+
+    # Calling refresh() now re-fetches
+    widget.refresh()
+    assert mock_history.get_games_for_users.call_count == call_count + 1
+    qtbot.waitUntil(lambda: not widget.needs_refresh, timeout=3000)
+
+    # Calling refresh(force=True) re-fetches even if not dirty
+    widget.refresh(force=True)
+    assert mock_history.get_games_for_users.call_count == call_count + 2
+    qtbot.waitUntil(lambda: not widget.needs_refresh, timeout=3000)

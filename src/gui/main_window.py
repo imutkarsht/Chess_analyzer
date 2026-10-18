@@ -399,6 +399,9 @@ class MainWindow(QMainWindow):
         # --- Page 2: History View ---
         self.history_view = HistoryView(self.config_manager)
         self.history_view.game_selected.connect(self.load_game_from_history)
+        self.history_view.game_deleted.connect(self.on_history_changed)
+        self.history_view.games_imported.connect(self.on_history_changed)
+        self.history_view.history_cleared.connect(self.on_history_changed)
         self.stack.addWidget(self.history_view)
 
         # --- Page 3: Metrics View ---
@@ -657,7 +660,9 @@ class MainWindow(QMainWindow):
         self.config_manager.reload_config()
         # Refresh metrics view which uses usernames
         if hasattr(self, "metrics_view"):
-            self.metrics_view.refresh()
+            self.metrics_view.mark_dirty()
+            if self.stack.currentIndex() == 3:
+                self.metrics_view.refresh(force=True)
         # Refresh history view
         if hasattr(self, "history_view"):
             self.history_view.load_history()
@@ -823,7 +828,7 @@ class MainWindow(QMainWindow):
 
     def _do_switch_page(self, index):
         self.stack.setCurrentIndex(index)
-        if index == 3:  # Stats page
+        if index == 3 and hasattr(self, "metrics_view") and self.metrics_view.needs_refresh:
             self.metrics_view.refresh()
         # If a tour is active, close it silently (don't mark seen — user didn't finish it).
         if hasattr(self, "tour_overlay") and self.tour_overlay.isVisible():
@@ -1657,9 +1662,17 @@ class MainWindow(QMainWindow):
                 self.analysis_panel.graph_widget.set_current_move(last_analyzed)
 
         if hasattr(self, "metrics_view"):
-            self.metrics_view.refresh()
+            self.metrics_view.mark_dirty()
+            if self.stack.currentIndex() == 3:
+                self.metrics_view.refresh(force=True)
         if hasattr(self, "history_view"):
             self.history_view.load_history()
+
+    def on_history_changed(self, *_):
+        if hasattr(self, "metrics_view"):
+            self.metrics_view.mark_dirty()
+            if self.stack.currentIndex() == 3:
+                self.metrics_view.refresh(force=True)
 
     def on_analysis_finished(self, game):
         self._full_analysis_running = False
@@ -1679,7 +1692,9 @@ class MainWindow(QMainWindow):
             self.on_move_selected(len(game.moves) - 1)
         # Update other views with new data
         if hasattr(self, "metrics_view"):
-            self.metrics_view.refresh()
+            self.metrics_view.mark_dirty()
+            if self.stack.currentIndex() == 3:
+                self.metrics_view.refresh(force=True)
         if hasattr(self, "history_view"):
             self.history_view.load_history()
 

@@ -49,6 +49,12 @@ class ThemeManager(QObject):
 
     @classmethod
     def instance(cls) -> "ThemeManager":
+        if cls._instance is not None:
+            try:
+                cls._instance.objectName()
+            except RuntimeError:
+                cls._instance = None
+
         if cls._instance is None:
             cls._instance = ThemeManager()
         return cls._instance
@@ -130,13 +136,14 @@ class ThemeManager(QObject):
                 ACCENT=p.accent,
                 ACCENT_HOVER=p.accent_hover,
                 ACCENT_SUBTLE=p.accent_subtle,
-                TICK_PATH=tick_path
+                TICK_PATH=tick_path,
             )
             app = QApplication.instance()
             if app:
                 app.setStyleSheet(qss)
         except Exception as e:
             from src.utils.logger import logger
+
             logger.error(f"Failed to apply app stylesheet: {e}")
 
     @classmethod
@@ -166,7 +173,9 @@ class ThemeManager(QObject):
     @classmethod
     def set_accent(cls, hex_color: str):
         if not hex_color:
-            hex_color = get_system_accent() or (DARK.accent if cls._current_mode == "dark" else LIGHT.accent)
+            hex_color = get_system_accent() or (
+                DARK.accent if cls._current_mode == "dark" else LIGHT.accent
+            )
         cls._accent = hex_color
         cls._palette = cls._palette.with_accent(hex_color)
         cls.apply_app_stylesheet()
