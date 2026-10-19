@@ -359,3 +359,73 @@ def test_analyzer_persists_paused_on_cancellation(mocker, tmp_path):
     assert game.summary.get("analysis_status") == "paused"
     saved = history_mgr.get_game("cancel_game")
     assert saved is not None
+
+
+def test_analyzer_pause_and_resume_never_skips_move(mocker, tmp_path):
+    """Test that pausing when a move has partial eval does not skip it on resume."""
+    from src.backend.storage.game_history import GameHistoryManager
+
+    db_path = str(tmp_path / "pause_resume_test.db")
+    history_mgr = GameHistoryManager(db_path)
+
+    engine_manager = EngineManager("dummy_path")
+    analyzer = Analyzer(engine_manager)
+    analyzer.history_manager = history_mgr
+
+    mocker.patch.object(engine_manager, "start_engine")
+    mocker.patch.object(engine_manager, "stop_engine")
+
+    mock_score = chess.engine.PovScore(chess.engine.Cp(25), chess.WHITE)
+    mocker.patch.object(
+        analyzer,
+        "_get_position_analysis",
+        return_value=[{"pv": [chess.Move.from_uci("g1f3")], "score": mock_score, "depth": 10}],
+    )
+    mocker.patch.object(analyzer, "_analyze_final_position", return_value=mock_score)
+
+    # 4-move game
+    b = chess.Board()
+    moves = []
+    for num, san in [(1, "e4"), (1, "e5"), (2, "Nf3"), (2, "Nc6")]:
+        uci = b.parse_san(san).uci()
+        moves.append(
+            MoveAnalysis(move_number=num, ply=len(moves) + 1, san=san, uci=uci, fen_before=b.fen())
+        )
+        b.push_san(san)
+
+    # Simulate pause: move 0 was classified, move 1 had partial eval_before_cp but was NOT classified
+    moves[0].eval_before_cp = 20
+    moves[0].eval_after_cp = 20
+    moves[0].classification = "Book"
+    moves[1].eval_before_cp = 20  # Partial eval before cancellation!
+    moves[1].classification = ""  # Not classified yet
+
+    game = GameAnalysis(
+        game_id="skip_test_game",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=moves,
+        pgn_content="1. e4 e5 2. Nf3 Nc6 *",
+    )
+
+    # Must resume from index 1 (move 1), NOT skip to index 2!
+    assert game.first_unanalyzed_index == 1
+
+    reported_indices = []
+
+    def callback(current, total, data=None):
+        if data and "index" in data:
+            reported_indices.append(data["index"])
+
+    analyzer.analyze_game(game, callback=callback, resume=True)
+
+    # All moves must be classified and have evaluations
+    for idx, m in enumerate(game.moves):
+        assert m.eval_before_cp is not None, f"Move {idx} ({m.san}) missing eval_before_cp"
+        assert m.eval_after_cp is not None, f"Move {idx} ({m.san}) missing eval_after_cp"
+        assert m.classification, f"Move {idx} ({m.san}) missing classification"
+
+    # All moves from index 1 onwards must have been reported
+    assert 1 in reported_indices, "Move 1 was skipped in callback updates!"
+    assert 2 in reported_indices, "Move 2 was skipped in callback updates!"
+    assert 3 in reported_indices, "Move 3 was skipped in callback updates!"
+    assert game.status == "completed"

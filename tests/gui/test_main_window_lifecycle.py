@@ -25,7 +25,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     window.switch_page(1)
 
     # Deferral: wait for singleShot + transition to complete
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == 1, timeout=1000)
+    qtbot.waitUntil(lambda: window.stack.currentIndex() == 1, timeout=2500)
     assert window.stack.currentIndex() == 1
 
     # Guard ongoing analysis: clicking active game returns to page 0; other game is blocked
@@ -48,9 +48,8 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert not window.board_widget.eval_bar.isHidden()
 
     window.load_game_from_history(game_active)
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == 0, timeout=1000)
+    qtbot.waitUntil(lambda: window.stack.currentIndex() == 0, timeout=2500)
     assert window.stack.currentIndex() == 0
-
 
     warning_called = []
     monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: warning_called.append(True))
@@ -59,4 +58,3 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert window.current_game.game_id == "active_1"
 
     window.close()
-

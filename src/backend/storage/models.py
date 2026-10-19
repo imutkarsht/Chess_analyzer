@@ -135,15 +135,9 @@ class GameAnalysis:
 
     @property
     def analyzed_moves_count(self) -> int:
-        """Returns the number of moves in this game that have position evaluations."""
+        """Returns the number of moves in this game that have position evaluations and classifications."""
         if self.moves:
-            return sum(
-                1
-                for m in self.moves
-                if m.eval_before_cp is not None
-                or m.eval_before_mate is not None
-                or bool(m.classification)
-            )
+            return sum(1 for m in self.moves if bool(m.classification))
         if self.summary and "analyzed_moves" in self.summary:
             return int(self.summary["analyzed_moves"])
         return 0
@@ -161,7 +155,7 @@ class GameAnalysis:
     def first_unanalyzed_index(self) -> int:
         """Returns the 0-based index of the first move that has not been analyzed."""
         for i, m in enumerate(self.moves):
-            if m.eval_before_cp is None and m.eval_before_mate is None:
+            if (m.eval_before_cp is None and m.eval_before_mate is None) or not m.classification:
                 return i
         return len(self.moves)
 

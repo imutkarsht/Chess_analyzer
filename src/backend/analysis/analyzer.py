@@ -231,6 +231,22 @@ class Analyzer:
             start_index = 0
         else:
             start_index = game_analysis.first_unanalyzed_index
+            for idx in range(start_index, total_moves):
+                m = game_analysis.moves[idx]
+                m.eval_before_cp = None
+                m.eval_before_mate = None
+                m.eval_after_cp = None
+                m.eval_after_mate = None
+                m.classification = ""
+                m.best_move = None
+                m.pv = []
+                m.multi_pvs = []
+                m.win_chance_before = 0.5
+                m.win_chance_after = 0.5
+                m.is_book_move = False
+                m.book_move_count = 0
+                m.book_exit_move = False
+                m.candidate_continuations = []
 
         if start_index > 0:
             logger.info(
