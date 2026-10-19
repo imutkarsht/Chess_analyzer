@@ -9,6 +9,7 @@ class TourStep:
     text: str
     position: str = "above"  # above | below | left | right
     page_index: int = 0
+    title: str = ""
 
 
 class TourManager:

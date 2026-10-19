@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -68,18 +69,22 @@ class TourOverlay(QWidget):
         layout.setContentsMargins(20, 18, 20, 16)
         layout.setSpacing(10)
 
+        self.title_label = QLabel()
+        self.title_label.setWordWrap(True)
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.title_label.setStyleSheet(
+            f"font-size: 15px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
+        layout.addWidget(self.title_label)
+
         self.text_label = QLabel()
         self.text_label.setWordWrap(True)
         self.text_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.text_label.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY};"
-        )
+        self.text_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY};")
         layout.addWidget(self.text_label)
 
         self.step_label = QLabel()
-        self.step_label.setStyleSheet(
-            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED};"
-        )
+        self.step_label.setStyleSheet(f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED};")
         layout.addWidget(self.step_label)
 
         nav = QHBoxLayout()
@@ -207,7 +212,23 @@ class TourOverlay(QWidget):
             self._close_all()
             return
 
-        # ── Text & nav state ──────────────────────────────────────────────
+        # ── Scroll target into view if inside a scroll area ───────────────
+        if step.target and step.target.isVisible():
+            p = step.target.parentWidget()
+            while p is not None:
+                if isinstance(p, QScrollArea):
+                    p.ensureWidgetVisible(step.target, 20, 20)
+                    break
+                p = p.parentWidget()
+
+        # ── Title, text & nav state ───────────────────────────────────────
+        title = getattr(step, "title", "")
+        if title:
+            self.title_label.setText(title)
+            self.title_label.show()
+        else:
+            self.title_label.hide()
+
         self.text_label.setText(step.text or "")
         total = self.tour.total_steps
         idx = self.tour.current_step
@@ -219,12 +240,13 @@ class TourOverlay(QWidget):
         self._highlight_rect = self._widget_rect_in_parent(step.target)
 
         # ── Size the bubble so word-wrap text is never clipped ────────────
-        # We must set an explicit height on the QLabel because QLabel with
-        # word-wrap does not know its height until it knows its width.
-        # heightForWidth() gives the exact pixel height needed.
         self.bubble.show()
         lm = self.bubble.layout().contentsMargins()
         content_w = self.bubble.width() - lm.left() - lm.right()
+        if title:
+            title_h = self.title_label.heightForWidth(content_w)
+            if title_h > 0:
+                self.title_label.setFixedHeight(title_h)
         needed_h = self.text_label.heightForWidth(content_w)
         if needed_h > 0:
             self.text_label.setFixedHeight(needed_h)
@@ -314,6 +336,7 @@ class TourOverlay(QWidget):
 
         # Pulsing glow: alpha oscillates between 120 and 255
         import math
+
         t = (1 + math.sin(self._glow_phase / 100 * 2 * math.pi)) / 2
         glow_alpha = int(120 + 135 * t)
 
