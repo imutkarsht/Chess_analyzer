@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
 
         # UI Setup
         self.setup_ui()
+        self.setAcceptDrops(True)
 
         # Apply Theme
         self.refresh_theme()
@@ -922,44 +923,45 @@ class MainWindow(QMainWindow):
             )
             steps.append(
                 TourStep(
-                    target=self.btn_analyze,
-                    text='Click "Analyze Game" to start Stockfish. Engine evaluations, best moves, and classification badges stream live onto the board and move list.',
-                    position="below",
-                    page_index=0,
-                )
-            )
-            steps.append(
-                TourStep(
                     target=self.board_widget,
                     text="Interactive chessboard showing the current move, best-move arrows, and material advantage counts.",
                     position="right",
                     page_index=0,
                 )
             )
-            steps.append(
-                TourStep(
-                    target=self.move_list_panel,
-                    text="Colour-coded move list with classification badges (Brilliant, Great, Best, Inaccuracy, Blunder) and live engine lines.",
-                    position="left",
-                    page_index=0,
+            if self.current_game is not None:
+                steps.append(
+                    TourStep(
+                        target=self.btn_analyze,
+                        text='Click "Analyze Game" to start Stockfish. Engine evaluations, best moves, and classification badges stream live onto the board and move list.',
+                        position="below",
+                        page_index=0,
+                    )
                 )
-            )
-            steps.append(
-                TourStep(
-                    target=self.analysis_panel,
-                    text="Evaluation graph with active move cursor pin, circular accuracy gauges, and AI Coach game summaries.",
-                    position="left",
-                    page_index=0,
+                steps.append(
+                    TourStep(
+                        target=self.move_list_panel,
+                        text="Colour-coded move list with classification badges (Brilliant, Great, Best, Inaccuracy, Blunder) and live engine lines.",
+                        position="left",
+                        page_index=0,
+                    )
                 )
-            )
-            steps.append(
-                TourStep(
-                    target=self.btn_explore,
-                    text='"Explore from here" opens the Opening Explorer at the current position to study master continuations.',
-                    position="below",
-                    page_index=0,
+                steps.append(
+                    TourStep(
+                        target=self.analysis_panel,
+                        text="Evaluation graph with active move cursor pin, circular accuracy gauges, and AI Coach game summaries.",
+                        position="left",
+                        page_index=0,
+                    )
                 )
-            )
+                steps.append(
+                    TourStep(
+                        target=self.btn_explore,
+                        text='"Explore from here" opens the Opening Explorer at the current position to study master continuations.',
+                        position="below",
+                        page_index=0,
+                    )
+                )
 
         elif page_index == 1:  # ── Explorer ────────────────────────────────
             if hasattr(ev, "header_bar"):
@@ -1200,7 +1202,7 @@ class MainWindow(QMainWindow):
                 )
                 return
 
-        self.load_game(game)
+        self.load_game(game, from_history=True)
         self.sidebar.set_active(0)  # Switch to Analyze tab
         self.switch_page(0)
 
@@ -1232,16 +1234,18 @@ class MainWindow(QMainWindow):
             self.start_analysis(resume=False)
 
     def load_game_from_metrics(self, game, move_index: int = -1):
+        target = game
         if isinstance(game, str):
             game = self.history_manager.get_game_analysis(game)
         if not game:
-            logger.warning(f"Could not load game from metrics: {game}")
+            logger.warning(f"Could not load game from metrics: {target}")
             return
-        self.load_game(game)
+        self.load_game(game, from_history=True)
         self.sidebar.set_active(0)  # Switch to Analyze tab
         self.switch_page(0)
         if move_index >= 0:
             self.on_move_selected(move_index)
+
 
     def setup_analysis_page(self, parent_widget):
         main_layout = QVBoxLayout(parent_widget)
@@ -1285,7 +1289,7 @@ class MainWindow(QMainWindow):
         self.btn_load = create_button(
             "Load Game",
             style="secondary",
-            on_click=self.open_load_dialog,
+            on_click=lambda: self.open_load_dialog(),
             icon_name="fa5s.folder-open",
         )
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -1293,7 +1297,10 @@ class MainWindow(QMainWindow):
 
         # Analyze Game Button
         self.btn_analyze = create_button(
-            "Analyze Game", style="primary", on_click=self.start_analysis, icon_name="fa5s.play"
+            "Analyze Game",
+            style="primary",
+            on_click=lambda: self.start_analysis(),
+            icon_name="fa5s.play",
         )
         header_layout.addWidget(self.btn_analyze)
 
@@ -1301,6 +1308,7 @@ class MainWindow(QMainWindow):
 
         # Splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter = splitter
         splitter.setHandleWidth(2)
         splitter.setStyleSheet(f"""
             QSplitter {{
@@ -1353,18 +1361,9 @@ class MainWindow(QMainWindow):
         self.captured_widget = self.captured_white
 
         self.board_widget = BoardWidget()
-        # Layout order (indices shown):
-        #   1 captured_black  (above board, near Black)
-        #   2 board
-        #   3 captured_white  (below board, near White)
         center_layout.addWidget(self.captured_black)
-        center_layout.addWidget(self.board_widget)
+        center_layout.addWidget(self.board_widget, 1)
         center_layout.addWidget(self.captured_white)
-        # Board takes all remaining vertical space. Without this, the
-        # board (which now has no inner layout of its own, so no useful
-        # sizeHint) collapses to its minimum size and the window is
-        # dominated by empty space.
-        center_layout.setStretch(1, 1)
 
         self.controls = GameControlsWidget()
         self.controls.first_clicked.connect(self.go_first)
@@ -1373,6 +1372,33 @@ class MainWindow(QMainWindow):
         self.controls.last_clicked.connect(self.go_last)
         self.controls.flip_clicked.connect(self.flip_board)
         center_layout.addWidget(self.controls)
+
+        # Hero empty-state CTA below the board
+        self.empty_state_cta = QFrame()
+        self.empty_state_cta.setObjectName("EmptyStateCTA")
+        cta_layout = QVBoxLayout(self.empty_state_cta)
+        cta_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cta_layout.setContentsMargins(0, 10, 0, 14)
+        cta_layout.setSpacing(8)
+
+        self.btn_hero_load = create_button(
+            "Load Game",
+            style="primary",
+            on_click=lambda: self.open_load_dialog(),
+            icon_name="fa5s.folder-open",
+        )
+        self.btn_hero_load.setFixedSize(160, 42)
+        self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        cta_layout.addWidget(self.btn_hero_load, 0, Qt.AlignmentFlag.AlignCenter)
+
+        self.lbl_hero_hint = QLabel("Drop a .pgn file anywhere or press Ctrl+V to paste")
+        self.lbl_hero_hint.setStyleSheet(
+            f"font-size: 13px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
+        )
+        self.lbl_hero_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cta_layout.addWidget(self.lbl_hero_hint, 0, Qt.AlignmentFlag.AlignCenter)
+
+        center_layout.addWidget(self.empty_state_cta)
 
         splitter.addWidget(self.center_widget)
 
@@ -1391,6 +1417,41 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 1)  # Left: move list
         splitter.setStretchFactor(1, 3)  # Center: board (priority)
         splitter.setStretchFactor(2, 1)  # Right: analysis
+
+        self._update_analysis_view_mode(has_game=self.current_game is not None)
+
+    def _update_analysis_view_mode(self, has_game: bool):
+        """Toggle between Hero focus landing (no game) and 3-column analysis workspace (game loaded)."""
+        if hasattr(self, "left_widget"):
+            self.left_widget.setVisible(has_game)
+        if hasattr(self, "analysis_panel"):
+            self.analysis_panel.setVisible(has_game)
+        if hasattr(self, "captured_black"):
+            self.captured_black.setVisible(has_game)
+        if hasattr(self, "captured_white"):
+            self.captured_white.setVisible(has_game)
+        if hasattr(self, "controls"):
+            self.controls.setVisible(has_game)
+        if hasattr(self, "empty_state_cta"):
+            self.empty_state_cta.setVisible(not has_game)
+        if hasattr(self, "game_info_label"):
+            self.game_info_label.setVisible(has_game)
+        if hasattr(self, "btn_explore"):
+            self.btn_explore.setVisible(has_game)
+        if hasattr(self, "btn_analyze"):
+            self.btn_analyze.setVisible(has_game)
+
+        # Eval bar is only shown during game playback / analysis
+        if hasattr(self, "board_widget") and hasattr(self.board_widget, "eval_bar"):
+            self.board_widget.eval_bar.setVisible(has_game)
+            if hasattr(self.board_widget, "_enforce_square_board"):
+                self.board_widget._enforce_square_board()
+
+        if has_game and hasattr(self, "splitter"):
+            total_w = self.splitter.width()
+            if total_w < 500:
+                total_w = max(self.width(), 1100)
+            self.splitter.setSizes([int(total_w * 0.22), int(total_w * 0.52), int(total_w * 0.26)])
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
         """
@@ -1412,7 +1473,7 @@ class MainWindow(QMainWindow):
             )
             return False
 
-    def load_game(self, game):
+    def load_game(self, game, from_history: bool = False):
         # If game has no moves but has PGN content (loaded from history), parse it
         if not game.moves and game.pgn_content:
             try:
@@ -1438,8 +1499,13 @@ class MainWindow(QMainWindow):
             if existing and existing.analyzed_moves_count > game.analyzed_moves_count:
                 game = existing
 
-        # Persist loaded game to history immediately if not already saved
-        if getattr(game, "pgn_content", None):
+        # Persist newly imported game to history immediately (only if not already from history and has moves)
+        if (
+            not from_history
+            and getattr(game, "pgn_content", None)
+            and getattr(game, "moves", None)
+            and len(game.moves) > 0
+        ):
             try:
                 self.history_manager.save_game(game, game.pgn_content)
                 if hasattr(self, "history_view"):
@@ -1447,7 +1513,9 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 logger.debug(f"Failed to auto-save loaded game to history: {e}")
 
+
         self.current_game = game
+        self._update_analysis_view_mode(has_game=True)
 
         white = game.metadata.white
         black = game.metadata.black
@@ -2066,3 +2134,36 @@ class MainWindow(QMainWindow):
         if hasattr(self, "tour_overlay"):
             self.tour_overlay.setGeometry(self.rect())
         super().resizeEvent(event)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().lower().endswith((".pgn", ".txt")):
+                    event.acceptProposedAction()
+                    return
+        elif event.mimeData().hasText():
+            text = event.mimeData().text()
+            if "[Event" in text or "1." in text:
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                file_path = url.toLocalFile()
+                if file_path.lower().endswith((".pgn", ".txt")):
+                    try:
+                        with open(file_path, encoding="utf-8", errors="replace") as f:
+                            content = f.read()
+                        if self._parse_and_load_game(content, status_msg="Game loaded from file"):
+                            event.acceptProposedAction()
+                            return
+                    except Exception as e:
+                        logger.error(f"Failed to load dropped PGN file: {e}")
+        elif event.mimeData().hasText():
+            text = event.mimeData().text().strip()
+            if self._parse_and_load_game(text, status_msg="Game loaded from dropped text"):
+                event.acceptProposedAction()
+                return
+        event.ignore()

@@ -17,7 +17,7 @@ class BoardWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.board = chess.Board()
-        self.is_flipped = False # False = White bottom, True = Black bottom
+        self.is_flipped = False  # False = White bottom, True = Black bottom
         # We need the board to take all available space in its parent
         # QVBoxLayout cell. Without an inner layout, sizePolicy defaults
         # to Preferred, which sizes us to sizeHint/minimum and leaves
@@ -51,8 +51,12 @@ class BoardWidget(QWidget):
 
         # Overlay Widget (Layer 1)
         self.overlay_widget = QWidget()
-        self.overlay_widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents) # Let clicks pass through
-        self.overlay_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground) # Make background transparent
+        self.overlay_widget.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents
+        )  # Let clicks pass through
+        self.overlay_widget.setAttribute(
+            Qt.WidgetAttribute.WA_TranslucentBackground
+        )  # Make background transparent
         self.overlay_layout = QGridLayout(self.overlay_widget)
         self.overlay_layout.setContentsMargins(0, 0, 0, 0)
         self.overlay_layout.setSpacing(0)
@@ -83,20 +87,24 @@ class BoardWidget(QWidget):
         self._enforce_square_board()
 
     def _enforce_square_board(self):
-        eval_w = self.eval_bar.width()  # fixed at 24 px
-        avail_w = max(0, self.width() - eval_w)
+        eval_visible = hasattr(self, "eval_bar") and self.eval_bar.isVisible()
+        eval_w = self.eval_bar.width() if eval_visible else 0
+        gap = 6 if eval_visible else 0
+        total_eval_space = eval_w + gap
+        avail_w = max(0, self.width() - total_eval_space)
         avail_h = self.height()
         if avail_w <= 0 or avail_h <= 0:
             return
         side = min(avail_w, avail_h)
         if side <= 0:
             return
-        x_board = eval_w + (avail_w - side) // 2
+        x_board = total_eval_space + (avail_w - side) // 2
         y_board = (avail_h - side) // 2
         # Board is a square, centered in the area right of the eval bar.
         self.board_container.setGeometry(x_board, y_board, side, side)
-        # Eval bar spans the full height of the board, aligned to its top.
-        self.eval_bar.setGeometry(0, y_board, eval_w, side)
+        # Eval bar spans the full height of the board, aligned right next to it.
+        if eval_visible:
+            self.eval_bar.setGeometry(max(0, x_board - eval_w - gap), y_board, eval_w, side)
 
         # Update overlay grid margins dynamically to align exactly with the SVG board's 15px coordinates margin.
         margin = int(side * 15 / 390)
@@ -108,8 +116,8 @@ class BoardWidget(QWidget):
         self.game_moves = game_analysis.moves
         self.current_move_index = -1
         self.update_board()
-        self.draw_overlays(-1) # Clear any highlights/arrows from the previous game
-        self.eval_bar.set_eval(0, None) # Reset eval
+        self.draw_overlays(-1)  # Clear any highlights/arrows from the previous game
+        self.eval_bar.set_eval(0, None)  # Reset eval
 
     def set_position(self, move_index):
         """
@@ -166,6 +174,7 @@ class BoardWidget(QWidget):
         # Import here to avoid circular import issues if any, or just use the one from main_window passed down?
         # Better: Use ResourceManager singleton
         from ...utils.resources import ResourceManager
+
         icon = ResourceManager().get_icon(move.classification)
 
         if icon.isNull():
@@ -188,7 +197,7 @@ class BoardWidget(QWidget):
 
             # Create label with icon
             lbl = QLabel()
-            lbl.setPixmap(icon.pixmap(32, 32)) # Size 32x32
+            lbl.setPixmap(icon.pixmap(32, 32))  # Size 32x32
             lbl.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
             lbl.setStyleSheet(Styles.get_transparent_label_style())
 
@@ -198,11 +207,12 @@ class BoardWidget(QWidget):
             for c in range(8):
                 self.overlay_layout.setColumnStretch(c, 1)
 
-            self.overlay_layout.addWidget(lbl, row, col, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+            self.overlay_layout.addWidget(
+                lbl, row, col, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight
+            )
 
         except Exception as e:
             logger.debug(f"Error drawing overlay: {e}")
-
 
     def update_board(self):
         # Determine colors from configured theme
@@ -244,20 +254,29 @@ class BoardWidget(QWidget):
         last_to = last_move.to_square if last_move else None
 
         # Create SVG root
-        svg = ET.Element("svg", {
-            "xmlns": "http://www.w3.org/2000/svg",
-            "xmlns:xlink": "http://www.w3.org/1999/xlink",
-            "viewBox": f"0 0 {FULL_SIZE} {FULL_SIZE}",
-            "width": str(FULL_SIZE),
-            "height": str(FULL_SIZE),
-        })
+        svg = ET.Element(
+            "svg",
+            {
+                "xmlns": "http://www.w3.org/2000/svg",
+                "xmlns:xlink": "http://www.w3.org/1999/xlink",
+                "viewBox": f"0 0 {FULL_SIZE} {FULL_SIZE}",
+                "width": str(FULL_SIZE),
+                "height": str(FULL_SIZE),
+            },
+        )
 
         # Background
-        ET.SubElement(svg, "rect", {
-            "x": "0", "y": "0",
-            "width": str(FULL_SIZE), "height": str(FULL_SIZE),
-            "fill": Styles.COLOR_BACKGROUND
-        })
+        ET.SubElement(
+            svg,
+            "rect",
+            {
+                "x": "0",
+                "y": "0",
+                "width": str(FULL_SIZE),
+                "height": str(FULL_SIZE),
+                "fill": Styles.COLOR_BACKGROUND,
+            },
+        )
 
         # Add piece definitions to defs section.
         # ``piece_defs`` is the concatenated <g>...</g><g>...</g> string
@@ -265,9 +284,7 @@ class BoardWidget(QWidget):
         # root element so we can split it back into individual <g> nodes
         # and append them to <defs> (browsers won't render a free <g>).
         defs = ET.SubElement(svg, "defs")
-        wrapped = (
-            f'<root xmlns="http://www.w3.org/2000/svg">{piece_defs}</root>'
-        )
+        wrapped = f'<root xmlns="http://www.w3.org/2000/svg">{piece_defs}</root>'
         try:
             wrapper_root = safe_fromstring(wrapped)
             for piece_elem in wrapper_root:
@@ -292,20 +309,32 @@ class BoardWidget(QWidget):
             is_light = (file_idx + rank_idx) % 2 == 1
             fill_color = colors["light"] if is_light else colors["dark"]
 
-            ET.SubElement(svg, "rect", {
-                "x": str(x), "y": str(y),
-                "width": str(SQUARE_SIZE), "height": str(SQUARE_SIZE),
-                "fill": fill_color
-            })
+            ET.SubElement(
+                svg,
+                "rect",
+                {
+                    "x": str(x),
+                    "y": str(y),
+                    "width": str(SQUARE_SIZE),
+                    "height": str(SQUARE_SIZE),
+                    "fill": fill_color,
+                },
+            )
 
             # Highlight start/destination squares of the last move
             if last_move and square in (last_from, last_to):
-                ET.SubElement(svg, "rect", {
-                    "x": str(x), "y": str(y),
-                    "width": str(SQUARE_SIZE), "height": str(SQUARE_SIZE),
-                    "fill": Styles.COLOR_BOARD_HIGHLIGHT,
-                    "opacity": "0.35"
-                })
+                ET.SubElement(
+                    svg,
+                    "rect",
+                    {
+                        "x": str(x),
+                        "y": str(y),
+                        "width": str(SQUARE_SIZE),
+                        "height": str(SQUARE_SIZE),
+                        "fill": Styles.COLOR_BOARD_HIGHLIGHT,
+                        "opacity": "0.35",
+                    },
+                )
 
         # Draw coordinates
         coord_style = f"font-size:10px;fill:{Styles.COLOR_TEXT_SECONDARY};font-family:sans-serif"
@@ -314,20 +343,16 @@ class BoardWidget(QWidget):
             # File letters (a-h)
             file_letter = chess.FILE_NAMES[i if orientation else 7 - i]
             file_x = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 - 3
-            ET.SubElement(svg, "text", {
-                "x": str(file_x),
-                "y": str(FULL_SIZE - 3),
-                "style": coord_style
-            }).text = file_letter
+            ET.SubElement(
+                svg, "text", {"x": str(file_x), "y": str(FULL_SIZE - 3), "style": coord_style}
+            ).text = file_letter
 
             # Rank numbers (1-8)
             rank_number = str(8 - i if orientation else i + 1)
             rank_y = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 + 4
-            ET.SubElement(svg, "text", {
-                "x": "3",
-                "y": str(rank_y),
-                "style": coord_style
-            }).text = rank_number
+            ET.SubElement(
+                svg, "text", {"x": "3", "y": str(rank_y), "style": coord_style}
+            ).text = rank_number
 
         # Draw pieces
         for square in chess.SQUARES:
@@ -348,13 +373,11 @@ class BoardWidget(QWidget):
                 piece_type_name = chess.PIECE_NAMES[piece.piece_type]
                 href = f"#{color_name}-{piece_type_name}"
 
-                ET.SubElement(svg, "use", {
-                    "href": href,
-                    "xlink:href": href,
-                    "transform": f"translate({x}, {y})"
-                })
+                ET.SubElement(
+                    svg,
+                    "use",
+                    {"href": href, "xlink:href": href, "transform": f"translate({x}, {y})"},
+                )
 
         # Convert to string
         return ET.tostring(svg, encoding="utf-8")
-
-

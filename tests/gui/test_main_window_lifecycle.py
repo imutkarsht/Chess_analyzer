@@ -14,6 +14,13 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     window.show()
     assert window.stack.currentIndex() == 0
 
+    # Initial Hero Focus state (no game loaded)
+    assert window.left_widget.isHidden()
+    assert window.analysis_panel.isHidden()
+    assert not window.empty_state_cta.isHidden()
+    assert window.btn_analyze.isHidden()
+    assert window.board_widget.eval_bar.isHidden()
+
     # Trigger switch to page 1
     window.switch_page(1)
 
@@ -31,11 +38,19 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     )
     game_active = GameAnalysis(game_id="active_1", metadata=meta, moves=[])
     game_other = GameAnalysis(game_id="other_2", metadata=meta, moves=[])
-    window.current_game = game_active
+
+    # Loading a game expands to 3-column analysis workspace
+    window.load_game(game_active)
+    assert not window.left_widget.isHidden()
+    assert not window.analysis_panel.isHidden()
+    assert window.empty_state_cta.isHidden()
+    assert not window.btn_analyze.isHidden()
+    assert not window.board_widget.eval_bar.isHidden()
 
     window.load_game_from_history(game_active)
     qtbot.waitUntil(lambda: window.stack.currentIndex() == 0, timeout=1000)
     assert window.stack.currentIndex() == 0
+
 
     warning_called = []
     monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: warning_called.append(True))
@@ -44,3 +59,4 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert window.current_game.game_id == "active_1"
 
     window.close()
+
