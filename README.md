@@ -1,6 +1,6 @@
 # Chess Analyzer Pro
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg) [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml) ![Version](https://img.shields.io/badge/version-2.3.0-green.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg) [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml) ![Version](https://img.shields.io/badge/version-2.4.0-green.svg)
 
 ![Chess Analyzer Pro Logo](assets/images/logo.png)
 
@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/showcasevideo.mp4" target="_blank">
-    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/analysis_page_dark.png" alt="Chess Analyzer Pro v2.3 Showcase" width="90%">
+    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_dark.png" alt="Chess Analyzer Pro v2.4 Showcase" width="90%">
     <br>
     <sub>▶ Click to watch the showcase video</sub>
   </a>
@@ -23,23 +23,39 @@
 
 | Deep Analysis & Live Lines | Opening Explorer |
 | :-: | :-: |
-| ![Analysis View](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/analysis_page_dark.png) | ![Opening Explorer](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/explore_page_dark.png) |
+| ![Analysis View](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_dark.png) | ![Opening Explorer](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/explorer_dark.png) |
 
-| Game History & Cards | Performance Metrics |
+| Game History & Cards | Performance Metrics Dashboard |
 | :-: | :-: |
-| ![Game History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/history_page_dark.png) | ![Performance Metrics](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/stats_dark.png) |
+| ![Game History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/history_v2_dark.png) | ![Performance Metrics](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/stats_v3_dark.png) |
+
+| Interactive Stats Drill-Down | AI Coach Game Summary |
+| :-: | :-: |
+| ![Stats Drill-Down](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/stats_drill_down_dark.png) | ![AI Coach Summary](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/ai_report_dark.png) |
 
 <details>
-<summary><b>🔍 View More Screens (Settings, Game Import & Feedback)</b></summary>
+<summary><b>🔍 View More Screens (Light Mode, Settings & Game Import)</b></summary>
 <br>
 
 | Settings (Dark Mode) | Settings (Light Mode) |
 | :-: | :-: |
-| ![Settings Basic](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/settings_basic_dark.png) | ![Settings Advanced Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/settings_advanced_light.png) |
+| ![Settings Basic](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/settings_basic_dark.png) | ![Settings Basic Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/settings_basic_light.png) |
 
-| Online Game Fetcher | In-App Review & Diagnostics |
+| Advanced Settings (Dark Mode) | Advanced Settings (Light Mode) |
 | :-: | :-: |
-| ![Online Game Fetcher](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/game_fetch_list_dark.png) | ![Review Dialog](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/V2p3p0/review_dialog_dark.png) |
+| ![Advanced Settings Dark](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/setting_adv_dark.png) | ![Advanced Settings Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/settings_adv_light.png) |
+
+| Deep Analysis (Light Mode) | Opening Explorer (Light Mode) |
+| :-: | :-: |
+| ![Analysis Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_light.png) | ![Explorer Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/explorer_light.png) |
+
+| Game History (Light Mode) | Performance Metrics (Light Mode) |
+| :-: | :-: |
+| ![History Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/history_v2_light.png) | ![Stats Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/stats_v3_light.png) |
+
+| Online Game Fetcher | Online Games List |
+| :-: | :-: |
+| ![Online Game Fetcher](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/load_game_v1_dark.png) | ![Online Games List](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/load_game_list_dark.png) |
 
 </details>
 
@@ -47,16 +63,23 @@
 
 ### Core Analysis
 
-- **Stockfish Integration**: Leverages the world's strongest chess engine for deep analysis with **live move-by-move progressive updates**.
-- **Move Classification**: Automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss).
+- **Stockfish Integration**: Leverages the world's strongest chess engine for deep analysis with **live move-by-move progressive updates** and pause/resume support.
+- **Move Classification**: Automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss) with sacrifice detection for brilliancies.
 - **AI Coach Summaries**: Generates natural language post-game explanations using any OpenAI-compatible endpoint. Out-of-the-box support for **Groq** (Cloud), **LM Studio** (Local), **MiniMax** (Cloud), and **Custom endpoints**.
 - **Win Probability**: Calculates and displays win probability swings for every move.
 - **Opening Explorer**: Deep opening analysis using a built-in local SQLite openings database, custom Polyglot opening books (`*.bin` files), and live **Lichess Masters & Public game database integration** with Win/Draw/Loss ratio bars.
 - **Ending & Termination Analysis**: Detects and charts game outcomes by exact termination reason (Checkmate, Time, Resignation, Stalemate, Abandonment, Insufficient Material).
 
+### Performance Analytics
+
+- **Comprehensive Metrics Dashboard**: In-depth analytics tracking tactical motifs (forks, pins, skewers, hanging pieces), game phase accuracies (Opening, Middlegame, Endgame), and advantage conversion rates.
+- **Interactive Stats Drill-Down**: Click on any metric card across your game library to launch an interactive position explorer with engine evaluations and candidate lines.
+- **Player Rating Tracking**: Fetches and charts official player ratings across Bullet, Blitz, Rapid, Classical, and Puzzles from Chess.com and Lichess.
+
 ### User Interface
 
-- **Interactive Board**: Fully functional chessboard with drag-and-drop support and visual move indicators.
+- **Interactive Landing & Historic Games Hub**: Launches into an engaging 60-40 split hero hub featuring 25 curated legendary games from history to explore on an interactive board, paired with a project welcome center.
+- **Interactive Board**: Fully functional chessboard with drag-and-drop support, visual move indicators, and legal move dots.
 - **Evaluation Graph**: Dynamic graph visualizing the game's evaluation flow with an interactive active move cursor pin.
 - **Game List & History**: Modern desktop game cards with time control badges, rating tags, and view mode toggle (Detailed Cards vs. Compact Table).
 - **Move List**: Detailed move history with classification icons, evaluation scores, and live engine lines.
@@ -69,7 +92,7 @@
 - **Web Imports**:
   - **Chess.com**: Import recent matches, filter archives by date, or load specific game URLs.
   - **Lichess**: Import recent matches, filter archives by date, or load specific game URLs.
-- **Data Backup & Caching**: Local SQLite caching for instant repeat loads and CSV export for external analysis.
+- **Data Backup & Scalability**: Local SQLite storage supporting 1,000+ game archives, instant repeat loads, and full CSV export for external analysis.
 
 ### Audio & Visuals
 
