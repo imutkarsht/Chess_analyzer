@@ -76,6 +76,8 @@ class GameLoadingMixin:
             self.left_widget.setVisible(has_game)
         if hasattr(self, "analysis_panel"):
             self.analysis_panel.setVisible(has_game)
+        if hasattr(self, "welcome_panel"):
+            self.welcome_panel.setVisible(not has_game)
         if hasattr(self, "captured_black"):
             self.captured_black.setVisible(has_game)
         if hasattr(self, "captured_white"):
@@ -97,11 +99,24 @@ class GameLoadingMixin:
             if hasattr(self.board_widget, "_enforce_square_board"):
                 self.board_widget._enforce_square_board()
 
-        if has_game and hasattr(self, "splitter"):
+        if hasattr(self, "splitter"):
             total_w = self.splitter.width()
             if total_w < 500:
                 total_w = max(self.width(), 1100)
-            self.splitter.setSizes([int(total_w * 0.22), int(total_w * 0.52), int(total_w * 0.26)])
+            if has_game:
+                self.splitter.setSizes([int(total_w * 0.22), int(total_w * 0.52), int(total_w * 0.26), 0])
+                self.splitter.setStretchFactor(0, 1)
+                self.splitter.setStretchFactor(1, 3)
+                self.splitter.setStretchFactor(2, 1)
+                self.splitter.setStretchFactor(3, 0)
+            else:
+                left_w = int(total_w * 0.60)
+                right_w = total_w - left_w
+                self.splitter.setSizes([0, left_w, 0, right_w])
+                self.splitter.setStretchFactor(0, 0)
+                self.splitter.setStretchFactor(1, 6)
+                self.splitter.setStretchFactor(2, 0)
+                self.splitter.setStretchFactor(3, 4)
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
         """

@@ -5,8 +5,11 @@ Global application constants.
 # App Version
 APP_VERSION = "2.3.0"
 
-# GitHub Update Checker
+# GitHub & Project URLs
+GITHUB_REPO_URL = "https://github.com/imutkarsht/Chess_analyzer"
 GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"
+WEBSITE_URL = "https://chessanalyzer.xyz"
+ABOUT_URL = "https://chessanalyzer.xyz/about"
 
 # PGN Load Source IDs
 SRC_PGN_FILE = 0

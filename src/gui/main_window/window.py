@@ -1,4 +1,5 @@
 import os
+import sys
 
 from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication, QIcon
@@ -22,6 +23,7 @@ from src.gui.components.sidebar import Sidebar
 from src.gui.components.tour_manager import TourManager
 from src.gui.components.tour_overlay import TourOverlay
 from src.gui.components.transition_stack import FadedStackedWidget
+from src.gui.components.welcome_panel import WelcomePanel
 from src.gui.main_window.analysis_mixin import AnalysisMixin
 from src.gui.main_window.game_loading_mixin import GameLoadingMixin
 from src.gui.main_window.navigation_mixin import NavigationMixin
@@ -481,6 +483,41 @@ class MainWindow(
         self.captured_widget = self.captured_white
 
         self.board_widget = BoardWidget()
+
+        # Hero empty-state CTA bar placed prominently above the board
+        self.empty_state_cta = QFrame()
+        self.empty_state_cta.setObjectName("EmptyStateCTA")
+        self.empty_state_cta.setStyleSheet(f"""
+            QFrame#EmptyStateCTA {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+            }}
+        """)
+        cta_layout = QHBoxLayout(self.empty_state_cta)
+        cta_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cta_layout.setContentsMargins(14, 6, 18, 6)
+        cta_layout.setSpacing(14)
+
+        self.btn_hero_load = create_button(
+            "Load Game",
+            style="primary",
+            on_click=lambda: self.open_load_dialog(),
+            icon_name="fa5s.folder-open",
+        )
+        self.btn_hero_load.setFixedSize(140, 38)
+        self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        cta_layout.addWidget(self.btn_hero_load)
+
+        paste_shortcut = "⌘V" if sys.platform == "darwin" else "Ctrl+V"
+        self.lbl_hero_hint = QLabel(f"Drop a .pgn file anywhere or press {paste_shortcut} to paste")
+        self.lbl_hero_hint.setStyleSheet(
+            f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
+        )
+        self.lbl_hero_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        cta_layout.addWidget(self.lbl_hero_hint)
+
+        center_layout.addWidget(self.empty_state_cta, 0, Qt.AlignmentFlag.AlignCenter)
         center_layout.addWidget(self.captured_black)
         center_layout.addWidget(self.board_widget, 1)
         center_layout.addWidget(self.captured_white)
@@ -492,33 +529,6 @@ class MainWindow(
         self.controls.last_clicked.connect(self.go_last)
         self.controls.flip_clicked.connect(self.flip_board)
         center_layout.addWidget(self.controls)
-
-        # Hero empty-state CTA below the board
-        self.empty_state_cta = QFrame()
-        self.empty_state_cta.setObjectName("EmptyStateCTA")
-        cta_layout = QVBoxLayout(self.empty_state_cta)
-        cta_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cta_layout.setContentsMargins(0, 10, 0, 14)
-        cta_layout.setSpacing(8)
-
-        self.btn_hero_load = create_button(
-            "Load Game",
-            style="primary",
-            on_click=lambda: self.open_load_dialog(),
-            icon_name="fa5s.folder-open",
-        )
-        self.btn_hero_load.setFixedSize(160, 42)
-        self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        cta_layout.addWidget(self.btn_hero_load, 0, Qt.AlignmentFlag.AlignCenter)
-
-        self.lbl_hero_hint = QLabel("Drop a .pgn file anywhere or press Ctrl+V to paste")
-        self.lbl_hero_hint.setStyleSheet(
-            f"font-size: 13px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
-        )
-        self.lbl_hero_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cta_layout.addWidget(self.lbl_hero_hint, 0, Qt.AlignmentFlag.AlignCenter)
-
-        center_layout.addWidget(self.empty_state_cta)
 
         splitter.addWidget(self.center_widget)
 
@@ -533,12 +543,27 @@ class MainWindow(
         )
 
         splitter.addWidget(self.analysis_panel)
-        splitter.setSizes([250, 630, 320])
+
+        # Right: Welcome & Project Hub (displayed on empty state when no game is loaded)
+        self.welcome_panel = WelcomePanel(parent=self)
+        splitter.addWidget(self.welcome_panel)
+
+        splitter.setSizes([250, 630, 320, 0])
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
         splitter.setStretchFactor(2, 1)
+        splitter.setStretchFactor(3, 0)
 
         self._update_analysis_view_mode(has_game=self.current_game is not None)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not self.current_game and hasattr(self, "splitter"):
+            total_w = self.splitter.width()
+            if total_w > 100:
+                left_w = int(total_w * 0.60)
+                right_w = total_w - left_w
+                self.splitter.setSizes([0, left_w, 0, right_w])
 
     def resizeEvent(self, event):
         if hasattr(self, "loading_overlay"):

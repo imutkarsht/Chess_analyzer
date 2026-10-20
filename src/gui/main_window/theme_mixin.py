@@ -139,6 +139,27 @@ class ThemeMixin:
             self.left_widget.setStyleSheet(Styles.get_background_style())
         if hasattr(self, "center_widget"):
             self.center_widget.setStyleSheet(Styles.get_background_style())
+        if hasattr(self, "empty_state_cta"):
+            self.empty_state_cta.setStyleSheet(f"""
+                QFrame#EmptyStateCTA {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 8px;
+                }}
+            """)
+        if hasattr(self, "lbl_hero_hint"):
+            self.lbl_hero_hint.setStyleSheet(
+                f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
+            )
+        if hasattr(self, "splitter"):
+            self.splitter.setStyleSheet(f"""
+                QSplitter {{
+                    background-color: {Styles.COLOR_BACKGROUND};
+                }}
+                QSplitter::handle {{
+                    background-color: {Styles.COLOR_BORDER};
+                }}
+            """)
 
         # Update Chess Boards (Graphics / QPainter)
         if hasattr(self, "board_widget"):
@@ -151,6 +172,8 @@ class ThemeMixin:
             self.analysis_panel.refresh_styles()
         if hasattr(self, "move_list_panel"):
             self.move_list_panel.refresh_styles()
+        if hasattr(self, "welcome_panel") and hasattr(self.welcome_panel, "refresh_styles"):
+            self.welcome_panel.refresh_styles()
         if hasattr(self, "history_view"):
             self.history_view.refresh_styles()
         if hasattr(self, "settings_view"):
