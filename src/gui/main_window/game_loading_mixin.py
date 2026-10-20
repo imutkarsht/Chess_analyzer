@@ -86,6 +86,8 @@ class GameLoadingMixin:
             self.controls.setVisible(has_game)
         if hasattr(self, "empty_state_cta"):
             self.empty_state_cta.setVisible(not has_game)
+        if hasattr(self, "historic_info_bar"):
+            self.historic_info_bar.setVisible(not has_game)
         if hasattr(self, "game_info_label"):
             self.game_info_label.setVisible(has_game)
         if hasattr(self, "btn_explore"):
@@ -178,6 +180,9 @@ class GameLoadingMixin:
 
         self.current_game = game
         self._update_analysis_view_mode(has_game=True)
+        # Clear historic landing state so the move detector doesn't fire during game playback
+        self._current_historic = None
+        self._historic_move_found = False
 
         white = game.metadata.white
         black = game.metadata.black

@@ -390,6 +390,25 @@ class BoardWidget(QWidget):
             return rank, 7 - file
         return 7 - rank, file
 
+    # ------------------------------------------------------------------ Historic / Free Position
+    def load_fen(self, fen: str, flipped: bool = False):
+        """Load a custom FEN for free-play exploration (landing page historic mode)."""
+        self.interactive = True
+        self.is_flipped = flipped
+        self.board = chess.Board(fen)
+        self.game_moves = []
+        self.current_move_index = -1
+        self.is_chess960 = False
+        self.selected_square = None
+        self.legal_destinations = []
+        self.drag_start_sq = None
+        self.drag_start_pos = None
+        self.is_dragging = False
+        if hasattr(self, "drag_piece_label"):
+            self.drag_piece_label.hide()
+        self.update_board()
+        self.draw_interactive_overlays()
+
     # ------------------------------------------------------------------ Game Playback
     def load_game(self, game_analysis):
         self.interactive = False

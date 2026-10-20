@@ -1,6 +1,7 @@
 import os
 import sys
 
+import chess
 from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QGuiApplication, QIcon
 from PyQt6.QtWidgets import (
@@ -16,6 +17,7 @@ from PyQt6.QtWidgets import (
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
+from src.backend.storage.historic_games import get_random_historic_position
 from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget
 from src.gui.board import BoardWidget
 from src.gui.components.loading_widget import LoadingOverlay
@@ -530,6 +532,89 @@ class MainWindow(
         self.controls.flip_clicked.connect(self.flip_board)
         center_layout.addWidget(self.controls)
 
+        # ── Historic Game Info Bar (empty-state only, shown below board) ──────
+        self.historic_info_bar = QFrame()
+        self.historic_info_bar.setObjectName("HistoricInfoBar")
+        self.historic_info_bar.setVisible(False)
+        self.historic_info_bar.setStyleSheet(f"""
+            QFrame#HistoricInfoBar {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 10px;
+            }}
+            QLabel {{ background: transparent; border: none; }}
+        """)
+        hib_outer = QVBoxLayout(self.historic_info_bar)
+        hib_outer.setContentsMargins(16, 12, 16, 12)
+        hib_outer.setSpacing(6)
+
+        # Row 1: title + shuffle button
+        hib_top = QHBoxLayout()
+        hib_top.setSpacing(8)
+        self._hib_title = QLabel()
+        self._hib_title.setStyleSheet(
+            f"font-size: 15px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
+        self._hib_title.setWordWrap(False)
+        hib_top.addWidget(self._hib_title)
+        hib_top.addStretch()
+        self._btn_shuffle = create_button(
+            "Next Gem",
+            style="secondary",
+            on_click=self._load_random_historic_position,
+            icon_name="fa5s.random",
+        )
+        self._btn_shuffle.setFixedHeight(30)
+        self._btn_shuffle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        hib_top.addWidget(self._btn_shuffle)
+        hib_outer.addLayout(hib_top)
+
+        # Row 2: players / year / event
+        self._hib_meta = QLabel()
+        self._hib_meta.setStyleSheet(
+            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
+        )
+        hib_outer.addWidget(self._hib_meta)
+
+        # Row 3: puzzle prompt (turn_desc)
+        self._hib_hint = QLabel()
+        self._hib_hint.setStyleSheet(
+            f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_ACCENT};"
+        )
+        self._hib_hint.setWordWrap(True)
+        hib_outer.addWidget(self._hib_hint)
+
+        # Row 4: celebration / blurb row (hidden until famous move is found)
+        self._hib_celebration = QFrame()
+        self._hib_celebration.setObjectName("HistoricCelebration")
+        self._hib_celebration.setVisible(False)
+        self._hib_celebration.setStyleSheet(f"""
+            QFrame#HistoricCelebration {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+            }}
+            QLabel {{ background: transparent; border: none; }}
+        """)
+        cel_layout = QHBoxLayout(self._hib_celebration)
+        cel_layout.setContentsMargins(10, 8, 10, 8)
+        cel_layout.setSpacing(8)
+        self._hib_cel_icon = QLabel("✨")
+        self._hib_cel_icon.setStyleSheet("font-size: 20px;")
+        cel_layout.addWidget(self._hib_cel_icon)
+        self._hib_cel_text = QLabel()
+        self._hib_cel_text.setWordWrap(True)
+        self._hib_cel_text.setStyleSheet(
+            f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
+        cel_layout.addWidget(self._hib_cel_text, 1)
+        hib_outer.addWidget(self._hib_celebration)
+
+        center_layout.addWidget(self.historic_info_bar)
+
+        # Wire board move_made to historic move detector
+        self.board_widget.move_made.connect(self._on_board_move_made)
+
         splitter.addWidget(self.center_widget)
 
         # Right: Analysis
@@ -564,6 +649,71 @@ class MainWindow(
                 left_w = int(total_w * 0.60)
                 right_w = total_w - left_w
                 self.splitter.setSizes([0, left_w, 0, right_w])
+            # Load a random historic position onto the landing board
+            QTimer.singleShot(0, self._load_random_historic_position)
+
+    # ── Historic landing board helpers ────────────────────────────────────
+
+    def _load_random_historic_position(self):
+        """Pick a random position from the curated historic collection and load it onto the board."""
+        # Avoid repeating the same game back-to-back
+        existing = getattr(self, "_current_historic", None)
+        pos = get_random_historic_position()
+        if existing and pos.id == existing.id:
+            pos = get_random_historic_position()
+
+        self._current_historic = pos
+        self._historic_move_found = False
+
+        if hasattr(self, "board_widget"):
+            self.board_widget.load_fen(pos.fen, pos.flipped)
+
+        if hasattr(self, "_hib_title"):
+            self._hib_title.setText(f"\u2736  {pos.title}  \u00b7  {pos.year}")
+        if hasattr(self, "_hib_meta"):
+            self._hib_meta.setText(f"{pos.white}  vs  {pos.black}   \u00b7   {pos.event}")
+        if hasattr(self, "_hib_hint"):
+            self._hib_hint.setText(pos.turn_desc)
+        if hasattr(self, "_hib_celebration"):
+            self._hib_celebration.setVisible(False)
+        if hasattr(self, "historic_info_bar") and not self.current_game:
+            self.historic_info_bar.setVisible(True)
+
+    def _on_board_move_made(self, new_fen: str):
+        """Called every time the user makes a move on the interactive landing board.
+        Checks whether the move matches the historic famous move and celebrates if so.
+        """
+        if self.current_game:
+            return
+        pos = getattr(self, "_current_historic", None)
+        if pos is None or getattr(self, "_historic_move_found", False):
+            return
+
+        try:
+            ref_board = chess.Board(pos.fen)
+            ref_move = ref_board.parse_san(pos.famous_move)
+            ref_board.push(ref_move)
+            # Compare piece placement, active color, castling, en-passant (first 4 FEN fields)
+            if new_fen.split()[:4] == ref_board.fen().split()[:4]:
+                self._historic_move_found = True
+                self._celebrate_historic_move(pos)
+        except Exception as e:
+            logger.debug(f"Historic move check error: {e}")
+
+    def _celebrate_historic_move(self, pos):
+        """Reveal the historical blurb with an accent highlight when the famous move is found."""
+        if not hasattr(self, "_hib_celebration"):
+            return
+        self._hib_cel_text.setText(f"<b>{pos.famous_move}!</b> — {pos.blurb}")
+        self._hib_celebration.setStyleSheet(f"""
+            QFrame#HistoricCelebration {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_ACCENT};
+                border-radius: 6px;
+            }}
+            QLabel {{ background: transparent; border: none; }}
+        """)
+        self._hib_celebration.setVisible(True)
 
     def resizeEvent(self, event):
         if hasattr(self, "loading_overlay"):

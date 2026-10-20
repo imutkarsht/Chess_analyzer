@@ -147,6 +147,27 @@ class ThemeMixin:
                     border-radius: 8px;
                 }}
             """)
+        if hasattr(self, "historic_info_bar"):
+            self.historic_info_bar.setStyleSheet(f"""
+                QFrame#HistoricInfoBar {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 10px;
+                }}
+                QLabel {{ background: transparent; border: none; }}
+            """)
+        if hasattr(self, "_hib_title"):
+            self._hib_title.setStyleSheet(
+                f"font-size: 15px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
+            )
+        if hasattr(self, "_hib_meta"):
+            self._hib_meta.setStyleSheet(
+                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
+            )
+        if hasattr(self, "_hib_hint"):
+            self._hib_hint.setStyleSheet(
+                f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_ACCENT};"
+            )
         if hasattr(self, "lbl_hero_hint"):
             self.lbl_hero_hint.setStyleSheet(
                 f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
