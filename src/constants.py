@@ -3,7 +3,7 @@ Global application constants.
 """
 
 # App Version
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 
 # GitHub & Project URLs
 GITHUB_REPO_URL = "https://github.com/imutkarsht/Chess_analyzer"

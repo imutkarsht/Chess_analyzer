@@ -1,6 +1,41 @@
 # Changelog
 
-## v2.3.0 - Theme Engine, Progressive Analysis, Lichess Explorer & Feedback System (Latest)
+## v2.4.0 - Performance Analytics, Interactive Landing Hub & Engine Polish (Latest)
+
+### Features
+
+- **Performance Analytics Dashboard Overhaul**: Completely redesigned the Metrics dashboard to collect and present in-depth statistics including phase accuracies, advantage conversion, and tactical motifs.
+- **Interactive Stats Drill-Down Explorer**: Users can click any metric category (Brilliancies, Blunders, Misses, Tactics, Phases, Openings) to open an interactive board modal jumping directly to the exact position.
+- **Database Scalability for 1,000+ Games**: Enabled SQLite WAL mode, composite B-Tree indexes, automated compaction (`VACUUM`), and uncapped batch import/export supporting extensive game libraries.
+- **Enhanced Brilliancy & Move Classification**: Improved algorithm accuracy with a piece sacrifice detection engine for genuine brilliancies and calibrated blunder/miss thresholds.
+- **Pause & Resume Game Analysis**: Users can pause running analyses and resume seamlessly from the first unanalyzed move without losing progress.
+- **Automatic In-Progress Game Staging**: Imported games are immediately staged in the database with status tracking (`completed`, `paused`, `not_started`) as soon as they are loaded.
+- **Interactive 60-40 Landing Workspace**: On launch with no game loaded, displays an engaging 60-40 split hero hub with an interactive playable board on the left and a dedicated Welcome & Community Hub (`WelcomePanel`) on the right.
+- **Famous Historic Games Discovery Engine**: Built-in curated collection of 25 iconic games from chess history, loading a random legendary position on launch with interactive move celebration and historical backstories.
+
+### Improvements
+
+- **Modernized Interactive Tour Overlay**: Restructured the guided tour overlay to dynamically highlight and navigate the new landing layout and sub-panel components.
+- **MainWindow Modular Architecture**: Decomposed the monolithic 2,000-line `MainWindow` into focused mixins (`NavigationMixin`, `AnalysisMixin`, `GameLoadingMixin`, `StatusBarMixin`, `ThemeMixin`, `TourMixin`, `UpdateMixin`).
+- **Storage Sub-Repositories Decomposition**: Split `GameHistoryManager` into focused single-responsibility repositories for games, API cache, explorer cache, and database connection.
+- **Hardened Logging Pipeline**: Centralized logging system with debug and info log levels, rotating file handlers, and automatic redaction of sensitive API tokens.
+- **Code Standards & Open Source Guidelines**: Added repository Code of Conduct, Security Policy, Ruff linter configuration with CI workflow, and standardized agent architecture guidelines.
+- **Expanded Test Coverage**: Pruned redundant assertions, consolidated GUI fixtures, and expanded unit test coverage across backend and UI modules.
+
+### Bug Fixes
+
+- **Strict 10.0% Accuracy Floor**: Applied volatility-weighted harmonic accuracy scoring with a strict floor per move, preventing single blunders from collapsing overall game accuracy.
+
+- **Progressive Analysis Clock Synchronization**: Fixed bug where dynamic clock times and captured pieces were not updated during live move-by-move streaming.
+- **Board Theme Resolver Crash**: Resolved `KeyError: 'default'` by properly mapping configured board themes through `Styles.get_board_colors()`.
+- **Database Resource Leaks**: Added explicit context management and teardown hooks to SQLite wrappers to prevent leaked connections on shutdown.
+- **Tactical Detection False Positives**: Fixed inverted bitboard ray stepping and added Static Exchange Evaluation (SEE minimax) to eliminate false hanging piece alerts.
+- **CSV Import Large Payload Crash**: Raised CSV field size limit to 2GB to prevent crashes when importing large analysis move payloads.
+
+
+---
+
+## v2.3.0 - Theme Engine, Progressive Analysis, Lichess Explorer & Feedback System
 
 ### Features
 

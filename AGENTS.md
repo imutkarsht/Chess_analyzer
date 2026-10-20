@@ -31,7 +31,7 @@ Chess Analyzer Pro is a local-first desktop application for in-depth chess game 
 ## 4. Architecture & Boundaries
 ```
 src/
-├── constants.py            # App version (2.3.0), URLs, provider presets (Single source of truth)
+├── constants.py            # App version (2.4.0), URLs, provider presets (Single source of truth)
 ├── backend/                # Pure Python. Zero Qt imports. Headless & independently testable.
 │   ├── analysis/           # EngineManager, Analyzer, MoveClassifier, MathUtils, Opening Books
 │   ├── api/                # Chess.com & Lichess REST clients (rate-limited, timeout-protected)
