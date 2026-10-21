@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QStackedWidget,
-    QTextEdit,
+    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
@@ -64,7 +64,8 @@ class UpdateNotificationDialog(QDialog):
         self._worker: DownloadWorker | None = None
 
         self.setWindowTitle("Update Available")
-        self.setFixedSize(480, 420)
+        self.setMinimumSize(540, 480)
+        self.resize(560, 520)
         self.setStyleSheet(f"QDialog {{ background-color: {Styles.COLOR_BACKGROUND}; }}")
 
         self._setup_ui()
@@ -84,8 +85,9 @@ class UpdateNotificationDialog(QDialog):
 
     def _build_header(self) -> QWidget:
         w = QWidget()
+        w.setObjectName("updateHeader")
         w.setStyleSheet(f"""
-            QWidget {{
+            QWidget#updateHeader {{
                 background-color: {Styles.COLOR_SURFACE};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
             }}
@@ -172,33 +174,58 @@ class UpdateNotificationDialog(QDialog):
         layout.setSpacing(8)
 
         if self.update_info.changelog:
+            top_row = QHBoxLayout()
             lbl = QLabel("What's New")
             lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
-            layout.addWidget(lbl)
+            top_row.addWidget(lbl)
+            top_row.addStretch()
 
-            cleaned = self._clean_markdown(self.update_info.changelog)
-            changelog_text = QTextEdit()
-            changelog_text.setPlainText(cleaned[:600] + ("…" if len(cleaned) > 600 else ""))
+            if self.update_info.html_url:
+                btn_gh = QPushButton("View on GitHub ↗")
+                btn_gh.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn_gh.setStyleSheet(f"""
+                    QPushButton {{
+                        background: transparent;
+                        color: {Styles.COLOR_TEXT_MUTED};
+                        border: none;
+                        font-size: 11px;
+                        font-weight: 500;
+                        padding: 0 4px;
+                    }}
+                    QPushButton:hover {{
+                        color: {Styles.COLOR_ACCENT};
+                        text-decoration: underline;
+                    }}
+                """)
+                btn_gh.clicked.connect(self._open_github_release)
+                top_row.addWidget(btn_gh)
+
+            layout.addLayout(top_row)
+
+            changelog_text = QTextBrowser()
+            changelog_text.setObjectName("changelogText")
             changelog_text.setReadOnly(True)
+            changelog_text.setOpenExternalLinks(True)
+            changelog_text.setHtml(self._format_changelog_html(self.update_info.changelog))
+            changelog_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            changelog_text.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             changelog_text.setStyleSheet(f"""
-                QTextEdit {{
+                QTextBrowser#changelogText, QTextEdit#changelogText {{
                     background-color: {Styles.COLOR_SURFACE_LIGHT};
                     color: {Styles.COLOR_TEXT_SECONDARY};
                     border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 6px;
-                    padding: 10px;
-                    font-size: 12px;
+                    border-radius: 8px;
+                    padding: 12px;
                 }}
                 QScrollBar:vertical {{
-                    background: {Styles.COLOR_SURFACE};
-                    width: 6px;
-                    border-radius: 3px;
-                    margin: 0;
+                    background: transparent;
+                    width: 8px;
+                    margin: 4px 2px 4px 0;
                 }}
                 QScrollBar::handle:vertical {{
-                    background: {Styles.COLOR_BORDER};
-                    border-radius: 3px;
-                    min-height: 24px;
+                    background: {Styles.COLOR_BORDER_LIGHT};
+                    border-radius: 4px;
+                    min-height: 28px;
                 }}
                 QScrollBar::handle:vertical:hover {{
                     background: {Styles.COLOR_ACCENT};
@@ -206,6 +233,11 @@ class UpdateNotificationDialog(QDialog):
                 QScrollBar::add-line:vertical,
                 QScrollBar::sub-line:vertical {{
                     height: 0;
+                    background: none;
+                }}
+                QScrollBar::add-page:vertical,
+                QScrollBar::sub-page:vertical {{
+                    background: none;
                 }}
             """)
             layout.addWidget(changelog_text)
@@ -216,8 +248,9 @@ class UpdateNotificationDialog(QDialog):
 
     def _build_footer(self) -> QWidget:
         outer = QWidget()
+        outer.setObjectName("updateFooter")
         outer.setStyleSheet(f"""
-            QWidget {{
+            QWidget#updateFooter {{
                 background-color: {Styles.COLOR_SURFACE};
                 border-top: 1px solid {Styles.COLOR_BORDER};
             }}
@@ -263,6 +296,7 @@ class UpdateNotificationDialog(QDialog):
         if HAS_QTAWESOME:
             self._btn_download.setIcon(qta.icon('fa5s.download', color="#ffffff"))
         self._btn_download.setStyleSheet(self._btn_style_primary())
+        self._btn_download.setFixedHeight(40)
         self._btn_download.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_download.clicked.connect(self._start_download)
         dl_col.addWidget(self._btn_download)
@@ -450,7 +484,7 @@ class UpdateNotificationDialog(QDialog):
             QTimer.singleShot(1500, lambda: self._do_install(local_path))
         elif PLATFORM == "darwin":
             # macOS: open the DMG; user drags manually — we quit after opening
-            QTimer.singleShot(800, lambda: self._do_install(local_path))
+            QTimer.singleShot(1500, lambda: self._do_install(local_path))
         else:
             # Linux: swap script runs after we quit
             QTimer.singleShot(1200, lambda: self._do_install(local_path))
@@ -518,7 +552,132 @@ class UpdateNotificationDialog(QDialog):
             QDesktopServices.openUrl(QUrl(url))
         self.accept()
 
+    def _open_github_release(self):
+        url = self.update_info.html_url or "https://github.com/imutkarsht/chess-analyzer/releases"
+        QDesktopServices.openUrl(QUrl(url))
+
     # ------------------------------------------------------------- Helpers --
+
+    @classmethod
+    def _format_changelog_html(cls, raw_md: str) -> str:
+        """Format GitHub release notes markdown into clean, well-styled HTML."""
+        if not raw_md or not raw_md.strip():
+            return f"<p style='color: {Styles.COLOR_TEXT_MUTED}; font-style: italic;'>No release notes provided.</p>"
+
+        lines = raw_md.strip().splitlines()
+        html_parts: list[str] = []
+        in_list = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            if not stripped:
+                if in_list:
+                    html_parts.append("</ul>")
+                    in_list = False
+                continue
+
+            # Markdown headings
+            if stripped.startswith("### "):
+                if in_list:
+                    html_parts.append("</ul>")
+                    in_list = False
+                title = cls._inline_format(stripped[4:])
+                html_parts.append(
+                    f"<h4 style='color: {Styles.COLOR_ACCENT}; font-size: 13px; font-weight: 700; margin: 12px 0 4px 0;'>{title}</h4>"
+                )
+                continue
+            elif stripped.startswith("## "):
+                if in_list:
+                    html_parts.append("</ul>")
+                    in_list = False
+                title = cls._inline_format(stripped[3:])
+                html_parts.append(
+                    f"<h3 style='color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: 700; margin: 14px 0 6px 0;'>{title}</h3>"
+                )
+                continue
+            elif stripped.startswith("# "):
+                if in_list:
+                    html_parts.append("</ul>")
+                    in_list = False
+                title = cls._inline_format(stripped[2:])
+                html_parts.append(
+                    f"<h2 style='color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 15px; font-weight: 700; margin: 16px 0 8px 0;'>{title}</h2>"
+                )
+                continue
+
+            # List items (- or * or •)
+            is_bullet = stripped.startswith(("- ", "* ", "• "))
+            if is_bullet:
+                if not in_list:
+                    html_parts.append(
+                        "<ul style='margin: 4px 0 8px 0; padding-left: 18px; list-style-type: disc;'>"
+                    )
+                    in_list = True
+                content = cls._inline_format(stripped[2:].strip())
+                html_parts.append(
+                    f"<li style='color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.55; margin-bottom: 6px;'>{content}</li>"
+                )
+                continue
+
+            if in_list:
+                html_parts.append("</ul>")
+                in_list = False
+
+            # Regular paragraph
+            content = cls._inline_format(stripped)
+            html_parts.append(
+                f"<p style='color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.55; margin: 4px 0 6px 0;'>{content}</p>"
+            )
+
+        if in_list:
+            html_parts.append("</ul>")
+
+        body_html = "\n".join(html_parts)
+        return f"""
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: {Styles.COLOR_TEXT_SECONDARY};">
+            {body_html}
+        </div>
+        """
+
+    @classmethod
+    def _inline_format(cls, text: str) -> str:
+        # Convert `code`
+        text = re.sub(
+            r"`([^`]+)`",
+            rf"<code style='background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 1px 4px; border-radius: 3px; font-family: monospace;'>\1</code>",
+            text,
+        )
+        # Convert **bold**
+        text = re.sub(
+            r"\*\*([^*]+)\*\*",
+            rf"<strong style='color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600;'>\1</strong>",
+            text,
+        )
+        # Convert *italic*
+        text = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", text)
+
+        # Convert markdown links: [label](url)
+        text = re.sub(
+            r"\[([^\]]+)\]\((https?://[^\)]+)\)",
+            rf'<a href="\2" style="color: {Styles.COLOR_ACCENT}; text-decoration: underline;">\1</a>',
+            text,
+        )
+
+        # Convert plain URLs to clickable links: https://... or http://...
+        def _replace_url(match: re.Match) -> str:
+            url = match.group(0)
+            trailing = ""
+            while url and url[-1] in ".,;:!?()":
+                trailing = url[-1] + trailing
+                url = url[:-1]
+            return (
+                f'<a href="{url}" style="color: {Styles.COLOR_ACCENT};'
+                f' text-decoration: underline;">{url}</a>{trailing}'
+            )
+
+        text = re.sub(r'(?<!href=["\'])(?<![">])(https?://[^\s<"]+)', _replace_url, text)
+        return text
 
     def _version_badge(self, version_str: str, label_str: str, color: str) -> QWidget:
         w = QWidget()

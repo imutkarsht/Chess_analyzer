@@ -25,10 +25,10 @@ import stat
 import subprocess
 import sys
 import tempfile
-import urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
 
+import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.utils.logger import logger
@@ -63,20 +63,33 @@ class DownloadWorker(QThread):
         self._cancelled = False
 
     def cancel(self):
-        """Signal the worker to abort (best-effort — urllib doesn't stream-cancel)."""
+        """Signal the worker to abort cleanly."""
         self._cancelled = True
 
     def run(self):
         try:
-            def _reporthook(block_num: int, block_size: int, total_size: int):
-                if self._cancelled:
-                    raise RuntimeError("Download cancelled by user")
-                if total_size > 0:
-                    pct = min(100, int(block_num * block_size * 100 / total_size))
-                    self.progress.emit(pct)
-
             logger.info(f"Downloading update: {self.url} → {self.dest_path}")
-            urllib.request.urlretrieve(self.url, self.dest_path, reporthook=_reporthook)
+            headers = {"User-Agent": "ChessAnalyzerPro"}
+            with requests.get(self.url, headers=headers, stream=True, timeout=30) as resp:
+                resp.raise_for_status()
+                total_size = int(resp.headers.get("content-length", 0))
+                downloaded = 0
+                chunk_size = 64 * 1024
+
+                with open(self.dest_path, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=chunk_size):
+                        if self._cancelled:
+                            raise RuntimeError("Download cancelled by user")
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                pct = min(100, int(downloaded * 100 / total_size))
+                                self.progress.emit(pct)
+
+            if self._cancelled:
+                raise RuntimeError("Download cancelled by user")
+
             self.progress.emit(100)
             logger.info("Download complete")
             self.finished.emit(self.dest_path)
@@ -90,7 +103,8 @@ class DownloadWorker(QThread):
                     os.remove(self.dest_path)
             except OSError:
                 pass
-            self.error.emit(str(exc))
+            if not self._cancelled:
+                self.error.emit(str(exc))
 
 
 # ---------------------------------------------------------------------------
