@@ -66,6 +66,12 @@ _SECTION_LABELS: dict[str, dict[str, str]] = {
     "de": {"game_comment": "Spielkommentar", "summary": "Zusammenfassung"},
 }
 
+# Prompt budgets. A normal game's move list is under 2 KB, so these only bite on
+# pathological inputs, while keeping every request comfortably inside the
+# context window of the smaller local models.
+_MAX_PGN_CHARS = 5_000
+_MAX_FACTS_CHARS = 3_500
+
 
 def _detect_ui_locale_code() -> str:
     """Return the two-letter language code (e.g. 'de', 'en') of the UI locale.
@@ -447,44 +453,61 @@ class GroqService:
     # ------------------------------------------------------------------
 
     def generate_summary(self, pgn_text: str, analysis_summary: str, time_stats: str = "") -> str:
-        """Generate a chess-expert narrative summary for a single game."""
+        """
+        Write the post-game report a strong coach would give for one game.
+
+        ``analysis_summary`` must be ``build_game_report(game)`` — a compact text
+        dossier of the engine's findings. The model is told to cite only those
+        facts (move numbers, SAN, evaluations) so the narrative cannot drift away
+        from what the analysis actually proved.
+        """
         if not self.client:
             return "Error: LLM not configured. Go to Settings → API Configuration."
 
-        if len(pgn_text) > 10_000:
-            pgn_text = pgn_text[:10_000] + "… (truncated)"
+        if len(pgn_text) > _MAX_PGN_CHARS:
+            pgn_text = pgn_text[:_MAX_PGN_CHARS] + "… (truncated)"
+        if len(analysis_summary) > _MAX_FACTS_CHARS:
+            analysis_summary = analysis_summary[:_MAX_FACTS_CHARS] + "… (truncated)"
 
-        time_block = ""
         if time_stats:
-            time_block = (
-                "\nClock data (per move):\n"
-                f"{time_stats}\n\n"
-                "When relevant, comment on time pressure, very fast blunders, "
-                "or long thinks that paid off.\n"
-            )
+            clock_section = f"\nCLOCK DATA:\n{time_stats}\n"
+        else:
+            clock_section = ""
 
         labels = self._section_labels()
         game_comment_lbl = labels["game_comment"]
         summary_lbl = labels["summary"]
 
         prompt = (
-            "You are a chess expert. Analyze the following chess game and the provided "
-            "analysis summary.\n\n"
-            f"First, provide a short '{game_comment_lbl}' (e.g. Sharp, Tactical, "
-            "Brilliant, Chaotic, Positional Masterpiece …) that captures the essence "
-            "of the game.\n"
-            f"Then provide a concise, insightful '{summary_lbl}' (max 200 words). "
-            "Highlight key turning points, brilliant moves, and major mistakes."
-            + time_block
-            + "\n\nReply with EXACTLY this structure and nothing else — "
-            "do not include any other section headers, do not echo the input "
-            "labels, do not add a preamble or closing remark:\n\n"
-            f"{game_comment_lbl}: <one short phrase>\n\n"
-            f"{summary_lbl}:\n<the summary in prose>\n\n"
+            "You are a chess coach writing the post-game report for the player.\n\n"
+            "GROUND RULES\n"
+            "- Use ONLY the facts in GAME FACTS, KEY MOMENTS and CLOCK DATA. Never invent a "
+            "move, evaluation, tactic, opening name or clock situation.\n"
+            "- Every claim about a mistake, a brilliancy or a turning point must cite the move "
+            "number and SAN (e.g. 14.c3 or 23...Qxf2) plus the evaluation swing in pawns.\n"
+            "- Evaluations are from White's perspective: positive means White is better. When you "
+            'quote one for a player, make the side explicit (e.g. "-2.7 for White").\n'
+            '- The dossier says which side the report is for: address that player as "you" and '
+            "judge the decisions from their point of view.\n"
+            "- Do not mention the engine, the analysis, the data, or that you were given a dossier.\n"
+            "- If something is not in the facts, say nothing about it. Accuracy beats colour.\n\n"
+            "WHAT TO COVER, IN ORDER\n"
+            "1. The character of the game in one short phrase.\n"
+            "2. The story in order: how the opening went, where the balance first tipped, and how "
+            "the result was actually decided.\n"
+            "3. The decisive errors and the best moments, quantified with accuracy, ACPL and the "
+            "evaluation swings from KEY MOMENTS.\n"
+            "4. One concrete lesson the player can apply in the next game.\n\n"
+            "LENGTH: 150-220 words of plain prose. No bullet points, no emojis, no markdown, no "
+            "preamble and no closing pleasantries.\n\n"
+            "Reply with EXACTLY this structure and nothing else:\n\n"
+            f"{game_comment_lbl}: <2-5 word phrase, no trailing period>\n\n"
+            f"{summary_lbl}:\n<the report>\n\n"
             "---\n"
             "INPUT — do not repeat any of this in your reply:\n\n"
-            f"Analysis Summary:\n{analysis_summary}\n\n"
-            f"PGN:\n{pgn_text}"
+            f"{analysis_summary or 'GAME FACTS: unavailable (game not analysed yet).'}\n"
+            f"{clock_section}\n"
+            f"MOVES (PGN):\n{pgn_text}"
         )
         return self._chat(prompt, system=self._lang_instruction())
 

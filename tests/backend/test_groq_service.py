@@ -286,6 +286,39 @@ class TestGroqService:
         assert sent["model"] == "m"
         assert "1. e4 e5" in sent["messages"][-1]["content"]
 
+    def test_generate_summary_feeds_the_fact_sheet_and_clock_data(self, fake_config, monkeypatch):
+        """The dossier is the model's only source of chess facts; it and the
+        clock lines must both reach the request."""
+        fake_config(_FakeProfile(provider="groq", api_key="k", model="m"))
+        sent = {}
+
+        class _FakeChoice:
+            message = MagicMock(content="Game Comment: Sharp\n\nSummary:\nreport")
+
+        class _FakeCompletion:
+            choices = [_FakeChoice()]
+
+        class _FakeChatCompletions:
+            def create(self, **kwargs):
+                sent.update(kwargs)
+                return _FakeCompletion()
+
+        class _FakeClient:
+            def __init__(self):
+                self.chat = MagicMock()
+                self.chat.completions = _FakeChatCompletions()
+
+        monkeypatch.setattr("src.backend.services.groq_service.OpenAI", lambda **kw: _FakeClient())
+        service = GroqService()
+        service.generate_summary(
+            "1. e4 e5", "GAME FACTS: accuracy 78.4%", "Avg think time — White: 5.0s"
+        )
+
+        user_msg = sent["messages"][-1]["content"]
+        assert "GAME FACTS: accuracy 78.4%" in user_msg
+        assert "Avg think time — White: 5.0s" in user_msg
+        assert "Never invent" in user_msg
+
 
 # ---------------------------------------------------------------------------
 # _is_placeholder_key — secret template detection
