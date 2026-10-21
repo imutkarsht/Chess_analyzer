@@ -16,10 +16,17 @@ existing import sites.
 import locale
 import os
 import re
+from typing import Any
 
 from openai import OpenAI
 
-from src.constants import PROVIDERS
+from src.constants import (
+    EXPLANATION_MAX_TOKENS,
+    EXPLANATION_REASONING_EFFORT,
+    EXPLANATION_REQUEST_TIMEOUT_S,
+    EXPLANATION_TEMPERATURE,
+    PROVIDERS,
+)
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 
@@ -59,6 +66,12 @@ _SECTION_LABELS: dict[str, dict[str, str]] = {
     "de": {"game_comment": "Spielkommentar", "summary": "Zusammenfassung"},
 }
 
+# Prompt budgets. A normal game's move list is under 2 KB, so these only bite on
+# pathological inputs, while keeping every request comfortably inside the
+# context window of the smaller local models.
+_MAX_PGN_CHARS = 5_000
+_MAX_FACTS_CHARS = 3_500
+
 
 def _detect_ui_locale_code() -> str:
     """Return the two-letter language code (e.g. 'de', 'en') of the UI locale.
@@ -96,6 +109,83 @@ def _detect_ui_language() -> str:
     except Exception:
         code = ""
     return _LANG_NAMES.get(code, "English")
+
+
+# ---------------------------------------------------------------------------
+# Move explanation (Coach feature): prompt + mandatory reply validation
+# ---------------------------------------------------------------------------
+
+# The model is a translator, never a calculator: every chess fact it may mention
+# is already in the fact sheet produced by
+# src.backend.analysis.tactics.insight.format_move_insight_for_llm().
+EXPLANATION_SYSTEM_PROMPT = (
+    "You are a chess coach. Translate ONLY the facts below into 2-3 sentences. "
+    "Never name a move, piece, or square that is not listed. "
+    "Do not calculate. Do not add pleasantries. "
+    "The facts give evaluations from White's perspective and win chances from the "
+    "player's perspective. Quote both exactly as given: never flip a sign, never "
+    "convert one perspective to the other, and never calculate a win chance from "
+    "an evaluation."
+)
+
+# SAN-like move token, including castling and promotion.
+SAN_TOKEN_RE = re.compile(r"\b(?:O-O-O|O-O|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?\b")
+# A bare board square, e.g. "e4".
+SQUARE_TOKEN_RE = re.compile(r"\b[a-h][1-8]\b")
+_SAN_DEST_RE = re.compile(r"[a-h][1-8]")
+
+
+def _normalise_san(token: str) -> str:
+    """Drop check/mate suffixes so ``Bxf7+`` and ``Bxf7#`` compare equal."""
+    return token.rstrip("+#")
+
+
+def _destination(token: str) -> str | None:
+    """Destination square of a SAN token (``exd5`` -> ``d5``)."""
+    match = _SAN_DEST_RE.search(token)
+    return match.group(0) if match else None
+
+
+def validate_explanation(
+    reply: str,
+    allowed_san: set[str],
+    allowed_squares: set[str],
+) -> tuple[bool, list[str]]:
+    """
+    Mandatory hallucination guard (D5): the LLM may only reference moves and
+    squares that were handed to it in the fact sheet.
+
+    Returns ``(is_valid, offending_tokens)``. The caller must **discard** an
+    invalid reply entirely and fall back to the deterministic offline text —
+    never patch or partially render it.
+    """
+    text = (reply or "").strip()
+    if not text or text.startswith("Error"):
+        return False, []
+
+    allowed = {_normalise_san(token) for token in allowed_san}
+    squares = set(allowed_squares)
+    allowed_destinations = {_destination(token) for token in allowed}
+
+    offending: list[str] = []
+    for token in SAN_TOKEN_RE.findall(text):
+        normalised = _normalise_san(token)
+        if normalised in allowed:
+            continue
+        # A bare pawn-style token ("e4") is how the fact sheet also names a square.
+        if len(normalised) <= 2 and normalised in squares:
+            continue
+        offending.append(token)
+    for square in SQUARE_TOKEN_RE.findall(text):
+        if square in squares or square in allowed_destinations:
+            continue
+        offending.append(square)
+
+    if offending:
+        offending = sorted(set(offending))
+        logger.warning("explanation rejected: unknown tokens %s", offending)
+        return False, offending
+    return True, []
 
 
 # ---------------------------------------------------------------------------
@@ -257,13 +347,26 @@ class GroqService:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _chat(self, prompt: str, system: str | None = None) -> str:
+    def _chat(
+        self,
+        prompt: str,
+        system: str | None = None,
+        *,
+        timeout: float | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        max_retries: int | None = None,
+        reasoning_effort: str | None = None,
+    ) -> str:
         """Send a single-turn chat message and return the response text.
 
         ``prompt`` is always sent as the user message. ``system``, if given,
         is sent as a system message — this is the right place for
         language / role instructions, because models tend to *echo* a
         system-style instruction when it appears inside the user message.
+
+        The optional keyword arguments are applied per request and default to
+        the SDK's own behaviour, so existing callers are unaffected.
         """
         if not self.client:
             logger.warning("Attempted LLM completion but client is not configured")
@@ -272,23 +375,54 @@ class GroqService:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
+
+        options: dict[str, Any] = {}
+        if timeout is not None:
+            options["timeout"] = timeout
+        if max_tokens is not None:
+            options["max_tokens"] = max_tokens
+        if temperature is not None:
+            options["temperature"] = temperature
+        if reasoning_effort:
+            options["reasoning_effort"] = reasoning_effort
+
+        # Per-request retry policy (the SDK accepts it only on the client, so a
+        # per-call copy is used instead of mutating the shared client).
+        client = self.client
+        if max_retries is not None:
+            client = client.with_options(max_retries=max_retries)
+
         logger.info(
-            "Sending LLM completion request: model=%s, prompt_len=%d", self._model, len(prompt)
+            "Sending LLM completion request: model=%s, prompt_len=%d, options=%s",
+            self._model,
+            len(prompt),
+            sorted(options) or "defaults",
         )
+
+        completion = None
         try:
-            completion = self.client.chat.completions.create(
-                model=self._model,
-                messages=messages,
+            completion = client.chat.completions.create(
+                model=self._model, messages=messages, **options
             )
-            text = completion.choices[0].message.content
-            logger.info(
-                "Received LLM completion response (%d chars)", len(text.strip()) if text else 0
-            )
-            return text.strip() if text else "No response generated."
         except Exception as exc:
-            exc_type = type(exc).__name__
-            logger.error("LLM completion failed [%s]: %s", exc_type, exc)
-            return f"Error [{exc_type}]: {exc}"
+            if "reasoning_effort" in options and "reasoning_effort" in str(exc):
+                # Not every OpenAI-compatible provider knows this parameter.
+                logger.info("Provider rejected reasoning_effort; retrying without it")
+                options.pop("reasoning_effort")
+                try:
+                    completion = client.chat.completions.create(
+                        model=self._model, messages=messages, **options
+                    )
+                except Exception as retry_exc:
+                    exc = retry_exc
+            if completion is None:
+                exc_type = type(exc).__name__
+                logger.error("LLM completion failed [%s]: %s", exc_type, exc)
+                return f"Error [{exc_type}]: {exc}"
+
+        text = completion.choices[0].message.content
+        logger.info("Received LLM completion response (%d chars)", len(text.strip()) if text else 0)
+        return text.strip() if text else "No response generated."
 
     @staticmethod
     def _lang_code() -> str:
@@ -323,46 +457,96 @@ class GroqService:
     # ------------------------------------------------------------------
 
     def generate_summary(self, pgn_text: str, analysis_summary: str, time_stats: str = "") -> str:
-        """Generate a chess-expert narrative summary for a single game."""
+        """
+        Write the post-game report a strong coach would give for one game.
+
+        ``analysis_summary`` must be ``build_game_report(game)`` — a compact text
+        dossier of the engine's findings. The model is told to cite only those
+        facts (move numbers, SAN, evaluations) so the narrative cannot drift away
+        from what the analysis actually proved.
+        """
         if not self.client:
             return "Error: LLM not configured. Go to Settings → API Configuration."
 
-        if len(pgn_text) > 10_000:
-            pgn_text = pgn_text[:10_000] + "… (truncated)"
+        if len(pgn_text) > _MAX_PGN_CHARS:
+            pgn_text = pgn_text[:_MAX_PGN_CHARS] + "… (truncated)"
+        if len(analysis_summary) > _MAX_FACTS_CHARS:
+            analysis_summary = analysis_summary[:_MAX_FACTS_CHARS] + "… (truncated)"
 
-        time_block = ""
         if time_stats:
-            time_block = (
-                "\nClock data (per move):\n"
-                f"{time_stats}\n\n"
-                "When relevant, comment on time pressure, very fast blunders, "
-                "or long thinks that paid off.\n"
-            )
+            clock_section = f"\nCLOCK DATA:\n{time_stats}\n"
+        else:
+            clock_section = ""
 
         labels = self._section_labels()
         game_comment_lbl = labels["game_comment"]
         summary_lbl = labels["summary"]
 
         prompt = (
-            "You are a chess expert. Analyze the following chess game and the provided "
-            "analysis summary.\n\n"
-            f"First, provide a short '{game_comment_lbl}' (e.g. Sharp, Tactical, "
-            "Brilliant, Chaotic, Positional Masterpiece …) that captures the essence "
-            "of the game.\n"
-            f"Then provide a concise, insightful '{summary_lbl}' (max 200 words). "
-            "Highlight key turning points, brilliant moves, and major mistakes."
-            + time_block
-            + "\n\nReply with EXACTLY this structure and nothing else — "
-            "do not include any other section headers, do not echo the input "
-            "labels, do not add a preamble or closing remark:\n\n"
-            f"{game_comment_lbl}: <one short phrase>\n\n"
-            f"{summary_lbl}:\n<the summary in prose>\n\n"
+            "You are a chess coach writing the post-game report for the player.\n\n"
+            "GROUND RULES\n"
+            "- Use ONLY the facts in GAME FACTS, KEY MOMENTS and CLOCK DATA. Never invent a "
+            "move, evaluation, tactic, opening name or clock situation.\n"
+            "- Every claim about a mistake, a brilliancy or a turning point must cite the move "
+            "number and SAN (e.g. 14.c3 or 23...Qxf2) plus the evaluation swing in pawns.\n"
+            "- Evaluations are from White's perspective: positive means White is better. When you "
+            'quote one for a player, make the side explicit (e.g. "-2.7 for White").\n'
+            "- Win chances are labelled with the player they belong to. Quote them exactly as "
+            "given: never calculate a win chance from an evaluation, and never present one "
+            "player's win chance as another's. If a moment has no win chance in the facts, do "
+            "not mention one.\n"
+            '- The dossier says which side the report is for: address that player as "you" and '
+            "judge the decisions from their point of view.\n"
+            "- Do not mention the engine, the analysis, the data, or that you were given a dossier.\n"
+            "- If something is not in the facts, say nothing about it. Accuracy beats colour.\n\n"
+            "WHAT TO COVER, IN ORDER\n"
+            "1. The character of the game in one short phrase.\n"
+            "2. The story in order: how the opening went, where the balance first tipped, and how "
+            "the result was actually decided.\n"
+            "3. The decisive errors and the best moments, quantified with accuracy, ACPL and the "
+            "evaluation swings from KEY MOMENTS.\n"
+            "4. One concrete lesson the player can apply in the next game.\n\n"
+            "LENGTH: 150-220 words of plain prose. No bullet points, no emojis, no markdown, no "
+            "preamble and no closing pleasantries.\n\n"
+            "Reply with EXACTLY this structure and nothing else:\n\n"
+            f"{game_comment_lbl}: <2-5 word phrase, no trailing period>\n\n"
+            f"{summary_lbl}:\n<the report>\n\n"
             "---\n"
             "INPUT — do not repeat any of this in your reply:\n\n"
-            f"Analysis Summary:\n{analysis_summary}\n\n"
-            f"PGN:\n{pgn_text}"
+            f"{analysis_summary or 'GAME FACTS: unavailable (game not analysed yet).'}\n"
+            f"{clock_section}\n"
+            f"MOVES (PGN):\n{pgn_text}"
         )
         return self._chat(prompt, system=self._lang_instruction())
+
+    def explain_move(self, facts_text: str, classification: str) -> str:
+        """
+        Translate a grounded fact sheet into 2-3 instructive sentences.
+
+        ``facts_text`` must be exactly
+        ``format_move_insight_for_llm(insight)`` — all chess facts come from the
+        deterministic builder, never from the model. The reply still has to pass
+        ``validate_explanation()`` before it is shown.
+        """
+        if not self.client:
+            return "Error: LLM not configured. Go to Settings → API Configuration."
+
+        system = EXPLANATION_SYSTEM_PROMPT
+        if classification:
+            system += f" The move was classified as {classification}."
+        lang_instruction = self._lang_instruction()
+        if lang_instruction:
+            system = f"{system}\n{lang_instruction}"
+
+        return self._chat(
+            facts_text,
+            system=system,
+            timeout=EXPLANATION_REQUEST_TIMEOUT_S,
+            max_tokens=EXPLANATION_MAX_TOKENS,
+            temperature=EXPLANATION_TEMPERATURE,
+            max_retries=0,
+            reasoning_effort=EXPLANATION_REASONING_EFFORT,
+        )
 
     def generate_coach_insights(self, stats_text: str) -> str:
         """Generate structured coaching diagnostics from player performance dossier."""

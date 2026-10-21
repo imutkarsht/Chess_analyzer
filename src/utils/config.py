@@ -52,6 +52,9 @@ class ConfigManager:
         "review_submitted": False,
         "review_prompt_dismissed": False,
         "review_next_prompt_count": 3,
+        # Coach move explanations (D2/D8).
+        "explain_cache_ttl_days": 30,
+        "explain_llm_for_trivial_moves": False,
     }
 
     # Human-readable name used when creating the first migration profile.

@@ -83,6 +83,21 @@ class NavigationMixin:
         self.shortcut_tour = QShortcut(QKeySequence("Ctrl+T"), self)
         self.shortcut_tour.activated.connect(self.start_tour)
 
+        # Variation mode
+        self.shortcut_exit_variation = QShortcut(QKeySequence("Escape"), self)
+        self.shortcut_exit_variation.activated.connect(self._on_escape)
+
+    def _on_escape(self):
+        """Esc leaves a variation, or the Explorer page; otherwise it is ignored."""
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.exit()
+            return
+        if getattr(self, "stack", None) is not None and self.stack.currentIndex() == 1:
+            # The Explorer page is reached via "Explore from here"; Esc returns.
+            self.sidebar.set_active(0)
+            self.switch_page(0)
+
     def _handle_analyze_shortcut(self):
         """Handle Ctrl+A shortcut without hijacking select-all in editable fields."""
         focus_widget = QApplication.focusWidget()
@@ -102,6 +117,11 @@ class NavigationMixin:
             QTimer.singleShot(0, lambda: self.open_load_dialog(initial_source=1, initial_text=text))
 
     def _nav_prev(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.undo()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_prev.emit()
             return
@@ -113,6 +133,11 @@ class NavigationMixin:
             self.on_move_selected(idx)
 
     def _nav_next(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.forward()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_next.emit()
             return
@@ -124,6 +149,11 @@ class NavigationMixin:
             self.on_move_selected(idx)
 
     def _nav_last(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_end()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_last.emit()
             return
@@ -135,6 +165,11 @@ class NavigationMixin:
             self.on_move_selected(idx)
 
     def _nav_first(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_start()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_first.emit()
             return
@@ -145,16 +180,28 @@ class NavigationMixin:
             self.on_move_selected(-1)
 
     def go_first(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_start()
+            return
         if self.current_game:
             self.on_move_selected(-1)
 
     def go_prev(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.undo()
+            return
         if self.current_game:
             current = self.board_widget.current_move_index
             new_index = max(-1, current - 1)
             self.on_move_selected(new_index)
 
     def go_next(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.forward()
+            return
         if self.current_game:
             current = self.board_widget.current_move_index
             total = len(self.current_game.moves)
@@ -162,27 +209,47 @@ class NavigationMixin:
             self.on_move_selected(new_index)
 
     def go_last(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_end()
+            return
         if self.current_game:
             total = len(self.current_game.moves)
             self.on_move_selected(total - 1)
 
     def flip_board(self):
         self.board_widget.flip_board()
+        self._position_captured_pieces()
+
+    def _position_captured_pieces(self):
+        """Keep one captured-pieces card on each side of the board.
+
+        Reordering relative to the board (not fixed indices) keeps the layout
+        intact when other widgets are inserted or hidden.
+        """
         self.center_layout.removeWidget(self.captured_white)
         self.center_layout.removeWidget(self.captured_black)
+        board_index = self.center_layout.indexOf(self.board_widget)
         if self.board_widget.is_flipped:
-            self.center_layout.insertWidget(1, self.captured_white)
-            self.center_layout.insertWidget(3, self.captured_black)
+            top, bottom = self.captured_white, self.captured_black
         else:
-            self.center_layout.insertWidget(1, self.captured_black)
-            self.center_layout.insertWidget(3, self.captured_white)
+            top, bottom = self.captured_black, self.captured_white
+        self.center_layout.insertWidget(board_index, top)
+        self.center_layout.insertWidget(board_index + 2, bottom)
 
-    def on_move_selected(self, index):
+    def on_move_selected(self, index, silent: bool = False):
+        # Any game navigation abandons an open variation first.
+        self._exit_variation()
+
         self.board_widget.set_position(index)
         self.move_list_panel.select_move(index)
 
         if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
             self.analysis_panel.graph_widget.set_current_move(index)
+
+        if hasattr(self, "analysis_panel"):
+            # Coach tab: deterministic facts for the newly selected move (no network).
+            self.analysis_panel.set_selected_move(index)
 
         if self.current_game:
             moves = self.current_game.moves
@@ -203,7 +270,7 @@ class NavigationMixin:
             self.captured_white.update_clock(white_time)
             self.captured_black.update_clock(black_time)
 
-            if 0 <= index < len(moves):
+            if 0 <= index < len(moves) and not silent:
                 move = moves[index]
                 san = move.san
                 if "#" in san or "mate" in san.lower():

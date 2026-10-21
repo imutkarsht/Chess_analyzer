@@ -540,6 +540,28 @@ def test_explorer_cache_epoch_timestamp_and_pruning(temp_db):
     assert pruned == 1
 
 
+def test_ai_summary_is_stored_on_the_game_and_survives_resaving(temp_db):
+    """The generated report is a game attribute: reloading the game (or
+    re-saving a resumed analysis) must not lose it."""
+    manager = GameHistoryManager(temp_db)
+    game = GameAnalysis(
+        game_id="summary_game",
+        metadata=GameMetadata(white="Alice", black="Bob", result="1-0"),
+        pgn_content="1. e4 e5",
+    )
+    manager.save_game(game, game.pgn_content)
+    assert manager.get_game_analysis("summary_game").ai_summary is None
+
+    report = "Game Comment: Sharp\n\nSummary:\nA clean conversion."
+    manager.save_ai_summary("summary_game", report)
+    assert manager.get_game_analysis("summary_game").ai_summary == report
+
+    reloaded = manager.get_game_analysis("summary_game")
+    reloaded.summary = {"white": {"accuracy": 80.0}}
+    manager.save_game(reloaded, reloaded.pgn_content, force_overwrite=True)
+    assert manager.get_game_analysis("summary_game").ai_summary == report
+
+
 def test_prepare_game_dict_params_preserves_zero_hung_pieces(temp_db):
     """Test that a legitimate 0 for pieces_hung is preserved and not overwritten."""
     manager = GameHistoryManager(temp_db)

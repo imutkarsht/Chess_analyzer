@@ -111,9 +111,12 @@ class AnalysisLinesWidget(QFrame):
             # Depth
             depth = pv_data.get("depth", "?")
 
-            # Clickable move logic
-            if pv_data.get("pv_uci"):
-                row_widget.uci_move = pv_data["pv_uci"][0]
+            # Clickable move logic. Live engine lines use `pv_uci`; cached
+            # analysis stores the same sequence as `pv` (UCI strings).
+            clickable = pv_data.get("pv_uci") or pv_data.get("pv")
+            if clickable:
+                first = clickable[0]
+                row_widget.uci_move = first if isinstance(first, str) else first.uci()
             else:
                 row_widget.uci_move = None
 

@@ -122,3 +122,27 @@ PROVIDERS = {
 
 # Minimum per-move accuracy (%), prevents harmonic mean collapse from outliers
 MIN_MOVE_ACCURACY = 10.0
+
+# ---------------------------------------------------------------------------
+# Coach ("why was this a blunder?") feature
+# ---------------------------------------------------------------------------
+# Bump to invalidate every cached explanation (prompt/schema changes).
+EXPLANATION_PROMPT_VERSION = 2
+EXPLANATION_CACHE_TTL_DAYS = 30
+EXPLANATION_REQUEST_TIMEOUT_S = 20.0
+EXPLANATION_DEBOUNCE_MS = 400
+EXPLANATION_MIN_INTERVAL_S = 3.0
+EXPLANATION_MAX_PER_MINUTE = 20
+# Reasoning models (e.g. openai/gpt-oss-*) spend tokens on hidden reasoning, so a
+# small max_tokens silently yields an empty reply. 1024 + low effort is the
+# combination validated in the R&D lab.
+EXPLANATION_MAX_TOKENS = 1024
+EXPLANATION_TEMPERATURE = 0.3
+EXPLANATION_REASONING_EFFORT = "low"
+
+# Classification buckets, expressed once and reused by the fact builder
+# (offline wording) and the GUI (whether the Ask button is offered at all).
+SOUND_CLASSIFICATIONS = frozenset({"Best", "Excellent", "Good", "Book"})
+SACRIFICIAL_CLASSIFICATIONS = frozenset({"Brilliant", "Great"})
+PROBLEM_CLASSIFICATIONS = frozenset({"Inaccuracy", "Mistake", "Miss", "Blunder"})
+LLM_WORTHY_CLASSIFICATIONS = SACRIFICIAL_CLASSIFICATIONS | PROBLEM_CLASSIFICATIONS

@@ -88,6 +88,20 @@ class LiveAnalysisWorker(QThread):
                 pass
         return DEFAULT_ENGINE_HASH_MB
 
+    def _live_limit(self) -> chess.engine.Limit:
+        """Search limit for one live position.
+
+        ``live_analysis_time`` is the per-position CPU budget (issue #5);
+        the depth ceiling only keeps the search bounded if the user raises
+        that budget. Without the time limit the engine searched to
+        ``analysis_depth + 6`` (e.g. depth 26) and saturated the CPU for
+        tens of seconds after every move.
+        """
+        return chess.engine.Limit(
+            time=self._live_time(),
+            depth=self._live_depth() + 6,
+        )
+
     def configure_engine(self):
         """Reconfigures engine Thread and Hash options dynamically."""
         self.mutex.lock()
@@ -169,10 +183,11 @@ class LiveAnalysisWorker(QThread):
                         self.mutex.lock()
                         batch_seq = self.current_seq
                         self.mutex.unlock()
-                        # Finite analysis: calculate incrementally up to selected depth + 10 max
+                        # Bounded by the live time budget (falling back to
+                        # the depth cap) so the engine never runs away.
                         with self.engine.analysis(
                             board,
-                            chess.engine.Limit(depth=self._live_depth() + 6),
+                            self._live_limit(),
                             multipv=self._live_multi_pv(),
                         ) as analysis:
                             for info in analysis:

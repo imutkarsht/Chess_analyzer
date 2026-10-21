@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
+from src.gui.components.pulsing_skeleton import PulsingSkeleton
 from src.gui.views.metrics_view import MetricsWidget
 
 
@@ -663,11 +664,11 @@ def test_ai_coach_card_widget(qapp, qtbot):
 
     # 4. Pulsing skeleton loader test
     card._show_loading_skeleton()
-    assert card.findChild(QWidget, "coach_skeleton_container") is not None
-    assert card._skeleton_anim is not None
-    assert card._skeleton_anim.state() == card._skeleton_anim.State.Running
+    skeleton = card.findChild(PulsingSkeleton)
+    assert skeleton is not None
+    assert skeleton.is_animating() is True
     card._stop_skeleton_anim()
-    assert card._skeleton_anim is None
+    assert card._skeleton is None
 
 
 def test_metrics_widget_includes_advantage_and_ai_coach(qapp, qtbot):

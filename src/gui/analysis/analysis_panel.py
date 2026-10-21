@@ -1,8 +1,9 @@
 """
 Analysis Panel - Coordinates evaluation graphs, stats summaries, and AI coach summaries.
 """
+
 import chess
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
@@ -17,11 +18,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.analysis.game_report import build_game_report
+from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.services.groq_service import GroqService
+from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
+from src.constants import EXPLANATION_DEBOUNCE_MS
 from src.gui.components import CircularAccuracyWidget
 from src.gui.components.graph_widget import GraphWidget
-from src.gui.components.loading_widget import LoadingOverlay
+from src.gui.components.pulsing_skeleton import PulsingSkeleton
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (
     clear_layout,
@@ -35,10 +40,27 @@ from src.utils.path_utils import get_resource_path
 from src.utils.resources import ResourceManager
 
 from .analysis_lines_widget import AnalysisLinesWidget
+from .coach_card_widget import CoachCardWidget
+from .coach_worker import ExplainMoveWorker, RequestLimiter
+from .line_utils import lines_for_display
+
+# Tabs that make no sense (and would fight the engine) mid-analysis.
+_TABS_LOCKED_DURING_ANALYSIS = (1, 2)
+
+# The Generate button lives below the summary: once a report exists the text
+# fills the space above it, so the action has to sit in the lower half to stay
+# reachable and to stop competing with the first line of the report.
+_BTN_GENERATE_SUMMARY = " ✨  Generate AI coach summary"
+_BTN_REGENERATE_SUMMARY = " ✨  Regenerate AI coach summary"
+
+# Placeholder shape for the report: a title line, then paragraphs of prose.
+_REPORT_SKELETON_SECTIONS = ((150, (0.96, 0.88, 0.62)), (120, (0.94, 0.70)))
 
 
 class AnalysisPanel(QWidget):
     cache_toggled = pyqtSignal(bool)
+    # (FEN the lines belong to, first move UCI) — opens the board in variation mode.
+    variation_requested = pyqtSignal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -52,6 +74,18 @@ class AnalysisPanel(QWidget):
         self.current_game = None
         self.summary_thread = None
         self._analysis_running = False
+        self._lines_fen: str | None = None
+
+        # --- Coach state (D6): the panel owns the request counters ---
+        self._coach_seq = 0
+        self._coach_ply: int | None = None
+        self._coach_insight = None
+        self._coach_worker: ExplainMoveWorker | None = None
+        self._coach_limiter = RequestLimiter()
+        self._coach_debounce = QTimer(self)
+        self._coach_debounce.setSingleShot(True)
+        self._coach_debounce.timeout.connect(self._dispatch_explanation)
+        self._explanation_cache: AnalysisCache | None = None
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
@@ -77,6 +111,7 @@ class AnalysisPanel(QWidget):
         toggles_layout.setSpacing(10)
 
         from PyQt6.QtWidgets import QCheckBox
+
         self.toggle_checkbox = QCheckBox("Engine Lines")
         self.toggle_checkbox.setChecked(False)
         self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -93,6 +128,7 @@ class AnalysisPanel(QWidget):
 
         # Analysis Lines
         self.lines_widget = AnalysisLinesWidget()
+        self.lines_widget.line_clicked.connect(self._on_line_clicked)
         self.eval_layout.addWidget(self.lines_widget, stretch=1)
 
         self.tabs.addTab(self.eval_tab, "Evaluation")
@@ -133,7 +169,9 @@ class AnalysisPanel(QWidget):
 
         self.details_label = QLabel("-")
         self.details_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
         )
         hero_layout.addWidget(self.details_label)
 
@@ -179,42 +217,85 @@ class AnalysisPanel(QWidget):
         self.div3.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div3)
 
-        # 4. AI Coach Summary (Takes remaining vertical height)
+        # 4. Full-game AI Coach summary. Built here, mounted in the Coach tab
+        # below (the Report tab ends with the classification table).
         self.ai_summary_frame = QFrame()
         self.ai_summary_layout = QVBoxLayout(self.ai_summary_frame)
         self.ai_summary_layout.setContentsMargins(0, 4, 0, 0)
-        self.ai_summary_layout.setSpacing(6)
+        self.ai_summary_layout.setSpacing(8)
 
-        self.btn_generate_summary = QPushButton(" ✨  Generate AI coach summary")
+        self.txt_ai_summary = QTextEdit()
+        self.txt_ai_summary.setReadOnly(True)
+        self.txt_ai_summary.setPlaceholderText(
+            "AI Coach summary & key takeaways will appear here..."
+        )
+        self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
+        self.txt_ai_summary.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.ai_summary_layout.addWidget(self.txt_ai_summary, stretch=1)
+
+        # Same pulsing placeholder as the metrics AI Coach card: the summary is a
+        # long generation, so the wait should look like the model is writing
+        # rather than like the whole panel is blocked.
+        self.ai_summary_skeleton = PulsingSkeleton(
+            title="AI Coach is writing the game report...",
+            subtitle="Weighing the turning points, accuracy and clock usage...",
+            sections=_REPORT_SKELETON_SECTIONS,
+            parent=self.ai_summary_frame,
+        )
+        self.ai_summary_skeleton.setVisible(False)
+        self.ai_summary_layout.addWidget(self.ai_summary_skeleton, stretch=1)
+
+        # Below the summary, at the bottom of the Coach tab, so a full report
+        # never pushes the action off the panel.
+        self.btn_generate_summary = QPushButton(_BTN_GENERATE_SUMMARY)
         self.btn_generate_summary.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_generate_summary.setFixedHeight(34)
         self.btn_generate_summary.setStyleSheet(Styles.get_outline_button_style())
         self.btn_generate_summary.clicked.connect(self.generate_ai_summary)
         self.ai_summary_layout.addWidget(self.btn_generate_summary)
 
-        self.txt_ai_summary = QTextEdit()
-        self.txt_ai_summary.setReadOnly(True)
-        self.txt_ai_summary.setPlaceholderText("AI Coach summary & key takeaways will appear here...")
-        self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
-        self.txt_ai_summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.ai_summary_layout.addWidget(self.txt_ai_summary)
-
-        self.report_layout.addWidget(self.ai_summary_frame, stretch=1)
+        # Keep the Report tab top-aligned now that its last section moved out.
+        self.report_layout.addStretch()
 
         self.tabs.addTab(self.report_tab, "Report")
 
-        # Loading Overlay
-        self.loading_overlay = LoadingOverlay(self)
+        # --- Tab 3: Coach (D1) ---
+        self.coach_tab = QWidget()
+        self.coach_tab.setStyleSheet("background: transparent;")
+        coach_layout = QVBoxLayout(self.coach_tab)
+        coach_layout.setContentsMargins(5, 5, 5, 5)
+        coach_layout.setSpacing(10)
+
+        self.coach_card = CoachCardWidget()
+        self.coach_card.ask_requested.connect(self._on_coach_ask_requested)
+        self.coach_card.refutation_requested.connect(self.replay_refutation)
+        self.coach_card.best_move_requested.connect(self.replay_best)
+        coach_layout.addWidget(self.coach_card)
+
+        # Full-game report: the per-move card above answers "why this move?",
+        # this answers "how did the whole game go?". It takes the rest of the
+        # tab, so its action sits at the bottom.
+        self.div_summary = QFrame()
+        self.div_summary.setFrameShape(QFrame.Shape.HLine)
+        self.div_summary.setStyleSheet(Styles.get_divider_style())
+        coach_layout.addWidget(self.div_summary)
+        coach_layout.addWidget(self.ai_summary_frame, stretch=1)
+
+        self.tabs.addTab(self.coach_tab, "Coach")
 
     def set_analysis_running(self, running: bool):
         self._analysis_running = running
 
     def _on_tab_changed(self, index):
-        if self._analysis_running and index == 1:
+        if self._analysis_running and index in _TABS_LOCKED_DURING_ANALYSIS:
             self.tabs.setCurrentIndex(0)
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
+        self._lines_fen = None
+        self.set_selected_move(-1)
         self.refresh()
 
     def refresh(self):
@@ -233,21 +314,32 @@ class AnalysisPanel(QWidget):
 
             # Result Header
             term_mode, term_desc = TerminationDetector.detect_termination(
-                headers={"Result": meta.result, "White": w_name, "Black": b_name, "Termination": meta.termination or ""},
+                headers={
+                    "Result": meta.result,
+                    "White": w_name,
+                    "Black": b_name,
+                    "Termination": meta.termination or "",
+                },
                 moves=getattr(self.current_game, "moves", []) or [],
-                starting_fen=meta.starting_fen
+                starting_fen=meta.starting_fen,
             )
 
             res_color = self._get_result_color(meta)
 
-            self.result_banner_lbl.setText(f"<span style='color: {res_color}; font-weight: 800; font-size: 13px;'>{meta.result}</span> &nbsp;<span style='color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500;'>{term_desc}</span>")
+            self.result_banner_lbl.setText(
+                f"<span style='color: {res_color}; font-weight: 800; font-size: 13px;'>{meta.result}</span> &nbsp;<span style='color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500;'>{term_desc}</span>"
+            )
 
             # Opening & details section
             opening = meta.opening or "Unknown Opening"
             self.opening_label.setText(opening)
 
             speed_cat = getattr(meta, "speed_category", "")
-            num_moves = (len(self.current_game.moves) + 1) // 2 if hasattr(self.current_game, 'moves') and self.current_game.moves else 0
+            num_moves = (
+                (len(self.current_game.moves) + 1) // 2
+                if hasattr(self.current_game, "moves") and self.current_game.moves
+                else 0
+            )
 
             details_parts = []
             if speed_cat:
@@ -263,37 +355,42 @@ class AnalysisPanel(QWidget):
 
             if self.current_game.ai_summary:
                 self.txt_ai_summary.setText(self.current_game.ai_summary)
-                self.btn_generate_summary.setVisible(False)
-                self.txt_ai_summary.setVisible(True)
+                self.btn_generate_summary.setText(_BTN_REGENERATE_SUMMARY)
             else:
                 self.txt_ai_summary.clear()
-                self.btn_generate_summary.setVisible(True)
-                self.txt_ai_summary.setVisible(False)
+                self.btn_generate_summary.setText(_BTN_GENERATE_SUMMARY)
+            # The body stays visible even when empty: it is what pins the action
+            # to the bottom of the tab, and its placeholder explains the state.
+            self.txt_ai_summary.setVisible(True)
+            self.btn_generate_summary.setVisible(True)
 
         except Exception as e:
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
 
     def _get_result_color(self, meta):
-        chesscom = self.config_manager.get("chesscom_username", "")
-        lichess = self.config_manager.get("lichess_username", "")
-        usernames = [u.lower() for u in [chesscom, lichess] if u]
-
-        w_name = (meta.white or "").lower()
-        b_name = (meta.black or "").lower()
-
-        user_is_white = w_name in usernames if w_name else False
-        user_is_black = b_name in usernames if b_name else False
-
+        user_side = self._user_side()
         if meta.result == "1-0":
-            if user_is_black:
-                return Styles.COLOR_BLUNDER
-            return Styles.COLOR_BEST
-        elif meta.result == "0-1":
-            if user_is_white:
-                return Styles.COLOR_BLUNDER
-            return Styles.COLOR_BEST
+            return Styles.COLOR_BLUNDER if user_side == "black" else Styles.COLOR_BEST
+        if meta.result == "0-1":
+            return Styles.COLOR_BLUNDER if user_side == "white" else Styles.COLOR_BEST
 
         return Styles.COLOR_TEXT_PRIMARY
+
+    def _user_side(self) -> str | None:
+        """Which colour the configured Chess.com/Lichess username played."""
+        if not self.current_game:
+            return None
+        meta = self.current_game.metadata
+        usernames = {
+            str(self.config_manager.get(key, "") or "").lower()
+            for key in ("chesscom_username", "lichess_username")
+        }
+        usernames.discard("")
+        if (meta.white or "").lower() in usernames:
+            return "white"
+        if (meta.black or "").lower() in usernames:
+            return "black"
+        return None
 
     def _update_summary(self, summary):
         clear_layout(self.stats_layout)
@@ -303,10 +400,10 @@ class AnalysisPanel(QWidget):
             self.b_circular_acc.set_data(0.0, None)
             return
 
-        w_acc = summary['white'].get('accuracy', 0.0)
-        b_acc = summary['black'].get('accuracy', 0.0)
-        w_acpl = summary['white'].get('acpl', None)
-        b_acpl = summary['black'].get('acpl', None)
+        w_acc = summary["white"].get("accuracy", 0.0)
+        b_acc = summary["black"].get("accuracy", 0.0)
+        w_acpl = summary["white"].get("acpl", None)
+        b_acpl = summary["black"].get("acpl", None)
 
         self.w_circular_acc.set_data(w_acc, w_acpl)
         self.b_circular_acc.set_data(b_acc, b_acpl)
@@ -325,7 +422,18 @@ class AnalysisPanel(QWidget):
         lbl_b.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_b, 0, 3)
 
-        types = ["Brilliant", "Great", "Best", "Excellent", "Good", "Book", "Inaccuracy", "Mistake", "Miss", "Blunder"]
+        types = [
+            "Brilliant",
+            "Great",
+            "Best",
+            "Excellent",
+            "Good",
+            "Book",
+            "Inaccuracy",
+            "Mistake",
+            "Miss",
+            "Blunder",
+        ]
 
         for i, type_name in enumerate(types):
             color = Styles.get_class_color(type_name)
@@ -339,17 +447,21 @@ class AnalysisPanel(QWidget):
 
             lbl_type = QLabel(type_name)
             lbl_type.setStyleSheet(
-                Styles.get_label_style(size=12, color=color, bold=True) + " " + Styles.get_transparent_label_style()
+                Styles.get_label_style(size=12, color=color, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
             )
-            self.stats_layout.addWidget(lbl_type, i+1, 0)
+            self.stats_layout.addWidget(lbl_type, i + 1, 0)
 
-            val_w = summary['white'].get(type_name, 0)
+            val_w = summary["white"].get(type_name, 0)
             lbl_val_w = QLabel(str(val_w))
             lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl_val_w.setStyleSheet(
-                Styles.get_label_style(color=color, bold=True) + " " + Styles.get_transparent_label_style()
+                Styles.get_label_style(color=color, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
             )
-            self.stats_layout.addWidget(lbl_val_w, i+1, 1)
+            self.stats_layout.addWidget(lbl_val_w, i + 1, 1)
 
             icon_label = QLabel()
             icon = self.resource_manager.get_icon(type_name)
@@ -359,15 +471,17 @@ class AnalysisPanel(QWidget):
             else:
                 icon_label.setText("-")
             icon_label.setStyleSheet(Styles.get_transparent_label_style())
-            self.stats_layout.addWidget(icon_label, i+1, 2)
+            self.stats_layout.addWidget(icon_label, i + 1, 2)
 
-            val_b = summary['black'].get(type_name, 0)
+            val_b = summary["black"].get(type_name, 0)
             lbl_val_b = QLabel(str(val_b))
             lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl_val_b.setStyleSheet(
-                Styles.get_label_style(color=color, bold=True) + " " + Styles.get_transparent_label_style()
+                Styles.get_label_style(color=color, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
             )
-            self.stats_layout.addWidget(lbl_val_b, i+1, 3)
+            self.stats_layout.addWidget(lbl_val_b, i + 1, 3)
 
     def _clear_layout(self, layout):
         # Legacy method for backward compatibility - uses shared utility
@@ -378,6 +492,7 @@ class AnalysisPanel(QWidget):
             return
         if not self.groq_service.client:
             from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+
             dlg = LlmNotConfiguredDialog(self)
             if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
                 window = self.window()
@@ -385,57 +500,81 @@ class AnalysisPanel(QWidget):
                     window.sidebar.set_active(4)
                     window.switch_page(4)
             return
-        self.btn_generate_summary.setEnabled(False)
-        self.loading_overlay.start("Generating AI Summary...")
+        self._set_summary_loading(True)
         logger.info("Starting AI summary generation...")
-        self.summary_thread = GenerateSummaryThread(self.groq_service, self.current_game)
+        self.summary_thread = GenerateSummaryThread(
+            self.groq_service, self.current_game, user_side=self._user_side()
+        )
         self.summary_thread.finished.connect(self.on_summary_generated)
         self.summary_thread.start()
+
+    def _set_summary_loading(self, loading: bool) -> None:
+        """Swap the report for the pulsing placeholder while the model writes."""
+        self.btn_generate_summary.setEnabled(not loading)
+        self.ai_summary_skeleton.setVisible(loading)
+        if loading:
+            self.txt_ai_summary.setVisible(False)
+            self.ai_summary_skeleton.start()
+            return
+
+        self.ai_summary_skeleton.stop()
+        # The body is never collapsed: it keeps the action pinned to the bottom
+        # of the tab and shows its placeholder until the first report arrives.
+        self.txt_ai_summary.setVisible(True)
 
     def refresh_styles(self):
         """Re-applies styles to widgets."""
         self.setStyleSheet(Styles.get_background_style())
 
-        if hasattr(self, 'report_card') and self.report_card:
-            self.report_card.setStyleSheet(Styles.get_frame_style(object_name="ReportCard", hover_accent=False))
+        if hasattr(self, "report_card") and self.report_card:
+            self.report_card.setStyleSheet(
+                Styles.get_frame_style(object_name="ReportCard", hover_accent=False)
+            )
 
-        if hasattr(self, 'opening_label') and self.opening_label:
+        if hasattr(self, "opening_label") and self.opening_label:
             self.opening_label.setStyleSheet(
-                Styles.get_label_style(size=12, weight=600) + " " + Styles.get_transparent_label_style()
+                Styles.get_label_style(size=12, weight=600)
+                + " "
+                + Styles.get_transparent_label_style()
             )
 
-        if hasattr(self, 'details_label') and self.details_label:
+        if hasattr(self, "details_label") and self.details_label:
             self.details_label.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+                + " "
+                + Styles.get_transparent_label_style()
             )
 
-        if hasattr(self, 'w_circular_acc'):
+        if hasattr(self, "w_circular_acc"):
             self.w_circular_acc.refresh_styles()
-        if hasattr(self, 'b_circular_acc'):
+        if hasattr(self, "b_circular_acc"):
             self.b_circular_acc.refresh_styles()
 
-        for div_name in ('div1', 'div2', 'div3'):
+        for div_name in ("div1", "div2", "div3", "div_summary"):
             if hasattr(self, div_name):
                 getattr(self, div_name).setStyleSheet(Styles.get_divider_style())
 
-        if hasattr(self, 'btn_generate_summary'):
+        if hasattr(self, "btn_generate_summary"):
             self.btn_generate_summary.setStyleSheet(Styles.get_outline_button_style())
 
-        if hasattr(self, 'txt_ai_summary'):
+        if hasattr(self, "txt_ai_summary"):
             self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
 
-        if hasattr(self, 'graph_widget'):
+        if hasattr(self, "graph_widget"):
             self.graph_widget.refresh_styles()
 
         self._apply_toggle_style()
 
-        if hasattr(self, 'tabs'):
+        if hasattr(self, "tabs"):
             self.tabs.setStyleSheet(Styles.get_tab_style())
 
-        if hasattr(self, 'lines_widget'):
+        if hasattr(self, "lines_widget"):
             self.lines_widget.refresh_styles()
 
-        if hasattr(self, 'move_list_panel'):
+        if hasattr(self, "coach_card"):
+            self.coach_card.refresh_styles()
+
+        if hasattr(self, "move_list_panel"):
             self.move_list_panel.refresh_styles()
 
         if self.current_game:
@@ -444,9 +583,9 @@ class AnalysisPanel(QWidget):
     def _apply_toggle_style(self):
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         cb_style = Styles.get_checkbox_style(tick_path)
-        if hasattr(self, 'toggle_checkbox'):
+        if hasattr(self, "toggle_checkbox"):
             self.toggle_checkbox.setStyleSheet(cb_style)
-        if hasattr(self, 'cache_checkbox'):
+        if hasattr(self, "cache_checkbox"):
             self.cache_checkbox.setStyleSheet(cb_style)
 
     def _apply_tabs_style(self):
@@ -454,18 +593,21 @@ class AnalysisPanel(QWidget):
         self.tabs.setStyleSheet(Styles.get_tab_style())
 
     def on_summary_generated(self, summary):
-        self.loading_overlay.stop()
+        self._set_summary_loading(False)
         self.btn_generate_summary.setEnabled(True)
-        self.btn_generate_summary.setText("Generate AI Summary")
 
         if is_error_message(summary):
             logger.error(f"AI Summary generation failed: {summary}")
-            # Reset to "no summary yet" so the button reappears
-            self.current_game.ai_summary = ""
-            self.txt_ai_summary.setVisible(False)
-            self.btn_generate_summary.setVisible(True)
+            # Keep whatever report was already there: a failed regeneration must
+            # not throw away a good one.
+            previous = self.current_game.ai_summary or ""
+            self.txt_ai_summary.setPlainText(previous)
+            self.btn_generate_summary.setText(
+                _BTN_REGENERATE_SUMMARY if previous else _BTN_GENERATE_SUMMARY
+            )
             if "not configured" in summary.lower():
                 from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+
                 dlg = LlmNotConfiguredDialog(self)
                 if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
                     window = self.window()
@@ -485,22 +627,244 @@ class AnalysisPanel(QWidget):
         self.current_game.ai_summary = summary
         self.txt_ai_summary.setText(summary)
         self.txt_ai_summary.setVisible(True)
-        self.btn_generate_summary.setVisible(False)
+        self.txt_ai_summary.verticalScrollBar().setValue(0)
+        self.btn_generate_summary.setText(_BTN_REGENERATE_SUMMARY)
+        self._persist_ai_summary(summary)
 
-    def resizeEvent(self, event):
-        self.loading_overlay.resize(self.size())
-        super().resizeEvent(event)
+    def _persist_ai_summary(self, text: str) -> None:
+        """
+        Store the report on the game record so reloading the game keeps it.
 
-    def update_lines(self, lines, is_white):
+        The main window owns the history database; standalone embeddings of the
+        panel (previews, tests) have no manager and simply keep it in memory.
+        """
+        game_id = getattr(self.current_game, "game_id", "") if self.current_game else ""
+        manager = getattr(self.window(), "history_manager", None)
+        if not game_id or manager is None:
+            return
+        try:
+            manager.save_ai_summary(game_id, text)
+        except Exception as e:
+            logger.warning("Could not store the AI summary for game %s: %s", game_id, e)
+
+    def update_lines(self, lines, is_white, fen: str | None = None):
+        self._lines_fen = fen
         self.lines_widget.update_lines(lines, chess.WHITE if is_white else chess.BLACK)
+
+    def _on_line_clicked(self, uci: str) -> None:
+        """Enter variation mode at the position the displayed lines belong to."""
+        if not self._lines_fen or not uci:
+            return
+        self.variation_requested.emit(self._lines_fen, uci)
+
+    # ------------------------------------------------------------------
+    # Coach tab (D1/D2/D5/D6/D8/D9/D11)
+    # ------------------------------------------------------------------
+
+    def set_selected_move(self, index: int) -> None:
+        """
+        Rebuild the Coach facts for a newly selected move.
+
+        The offline summary is rendered immediately — no network, no engine. Any
+        in-flight explanation belongs to the previous move, so it is cancelled
+        and the request counter is bumped (D6).
+        """
+        self._coach_debounce.stop()
+        self._cancel_explanation_worker()
+
+        insight = None
+        moves = getattr(self.current_game, "moves", None) if self.current_game else None
+        if moves and 0 <= index < len(moves):
+            meta = self.current_game.metadata
+            try:
+                insight = build_move_insight(
+                    moves,
+                    index,
+                    metadata=meta,
+                    chess960=bool(getattr(meta, "chess960", False)),
+                )
+            except Exception as e:
+                logger.error(f"Failed to build move insight for index {index}: {e}", exc_info=True)
+
+        self._coach_insight = insight
+        self._coach_ply = insight.ply if insight else None
+        self.coach_card.set_insight(insight, allow_trivial=self._allow_trivial_explanations())
+
+    def _allow_trivial_explanations(self) -> bool:
+        return bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
+
+    def _on_coach_ask_requested(self) -> None:
+        if self._coach_insight is None:
+            return
+        if not self.groq_service.client:
+            self._show_llm_not_configured()
+            return
+        # Debounce so rapid clicking or move-hopping fires a single request.
+        self._coach_debounce.start(EXPLANATION_DEBOUNCE_MS)
+
+    def _dispatch_explanation(self) -> None:
+        insight = self._coach_insight
+        if insight is None:
+            return
+        if not self._coach_limiter.allow():
+            logger.info("Coach request rate-limited")
+            self._toast("Slow down a moment — coach is cooling off.")
+            return
+
+        self._cancel_explanation_worker()
+        self._coach_seq += 1
+        self.coach_card.begin_loading(self._coach_seq, insight.ply)
+
+        worker = ExplainMoveWorker(
+            self.groq_service,
+            insight,
+            seq=self._coach_seq,
+            cache=self._get_explanation_cache(),
+            lang_code=self.groq_service._lang_code(),
+            model_name=self.groq_service.model_name,
+        )
+        worker.finished.connect(self._on_coach_finished)
+        worker.error.connect(self._on_coach_error)
+        self._coach_worker = worker
+        worker.start()
+
+    def _on_coach_finished(self, seq: int, ply: int, text: str) -> None:
+        if self.coach_card.show_narrative(seq, ply, text):
+            logger.info("Coach explanation rendered (ply=%d)", ply)
+
+    def _on_coach_error(self, seq: int, ply: int, reason: str) -> None:
+        logger.warning("Coach explanation unavailable (ply=%d): %s", ply, reason)
+        self.coach_card.show_fallback(seq, ply, reason)
+
+    def _cancel_explanation_worker(self) -> None:
+        """Disconnect + interrupt + join the worker; never terminate a thread."""
+        worker, self._coach_worker = self._coach_worker, None
+        if worker is None:
+            return
+        for signal in (worker.finished, worker.error):
+            try:
+                signal.disconnect()
+            except TypeError:
+                pass  # nothing connected
+        worker.cancel()
+        if worker.isRunning():
+            worker.wait(2000)
+        worker.deleteLater()
+
+    def _get_explanation_cache(self) -> AnalysisCache | None:
+        if self._explanation_cache is None:
+            try:
+                self._explanation_cache = AnalysisCache()
+            except Exception as e:
+                logger.error(f"Failed to open the explanation cache: {e}")
+                return None
+        return self._explanation_cache
+
+    def replay_refutation(self) -> None:
+        """Show the opponent's best answer to the played move (D4)."""
+        insight = self._coach_insight
+        moves = getattr(self.current_game, "moves", None) if self.current_game else None
+        if insight is None or not moves:
+            return
+        reply_index = insight.ply + 1  # ply is 0-based, so the reply is the next entry
+        if not 0 <= reply_index < len(moves):
+            return
+        reply = moves[reply_index]
+        if not reply.multi_pvs:
+            return
+
+        fen_after = self._fen_after_played_move(insight)
+        # The opponent moves next, so the side to move is the player's opposite.
+        self.update_lines(
+            lines_for_display(reply), insight.side == "black", fen=fen_after
+        )
+        self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+
+        if fen_after and insight.refutation_san:
+            try:
+                uci = chess.Board(fen_after, chess960=self._is_chess960()).parse_san(
+                    insight.refutation_san[0]
+                ).uci()
+            except ValueError:
+                uci = None
+            if uci:
+                self.variation_requested.emit(fen_after, uci)
+
+    def replay_best(self) -> None:
+        """Show the engine's top choice from the played move's position."""
+        insight = self._coach_insight
+        moves = getattr(self.current_game, "moves", None) if self.current_game else None
+        if insight is None or not moves:
+            return
+        played_index = insight.ply  # ply is 0-based and indexes ``moves`` directly
+        if not 0 <= played_index < len(moves):
+            return
+        played = moves[played_index]
+        if not played.multi_pvs:
+            return
+
+        lines = lines_for_display(played)
+        self.update_lines(lines, insight.side == "white", fen=played.fen_before)
+        self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+
+        best_uci = insight.best_move_uci
+        if not best_uci:
+            pv = played.multi_pvs[0].get("pv_uci") or played.multi_pvs[0].get("pv") or []
+            best_uci = pv[0] if pv else None
+            if best_uci is not None and not isinstance(best_uci, str):
+                best_uci = best_uci.uci()
+        if best_uci:
+            self.variation_requested.emit(played.fen_before, best_uci)
+
+    def _is_chess960(self) -> bool:
+        meta = getattr(self.current_game, "metadata", None)
+        return bool(getattr(meta, "chess960", False))
+
+    def _fen_after_played_move(self, insight) -> str | None:
+        """Position after the coach insight's move, in the game's variant."""
+        moves = getattr(self.current_game, "moves", None) or []
+        if not 0 <= insight.ply < len(moves):
+            return None
+        played = moves[insight.ply]
+        try:
+            board = chess.Board(played.fen_before, chess960=self._is_chess960())
+            board.push_uci(played.uci)
+        except ValueError:
+            return None
+        return board.fen()
+
+    def _show_llm_not_configured(self) -> None:
+        from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+
+        dlg = LlmNotConfiguredDialog(self)
+        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
+            window = self.window()
+            if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
+                window.sidebar.set_active(4)
+                window.switch_page(4)
+
+    def _toast(self, message: str) -> None:
+        from src.gui.main_window import MainWindow
+
+        MainWindow.toast_from_widget(self, message, "info")
+
+    def closeEvent(self, event):
+        self._coach_debounce.stop()
+        self._cancel_explanation_worker()
+        if self._explanation_cache is not None:
+            self._explanation_cache.close()
+            self._explanation_cache = None
+        super().closeEvent(event)
+
 
 class GenerateSummaryThread(QThread):
     finished = pyqtSignal(str)
 
-    def __init__(self, service, game):
+    def __init__(self, service, game, user_side: str | None = None):
         super().__init__()
         self.service = service
         self.game = game
+        self.user_side = user_side
 
     def run(self):
         logger.info("GenerateSummaryThread started")
@@ -530,22 +894,23 @@ class GenerateSummaryThread(QThread):
                     try:
                         chess_move = board.parse_san(move.san)
                     except Exception as e:
-                        logger.warning("Failed to parse SAN move '%s': %s", getattr(move, "san", "?"), e)
+                        logger.warning(
+                            "Failed to parse SAN move '%s': %s", getattr(move, "san", "?"), e
+                        )
                         continue
                 node = node.add_variation(chess_move)
                 board.push(chess_move)
 
-            exporter = chess.pgn.StringExporter(
-                headers=False, comments=False, variations=False
-            )
+            exporter = chess.pgn.StringExporter(headers=False, comments=False, variations=False)
             pgn_text = pgn_game.accept(exporter)
             if not pgn_text.strip():
                 pgn_text = " ".join(m.san for m in self.game.moves)
 
+            # Ground the narrative in the engine's own findings instead of the
+            # raw ``summary`` dict, which the model would have to interpret.
+            facts = build_game_report(self.game, user_side=self.user_side)
             time_stats = format_time_stats_for_llm(self.game.moves)
-            summary = self.service.generate_summary(
-                pgn_text, str(self.game.summary), time_stats
-            )
+            summary = self.service.generate_summary(pgn_text, facts, time_stats)
             logger.info("GenerateSummaryThread completed successfully")
             self.finished.emit(summary)
         except Exception as e:

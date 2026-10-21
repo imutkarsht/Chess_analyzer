@@ -10,17 +10,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from PyQt6.QtCore import (
-    QEasingCurve,
-    QPropertyAnimation,
-    QSequentialAnimationGroup,
-    Qt,
-    pyqtSignal,
-)
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
-    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -31,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
+from src.gui.components.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout, create_button, show_error_dialog
@@ -52,7 +46,7 @@ class AICoachCard(MetricCard):
         self.stats: dict[str, Any] = {}
         self.worker: InsightWorker | None = None
         self.current_insights: str | None = None
-        self._skeleton_anim: QSequentialAnimationGroup | None = None
+        self._skeleton: PulsingSkeleton | None = None
 
         # Action widget container in card header
         self.header_action_widget = QWidget()
@@ -167,13 +161,11 @@ class AICoachCard(MetricCard):
         self.provider_badge.setText("AI Coach")
 
     def _stop_skeleton_anim(self):
-        """Safely stops and cleans up the pulsing skeleton animation."""
-        if self._skeleton_anim is not None:
-            try:
-                self._skeleton_anim.stop()
-            except (RuntimeError, TypeError):
-                pass
-            self._skeleton_anim = None
+        """Safely stops and removes the pulsing placeholder."""
+        skeleton, self._skeleton = self._skeleton, None
+        if skeleton is not None:
+            skeleton.stop()
+            skeleton.deleteLater()
 
     def _show_initial_state(self):
         self._stop_skeleton_anim()
@@ -260,145 +252,18 @@ class AICoachCard(MetricCard):
         else:
             self._show_initial_state()
 
-    def _create_skeleton_row(
-        self,
-        width_ratio: float | None = None,
-        fixed_width: int | None = None,
-        height: int = 10,
-        radius: int = 5,
-    ) -> QWidget:
-        row_widget = QWidget()
-        row_widget.setStyleSheet("background: transparent;")
-        row_layout = QHBoxLayout(row_widget)
-        row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(0)
-
-        bar = QFrame()
-        bar.setFixedHeight(height)
-        bar.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: {radius}px;
-        """)
-
-        if fixed_width is not None:
-            bar.setFixedWidth(fixed_width)
-            row_layout.addWidget(bar)
-            row_layout.addStretch()
-        elif width_ratio is not None:
-            w_int = max(1, int(width_ratio * 100))
-            spacer_int = max(1, 100 - w_int)
-            row_layout.addWidget(bar, w_int)
-            spacer = QWidget()
-            spacer.setStyleSheet("background: transparent;")
-            row_layout.addWidget(spacer, spacer_int)
-        else:
-            bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            row_layout.addWidget(bar)
-
-        return row_widget
-
     def _show_loading_skeleton(self):
-        """Displays a ChatGPT/Gemini-style pulsing skeleton UI while AI generates insights."""
+        """Displays the shared pulsing placeholder while AI generates insights."""
         self._stop_skeleton_anim()
         clear_layout(self.insights_layout)
 
-        skeleton_container = QWidget()
-        skeleton_container.setObjectName("coach_skeleton_container")
-        skeleton_container.setStyleSheet("background: transparent;")
-        s_vbox = QVBoxLayout(skeleton_container)
-        s_vbox.setContentsMargins(4, 8, 4, 12)
-        s_vbox.setSpacing(14)
-
-        # Header status row with pulsing indicator
-        header_row = QHBoxLayout()
-        header_row.setSpacing(8)
-        header_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
-        dot = QLabel("●")
-        dot.setStyleSheet(
-            f"color: {Styles.COLOR_ACCENT}; font-size: 10px; background: transparent;"
+        self._skeleton = PulsingSkeleton(
+            title="AI Coach is analyzing performance patterns...",
+            subtitle="Synthesizing tactical motifs, advantage conversion, and clock discipline...",
+            parent=self.insights_container,
         )
-        header_row.addWidget(dot)
-
-        lbl_title = QLabel("AI Coach is analyzing performance patterns...")
-        lbl_title.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent;"
-        )
-        header_row.addWidget(lbl_title)
-        header_row.addStretch()
-        s_vbox.addLayout(header_row)
-
-        lbl_sub = QLabel(
-            "Synthesizing tactical motifs, advantage conversion, and clock discipline..."
-        )
-        lbl_sub.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent; padding-left: 16px;"
-        )
-        s_vbox.addWidget(lbl_sub)
-        s_vbox.addSpacing(6)
-
-        # Section 1 skeleton: Strengths & Superpowers (Header badge + 2 lines)
-        sec1 = QVBoxLayout()
-        sec1.setSpacing(8)
-        sec1.addWidget(self._create_skeleton_row(fixed_width=140, height=12, radius=6))
-        sec1.addWidget(self._create_skeleton_row(width_ratio=0.92, height=10, radius=5))
-        sec1.addWidget(self._create_skeleton_row(width_ratio=0.68, height=10, radius=5))
-        s_vbox.addLayout(sec1)
-
-        # Divider
-        div1 = QFrame()
-        div1.setFixedHeight(1)
-        div1.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
-        s_vbox.addWidget(div1)
-
-        # Section 2 skeleton: Critical Leaks & Blindspots (Header badge + 3 lines)
-        sec2 = QVBoxLayout()
-        sec2.setSpacing(8)
-        sec2.addWidget(self._create_skeleton_row(fixed_width=160, height=12, radius=6))
-        sec2.addWidget(self._create_skeleton_row(width_ratio=0.95, height=10, radius=5))
-        sec2.addWidget(self._create_skeleton_row(width_ratio=0.78, height=10, radius=5))
-        sec2.addWidget(self._create_skeleton_row(width_ratio=0.48, height=10, radius=5))
-        s_vbox.addLayout(sec2)
-
-        # Divider
-        div2 = QFrame()
-        div2.setFixedHeight(1)
-        div2.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
-        s_vbox.addWidget(div2)
-
-        # Section 3 skeleton: Training Prescription (Header badge + 2 lines)
-        sec3 = QVBoxLayout()
-        sec3.setSpacing(8)
-        sec3.addWidget(self._create_skeleton_row(fixed_width=135, height=12, radius=6))
-        sec3.addWidget(self._create_skeleton_row(width_ratio=0.90, height=10, radius=5))
-        sec3.addWidget(self._create_skeleton_row(width_ratio=0.60, height=10, radius=5))
-        s_vbox.addLayout(sec3)
-
-        self.insights_layout.addWidget(skeleton_container)
-
-        # Opacity pulse animation (Gemini / ChatGPT style breathing effect)
-        opacity_effect = QGraphicsOpacityEffect(skeleton_container)
-        opacity_effect.setOpacity(0.28)
-        skeleton_container.setGraphicsEffect(opacity_effect)
-
-        anim_in = QPropertyAnimation(opacity_effect, b"opacity")
-        anim_in.setDuration(900)
-        anim_in.setStartValue(0.28)
-        anim_in.setEndValue(0.85)
-        anim_in.setEasingCurve(QEasingCurve.Type.InOutSine)
-
-        anim_out = QPropertyAnimation(opacity_effect, b"opacity")
-        anim_out.setDuration(900)
-        anim_out.setStartValue(0.85)
-        anim_out.setEndValue(0.28)
-        anim_out.setEasingCurve(QEasingCurve.Type.InOutSine)
-
-        self._skeleton_anim = QSequentialAnimationGroup(self)
-        self._skeleton_anim.addAnimation(anim_in)
-        self._skeleton_anim.addAnimation(anim_out)
-        self._skeleton_anim.setLoopCount(-1)
-        self._skeleton_anim.start()
+        self.insights_layout.addWidget(self._skeleton)
+        self._skeleton.start()
 
     def _generate_insights(self):
         if not self.stats or self.stats.get("total", 0) == 0:

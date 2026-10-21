@@ -19,6 +19,8 @@ from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
 from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget
+from src.gui.analysis.variation_bar import VariationBar
+from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import BoardWidget
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.components.sidebar import Sidebar
@@ -33,6 +35,7 @@ from src.gui.main_window.status_bar_mixin import StatusBarMixin
 from src.gui.main_window.theme_mixin import ThemeMixin
 from src.gui.main_window.tour_mixin import TourMixin
 from src.gui.main_window.update_mixin import UpdateMixin
+from src.gui.main_window.variation_mixin import VariationMixin
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.utils.gui_utils import create_button
@@ -65,6 +68,7 @@ class MainWindow(
     NavigationMixin,
     AnalysisMixin,
     GameLoadingMixin,
+    VariationMixin,
     StatusBarMixin,
     ThemeMixin,
     TourMixin,
@@ -526,6 +530,9 @@ class MainWindow(
         center_layout.addWidget(self.board_widget, 1)
         center_layout.addWidget(self.captured_white)
 
+        self.variation_bar = VariationBar()
+        center_layout.addWidget(self.variation_bar)
+
         self.controls = GameControlsWidget()
         self.controls.first_clicked.connect(self.go_first)
         self.controls.prev_clicked.connect(self.go_prev)
@@ -628,6 +635,15 @@ class MainWindow(
         self.analysis_panel.toggle_checkbox.toggled.connect(
             self.move_list_panel.set_engine_lines_enabled
         )
+
+        # Variation mode: makes the main board playable for "Show best move",
+        # "Show refutation" and engine-line clicks without leaving the game.
+        self.variation = VariationMode(
+            self.board_widget, self.move_list_panel, self.variation_bar
+        )
+        self.variation.exited.connect(self._on_variation_exited)
+        self.variation.position_changed.connect(self._on_variation_position_changed)
+        self.analysis_panel.variation_requested.connect(self._on_variation_requested)
 
         splitter.addWidget(self.analysis_panel)
 

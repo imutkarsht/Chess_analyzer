@@ -118,6 +118,10 @@ class GameHistoryManager:
         """Saves a completed or partial game analysis to the history."""
         self._games_repo.save_game(game_analysis, pgn_content, force_overwrite=force_overwrite)
 
+    def save_ai_summary(self, game_id: str, text: str) -> None:
+        """Stores the generated full-game AI report so it survives reloading."""
+        self._games_repo.save_ai_summary(game_id, text)
+
     def save_games_bulk(self, items: list[Any], force_overwrite: bool = False) -> int:
         """Saves multiple game analyses or game dictionaries inside a single transaction."""
         return self._games_repo.save_games_bulk(items, force_overwrite=force_overwrite)

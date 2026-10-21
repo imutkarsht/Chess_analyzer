@@ -96,10 +96,24 @@ class ExplorerView(QWidget):
                 "Importing Lichess ECO database (first launch only)"
             ))
 
+        # Start the worker idle: the Engine Lines toggle is off by default,
+        # so an eager search here would heat the machine on every launch.
         self.live_worker.start()
-        self._send_to_engine(self.board.fen())
         self.update_opening_db(self.board.fen())
         self.loading_overlay.stop()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Resume only when the user has engine lines enabled; cached lines
+        # stay visible otherwise.
+        if self.chk_engine.isChecked():
+            self._send_to_engine(self.board.fen())
+
+    def hideEvent(self, event):
+        # Leaving the Explorer (or minimising the window) must not leave a
+        # Stockfish search running out of sight.
+        self.live_worker.set_position(None)
+        super().hideEvent(event)
 
     def setup_ui(self):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)

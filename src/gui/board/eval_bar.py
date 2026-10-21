@@ -9,7 +9,7 @@ class EvalBarWidget(QWidget):
         self.setFixedWidth(24)
         self.cp = 0.0
         self.target_cp = 0.0
-        self.mate = None # None, positive int (White mate), negative int (Black mate)
+        self.mate = None  # None, positive int (White mate), negative int (Black mate)
 
         # Animation
         self.timer = QTimer(self)
@@ -38,14 +38,14 @@ class EvalBarWidget(QWidget):
     def animate(self):
         try:
             if self.mate is not None:
-                if hasattr(self, 'timer') and self.timer:
+                if hasattr(self, "timer") and self.timer:
                     self.timer.stop()
                 return
 
             diff = self.target_cp - self.cp
             if abs(diff) < 1:
                 self.cp = self.target_cp
-                if hasattr(self, 'timer') and self.timer:
+                if hasattr(self, "timer") and self.timer:
                     self.timer.stop()
             else:
                 # Simple lerp
@@ -69,9 +69,9 @@ class EvalBarWidget(QWidget):
 
         if self.mate is not None:
             if self.mate > 0:
-                white_pct = 1.0 # White wins
+                white_pct = 1.0  # White wins
             else:
-                white_pct = 0.0 # Black wins
+                white_pct = 0.0  # Black wins
         else:
             # Sigmoid-like scaling for CP
             # Using a simple clamp for now: +/- 400 (4 pawns) = 100% advantage visually?
@@ -91,26 +91,44 @@ class EvalBarWidget(QWidget):
 
         # Draw numeric label if space permits
         if height > 50:
-             font = painter.font()
-             # Use setPointSize to avoid "Point size <= 0" warnings on some systems
-             font.setPointSize(8)
-             font.setBold(True)
-             painter.setFont(font)
+            font = painter.font()
+            # Use setPointSize to avoid "Point size <= 0" warnings on some systems
+            font.setPointSize(8)
+            font.setBold(True)
+            painter.setFont(font)
 
-             label_text = ""
-             if self.mate is not None:
-                 label_text = f"M{abs(self.mate)}"
-             else:
-                 label_text = f"{abs(self.cp) / 100:.1f}"
+            label_text = ""
+            if self.mate is not None:
+                label_text = f"M{abs(self.mate)}"
+            else:
+                label_text = f"{abs(self.cp) / 100:.1f}"
 
-             # Text color depends on background
-             if white_pct > 0.5:
-                 # White is winning, bar is high. Put text in the black area (top) if possible, or white area (bottom)
-                 # Let's put it at the bottom (white area) with black text
-                 painter.setPen(QColor("#404040"))
-                 painter.drawText(0, height - 5, width, 20, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignBottom, label_text)
-             else:
-                 # Black is winning. Put text at top (black area) with white text
-                 painter.setPen(QColor("#FFFFFF"))
-                 painter.drawText(0, 5, width, 20, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, label_text)
+            # Keep the label on the winning side's fill: dark text on the
+            # white (bottom) area, light text on the dark (top) area.
+            if white_pct > 0.5:
+                painter.setPen(QColor("#404040"))
+            else:
+                painter.setPen(QColor("#FFFFFF"))
+            x, y, w, h = self._label_rect()
+            painter.drawText(
+                x,
+                y,
+                w,
+                h,
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                label_text,
+            )
 
+    def _label_rect(self) -> tuple[int, int, int, int]:
+        """Geometry of the numeric label, fully inside the bar.
+
+        The label used to be drawn from ``height - 5`` downwards, so when
+        White was winning it fell outside the widget and was clipped away.
+        """
+        if self.mate is not None:
+            white_wins = self.mate > 0
+        else:
+            white_wins = self.cp > 0
+        if white_wins:
+            return 0, max(0, self.height() - 22), self.width(), 20
+        return 0, 2, self.width(), 20

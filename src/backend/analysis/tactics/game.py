@@ -79,7 +79,13 @@ class MoveCtx:
 
 
 def _move_detail(mv: MoveCtx, **extra: Any) -> dict[str, Any]:
-    """Factory creating the standardized 11-key drill-down detail dictionary."""
+    """Factory creating the standardized drill-down detail dictionary.
+
+    ``eval_before_cp``/``eval_after_cp`` are stored from the analysed side's own
+    view; ``win_chance_before``/``win_chance_after`` are that same side's win
+    chances, so the report can quote a player's chances without guessing the
+    colour.
+    """
     return {
         "ply": mv.ply,
         "move_number": mv.move_number,
@@ -92,6 +98,8 @@ def _move_detail(mv: MoveCtx, **extra: Any) -> dict[str, Any]:
         "eval_after_cp": mv.eval_after_user,
         "eval_drop": mv.eval_diff,
         "wp_drop": round(mv.wp_drop, 3),
+        "win_chance_before": round(mv.player_wp_before, 3),
+        "win_chance_after": round(mv.player_wp_after, 3),
         **extra,
     }
 

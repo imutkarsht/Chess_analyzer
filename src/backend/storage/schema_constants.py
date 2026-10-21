@@ -37,6 +37,7 @@ GAME_COLUMNS: tuple[str, ...] = (
     "summary_json",
     "moves_json",
     "timestamp",
+    "ai_summary",
 )
 
 GAME_CSV_COLUMNS: list[str] = list(GAME_COLUMNS)
@@ -49,7 +50,7 @@ INSERT_GAME_SQL: str = (
 
 # Light column projection excluding heavy blobs (pgn and moves_json) for fast list views
 LIGHT_GAME_COLUMNS: tuple[str, ...] = tuple(
-    c for c in GAME_COLUMNS if c not in ("pgn", "moves_json")
+    c for c in GAME_COLUMNS if c not in ("pgn", "moves_json", "ai_summary")
 )
 _LIGHT_GAME_COLS_SQL: str = ", ".join(LIGHT_GAME_COLUMNS)
 
@@ -72,5 +73,5 @@ _API_CACHE_COLS_SQL: str = ", ".join(API_CACHE_COLUMNS)
 _API_CACHE_PLACEHOLDERS_SQL: str = ", ".join(["?"] * len(API_CACHE_COLUMNS))
 INSERT_API_CACHE_SQL: str = f"INSERT OR REPLACE INTO api_game_cache ({_API_CACHE_COLS_SQL}) VALUES ({_API_CACHE_PLACEHOLDERS_SQL})"
 
-CURRENT_SCHEMA_VERSION: int = 2
+CURRENT_SCHEMA_VERSION: int = 3
 EXPLORER_CACHE_TTL_SECONDS: float = 48 * 3600.0  # 48 hours
