@@ -195,3 +195,35 @@ class TestReplay:
         panel.replay_refutation()
 
         assert panel.tabs.currentIndex() == 0
+
+    def test_replay_requests_the_matching_board_position(self, panel):
+        panel.set_selected_move(8)
+        requests = []
+        panel.variation_requested.connect(lambda f, u: requests.append((f, u)))
+
+        panel.replay_best()
+        assert requests == [(panel.current_game.moves[8].fen_before, "d2d4")]
+
+        requests.clear()
+        panel.replay_refutation()
+        after_blunder = chess.Board(panel.current_game.moves[8].fen_before)
+        after_blunder.push_uci(panel.current_game.moves[8].uci)
+        assert requests == [(after_blunder.fen(), "g4d1")]
+
+    def test_line_click_opens_the_position_the_lines_belong_to(self, panel):
+        move = panel.current_game.moves[8]
+        requests = []
+        panel.variation_requested.connect(lambda f, u: requests.append((f, u)))
+
+        panel.update_lines(move.multi_pvs, True, fen=move.fen_before)
+        # Cached analysis stores the PV as "pv"; the row must still be clickable.
+        assert panel.lines_widget.rows[0][0].uci_move == "d2d4"
+
+        panel._on_line_clicked("d2d4")
+        assert requests == [(move.fen_before, "d2d4")]
+
+        # Clearing the lines must also clear the FEN, or clicks would branch
+        # from a position that is no longer displayed.
+        panel.update_lines([], True, fen=None)
+        panel._on_line_clicked("d2d4")
+        assert requests == [(move.fen_before, "d2d4")]

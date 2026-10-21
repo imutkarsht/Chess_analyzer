@@ -1,3 +1,4 @@
+import math
 import xml.etree.ElementTree as ET
 
 import chess
@@ -142,6 +143,10 @@ class BoardWidget(QWidget):
         self.show_legal_moves = True
         self.selected_square = None
         self.legal_destinations = []
+
+        # Analysis helpers: best-move arrow and a subtle "exploring" dim.
+        self.best_move_uci = None
+        self.dimmed = False
 
         # Drag and drop floating piece visual
         self.drag_piece_label = QLabel(self.board_container)
@@ -394,6 +399,8 @@ class BoardWidget(QWidget):
     def load_fen(self, fen: str, flipped: bool = False):
         """Load a custom FEN for free-play exploration (landing page historic mode)."""
         self.interactive = True
+        self.dimmed = False
+        self.best_move_uci = None
         self.is_flipped = flipped
         self.board = chess.Board(fen)
         self.game_moves = []
@@ -412,6 +419,10 @@ class BoardWidget(QWidget):
     # ------------------------------------------------------------------ Game Playback
     def load_game(self, game_analysis):
         self.interactive = False
+        self.dimmed = False
+        self.best_move_uci = None
+        # Never inherit the orientation of a historic/free-play FEN.
+        self.is_flipped = False
         self.selected_square = None
         self.legal_destinations = []
         if hasattr(self, "drag_piece_label"):
@@ -453,6 +464,50 @@ class BoardWidget(QWidget):
         self.update_board()
         self.draw_overlays(move_index)
         self.eval_bar.set_eval(cp, mate)
+
+    # ------------------------------------------------------------------ Analysis / Variation
+    def load_analysis_position(self, fen: str, chess960: bool = False):
+        """
+        Load a position for free analysis while keeping the game replay data.
+
+        Unlike ``load_fen`` this never clears ``game_moves``, so leaving the
+        analysis position can restore the game with ``set_position``.
+        """
+        self.board = chess.Board(fen, chess960=chess960)
+        self.is_chess960 = chess960
+        self.interactive = True
+        self.selected_square = None
+        self.legal_destinations = []
+        self.drag_start_sq = None
+        self.drag_start_pos = None
+        self.is_dragging = False
+        if hasattr(self, "drag_piece_label"):
+            self.drag_piece_label.hide()
+        self.update_board()
+        self.draw_interactive_overlays()
+
+    def set_best_move(self, uci: str | None):
+        """Draw the engine's top move as an arrow over the board."""
+        self.best_move_uci = uci
+        self.update_board()
+
+    def set_dimmed(self, dimmed: bool):
+        """Visually mark the board as an analysis/variation surface."""
+        if self.dimmed == dimmed:
+            return
+        self.dimmed = dimmed
+        self.update_board()
+
+    def undo_move(self) -> bool:
+        """Pop the last move from the board (used by variation exploration)."""
+        if not self.board.move_stack:
+            return False
+        self.board.pop()
+        self.selected_square = None
+        self.legal_destinations = []
+        self.update_board()
+        self.draw_interactive_overlays()
+        return True
 
     def flip_board(self):
         self.is_flipped = not self.is_flipped
@@ -656,4 +711,102 @@ class BoardWidget(QWidget):
                     {"href": href, "xlink:href": href, "transform": f"translate({x}, {y})"},
                 )
 
+        # Analysis mode: wash the board out slightly, then keep the arrow vivid
+        # on top so the suggested move still reads at a glance.
+        if self.dimmed:
+            ET.SubElement(
+                svg,
+                "rect",
+                {
+                    "x": str(MARGIN),
+                    "y": str(MARGIN),
+                    "width": str(BOARD_SIZE),
+                    "height": str(BOARD_SIZE),
+                    "fill": "#000000",
+                    "opacity": "0.10",
+                },
+            )
+
+        if self.best_move_uci and len(self.best_move_uci) >= 4:
+            self._draw_best_move_arrow(svg, MARGIN, SQUARE_SIZE)
+
         return ET.tostring(svg, encoding="utf-8")
+
+    def _draw_best_move_arrow(self, svg_root, margin: int, square_size: int):
+        """Append the best-move arrow for the current orientation."""
+        try:
+            from_sq = chess.parse_square(self.best_move_uci[:2])
+            to_sq = chess.parse_square(self.best_move_uci[2:4])
+        except ValueError:
+            logger.warning("Invalid best-move UCI: %s", self.best_move_uci)
+            return
+
+        def center(square):
+            file_idx = chess.square_file(square)
+            rank_idx = chess.square_rank(square)
+            if not self.is_flipped:
+                return (
+                    margin + file_idx * square_size + square_size / 2,
+                    margin + (7 - rank_idx) * square_size + square_size / 2,
+                )
+            return (
+                margin + (7 - file_idx) * square_size + square_size / 2,
+                margin + rank_idx * square_size + square_size / 2,
+            )
+
+        x1, y1 = center(from_sq)
+        x2, y2 = center(to_sq)
+        self._add_arrow(
+            svg_root, x1, y1, x2, y2, color=Styles.COLOR_ACCENT, opacity="0.4", width=14
+        )
+
+    def _add_arrow(self, svg_root, x1, y1, x2, y2, color=None, opacity="0.4", width=14):
+        """Append an SVG arrow to the root element."""
+        color = color or Styles.COLOR_ACCENT
+        dx = x2 - x1
+        dy = y2 - y1
+        length = math.sqrt(dx * dx + dy * dy)
+        if length < 1:
+            return
+
+        # Shorten tail and head slightly so it doesn't cover pieces entirely
+        shorten_tail = width * 0.8
+        shorten_head = width * 1.8
+        ux = dx / length
+        uy = dy / length
+
+        sx = x1 + ux * shorten_tail
+        sy = y1 + uy * shorten_tail
+        ex = x2 - ux * shorten_head
+        ey = y2 - uy * shorten_head
+
+        # Arrow head (triangle) - wider and proportional
+        arrow_width = width * 1.8
+        px = -uy * arrow_width
+        py = ux * arrow_width
+
+        points = (
+            f"{x2 - ux*width*0.5},{y2 - uy*width*0.5} "
+            f"{ex + px},{ey + py} "
+            f"{ex - px},{ey - py}"
+        )
+
+        ET.SubElement(
+            svg_root,
+            "line",
+            {
+                "x1": str(sx),
+                "y1": str(sy),
+                "x2": str(ex),
+                "y2": str(ey),
+                "stroke": color,
+                "stroke-width": str(width),
+                "stroke-linecap": "butt",
+                "opacity": opacity,
+            },
+        )
+        ET.SubElement(
+            svg_root,
+            "polygon",
+            {"points": points, "fill": color, "opacity": opacity},
+        )

@@ -141,6 +141,9 @@ class GameLoadingMixin:
             return False
 
     def load_game(self, game, from_history: bool = False):
+        # A new game must never inherit the previous game's open variation.
+        self._exit_variation()
+
         # If game has no moves but has PGN content (loaded from history), parse it
         if not game.moves and game.pgn_content:
             try:
@@ -195,6 +198,7 @@ class GameLoadingMixin:
         logger.info(f"Loaded game: {white} vs {black} [{result}], {len(game.moves)} moves")
 
         self.board_widget.load_game(game)
+        self._position_captured_pieces()
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
         self.captured_white.update_captured(None)

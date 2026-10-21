@@ -24,7 +24,7 @@ from src.utils.resources import ResourceManager
 
 class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)
-    lines_updated = pyqtSignal(list, bool) # lines, is_white_turn
+    lines_updated = pyqtSignal(list, bool, str)  # lines, is_white_turn, analysed FEN
 
     def __init__(self, engine_path="stockfish", config_manager=None):
         super().__init__()
@@ -47,6 +47,11 @@ class MoveListPanel(QWidget):
         self.live_data = {}
         self.current_turn = chess.WHITE
         self.engine_lines_enabled = False # Off by default!
+        # The move list's live engine is shared with variation exploration.
+        # Every request carries a monotonic seq so stale positions are dropped.
+        self._analysis_seq = 0
+        self._analysed_fen: str | None = None
+        self._variation_active = False
         # Reusable think-time bar widgets (one per cell). We keep strong
         # references because QTableWidget.setCellWidget() does not take
         # ownership; without this, the bars would be garbage-collected
@@ -271,6 +276,10 @@ class MoveListPanel(QWidget):
 
         if index < 0:
             self.table.clearSelection()
+            self.current_turn = chess.WHITE
+            self.live_data = {}
+            self._analysed_fen = None
+            self.lines_updated.emit([], True, "")
             return
 
         if index >= len(self.current_game.moves):
@@ -286,44 +295,76 @@ class MoveListPanel(QWidget):
         turn = chess.WHITE if index % 2 == 0 else chess.BLACK
 
         # Emit signal instead of updating directly
-        self.lines_updated.emit(move.multi_pvs, turn == chess.WHITE)
+        self.lines_updated.emit(move.multi_pvs, turn == chess.WHITE, move.fen_before)
 
         self.current_turn = turn
         self.live_data = {}
         if self.engine_lines_enabled:
             self.analysis_timer.start()
 
+    def begin_variation(self, fen: str, is_white: bool) -> None:
+        """Analyse an arbitrary position while the board is in variation mode."""
+        self._variation_active = True
+        self.analysis_timer.stop()
+        self.current_turn = chess.WHITE if is_white else chess.BLACK
+        self.live_data = {}
+        self._analysis_seq += 1
+        self._analysed_fen = fen
+        self.lines_updated.emit([], is_white, fen)
+        self.live_worker.set_position(fen, self._analysis_seq)
+
+    def end_variation(self) -> None:
+        """Stop the variation analysis; the caller restores the game position."""
+        self._variation_active = False
+        self.analysis_timer.stop()
+        self._analysis_seq += 1
+        self._analysed_fen = None
+        self.live_data = {}
+        self.live_worker.set_position(None, self._analysis_seq)
+
     def set_engine_lines_enabled(self, enabled):
+        if self._variation_active:
+            return
         self.engine_lines_enabled = enabled
         if enabled:
             self.start_live_analysis()
         else:
-            self.live_worker.set_position(None)
+            self._analysis_seq += 1
+            self.live_worker.set_position(None, self._analysis_seq)
             # Restore cached lines (if any) or clear the widget
             if self.current_game:
                 index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
                 if 0 <= index < len(self.current_game.moves):
                     move = self.current_game.moves[index]
-                    self.lines_updated.emit(move.multi_pvs, self.current_turn == chess.WHITE)
+                    self.lines_updated.emit(
+                        move.multi_pvs, self.current_turn == chess.WHITE, move.fen_before
+                    )
                     return
-            self.lines_updated.emit([], self.current_turn == chess.WHITE)
+            self.lines_updated.emit([], self.current_turn == chess.WHITE, "")
 
     def start_live_analysis(self):
-        if not self.current_game:
+        if not self.current_game or self._variation_active:
             return
         index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
         if index < 0 or index >= len(self.current_game.moves):
             return
         move = self.current_game.moves[index]
-        self.live_worker.set_position(move.fen_before)
+        self._analysis_seq += 1
+        self._analysed_fen = move.fen_before
+        self.live_worker.set_position(move.fen_before, self._analysis_seq)
 
     def on_live_analysis_update(self, info):
+        # Drop results that belong to a position we have already left.
+        if info.get("seq") != self._analysis_seq:
+            return
         multipv_id = info.get("multipv", 1)
         self.live_data[multipv_id] = info
         sorted_lines = sorted(self.live_data.values(), key=lambda x: x.get("multipv", 1))
 
         # Emit signal
-        self.lines_updated.emit(sorted_lines, self.current_turn == chess.WHITE)
+        self.lines_updated.emit(
+            sorted_lines, self.current_turn == chess.WHITE, self._analysed_fen or ""
+        )
 
     def closeEvent(self, event):
         self.live_worker.stop()

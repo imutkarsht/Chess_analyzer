@@ -230,6 +230,8 @@ class ThemeMixin:
         # Update Game Controls
         if hasattr(self, "controls") and hasattr(self.controls, "refresh_styles"):
             self.controls.refresh_styles()
+        if hasattr(self, "variation_bar"):
+            self.variation_bar.refresh_styles()
 
         # Update explorer view panels
         if hasattr(self, "explorer_view"):

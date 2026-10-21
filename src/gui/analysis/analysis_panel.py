@@ -58,6 +58,8 @@ _REPORT_SKELETON_SECTIONS = ((150, (0.96, 0.88, 0.62)), (120, (0.94, 0.70)))
 
 class AnalysisPanel(QWidget):
     cache_toggled = pyqtSignal(bool)
+    # (FEN the lines belong to, first move UCI) — opens the board in variation mode.
+    variation_requested = pyqtSignal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -71,6 +73,7 @@ class AnalysisPanel(QWidget):
         self.current_game = None
         self.summary_thread = None
         self._analysis_running = False
+        self._lines_fen: str | None = None
 
         # --- Coach state (D6): the panel owns the request counters ---
         self._coach_seq = 0
@@ -124,6 +127,7 @@ class AnalysisPanel(QWidget):
 
         # Analysis Lines
         self.lines_widget = AnalysisLinesWidget()
+        self.lines_widget.line_clicked.connect(self._on_line_clicked)
         self.eval_layout.addWidget(self.lines_widget, stretch=1)
 
         self.tabs.addTab(self.eval_tab, "Evaluation")
@@ -289,6 +293,7 @@ class AnalysisPanel(QWidget):
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
+        self._lines_fen = None
         self.set_selected_move(-1)
         self.refresh()
 
@@ -641,8 +646,15 @@ class AnalysisPanel(QWidget):
         except Exception as e:
             logger.warning("Could not store the AI summary for game %s: %s", game_id, e)
 
-    def update_lines(self, lines, is_white):
+    def update_lines(self, lines, is_white, fen: str | None = None):
+        self._lines_fen = fen
         self.lines_widget.update_lines(lines, chess.WHITE if is_white else chess.BLACK)
+
+    def _on_line_clicked(self, uci: str) -> None:
+        """Enter variation mode at the position the displayed lines belong to."""
+        if not self._lines_fen or not uci:
+            return
+        self.variation_requested.emit(self._lines_fen, uci)
 
     # ------------------------------------------------------------------
     # Coach tab (D1/D2/D5/D6/D8/D9/D11)
@@ -757,10 +769,23 @@ class AnalysisPanel(QWidget):
         if not 0 <= reply_index < len(moves):
             return
         reply = moves[reply_index]
-        if reply.multi_pvs:
-            # The opponent moves next, so the side to move is the player's opposite.
-            self.update_lines(reply.multi_pvs, insight.side == "black")
-            self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+        if not reply.multi_pvs:
+            return
+
+        fen_after = self._fen_after_played_move(insight)
+        # The opponent moves next, so the side to move is the player's opposite.
+        self.update_lines(reply.multi_pvs, insight.side == "black", fen=fen_after)
+        self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+
+        if fen_after and insight.refutation_san:
+            try:
+                uci = chess.Board(fen_after, chess960=self._is_chess960()).parse_san(
+                    insight.refutation_san[0]
+                ).uci()
+            except ValueError:
+                uci = None
+            if uci:
+                self.variation_requested.emit(fen_after, uci)
 
     def replay_best(self) -> None:
         """Show the engine's top choice from the played move's position."""
@@ -772,9 +797,37 @@ class AnalysisPanel(QWidget):
         if not 0 <= played_index < len(moves):
             return
         played = moves[played_index]
-        if played.multi_pvs:
-            self.update_lines(played.multi_pvs, insight.side == "white")
-            self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+        if not played.multi_pvs:
+            return
+
+        self.update_lines(played.multi_pvs, insight.side == "white", fen=played.fen_before)
+        self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+
+        best_uci = insight.best_move_uci
+        if not best_uci:
+            pv = played.multi_pvs[0].get("pv_uci") or played.multi_pvs[0].get("pv") or []
+            best_uci = pv[0] if pv else None
+            if best_uci is not None and not isinstance(best_uci, str):
+                best_uci = best_uci.uci()
+        if best_uci:
+            self.variation_requested.emit(played.fen_before, best_uci)
+
+    def _is_chess960(self) -> bool:
+        meta = getattr(self.current_game, "metadata", None)
+        return bool(getattr(meta, "chess960", False))
+
+    def _fen_after_played_move(self, insight) -> str | None:
+        """Position after the coach insight's move, in the game's variant."""
+        moves = getattr(self.current_game, "moves", None) or []
+        if not 0 <= insight.ply < len(moves):
+            return None
+        played = moves[insight.ply]
+        try:
+            board = chess.Board(played.fen_before, chess960=self._is_chess960())
+            board.push_uci(played.uci)
+        except ValueError:
+            return None
+        return board.fen()
 
     def _show_llm_not_configured(self) -> None:
         from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog

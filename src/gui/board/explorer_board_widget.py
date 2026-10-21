@@ -2,11 +2,7 @@
 Explorer Board Widget - Interactive chessboard for the Opening Explorer.
 Extends BoardWidget with click-to-move, best-move arrows, and book move overlays.
 """
-import math
-import xml.etree.ElementTree as ET
-
 import chess
-from defusedxml.ElementTree import fromstring as safe_fromstring
 from PyQt6.QtCore import QByteArray, QEvent, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
@@ -14,7 +10,6 @@ from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton
 
 from src.gui.board.board_widget import BoardWidget
 from src.gui.styles import Styles
-from src.utils.logger import logger
 
 
 class PromotionDialog(QDialog):
@@ -321,98 +316,6 @@ class ExplorerBoardWidget(BoardWidget):
             return rank, 7 - file
         return 7 - rank, file
 
-    # ------------------------------------------------------------------ SVG override
-    def _generate_custom_board_svg(self, colors, piece_defs):
-        """Override parent to inject best-move arrow and selected-square highlight."""
-        svg_bytes = super()._generate_custom_board_svg(colors, piece_defs)
-
-        # Skip XML parsing if there's no best move arrow to draw
-        if not self.best_move_uci or len(self.best_move_uci) < 4:
-            return svg_bytes
-
-        # Parse and augment
-        try:
-            svg_str = svg_bytes.decode("utf-8") if isinstance(svg_bytes, bytes) else svg_bytes
-            if svg_str.startswith("<?xml"):
-                svg_str = svg_str[svg_str.index("<svg"):]
-
-            root = safe_fromstring(svg_str)
-
-            MARGIN = 15
-            SQ = 45
-
-            def sq_center(square):
-                f = chess.square_file(square)
-                r = chess.square_rank(square)
-                if not self.is_flipped:
-                    cx = MARGIN + f * SQ + SQ / 2
-                    cy = MARGIN + (7 - r) * SQ + SQ / 2
-                else:
-                    cx = MARGIN + (7 - f) * SQ + SQ / 2
-                    cy = MARGIN + r * SQ + SQ / 2
-                return cx, cy
-
-            try:
-                from_sq = chess.parse_square(self.best_move_uci[:2])
-                to_sq = chess.parse_square(self.best_move_uci[2:4])
-                x1, y1 = sq_center(from_sq)
-                x2, y2 = sq_center(to_sq)
-                self._add_arrow(root, x1, y1, x2, y2,
-                                color=Styles.COLOR_ACCENT, opacity="0.4", width=14)
-            except Exception as e:
-                logger.warning(f"Failed to draw arrow: {e}")
-
-            return ET.tostring(root, encoding="unicode").encode("utf-8")
-        except Exception as e:
-            logger.warning(f"Failed to generate board SVG: {e}")
-            return svg_bytes
-
-    def _add_arrow(self, svg_root, x1, y1, x2, y2, color="#FF9500", opacity="0.4", width=14):
-        """Append an SVG arrow to the root element."""
-        dx = x2 - x1
-        dy = y2 - y1
-        length = math.sqrt(dx * dx + dy * dy)
-        if length < 1:
-            return
-
-        # Shorten tail and head slightly so it doesn't cover pieces entirely
-        shorten_tail = width * 0.8
-        shorten_head = width * 1.8
-        ux = dx / length
-        uy = dy / length
-
-        sx = x1 + ux * shorten_tail
-        sy = y1 + uy * shorten_tail
-        ex = x2 - ux * shorten_head
-        ey = y2 - uy * shorten_head
-
-        # Arrow head (triangle) - wider and proportional
-        arrow_width = width * 1.8
-        px = -uy * arrow_width
-        py = ux * arrow_width
-
-        points = (
-            f"{x2 - ux*width*0.5},{y2 - uy*width*0.5} "
-            f"{ex + px},{ey + py} "
-            f"{ex - px},{ey - py}"
-        )
-
-        # Shaft
-        ET.SubElement(svg_root, "line", {
-            "x1": str(sx), "y1": str(sy),
-            "x2": str(ex), "y2": str(ey),
-            "stroke": color,
-            "stroke-width": str(width),
-            "stroke-linecap": "butt",
-            "opacity": opacity,
-        })
-        # Head
-        ET.SubElement(svg_root, "polygon", {
-            "points": points,
-            "fill": color,
-            "opacity": opacity,
-        })
-
     # ------------------------------------------------------------------ public
     def load_fen(self, fen, chess960=False):
         """Load a FEN and reset all selections."""
@@ -422,17 +325,3 @@ class ExplorerBoardWidget(BoardWidget):
         self.best_move_uci = None
         self.update_board()
         self.draw_interactive_overlays()
-
-    def set_best_move(self, uci):
-        """Set the best move arrow and redraw the board."""
-        self.best_move_uci = uci
-        self.update_board()
-
-    def undo_move(self):
-        """Revert the last move if possible."""
-        if self.board.move_stack:
-            self.board.pop()
-            self.selected_square = None
-            self.legal_destinations = []
-            self.update_board()
-            self.draw_interactive_overlays()

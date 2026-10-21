@@ -83,6 +83,16 @@ class NavigationMixin:
         self.shortcut_tour = QShortcut(QKeySequence("Ctrl+T"), self)
         self.shortcut_tour.activated.connect(self.start_tour)
 
+        # Variation mode
+        self.shortcut_exit_variation = QShortcut(QKeySequence("Escape"), self)
+        self.shortcut_exit_variation.activated.connect(self._on_escape)
+
+    def _on_escape(self):
+        """Esc leaves a variation; otherwise it is ignored."""
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.exit()
+
     def _handle_analyze_shortcut(self):
         """Handle Ctrl+A shortcut without hijacking select-all in editable fields."""
         focus_widget = QApplication.focusWidget()
@@ -168,16 +178,28 @@ class NavigationMixin:
 
     def flip_board(self):
         self.board_widget.flip_board()
+        self._position_captured_pieces()
+
+    def _position_captured_pieces(self):
+        """Keep one captured-pieces card on each side of the board.
+
+        Reordering relative to the board (not fixed indices) keeps the layout
+        intact when other widgets are inserted or hidden.
+        """
         self.center_layout.removeWidget(self.captured_white)
         self.center_layout.removeWidget(self.captured_black)
+        board_index = self.center_layout.indexOf(self.board_widget)
         if self.board_widget.is_flipped:
-            self.center_layout.insertWidget(1, self.captured_white)
-            self.center_layout.insertWidget(3, self.captured_black)
+            top, bottom = self.captured_white, self.captured_black
         else:
-            self.center_layout.insertWidget(1, self.captured_black)
-            self.center_layout.insertWidget(3, self.captured_white)
+            top, bottom = self.captured_black, self.captured_white
+        self.center_layout.insertWidget(board_index, top)
+        self.center_layout.insertWidget(board_index + 2, bottom)
 
-    def on_move_selected(self, index):
+    def on_move_selected(self, index, silent: bool = False):
+        # Any game navigation abandons an open variation first.
+        self._exit_variation()
+
         self.board_widget.set_position(index)
         self.move_list_panel.select_move(index)
 
@@ -207,7 +229,7 @@ class NavigationMixin:
             self.captured_white.update_clock(white_time)
             self.captured_black.update_clock(black_time)
 
-            if 0 <= index < len(moves):
+            if 0 <= index < len(moves) and not silent:
                 move = moves[index]
                 san = move.san
                 if "#" in san or "mate" in san.lower():

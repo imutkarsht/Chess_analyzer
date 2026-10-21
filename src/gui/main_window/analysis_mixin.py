@@ -20,6 +20,9 @@ class AnalysisMixin:
         if not self.current_game:
             return
 
+        # A running analysis owns the board; never leave a variation underneath it.
+        self._exit_variation()
+
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
             QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
             return
@@ -340,6 +343,8 @@ class AnalysisMixin:
         if not self.current_game:
             self._set_status("Load a game first before exploring", "warning")
             return
+        if hasattr(self, "variation") and self.variation.is_active:
+            self.variation.exit()
         if hasattr(self, "board_widget"):
             self.sidebar.set_active(1)
             self.switch_page(1)
