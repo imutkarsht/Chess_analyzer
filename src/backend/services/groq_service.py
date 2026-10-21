@@ -121,7 +121,11 @@ def _detect_ui_language() -> str:
 EXPLANATION_SYSTEM_PROMPT = (
     "You are a chess coach. Translate ONLY the facts below into 2-3 sentences. "
     "Never name a move, piece, or square that is not listed. "
-    "Do not calculate. Do not add pleasantries."
+    "Do not calculate. Do not add pleasantries. "
+    "The facts give evaluations from White's perspective and win chances from the "
+    "player's perspective. Quote both exactly as given: never flip a sign, never "
+    "convert one perspective to the other, and never calculate a win chance from "
+    "an evaluation."
 )
 
 # SAN-like move token, including castling and promotion.
@@ -487,6 +491,10 @@ class GroqService:
             "number and SAN (e.g. 14.c3 or 23...Qxf2) plus the evaluation swing in pawns.\n"
             "- Evaluations are from White's perspective: positive means White is better. When you "
             'quote one for a player, make the side explicit (e.g. "-2.7 for White").\n'
+            "- Win chances are labelled with the player they belong to. Quote them exactly as "
+            "given: never calculate a win chance from an evaluation, and never present one "
+            "player's win chance as another's. If a moment has no win chance in the facts, do "
+            "not mention one.\n"
             '- The dossier says which side the report is for: address that player as "you" and '
             "judge the decisions from their point of view.\n"
             "- Do not mention the engine, the analysis, the data, or that you were given a dossier.\n"

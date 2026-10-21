@@ -127,7 +127,7 @@ MIN_MOVE_ACCURACY = 10.0
 # Coach ("why was this a blunder?") feature
 # ---------------------------------------------------------------------------
 # Bump to invalidate every cached explanation (prompt/schema changes).
-EXPLANATION_PROMPT_VERSION = 1
+EXPLANATION_PROMPT_VERSION = 2
 EXPLANATION_CACHE_TTL_DAYS = 30
 EXPLANATION_REQUEST_TIMEOUT_S = 20.0
 EXPLANATION_DEBOUNCE_MS = 400

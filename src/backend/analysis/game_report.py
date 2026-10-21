@@ -239,9 +239,18 @@ def _moment_line(detail: dict[str, Any], side: str) -> str:
         if drop and not (_is_mate(before) or _is_mate(after))
         else ""
     )
+    # The stored win chances belong to ``side``: quote them for that player so
+    # the model never presents White's chances as Black's (or vice versa).
+    wp_before = detail.get("win_chance_before")
+    wp_after = detail.get("win_chance_after")
+    chance = (
+        f", {side.title()}'s win chance {wp_before * 100:.0f}% -> {wp_after * 100:.0f}%"
+        if isinstance(wp_before, (int, float)) and isinstance(wp_after, (int, float))
+        else ""
+    )
     return (
         f"{_move_ref(detail, side)} ({side}, {label}): "
-        f"{_fmt_cp(before)} -> {_fmt_cp(after)}{swing}."
+        f"{_fmt_cp(before)} -> {_fmt_cp(after)}{swing}{chance}."
     )
 
 
@@ -305,7 +314,10 @@ def build_game_report(game: GameAnalysis, user_side: str | None = None) -> str:
 
     moments = _key_moment_lines(summary)
     if moments:
-        lines.append("\nKEY MOMENTS (chronological; all evaluations are from White's perspective)")
+        lines.append(
+            "\nKEY MOMENTS (chronological; evaluations are from White's perspective, "
+            "win chances are from the cited player's perspective)"
+        )
         lines.extend(moments)
 
     turning_points = _turning_point_lines(summary)

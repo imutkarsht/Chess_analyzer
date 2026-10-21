@@ -97,6 +97,10 @@ class CoachCardWidget(QFrame):
         self.class_pill = QLabel("-")
         self.san_label = QLabel("-")
         self.eval_label = QLabel("")
+        self.eval_label.setToolTip(
+            "Engine evaluation from White's perspective (positive = White is better). "
+            "The explanation's win chance is from your perspective."
+        )
         self.phase_label = QLabel("")
 
         # --- body: a fixed number of lines that scrolls anything longer ---
@@ -203,7 +207,7 @@ class CoachCardWidget(QFrame):
 
         self.class_pill.setText(insight.classification or "Unclassified")
         self.san_label.setText(insight.numbered_san)
-        self.eval_label.setText(f"{insight.eval_before} → {insight.eval_after}")
+        self.eval_label.setText(f"White: {insight.eval_before} → {insight.eval_after}")
         self.phase_label.setText(insight.phase)
         self._restyle_header()
 

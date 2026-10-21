@@ -29,6 +29,10 @@ class VariationMode(QObject):
         self.base_fen: str | None = None
         self.suggestion_uci: str | None = None
         self.sans: list[str] = []
+        # Moves undone from the tip, kept so the arrows can step back *and*
+        # forward through the line that has already been explored.
+        self._future: list[chess.Move] = []
+        self._replaying = False
         self._best_uci: str | None = None
         self._active = False
 
@@ -43,6 +47,16 @@ class VariationMode(QObject):
     @property
     def is_active(self) -> bool:
         return self._active
+
+    @property
+    def can_go_back(self) -> bool:
+        """True while there is an explored move to step back over."""
+        return bool(self.sans)
+
+    @property
+    def can_go_forward(self) -> bool:
+        """True while there is an undone move to replay or a best move to play."""
+        return bool(self._future) or bool(self._best_uci)
 
     def enter(
         self,
@@ -67,6 +81,8 @@ class VariationMode(QObject):
         self.base_fen = fen
         self.suggestion_uci = self._legal_uci(board, suggestion_uci)
         self.sans = []
+        self._future = []
+        self._replaying = False
         self._best_uci = self.suggestion_uci
 
         self.board_widget.load_analysis_position(fen, chess960=chess960)
@@ -98,6 +114,8 @@ class VariationMode(QObject):
         self.board_widget.set_dimmed(False)
         self.board_widget.interactive = False
         self.sans = []
+        self._future = []
+        self._replaying = False
         self._best_uci = None
         self.base_fen = None
         self.suggestion_uci = None
@@ -122,17 +140,67 @@ class VariationMode(QObject):
         return True
 
     def undo(self) -> None:
+        """Step back one explored move, keeping it for ``forward`` to replay."""
         if not self._active or not self.sans:
             return
+        board = self.board_widget.board
+        if not board.move_stack:
+            return
+        move = board.peek()
         if not self.board_widget.undo_move():
             return
         self.sans.pop()
+        self._future.insert(0, move)
         self._refresh_after_position_change()
         if not self.sans:
             # Back at the branch point: restore the entry suggestion immediately.
             self._best_uci = self.suggestion_uci
             self.board_widget.set_best_move(self.suggestion_uci)
             self._update_bar()
+
+    def forward(self) -> None:
+        """Replay an undone move, otherwise play the engine's best continuation."""
+        if not self._active:
+            return
+        if self._future:
+            move = self._future.pop(0)
+            self._replaying = True
+            try:
+                self.board_widget.attempt_move(
+                    move.from_square, move.to_square, move.promotion
+                )
+            finally:
+                self._replaying = False
+            return
+        self.play_best()
+
+    def go_to_start(self) -> None:
+        """Rewind to the branch point without discarding the explored line."""
+        if not self._active or not self.sans:
+            return
+        board = self.board_widget.board
+        while board.move_stack:
+            self._future.insert(0, board.pop())
+        self.sans.clear()
+        self.board_widget.update_board()
+        self.board_widget.draw_interactive_overlays()
+        self._refresh_after_position_change()
+        self._best_uci = self.suggestion_uci
+        self.board_widget.set_best_move(self.suggestion_uci)
+        self._update_bar()
+
+    def go_to_end(self) -> None:
+        """Replay every undone move to reach the tip of the explored line."""
+        if not self._active or not self._future:
+            return
+        board = self.board_widget.board
+        while self._future:
+            move = self._future.pop(0)
+            self.sans.append(self._san_for(board, move))
+            board.push(move)
+        self.board_widget.update_board()
+        self.board_widget.draw_interactive_overlays()
+        self._refresh_after_position_change()
 
     def reset(self) -> None:
         if not self._active or not self.base_fen:
@@ -141,6 +209,7 @@ class VariationMode(QObject):
             self.base_fen, chess960=self.board_widget.is_chess960
         )
         self.sans.clear()
+        self._future = []
         self._refresh_after_position_change()
         self._best_uci = self.suggestion_uci
         self.board_widget.set_best_move(self.suggestion_uci)
@@ -157,19 +226,26 @@ class VariationMode(QObject):
             return None
         return uci if move in board.legal_moves else None
 
+    @staticmethod
+    def _san_for(board: chess.Board, move: chess.Move) -> str:
+        """SAN for ``move`` played from ``board``; falls back to UCI."""
+        try:
+            return board.san(move)
+        except (AssertionError, ValueError):
+            return move.uci()
+
     def _on_move_made(self, fen: str) -> None:
         if not self._active:
             return
+        # A freshly played move forks a new branch: anything undone is stale.
+        if not self._replaying:
+            self._future.clear()
         board = self.board_widget.board
         if board.move_stack:
             move = board.peek()
             probe = board.copy()
             probe.pop()
-            try:
-                san = probe.san(move)
-            except (AssertionError, ValueError):
-                san = move.uci()
-            self.sans.append(san)
+            self.sans.append(self._san_for(probe, move))
 
         self._refresh_after_position_change(fen)
 

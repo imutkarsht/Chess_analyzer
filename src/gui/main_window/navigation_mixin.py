@@ -88,10 +88,15 @@ class NavigationMixin:
         self.shortcut_exit_variation.activated.connect(self._on_escape)
 
     def _on_escape(self):
-        """Esc leaves a variation; otherwise it is ignored."""
+        """Esc leaves a variation, or the Explorer page; otherwise it is ignored."""
         variation = getattr(self, "variation", None)
         if variation is not None and variation.is_active:
             variation.exit()
+            return
+        if getattr(self, "stack", None) is not None and self.stack.currentIndex() == 1:
+            # The Explorer page is reached via "Explore from here"; Esc returns.
+            self.sidebar.set_active(0)
+            self.switch_page(0)
 
     def _handle_analyze_shortcut(self):
         """Handle Ctrl+A shortcut without hijacking select-all in editable fields."""
@@ -112,6 +117,11 @@ class NavigationMixin:
             QTimer.singleShot(0, lambda: self.open_load_dialog(initial_source=1, initial_text=text))
 
     def _nav_prev(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.undo()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_prev.emit()
             return
@@ -123,6 +133,11 @@ class NavigationMixin:
             self.on_move_selected(idx)
 
     def _nav_next(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.forward()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_next.emit()
             return
@@ -134,6 +149,11 @@ class NavigationMixin:
             self.on_move_selected(idx)
 
     def _nav_last(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_end()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_last.emit()
             return
@@ -145,6 +165,11 @@ class NavigationMixin:
             self.on_move_selected(idx)
 
     def _nav_first(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_start()
+            return
+
         if self.stack.currentIndex() == 1:
             self.explorer_view.move_list_widget.nav_first.emit()
             return
@@ -155,16 +180,28 @@ class NavigationMixin:
             self.on_move_selected(-1)
 
     def go_first(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_start()
+            return
         if self.current_game:
             self.on_move_selected(-1)
 
     def go_prev(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.undo()
+            return
         if self.current_game:
             current = self.board_widget.current_move_index
             new_index = max(-1, current - 1)
             self.on_move_selected(new_index)
 
     def go_next(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.forward()
+            return
         if self.current_game:
             current = self.board_widget.current_move_index
             total = len(self.current_game.moves)
@@ -172,6 +209,10 @@ class NavigationMixin:
             self.on_move_selected(new_index)
 
     def go_last(self):
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.go_to_end()
+            return
         if self.current_game:
             total = len(self.current_game.moves)
             self.on_move_selected(total - 1)

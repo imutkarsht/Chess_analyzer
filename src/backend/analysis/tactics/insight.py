@@ -61,11 +61,16 @@ class MoveInsight:
     side: str  # "white" | "black"
     phase: str  # opening | middlegame | endgame
 
-    # evaluations, from the *player's* perspective (strings for display)
+    # Evaluations use the app's canonical White-perspective sign (the same one
+    # as the eval bar, move list and game report) so every surface agrees.
     eval_before: str
     eval_after: str
-    eval_before_mate: int | None
-    eval_after_mate: int | None
+    # Mate scores stay player-signed: they drive the coach's "you" language
+    # (forced mate for you / mate against you), not the displayed eval.
+    player_mate_before: int | None
+    player_mate_after: int | None
+    # Win chances are from the player's perspective: 87% always means the
+    # player who made the move wins 87% of the time, regardless of colour.
     wp_before: float
     wp_after: float
 
@@ -101,13 +106,13 @@ class MoveInsight:
     @property
     def forced_mate(self) -> bool:
         """The player has a forced mate *after* the played move."""
-        return self.eval_after_mate is not None and self.eval_after_mate > 0
+        return self.player_mate_after is not None and self.player_mate_after > 0
 
     @property
     def mate_threat_in(self) -> int | None:
         """Mate the opponent now forces against the player, if any."""
-        if self.eval_after_mate is not None and self.eval_after_mate < 0:
-            return abs(self.eval_after_mate)
+        if self.player_mate_after is not None and self.player_mate_after < 0:
+            return abs(self.player_mate_after)
         return None
 
     @property
@@ -231,17 +236,14 @@ def build_move_insight(
     side = _side_of_ply(move.ply)
     is_user_white = side == "white"
 
-    # --- evaluations (player perspective) --------------------------------
-    eval_before = _fmt_eval(
-        _user_signed(move.eval_before_cp, is_user_white),
-        _user_signed(move.eval_before_mate, is_user_white),
-    )
-    eval_after = _fmt_eval(
-        _user_signed(move.eval_after_cp, is_user_white),
-        _user_signed(move.eval_after_mate, is_user_white),
-    )
-    eval_before_mate = _user_signed(move.eval_before_mate, is_user_white)
-    eval_after_mate = _user_signed(move.eval_after_mate, is_user_white)
+    # --- evaluations ------------------------------------------------------
+    # Display strings stay White-perspective: the Coach card must agree with
+    # the eval bar, move list and game report (positive = White is better).
+    # Win chances are converted once, here, to the player's own view.
+    eval_before = _fmt_eval(move.eval_before_cp, move.eval_before_mate)
+    eval_after = _fmt_eval(move.eval_after_cp, move.eval_after_mate)
+    player_mate_before = _user_signed(move.eval_before_mate, is_user_white)
+    player_mate_after = _user_signed(move.eval_after_mate, is_user_white)
     wp_before = to_user_wp(move.win_chance_before, is_user_white)
     wp_after = to_user_wp(move.win_chance_after, is_user_white)
 
@@ -289,8 +291,8 @@ def build_move_insight(
     if material_loss_cp is None and hung_pieces:
         material_loss_cp = max(h.get("enemy_see_gain", 0) for h in hung_pieces) or None
 
-    mate_before = eval_before_mate is not None and eval_before_mate > 0
-    mate_after = eval_after_mate is not None and eval_after_mate > 0
+    mate_before = player_mate_before is not None and player_mate_before > 0
+    mate_after = player_mate_after is not None and player_mate_after > 0
 
     eco = (getattr(metadata, "eco", None) or move.eco or "") if metadata else (move.eco or "")
     opening = (
@@ -313,8 +315,8 @@ def build_move_insight(
         phase=classify_game_phase(board_before, move.ply, is_book_move=move.is_book_move),
         eval_before=eval_before,
         eval_after=eval_after,
-        eval_before_mate=eval_before_mate,
-        eval_after_mate=eval_after_mate,
+        player_mate_before=player_mate_before,
+        player_mate_after=player_mate_after,
         wp_before=wp_before,
         wp_after=wp_after,
         best_move_san=best_move_san,
@@ -423,9 +425,13 @@ def format_move_insight_for_llm(insight: MoveInsight) -> str:
 
     lines += [
         "",
-        f"Evaluations (from {insight.side}'s perspective)",
-        f"- Before the move: {insight.eval_before} (win chance {_fmt_wp(insight.wp_before)})",
-        f"- After the move:  {insight.eval_after} (win chance {_fmt_wp(insight.wp_after)})",
+        "Evaluations (White's perspective; positive = White is better)",
+        f"- Before the move: {insight.eval_before}",
+        f"- After the move:  {insight.eval_after}",
+        f"Win chances (from {insight.side}'s perspective; higher = better for "
+        f"{insight.side})",
+        f"- Before the move: {_fmt_wp(insight.wp_before)}",
+        f"- After the move:  {_fmt_wp(insight.wp_after)}",
         "",
         "Deterministic findings",
     ]
@@ -459,7 +465,12 @@ def format_move_insight_for_llm(insight: MoveInsight) -> str:
     else:
         lines.append("")
 
-    lines.append(f"Write 2-3 sentences explaining {insight.san} to the {insight.side} player.")
+    lines.append(
+        f"Write 2-3 sentences explaining {insight.san} to the {insight.side} player. "
+        "Quote the evaluations exactly as given (White's perspective) and the win chances "
+        "exactly as given (the player's perspective). Never flip a sign, convert between "
+        "perspectives, or calculate a win chance from an evaluation."
+    )
     return "\n".join(lines)
 
 
