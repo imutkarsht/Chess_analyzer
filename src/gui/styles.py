@@ -800,6 +800,46 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
 
+    @classmethod
+    def get_flat_text_edit_style(cls, size=13):
+        """
+        Frameless, transparent read-only text area.
+
+        Used for prose that lives inside an existing card (the Coach body): it
+        must not draw a second surface, and it scrolls with a slim bar so the
+        card can keep a fixed height whatever the text length.
+        """
+        p = ThemeManager.palette()
+        return f"""
+            QTextEdit {{
+                background-color: transparent;
+                border: none;
+                padding: 0px;
+                color: {p.text_secondary};
+                font-size: {size}px;
+            }}
+            QScrollBar:vertical {{
+                background-color: transparent;
+                width: 8px;
+                margin: 0px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {p.border};
+                min-height: 24px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {p.border_light};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background-color: transparent;
+            }}
+        """
+
     # ═══════════════════════════════════════════════════════════════
     #  LABELS
     # ═══════════════════════════════════════════════════════════════

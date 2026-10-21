@@ -8,6 +8,31 @@ from ...styles import Styles
 from .helpers import create_icon_button
 
 
+def clear_analysis_cache(parent_widget) -> bool:
+    """
+    Confirm and clear the analysis + explanation caches.
+
+    Shared by the Data Management and the Move Explanations settings blocks so
+    there is a single confirmation and a single cache-clearing path.
+    """
+    from src.backend.storage.cache import AnalysisCache
+    from src.gui.main_window import MainWindow
+    from src.gui.utils.gui_utils import confirm_dialog
+
+    if not confirm_dialog(
+        parent_widget,
+        "Clear Cache",
+        "Clear the analysis cache? Your game history will not be deleted.",
+        confirm_label="Clear Cache",
+    ):
+        return False
+
+    cache = AnalysisCache()
+    cache.clear_cache()
+    MainWindow.toast_from_widget(parent_widget, "Analysis cache cleared.", "success")
+    return True
+
+
 class DataSettings(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Data Management", parent)
@@ -45,21 +70,7 @@ class DataSettings(QGroupBox):
         MainWindow.toast_from_widget(self, "Database optimized and compacted.", "success")
 
     def clear_cache(self):
-        from src.gui.utils.gui_utils import confirm_dialog
-
-        if confirm_dialog(
-            self,
-            "Clear Cache",
-            "Clear the analysis cache? Your game history will not be deleted.",
-            confirm_label="Clear Cache",
-        ):
-            from src.backend.storage.cache import AnalysisCache
-
-            cache = AnalysisCache()
-            cache.clear_cache()
-            from src.gui.main_window import MainWindow
-
-            MainWindow.toast_from_widget(self, "Analysis cache cleared.", "success")
+        clear_analysis_cache(self)
 
     def clear_all_data(self):
         from src.gui.utils.gui_utils import confirm_dialog

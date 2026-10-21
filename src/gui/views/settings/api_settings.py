@@ -3,6 +3,7 @@ API Configuration Settings group component.
 """
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFormLayout,
     QFrame,
@@ -27,6 +28,7 @@ except ImportError:
 from src.backend.services.groq_service import GroqService
 from src.constants import PROVIDERS
 from src.gui.utils.gui_utils import show_error_dialog
+from src.utils.path_utils import get_resource_path
 
 from .modern_widgets import PasswordFieldWrapper
 
@@ -238,7 +240,74 @@ class ApiSettings(QGroupBox):
         lf.addRow(self._lbl_lichess, self.lichess_token_input)
         api_layout.addLayout(lf)
 
+        self._add_explanation_rows(api_layout, lbl_style, _combo_style)
+
         self._reload_profile_combo()
+
+    def _add_explanation_rows(self, api_layout, lbl_style, combo_style) -> None:
+        """Move-explanation (Coach) options, cache policy and the data note (D8)."""
+        self._api_div3 = QFrame()
+        self._api_div3.setFrameShape(QFrame.Shape.HLine)
+        self._api_div3.setStyleSheet(Styles.get_divider_style())
+        api_layout.addWidget(self._api_div3)
+
+        self._lbl_explain = QLabel("Move Explanations (Coach):")
+        self._lbl_explain.setStyleSheet(lbl_style)
+        api_layout.addWidget(self._lbl_explain)
+
+        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        cb_style = Styles.get_checkbox_style(tick_path)
+
+        self.explain_trivial_checkbox = QCheckBox(
+            "Also explain sound moves (Best, Excellent, Good, Book)"
+        )
+        self.explain_trivial_checkbox.setStyleSheet(cb_style)
+        self.explain_trivial_checkbox.setChecked(
+            bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
+        )
+        self.explain_trivial_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        api_layout.addWidget(self.explain_trivial_checkbox)
+
+        ttl_row = QHBoxLayout()
+        self._lbl_explain_ttl = QLabel("Explanation cache:")
+        self._lbl_explain_ttl.setStyleSheet(lbl_style)
+        ttl_row.addWidget(self._lbl_explain_ttl)
+        self.explain_ttl_combo = QComboBox()
+        self.explain_ttl_combo.setStyleSheet(combo_style)
+        for label, days in (
+            ("7 days", 7),
+            ("30 days", 30),
+            ("90 days", 90),
+            ("1 year", 365),
+            ("Never expire", None),
+        ):
+            self.explain_ttl_combo.addItem(label, userData=days)
+        stored_ttl = self.config_manager.get("explain_cache_ttl_days", 30)
+        index = self.explain_ttl_combo.findData(stored_ttl)
+        self.explain_ttl_combo.setCurrentIndex(max(0, index))
+        ttl_row.addWidget(self.explain_ttl_combo, stretch=1)
+        api_layout.addLayout(ttl_row)
+
+        self.clear_explanations_btn = create_icon_button(
+            "Clear Explanation Cache", "fa5s.broom", self.clear_explanations, self
+        )
+        api_layout.addWidget(self.clear_explanations_btn)
+
+    def clear_explanations(self) -> None:
+        """Drop every cached explanation (shared confirmation with Data settings)."""
+        from .data_settings import clear_analysis_cache
+
+        clear_analysis_cache(self)
+
+    def sync_explanation_settings(self) -> None:
+        """Re-read the Coach settings from config into the widgets."""
+        self.explain_trivial_checkbox.setChecked(
+            bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
+        )
+        index = self.explain_ttl_combo.findData(
+            self.config_manager.get("explain_cache_ttl_days", 30)
+        )
+        self.explain_ttl_combo.setCurrentIndex(max(0, index))
 
     def _reload_profile_combo(self) -> None:
         self._loading_profile = True
@@ -488,3 +557,16 @@ class ApiSettings(QGroupBox):
             self._div.setStyleSheet(Styles.get_divider_style())
         if hasattr(self, '_api_div2'):
             self._api_div2.setStyleSheet(Styles.get_divider_style())
+
+        if hasattr(self, '_api_div3'):
+            self._api_div3.setStyleSheet(Styles.get_divider_style())
+        if hasattr(self, 'explain_ttl_combo'):
+            self.explain_ttl_combo.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, 'clear_explanations_btn'):
+            self.clear_explanations_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        self._refresh_label('_lbl_explain')
+        self._refresh_label('_lbl_explain_ttl')
+        if hasattr(self, 'explain_trivial_checkbox'):
+            tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+            cb_style = Styles.get_checkbox_style(tick_path)
+            self.explain_trivial_checkbox.setStyleSheet(cb_style)

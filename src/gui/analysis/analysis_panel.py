@@ -2,7 +2,7 @@
 Analysis Panel - Coordinates evaluation graphs, stats summaries, and AI coach summaries.
 """
 import chess
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
@@ -17,8 +17,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.services.groq_service import GroqService
+from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
+from src.constants import EXPLANATION_DEBOUNCE_MS
 from src.gui.components import CircularAccuracyWidget
 from src.gui.components.graph_widget import GraphWidget
 from src.gui.components.loading_widget import LoadingOverlay
@@ -35,6 +38,11 @@ from src.utils.path_utils import get_resource_path
 from src.utils.resources import ResourceManager
 
 from .analysis_lines_widget import AnalysisLinesWidget
+from .coach_card_widget import CoachCardWidget
+from .coach_worker import ExplainMoveWorker, RequestLimiter
+
+# Tabs that make no sense (and would fight the engine) mid-analysis.
+_TABS_LOCKED_DURING_ANALYSIS = (1, 2)
 
 
 class AnalysisPanel(QWidget):
@@ -52,6 +60,17 @@ class AnalysisPanel(QWidget):
         self.current_game = None
         self.summary_thread = None
         self._analysis_running = False
+
+        # --- Coach state (D6): the panel owns the request counters ---
+        self._coach_seq = 0
+        self._coach_ply: int | None = None
+        self._coach_insight = None
+        self._coach_worker: ExplainMoveWorker | None = None
+        self._coach_limiter = RequestLimiter()
+        self._coach_debounce = QTimer(self)
+        self._coach_debounce.setSingleShot(True)
+        self._coach_debounce.timeout.connect(self._dispatch_explanation)
+        self._explanation_cache: AnalysisCache | None = None
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
@@ -203,6 +222,22 @@ class AnalysisPanel(QWidget):
 
         self.tabs.addTab(self.report_tab, "Report")
 
+        # --- Tab 3: Coach (D1) ---
+        self.coach_tab = QWidget()
+        self.coach_tab.setStyleSheet("background: transparent;")
+        coach_layout = QVBoxLayout(self.coach_tab)
+        coach_layout.setContentsMargins(5, 5, 5, 5)
+        coach_layout.setSpacing(10)
+
+        self.coach_card = CoachCardWidget()
+        self.coach_card.ask_requested.connect(self._on_coach_ask_requested)
+        self.coach_card.refutation_requested.connect(self.replay_refutation)
+        self.coach_card.best_move_requested.connect(self.replay_best)
+        coach_layout.addWidget(self.coach_card)
+        coach_layout.addStretch()
+
+        self.tabs.addTab(self.coach_tab, "Coach")
+
         # Loading Overlay
         self.loading_overlay = LoadingOverlay(self)
 
@@ -210,11 +245,12 @@ class AnalysisPanel(QWidget):
         self._analysis_running = running
 
     def _on_tab_changed(self, index):
-        if self._analysis_running and index == 1:
+        if self._analysis_running and index in _TABS_LOCKED_DURING_ANALYSIS:
             self.tabs.setCurrentIndex(0)
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
+        self.set_selected_move(-1)
         self.refresh()
 
     def refresh(self):
@@ -435,6 +471,9 @@ class AnalysisPanel(QWidget):
         if hasattr(self, 'lines_widget'):
             self.lines_widget.refresh_styles()
 
+        if hasattr(self, 'coach_card'):
+            self.coach_card.refresh_styles()
+
         if hasattr(self, 'move_list_panel'):
             self.move_list_panel.refresh_styles()
 
@@ -493,6 +532,161 @@ class AnalysisPanel(QWidget):
 
     def update_lines(self, lines, is_white):
         self.lines_widget.update_lines(lines, chess.WHITE if is_white else chess.BLACK)
+
+    # ------------------------------------------------------------------
+    # Coach tab (D1/D2/D5/D6/D8/D9/D11)
+    # ------------------------------------------------------------------
+
+    def set_selected_move(self, index: int) -> None:
+        """
+        Rebuild the Coach facts for a newly selected move.
+
+        The offline summary is rendered immediately — no network, no engine. Any
+        in-flight explanation belongs to the previous move, so it is cancelled
+        and the request counter is bumped (D6).
+        """
+        self._coach_debounce.stop()
+        self._cancel_explanation_worker()
+
+        insight = None
+        moves = getattr(self.current_game, "moves", None) if self.current_game else None
+        if moves and 0 <= index < len(moves):
+            meta = self.current_game.metadata
+            try:
+                insight = build_move_insight(
+                    moves,
+                    index,
+                    metadata=meta,
+                    chess960=bool(getattr(meta, "chess960", False)),
+                )
+            except Exception as e:
+                logger.error(f"Failed to build move insight for index {index}: {e}", exc_info=True)
+
+        self._coach_insight = insight
+        self._coach_ply = insight.ply if insight else None
+        self.coach_card.set_insight(insight, allow_trivial=self._allow_trivial_explanations())
+
+    def _allow_trivial_explanations(self) -> bool:
+        return bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
+
+    def _on_coach_ask_requested(self) -> None:
+        if self._coach_insight is None:
+            return
+        if not self.groq_service.client:
+            self._show_llm_not_configured()
+            return
+        # Debounce so rapid clicking or move-hopping fires a single request.
+        self._coach_debounce.start(EXPLANATION_DEBOUNCE_MS)
+
+    def _dispatch_explanation(self) -> None:
+        insight = self._coach_insight
+        if insight is None:
+            return
+        if not self._coach_limiter.allow():
+            logger.info("Coach request rate-limited")
+            self._toast("Slow down a moment — coach is cooling off.")
+            return
+
+        self._cancel_explanation_worker()
+        self._coach_seq += 1
+        self.coach_card.begin_loading(self._coach_seq, insight.ply)
+
+        worker = ExplainMoveWorker(
+            self.groq_service,
+            insight,
+            seq=self._coach_seq,
+            cache=self._get_explanation_cache(),
+            lang_code=self.groq_service._lang_code(),
+            model_name=self.groq_service.model_name,
+        )
+        worker.finished.connect(self._on_coach_finished)
+        worker.error.connect(self._on_coach_error)
+        self._coach_worker = worker
+        worker.start()
+
+    def _on_coach_finished(self, seq: int, ply: int, text: str) -> None:
+        if self.coach_card.show_narrative(seq, ply, text):
+            logger.info("Coach explanation rendered (ply=%d)", ply)
+
+    def _on_coach_error(self, seq: int, ply: int, reason: str) -> None:
+        logger.warning("Coach explanation unavailable (ply=%d): %s", ply, reason)
+        self.coach_card.show_fallback(seq, ply, reason)
+
+    def _cancel_explanation_worker(self) -> None:
+        """Disconnect + interrupt + join the worker; never terminate a thread."""
+        worker, self._coach_worker = self._coach_worker, None
+        if worker is None:
+            return
+        for signal in (worker.finished, worker.error):
+            try:
+                signal.disconnect()
+            except TypeError:
+                pass  # nothing connected
+        worker.cancel()
+        if worker.isRunning():
+            worker.wait(2000)
+        worker.deleteLater()
+
+    def _get_explanation_cache(self) -> AnalysisCache | None:
+        if self._explanation_cache is None:
+            try:
+                self._explanation_cache = AnalysisCache()
+            except Exception as e:
+                logger.error(f"Failed to open the explanation cache: {e}")
+                return None
+        return self._explanation_cache
+
+    def replay_refutation(self) -> None:
+        """Show the opponent's best answer to the played move (D4)."""
+        insight = self._coach_insight
+        moves = getattr(self.current_game, "moves", None) if self.current_game else None
+        if insight is None or not moves:
+            return
+        reply_index = insight.ply + 1  # ply is 0-based, so the reply is the next entry
+        if not 0 <= reply_index < len(moves):
+            return
+        reply = moves[reply_index]
+        if reply.multi_pvs:
+            # The opponent moves next, so the side to move is the player's opposite.
+            self.update_lines(reply.multi_pvs, insight.side == "black")
+            self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+
+    def replay_best(self) -> None:
+        """Show the engine's top choice from the played move's position."""
+        insight = self._coach_insight
+        moves = getattr(self.current_game, "moves", None) if self.current_game else None
+        if insight is None or not moves:
+            return
+        played_index = insight.ply  # ply is 0-based and indexes ``moves`` directly
+        if not 0 <= played_index < len(moves):
+            return
+        played = moves[played_index]
+        if played.multi_pvs:
+            self.update_lines(played.multi_pvs, insight.side == "white")
+            self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+
+    def _show_llm_not_configured(self) -> None:
+        from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+
+        dlg = LlmNotConfiguredDialog(self)
+        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
+            window = self.window()
+            if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
+                window.sidebar.set_active(4)
+                window.switch_page(4)
+
+    def _toast(self, message: str) -> None:
+        from src.gui.main_window import MainWindow
+
+        MainWindow.toast_from_widget(self, message, "info")
+
+    def closeEvent(self, event):
+        self._coach_debounce.stop()
+        self._cancel_explanation_worker()
+        if self._explanation_cache is not None:
+            self._explanation_cache.close()
+            self._explanation_cache = None
+        super().closeEvent(event)
 
 class GenerateSummaryThread(QThread):
     finished = pyqtSignal(str)

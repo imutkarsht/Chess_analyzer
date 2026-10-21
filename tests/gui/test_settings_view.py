@@ -78,6 +78,8 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         view.chesscom_input.setText("NewUserChessCom")
         view.lichess_input.setText("NewUserLichess")
         view.games_limit_input.setText("15")
+        view.explain_trivial_checkbox.setChecked(True)
+        view.explain_ttl_combo.setCurrentIndex(view.explain_ttl_combo.findData(7))
 
         # Mock validation and signals
         view.validate_engine_path = MagicMock()
@@ -95,6 +97,10 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         assert view.config_manager.get("chesscom_username") == "NewUserChessCom"
         assert view.config_manager.get("lichess_username") == "NewUserLichess"
         assert view.config_manager.get("api_games_limit") == 15
+
+        # Coach move explanations are part of the single save flow (D8)
+        assert view.config_manager.get("explain_llm_for_trivial_moves") is True
+        assert view.config_manager.get("explain_cache_ttl_days") == 7
 
         # Verify signals are emitted
         view.engine_path_changed.emit.assert_called_once_with("mock-stockfish")

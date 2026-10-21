@@ -184,6 +184,10 @@ class NavigationMixin:
         if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
             self.analysis_panel.graph_widget.set_current_move(index)
 
+        if hasattr(self, "analysis_panel"):
+            # Coach tab: deterministic facts for the newly selected move (no network).
+            self.analysis_panel.set_selected_move(index)
+
         if self.current_game:
             moves = self.current_game.moves
             fen = None

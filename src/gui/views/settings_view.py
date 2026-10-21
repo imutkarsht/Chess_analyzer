@@ -122,6 +122,9 @@ class SettingsView(QWidget):
         self.lichess_token_input = self.api_settings.lichess_token_input
         self.llm_test_btn = self.api_settings.llm_test_btn
         self.llm_test_result = self.api_settings.llm_test_result
+        self.explain_trivial_checkbox = self.api_settings.explain_trivial_checkbox
+        self.explain_ttl_combo = self.api_settings.explain_ttl_combo
+        self.clear_explanations_btn = self.api_settings.clear_explanations_btn
 
         self.chesscom_input = self.player_settings.chesscom_input
         self.lichess_input = self.player_settings.lichess_input
@@ -148,6 +151,7 @@ class SettingsView(QWidget):
         self.player_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
         self.api_settings.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.api_settings.sync_explanation_settings()
         self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
         self.api_settings._update_active_label()
 
@@ -295,6 +299,14 @@ class SettingsView(QWidget):
         self.config_manager.config["chesscom_username"] = chesscom
         self.config_manager.config["lichess_username"] = lichess
         self.config_manager.config["api_games_limit"] = limit
+
+        # Coach move explanations (D8)
+        self.config_manager.config["explain_llm_for_trivial_moves"] = (
+            self.api_settings.explain_trivial_checkbox.isChecked()
+        )
+        self.config_manager.config["explain_cache_ttl_days"] = (
+            self.api_settings.explain_ttl_combo.currentData()
+        )
 
         # Save to disk
         self.config_manager.save_config()
