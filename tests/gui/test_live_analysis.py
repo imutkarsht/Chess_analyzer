@@ -44,6 +44,33 @@ def test_live_worker_defaults_when_no_config(mocker):
     assert worker.config_manager is None
 
 
+def test_live_limit_bounds_the_search_by_time(mocker):
+    """Live searches must honour live_analysis_time, not run to depth 26."""
+    cm = mocker.Mock()
+    cm.get.side_effect = lambda key, default=None: {
+        "live_analysis_time": 1.0,
+        "analysis_depth": 20,
+        "multi_pv": 2,
+    }.get(key, default)
+    worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
+
+    limit = worker._live_limit()
+
+    assert limit.time == 1.0
+    assert limit.depth == 26
+    assert worker._live_multi_pv() == 2
+
+
+def test_live_limit_defaults_without_config(mocker):
+    mocker.patch("chess.engine.SimpleEngine.popen_uci")
+    worker = LiveAnalysisWorker("/fake/stockfish")
+
+    limit = worker._live_limit()
+
+    assert limit.time == 0.5
+    assert limit.depth == 24
+
+
 def test_live_worker_reads_config(mocker):
     """When a config_manager is provided, the worker honours its values."""
     mocker.patch("chess.engine.SimpleEngine.popen_uci")

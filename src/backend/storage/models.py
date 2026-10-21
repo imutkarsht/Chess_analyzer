@@ -38,6 +38,11 @@ class MoveAnalysis:
     opening_name: str = ""
     candidate_continuations: list[str] = field(default_factory=list)
 
+    @property
+    def is_checkmate(self) -> bool:
+        """True when this move delivered checkmate, ending the game."""
+        return bool(self.san) and self.san.endswith("#")
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "move_number": self.move_number,

@@ -42,6 +42,7 @@ from src.utils.resources import ResourceManager
 from .analysis_lines_widget import AnalysisLinesWidget
 from .coach_card_widget import CoachCardWidget
 from .coach_worker import ExplainMoveWorker, RequestLimiter
+from .line_utils import lines_for_display
 
 # Tabs that make no sense (and would fight the engine) mid-analysis.
 _TABS_LOCKED_DURING_ANALYSIS = (1, 2)
@@ -774,7 +775,9 @@ class AnalysisPanel(QWidget):
 
         fen_after = self._fen_after_played_move(insight)
         # The opponent moves next, so the side to move is the player's opposite.
-        self.update_lines(reply.multi_pvs, insight.side == "black", fen=fen_after)
+        self.update_lines(
+            lines_for_display(reply), insight.side == "black", fen=fen_after
+        )
         self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
 
         if fen_after and insight.refutation_san:
@@ -800,7 +803,8 @@ class AnalysisPanel(QWidget):
         if not played.multi_pvs:
             return
 
-        self.update_lines(played.multi_pvs, insight.side == "white", fen=played.fen_before)
+        lines = lines_for_display(played)
+        self.update_lines(lines, insight.side == "white", fen=played.fen_before)
         self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
 
         best_uci = insight.best_move_uci

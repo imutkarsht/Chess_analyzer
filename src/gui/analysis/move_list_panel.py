@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.analysis.line_utils import lines_for_display
 from src.gui.analysis.live_analysis import LiveAnalysisWorker
 from src.gui.analysis.move_cell_widget import MoveCellWidget
 from src.gui.styles import Styles
@@ -278,6 +279,7 @@ class MoveListPanel(QWidget):
             self.table.clearSelection()
             self.current_turn = chess.WHITE
             self.live_data = {}
+            self._stop_live_analysis()
             self._analysed_fen = None
             self.lines_updated.emit([], True, "")
             return
@@ -292,15 +294,47 @@ class MoveListPanel(QWidget):
         self.table.scrollToItem(self.table.item(row, col))
 
         move = self.current_game.moves[index]
-        turn = chess.WHITE if index % 2 == 0 else chess.BLACK
+
+        lines, is_white, lines_fen = self._lines_for_index(index)
+        self.current_turn = chess.WHITE if is_white else chess.BLACK
+        self.live_data = {}
+        self._analysed_fen = lines_fen
+
+        # Checkmate ends the game: the other MultiPV entries are alternatives
+        # to the mating move, not continuations after it. Show only the mating
+        # line and do not spend engine time on a finished position.
+        if move.is_checkmate:
+            self._stop_live_analysis()
+            self.lines_updated.emit(lines, is_white, lines_fen)
+            return
 
         # Emit signal instead of updating directly
-        self.lines_updated.emit(move.multi_pvs, turn == chess.WHITE, move.fen_before)
+        self.lines_updated.emit(lines, is_white, lines_fen)
 
-        self.current_turn = turn
-        self.live_data = {}
         if self.engine_lines_enabled:
             self.analysis_timer.start()
+
+    def _lines_for_index(self, index: int) -> tuple[list[dict], bool, str]:
+        """Lines for the position shown on the board after move ``index``.
+
+        The evaluation panel describes the board, which holds the position
+        *after* the selected move. The next move's analysis is exactly that
+        position (its ``fen_before``), so reuse it instead of the pre-move
+        MultiPVs, which would repeat the move already on the board. The final
+        move has no successor, so fall back to its own lines.
+        """
+        moves = self.current_game.moves
+        if index + 1 < len(moves):
+            nxt = moves[index + 1]
+            return lines_for_display(nxt), (index + 1) % 2 == 0, nxt.fen_before
+        move = moves[index]
+        return lines_for_display(move), index % 2 == 0, move.fen_before
+
+    def _stop_live_analysis(self) -> None:
+        """Cancel the pending timer and invalidate any in-flight results."""
+        self.analysis_timer.stop()
+        self._analysis_seq += 1
+        self.live_worker.set_position(None, self._analysis_seq)
 
     def begin_variation(self, fen: str, is_white: bool) -> None:
         """Analyse an arbitrary position while the board is in variation mode."""
@@ -329,29 +363,32 @@ class MoveListPanel(QWidget):
         if enabled:
             self.start_live_analysis()
         else:
-            self._analysis_seq += 1
-            self.live_worker.set_position(None, self._analysis_seq)
+            self._stop_live_analysis()
             # Restore cached lines (if any) or clear the widget
             if self.current_game:
                 index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
                 if 0 <= index < len(self.current_game.moves):
-                    move = self.current_game.moves[index]
-                    self.lines_updated.emit(
-                        move.multi_pvs, self.current_turn == chess.WHITE, move.fen_before
-                    )
+                    lines, is_white, lines_fen = self._lines_for_index(index)
+                    self.lines_updated.emit(lines, is_white, lines_fen)
                     return
             self.lines_updated.emit([], self.current_turn == chess.WHITE, "")
 
     def start_live_analysis(self):
-        if not self.current_game or self._variation_active:
+        if not self.current_game or self._variation_active or not self.engine_lines_enabled:
             return
         index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
         if index < 0 or index >= len(self.current_game.moves):
             return
         move = self.current_game.moves[index]
+        lines, is_white, lines_fen = self._lines_for_index(index)
+        self.current_turn = chess.WHITE if is_white else chess.BLACK
+        self._analysed_fen = lines_fen
+        if move.is_checkmate:
+            self._stop_live_analysis()
+            self.lines_updated.emit(lines, is_white, lines_fen)
+            return
         self._analysis_seq += 1
-        self._analysed_fen = move.fen_before
-        self.live_worker.set_position(move.fen_before, self._analysis_seq)
+        self.live_worker.set_position(lines_fen, self._analysis_seq)
 
     def on_live_analysis_update(self, info):
         # Drop results that belong to a position we have already left.
