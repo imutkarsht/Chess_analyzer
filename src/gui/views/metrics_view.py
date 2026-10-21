@@ -40,6 +40,8 @@ from src.gui.views.metrics import (
 class MetricsWidget(QWidget):
     request_settings = pyqtSignal()
     game_selected = pyqtSignal(object, int)  # Emits (GameAnalysis, move_index)
+    drill_down_opened = pyqtSignal()
+    drill_down_closed = pyqtSignal()
 
     def __init__(self, config_manager, history_manager):
         super().__init__()
@@ -695,12 +697,14 @@ class MetricsWidget(QWidget):
         self.filter_bar.setVisible(False)
         self.drill_down_view.set_data(title, subtitle, items)
         self.stacked_widget.setCurrentIndex(1)
+        self.drill_down_opened.emit()
 
     def _on_drill_down_back(self):
         """Returns to the main performance dashboard."""
         self.header_bar.setVisible(True)
         self.filter_bar.setVisible(True)
         self.stacked_widget.setCurrentIndex(0)
+        self.drill_down_closed.emit()
 
     def _on_drill_down_position_selected(self, game_id: str, move_index: int):
         """Loads game into Analysis view at the specified move."""

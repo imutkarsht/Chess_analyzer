@@ -223,7 +223,7 @@ class GameLoadingMixin:
         # Auto-start tour if user has not seen the analysis workspace tour yet
         if (
             hasattr(self, "tour_manager")
-            and not self.tour_manager.has_seen_tour(0)
+            and not self.tour_manager.has_seen_tour("analysis")
             and self.stack.currentIndex() == 0
         ):
             QTimer.singleShot(400, lambda: self._auto_start_tour(0))

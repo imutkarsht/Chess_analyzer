@@ -62,11 +62,22 @@ def test_tour_manager_seen_state():
     mock_config.set.side_effect = lambda key, val: mock_store.update({key: val})
 
     mgr = TourManager(config_manager=mock_config)
-    assert mgr.has_seen_tour(0) is False
+    assert mgr.has_seen_tour("landing") is False
+    assert mgr.has_seen_tour("analysis") is False
 
-    mgr.mark_seen(0)
-    assert mgr.has_seen_tour(0) is True
-    assert mgr.has_seen_tour(1) is False
+    mgr.mark_seen("landing")
+    assert mgr.has_seen_tour("landing") is True
+    assert mgr.has_seen_tour("analysis") is False
+
+    # Check semantic drill-down key
+    assert mgr.has_seen_tour("metrics_drill_down") is False
+    mgr.mark_seen("metrics_drill_down")
+    assert mgr.has_seen_tour("metrics_drill_down") is True
+
+    # Legacy numeric migration: legacy "1" maps to "explorer"
+    mock_store["tour_seen_pages"] = {"1": True}
+    assert mgr.has_seen_tour("explorer") is True
+    assert mgr.has_seen_tour(1) is True
 
 
 def test_tour_overlay_positioning(qapp, qtbot):
