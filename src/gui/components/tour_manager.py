@@ -10,6 +10,17 @@ class TourStep:
     position: str = "above"  # above | below | left | right
     page_index: int = 0
     title: str = ""
+    tour_key: str = ""
+
+
+LEGACY_TOUR_MAP: dict[str, str] = {
+    "0": "analysis",
+    "1": "explorer",
+    "2": "history",
+    "3": "metrics",
+    "4": "settings",
+}
+INVERSE_LEGACY_MAP: dict[str, str] = {v: k for k, v in LEGACY_TOUR_MAP.items()}
 
 
 class TourManager:
@@ -59,15 +70,30 @@ class TourManager:
         self._active = False
         self._current_step = 0
 
-    def has_seen_tour(self, page_index: int) -> bool:
+    def has_seen_tour(self, key: str | int) -> bool:
         if self.config_manager is None:
             return True
         seen = self.config_manager.get("tour_seen_pages", {})
-        return seen.get(str(page_index), False)
+        str_key = str(key)
+        if seen.get(str_key, False):
+            return True
+        # Check mapped legacy key (e.g. if key is "analysis", check legacy "0")
+        legacy_key = INVERSE_LEGACY_MAP.get(str_key)
+        if legacy_key and seen.get(legacy_key, False):
+            seen[str_key] = True
+            self.config_manager.set("tour_seen_pages", seen)
+            return True
+        # Check mapped modern key (e.g. if legacy integer 1 passed, check "explorer")
+        modern_key = LEGACY_TOUR_MAP.get(str_key)
+        if modern_key and seen.get(modern_key, False):
+            return True
+        return bool(modern_key and seen.get(modern_key, False))
 
-    def mark_seen(self, page_index: int) -> None:
+    def mark_seen(self, key: str | int) -> None:
         if self.config_manager is None:
             return
         seen = self.config_manager.get("tour_seen_pages", {})
-        seen[str(page_index)] = True
+        str_key = str(key)
+        actual_key = LEGACY_TOUR_MAP.get(str_key, str_key)
+        seen[actual_key] = True
         self.config_manager.set("tour_seen_pages", seen)

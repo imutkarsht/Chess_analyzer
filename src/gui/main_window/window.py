@@ -358,6 +358,8 @@ class MainWindow(
             lambda: (self.sidebar.set_active(4), self.switch_page(4))
         )
         self.metrics_view.game_selected.connect(self.load_game_from_metrics)
+        self.metrics_view.drill_down_opened.connect(self._on_drill_down_opened)
+        self.metrics_view.drill_down_closed.connect(self._on_drill_down_closed)
         self.stack.addWidget(self.metrics_view)
 
         # --- Page 4: Settings View ---
@@ -374,7 +376,7 @@ class MainWindow(
         self._setup_shortcuts()
 
         # Auto-start tour for the landing page (Analysis) on initial launch
-        if hasattr(self, "tour_manager") and not self.tour_manager.has_seen_tour(0):
+        if hasattr(self, "tour_manager") and not self.tour_manager.has_seen_tour("landing"):
             QTimer.singleShot(600, lambda: self._auto_start_tour(0))
 
     def setup_analysis_page(self, parent_widget):

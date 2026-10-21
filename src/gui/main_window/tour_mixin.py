@@ -28,104 +28,140 @@ class TourMixin:
         if hasattr(self, "tour_overlay") and self.tour_overlay.isVisible():
             self.tour_overlay.close_silently()
         # Auto-start the tour the first time the user visits this page.
-        if not self.tour_manager.has_seen_tour(index):
+        tour_key = self._get_tour_key(index)
+        if not self.tour_manager.has_seen_tour(tour_key):
             QTimer.singleShot(400, lambda idx=index: self._auto_start_tour(idx))
+
+    def _get_tour_key(self, page_index: int | None = None) -> str:
+        """Resolve the semantic tour key for the specified or current page."""
+        if page_index is None:
+            page_index = self.stack.currentIndex()
+
+        if page_index == 0:
+            return "landing" if self.current_game is None else "analysis"
+        if page_index == 1:
+            return "explorer"
+        if page_index == 2:
+            return "history"
+        if page_index == 3:
+            if (
+                hasattr(self, "metrics_view")
+                and hasattr(self.metrics_view, "stacked_widget")
+                and self.metrics_view.stacked_widget.currentIndex() == 1
+            ):
+                return "metrics_drill_down"
+            return "metrics"
+        if page_index == 4:
+            return "settings"
+        return str(page_index)
+
+    def _on_drill_down_opened(self):
+        """Auto-start drill-down tour on first inspection."""
+        if hasattr(self, "tour_manager") and not self.tour_manager.has_seen_tour("metrics_drill_down"):
+            QTimer.singleShot(400, lambda: self._auto_start_tour(3))
+
+    def _on_drill_down_closed(self):
+        """Silently dismiss tour overlay if open when returning to metrics dashboard."""
+        if hasattr(self, "tour_overlay") and self.tour_overlay.isVisible():
+            self.tour_overlay.close_silently()
 
     def _auto_start_tour(self, page_index: int):
         """Start tour on first visit only — guards against delayed mis-fires."""
         if self.stack.currentIndex() != page_index:
             return  # user navigated away during the 400ms delay
-        if self.tour_manager.has_seen_tour(page_index):
+        tour_key = self._get_tour_key(page_index)
+        if self.tour_manager.has_seen_tour(tour_key):
             return  # already seen (e.g. Ctrl+T was pressed and dismissed)
-
-        # For page 0 without a loaded game, allow the landing tour once per session.
-        if page_index == 0 and self.current_game is None:
-            if getattr(self, "_seen_empty_tour", False):
-                return
-            self._seen_empty_tour = True
 
         # Skip tour if the page has no relevant data yet (don't mark seen,
         # so the tour retriggers on next visit once data becomes available).
-        if page_index == 2 and hasattr(self, "history_view") and not self.history_view.games:
+        if tour_key == "history" and hasattr(self, "history_view") and not self.history_view.games:
             return
-        if page_index == 3 and hasattr(self, "metrics_view"):
+        if tour_key == "metrics" and hasattr(self, "metrics_view"):
             mv = self.metrics_view
             if not any(
                 hasattr(mv, attr) and getattr(mv, attr) and getattr(mv, attr).isVisible()
                 for attr in ("stats_container", "accuracy_card", "openings_card", "quality_card")
             ):
                 return
+        if tour_key == "metrics_drill_down" and hasattr(self, "metrics_view"):
+            ddv = getattr(self.metrics_view, "drill_down_view", None)
+            if not ddv or not ddv.items:
+                return
 
         self._launch_tour(page_index)
 
     def start_tour(self):
-        """Ctrl+T: start/replay tour for the currently active page."""
+        """Ctrl+T: start/replay tour for the currently active page/view."""
         index = self.stack.currentIndex()
         self._launch_tour(index)
 
     def _launch_tour(self, page_index: int):
-        """Build steps and show the tour overlay for the given page."""
-        steps = self._build_tour_steps(page_index)
+        """Build steps and show the tour overlay for the given page/view."""
+        tour_key = self._get_tour_key(page_index)
+        steps = self._build_tour_steps(page_index, tour_key=tour_key)
         if not steps:
             return
         self._tour_page = page_index  # remember the originating page
+        self._tour_key = tour_key
         self.tour_overlay.setGeometry(self.rect())
         self.tour_manager.start(steps)
         self.tour_overlay.show_tour()
 
     def _on_tour_finished(self):
-        """Called when the tour overlay closes. Uses the page the tour *started*
-        on so a mid-tour page switch doesn't mark the wrong page.
-        """
-        page_index = getattr(self, "_tour_page", self.stack.currentIndex())
-        # If finishing page 0 while on empty state, do not mark page 0 as seen so that
-        # when a game is loaded, the full analysis workspace tour will still introduce the panels.
-        if page_index == 0 and self.current_game is None:
-            return
-        self.tour_manager.mark_seen(page_index)
+        """Called when the tour overlay closes."""
+        tour_key = getattr(self, "_tour_key", None)
+        if not tour_key:
+            tour_key = self._get_tour_key(getattr(self, "_tour_page", self.stack.currentIndex()))
+        self.tour_manager.mark_seen(tour_key)
 
-    def _build_tour_steps(self, page_index: int) -> list:
-        """Return a list of TourStep objects tailored to the visible page."""
+    def _build_tour_steps(self, page_index: int, tour_key: str | None = None) -> list:
+        """Return a list of TourStep objects tailored to the visible page/view."""
+        if tour_key is None:
+            tour_key = self._get_tour_key(page_index)
+
         ev = self.explorer_view
         hv = self.history_view
         sv = self.settings_view
         mv = self.metrics_view
         steps = []
 
-        if page_index == 0:  # ── Analysis ───────────────────────────────────
-            if self.current_game is None:
-                # Hero focus empty-state landing view
-                if hasattr(self, "board_widget"):
-                    steps.append(
-                        TourStep(
-                            target=self.board_widget,
-                            title="Interactive Chessboard",
-                            text="Welcome to Chess Analyzer Pro! Drag & drop any .pgn file directly onto the board, or press Ctrl+V to paste game text from your clipboard.",
-                            position="right",
-                            page_index=0,
-                        )
+        if tour_key == "landing":
+            # Hero focus empty-state landing view
+            if hasattr(self, "board_widget"):
+                steps.append(
+                    TourStep(
+                        target=self.board_widget,
+                        title="Interactive Chessboard",
+                        text="Welcome to Chess Analyzer Pro! Drag & drop any .pgn file directly onto the board, or press Ctrl+V to paste game text from your clipboard.",
+                        position="right",
+                        page_index=0,
+                        tour_key="landing",
                     )
-                if hasattr(self, "btn_hero_load"):
-                    steps.append(
-                        TourStep(
-                            target=self.btn_hero_load,
-                            title="Load Game",
-                            text="Click 'Load Game' to open local PGN files, paste raw moves, or import matches directly from Chess.com and Lichess.",
-                            position="below",
-                            page_index=0,
-                        )
+                )
+            if hasattr(self, "btn_hero_load"):
+                steps.append(
+                    TourStep(
+                        target=self.btn_hero_load,
+                        title="Load Game",
+                        text="Click 'Load Game' to open local PGN files, paste raw moves, or import matches directly from Chess.com and Lichess.",
+                        position="below",
+                        page_index=0,
+                        tour_key="landing",
                     )
-                if hasattr(self, "sidebar"):
-                    steps.append(
-                        TourStep(
-                            target=self.sidebar,
-                            title="Navigation",
-                            text="Use the sidebar to explore openings, browse your game history archive, inspect performance analytics, and adjust engine settings.",
-                            position="right",
-                            page_index=0,
-                        )
+                )
+            if hasattr(self, "sidebar"):
+                steps.append(
+                    TourStep(
+                        target=self.sidebar,
+                        title="Navigation",
+                        text="Use the sidebar to explore openings, browse your game history archive, inspect performance analytics, and adjust engine settings.",
+                        position="right",
+                        page_index=0,
+                        tour_key="landing",
                     )
-            else:
+                )
+        elif tour_key == "analysis":
                 # Full 3-column analysis workspace
                 if hasattr(self, "btn_load"):
                     steps.append(
@@ -198,7 +234,7 @@ class TourMixin:
                         )
                     )
 
-        elif page_index == 1:  # ── Explorer ────────────────────────────────
+        elif page_index == 1 or tour_key == "explorer":  # ── Explorer ────────────────────────────────
             if hasattr(ev, "header_bar") and ev.header_bar.isVisible():
                 steps.append(
                     TourStep(
@@ -260,7 +296,7 @@ class TourMixin:
                     )
                 )
 
-        elif page_index == 2:  # ── History ──────────────────────────────────
+        elif page_index == 2 or tour_key == "history":  # ── History ──────────────────────────────────
             if hasattr(hv, "search_input") and hv.search_input.isVisible():
                 steps.append(
                     TourStep(
@@ -342,7 +378,7 @@ class TourMixin:
                     )
                 )
 
-        elif page_index == 3:  # ── Stats ────────────────────────────────────
+        elif tour_key == "metrics" or (page_index == 3 and tour_key != "metrics_drill_down"):  # ── Metrics Dashboard ──────────────────────
             if hasattr(mv, "btn_refresh") and mv.btn_refresh.isVisible():
                 steps.append(
                     TourStep(
@@ -481,10 +517,65 @@ class TourMixin:
                         text="Your personal performance dashboard with accuracy trends, interactive drill-downs, tactical cards, and AI Coach insights. Configure your usernames in Settings or analyze games to populate stats.",
                         position="below",
                         page_index=3,
+                        tour_key="metrics",
                     )
                 )
 
-        elif page_index == 4:  # ── Settings ─────────────────────────────────
+        elif tour_key == "metrics_drill_down":
+            ddv = getattr(mv, "drill_down_view", None)
+            if ddv is not None:
+                if hasattr(ddv, "btn_back") and ddv.btn_back.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=ddv.btn_back,
+                            title="Return to Metrics",
+                            text="Click 'Back to Dashboard' whenever you want to return to your main performance analytics overview.",
+                            position="below",
+                            page_index=3,
+                            tour_key="metrics_drill_down",
+                        )
+                    )
+                if hasattr(ddv, "badge_count") and ddv.badge_count.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=ddv.badge_count,
+                            title="Occurrence Filter",
+                            text="Shows the exact metric or tactical pattern you are inspecting and total occurrences detected across all your analyzed games.",
+                            position="below",
+                            page_index=3,
+                            tour_key="metrics_drill_down",
+                        )
+                    )
+                first_card = None
+                if hasattr(ddv, "list_layout") and ddv.list_layout.count() > 0:
+                    item = ddv.list_layout.itemAt(0)
+                    if item and item.widget() and item.widget().isVisible():
+                        first_card = item.widget()
+                target_card = first_card or getattr(ddv, "scroll_area", None)
+                if target_card and target_card.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=target_card,
+                            title="Interactive Position Cards",
+                            text="Each card shows the board position, opponent, played move, and engine classification. Click anywhere on a card to jump directly into the full analysis workspace at that exact move!",
+                            position="right" if first_card else "below",
+                            page_index=3,
+                            tour_key="metrics_drill_down",
+                        )
+                    )
+                if hasattr(ddv, "pagination_bar") and ddv.pagination_bar.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=ddv.pagination_bar,
+                            title="Pagination Controls",
+                            text="Browse through large sets of tactical occurrences 10 at a time with Previous and Next page controls.",
+                            position="above",
+                            page_index=3,
+                            tour_key="metrics_drill_down",
+                        )
+                    )
+
+        elif page_index == 4 or tour_key == "settings":  # ── Settings ─────────────────────────────────
             mode_btn = getattr(sv, "mode_toggle_btn", None)
             eng = getattr(sv, "engine_settings", None)
             app = getattr(sv, "appearance_settings", None)
