@@ -16,10 +16,17 @@ existing import sites.
 import locale
 import os
 import re
+from typing import Any
 
 from openai import OpenAI
 
-from src.constants import PROVIDERS
+from src.constants import (
+    EXPLANATION_MAX_TOKENS,
+    EXPLANATION_REASONING_EFFORT,
+    EXPLANATION_REQUEST_TIMEOUT_S,
+    EXPLANATION_TEMPERATURE,
+    PROVIDERS,
+)
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 
@@ -96,6 +103,79 @@ def _detect_ui_language() -> str:
     except Exception:
         code = ""
     return _LANG_NAMES.get(code, "English")
+
+
+# ---------------------------------------------------------------------------
+# Move explanation (Coach feature): prompt + mandatory reply validation
+# ---------------------------------------------------------------------------
+
+# The model is a translator, never a calculator: every chess fact it may mention
+# is already in the fact sheet produced by
+# src.backend.analysis.tactics.insight.format_move_insight_for_llm().
+EXPLANATION_SYSTEM_PROMPT = (
+    "You are a chess coach. Translate ONLY the facts below into 2-3 sentences. "
+    "Never name a move, piece, or square that is not listed. "
+    "Do not calculate. Do not add pleasantries."
+)
+
+# SAN-like move token, including castling and promotion.
+SAN_TOKEN_RE = re.compile(r"\b(?:O-O-O|O-O|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?\b")
+# A bare board square, e.g. "e4".
+SQUARE_TOKEN_RE = re.compile(r"\b[a-h][1-8]\b")
+_SAN_DEST_RE = re.compile(r"[a-h][1-8]")
+
+
+def _normalise_san(token: str) -> str:
+    """Drop check/mate suffixes so ``Bxf7+`` and ``Bxf7#`` compare equal."""
+    return token.rstrip("+#")
+
+
+def _destination(token: str) -> str | None:
+    """Destination square of a SAN token (``exd5`` -> ``d5``)."""
+    match = _SAN_DEST_RE.search(token)
+    return match.group(0) if match else None
+
+
+def validate_explanation(
+    reply: str,
+    allowed_san: set[str],
+    allowed_squares: set[str],
+) -> tuple[bool, list[str]]:
+    """
+    Mandatory hallucination guard (D5): the LLM may only reference moves and
+    squares that were handed to it in the fact sheet.
+
+    Returns ``(is_valid, offending_tokens)``. The caller must **discard** an
+    invalid reply entirely and fall back to the deterministic offline text —
+    never patch or partially render it.
+    """
+    text = (reply or "").strip()
+    if not text or text.startswith("Error"):
+        return False, []
+
+    allowed = {_normalise_san(token) for token in allowed_san}
+    squares = set(allowed_squares)
+    allowed_destinations = {_destination(token) for token in allowed}
+
+    offending: list[str] = []
+    for token in SAN_TOKEN_RE.findall(text):
+        normalised = _normalise_san(token)
+        if normalised in allowed:
+            continue
+        # A bare pawn-style token ("e4") is how the fact sheet also names a square.
+        if len(normalised) <= 2 and normalised in squares:
+            continue
+        offending.append(token)
+    for square in SQUARE_TOKEN_RE.findall(text):
+        if square in squares or square in allowed_destinations:
+            continue
+        offending.append(square)
+
+    if offending:
+        offending = sorted(set(offending))
+        logger.warning("explanation rejected: unknown tokens %s", offending)
+        return False, offending
+    return True, []
 
 
 # ---------------------------------------------------------------------------
@@ -257,13 +337,26 @@ class GroqService:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _chat(self, prompt: str, system: str | None = None) -> str:
+    def _chat(
+        self,
+        prompt: str,
+        system: str | None = None,
+        *,
+        timeout: float | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        max_retries: int | None = None,
+        reasoning_effort: str | None = None,
+    ) -> str:
         """Send a single-turn chat message and return the response text.
 
         ``prompt`` is always sent as the user message. ``system``, if given,
         is sent as a system message — this is the right place for
         language / role instructions, because models tend to *echo* a
         system-style instruction when it appears inside the user message.
+
+        The optional keyword arguments are applied per request and default to
+        the SDK's own behaviour, so existing callers are unaffected.
         """
         if not self.client:
             logger.warning("Attempted LLM completion but client is not configured")
@@ -272,23 +365,54 @@ class GroqService:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
+
+        options: dict[str, Any] = {}
+        if timeout is not None:
+            options["timeout"] = timeout
+        if max_tokens is not None:
+            options["max_tokens"] = max_tokens
+        if temperature is not None:
+            options["temperature"] = temperature
+        if reasoning_effort:
+            options["reasoning_effort"] = reasoning_effort
+
+        # Per-request retry policy (the SDK accepts it only on the client, so a
+        # per-call copy is used instead of mutating the shared client).
+        client = self.client
+        if max_retries is not None:
+            client = client.with_options(max_retries=max_retries)
+
         logger.info(
-            "Sending LLM completion request: model=%s, prompt_len=%d", self._model, len(prompt)
+            "Sending LLM completion request: model=%s, prompt_len=%d, options=%s",
+            self._model,
+            len(prompt),
+            sorted(options) or "defaults",
         )
+
+        completion = None
         try:
-            completion = self.client.chat.completions.create(
-                model=self._model,
-                messages=messages,
+            completion = client.chat.completions.create(
+                model=self._model, messages=messages, **options
             )
-            text = completion.choices[0].message.content
-            logger.info(
-                "Received LLM completion response (%d chars)", len(text.strip()) if text else 0
-            )
-            return text.strip() if text else "No response generated."
         except Exception as exc:
-            exc_type = type(exc).__name__
-            logger.error("LLM completion failed [%s]: %s", exc_type, exc)
-            return f"Error [{exc_type}]: {exc}"
+            if "reasoning_effort" in options and "reasoning_effort" in str(exc):
+                # Not every OpenAI-compatible provider knows this parameter.
+                logger.info("Provider rejected reasoning_effort; retrying without it")
+                options.pop("reasoning_effort")
+                try:
+                    completion = client.chat.completions.create(
+                        model=self._model, messages=messages, **options
+                    )
+                except Exception as retry_exc:
+                    exc = retry_exc
+            if completion is None:
+                exc_type = type(exc).__name__
+                logger.error("LLM completion failed [%s]: %s", exc_type, exc)
+                return f"Error [{exc_type}]: {exc}"
+
+        text = completion.choices[0].message.content
+        logger.info("Received LLM completion response (%d chars)", len(text.strip()) if text else 0)
+        return text.strip() if text else "No response generated."
 
     @staticmethod
     def _lang_code() -> str:
@@ -363,6 +487,35 @@ class GroqService:
             f"PGN:\n{pgn_text}"
         )
         return self._chat(prompt, system=self._lang_instruction())
+
+    def explain_move(self, facts_text: str, classification: str) -> str:
+        """
+        Translate a grounded fact sheet into 2-3 instructive sentences.
+
+        ``facts_text`` must be exactly
+        ``format_move_insight_for_llm(insight)`` — all chess facts come from the
+        deterministic builder, never from the model. The reply still has to pass
+        ``validate_explanation()`` before it is shown.
+        """
+        if not self.client:
+            return "Error: LLM not configured. Go to Settings → API Configuration."
+
+        system = EXPLANATION_SYSTEM_PROMPT
+        if classification:
+            system += f" The move was classified as {classification}."
+        lang_instruction = self._lang_instruction()
+        if lang_instruction:
+            system = f"{system}\n{lang_instruction}"
+
+        return self._chat(
+            facts_text,
+            system=system,
+            timeout=EXPLANATION_REQUEST_TIMEOUT_S,
+            max_tokens=EXPLANATION_MAX_TOKENS,
+            temperature=EXPLANATION_TEMPERATURE,
+            max_retries=0,
+            reasoning_effort=EXPLANATION_REASONING_EFFORT,
+        )
 
     def generate_coach_insights(self, stats_text: str) -> str:
         """Generate structured coaching diagnostics from player performance dossier."""
