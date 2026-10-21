@@ -120,6 +120,7 @@ class GamesRepo:
             row["black_brilliant_count"],
             row["white_great_count"],
             row["black_great_count"],
+            row.get("ai_summary"),
         )
 
     def _prepare_game_analysis_row(
@@ -215,6 +216,7 @@ class GamesRepo:
             "summary_json": summary_json,
             "moves_json": moves_json,
             "timestamp": save_ts,
+            "ai_summary": game_analysis.ai_summary or None,
         }
 
     def _prepare_game_analysis_params(
@@ -352,6 +354,7 @@ class GamesRepo:
             "summary_json": summary_json,
             "moves_json": moves_json,
             "timestamp": timestamp,
+            "ai_summary": d.get("ai_summary") or None,
         }
 
     def _prepare_game_dict_params(self, d: dict[str, Any]) -> tuple:
@@ -441,6 +444,22 @@ class GamesRepo:
     ) -> None:
         """Saves a completed or partial game analysis to the history."""
         self.save_games_bulk([(game_analysis, pgn_content)], force_overwrite=force_overwrite)
+
+    def save_ai_summary(self, game_id: str, text: str) -> None:
+        """
+        Stores the generated full-game report on an existing game row.
+
+        The report is produced long after the analysis was saved, so it is a
+        targeted UPDATE rather than a re-save of the whole game.
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE games SET ai_summary = ? WHERE id = ?", (text, game_id))
+                conn.commit()
+            logger.debug("Stored AI summary for game %s", game_id)
+        except Exception as e:
+            logger.error("Failed to store AI summary for game %s: %s", game_id, e)
 
     def get_all_game_ids(self) -> set[str]:
         """Returns a set of all game IDs currently in the database."""
@@ -667,6 +686,7 @@ class GamesRepo:
             pgn_content=g_dict.get("pgn", ""),
             summary=summary,
             moves=moves,
+            ai_summary=g_dict.get("ai_summary") or None,
         )
 
     _row_to_game_analysis = row_to_game_analysis

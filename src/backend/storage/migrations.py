@@ -90,6 +90,7 @@ def _ensure_tables_and_columns(cursor: sqlite3.Cursor) -> None:
         ("white_great_count", "INTEGER DEFAULT 0"),
         ("black_great_count", "INTEGER DEFAULT 0"),
         ("termination_mode", "TEXT"),
+        ("ai_summary", "TEXT"),
     ]
 
     cursor.execute("PRAGMA table_info(games)")
