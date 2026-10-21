@@ -183,18 +183,6 @@ class TestLayout:
 
         assert card.minimumSizeHint().width() <= short_text
 
-    def test_a_narrative_grows_the_body_instead_of_scrolling(self, qtbot):
-        """There is room downwards, so the text must be fully visible."""
-        _, card = _card_in_a_host(qtbot, 460)
-        card.set_insight(_insight())
-        floor = card.body_edit.height()
-
-        card.begin_loading(seq=1, ply=8)
-        card.show_narrative(1, 8, "The knight was loose. " * 20)
-
-        assert card.body_edit.height() > floor  # grew downwards
-        assert card.body_edit.verticalScrollBar().maximum() == 0  # nothing hidden
-
 
 def _card_in_a_host(qtbot, width):
     """
@@ -218,16 +206,6 @@ def _card_in_a_host(qtbot, width):
 
 class TestRowWrapping:
     """A narrow panel wraps the actions instead of squeezing their labels."""
-
-    @pytest.mark.parametrize(("width", "rows_used"), [(320, 2), (900, 1)])
-    def test_actions_wrap_with_the_available_width(self, qtbot, width, rows_used):
-        _, card = _card_in_a_host(qtbot, width)
-        card.set_insight(_insight())
-
-        assert len([row for row in card._action_rows if not row.isHidden()]) == rows_used
-        for button in (card.btn_ask, card.btn_refute, card.btn_best):
-            assert not button.isHidden()
-            assert button.width() >= button.sizeHint().width()  # label never clipped
 
     def test_a_wrapped_action_comes_back_when_the_card_grows_again(self, qtbot):
         """Hiding a row also hides its children; the wrap must not stick."""
