@@ -4,7 +4,6 @@ import sys
 
 from PyQt6.QtCore import QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QApplication,
     QDialog,
     QStackedWidget,
     QVBoxLayout,
@@ -14,8 +13,10 @@ from src.backend.analysis.engine import invalidate_engine_cache, resolve_engine_
 from src.backend.engine.downloader import (
     download_and_extract,
     get_download_candidates,
+    probe_engine_binary,
     try_package_manager_install,
 )
+from src.constants import PROVIDERS
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
 from src.gui.dialogs.wizard.wizard_pages import (
     build_appearance_page,
@@ -27,48 +28,61 @@ from src.gui.dialogs.wizard.wizard_pages import (
     build_welcome_page,
 )
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
+
+try:
+    import qtawesome as qta
+    HAS_QTAWESOME = True
+except ImportError:
+    HAS_QTAWESOME = False
 
 
 class StockfishDownloadWorker(QThread):
     progress = pyqtSignal(int)
+    stage = pyqtSignal(str)
     finished = pyqtSignal(str)
     error = pyqtSignal(str)
 
     def __init__(self, dest_dir, parent=None):
         super().__init__(parent)
         self.dest_dir = dest_dir
+        self._is_cancelled = False
+
+    def cancel(self):
+        self._is_cancelled = True
 
     def run(self):
         import shutil
+
         # 1. On macOS, try installing Stockfish via Homebrew first
         if sys.platform == "darwin":
             brew_path = shutil.which("brew")
             if not brew_path:
-                # Check common homebrew installation paths
                 for p in ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"]:
                     if os.path.isfile(p) and os.access(p, os.X_OK):
                         brew_path = p
                         break
 
             if brew_path:
-                self.progress.emit(20)
+                self.stage.emit("Checking Homebrew installation...")
+                self.progress.emit(15)
                 logger.info("StockfishDownloadWorker: attempting Homebrew installation via %s", brew_path)
                 try:
-                    import subprocess
                     result = subprocess.run(
                         [brew_path, "install", "stockfish"],
                         capture_output=True, text=True, timeout=120
                     )
+                    if self._is_cancelled:
+                        return
+
                     if result.returncode == 0:
-                        # Check if stockfish binary exists in standard brew paths
                         for candidate in ["/opt/homebrew/bin/stockfish", "/usr/local/bin/stockfish"]:
                             if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                                 self.progress.emit(100)
                                 self.finished.emit(candidate)
                                 return
-                        # Fallback check via PATH lookup
                         which_sf = shutil.which("stockfish")
                         if which_sf and os.path.isfile(which_sf) and os.access(which_sf, os.X_OK):
                             self.progress.emit(100)
@@ -77,18 +91,26 @@ class StockfishDownloadWorker(QThread):
                     logger.warning("StockfishDownloadWorker: Homebrew installation failed: %s", result.stderr)
                 except Exception as e:
                     logger.warning("StockfishDownloadWorker: Homebrew installation crashed: %s", e)
-                # If Homebrew failed or did not resolve the binary, fall back to Github releases.
+
+        if self._is_cancelled:
+            return
 
         # 2. Github Releases download fallback
         download_error = None
         try:
+            self.stage.emit("Resolving latest release candidate...")
             candidates = get_download_candidates()
             if not candidates:
-                raise RuntimeError(
-                    "No compatible Stockfish download was found for this platform"
-                )
+                raise RuntimeError("No compatible Stockfish download was found for this platform")
+
+            if self._is_cancelled:
+                return
+
+            self.stage.emit("Downloading Stockfish binary...")
 
             def progress_callback(downloaded, total):
+                if self._is_cancelled:
+                    raise RuntimeError("Download cancelled by user")
                 pct = int(downloaded / total * 100) if total else 0
                 self.progress.emit(pct)
 
@@ -98,41 +120,81 @@ class StockfishDownloadWorker(QThread):
                 progress_callback=progress_callback,
                 fallback_urls=candidates[1:],
             )
-            logger.info(f"StockfishDownloadWorker: successfully downloaded Stockfish to {binary_path}")
+            if self._is_cancelled:
+                return
+
+            self.stage.emit("Verifying engine binary...")
+            logger.info("StockfishDownloadWorker: successfully downloaded Stockfish to %s", binary_path)
             self.finished.emit(binary_path)
             return
         except Exception as e:
+            if self._is_cancelled:
+                logger.info("StockfishDownloadWorker: cancelled")
+                return
             download_error = e
             logger.warning("StockfishDownloadWorker: GitHub download failed: %s", e)
 
         # 3. Distro package manager fallback (Linux and friends)
-        pm_path = try_package_manager_install()
-        if pm_path:
-            logger.info(f"StockfishDownloadWorker: package manager installed Stockfish to {pm_path}")
-            self.finished.emit(pm_path)
-            return
+        if not self._is_cancelled:
+            self.stage.emit("Attempting system package manager fallback...")
+            pm_path = try_package_manager_install()
+            if pm_path:
+                logger.info("StockfishDownloadWorker: package manager installed Stockfish to %s", pm_path)
+                self.finished.emit(pm_path)
+                return
 
-        logger.error(f"StockfishDownloadWorker: all download strategies failed: {download_error}")
+        logger.error("StockfishDownloadWorker: all download strategies failed: %s", download_error)
         self.error.emit(str(download_error))
 
 
+class LLMTestWorker(QThread):
+    finished = pyqtSignal(bool, str)
+
+    def __init__(self, api_key: str, base_url: str, model: str, parent=None):
+        super().__init__(parent)
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+
+    def run(self):
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.api_key or "not-needed", base_url=self.base_url)
+            client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": "Reply with just the word: ok"}],
+                max_tokens=10,
+                timeout=15.0,
+            )
+            self.finished.emit(True, "Connection successful")
+        except Exception as e:
+            self.finished.emit(False, str(e))
+
+
 class SetupWizard(QDialog):
-    WIZARD_WIDTH = 600
-    WIZARD_HEIGHT = 520
+    WIZARD_WIDTH = 640
+    WIZARD_HEIGHT = 560
 
     def __init__(self, config_manager, parent=None):
         super().__init__(parent)
         self.config_manager = config_manager
         self.settings = {}
         self.current_page = 0
+        self._llm_worker = None
+        self._download_worker = None
 
-        self.setWindowTitle("Chess Analyzer Pro - Setup")
-        self.setFixedSize(self.WIZARD_WIDTH, self.WIZARD_HEIGHT)
-        self.setStyleSheet(self._build_stylesheet())
+        self.setWindowTitle("Chess Analyzer Pro - Quick Setup")
+        self.setMinimumSize(self.WIZARD_WIDTH, self.WIZARD_HEIGHT)
+        self.resize(self.WIZARD_WIDTH, self.WIZARD_HEIGHT)
 
         self._build_ui()
+        self.setStyleSheet(self._build_stylesheet())
         self._populate_from_config()
-        self._show_page(0)
+
+        # Gatekeeper skip check for non-macOS or non-frozen runs
+        is_macos_frozen = getattr(sys, "frozen", False) and sys.platform == "darwin"
+        initial_page = 0 if is_macos_frozen else 1
+        self._show_page(initial_page)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -140,13 +202,14 @@ class SetupWizard(QDialog):
         layout.setSpacing(0)
 
         self.stack = QStackedWidget()
-        self.stack.addWidget(build_gatekeeper_page(self))
-        self.stack.addWidget(build_welcome_page(self))
-        self.stack.addWidget(build_profile_page(self))
-        self.stack.addWidget(build_appearance_page(self))
-        self.stack.addWidget(build_stockfish_page(self))
-        self.stack.addWidget(build_llm_page(self))
-        self.stack.addWidget(build_done_page(self))
+        self.stack.setObjectName("wizardStack")
+        self.stack.addWidget(build_gatekeeper_page(self))   # 0
+        self.stack.addWidget(build_welcome_page(self))      # 1
+        self.stack.addWidget(build_profile_page(self))      # 2
+        self.stack.addWidget(build_appearance_page(self))   # 3
+        self.stack.addWidget(build_stockfish_page(self))    # 4
+        self.stack.addWidget(build_llm_page(self))          # 5
+        self.stack.addWidget(build_done_page(self))         # 6
         layout.addWidget(self.stack, 1)
 
         self.nav_bar = WizardNavBar()
@@ -156,103 +219,174 @@ class SetupWizard(QDialog):
         layout.addWidget(self.nav_bar)
 
     def _build_stylesheet(self):
+        p = ThemeManager.palette()
         return f"""
-            SetupWizard {{
-                background-color: {Styles.COLOR_BACKGROUND};
+            SetupWizard, QWidget#wizardPage, QStackedWidget#wizardStack {{
+                background-color: {p.background};
             }}
             QLabel {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
+                color: {p.text_primary};
+                background: transparent;
+            }}
+            QLabel[class="wizard-title"] {{
+                color: {p.text_primary};
+                font-size: 22px;
+                font-weight: bold;
+                background: transparent;
+            }}
+            QLabel[class="wizard-heading"] {{
+                color: {p.text_primary};
+                font-size: 17px;
+                font-weight: bold;
+                background: transparent;
+            }}
+            QLabel[class="wizard-label"] {{
+                color: {p.text_primary};
+                font-size: 13px;
+                font-weight: 600;
+                background: transparent;
+            }}
+            QLabel[class="wizard-helper"] {{
+                color: {p.text_secondary};
+                font-size: 13px;
+                background: transparent;
+            }}
+            QLabel[class="wizard-hint"] {{
+                color: {p.text_muted};
+                font-size: 11px;
+                background: transparent;
+            }}
+            QFrame#profileCard,
+            QFrame#appearanceCard,
+            QFrame#stockfishCard,
+            QFrame#llmCard,
+            QFrame#summaryCard {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 10px;
             }}
             QLineEdit {{
                 padding: 10px 14px;
                 min-height: 24px;
-                border: 2px solid {Styles.COLOR_BORDER};
+                border: 1.5px solid {p.border};
                 border-radius: 6px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+                font-size: 13px;
             }}
             QLineEdit:focus {{
-                border: 2px solid {Styles.COLOR_ACCENT};
+                border: 1.5px solid {p.accent};
             }}
             QLineEdit::placeholder {{
-                color: {Styles.COLOR_TEXT_MUTED};
+                color: {p.text_muted};
             }}
         """
 
     def refresh_accent(self):
         self.setStyleSheet(self._build_stylesheet())
-        self.nav_bar.refresh_accent()
+        self.nav_bar.refresh_theme()
         self.nav_bar.update(self.current_page)
-        if hasattr(self, 'done_btn'):
+
+        if hasattr(self, "wizard_accent_btn"):
+            accent_col = getattr(self, "wizard_accent_color", "#FF9500")
+            accent_mode = getattr(self, "wizard_accent_mode", "system")
+            from src.gui.dialogs.wizard.wizard_pages import _apply_accent_button_style
+            _apply_accent_button_style(self, accent_col, accent_mode)
+
+        if hasattr(self, "wizard_reset_accent_btn"):
+            self.wizard_reset_accent_btn.setStyleSheet(Styles.get_control_button_style())
+
+        if hasattr(self, "done_btn"):
             self.done_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {Styles.COLOR_ACCENT};
                     color: white;
                     border: none;
                     border-radius: 8px;
-                    padding: 12px 40px;
-                    font-size: 15px;
+                    padding: 0 40px;
+                    font-size: 14px;
                     font-weight: bold;
                 }}
                 QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
             """)
-        if hasattr(self, 'ready_label'):
+
+        if hasattr(self, "ready_label"):
             self.ready_label.setStyleSheet(
-                f"font-size: 15px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
+                f"font-size: 13px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
             )
-        if hasattr(self, 'wizard_theme_combo'):
+
+        if hasattr(self, "wizard_theme_mode_combo"):
+            self.wizard_theme_mode_combo.setStyleSheet(Styles.get_combobox_style())
+        if hasattr(self, "wizard_theme_combo"):
             self.wizard_theme_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'llm_test_btn'):
+        if hasattr(self, "llm_provider_combo"):
+            self.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
+
+        if hasattr(self, "llm_test_btn"):
             self.llm_test_btn.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'sf_download_btn'):
-            self.sf_download_btn.setStyleSheet(Styles.get_button_style())
-        if hasattr(self, 'provider_label'):
-            self.provider_label.setStyleSheet(
-                f"font-size: 14px; font-weight: bold; color: {Styles.COLOR_ACCENT}; background: transparent;"
-            )
-        if hasattr(self, 'wizard_accent_btn') and self.wizard_accent_color != "#FF9500":
-            c = self.wizard_accent_color
-            self.wizard_accent_btn.setStyleSheet(f"""
+
+        if hasattr(self, "sf_browse_btn"):
+            self.sf_browse_btn.setStyleSheet(Styles.get_control_button_style())
+        if hasattr(self, "sf_cancel_btn"):
+            self.sf_cancel_btn.setStyleSheet(Styles.get_control_button_style())
+        if hasattr(self, "sf_download_btn"):
+            self.sf_download_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: {c};
+                    background-color: {Styles.COLOR_ACCENT};
                     color: white;
                     border: none;
-                    padding: 8px 16px;
                     border-radius: 6px;
+                    padding: 0 20px;
                     font-size: 13px;
+                    font-weight: bold;
                 }}
-                QPushButton:hover {{
-                    background-color: {c}CC;
-                }}
+                QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
             """)
-        if hasattr(self, 'get_started_btn'):
+        if hasattr(self, "get_started_btn"):
             self.get_started_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {Styles.COLOR_ACCENT};
                     color: white;
                     border: none;
                     border-radius: 8px;
-                    padding: 12px 40px;
+                    padding: 0 44px;
                     font-size: 15px;
                     font-weight: bold;
                 }}
                 QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
             """)
-        if hasattr(self, 'sf_progress'):
+        if hasattr(self, "sf_progress"):
             self.sf_progress.setStyleSheet(Styles.get_progress_bar_style())
+
+        if hasattr(self, "sf_icon_label") and (self._download_worker is None or not self._download_worker.isRunning()):
+            self._detect_stockfish()
+
         self._update_done_icon()
+        self._update_lichess_tok_link()
+
+        from src.gui.dialogs.wizard.wizard_pages import _update_llm_ui_hints
+        if hasattr(self, "llm_provider_combo"):
+            _update_llm_ui_hints(self)
+
+        if self.current_page == 6 and hasattr(self, "_on_done_show"):
+            self._on_done_show()
+
+    def _update_lichess_tok_link(self):
+        if hasattr(self, "lichess_tok_link"):
+            self.lichess_tok_link.setText(
+                f'<a href="https://lichess.org/account/oauth/token" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">Create Token ↗</a>'
+            )
 
     def _update_done_icon(self):
         if not hasattr(self, 'done_icon_label'):
             return
-        try:
-            import qtawesome as qta
+        if HAS_QTAWESOME:
             icon = qta.icon("fa5s.check-circle", color=Styles.COLOR_ACCENT)
-            pixmap = icon.pixmap(80, 80)
+            pixmap = icon.pixmap(72, 72)
             self.done_icon_label.setPixmap(pixmap)
-        except Exception:
+        else:
             self.done_icon_label.setText("✓")
-            self.done_icon_label.setStyleSheet(f"font-size: 72px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;")
+            self.done_icon_label.setStyleSheet(f"font-size: 64px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;")
 
     def _show_page(self, index):
         self.current_page = index
@@ -260,25 +394,21 @@ class SetupWizard(QDialog):
         self.nav_bar.update(index)
 
         if index == 0:
-            QTimer.singleShot(200, self._run_gatekeeper)
+            QTimer.singleShot(150, self._run_gatekeeper)
         elif index == 6:
             parts = []
             engine = self.settings.get("engine_path") or self.config_manager.get("engine_path")
             if engine and engine != "stockfish":
-                # Get just the filename/basename to keep it clean
                 parts.append(f"✓ Chess Engine: {os.path.basename(engine)}")
             else:
                 parts.append("⚠ Chess Engine: Not configured")
 
-            llm_key = self.settings.get("groq_api_key")
-            if not llm_key:
-                active_profile = self.config_manager.get_active_profile()
-                if active_profile:
-                    llm_key = active_profile.get("api_key")
-            if llm_key:
-                parts.append("✓ AI Coach (Groq): Connected")
+            llm_info = self.settings.get("llm_profile")
+            if llm_info and (llm_info.get("api_key") or not llm_info.get("requires_key", True)):
+                prov = llm_info.get("provider", "Groq").title()
+                parts.append(f"✓ AI Coach ({prov}): Configured")
             else:
-                parts.append("✓ AI Coach: Skipped (configure later in Settings)")
+                parts.append("✓ AI Coach: Skipped (configure anytime in Settings)")
 
             cc = self.settings.get("chesscom_username") or self.config_manager.get("chesscom_username")
             li = self.settings.get("lichess_username") or self.config_manager.get("lichess_username")
@@ -288,7 +418,7 @@ class SetupWizard(QDialog):
             if li:
                 accounts.append("Lichess")
             if accounts:
-                parts.append(f"✓ Accounts: Linked ({', '.join(accounts)})")
+                parts.append(f"✓ Accounts Linked: {', '.join(accounts)}")
             else:
                 parts.append("✓ Accounts: Skipped")
 
@@ -311,7 +441,9 @@ class SetupWizard(QDialog):
             self._show_page(self.current_page + 1)
 
     def _on_back(self):
+        # Save current page inputs before navigating back
         if self.current_page > 1:
+            self._save_current_page()
             self._show_page(self.current_page - 1)
 
     def _on_skip(self):
@@ -331,21 +463,79 @@ class SetupWizard(QDialog):
         elif idx == 3:
             if hasattr(self, "wizard_theme_combo"):
                 self.settings["board_theme"] = self.wizard_theme_combo.currentText()
-                self.settings["accent_color"] = self.wizard_accent_color
+            if hasattr(self, "wizard_theme_mode_combo"):
+                self.settings["theme_mode"] = self.wizard_theme_mode_combo.currentData() or "system"
+            self.settings["accent_color"] = getattr(self, "wizard_accent_color", "#FF9500")
+            self.settings["accent_mode"] = getattr(self, "wizard_accent_mode", "system")
         elif idx == 5:
+            prov_idx = self.llm_provider_combo.currentIndex()
+            prov_key = self.llm_provider_combo.itemData(prov_idx) or "groq"
+            prov_preset = PROVIDERS.get(prov_key, PROVIDERS["custom"])
+
             key = self.llm_key_input.text().strip()
-            if key:
-                self.settings["groq_api_key"] = key
+            model = self.llm_model_input.text().strip() or prov_preset.get("default_model", "")
+            base_url = self.llm_base_url_input.text().strip() or prov_preset.get("base_url", "")
+
+            if key or model or not prov_preset.get("requires_key", True):
+                self.settings["llm_profile"] = {
+                    "provider": prov_key,
+                    "api_key": key,
+                    "model": model,
+                    "base_url": base_url,
+                    "requires_key": prov_preset.get("requires_key", True)
+                }
 
     def _populate_from_config(self):
         self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
         self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
 
+        # Pre-populate appearance preferences
+        saved_board_theme = self.config_manager.get("board_theme", "Green")
+        if hasattr(self, "wizard_theme_combo"):
+            self.wizard_theme_combo.setCurrentText(saved_board_theme)
+
+        saved_theme_mode = self.config_manager.get("theme_mode", "system")
+        if hasattr(self, "wizard_theme_mode_combo"):
+            for i in range(self.wizard_theme_mode_combo.count()):
+                if self.wizard_theme_mode_combo.itemData(i) == saved_theme_mode:
+                    self.wizard_theme_mode_combo.setCurrentIndex(i)
+                    break
+
+        saved_accent = self.config_manager.get("accent_color")
+        saved_accent_mode = self.config_manager.get("accent_mode", "system")
+        from src.gui.dialogs.wizard.wizard_pages import _apply_accent
+        if saved_accent_mode == "custom" and saved_accent:
+            _apply_accent(self, saved_accent, mode="custom")
+        else:
+            _apply_accent(self, "#FF9500", mode="system")
+
+        # Pre-populate active LLM profile if configured
+        active_prof = self.config_manager.get_active_profile()
+        if not active_prof:
+            profiles = self.config_manager.get("llm_profiles", [])
+            if profiles:
+                active_prof = profiles[0]
+
+        if active_prof:
+            prov = active_prof.get("provider", "groq")
+            for i in range(self.llm_provider_combo.count()):
+                if self.llm_provider_combo.itemData(i) == prov:
+                    self.llm_provider_combo.setCurrentIndex(i)
+                    break
+            if active_prof.get("api_key"):
+                self.llm_key_input.setText(active_prof.get("api_key", ""))
+            if active_prof.get("model"):
+                self.llm_model_input.setText(active_prof.get("model", ""))
+            if active_prof.get("base_url"):
+                self.llm_base_url_input.setText(active_prof.get("base_url", ""))
+            self._last_selected_provider = prov
+            self.settings["llm_profile"] = dict(active_prof)
+
     def _run_gatekeeper(self):
         if getattr(sys, "frozen", False) and sys.platform == "darwin":
-            self.gatekeeper_label.setText("Checking Gatekeeper...")
-            self.gatekeeper_detail.setText("Ensuring the app runs smoothly on macOS.")
+            self.gatekeeper_label.setText("Checking macOS Security...")
+            self.gatekeeper_detail.setText("Ensuring the app runs smoothly with Gatekeeper.")
 
             app_bundle = os.path.dirname(sys.executable)
             while not app_bundle.endswith(".app") and app_bundle != "/":
@@ -361,122 +551,192 @@ class SetupWizard(QDialog):
                         ["xattr", "-dr", "com.apple.quarantine", app_bundle],
                         stderr=subprocess.DEVNULL, timeout=5,
                     )
-                    self.gatekeeper_label.setText("Restrictions removed")
-                    self.gatekeeper_detail.setText("Gatekeeper has been configured.")
+                    self.gatekeeper_label.setText("Permissions Ready")
+                    self.gatekeeper_detail.setText("macOS Gatekeeper configured successfully.")
                     logger.info("Gatekeeper: removed quarantine from .app bundle")
                 else:
-                    self.gatekeeper_label.setText("No restrictions found")
-                    self.gatekeeper_detail.setText("Your system is all set.")
+                    self.gatekeeper_label.setText("Security Check Passed")
+                    self.gatekeeper_detail.setText("Your environment is completely ready.")
             else:
-                self.gatekeeper_label.setText("Skipped")
-                self.gatekeeper_detail.setText("Not running from a bundled .app.")
+                self.gatekeeper_label.setText("Security Check Passed")
+                self.gatekeeper_detail.setText("Running outside an app container.")
         else:
-            self.gatekeeper_label.setText("Skipped")
-            self.gatekeeper_detail.setText("Gatekeeper check not needed in this environment.")
+            self.gatekeeper_label.setText("Ready")
+            self.gatekeeper_detail.setText("Starting setup...")
 
-        QTimer.singleShot(800, lambda: self._show_page(1))
+        QTimer.singleShot(600, lambda: self._show_page(1))
 
     def _detect_stockfish(self):
-        # If a download is already in progress, don't reset the UI
-        worker = getattr(self, "_download_worker", None)
-        if worker is not None and worker.isRunning():
+        if self._download_worker is not None and self._download_worker.isRunning():
             return
 
         path = resolve_engine_path(self.config_manager)
         if path:
-            self.sf_status.setText("Stockfish ready")
+            self.sf_status.setText("Stockfish Engine Ready")
             self.sf_status.setStyleSheet(
                 f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
             )
-            self.sf_detail.setText(f"Found at {path}")
+            self.sf_detail.setText(f"Found binary: {path}")
             self.sf_detail.setVisible(True)
             self.sf_download_btn.setVisible(False)
+            self.sf_cancel_btn.setVisible(False)
             self.sf_progress.setVisible(False)
+            self.sf_progress_desc.setVisible(False)
             self.settings["engine_path"] = path
+            if HAS_QTAWESOME:
+                self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
         else:
-            self.sf_status.setText("Stockfish not found")
+            self.sf_status.setText("Stockfish Not Detected")
             self.sf_status.setStyleSheet(
-                f"font-size: 14px; color: {Styles.COLOR_MISTAKE}; background: transparent;"
+                f"font-size: 14px; color: {Styles.COLOR_MISTAKE}; font-weight: bold; background: transparent;"
             )
-            self.sf_detail.setText("")
-            self.sf_detail.setVisible(False)
+            self.sf_detail.setText("Download Stockfish automatically or select an existing binary on your drive.")
+            self.sf_detail.setVisible(True)
+            self.sf_download_btn.setText("Download Stockfish")
             self.sf_download_btn.setVisible(True)
+            self.sf_cancel_btn.setVisible(False)
             self.sf_progress.setVisible(False)
+            self.sf_progress_desc.setVisible(False)
+            if HAS_QTAWESOME:
+                self.sf_icon_label.setPixmap(qta.icon("fa5s.exclamation-circle", color=Styles.COLOR_MISTAKE).pixmap(24, 24))
+
+    def _set_custom_stockfish_path(self, path: str):
+        if not path or not os.path.exists(path):
+            return
+
+        if not probe_engine_binary(path):
+            self.sf_status.setText("Invalid Engine Selected")
+            self.sf_status.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_BLUNDER}; font-weight: bold; background: transparent;")
+            self.sf_detail.setText("The selected file failed the UCI handshake test. Please choose a valid Stockfish binary.")
+            return
+
+        invalidate_engine_cache()
+        self.settings["engine_path"] = path
+        self.sf_status.setText("Stockfish Ready (Custom Binary)")
+        self.sf_status.setStyleSheet(
+            f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
+        )
+        self.sf_detail.setText(f"Found binary: {path}")
+        self.sf_detail.setVisible(True)
+        self.sf_download_btn.setVisible(False)
+        self.sf_cancel_btn.setVisible(False)
+        self.sf_progress.setVisible(False)
+        self.sf_progress_desc.setVisible(False)
+        if HAS_QTAWESOME:
+            self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
 
     def _download_stockfish(self):
         self.sf_download_btn.setVisible(False)
+        self.sf_cancel_btn.setVisible(True)
         self.sf_progress.setVisible(True)
         self.sf_progress.setValue(0)
+        self.sf_progress_desc.setVisible(True)
+        self.sf_progress_desc.setText("Initializing Stockfish download...")
         self.sf_status.setText("Downloading Stockfish...")
-        self.sf_status.setStyleSheet("font-size: 14px; background: transparent;")
+        self.sf_status.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;")
 
         dest_dir = get_engine_data_dir()
-
         self._download_worker = StockfishDownloadWorker(dest_dir, self)
         self._download_worker.progress.connect(self._on_download_progress)
+        self._download_worker.stage.connect(self._on_download_stage)
         self._download_worker.finished.connect(self._on_download_finished)
         self._download_worker.error.connect(self._on_download_error)
         self._download_worker.start()
 
+    def _cancel_stockfish_download(self):
+        if self._download_worker and self._download_worker.isRunning():
+            self._download_worker.cancel()
+            self._download_worker.wait(1500)
+            self._download_worker = None
+
+        self.sf_status.setText("Download Cancelled")
+        self.sf_status.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_MISTAKE}; font-weight: bold; background: transparent;")
+        self.sf_progress.setVisible(False)
+        self.sf_progress_desc.setVisible(False)
+        self.sf_download_btn.setText("Download Stockfish")
+        self.sf_download_btn.setVisible(True)
+        self.sf_cancel_btn.setVisible(False)
+
     def _on_download_progress(self, pct):
         self.sf_progress.setValue(pct)
+
+    def _on_download_stage(self, stage_text):
+        self.sf_progress_desc.setText(stage_text)
 
     def _on_download_finished(self, binary_path):
         self.sf_progress.setValue(100)
         invalidate_engine_cache()
-        self.sf_status.setText("Stockfish downloaded")
+        self.sf_status.setText("Stockfish Ready")
         self.sf_status.setStyleSheet(
             f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
         )
         self.settings["engine_path"] = binary_path
-        self.sf_detail.setText(f"Found at {binary_path}")
+        self.sf_detail.setText(f"Engine installed at: {binary_path}")
         self.sf_detail.setVisible(True)
+        self.sf_download_btn.setVisible(False)
+        self.sf_cancel_btn.setVisible(False)
+        self.sf_progress.setVisible(False)
+        self.sf_progress_desc.setVisible(False)
+        if HAS_QTAWESOME:
+            self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
         logger.info("SetupWizard: Stockfish downloaded to %s", binary_path)
 
     def _on_download_error(self, err_msg):
         logger.error("SetupWizard: Stockfish download failed: %s", err_msg)
-        self.sf_status.setText(f"Download failed: {err_msg}")
+        self.sf_status.setText("Download Failed")
         self.sf_status.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_BLUNDER}; background: transparent;"
+            f"font-size: 14px; color: {Styles.COLOR_BLUNDER}; font-weight: bold; background: transparent;"
         )
-        self.sf_download_btn.setText("Retry")
+        self.sf_detail.setText(f"Error: {err_msg}")
+        self.sf_progress.setVisible(False)
+        self.sf_progress_desc.setVisible(False)
+        self.sf_download_btn.setText("Retry Download")
         self.sf_download_btn.setVisible(True)
+        self.sf_cancel_btn.setVisible(False)
 
     def _test_llm(self):
+        prov_idx = self.llm_provider_combo.currentIndex()
+        prov_key = self.llm_provider_combo.itemData(prov_idx) or "groq"
+        prov_preset = PROVIDERS.get(prov_key, PROVIDERS["custom"])
+
         key = self.llm_key_input.text().strip()
-        if not key:
-            self.llm_test_result.setText("Enter an API key first")
-            self.llm_test_result.setStyleSheet(
-                f"font-size: 13px; color: {Styles.COLOR_MISTAKE}; margin-top: 4px; background: transparent;"
-            )
+        model = self.llm_model_input.text().strip() or prov_preset.get("default_model", "")
+        base_url = self.llm_base_url_input.text().strip() or prov_preset.get("base_url", "")
+
+        if prov_preset.get("requires_key", True) and not key:
+            self.llm_test_result.setText("Please enter an API key first")
+            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_MISTAKE}; background: transparent;")
+            return
+
+        if not base_url:
+            self.llm_test_result.setText("Base URL is required")
+            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_MISTAKE}; background: transparent;")
+            return
+
+        if not model:
+            self.llm_test_result.setText("Model identifier is required")
+            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_MISTAKE}; background: transparent;")
             return
 
         self.llm_test_btn.setEnabled(False)
-        self.llm_test_btn.setText("Testing...")
-        self.llm_test_result.setText("")
-        QApplication.processEvents()
+        self.llm_test_btn.setText("Testing Connection...")
+        self.llm_test_result.setText("Connecting to API endpoint...")
+        self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;")
 
-        try:
-            from openai import OpenAI
-            client = OpenAI(api_key=key, base_url="https://api.groq.com/openai/v1")
-            client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": "Reply with just the word: ok"}],
-                max_tokens=10,
-            )
-            self.llm_test_result.setText("Connection successful")
-            self.llm_test_result.setStyleSheet(
-                f"font-size: 13px; color: {Styles.COLOR_BEST}; background: transparent;"
-            )
-            self.settings["groq_api_key"] = key
-        except Exception as e:
-            self.llm_test_result.setText(f"Failed: {e}")
-            self.llm_test_result.setStyleSheet(
-                f"font-size: 13px; color: {Styles.COLOR_BLUNDER}; background: transparent;"
-            )
-        finally:
-            self.llm_test_btn.setEnabled(True)
-            self.llm_test_btn.setText("Test Connection")
+        self._llm_worker = LLMTestWorker(key, base_url, model, self)
+        self._llm_worker.finished.connect(self._on_llm_test_finished)
+        self._llm_worker.start()
+
+    def _on_llm_test_finished(self, success: bool, message: str):
+        self.llm_test_btn.setEnabled(True)
+        self.llm_test_btn.setText("Test Connection")
+
+        if success:
+            self.llm_test_result.setText(f"✓ {message}")
+            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;")
+        else:
+            self.llm_test_result.setText(f"✗ Failed: {message}")
+            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_BLUNDER}; background: transparent;")
 
     def _persist_settings(self):
         cfg = self.config_manager
@@ -489,26 +749,46 @@ class SetupWizard(QDialog):
             cfg.set("lichess_token", self.settings["lichess_token"])
         if "engine_path" in self.settings:
             cfg.set("engine_path", self.settings["engine_path"])
-        if "groq_api_key" in self.settings:
+
+        if "llm_profile" in self.settings:
+            prof = self.settings["llm_profile"]
             profiles = cfg.get("llm_profiles", [])
-            groq_profile = next(
-                (p for p in profiles if p.get("provider", "").lower() == "groq"), None
-            )
-            if groq_profile:
-                groq_profile["api_key"] = self.settings["groq_api_key"]
+            # Update existing matching provider or append new profile
+            existing = next((p for p in profiles if p.get("provider", "").lower() == prof["provider"].lower()), None)
+            if existing:
+                existing["api_key"] = prof["api_key"]
+                existing["model"] = prof["model"]
+                existing["base_url"] = prof["base_url"]
             else:
                 profiles.append({
-                    "provider": "groq",
-                    "api_key": self.settings["groq_api_key"],
-                    "model": "llama-3.3-70b-versatile",
-                    "base_url": "https://api.groq.com/openai/v1",
+                    "provider": prof["provider"],
+                    "api_key": prof["api_key"],
+                    "model": prof["model"],
+                    "base_url": prof["base_url"],
                 })
             cfg.set("llm_profiles", profiles)
+            cfg.set("active_llm_provider", prof["provider"])
+            # Backward compatibility key
+            if prof["provider"] == "groq" and prof["api_key"]:
+                cfg.set("groq_api_key", prof["api_key"])
+
         if "board_theme" in self.settings:
             cfg.set("board_theme", self.settings["board_theme"])
-        if "accent_color" in self.settings and self.settings["accent_color"] != "#FF9500":
-            cfg.set("accent_color", self.settings["accent_color"])
-            Styles.set_accent_color(self.settings["accent_color"])
+
+        if "theme_mode" in self.settings:
+            cfg.set("theme_mode", self.settings["theme_mode"])
+            from src.gui.theme import ThemeManager
+            ThemeManager.set_theme_mode(self.settings["theme_mode"])
+
+        accent_mode = self.settings.get("accent_mode", getattr(self, "wizard_accent_mode", "system"))
+        cfg.set("accent_mode", accent_mode)
+        if accent_mode == "custom":
+            accent_col = self.settings.get("accent_color", getattr(self, "wizard_accent_color", "#FF9500"))
+            cfg.set("accent_color", accent_col)
+            Styles.set_accent_color(accent_col)
+        else:
+            from src.gui.theme import ThemeManager
+            ThemeManager.set_accent_mode("system")
         cfg.set("setup_completed", True)
 
     def accepted_data(self) -> dict:

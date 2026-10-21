@@ -127,6 +127,7 @@ def main():
 
                 # Reload config to make sure all config instances share the same state
                 window.config_manager.reload_config()
+                window.refresh_theme()
 
                 # Update MainWindow's engine path and re-initialize analyzer/engine
                 new_path = resolve_engine_path(window.config_manager)
