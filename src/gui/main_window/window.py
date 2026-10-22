@@ -19,9 +19,9 @@ from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
 from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget
-from src.gui.analysis.variation_bar import VariationBar
+from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
-from src.gui.board import BoardWidget
+from src.gui.board import BoardGameHeader, BoardPanel, BoardWidget
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.components.sidebar import Sidebar
 from src.gui.components.tour_manager import TourManager
@@ -409,6 +409,17 @@ class MainWindow(
         )
         header_layout.addWidget(self.title_lbl)
 
+        self.game_info_label = QLabel("No Game Loaded")
+        self.game_info_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.game_info_label.setMaximumWidth(520)
+        self.game_info_label.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
+            " padding: 0 12px; background: transparent; border: none;"
+        )
+        header_layout.addWidget(self.game_info_label)
+
         header_layout.addStretch()
 
         # Explore Button
@@ -458,6 +469,7 @@ class MainWindow(
 
         # Left: Move List
         self.left_widget = QWidget()
+        self.left_widget.setMinimumWidth(240)
         self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         left_layout = QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -473,24 +485,21 @@ class MainWindow(
 
         # Center: Board
         self.center_widget = QWidget()
+        self.center_widget.setMinimumWidth(420)
         self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         center_layout = QVBoxLayout(self.center_widget)
         self.center_layout = center_layout
-        center_layout.setContentsMargins(10, 10, 10, 10)
-        center_layout.setSpacing(10)
-
-        self.game_info_label = QLabel("No Game Loaded")
-        self.game_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.game_info_label.setStyleSheet(
-            f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;"
-        )
-        center_layout.addWidget(self.game_info_label)
+        center_layout.setContentsMargins(6, 6, 6, 6)
+        center_layout.setSpacing(6)
 
         self.captured_white = CapturedPiecesWidget(side="white")
         self.captured_black = CapturedPiecesWidget(side="black")
         self.captured_widget = self.captured_white
 
         self.board_widget = BoardWidget()
+        self.board_panel = BoardPanel(
+            self.board_widget, self.captured_white, self.captured_black
+        )
 
         # Hero empty-state CTA bar placed prominently above the board
         self.empty_state_cta = QFrame()
@@ -525,13 +534,17 @@ class MainWindow(
         self.lbl_hero_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         cta_layout.addWidget(self.lbl_hero_hint)
 
-        center_layout.addWidget(self.empty_state_cta, 0, Qt.AlignmentFlag.AlignCenter)
-        center_layout.addWidget(self.captured_black)
-        center_layout.addWidget(self.board_widget, 1)
-        center_layout.addWidget(self.captured_white)
+        self.board_game_header = BoardGameHeader()
+        self.board_game_header.setVisible(False)
+        center_layout.addWidget(
+            self.board_game_header, 0, Qt.AlignmentFlag.AlignHCenter
+        )
 
-        self.variation_bar = VariationBar()
-        center_layout.addWidget(self.variation_bar)
+        center_layout.addWidget(self.empty_state_cta, 0, Qt.AlignmentFlag.AlignCenter)
+        center_layout.addWidget(self.board_panel, 1)
+
+        self.variation_graph = VariationGraph()
+        center_layout.addWidget(self.variation_graph)
 
         self.controls = GameControlsWidget()
         self.controls.first_clicked.connect(self.go_first)
@@ -539,7 +552,8 @@ class MainWindow(
         self.controls.next_clicked.connect(self.go_next)
         self.controls.last_clicked.connect(self.go_last)
         self.controls.flip_clicked.connect(self.flip_board)
-        center_layout.addWidget(self.controls)
+        center_layout.addWidget(self.controls, 0, Qt.AlignmentFlag.AlignHCenter)
+        self.board_widget.board_side_changed.connect(self._sync_board_chrome_widths)
 
         # ── Historic Game Info Bar (empty-state only, shown below board) ──────
         self.historic_info_bar = QFrame()
@@ -580,9 +594,7 @@ class MainWindow(
 
         # Row 2: players / year / event
         self._hib_meta = QLabel()
-        self._hib_meta.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-        )
+        self._hib_meta.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
         hib_outer.addWidget(self._hib_meta)
 
         # Row 3: puzzle prompt (turn_desc)
@@ -613,9 +625,7 @@ class MainWindow(
         cel_layout.addWidget(self._hib_cel_icon)
         self._hib_cel_text = QLabel()
         self._hib_cel_text.setWordWrap(True)
-        self._hib_cel_text.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};"
-        )
+        self._hib_cel_text.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};")
         cel_layout.addWidget(self._hib_cel_text, 1)
         hib_outer.addWidget(self._hib_celebration)
 
@@ -628,6 +638,7 @@ class MainWindow(
 
         # Right: Analysis
         self.analysis_panel = AnalysisPanel()
+        self.analysis_panel.setMinimumWidth(300)
         if self.analysis_panel.layout:
             self.analysis_panel.layout.setContentsMargins(5, 5, 5, 5)
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
@@ -639,11 +650,14 @@ class MainWindow(
         # Variation mode: makes the main board playable for "Show best move",
         # "Show refutation" and engine-line clicks without leaving the game.
         self.variation = VariationMode(
-            self.board_widget, self.move_list_panel, self.variation_bar
+            self.board_widget, self.move_list_panel, self.variation_graph
         )
         self.variation.exited.connect(self._on_variation_exited)
         self.variation.position_changed.connect(self._on_variation_position_changed)
+        self.variation.tree_changed.connect(self._on_variation_tree_changed)
+        self.variation.message.connect(self._on_variation_message)
         self.analysis_panel.variation_requested.connect(self._on_variation_requested)
+        self.move_list_panel.variation_requested.connect(self._open_variation_tree_for_index)
 
         splitter.addWidget(self.analysis_panel)
 
@@ -651,10 +665,10 @@ class MainWindow(
         self.welcome_panel = WelcomePanel(parent=self)
         splitter.addWidget(self.welcome_panel)
 
-        splitter.setSizes([250, 630, 320, 0])
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 3)
-        splitter.setStretchFactor(2, 1)
+        splitter.setSizes([280, 840, 280, 0])
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 0)
         splitter.setStretchFactor(3, 0)
 
         self._update_analysis_view_mode(has_game=self.current_game is not None)

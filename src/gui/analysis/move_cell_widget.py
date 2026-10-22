@@ -1,9 +1,10 @@
 """
 Custom widget representing a compact move cell that packs the classification icon, SAN, and think-time.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
 
 from ..styles import Styles
 
@@ -14,6 +15,7 @@ class MoveCellWidget(QWidget):
     """
 
     clicked = pyqtSignal(int)  # carries the move index
+    variation_clicked = pyqtSignal(int)
 
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
@@ -33,18 +35,26 @@ class MoveCellWidget(QWidget):
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._san_label = QLabel(self)
-        self._san_label.setAlignment(
-            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
-        )
+        self._san_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         self._san_label.setStyleSheet(Styles.get_transparent_label_style())
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
-        self._time_label = QLabel(self)
-        self._time_label.setAlignment(
-            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
+        self._variation_btn = QToolButton(self)
+        self._variation_btn.setFixedSize(18, 18)
+        self._variation_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._variation_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._variation_btn.hide()
+        self._variation_btn.clicked.connect(
+            lambda _checked=False: self.variation_clicked.emit(self._move_index)
         )
+        top_row.addWidget(self._variation_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        self._time_label = QLabel(self)
+        self._time_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         self._time_label.setStyleSheet(
-            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
         )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -63,17 +73,27 @@ class MoveCellWidget(QWidget):
         self._classification_name: str = ""
         self._last_time_spent: float | None = None
         self._last_max_seconds: float = 30.0
+        self._variation_count: int = 0
 
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     # ----- public API -------------------------------------------------
-    def set_move(self, move, move_index: int, icon: QIcon = None,
-                 san_color: str = "", max_seconds: float = 30.0) -> None:
+    def set_move(
+        self,
+        move,
+        move_index: int,
+        icon: QIcon = None,
+        san_color: str = "",
+        max_seconds: float = 30.0,
+        variation_count: int | None = None,
+    ) -> None:
         self._move_index = move_index
         self._san_text = move.san
         self._san_label.setText(move.san)
         self._classification_name = move.classification or ""
+        if variation_count is not None:
+            self.set_variation_count(variation_count)
 
         # Determine color dynamically based on classification
         if self._classification_name:
@@ -81,9 +101,15 @@ class MoveCellWidget(QWidget):
         else:
             color = Styles.COLOR_TEXT_PRIMARY
 
-        font_weight = "bold" if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
+        font_weight = (
+            "bold"
+            if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss", "Great")
+            else "500"
+        )
         self._san_label.setStyleSheet(
-            Styles.get_label_style(size=13, color=color, weight=font_weight) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=13, color=color, weight=font_weight)
+            + " "
+            + Styles.get_transparent_label_style()
         )
 
         if icon is not None and not icon.isNull():
@@ -126,9 +152,32 @@ class MoveCellWidget(QWidget):
             self._time_label.setText("")
             self._bar.hide()
             self.setToolTip(
-                f"{move.classification + ': ' if move.classification else ''}"
-                f"{move.san}"
+                f"{move.classification + ': ' if move.classification else ''}{move.san}"
             )
+
+    def set_variation_count(self, count: int) -> None:
+        """Show a branch badge when this position owns saved variations."""
+        self._variation_count = max(0, int(count))
+        visible = self._variation_count > 0
+        self._variation_btn.setVisible(visible)
+        if not visible:
+            return
+        self._variation_btn.setText("" if self._variation_icon() else str(self._variation_count))
+        self._variation_btn.setToolTip(
+            f"Explore {self._variation_count} saved variation"
+            f"{'s' if self._variation_count != 1 else ''} from this position"
+        )
+        self._variation_btn.setStyleSheet(Styles.get_variation_badge_style())
+
+    def _variation_icon(self) -> bool:
+        try:
+            import qtawesome as qta
+
+            self._variation_btn.setIcon(qta.icon("fa5s.code-branch", color=Styles.COLOR_ACCENT))
+            return True
+        except ImportError:
+            self._variation_btn.setIcon(QIcon())
+            return False
 
     def refresh_styles(self):
         if self._classification_name:
@@ -136,13 +185,21 @@ class MoveCellWidget(QWidget):
         else:
             color = Styles.COLOR_TEXT_PRIMARY
 
-        font_weight = "bold" if self._classification_name in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
+        font_weight = (
+            "bold"
+            if self._classification_name in ("Brilliant", "Blunder", "Mistake", "Miss", "Great")
+            else "500"
+        )
         self._san_label.setStyleSheet(
-            Styles.get_label_style(size=13, color=color, weight=font_weight) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=13, color=color, weight=font_weight)
+            + " "
+            + Styles.get_transparent_label_style()
         )
 
         self._time_label.setStyleSheet(
-            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
         )
 
         if self._last_time_spent is not None and self._last_time_spent > 0:
@@ -154,6 +211,9 @@ class MoveCellWidget(QWidget):
             self._bar.show()
         else:
             self._bar.hide()
+
+        if self._variation_count > 0:
+            self.set_variation_count(self._variation_count)
 
     def _bar_colour(self, ratio: float) -> str:
         ratio = max(0.0, min(1.0, ratio))

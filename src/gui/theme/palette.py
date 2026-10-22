@@ -20,6 +20,12 @@ class ThemePalette:
     piece_white: str = "#F0F0F0"
     piece_black: str = "#111111"
     board_highlight: str = "#F7EC74"
+    branch_colors: tuple[str, ...] = (
+        "#FF9F0A",
+        "#64D2FF",
+        "#30D158",
+        "#BF5AF2",
+    )
 
     def with_accent(self, hex_color: str) -> "ThemePalette":
         r = int(hex_color[1:3], 16)
@@ -43,6 +49,7 @@ class ThemePalette:
             piece_white=self.piece_white,
             piece_black=self.piece_black,
             board_highlight=self.board_highlight,
+            branch_colors=self.branch_colors,
         )
 
 
@@ -63,6 +70,7 @@ DARK = ThemePalette(
     piece_white="#F0F0F0",
     piece_black="#111111",
     board_highlight="#F7EC74",
+    branch_colors=("#FF9F0A", "#64D2FF", "#30D158", "#BF5AF2"),
 )
 
 LIGHT = ThemePalette(
@@ -82,6 +90,7 @@ LIGHT = ThemePalette(
     piece_white="#F0F0F0",
     piece_black="#111111",
     board_highlight="#F7EC74",
+    branch_colors=("#C76A00", "#007AFF", "#248A3D", "#8944AB"),
 )
 
 CLASSIFICATION_COLORS = {

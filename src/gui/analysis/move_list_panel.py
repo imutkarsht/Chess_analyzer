@@ -1,6 +1,7 @@
 """
 Move List Panel - Displays the list of played moves in a paginated/tabular layout.
 """
+
 import contextlib
 
 import chess
@@ -26,6 +27,7 @@ from src.utils.resources import ResourceManager
 class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)
     lines_updated = pyqtSignal(list, bool, str)  # lines, is_white_turn, analysed FEN
+    variation_requested = pyqtSignal(int)
 
     def __init__(self, engine_path="stockfish", config_manager=None):
         super().__init__()
@@ -47,7 +49,7 @@ class MoveListPanel(QWidget):
 
         self.live_data = {}
         self.current_turn = chess.WHITE
-        self.engine_lines_enabled = False # Off by default!
+        self.engine_lines_enabled = False  # Off by default!
         # The move list's live engine is shared with variation exploration.
         # Every request carries a monotonic seq so stale positions are dropped.
         self._analysis_seq = 0
@@ -59,10 +61,11 @@ class MoveListPanel(QWidget):
         # and the table would render empty cells.
         self._think_bars: list[MoveCellWidget] = []
         self._move_widgets: dict[int, MoveCellWidget] = {}
+        self._variation_counts: dict[int, int] = {}
 
         self.analysis_timer = QTimer()
         self.analysis_timer.setSingleShot(True)
-        self.analysis_timer.setInterval(1000) # 1 second delay (more responsive)
+        self.analysis_timer.setInterval(1000)  # 1 second delay (more responsive)
         self.analysis_timer.timeout.connect(self.start_live_analysis)
 
         # Move List Table — 3 columns: #, White, Black
@@ -71,15 +74,13 @@ class MoveListPanel(QWidget):
         # in a narrow left-pane.
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(
-            ["#", "White", "Black"]
-        )
+        self.table.setHorizontalHeaderLabels(["#", "White", "Black"])
         self.table.horizontalHeader().setHighlightSections(False)
         self.table.horizontalHeader().setMinimumHeight(32)
 
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(0, 46)   # #  — wide enough for two-digit move numbers
+        header.resizeSection(0, 46)  # #  — wide enough for two-digit move numbers
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -107,27 +108,32 @@ class MoveListPanel(QWidget):
     def eventFilter(self, source, event):
         """Redirect navigation keys from the table to the main window."""
         _NAV_KEYS = {
-            Qt.Key.Key_Left, Qt.Key.Key_Right,
-            Qt.Key.Key_Up,   Qt.Key.Key_Down,
-            Qt.Key.Key_Home, Qt.Key.Key_End,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Home,
+            Qt.Key.Key_End,
         }
         if (
             source is self.table
             and event.type() == QEvent.Type.KeyPress
             and event.key() in _NAV_KEYS
         ):
-                # Walk up to the QMainWindow and let it handle the key
-                parent = self.parent()
-                while parent is not None:
-                    from PyQt6.QtWidgets import QMainWindow
-                    if isinstance(parent, QMainWindow):
-                        parent.keyPressEvent(event)
-                        return True
-                    parent = parent.parent()
+            # Walk up to the QMainWindow and let it handle the key
+            parent = self.parent()
+            while parent is not None:
+                from PyQt6.QtWidgets import QMainWindow
+
+                if isinstance(parent, QMainWindow):
+                    parent.keyPressEvent(event)
+                    return True
+                parent = parent.parent()
         return super().eventFilter(source, event)
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
+        self._variation_counts = {}
         self.live_worker.set_chess960(game_analysis.metadata.chess960)
         self.refresh()
 
@@ -155,19 +161,21 @@ class MoveListPanel(QWidget):
             self.table.setRowCount(num_rows)
 
             # Update vertical header labels (Move numbers)
-            labels = [str(i+1) for i in range(num_rows)]
+            labels = [str(i + 1) for i in range(num_rows)]
             self.table.setVerticalHeaderLabels(labels)
 
             # Calculate max_seconds based on TimeControl
             tc = ""
-            if hasattr(self.current_game, 'metadata') and self.current_game.metadata:
-                tc = getattr(self.current_game.metadata, 'time_control', None) or self.current_game.metadata.headers.get("TimeControl", "")
+            if hasattr(self.current_game, "metadata") and self.current_game.metadata:
+                tc = getattr(
+                    self.current_game.metadata, "time_control", None
+                ) or self.current_game.metadata.headers.get("TimeControl", "")
 
             base_time = 0
             if tc and tc not in ("-", "?", ""):
                 for period in tc.split(":"):
-                    base_part = period.split("+")[0]      # remove increment
-                    sec_part = base_part.split("/")[-1]   # remove move count
+                    base_part = period.split("+")[0]  # remove increment
+                    sec_part = base_part.split("/")[-1]  # remove move count
                     with contextlib.suppress(ValueError):
                         base_time += int(sec_part)
 
@@ -207,8 +215,16 @@ class MoveListPanel(QWidget):
         san_color = Styles.get_class_color(move.classification) or Styles.COLOR_TEXT_PRIMARY
 
         cell = MoveCellWidget(parent=self.table)
-        cell.set_move(move, index, icon=icon, san_color=san_color, max_seconds=max_seconds)
+        cell.set_move(
+            move,
+            index,
+            icon=icon,
+            san_color=san_color,
+            max_seconds=max_seconds,
+            variation_count=self._variation_counts.get(index, 0),
+        )
         cell.clicked.connect(self._on_cell_widget_clicked)
+        cell.variation_clicked.connect(self._on_variation_clicked)
 
         # Keep a strong reference so the widget isn't GC'd
         self._think_bars.append(cell)
@@ -223,8 +239,9 @@ class MoveListPanel(QWidget):
         self.table.setItem(row, col, item)
         self.table.setCellWidget(row, col, cell)
 
-    def update_move_cell(self, move_index: int, classification: str = None,
-                         eval_after_cp=None, eval_after_mate=None):
+    def update_move_cell(
+        self, move_index: int, classification: str = None, eval_after_cp=None, eval_after_mate=None
+    ):
         """Update a single move cell's classification and eval display during analysis."""
         widget = self._move_widgets.get(move_index)
         if widget is None:
@@ -248,6 +265,15 @@ class MoveListPanel(QWidget):
         """Forward clicks from MoveCellWidget into the existing move_selected signal."""
         self.move_selected.emit(index)
 
+    def _on_variation_clicked(self, index: int):
+        self.variation_requested.emit(index)
+
+    def set_variation_counts(self, counts: dict[int, int]) -> None:
+        """Attach branch badges to game positions that own saved variation trees."""
+        self._variation_counts = {int(k): int(v) for k, v in counts.items() if v > 0}
+        for index, widget in self._move_widgets.items():
+            widget.set_variation_count(self._variation_counts.get(index, 0))
+
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
         self.setStyleSheet(Styles.get_background_style())
@@ -255,6 +281,7 @@ class MoveListPanel(QWidget):
 
         # Re-apply color for move numbers in column 0
         from PyQt6.QtGui import QBrush, QColor
+
         secondary_color = QColor(Styles.COLOR_TEXT_SECONDARY)
         for row in range(self.table.rowCount()):
             item = self.table.item(row, 0)
@@ -412,6 +439,8 @@ class MoveListPanel(QWidget):
         self.live_worker.stop()
         # Re-create the worker preserving the same config_manager so
         # the live-panel settings (time, multi_pv) survive a path swap.
-        self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=self.live_worker.config_manager)
+        self.live_worker = LiveAnalysisWorker(
+            self.engine_path, config_manager=self.live_worker.config_manager
+        )
         self.live_worker.info_ready.connect(self.on_live_analysis_update)
         self.live_worker.start()

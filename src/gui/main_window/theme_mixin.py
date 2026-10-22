@@ -161,9 +161,7 @@ class ThemeMixin:
                 f"font-size: 15px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
             )
         if hasattr(self, "_hib_meta"):
-            self._hib_meta.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            )
+            self._hib_meta.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
         if hasattr(self, "_hib_hint"):
             self._hib_hint.setStyleSheet(
                 f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_ACCENT};"
@@ -206,8 +204,11 @@ class ThemeMixin:
                 self.metrics_view.refresh()
         if hasattr(self, "game_info_label"):
             self.game_info_label.setStyleSheet(
-                f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;"
+                f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
+                " padding: 0 12px; background: transparent; border: none;"
             )
+        if hasattr(self, "board_game_header"):
+            self.board_game_header.refresh_styles()
 
         # Update Menu Styles
         menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
@@ -230,8 +231,8 @@ class ThemeMixin:
         # Update Game Controls
         if hasattr(self, "controls") and hasattr(self.controls, "refresh_styles"):
             self.controls.refresh_styles()
-        if hasattr(self, "variation_bar"):
-            self.variation_bar.refresh_styles()
+        if hasattr(self, "variation_graph"):
+            self.variation_graph.refresh_styles()
 
         # Update explorer view panels
         if hasattr(self, "explorer_view"):
