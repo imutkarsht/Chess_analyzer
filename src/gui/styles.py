@@ -70,6 +70,27 @@ class _StylesMeta(type):
     def COLOR_BOARD_HIGHLIGHT(cls):
         return ThemeManager.palette().board_highlight
 
+    @property
+    def COLOR_BRANCH_1(cls):
+        return ThemeManager.palette().branch_colors[0]
+
+    @property
+    def COLOR_BRANCH_2(cls):
+        return ThemeManager.palette().branch_colors[1]
+
+    @property
+    def COLOR_BRANCH_3(cls):
+        return ThemeManager.palette().branch_colors[2]
+
+    @property
+    def COLOR_BRANCH_4(cls):
+        return ThemeManager.palette().branch_colors[3]
+
+    @classmethod
+    def get_branch_color(cls, index: int) -> str:
+        colors = ThemeManager.palette().branch_colors
+        return colors[index % len(colors)]
+
     # ═══════════════════════════════════════════════════════════════
     #  MOVE CLASSIFICATION COLORS
     # ═══════════════════════════════════════════════════════════════
@@ -361,6 +382,179 @@ class Styles(metaclass=_StylesMeta):
             QPushButton:hover {{
                 background: {p.accent};
                 border-color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_board_game_header_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#BoardGameHeader {{
+                background: transparent;
+                border: none;
+                border-bottom: 1px solid {p.border};
+            }}
+            QFrame#BoardGameHeader QLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """
+
+    @classmethod
+    def get_board_controls_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QWidget#BoardControls {{
+                background: transparent;
+                border: none;
+                border-top: 1px solid {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_nav_icon_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QToolButton {{
+                background: transparent;
+                color: {p.text_primary};
+                border: none;
+                border-radius: 5px;
+                padding: 0px;
+            }}
+            QToolButton:hover {{
+                background-color: {p.surface};
+                color: {p.accent};
+            }}
+            QToolButton:pressed {{
+                background-color: {p.accent_subtle};
+            }}
+            QToolButton:disabled {{
+                color: {p.text_muted};
+            }}
+        """
+
+    # ═══════════════════════════════════════════════════════════════
+    #  VARIATION BRANCH GRAPH
+    # ═══════════════════════════════════════════════════════════════
+    @classmethod
+    def get_variation_action_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background-color: {p.surface_card};
+                color: {p.text_primary};
+                border: 1px solid {p.border};
+                border-radius: 6px;
+                padding: 0px;
+            }}
+            QPushButton:hover {{
+                background-color: {p.accent_subtle};
+                border-color: {p.accent};
+            }}
+            QPushButton:pressed {{
+                background-color: {p.accent_subtle};
+            }}
+            QPushButton:disabled {{
+                background-color: {p.surface_light};
+                border-color: {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_variation_graph_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#VariationGraph {{
+                background-color: {p.surface_light};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+            }}
+            QFrame#VariationGraph QLabel {{
+                background: transparent;
+                border: none;
+            }}
+            QScrollArea {{
+                background: transparent;
+                border: none;
+            }}
+        """
+
+    @classmethod
+    def get_variation_node_style(cls, color, active=False, ghost=False):
+        p = ThemeManager.palette()
+        if ghost:
+            background = p.surface
+            border = f"1px dashed {color}"
+            text = p.text_muted
+        elif active:
+            background = p.accent_subtle
+            border = f"2px solid {color}"
+            text = p.text_primary
+        else:
+            background = p.surface_card
+            border = f"1px solid {color}"
+            text = p.text_primary
+        return f"""
+            QPushButton {{
+                background-color: {background};
+                color: {text};
+                border: {border};
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 0px 4px;
+            }}
+            QPushButton:hover {{
+                background-color: {p.accent_subtle};
+            }}
+        """
+
+    @classmethod
+    def get_variation_branch_chip_style(cls, color, active=False):
+        p = ThemeManager.palette()
+        background = p.accent_subtle if active else p.surface_card
+        return f"""
+            QFrame#BranchChip {{
+                background-color: {background};
+                border: 1px solid {color};
+                border-radius: 6px;
+            }}
+            QFrame#BranchChip QLabel {{
+                color: {p.text_primary if active else p.text_secondary};
+                background: transparent;
+                border: none;
+                font-size: 10px;
+                font-weight: 600;
+            }}
+            QFrame#BranchChip QToolButton {{
+                color: {p.text_muted};
+                background: transparent;
+                border: none;
+                font-size: 11px;
+                padding: 0px;
+            }}
+            QFrame#BranchChip QToolButton:hover {{
+                color: {p.text_primary};
+            }}
+        """
+
+    @classmethod
+    def get_variation_badge_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QToolButton {{
+                background-color: {p.accent_subtle};
+                color: {p.accent};
+                border: 1px solid {p.accent};
+                border-radius: 5px;
+                font-size: 10px;
+                font-weight: 700;
+                padding: 0px;
+            }}
+            QToolButton:hover {{
+                background-color: {p.accent};
+                color: #FFFFFF;
             }}
         """
 
@@ -1447,46 +1641,50 @@ class Styles(metaclass=_StylesMeta):
 
     @classmethod
     def get_captured_pieces_style(cls):
-        p = ThemeManager.palette()
         return f"""
             QFrame {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-                padding: 5px;
+                background: transparent;
+                border: none;
+                padding: 0px;
             }}
             {cls.CAPTURED_PIECES_STYLE}
         """
 
     @classmethod
-    def get_piece_chip_style(cls, fg, bg):
+    def get_piece_chip_style(cls, fg, bg, compact=True):
+        font_size = 22 if compact else 26
+        padding = "1px 5px" if compact else "1px 6px"
         return f"""
             color: {fg}; background-color: {bg};
-            font-size: 26px; padding: 2px 6px; border-radius: 4px;
+            font-size: {font_size}px; padding: {padding}; border-radius: 4px;
         """
 
     @classmethod
-    def get_advantage_chip_style(cls):
+    def get_advantage_chip_style(cls, compact=True):
         p = ThemeManager.palette()
+        font_size = 14 if compact else 15
         return f"""
             color: {p.text_primary};
             background-color: {p.surface_light};
-            font-weight: bold; font-size: 16px;
-            padding: 4px 8px; border-radius: 4px;
+            font-weight: bold; font-size: {font_size}px;
+            padding: 3px 7px; border-radius: 4px;
             margin-right: 4px;
         """
 
     @classmethod
-    def get_digital_clock_style(cls, bg, fg, border):
+    def get_digital_clock_style(cls, bg, fg, border, compact=True):
+        font_size = 16 if compact else 18
+        padding = "3px 8px" if compact else "4px 10px"
+        radius = 6 if compact else 7
         return f"""
             QLabel {{
                 color: {fg};
                 background-color: {bg};
                 font-family: 'Courier New', 'Monospace', monospace;
-                font-size: 18px;
+                font-size: {font_size}px;
                 font-weight: bold;
-                padding: 4px 10px;
-                border-radius: 6px;
+                padding: {padding};
+                border-radius: {radius}px;
                 border: 1px solid {border};
             }}
         """

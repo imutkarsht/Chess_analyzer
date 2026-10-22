@@ -25,12 +25,15 @@ class CapturedPiecesWidget(QFrame):
     def __init__(self, side: str = "white"):
         super().__init__()
         self.side = side  # "white" or "black" — which player's captures this shows
+        self._compact = False
+        self._fen = None
+        self._clock_seconds = None
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shape.NoFrame)
         self.setStyleSheet(Styles.get_captured_pieces_style())
 
         layout = QHBoxLayout(self)
-        layout.setSpacing(5)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setSpacing(4)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         self.pieces_layout = QHBoxLayout()
@@ -50,11 +53,20 @@ class CapturedPiecesWidget(QFrame):
         self.clock_label.hide()
         layout.addWidget(self.clock_label)
 
-        # Reserve a fixed, content-independent height so the board does
-        # not shift when the first piece gets captured. Sized large
-        # enough that the piece symbols are easy to read.
-        self.setMinimumHeight(56)
-        self.setMaximumHeight(56)
+        self._apply_row_height()
+
+    def _apply_row_height(self):
+        height = 36 if self._compact else 44
+        self.setMinimumHeight(height)
+        self.setMaximumHeight(height)
+
+    def set_compact(self, compact: bool) -> None:
+        """Use the denser Explore-mode sizing without recreating the widget."""
+        self._compact = compact
+        self._apply_row_height()
+        self.update_captured(self._fen)
+        if self._clock_seconds is not None:
+            self._apply_clock_style(self._clock_seconds)
 
     def update_captured(self, fen):
         """Update captured pieces display based on current FEN.
@@ -63,6 +75,7 @@ class CapturedPiecesWidget(QFrame):
         side (self.side). The companion widget on the opposite side is
         expected to be called with the same FEN.
         """
+        self._fen = fen
         clear_layout(self.pieces_layout)
 
         if not fen:
@@ -143,7 +156,7 @@ class CapturedPiecesWidget(QFrame):
             'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛',
         }
 
-        style = Styles.get_piece_chip_style(fg, bg)
+        style = Styles.get_piece_chip_style(fg, bg, compact=self._compact)
 
         symbol = piece_map.get(piece, '?')
         if piece in ('p', 'P'):
@@ -182,13 +195,14 @@ class CapturedPiecesWidget(QFrame):
         counter stays pinned to the start of the row and does not wander
         as new pieces are captured."""
         lbl = QLabel(text)
-        lbl.setStyleSheet(Styles.get_advantage_chip_style())
+        lbl.setStyleSheet(Styles.get_advantage_chip_style(compact=self._compact))
         self.pieces_layout.insertWidget(0, lbl)
 
     def update_clock(self, seconds):
         """Update the clock label with the remaining time in seconds.
         If seconds is None, hide the clock label.
         """
+        self._clock_seconds = seconds
         if seconds is None:
             self.clock_label.hide()
             if hasattr(self, 'spacer_widget'):
@@ -198,21 +212,42 @@ class CapturedPiecesWidget(QFrame):
 
         formatted = self._format_ui_clock(seconds)
         self.clock_label.setText(formatted)
-
-        # Color coding: red/orange if less than 20 seconds
-        if seconds <= 20.0:
-            self.clock_label.setStyleSheet(Styles.get_digital_clock_style(Styles.COLOR_BLUNDER, "#FFFFFF", Styles.COLOR_BLUNDER))
-        else:
-            if self.side == "black":
-                bg, fg, border = Styles.COLOR_SURFACE, Styles.COLOR_TEXT_PRIMARY, Styles.COLOR_BORDER
-            else:
-                bg, fg, border = Styles.COLOR_BACKGROUND, Styles.COLOR_TEXT_PRIMARY, Styles.COLOR_BORDER
-            self.clock_label.setStyleSheet(Styles.get_digital_clock_style(bg, fg, border))
+        self._apply_clock_style(seconds)
 
         self.clock_label.show()
         if hasattr(self, 'spacer_widget'):
             self.spacer_widget.show()
         self._update_container_style()
+
+    def _apply_clock_style(self, seconds):
+        # Color coding: red/orange if less than 20 seconds
+        if seconds <= 20.0:
+            self.clock_label.setStyleSheet(
+                Styles.get_digital_clock_style(
+                    Styles.COLOR_BLUNDER,
+                    "#FFFFFF",
+                    Styles.COLOR_BLUNDER,
+                    compact=self._compact,
+                )
+            )
+        else:
+            if self.side == "black":
+                bg, fg, border = (
+                    Styles.COLOR_SURFACE,
+                    Styles.COLOR_TEXT_PRIMARY,
+                    Styles.COLOR_BORDER,
+                )
+            else:
+                bg, fg, border = (
+                    Styles.COLOR_BACKGROUND,
+                    Styles.COLOR_TEXT_PRIMARY,
+                    Styles.COLOR_BORDER,
+                )
+            self.clock_label.setStyleSheet(
+                Styles.get_digital_clock_style(
+                    bg, fg, border, compact=self._compact
+                )
+            )
 
     def _update_container_style(self):
         """Show border and background only when there is something to display."""
@@ -224,7 +259,9 @@ class CapturedPiecesWidget(QFrame):
         else:
             self.setStyleSheet(Styles.get_transparent_label_style())
     def refresh_styles(self):
-        self._update_container_style()
+        self.update_captured(self._fen)
+        if self._clock_seconds is not None:
+            self._apply_clock_style(self._clock_seconds)
 
     def _format_ui_clock(self, seconds: float) -> str:
         """Format seconds to a standard premium chess clock format (e.g. 10:00, 1:35, 15.4)."""

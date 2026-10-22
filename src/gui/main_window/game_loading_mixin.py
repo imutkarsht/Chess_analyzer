@@ -106,10 +106,13 @@ class GameLoadingMixin:
             if total_w < 500:
                 total_w = max(self.width(), 1100)
             if has_game:
-                self.splitter.setSizes([int(total_w * 0.22), int(total_w * 0.52), int(total_w * 0.26), 0])
-                self.splitter.setStretchFactor(0, 1)
-                self.splitter.setStretchFactor(1, 3)
-                self.splitter.setStretchFactor(2, 1)
+                left_w = int(total_w * 0.20)
+                center_w = int(total_w * 0.60)
+                right_w = total_w - left_w - center_w
+                self.splitter.setSizes([left_w, center_w, right_w, 0])
+                self.splitter.setStretchFactor(0, 0)
+                self.splitter.setStretchFactor(1, 1)
+                self.splitter.setStretchFactor(2, 0)
                 self.splitter.setStretchFactor(3, 0)
             else:
                 left_w = int(total_w * 0.60)
@@ -119,6 +122,9 @@ class GameLoadingMixin:
                 self.splitter.setStretchFactor(1, 6)
                 self.splitter.setStretchFactor(2, 0)
                 self.splitter.setStretchFactor(3, 4)
+
+        if hasattr(self, "_update_game_info_placement"):
+            self._update_game_info_placement()
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
         """
@@ -143,6 +149,8 @@ class GameLoadingMixin:
     def load_game(self, game, from_history: bool = False):
         # A new game must never inherit the previous game's open variation.
         self._exit_variation()
+        if hasattr(self, "variation"):
+            self.variation.reset_session()
 
         # If game has no moves but has PGN content (loaded from history), parse it
         if not game.moves and game.pgn_content:
@@ -195,12 +203,16 @@ class GameLoadingMixin:
 
         info_text = f"{white} ({w_elo}) vs {black} ({b_elo})  [{result}]"
         self.game_info_label.setText(info_text)
+        if hasattr(self, "board_game_header"):
+            self.board_game_header.set_info(white, w_elo, black, b_elo, result)
         logger.info(f"Loaded game: {white} vs {black} [{result}], {len(game.moves)} moves")
 
         self.board_widget.load_game(game)
         self._position_captured_pieces()
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
+        if hasattr(self, "_refresh_variation_badges"):
+            self._refresh_variation_badges()
         self.captured_white.update_captured(None)
         self.captured_black.update_captured(None)
 

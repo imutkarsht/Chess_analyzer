@@ -83,9 +83,32 @@ class NavigationMixin:
         self.shortcut_tour = QShortcut(QKeySequence("Ctrl+T"), self)
         self.shortcut_tour.activated.connect(self.start_tour)
 
+        self.shortcut_flip = QShortcut(QKeySequence("F"), self)
+        self.shortcut_flip.activated.connect(self._handle_flip_shortcut)
+        app = QApplication.instance()
+        if app is not None:
+            app.focusChanged.connect(self._update_flip_shortcut_state)
+            self._update_flip_shortcut_state(None, QApplication.focusWidget())
+
         # Variation mode
         self.shortcut_exit_variation = QShortcut(QKeySequence("Escape"), self)
         self.shortcut_exit_variation.activated.connect(self._on_escape)
+
+        self.shortcut_prev_branch = QShortcut(QKeySequence("Alt+Up"), self)
+        self.shortcut_prev_branch.activated.connect(lambda: self._cycle_variation_branch(-1))
+        self.shortcut_next_branch = QShortcut(QKeySequence("Alt+Down"), self)
+        self.shortcut_next_branch.activated.connect(lambda: self._cycle_variation_branch(1))
+
+    @staticmethod
+    def _editing_text() -> bool:
+        return isinstance(QApplication.focusWidget(), (QLineEdit, QTextEdit, QPlainTextEdit))
+
+    def _cycle_variation_branch(self, direction: int) -> None:
+        if self._editing_text():
+            return
+        variation = getattr(self, "variation", None)
+        if variation is not None and variation.is_active:
+            variation.cycle_sibling(direction)
 
     def _on_escape(self):
         """Esc leaves a variation, or the Explorer page; otherwise it is ignored."""
@@ -105,6 +128,21 @@ class NavigationMixin:
             focus_widget.selectAll()
             return
         self.start_analysis()
+
+    def _update_flip_shortcut_state(self, _old, new) -> None:
+        """Disable plain-letter F while a text field has focus."""
+        if hasattr(self, "shortcut_flip"):
+            self.shortcut_flip.setEnabled(
+                not isinstance(new, (QLineEdit, QTextEdit, QPlainTextEdit))
+            )
+
+    def _handle_flip_shortcut(self):
+        if self._editing_text():
+            return
+        if getattr(self, "stack", None) is not None and self.stack.currentIndex() == 1:
+            self.explorer_view._flip_board()
+            return
+        self.flip_board()
 
     def _handle_paste(self):
         focus_widget = QApplication.focusWidget()
@@ -222,20 +260,17 @@ class NavigationMixin:
         self._position_captured_pieces()
 
     def _position_captured_pieces(self):
-        """Keep one captured-pieces card on each side of the board.
+        """Keep one captured-pieces card on each side of the board."""
+        self.board_panel.set_flipped(self.board_widget.is_flipped)
 
-        Reordering relative to the board (not fixed indices) keeps the layout
-        intact when other widgets are inserted or hidden.
-        """
-        self.center_layout.removeWidget(self.captured_white)
-        self.center_layout.removeWidget(self.captured_black)
-        board_index = self.center_layout.indexOf(self.board_widget)
-        if self.board_widget.is_flipped:
-            top, bottom = self.captured_white, self.captured_black
-        else:
-            top, bottom = self.captured_black, self.captured_white
-        self.center_layout.insertWidget(board_index, top)
-        self.center_layout.insertWidget(board_index + 2, bottom)
+    def _sync_board_chrome_widths(self, side: int) -> None:
+        """Keep the matchup header and controls anchored to the board width."""
+        if side <= 0:
+            return
+        if hasattr(self, "board_game_header"):
+            self.board_game_header.setFixedWidth(side)
+        if hasattr(self, "controls"):
+            self.controls.setFixedWidth(side)
 
     def on_move_selected(self, index, silent: bool = False):
         # Any game navigation abandons an open variation first.

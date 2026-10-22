@@ -97,11 +97,13 @@ class PromotionDialog(QDialog):
 
 class BoardWidget(QWidget):
     move_made = pyqtSignal(str)  # Emits board FEN after any move is played
+    board_side_changed = pyqtSignal(int)  # Emits the rendered square board size
 
     def __init__(self):
         super().__init__()
         self.board = chess.Board()
         self.is_flipped = False  # False = White bottom, True = Black bottom
+        self._last_board_side = 0
 
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.svg_widget = QSvgWidget()
@@ -193,6 +195,9 @@ class BoardWidget(QWidget):
 
         margin = int(side * 15 / 390)
         self.overlay_layout.setContentsMargins(margin, margin, margin, margin)
+        if side != self._last_board_side:
+            self._last_board_side = side
+            self.board_side_changed.emit(side)
 
     # ------------------------------------------------------------------ Mouse & Move Interactions
     def eventFilter(self, obj, event):

@@ -1,6 +1,7 @@
 """
 Keyboard Shortcuts Help Dialog for Chess Analyzer Pro.
 """
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
@@ -17,6 +18,7 @@ from ..styles import Styles
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -53,7 +55,9 @@ class ShortcutHelpDialog(QDialog):
 
         if HAS_QTAWESOME:
             icon_label = QLabel()
-            icon_label.setPixmap(qta.icon('fa5s.keyboard', color=Styles.COLOR_ACCENT).pixmap(28, 28))
+            icon_label.setPixmap(
+                qta.icon("fa5s.keyboard", color=Styles.COLOR_ACCENT).pixmap(28, 28)
+            )
             header_layout.addWidget(icon_label)
 
         title = QLabel("Keyboard Shortcuts")
@@ -97,6 +101,10 @@ class ShortcutHelpDialog(QDialog):
             "Board": [
                 ("F", "Flip board"),
             ],
+            "Variations": [
+                ("Alt+↑ / Alt+↓", "Previous / next sibling branch"),
+                ("Esc", "Exit variation"),
+            ],
             "Actions": [
                 ("Ctrl+O", "Open PGN file"),
                 ("Ctrl+A", "Analyze game"),
@@ -116,11 +124,16 @@ class ShortcutHelpDialog(QDialog):
                 cat_icons = {
                     "Navigation": "fa5s.arrows-alt",
                     "Board": "fa5s.chess-board",
+                    "Variations": "fa5s.code-branch",
                     "Actions": "fa5s.bolt",
-                    "General": "fa5s.cog"
+                    "General": "fa5s.cog",
                 }
                 cat_icon = QLabel()
-                cat_icon.setPixmap(qta.icon(cat_icons.get(category, "fa5s.circle"), color=Styles.COLOR_ACCENT).pixmap(14, 14))
+                cat_icon.setPixmap(
+                    qta.icon(
+                        cat_icons.get(category, "fa5s.circle"), color=Styles.COLOR_ACCENT
+                    ).pixmap(14, 14)
+                )
                 cat_layout.addWidget(cat_icon)
 
             category_label = QLabel(category)
@@ -198,6 +211,7 @@ class ShortcutHelpDialog(QDialog):
 
     def _open_feedback(self):
         from .feedback_dialog import FeedbackDialog
+
         dialog = FeedbackDialog(self, initial_tab="bug")
         dialog.exec()
 
