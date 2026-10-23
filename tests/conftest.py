@@ -27,6 +27,18 @@ def _reset_engine_cache():
     yield
 
 
+# ============ Network Update Check Guard ============
+@pytest.fixture(autouse=True)
+def _no_update_check(monkeypatch):
+    """Never let a test MainWindow query GitHub for releases.
+
+    Otherwise a shown window can open the real update dialog, whose download
+    path runs the installer on the developer's machine.
+    """
+    from src.gui.main_window import MainWindow
+    monkeypatch.setattr(MainWindow, "check_for_updates", lambda self: None)
+
+
 # ============ Mock Fixtures ============
 @pytest.fixture
 def mock_engine(mocker):
