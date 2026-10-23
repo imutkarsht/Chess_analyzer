@@ -189,6 +189,7 @@ class GameLoadingMixin:
             except Exception as e:
                 logger.debug(f"Failed to auto-save loaded game to history: {e}")
 
+        self._stop_replay()
         self.current_game = game
         self._update_analysis_view_mode(has_game=True)
         # Clear historic landing state so the move detector doesn't fire during game playback

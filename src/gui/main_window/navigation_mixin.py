@@ -1,8 +1,24 @@
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QKeySequence, QShortcut
-from PyQt6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit
+from PyQt6.QtWidgets import (
+    QAbstractButton,
+    QApplication,
+    QComboBox,
+    QLineEdit,
+    QPlainTextEdit,
+    QTextEdit,
+)
 
+from src.backend.analysis.navigation import find_critical_move
+from src.constants import (
+    CRITICAL_CLASSIFICATIONS,
+    DEFAULT_SHORTCUT_PRESET,
+    PAGE_ANALYSIS,
+    PAGE_EXPLORER,
+    PAGE_NAMES,
+    REPLAY_INTERVAL_MS,
+)
 from src.gui.dialogs import ShortcutHelpDialog
+from src.gui.utils.shortcut_manager import ShortcutManager
 
 
 def compute_clock_times(moves, index: int = -1) -> tuple[float | None, float | None]:
@@ -47,57 +63,171 @@ class NavigationMixin:
     """Board move navigation, shortcuts, clipboard paste, and keyboard routing."""
 
     def _setup_shortcuts(self):
-        # File Operations
-        self.shortcut_open = QShortcut(QKeySequence("Ctrl+O"), self)
-        self.shortcut_open.activated.connect(
-            lambda: QTimer.singleShot(0, lambda: self.open_load_dialog(0))
+        sm = ShortcutManager(self)
+        self.shortcut_manager = sm
+
+        # File / analysis
+        sm.register(
+            "open_game",
+            "Open / load game",
+            "Ctrl+O",
+            lambda: QTimer.singleShot(0, lambda: self.open_load_dialog(0)),
+            category="File",
+        )
+        sm.register(
+            "paste_game", "Paste PGN from clipboard", "Ctrl+V", self._handle_paste, category="File"
+        )
+        # Ctrl+A triggers analysis only when not typing inside a text field
+        sm.register(
+            "analyze", "Analyze game", "Ctrl+A", self._handle_analyze_shortcut, category="Analysis"
         )
 
-        self.shortcut_paste = QShortcut(QKeySequence("Ctrl+V"), self)
-        self.shortcut_paste.activated.connect(self._handle_paste)
-
-        # Ctrl+A triggers analysis only when not typing inside a text field
-        self.shortcut_analyze = QShortcut(QKeySequence("Ctrl+A"), self)
-        self.shortcut_analyze.activated.connect(self._handle_analyze_shortcut)
-
         # Navigation
-        self.shortcut_left = QShortcut(QKeySequence("Left"), self)
-        self.shortcut_left.activated.connect(self._nav_prev)
+        sm.register(
+            "nav_prev", "Previous move", ("Left", "K"), self._nav_prev, category="Navigation"
+        )
+        sm.register("nav_next", "Next move", ("Right", "J"), self._nav_next, category="Navigation")
+        sm.register(
+            "nav_first", "First move", ("Home", "Down"), self._nav_first, category="Navigation"
+        )
+        sm.register("nav_last", "Last move", ("End", "Up"), self._nav_last, category="Navigation")
+        sm.register(
+            "nav_next_critical",
+            "Next mistake / blunder / miss",
+            ("N", "Shift+Right"),
+            lambda: self._nav_critical(1),
+            category="Navigation",
+        )
+        sm.register(
+            "nav_prev_critical",
+            "Previous mistake / blunder / miss",
+            ("P", "Shift+Left"),
+            lambda: self._nav_critical(-1),
+            category="Navigation",
+        )
 
-        self.shortcut_right = QShortcut(QKeySequence("Right"), self)
-        self.shortcut_right.activated.connect(self._nav_next)
-
-        self.shortcut_up = QShortcut(QKeySequence("Up"), self)
-        self.shortcut_up.activated.connect(self._nav_last)
-
-        self.shortcut_end = QShortcut(QKeySequence("End"), self)
-        self.shortcut_end.activated.connect(self._nav_last)
-
-        self.shortcut_down = QShortcut(QKeySequence("Down"), self)
-        self.shortcut_down.activated.connect(self._nav_first)
-
-        self.shortcut_home = QShortcut(QKeySequence("Home"), self)
-        self.shortcut_home.activated.connect(self._nav_first)
-
-        # Tour
-        self.shortcut_tour = QShortcut(QKeySequence("Ctrl+T"), self)
-        self.shortcut_tour.activated.connect(self.start_tour)
-
-        self.shortcut_flip = QShortcut(QKeySequence("F"), self)
-        self.shortcut_flip.activated.connect(self._handle_flip_shortcut)
-        app = QApplication.instance()
-        if app is not None:
-            app.focusChanged.connect(self._update_flip_shortcut_state)
-            self._update_flip_shortcut_state(None, QApplication.focusWidget())
+        # Board
+        sm.register("flip_board", "Flip board", "F", self._handle_flip_shortcut, category="Board")
+        sm.register(
+            "toggle_replay",
+            "Play / pause auto-replay",
+            "Space",
+            self._toggle_replay,
+            category="Board",
+        )
 
         # Variation mode
-        self.shortcut_exit_variation = QShortcut(QKeySequence("Escape"), self)
-        self.shortcut_exit_variation.activated.connect(self._on_escape)
+        sm.register(
+            "prev_branch",
+            "Previous sibling branch",
+            "Alt+Up",
+            lambda: self._cycle_variation_branch(-1),
+            category="Variations",
+        )
+        sm.register(
+            "next_branch",
+            "Next sibling branch",
+            "Alt+Down",
+            lambda: self._cycle_variation_branch(1),
+            category="Variations",
+        )
+        sm.register(
+            "escape",
+            "Exit variation / leave Explorer",
+            "Escape",
+            self._on_escape,
+            category="Variations",
+        )
 
-        self.shortcut_prev_branch = QShortcut(QKeySequence("Alt+Up"), self)
-        self.shortcut_prev_branch.activated.connect(lambda: self._cycle_variation_branch(-1))
-        self.shortcut_next_branch = QShortcut(QKeySequence("Alt+Down"), self)
-        self.shortcut_next_branch.activated.connect(lambda: self._cycle_variation_branch(1))
+        # Pages
+        for index, name in enumerate(PAGE_NAMES):
+            sm.register(
+                f"page_{name.lower()}",
+                f"Go to {name}",
+                str(index + 1),
+                lambda i=index: self._go_to_page(i),
+                category="Pages",
+            )
+
+        # Help
+        sm.register("start_tour", "Start page tour", "Ctrl+T", self.start_tour, category="Help")
+
+        self._replay_timer = QTimer(self)
+        self._replay_timer.setInterval(REPLAY_INTERVAL_MS)
+        self._replay_timer.timeout.connect(self._replay_tick)
+
+        shortcut_card = self.settings_view.shortcut_settings
+        sm.bindings_changed.connect(lambda: shortcut_card.set_bindings(sm.get_bindings()))
+        shortcut_card.preset_changed.connect(sm.apply_preset)
+        sm.apply_preset(self.config_manager.get("shortcut_preset", DEFAULT_SHORTCUT_PRESET))
+
+    def _go_to_page(self, index: int):
+        self.sidebar.set_active(index)
+        self.switch_page(index)
+
+    def _variation_active(self) -> bool:
+        variation = getattr(self, "variation", None)
+        return variation is not None and variation.is_active
+
+    def _nav_critical(self, step: int):
+        """Jump to the nearest mistake/blunder/miss in the given direction (1 or -1)."""
+        if self.stack.currentIndex() == PAGE_EXPLORER or not self.current_game:
+            return
+        moves = self.current_game.moves
+        if not any(m.classification for m in moves):
+            self._set_status("Analyze the game first to jump between mistakes", "warning")
+            return
+        idx = find_critical_move(
+            moves, self.board_widget.current_move_index, step, CRITICAL_CLASSIFICATIONS
+        )
+        if idx is None:
+            direction = "after" if step > 0 else "before"
+            self._set_status(f"No mistakes, blunders or misses {direction} this move", "info")
+            return
+        self.on_move_selected(idx)
+
+    def _toggle_replay(self):
+        """Space: start/stop stepping through the main line every REPLAY_INTERVAL_MS."""
+        if self._replay_timer.isActive():
+            self._stop_replay()
+            return
+
+        game = self.current_game
+        if self.stack.currentIndex() != PAGE_ANALYSIS or not game or not game.moves:
+            # Nothing to replay: give Space back to a focused button/combo,
+            # since the window-level shortcut swallows it before they see it.
+            focus_widget = QApplication.focusWidget()
+            if isinstance(focus_widget, QAbstractButton):
+                focus_widget.animateClick()
+            elif isinstance(focus_widget, QComboBox):
+                focus_widget.showPopup()
+            return
+        if self._variation_active():
+            self._set_status("Exit the variation (Esc) to replay the game", "info")
+            return
+
+        # Restart from the beginning when the game is already at its last move.
+        if self.board_widget.current_move_index >= len(game.moves) - 1:
+            self.on_move_selected(-1)
+        self._replay_timer.start()
+        self._set_status("Auto-replay started (Space to pause)", "info")
+
+    def _stop_replay(self):
+        if self._replay_timer.isActive():
+            self._replay_timer.stop()
+            self._set_status("Auto-replay paused", "info")
+
+    def _replay_tick(self):
+        game = self.current_game
+        if (
+            self.stack.currentIndex() != PAGE_ANALYSIS
+            or not game
+            or self._variation_active()
+            or self.board_widget.current_move_index >= len(game.moves) - 1
+        ):
+            self._stop_replay()
+            return
+        self._nav_next()
 
     @staticmethod
     def _editing_text() -> bool:
@@ -128,13 +258,6 @@ class NavigationMixin:
             focus_widget.selectAll()
             return
         self.start_analysis()
-
-    def _update_flip_shortcut_state(self, _old, new) -> None:
-        """Disable plain-letter F while a text field has focus."""
-        if hasattr(self, "shortcut_flip"):
-            self.shortcut_flip.setEnabled(
-                not isinstance(new, (QLineEdit, QTextEdit, QPlainTextEdit))
-            )
 
     def _handle_flip_shortcut(self):
         if self._editing_text():
@@ -278,6 +401,7 @@ class NavigationMixin:
 
         self.board_widget.set_position(index)
         self.move_list_panel.select_move(index)
+        self.move_changed.emit(index)
 
         if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
             self.analysis_panel.graph_widget.set_current_move(index)

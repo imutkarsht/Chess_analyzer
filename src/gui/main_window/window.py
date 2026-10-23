@@ -2,7 +2,7 @@ import os
 import sys
 
 import chess
-from PyQt6.QtCore import QPoint, Qt, QTimer
+from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QGuiApplication, QIcon
 from PyQt6.QtWidgets import (
     QFrame,
@@ -76,6 +76,10 @@ class MainWindow(
     QMainWindow,
 ):
     """Main application window composed of domain mixins."""
+
+    # Emitted with the new ply index (-1 = start position) whenever the
+    # analysis board moves, whether from a click, a button or a shortcut.
+    move_changed = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
