@@ -81,6 +81,9 @@ class ThemeMixin:
         # Refresh history view
         if hasattr(self, "history_view"):
             self.history_view.load_history()
+        # Recolour the current game result from the new saved player's POV
+        if hasattr(self, "board_game_header"):
+            self.board_game_header.refresh_styles()
 
     def _apply_palette(self):
         p = ThemeManager.palette()

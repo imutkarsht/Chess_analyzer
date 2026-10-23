@@ -1223,38 +1223,74 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_move_list_card_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#MoveListCard {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 12px;
+            }}
+        """
+
+    @classmethod
     def get_move_list_table_style(cls):
         p = ThemeManager.palette()
         return f"""
             QTableWidget {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 8px;
+                background: transparent;
+                border: none;
                 gridline-color: transparent;
                 font-size: 13px;
+                selection-background-color: transparent;
+            }}
+            QTableWidget QWidget#qt_scrollarea_viewport {{
+                background: transparent;
             }}
             QTableWidget::item {{
-                padding: 4px 6px;
+                padding: 0px 0px 0px 10px;
                 border: none;
                 border-bottom: 1px solid {p.surface_light};
             }}
             QTableWidget::item:hover {{
-                background-color: {p.surface_light};
-                border-radius: 4px;
+                background: transparent;
             }}
             QTableWidget::item:selected {{
-                background-color: {p.highlight};
+                background: transparent;
                 color: {p.text_primary};
-                border-radius: 4px;
+            }}
+            QHeaderView {{
+                background: transparent;
             }}
             QHeaderView::section {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                padding: 8px 6px;
+                background: transparent;
+                color: {p.text_secondary};
+                padding: 8px 10px 8px 12px;
                 border: none;
-                border-bottom: 2px solid {p.accent};
-                font-weight: 700;
-                font-size: 13px;
+                border-bottom: 1px solid {p.border};
+                font-weight: 600;
+                font-size: 11px;
+            }}
+            QScrollBar:vertical {{
+                background: transparent;
+                width: 8px;
+                margin: 4px 2px 4px 0px;
+                border: none;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {p.border};
+                min-height: 20px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {p.border_light};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+                background: none;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
             }}
         """
 

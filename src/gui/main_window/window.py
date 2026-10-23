@@ -403,9 +403,9 @@ class MainWindow(
         header_layout.setContentsMargins(40, 12, 40, 12)
 
         # Title
-        self.title_lbl = QLabel("Chess Analysis")
+        self.title_lbl = QLabel("Analysis View")
         self.title_lbl.setStyleSheet(
-            f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
+            f"font-size: 20px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
         )
         header_layout.addWidget(self.title_lbl)
 

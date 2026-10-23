@@ -6,9 +6,10 @@ import contextlib
 
 import chess
 from PyQt6.QtCore import QEvent, QSize, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor
+from PyQt6.QtGui import QBrush, QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QFrame,
     QHeaderView,
     QTableWidget,
     QTableWidgetItem,
@@ -32,8 +33,8 @@ class MoveListPanel(QWidget):
     def __init__(self, engine_path="stockfish", config_manager=None):
         super().__init__()
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(5)
+        self.layout.setContentsMargins(5, 5, 5, 5)
+        self.layout.setSpacing(0)
 
         self.resource_manager = ResourceManager()
         self.current_game = None
@@ -76,21 +77,26 @@ class MoveListPanel(QWidget):
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["#", "White", "Black"])
         self.table.horizontalHeader().setHighlightSections(False)
-        self.table.horizontalHeader().setMinimumHeight(32)
+        self.table.horizontalHeader().setMinimumHeight(34)
+        self.table.horizontalHeader().setIconSize(QSize(9, 9))
+        self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.table.setFrameShape(QFrame.Shape.NoFrame)
+        self.table.setWordWrap(False)
 
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.resizeSection(0, 46)  # #  — wide enough for two-digit move numbers
+        header.resizeSection(0, 44)  # #  — wide enough for two-digit move numbers
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         self.table.verticalHeader().setVisible(False)
-        self.table.setAlternatingRowColors(False)  # Using custom hover instead
+        self.table.setAlternatingRowColors(False)
         self.table.setShowGrid(False)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.cellClicked.connect(self.on_cell_clicked)
+        self.table.horizontalHeader().sectionResized.connect(self._on_section_resized)
         self.table.setIconSize(QSize(20, 20))
 
         # Redirect arrow / Home / End keys from the table back to the main
@@ -100,10 +106,24 @@ class MoveListPanel(QWidget):
         # Set default row height for better click targets
         self.table.verticalHeader().setDefaultSectionSize(40)
 
-        self.layout.addWidget(self.table)
+        # Rounded card so the list reads as a panel like the rest of the app.
+        # The table itself stays transparent: the card owns the surface + radius.
+        self.card = QFrame()
+        self.card.setObjectName("MoveListCard")
+        self.card.setFrameShape(QFrame.Shape.NoFrame)
+        card_layout = QVBoxLayout(self.card)
+        card_layout.setContentsMargins(0, 0, 0, 0)
+        card_layout.setSpacing(0)
+        card_layout.addWidget(self.table)
+
+        self.layout.addWidget(self.card)
 
         # Stretch factors
-        self.layout.setStretch(0, 1)  # Table
+        self.layout.setStretch(0, 1)  # Card
+
+        self._max_seconds = 30.0
+        self._selected_index: int | None = None
+        self.refresh_styles()
 
     def eventFilter(self, source, event):
         """Redirect navigation keys from the table to the main window."""
@@ -134,6 +154,7 @@ class MoveListPanel(QWidget):
     def set_game(self, game_analysis):
         self.current_game = game_analysis
         self._variation_counts = {}
+        self._selected_index = None
         self.live_worker.set_chess960(game_analysis.metadata.chess960)
         self.refresh()
 
@@ -184,6 +205,7 @@ class MoveListPanel(QWidget):
             max_seconds = 30.0
             if base_time > 0:
                 max_seconds = max(10.0, min(600.0, base_time * 0.1))
+            self._max_seconds = max_seconds
 
             for i, move in enumerate(self.current_game.moves):
                 row = i // 2
@@ -192,34 +214,35 @@ class MoveListPanel(QWidget):
                 # Set Move Number for White moves (left of the row)
                 if col == 1:
                     num_item = QTableWidgetItem(str(move.move_number))
-                    num_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    num_item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                    )
                     num_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
                     num_item.setForeground(QBrush(QColor(Styles.COLOR_TEXT_SECONDARY)))
                     self.table.setItem(row, 0, num_item)
 
                 self._set_move_item(row, col, move, i, max_seconds)
 
+            if self._selected_index is not None:
+                self._apply_selection(self._selected_index)
             self.table.viewport().update()
+            QTimer.singleShot(0, self._update_compact_mode)
 
         except Exception as e:
             logger.error(f"Error refreshing move list: {e}", exc_info=True)
 
     def _set_move_item(self, row, col, move, index, max_seconds=30.0):
         """Render a move cell with icon, SAN, and a think-time bar inline."""
-        # Get classification icon (if any)
+        # Every classified move keeps its badge; routine classes stay neutral text.
         icon = None
         if move.classification:
             icon = self.resource_manager.get_icon(move.classification)
-
-        # Resolve the SAN colour from the project's styles module
-        san_color = Styles.get_class_color(move.classification) or Styles.COLOR_TEXT_PRIMARY
 
         cell = MoveCellWidget(parent=self.table)
         cell.set_move(
             move,
             index,
             icon=icon,
-            san_color=san_color,
             max_seconds=max_seconds,
             variation_count=self._variation_counts.get(index, 0),
         )
@@ -258,8 +281,13 @@ class MoveListPanel(QWidget):
         icon = None
         if move.classification:
             icon = self.resource_manager.get_icon(move.classification)
-        san_color = Styles.get_class_color(move.classification) or Styles.COLOR_TEXT_PRIMARY
-        widget.set_move(move, move_index, icon=icon, san_color=san_color)
+        widget.set_move(
+            move,
+            move_index,
+            icon=icon,
+            max_seconds=self._max_seconds,
+            variation_count=self._variation_counts.get(move_index, 0),
+        )
 
     def _on_cell_widget_clicked(self, index: int):
         """Forward clicks from MoveCellWidget into the existing move_selected signal."""
@@ -267,6 +295,61 @@ class MoveListPanel(QWidget):
 
     def _on_variation_clicked(self, index: int):
         self.variation_requested.emit(index)
+
+    def _apply_selection(self, index: int | None) -> None:
+        """Paint the active half-move and a faint tint over its move pair."""
+        self._selected_index = index
+        active_row = None if index is None else index // 2
+        for move_index, widget in self._move_widgets.items():
+            widget.set_state(
+                selected=move_index == index,
+                row_active=active_row is not None and move_index // 2 == active_row,
+            )
+
+    def _update_compact_mode(self) -> None:
+        """SAN wins when space is tight: drop the numeric think time, keep the bar."""
+        if not self._move_widgets:
+            return
+        compact = self.table.columnWidth(1) < 130
+        for widget in self._move_widgets.values():
+            widget.set_compact(compact)
+
+    def _on_section_resized(self, *_args) -> None:
+        # Column widths settle after the table is laid out, which can happen
+        # without a panel resize (e.g. loading a game into a visible window).
+        self._update_compact_mode()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_compact_mode()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(0, self._update_compact_mode)
+
+    def _setup_header(self) -> None:
+        """Label the two move columns with a side dot instead of a bare word."""
+        header = self.table.horizontalHeader()
+        header.setIconSize(QSize(9, 9))
+        white_item = self.table.horizontalHeaderItem(1)
+        black_item = self.table.horizontalHeaderItem(2)
+        if white_item is not None:
+            white_item.setIcon(self._header_dot(Styles.COLOR_PIECE_WHITE))
+        if black_item is not None:
+            black_item.setIcon(self._header_dot(Styles.COLOR_PIECE_BLACK))
+
+    @staticmethod
+    def _header_dot(color: str) -> QIcon:
+        size = 10
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor(Styles.COLOR_BORDER_LIGHT), 1))
+        painter.setBrush(QColor(color))
+        painter.drawEllipse(1, 1, size - 2, size - 2)
+        painter.end()
+        return QIcon(pixmap)
 
     def set_variation_counts(self, counts: dict[int, int]) -> None:
         """Attach branch badges to game positions that own saved variation trees."""
@@ -277,11 +360,11 @@ class MoveListPanel(QWidget):
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
         self.setStyleSheet(Styles.get_background_style())
+        self.card.setStyleSheet(Styles.get_move_list_card_style())
         self.table.setStyleSheet(Styles.get_move_list_table_style())
+        self._setup_header()
 
         # Re-apply color for move numbers in column 0
-        from PyQt6.QtGui import QBrush, QColor
-
         secondary_color = QColor(Styles.COLOR_TEXT_SECONDARY)
         for row in range(self.table.rowCount()):
             item = self.table.item(row, 0)
@@ -291,12 +374,20 @@ class MoveListPanel(QWidget):
         for cell in self._think_bars:
             cell.refresh_styles()
 
+        self._apply_selection(self._selected_index)
+
     def on_cell_clicked(self, row, col):
-        item = self.table.item(row, col)
-        if item:
-            index = item.data(Qt.ItemDataRole.UserRole)
-            if index is not None:
-                self.move_selected.emit(index)
+        if col == 0:
+            # Clicking a move number jumps to that row's White move instead of
+            # being a dead target.
+            index = row * 2
+        else:
+            item = self.table.item(row, col)
+            index = item.data(Qt.ItemDataRole.UserRole) if item else None
+        if index is None or not self.current_game:
+            return
+        if 0 <= index < len(self.current_game.moves):
+            self.move_selected.emit(index)
 
     def select_move(self, index):
         if not self.current_game:
@@ -304,6 +395,7 @@ class MoveListPanel(QWidget):
 
         if index < 0:
             self.table.clearSelection()
+            self._apply_selection(None)
             self.current_turn = chess.WHITE
             self.live_data = {}
             self._stop_live_analysis()
@@ -319,6 +411,7 @@ class MoveListPanel(QWidget):
 
         self.table.setCurrentCell(row, col)
         self.table.scrollToItem(self.table.item(row, col))
+        self._apply_selection(index)
 
         move = self.current_game.moves[index]
 
