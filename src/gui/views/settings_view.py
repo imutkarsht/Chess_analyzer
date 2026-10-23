@@ -133,6 +133,8 @@ class SettingsView(QWidget):
         self.theme_combo = self.appearance_settings.theme_combo
         self.piece_combo = self.appearance_settings.piece_combo
         self.sound_checkbox = self.appearance_settings.sound_checkbox
+        self.coordinates_checkbox = self.appearance_settings.coordinates_checkbox
+        self.classification_checkbox = self.appearance_settings.classification_checkbox
         self.color_btn = self.appearance_settings.color_btn
 
         self.clear_cache_btn = self.data_settings.clear_cache_btn
@@ -153,6 +155,13 @@ class SettingsView(QWidget):
         self.api_settings.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         self.api_settings.sync_explanation_settings()
         self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
+        for checkbox, key in (
+            (self.appearance_settings.coordinates_checkbox, "board_show_coordinates"),
+            (self.appearance_settings.classification_checkbox, "board_show_classification"),
+        ):
+            checkbox.blockSignals(True)
+            checkbox.setChecked(bool(self.config_manager.get(key, True)))
+            checkbox.blockSignals(False)
         self.api_settings._update_active_label()
 
     def _create_save_button(self):

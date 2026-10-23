@@ -43,6 +43,8 @@ class ConfigManager:
         "window_state": {"x": None, "y": None, "width": None, "height": None},
         "board_theme": "Green",
         "piece_theme": "Standard",
+        "board_show_coordinates": True,
+        "board_show_classification": True,
         "accent_color": "#FF9500",
         "lichess_token": "",
         "chesscom_username": "",

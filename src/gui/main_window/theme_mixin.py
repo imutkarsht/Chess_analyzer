@@ -185,9 +185,9 @@ class ThemeMixin:
 
         # Update Chess Boards (Graphics / QPainter)
         if hasattr(self, "board_widget"):
-            self.board_widget.update_board()
+            self.board_widget.refresh_settings()
         if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "board_widget"):
-            self.explorer_view.board_widget.update_board()
+            self.explorer_view.board_widget.refresh_settings()
 
         # Refresh Matplotlib Evaluation Graphs & Custom Gauges
         if hasattr(self, "analysis_panel"):

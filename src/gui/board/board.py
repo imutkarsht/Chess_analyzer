@@ -43,7 +43,7 @@ class BoardConfig:
     show_legal_moves: bool = True
 
     # Appearance
-    show_coordinates: bool = True
+    show_coordinates: bool | None = None
     show_last_move: bool = True
     show_eval_bar: bool = True
     board_theme: str | None = None
@@ -54,6 +54,8 @@ class BoardConfig:
     # "game_move" draws the classification of the move being replayed; "last_move"
     # draws the badge for the move just played (live exploration).
     classification_overlay: ClassificationOverlay = "game_move"
+    # None follows the global setting; an explicit bool pins the overlay on or off.
+    show_classification_overlay: bool | None = None
 
     # Rules
     chess960: bool = False
@@ -118,6 +120,9 @@ class Board(QWidget):
         self.best_move_uci = None
         self.dimmed = False
         self.last_move_classification = None
+        # Resolved from BoardConfig + the global appearance settings in update_board().
+        self._show_coordinates = True
+        self._show_classification = True
 
         # Drag and drop floating piece visual
         self.drag_piece_label = QLabel(self.board_container)
@@ -365,7 +370,7 @@ class Board(QWidget):
                 r, col = self._sq_to_grid(sq)
                 self.overlay_layout.addWidget(dot, r, col)
 
-        if self.config.classification_overlay == "last_move":
+        if self._show_classification and self.config.classification_overlay == "last_move":
             self._draw_last_move_badge()
 
     def _draw_last_move_badge(self):
@@ -558,6 +563,8 @@ class Board(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
+        if not self._show_classification:
+            return
         if self.config.classification_overlay != "game_move":
             return
         if move_index < 0 or move_index >= len(self.game_moves):
@@ -595,11 +602,36 @@ class Board(QWidget):
         except Exception as e:
             logger.debug(f"Error drawing overlay: {e}")
 
+    def _resolve_display_preferences(self):
+        """Resolve appearance prefs: a page override wins, otherwise the user setting."""
+        from ...utils.config import ConfigManager
+
+        prefs = ConfigManager()
+        self._show_coordinates = (
+            self.config.show_coordinates
+            if self.config.show_coordinates is not None
+            else prefs.get("board_show_coordinates", True)
+        )
+        self._show_classification = (
+            self.config.show_classification_overlay
+            if self.config.show_classification_overlay is not None
+            else prefs.get("board_show_classification", True)
+        )
+
+    def refresh_settings(self):
+        """Re-read appearance settings and redraw, clearing any now-hidden overlay."""
+        self.update_board()
+        if self.interactive:
+            self.draw_interactive_overlays()
+        else:
+            self.draw_overlays(self.current_move_index)
+
     def update_board(self):
         # Determine colors from configured theme
         from ...utils.config import ConfigManager
         from .piece_themes import get_piece_defs
 
+        self._resolve_display_preferences()
         config = ConfigManager()
         board_theme_name = self.config.board_theme or config.get("board_theme", "Green")
         piece_theme_name = self.config.piece_theme or config.get("piece_theme", "Standard")
@@ -710,7 +742,7 @@ class Board(QWidget):
                 )
 
         # Draw coordinates
-        if self.config.show_coordinates:
+        if self._show_coordinates:
             coord_style = (
                 f"font-size:10px;fill:{Styles.COLOR_TEXT_SECONDARY};font-family:sans-serif"
             )

@@ -10,7 +10,9 @@ import chess
 import pytest
 from PyQt6.QtWidgets import QDialog
 
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.board import Board, BoardConfig
+from src.utils.config import ConfigManager
 
 PROMOTION_FEN = "8/P7/8/8/8/8/8/K6k w - - 0 1"
 # Fischer Random position 3: the king starts on f1 and castles to g1. Loading this
@@ -34,6 +36,20 @@ def board(qapp):
     widget = _make()
     yield widget
     widget.deleteLater()
+
+
+@pytest.fixture
+def board_prefs(qapp):
+    """Mutate the global board preferences and restore them afterwards."""
+    config = ConfigManager()
+    keys = ("board_show_coordinates", "board_show_classification")
+    original = {key: config.config.get(key) for key in keys}
+    yield config
+    for key, value in original.items():
+        if value is None:
+            config.config.pop(key, None)
+        else:
+            config.config[key] = value
 
 
 def _square_center(widget, square):
@@ -256,11 +272,54 @@ def test_coordinates_and_last_move_highlight_are_toggleable(qapp):
     assert b"<text" not in plain_svg
     assert b'opacity="0.35"' not in plain_svg
 
-    decorated = _make()
+    decorated = _make(lambda: Board(BoardConfig(show_coordinates=True, show_last_move=True)))
     decorated.attempt_move(chess.E2, chess.E4)
     decorated_svg = decorated._generate_custom_board_svg({"light": "#fff", "dark": "#000"}, "")
     assert b"<text" in decorated_svg
     assert b'opacity="0.35"' in decorated_svg
+
+
+def test_refresh_settings_hides_coordinates(qapp, board_prefs):
+    board = _make()
+    board.refresh_settings()
+
+    board_prefs.config["board_show_coordinates"] = False
+    board.refresh_settings()
+    hidden_svg = board._generate_custom_board_svg({"light": "#fff", "dark": "#000"}, "")
+    assert b"<text" not in hidden_svg
+
+    board_prefs.config["board_show_coordinates"] = True
+    board.refresh_settings()
+    shown_svg = board._generate_custom_board_svg({"light": "#fff", "dark": "#000"}, "")
+    assert b"<text" in shown_svg
+
+
+def test_refresh_settings_hides_live_classification_badge(qapp, board_prefs):
+    board = _make(lambda: Board(BoardConfig(classification_overlay="last_move")))
+    board.attempt_move(chess.E2, chess.E4)
+    board.set_last_move_classification("Blunder")
+    assert board.overlay_layout.count() == 1
+
+    board_prefs.config["board_show_classification"] = False
+    board.refresh_settings()
+    assert board.overlay_layout.count() == 0
+
+    board_prefs.config["board_show_classification"] = True
+    board.refresh_settings()
+    assert board.overlay_layout.count() == 1
+
+
+def test_refresh_settings_hides_replay_classification_badge(qapp, board_prefs):
+    move = MoveAnalysis(1, 1, "e4", "e2e4", chess.STARTING_FEN, classification="Blunder")
+    game = GameAnalysis("id", GameMetadata(), [move], "pgn")
+    board = _make()
+    board.load_game(game)
+    board.set_position(0)
+    assert board.overlay_layout.count() == 1
+
+    board_prefs.config["board_show_classification"] = False
+    board.refresh_settings()
+    assert board.overlay_layout.count() == 0
 
 
 def test_set_board_swaps_position_and_clears_analysis_state(qapp):
