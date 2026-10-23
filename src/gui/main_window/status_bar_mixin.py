@@ -34,6 +34,13 @@ class StatusBarMixin:
         if not getattr(self, "_full_analysis_running", False):
             self._set_engine_state("ready")
 
+    def _on_live_engine_state(self, state: str):
+        """Map a live-engine session state to the status-bar pill."""
+        if state == "thinking":
+            self._on_live_thinking_started()
+        else:
+            self._on_live_thinking_stopped()
+
     def _refresh_engine_status(self):
         """Check engine binary and update pill. Call after path changes."""
         found = resolve_engine_path(self.config_manager) is not None

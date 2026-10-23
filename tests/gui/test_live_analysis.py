@@ -95,3 +95,14 @@ def test_live_worker_falls_back_safely_on_garbage_config(mocker):
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
     assert worker._live_time() == 0.5
     assert worker._live_multi_pv() == 2
+
+
+def test_chess960_option_is_left_to_python_chess(mocker):
+    """Configuring UCI_Chess960 raises in python-chess; the flag alone must be stored."""
+    mocker.patch("chess.engine.SimpleEngine.popen_uci")
+    worker = LiveAnalysisWorker("/fake/stockfish")
+
+    worker.set_chess960(True)
+
+    assert worker.is_chess960 is True
+    assert "UCI_Chess960" not in worker._pending_options

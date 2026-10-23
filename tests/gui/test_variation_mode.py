@@ -3,16 +3,17 @@
 import chess
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from src.backend.analysis.engine_line import EngineLine
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
-from src.gui.board import BoardWidget
+from src.gui.board import Board
 
 AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 AFTER_D4 = "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1"
 
 
 class _StubMoveList(QObject):
-    lines_updated = pyqtSignal(list, bool, str)
+    lines_updated = pyqtSignal(list, str)
 
     def __init__(self):
         super().__init__()
@@ -20,14 +21,14 @@ class _StubMoveList(QObject):
 
     def begin_variation(self, fen, is_white):
         self.requests.append((fen, is_white))
-        self.lines_updated.emit([], is_white, fen)
+        self.lines_updated.emit([], fen)
 
     def end_variation(self):
         self.requests.append((None, None))
 
 
 def _mode():
-    board = BoardWidget()
+    board = Board()
     panel = _StubMoveList()
     graph = VariationGraph()
     return VariationMode(board, panel, graph), board, panel, graph
@@ -46,10 +47,13 @@ def test_entry_autoplays_and_engine_updates_ghost_and_cache(qapp):
     assert mode.sans == ["e4"]
     assert panel.requests[-1][0] == AFTER_E4
 
-    # Black's +30cp is -0.30 from White's perspective, cached on the node.
-    panel.lines_updated.emit([{"pv_uci": ["e7e5"], "cp": 30, "depth": 12}], False, AFTER_E4)
+    # Scores are White-perspective already, so the +30cp stays +30.
+    panel.lines_updated.emit(
+        [EngineLine(rank=1, depth=12, cp=30, pv_uci=("e7e5",), pv_san="1... e5")],
+        AFTER_E4,
+    )
     assert mode._best_uci == "e7e5"
-    assert mode.tree.active_node.eval_cp == -30
+    assert mode.tree.active_node.eval_cp == 30
     assert graph._ghost_san == "e5"
 
     # Rewind and play a different first move: the old branch survives.

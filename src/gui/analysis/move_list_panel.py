@@ -17,9 +17,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.analysis.line_utils import lines_for_display
-from src.gui.analysis.live_analysis import LiveAnalysisWorker
+from src.gui.analysis.line_utils import lines_for_index
 from src.gui.analysis.move_cell_widget import MoveCellWidget
+from src.gui.engine_lines import LiveEngineSession
 from src.gui.styles import Styles
 from src.utils.logger import logger
 from src.utils.resources import ResourceManager
@@ -27,11 +27,12 @@ from src.utils.resources import ResourceManager
 
 class MoveListPanel(QWidget):
     move_selected = pyqtSignal(int)
-    lines_updated = pyqtSignal(list, bool, str)  # lines, is_white_turn, analysed FEN
+    lines_updated = pyqtSignal(list, str)  # White-POV EngineLines, analysed FEN
     variation_requested = pyqtSignal(int)
 
     def __init__(self, engine_path="stockfish", config_manager=None):
         super().__init__()
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(5, 5, 5, 5)
         self.layout.setSpacing(0)
@@ -39,23 +40,24 @@ class MoveListPanel(QWidget):
         self.resource_manager = ResourceManager()
         self.current_game = None
 
-        # Live Analysis — pass the shared ConfigManager so the worker
-        # can honour the live_analysis_time / multi_pv settings that
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        # the user has chosen in Settings.
+        # Live Analysis — one shared session owns the worker, the sequence
+        # counter and the coalesced line updates.  The worker is started
+        # lazily on the first request, not at app launch.
         self.engine_path = engine_path
-        self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=config_manager)
-        self.live_worker.info_ready.connect(self.on_live_analysis_update)
-        self.live_worker.start()
+        self.session = LiveEngineSession(
+            self.engine_path,
+            config_manager=config_manager,
+            parent=self,
+            debounce_ms=1000,  # 1 second delay (more responsive than a full search)
+        )
+        self.session.lines_changed.connect(self._on_session_lines)
 
-        self.live_data = {}
-        self.current_turn = chess.WHITE
         self.engine_lines_enabled = False  # Off by default!
         # The move list's live engine is shared with variation exploration.
-        # Every request carries a monotonic seq so stale positions are dropped.
-        self._analysis_seq = 0
         self._analysed_fen: str | None = None
         self._variation_active = False
+        self.is_chess960 = False
+        self.starting_fen = chess.STARTING_FEN
         # Reusable think-time bar widgets (one per cell). We keep strong
         # references because QTableWidget.setCellWidget() does not take
         # ownership; without this, the bars would be garbage-collected
@@ -63,11 +65,6 @@ class MoveListPanel(QWidget):
         self._think_bars: list[MoveCellWidget] = []
         self._move_widgets: dict[int, MoveCellWidget] = {}
         self._variation_counts: dict[int, int] = {}
-
-        self.analysis_timer = QTimer()
-        self.analysis_timer.setSingleShot(True)
-        self.analysis_timer.setInterval(1000)  # 1 second delay (more responsive)
-        self.analysis_timer.timeout.connect(self.start_live_analysis)
 
         # Move List Table — 3 columns: #, White, Black
         # Think-time is rendered as a thin coloured bar at the bottom of the
@@ -155,7 +152,13 @@ class MoveListPanel(QWidget):
         self.current_game = game_analysis
         self._variation_counts = {}
         self._selected_index = None
-        self.live_worker.set_chess960(game_analysis.metadata.chess960)
+        self.is_chess960 = bool(getattr(game_analysis.metadata, "chess960", False))
+        moves = game_analysis.moves or []
+        self.starting_fen = (
+            getattr(game_analysis.metadata, "starting_fen", None)
+            or (moves[0].fen_before if moves else chess.STARTING_FEN)
+        )
+        self.session.clear(emit=False)
         self.refresh()
 
     def refresh(self):
@@ -396,11 +399,10 @@ class MoveListPanel(QWidget):
         if index < 0:
             self.table.clearSelection()
             self._apply_selection(None)
-            self.current_turn = chess.WHITE
-            self.live_data = {}
-            self._stop_live_analysis()
-            self._analysed_fen = None
-            self.lines_updated.emit([], True, "")
+            lines, lines_fen = self._lines_for_index(-1)
+            self._analysed_fen = lines_fen
+            self.lines_updated.emit(lines, lines_fen)
+            self._request_live(lines_fen, terminal=False)
             return
 
         if index >= len(self.current_game.moves):
@@ -415,66 +417,47 @@ class MoveListPanel(QWidget):
 
         move = self.current_game.moves[index]
 
-        lines, is_white, lines_fen = self._lines_for_index(index)
-        self.current_turn = chess.WHITE if is_white else chess.BLACK
-        self.live_data = {}
+        lines, lines_fen = self._lines_for_index(index)
         self._analysed_fen = lines_fen
 
         # Checkmate ends the game: the other MultiPV entries are alternatives
         # to the mating move, not continuations after it. Show only the mating
         # line and do not spend engine time on a finished position.
-        if move.is_checkmate:
-            self._stop_live_analysis()
-            self.lines_updated.emit(lines, is_white, lines_fen)
+        self.lines_updated.emit(lines, lines_fen)
+        self._request_live(lines_fen, terminal=move.is_checkmate)
+
+    def _request_live(self, fen: str, terminal: bool = False) -> None:
+        """Ask the shared session for live lines, or cancel when disabled."""
+        if self._variation_active or not self.engine_lines_enabled or terminal or not fen:
+            self.session.clear(emit=False)
             return
+        self.session.request(fen, chess960=self.is_chess960, emit_empty=False)
 
-        # Emit signal instead of updating directly
-        self.lines_updated.emit(lines, is_white, lines_fen)
-
-        if self.engine_lines_enabled:
-            self.analysis_timer.start()
-
-    def _lines_for_index(self, index: int) -> tuple[list[dict], bool, str]:
-        """Lines for the position shown on the board after move ``index``.
-
-        The evaluation panel describes the board, which holds the position
-        *after* the selected move. The next move's analysis is exactly that
-        position (its ``fen_before``), so reuse it instead of the pre-move
-        MultiPVs, which would repeat the move already on the board. The final
-        move has no successor, so fall back to its own lines.
-        """
-        moves = self.current_game.moves
-        if index + 1 < len(moves):
-            nxt = moves[index + 1]
-            return lines_for_display(nxt), (index + 1) % 2 == 0, nxt.fen_before
-        move = moves[index]
-        return lines_for_display(move), index % 2 == 0, move.fen_before
+    def _lines_for_index(self, index: int) -> tuple[list, str]:
+        """White-POV lines matching the position the board shows after ``index``."""
+        return lines_for_index(
+            self.current_game.moves, index, self.is_chess960
+        )
 
     def _stop_live_analysis(self) -> None:
-        """Cancel the pending timer and invalidate any in-flight results."""
-        self.analysis_timer.stop()
-        self._analysis_seq += 1
-        self.live_worker.set_position(None, self._analysis_seq)
+        """Cancel pending work and invalidate any in-flight results."""
+        self.session.clear(emit=False)
 
     def begin_variation(self, fen: str, is_white: bool) -> None:
         """Analyse an arbitrary position while the board is in variation mode."""
         self._variation_active = True
-        self.analysis_timer.stop()
-        self.current_turn = chess.WHITE if is_white else chess.BLACK
-        self.live_data = {}
-        self._analysis_seq += 1
         self._analysed_fen = fen
-        self.lines_updated.emit([], is_white, fen)
-        self.live_worker.set_position(fen, self._analysis_seq)
+        self.lines_updated.emit([], fen)
+        if self.engine_lines_enabled:
+            self.session.request(fen, chess960=self.is_chess960, emit_empty=False)
+        else:
+            self.session.clear(emit=False)
 
     def end_variation(self) -> None:
         """Stop the variation analysis; the caller restores the game position."""
         self._variation_active = False
-        self.analysis_timer.stop()
-        self._analysis_seq += 1
         self._analysed_fen = None
-        self.live_data = {}
-        self.live_worker.set_position(None, self._analysis_seq)
+        self.session.clear(emit=False)
 
     def set_engine_lines_enabled(self, enabled):
         if self._variation_active:
@@ -482,58 +465,48 @@ class MoveListPanel(QWidget):
         self.engine_lines_enabled = enabled
         if enabled:
             self.start_live_analysis()
-        else:
-            self._stop_live_analysis()
-            # Restore cached lines (if any) or clear the widget
-            if self.current_game:
-                index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
-                if 0 <= index < len(self.current_game.moves):
-                    lines, is_white, lines_fen = self._lines_for_index(index)
-                    self.lines_updated.emit(lines, is_white, lines_fen)
-                    return
-            self.lines_updated.emit([], self.current_turn == chess.WHITE, "")
+            return
+
+        self.session.clear(emit=False)
+        # Restore cached lines (if any) or clear the widget.
+        if self.current_game and self.current_game.moves:
+            index = self._selected_index if self._selected_index is not None else -1
+            lines, lines_fen = self._lines_for_index(index)
+            self._analysed_fen = lines_fen
+            self.lines_updated.emit(lines, lines_fen)
+            return
+        self._analysed_fen = None
+        self.lines_updated.emit([], "")
 
     def start_live_analysis(self):
         if not self.current_game or self._variation_active or not self.engine_lines_enabled:
             return
-        index = self.table.currentRow() * 2 + (self.table.currentColumn() - 1)
-        if index < 0 or index >= len(self.current_game.moves):
+        index = self._selected_index if self._selected_index is not None else -1
+        if index >= len(self.current_game.moves):
             return
-        move = self.current_game.moves[index]
-        lines, is_white, lines_fen = self._lines_for_index(index)
-        self.current_turn = chess.WHITE if is_white else chess.BLACK
+        if index >= 0 and self.current_game.moves[index].is_checkmate:
+            self.session.clear(emit=False)
+            return
+        lines, lines_fen = self._lines_for_index(index)
         self._analysed_fen = lines_fen
-        if move.is_checkmate:
-            self._stop_live_analysis()
-            self.lines_updated.emit(lines, is_white, lines_fen)
-            return
-        self._analysis_seq += 1
-        self.live_worker.set_position(lines_fen, self._analysis_seq)
+        if lines_fen:
+            self.session.request(lines_fen, chess960=self.is_chess960, emit_empty=False)
 
-    def on_live_analysis_update(self, info):
-        # Drop results that belong to a position we have already left.
-        if info.get("seq") != self._analysis_seq:
-            return
-        multipv_id = info.get("multipv", 1)
-        self.live_data[multipv_id] = info
-        sorted_lines = sorted(self.live_data.values(), key=lambda x: x.get("multipv", 1))
+    def _on_session_lines(self, lines):
+        """Publish lines for whichever position the session is analysing.
 
-        # Emit signal
-        self.lines_updated.emit(
-            sorted_lines, self.current_turn == chess.WHITE, self._analysed_fen or ""
-        )
+        Both the game position and a variation position go through the same
+        session, so the variation must be forwarded too — dropping it here
+        was why jumping into a variation left the panel empty.
+        """
+        if not self.engine_lines_enabled:
+            return
+        self.lines_updated.emit(lines, self._analysed_fen or "")
 
     def closeEvent(self, event):
-        self.live_worker.stop()
+        self.session.shutdown()
         super().closeEvent(event)
 
     def update_engine_path(self, path):
         self.engine_path = path
-        self.live_worker.stop()
-        # Re-create the worker preserving the same config_manager so
-        # the live-panel settings (time, multi_pv) survive a path swap.
-        self.live_worker = LiveAnalysisWorker(
-            self.engine_path, config_manager=self.live_worker.config_manager
-        )
-        self.live_worker.info_ready.connect(self.on_live_analysis_update)
-        self.live_worker.start()
+        self.session.set_engine_path(path)

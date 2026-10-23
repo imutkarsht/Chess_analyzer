@@ -12,7 +12,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     qtbot.addWidget(window)
     assert window.windowTitle() == "Chess Analyzer Pro"
     # The hidden Explorer must not start a Stockfish search on launch.
-    assert window.explorer_view.live_worker.current_fen is None
+    assert window.explorer_view.session.current_fen is None
     window.show()
     assert window.stack.currentIndex() == 0
 

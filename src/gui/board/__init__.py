@@ -1,16 +1,17 @@
 """
 Board package - Chess board components.
 """
+from .board import Board, BoardConfig
 from .board_game_header import BoardGameHeader
 from .board_panel import BoardPanel
-from .board_widget import BoardWidget
 from .eval_bar import EvalBarWidget
-from .explorer_board_widget import ExplorerBoardWidget
+from .promotion_dialog import PromotionDialog
 
 __all__ = [
+    "Board",
+    "BoardConfig",
     "BoardGameHeader",
     "BoardPanel",
-    "BoardWidget",
     "EvalBarWidget",
-    "ExplorerBoardWidget",
+    "PromotionDialog",
 ]

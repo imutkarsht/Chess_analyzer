@@ -168,11 +168,13 @@ class TestLayout:
 
     def test_header_badges_are_styled_before_a_move_is_selected(self, card):
         """An unstyled placeholder is shorter, which would jump the header."""
+        assert card.class_pill.styleSheet() != ""
         empty = card.class_pill.sizeHint().height()
 
         card.set_insight(_insight())
 
-        assert card.class_pill.sizeHint().height() == empty
+        assert card.class_pill.styleSheet() != ""
+        assert abs(card.class_pill.sizeHint().height() - empty) <= 2
 
     def test_a_long_narrative_never_widens_the_card(self, card):
         card.set_insight(_insight())

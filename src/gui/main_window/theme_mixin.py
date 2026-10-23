@@ -26,6 +26,8 @@ class ThemeMixin:
             )
             if hasattr(self, "move_list_panel"):
                 self.move_list_panel.update_engine_path(new_path)
+            if hasattr(self, "explorer_view"):
+                self.explorer_view.update_engine_path(new_path)
             self.show_toast("Engine path updated. Future analyses will use the new engine.", "info")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
@@ -45,13 +47,13 @@ class ThemeMixin:
         engine = getattr(self.analyzer, "engine_manager", None)
         if engine is not None:
             engine.apply_settings_from_config()
-        # Also reconfigure the live analysis worker engine dynamically
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
-            logger.info("MainWindow: Reconfiguring live worker engine.")
-            self.move_list_panel.live_worker.configure_engine()
-        if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "live_worker"):
-            logger.info("MainWindow: Reconfiguring explorer live worker engine.")
-            self.explorer_view.live_worker.configure_engine()
+        # Also reconfigure the shared live-engine sessions dynamically
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
+            logger.info("MainWindow: Reconfiguring live analysis engine.")
+            self.move_list_panel.session.reconfigure()
+        if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "session"):
+            logger.info("MainWindow: Reconfiguring explorer live engine.")
+            self.explorer_view.session.reconfigure()
 
     def update_llm_config(self):
         """Re-instantiate the LLM service in every view that holds one.
@@ -185,9 +187,9 @@ class ThemeMixin:
 
         # Update Chess Boards (Graphics / QPainter)
         if hasattr(self, "board_widget"):
-            self.board_widget.update_board()
+            self.board_widget.refresh_settings()
         if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "board_widget"):
-            self.explorer_view.board_widget.update_board()
+            self.explorer_view.board_widget.refresh_settings()
 
         # Refresh Matplotlib Evaluation Graphs & Custom Gauges
         if hasattr(self, "analysis_panel"):

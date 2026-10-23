@@ -67,6 +67,7 @@ class AppearanceSettings(QGroupBox):
         self._add_theme_mode_row(layout, label_style, radio_style)
         self._add_board_theme_row(layout, label_style, combo_style)
         self._add_piece_style_row(layout, label_style, combo_style)
+        self._add_board_display_rows(layout, label_style)
         self._add_import_row(layout, label_style)
         self._add_sound_row(layout, label_style)
         self._add_accent_row(layout, label_style, radio_style)
@@ -130,6 +131,30 @@ class AppearanceSettings(QGroupBox):
         self.piece_combo.setStyleSheet(combo_style)
         self.piece_combo.currentTextChanged.connect(self.change_piece_theme)
         layout.addRow(lbl, self.piece_combo)
+
+    def _add_board_display_rows(self, layout, label_style):
+        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        checkbox_style = Styles.get_checkbox_style(tick_path)
+
+        self._coords_lbl = QLabel("Board Details:")
+        self._coords_lbl.setStyleSheet(label_style)
+        self.coordinates_checkbox = QCheckBox("Show coordinates")
+        self.coordinates_checkbox.setStyleSheet(checkbox_style)
+        self.coordinates_checkbox.setChecked(
+            self.config_manager.get("board_show_coordinates", True)
+        )
+        self.coordinates_checkbox.stateChanged.connect(self.change_board_coordinates)
+        layout.addRow(self._coords_lbl, self.coordinates_checkbox)
+
+        self._badges_lbl = QLabel("Move Labels:")
+        self._badges_lbl.setStyleSheet(label_style)
+        self.classification_checkbox = QCheckBox("Show move quality badges")
+        self.classification_checkbox.setStyleSheet(checkbox_style)
+        self.classification_checkbox.setChecked(
+            self.config_manager.get("board_show_classification", True)
+        )
+        self.classification_checkbox.stateChanged.connect(self.change_board_classification)
+        layout.addRow(self._badges_lbl, self.classification_checkbox)
 
     def _add_import_row(self, layout, label_style):
         import_lbl = QLabel("")
@@ -206,6 +231,18 @@ class AppearanceSettings(QGroupBox):
         self.config_manager.config["piece_theme"] = theme_name
         self.theme_refreshed.emit()
 
+    def change_board_coordinates(self, state):
+        self.config_manager.config["board_show_coordinates"] = (
+            self.coordinates_checkbox.isChecked()
+        )
+        self.theme_refreshed.emit()
+
+    def change_board_classification(self, state):
+        self.config_manager.config["board_show_classification"] = (
+            self.classification_checkbox.isChecked()
+        )
+        self.theme_refreshed.emit()
+
     def change_sound_setting(self, state):
         self.config_manager.config["sound_enabled"] = self.sound_checkbox.isChecked()
 
@@ -257,11 +294,21 @@ class AppearanceSettings(QGroupBox):
             self.piece_combo.setStyleSheet(combo_style)
         if hasattr(self, 'color_btn'):
             self.color_btn.setStyleSheet(self._accent_btn_style())
-        if hasattr(self, 'sound_checkbox'):
-            tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-            self.sound_checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
-        if hasattr(self, '_sound_lbl'):
-            self._sound_lbl.setStyleSheet(self._label_style())
+        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        for checkbox in (
+            getattr(self, "sound_checkbox", None),
+            getattr(self, "coordinates_checkbox", None),
+            getattr(self, "classification_checkbox", None),
+        ):
+            if checkbox:
+                checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
+        for lbl in (
+            getattr(self, "_sound_lbl", None),
+            getattr(self, "_coords_lbl", None),
+            getattr(self, "_badges_lbl", None),
+        ):
+            if lbl:
+                lbl.setStyleSheet(self._label_style())
         if hasattr(self, 'import_theme_btn'):
             self.import_theme_btn.setStyleSheet(Styles.get_settings_default_button_style())
         for rb in (

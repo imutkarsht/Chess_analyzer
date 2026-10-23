@@ -1,19 +1,19 @@
 import chess
 
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
-from src.gui.board import BoardWidget, EvalBarWidget
+from src.gui.board import Board, EvalBarWidget
 
 
 def test_board_widget_init(qapp):
-    """Test BoardWidget initialization."""
-    widget = BoardWidget()
+    """Test Board initialization."""
+    widget = Board()
     assert widget is not None
     assert widget.board.fen() == chess.STARTING_FEN
 
 
 def test_set_position(qapp):
     """Test setting board position."""
-    widget = BoardWidget()
+    widget = Board()
 
     # Create a dummy game
     move = MoveAnalysis(1, 1, "e4", "e2e4", chess.STARTING_FEN)
@@ -27,7 +27,7 @@ def test_set_position(qapp):
 
 def test_flip_board(qapp):
     """Test flipping the board."""
-    widget = BoardWidget()
+    widget = Board()
     assert not widget.is_flipped
     widget.flip_board()
     assert widget.is_flipped
@@ -54,7 +54,7 @@ def test_analysis_position_renders_arrow_and_keeps_game_replay(qapp):
     """Variation rendering must not destroy the moves exit needs to restore."""
     move = MoveAnalysis(1, 1, "e4", "e2e4", chess.STARTING_FEN)
     game = GameAnalysis("id", GameMetadata(), [move], "pgn")
-    widget = BoardWidget()
+    widget = Board()
     widget.load_game(game)
 
     widget.load_analysis_position(chess.STARTING_FEN)

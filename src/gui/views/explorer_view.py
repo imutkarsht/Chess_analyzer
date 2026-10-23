@@ -26,12 +26,15 @@ from src.backend.analysis.move_classifier import classify_move
 from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
 from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.backend.storage.game_history import GameHistoryManager
-from src.gui.analysis.analysis_lines_widget import AnalysisLinesWidget
 from src.gui.analysis.captured import CapturedPiecesWidget
 from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
-from src.gui.analysis.live_analysis import LiveAnalysisWorker
-from src.gui.board.explorer_board_widget import ExplorerBoardWidget
+from src.gui.board import Board, BoardConfig
 from src.gui.components.loading_widget import LoadingOverlay
+from src.gui.engine_lines import (
+    EngineLinesConfig,
+    EngineLinesWidget,
+    LiveEngineSession,
+)
 from src.gui.styles import Styles
 from src.gui.views.explorer_book_row import BookRowWidget
 from src.gui.views.explorer_lichess_worker import LichessExplorerWorker
@@ -47,14 +50,16 @@ class ExplorerView(QWidget):
         self.config_manager = config_manager
         resolved = resolve_engine_path(self.config_manager)
         self.engine_path = resolved or self.config_manager.get("engine_path", "stockfish")
-        self.live_worker = LiveAnalysisWorker(self.engine_path, config_manager=self.config_manager)
-        self.live_worker.info_ready.connect(self.on_live_analysis_update)
-        self.live_worker.thinking_started.connect(self._on_engine_thinking_started)
-        self.live_worker.thinking_stopped.connect(self._on_engine_thinking_stopped)
+        self.session = LiveEngineSession(
+            self.engine_path,
+            config_manager=self.config_manager,
+            parent=self,
+        )
+        self.session.lines_changed.connect(self._on_lines_changed)
+        self.session.state_changed.connect(self._on_engine_state)
+        self.session.error.connect(self._on_engine_error)
 
         # State tracking
-        self.live_data = {}
-        self._position_seq = 0  # monotonic counter for stale-signal detection
         self.is_chess960 = False
         self.starting_fen = chess.STARTING_FEN
         self.board = chess.Board()
@@ -96,9 +101,9 @@ class ExplorerView(QWidget):
                 "Importing Lichess ECO database (first launch only)"
             ))
 
-        # Start the worker idle: the Engine Lines toggle is off by default,
-        # so an eager search here would heat the machine on every launch.
-        self.live_worker.start()
+        # The worker is started lazily on the first engine-lines request:
+        # the toggle is off by default, so an eager search here would heat
+        # the machine on every launch.
         self.update_opening_db(self.board.fen())
         self.loading_overlay.stop()
 
@@ -107,12 +112,12 @@ class ExplorerView(QWidget):
         # Resume only when the user has engine lines enabled; cached lines
         # stay visible otherwise.
         if self.chk_engine.isChecked():
-            self._send_to_engine(self.board.fen())
+            self.session.resume()
 
     def hideEvent(self, event):
         # Leaving the Explorer (or minimising the window) must not leave a
-        # Stockfish search running out of sight.
-        self.live_worker.set_position(None)
+        # Stockfish search running out of sight.  Lines stay on screen.
+        self.session.pause()
         super().hideEvent(event)
 
     def setup_ui(self):
@@ -187,7 +192,7 @@ class ExplorerView(QWidget):
         self.left_layout.addWidget(self.black_header_widget)
 
         # Board (contains its own eval bar internally laid out)
-        self.board_widget = ExplorerBoardWidget()
+        self.board_widget = Board(BoardConfig(classification_overlay="last_move"))
         self.board_widget.move_made.connect(self.on_move_made)
         self.left_layout.addWidget(self.board_widget, stretch=1)
 
@@ -242,9 +247,11 @@ class ExplorerView(QWidget):
         right_layout.addLayout(toggles_layout)
 
         # Engine Lines
-        self.lines_widget = AnalysisLinesWidget()
+        self.lines_widget = EngineLinesWidget(
+            EngineLinesConfig(empty_text="Enable Engine Lines to see analysis")
+        )
         self.lines_widget.line_clicked.connect(self.on_engine_line_clicked)
-        right_layout.addWidget(self.lines_widget)
+        right_layout.addWidget(self.lines_widget, stretch=0)
 
         self.lines_widget.setVisible(False)
 
@@ -337,23 +344,27 @@ class ExplorerView(QWidget):
         self.board_widget.load_fen(fen, chess960=self.is_chess960)
         self.update_opening_db(fen)
 
-        self.live_data = {}
-        if self.chk_engine.isChecked():
-            self._send_to_engine(fen)
-        else:
-            self.lines_widget.clear()
-            self.board_widget.eval_bar.set_eval(0.0, None)
+        self._refresh_engine(fen)
         # Trigger initial material update
         self._update_material()
 
-    def _send_to_engine(self, fen):
-        """Send a position to the live engine with a fresh sequence number
-        so stale results from previous positions are discarded."""
-        self._position_seq += 1
-        self.live_data = {}
-        self.lines_widget.clear()
-        self.live_worker.set_chess960(self.is_chess960)
-        self.live_worker.set_position(fen, seq=self._position_seq)
+    def _refresh_engine(self, fen):
+        """Request live lines for ``fen``, or clear the panel when disabled.
+
+        The shared session owns the sequence counter, so any result that
+        arrives for a position we already left is discarded for us.
+        """
+        if self.chk_engine.isChecked():
+            self.lines_widget.set_empty_text("Analysing position…")
+            self.session.request(
+                fen, chess960=self.is_chess960, emit_empty=True
+            )
+        else:
+            self.lines_widget.set_empty_text("Enable Engine Lines to see analysis")
+            self.session.clear(emit=False)
+            self.lines_widget.clear()
+            self.board_widget.set_best_move(None)
+            self.board_widget.eval_bar.set_eval(0.0, None)
 
     def _is_book_move(self, node_id, uci, fen_before):
         """Check if a move (by UCI) is a book move at the given node.
@@ -411,9 +422,9 @@ class ExplorerView(QWidget):
             self._classify_queue = []
             return
         # We're at the after-position of the classified move = before-position of next
-        # Wait for engine eval, then use it in on_live_analysis_update
+        # Wait for engine eval, then use it in _on_lines_changed
         self._classify_before_eval = None
-        self._send_to_engine(self.board.fen())
+        self._refresh_engine(self.board.fen())
 
     def load_board_state(self, source_board, source_moves=None, *, chess960=None, starting_fen=None):
         """Loads a full board state including its move stack history and optional existing classifications.
@@ -491,22 +502,15 @@ class ExplorerView(QWidget):
             if source_moves and i < len(source_moves) and source_moves[i].classification:
                 self.move_list_widget.update_classification(i, source_moves[i].classification)
 
-        self.board_widget.best_move_uci = None
-        self.board_widget.last_move_classification = None
-        self.board_widget.update_board()
-        self.board_widget.draw_interactive_overlays()
+        self.board_widget.set_best_move(None)
+        self.board_widget.set_last_move_classification(None)
         self.board_widget.move_made.connect(self.on_move_made)
 
         fen = self.board.fen()
         self.update_opening_db(fen)
         self._update_material()
 
-        self.live_data = {}
-        if self.chk_engine.isChecked():
-            self._send_to_engine(fen)
-        else:
-            self.lines_widget.clear()
-            self.board_widget.eval_bar.set_eval(0.0, None)
+        self._refresh_engine(fen)
 
         # Start backlog classification for any unclassified moves
         if self.classify_enabled and self.chk_engine.isChecked():
@@ -558,12 +562,7 @@ class ExplorerView(QWidget):
             self.board_widget.last_move_classification = "Book"
 
         # Update engine and opening db
-        self.live_data = {}
-        if self.chk_engine.isChecked():
-            self._send_to_engine(fen_after)
-        else:
-            self.lines_widget.clear()
-            self.board_widget.eval_bar.set_eval(0.0, None)
+        self._refresh_engine(fen_after)
 
         self.update_opening_db(fen_after)
 
@@ -906,25 +905,14 @@ class ExplorerView(QWidget):
                 self.board.push(self.move_history[i][0])
 
         # Sync board widget
-        self.board_widget.board = self.board.copy()
-        self.board_widget.selected_square = None
-        self.board_widget.legal_destinations = []
-        self.board_widget.best_move_uci = None
-        self.board_widget.last_move_classification = None
-        self.board_widget.update_board()
-        self.board_widget.draw_interactive_overlays()
+        self.board_widget.set_board(self.board.copy())
 
         # Sync move list
         self.move_list_widget.set_index(index)
 
         # Sync engine & DB
         fen = self.board.fen()
-        self.live_data = {}
-        if self.chk_engine.isChecked():
-            self._send_to_engine(fen)
-        else:
-            self.lines_widget.clear()
-            self.board_widget.eval_bar.set_eval(0.0, None)
+        self._refresh_engine(fen)
 
         self.update_opening_db(fen)
 
@@ -941,16 +929,26 @@ class ExplorerView(QWidget):
             self.pending_classification_index = -1
             self.pending_before_eval = None
 
-    def _on_engine_thinking_started(self):
-        self.engine_status_label.setText("⬤ Analyzing...")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_BUSY))
-        # Discard stale analysis data from previous position so old info_ready
-        # signals don't mix with new position data
-        self.live_data = {}
+    def _on_engine_state(self, state):
+        """Map the shared session's lifecycle to the status pill."""
+        if state == "thinking":
+            self.engine_status_label.setText("⬤ Analyzing...")
+            color = Styles.COLOR_ENGINE_BUSY
+        elif state == "error":
+            self.engine_status_label.setText("⬤ Engine error")
+            color = Styles.COLOR_ENGINE_BUSY
+        else:
+            self.engine_status_label.setText("⬤ Ready")
+            color = Styles.COLOR_ENGINE_READY
+        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(color))
 
-    def _on_engine_thinking_stopped(self):
-        self.engine_status_label.setText("⬤ Ready")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
+    def _on_engine_error(self, message):
+        logger.warning("Explorer live engine error: %s", message)
+
+    def update_engine_path(self, path):
+        """Swap the engine binary without restarting the application."""
+        self.engine_path = path
+        self.session.set_engine_path(path)
 
     def on_classify_toggled(self, checked):
         self.classify_enabled = checked
@@ -969,93 +967,82 @@ class ExplorerView(QWidget):
             self._start_backlog_classification()
 
     def on_legal_moves_toggled(self, checked):
-        self.board_widget.show_legal_moves = checked
-        self.board_widget.draw_interactive_overlays()
+        self.board_widget.set_show_legal_moves(checked)
 
     def on_engine_toggled(self, enabled):
         self.lines_widget.setVisible(enabled)
+        self.session.set_enabled(enabled)
         if enabled:
-            self._send_to_engine(self.board_widget.board.fen())
-        else:
-            self.live_worker.set_position(None)
-            self.lines_widget.clear()
-
-    def on_live_analysis_update(self, info):
-        # Discard stale results from previous positions
-        if info.get("seq", 0) != self._position_seq:
+            self._refresh_engine(self.board_widget.board.fen())
             return
-        multipv_id = info.get("multipv", 1)
-        self.live_data[multipv_id] = info
-        sorted_lines = sorted(self.live_data.values(), key=lambda x: x.get("multipv", 1))
+        self.lines_widget.set_empty_text("Enable Engine Lines to see analysis")
+        self.lines_widget.clear()
+        self.board_widget.set_best_move(None)
+        self.board_widget.eval_bar.set_eval(0.0, None)
 
-        self.lines_widget.update_lines(sorted_lines, self.board_widget.board.turn)
+    def _on_lines_changed(self, lines):
+        """Render White-perspective lines and drive eval + classification.
 
-        best_mate = None
-        best_cp = None
+        ``EngineLine`` scores are already White perspective, so no
+        side-to-move conversion happens here (doing it twice was what made
+        the eval bar flip when Black was to move).
+        """
+        self.lines_widget.set_lines(lines)
+        if not lines:
+            self.board_widget.set_best_move(None)
+            return
 
-        if len(sorted_lines) > 0:
-            best_line = sorted_lines[0]
+        best = lines[0]
+        if best.first_move:
+            self.board_widget.set_best_move(best.first_move)
 
-            # Draw best move arrow
-            if "pv_uci" in best_line and len(best_line["pv_uci"]) > 0:
-                self.board_widget.set_best_move(best_line["pv_uci"][0])
+        if best.cp is None and best.mate is None:
+            return
 
-            # Extract raw eval relative to side to move
-            raw_cp = best_line.get("cp")
-            raw_mate = best_line.get("mate")
+        self.board_widget.eval_bar.set_eval(best.cp, best.mate)
+        depth = best.depth or 0
+        if depth < 10:
+            return
 
-            # Only update if we actually received a score
-            if raw_cp is not None or raw_mate is not None:
-                # Convert to White's perspective
-                if self.board_widget.board.turn == chess.BLACK:
-                    best_cp = -raw_cp if raw_cp is not None else None
-                    best_mate = -raw_mate if raw_mate is not None else None
-                else:
-                    best_cp = raw_cp
-                    best_mate = raw_mate
+        # Cache the eval for the next move (White perspective, centipawns).
+        self.last_eval = {
+            "cp": best.cp,
+            "mate": best.mate,
+            "best_move": best.first_move,
+        }
 
-                self.board_widget.eval_bar.set_eval(best_cp, best_mate)
+        # Backlog classification: step forward once the before-eval is ready.
+        if (
+            self._classify_queue
+            and self.pending_classification_index < 0
+            and self._classify_before_eval is None
+        ):
+            idx = self._classify_queue.pop(0)
+            before_eval = dict(self.last_eval)
+            self._classify_before_eval = before_eval  # mark as captured
+            # Push the move to advance to after-position
+            move = self.move_history[idx][0]
+            self.board.push(move)
+            self.board_widget.board.push(move)
+            self.board_widget.update_board()
+            self.board_widget.draw_interactive_overlays()
+            self.move_list_widget.set_index(idx)
+            self.pending_classification_index = idx
+            self.pending_before_eval = before_eval
+            self._refresh_engine(self.board.fen())
+            return
 
-                depth = info.get("depth", 0)
-
-                # Cache eval for next move (store in White's perspective, centipawns)
-                if depth >= 10:
-                    self.last_eval = {
-                        'cp': best_cp,
-                        'mate': best_mate,
-                        'best_move': best_line["pv_uci"][0] if "pv_uci" in best_line and len(best_line["pv_uci"]) > 0 else None
-                    }
-
-                # Backlog classification: step forward when before-eval is ready
-                if (self._classify_queue and self.pending_classification_index < 0
-                        and self._classify_before_eval is None and depth >= 10
-                        and self.last_eval is not None):
-                    idx = self._classify_queue.pop(0)
-                    before_eval = dict(self.last_eval)
-                    self._classify_before_eval = before_eval  # mark as captured
-                    # Push the move to advance to after-position
-                    move = self.move_history[idx][0]
-                    self.board.push(move)
-                    self.board_widget.board.push(move)
-                    self.board_widget.update_board()
-                    self.board_widget.draw_interactive_overlays()
-                    self.move_list_widget.set_index(idx)
-                    self.pending_classification_index = idx
-                    self.pending_before_eval = before_eval
-                    self._send_to_engine(self.board.fen())
-                    return
-
-                # Instant Classification Logic
-                if (
-                    self.classify_enabled
-                    and self.pending_classification_index >= 0
-                    and depth >= 12
-                    and self.pending_before_eval is not None
-                ):
-                    self._run_classification(best_cp, best_mate)
-                    # After classifying, process next backlog item
-                    if self._classify_queue:
-                        self._process_backlog_step()
+        # Instant classification logic
+        if (
+            self.classify_enabled
+            and self.pending_classification_index >= 0
+            and depth >= 12
+            and self.pending_before_eval is not None
+        ):
+            self._run_classification(best.cp, best.mate)
+            # After classifying, process the next backlog item
+            if self._classify_queue:
+                self._process_backlog_step()
 
     def _run_classification(self, after_cp, after_mate):
         if self.pending_classification_index < 0:
@@ -1070,8 +1057,7 @@ class ExplorerView(QWidget):
 
         if is_book:
             self.move_list_widget.update_classification(self.pending_classification_index, "Book")
-            self.board_widget.last_move_classification = "Book"
-            self.board_widget.draw_interactive_overlays()
+            self.board_widget.set_last_move_classification("Book")
             self.pending_classification_index = -1
             return
 
@@ -1098,13 +1084,12 @@ class ExplorerView(QWidget):
 
         if ctx.classification:
             self.move_list_widget.update_classification(self.pending_classification_index, ctx.classification)
-            self.board_widget.last_move_classification = ctx.classification
-            self.board_widget.draw_interactive_overlays()
+            self.board_widget.set_last_move_classification(ctx.classification)
 
         self.pending_classification_index = -1
 
     def closeEvent(self, event):
-        self.live_worker.stop()
+        self.session.shutdown()
         if hasattr(self, 'opening_db') and self.opening_db:
             try:
                 self.opening_db.close()

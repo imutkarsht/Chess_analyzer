@@ -1,4 +1,4 @@
-"""Move-list selection: checkmate ends the game, so alternatives are not shown."""
+"""Move-list selection: White-perspective lines for the position on the board."""
 
 import chess
 
@@ -25,7 +25,7 @@ def _game(*lines: dict, san: str = "Qxe7#") -> GameAnalysis:
 
 
 def _panel(qtbot, mocker) -> MoveListPanel:
-    mocker.patch("src.gui.analysis.move_list_panel.LiveAnalysisWorker")
+    mocker.patch("src.gui.analysis.move_list_panel.LiveEngineSession")
     panel = MoveListPanel()
     qtbot.addWidget(panel)
     return panel
@@ -42,14 +42,16 @@ def test_checkmate_shows_only_the_mating_line(qtbot, mocker):
 
     panel.select_move(0)
 
-    assert emitted == [([mating], True, chess.STARTING_FEN)]
+    lines, fen = emitted[0]
+    assert fen == chess.STARTING_FEN
+    assert [line.first_move for line in lines] == ["d6e7"]
+    assert lines[0].score_text == "M1"
     # A finished game must not start another engine search.
-    assert panel.analysis_timer.isActive() is False
-    assert panel.live_worker.set_position.call_args.args[0] is None
+    panel.session.request.assert_not_called()
 
     # Toggling engine lines off must not bring the alternative back.
     panel.set_engine_lines_enabled(False)
-    assert emitted[-1][0] == [mating]
+    assert [line.first_move for line in emitted[-1][0]] == ["d6e7"]
 
 
 def test_checkmate_prefers_the_line_starting_with_the_played_move(qtbot, mocker):
@@ -62,20 +64,41 @@ def test_checkmate_prefers_the_line_starting_with_the_played_move(qtbot, mocker)
 
     panel.select_move(0)
 
-    assert emitted[0][0] == [mating]
+    assert [line.first_move for line in emitted[0][0]] == ["d6e7"]
 
 
-def test_non_checkmate_keeps_all_engine_lines(qtbot, mocker):
-    first = _line(["d6e7"], "28. Qxe7", "2.82")
-    second = _line(["h1h2"], "28. Rh1", "2.10")
+def test_final_non_checkmate_move_analyses_the_position_after_it(qtbot, mocker):
+    """The last move has no cached successor, so the live engine takes over."""
+    after_e4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    moves = [
+        MoveAnalysis(
+            1,
+            1,
+            "e4",
+            "e2e4",
+            chess.STARTING_FEN,
+            multi_pvs=[_line(["d2d4"], "1. d4", "0.30")],
+        )
+    ]
+    game = GameAnalysis(
+        game_id="final",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=moves,
+        pgn_content="",
+    )
     panel = _panel(qtbot, mocker)
-    panel.set_game(_game(first, second, san="Qxe7"))
+    panel.set_game(game)
     emitted = []
     panel.lines_updated.connect(lambda *args: emitted.append(args))
+    panel.engine_lines_enabled = True
 
     panel.select_move(0)
 
-    assert emitted[0][0] == [first, second]
+    lines, fen = emitted[0]
+    # The pre-move lines belong to a position the board no longer shows.
+    assert lines == []
+    assert fen == after_e4
+    assert panel.session.request.call_args.args[0] == after_e4
 
 
 def test_selected_move_shows_lines_from_the_next_position(qtbot, mocker):
@@ -100,9 +123,7 @@ def test_selected_move_shows_lines_from_the_next_position(qtbot, mocker):
 
     panel.select_move(0)
 
-    assert emitted == [([reply, alternative], False, after_e4)]
-
-    # Live analysis must target the same position the board shows.
-    panel.engine_lines_enabled = True
-    panel.start_live_analysis()
-    assert panel.live_worker.set_position.call_args.args[0] == after_e4
+    lines, fen = emitted[0]
+    assert fen == after_e4
+    # Black is to move, so the stored +0.20 becomes -0.20 for White.
+    assert [(line.first_move, line.cp) for line in lines] == [("e7e5", -20), ("c7c5", -10)]

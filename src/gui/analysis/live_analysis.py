@@ -1,9 +1,18 @@
+"""Background Stockfish worker for live position analysis.
+
+The worker owns the engine process and a single "analyse this FEN" loop.  It
+emits White-perspective :class:`EngineLine` objects tagged with the sequence
+number of the request they belong to, so consumers can discard results for a
+position they have already left.
+"""
+
 import time
 
 import chess
 import chess.engine
 from PyQt6.QtCore import QMutex, QThread, QWaitCondition, pyqtSignal
 
+from src.backend.analysis.engine_line import line_from_engine_info
 from src.constants import (
     DEFAULT_ANALYSIS_DEPTH,
     DEFAULT_ENGINE_HASH_MB,
@@ -15,12 +24,13 @@ from src.utils.logger import logger
 
 
 class LiveAnalysisWorker(QThread):
-    # Signals
-    # info: dict with analysis info (depth, score, pv, etc.)
+    # info: {"seq": int, "line": EngineLine}
     info_ready = pyqtSignal(dict)
     # Emitted when the engine starts / stops calculating a position
     thinking_started = pyqtSignal()
     thinking_stopped = pyqtSignal()
+    # Emitted when the engine binary cannot be started or dies mid-analysis
+    error = pyqtSignal(str)
 
     def __init__(self, engine_path, config_manager=None):
         super().__init__()
@@ -40,6 +50,10 @@ class LiveAnalysisWorker(QThread):
         self.current_fen = None
         self.current_seq = 0
         self.is_chess960 = False
+        # UCI options that arrived while a search was running.  They are
+        # applied between searches so `setoption` never interrupts a search.
+        self._pending_options: dict = {}
+        self._searching = False
 
     # ------------------------------------------------------------------
     # Config accessors with safe fallbacks.  We isolate the fallback
@@ -102,27 +116,56 @@ class LiveAnalysisWorker(QThread):
             depth=self._live_depth() + 6,
         )
 
+    # ------------------------------------------------------------------
+    # Engine configuration (safe to call from the GUI thread)
+    # ------------------------------------------------------------------
     def configure_engine(self):
-        """Reconfigures engine Thread and Hash options dynamically."""
-        self.mutex.lock()
-        engine = self.engine
-        self.mutex.unlock()
-        if engine:
-            try:
-                engine.configure({"Threads": self._threads(), "Hash": self._hash()})
-                logger.info(f"Live engine reconfigured dynamically: Threads={self._threads()}, Hash={self._hash()}")
-            except Exception as e:
-                logger.error(f"Failed to reconfigure live engine: {e}")
+        """Queue Threads/Hash for the next search, or apply them while idle."""
+        self._queue_or_apply(
+            {"Threads": self._threads(), "Hash": self._hash()}
+        )
+        logger.info(
+            "Live engine reconfigured: Threads=%s, Hash=%s",
+            self._threads(),
+            self._hash(),
+        )
 
     def set_chess960(self, enabled: bool):
-        """Set Chess960 mode. Reconfigures the engine if running."""
-        self.is_chess960 = enabled
-        if self.engine:
-            try:
-                self.engine.configure({"UCI_Chess960": "true" if enabled else "false"})
-            except Exception:
-                pass
+        """Set Chess960 mode for the boards this worker creates.
 
+        python-chess manages the ``UCI_Chess960`` option itself and raises
+        ``ValueError: cannot set UCI_Chess960 which is automatically managed``
+        if we try to configure it, so only the flag is stored here.
+        """
+        self.mutex.lock()
+        self.is_chess960 = bool(enabled)
+        self.mutex.unlock()
+
+    def _queue_or_apply(self, options: dict) -> None:
+        self.mutex.lock()
+        self._pending_options.update(options)
+        engine = self.engine
+        searching = self._searching
+        self.mutex.unlock()
+        if engine is None or searching:
+            return
+        self._apply_pending_options(engine)
+
+    def _apply_pending_options(self, engine) -> None:
+        self.mutex.lock()
+        options = self._pending_options
+        self._pending_options = {}
+        self.mutex.unlock()
+        if not options:
+            return
+        try:
+            engine.configure(options)
+        except Exception as e:
+            logger.error(f"Failed to configure live engine: {e}")
+
+    # ------------------------------------------------------------------
+    # Position requests
+    # ------------------------------------------------------------------
     def set_position(self, fen, seq=0):
         """Updates the position to analyze. `seq` is a caller-supplied
         monotonic counter; when set, the worker includes it in every
@@ -140,24 +183,33 @@ class LiveAnalysisWorker(QThread):
         super().start(priority)
 
     def stop(self):
-        """Stops the worker thread."""
+        """Stops the worker thread, bounded so app shutdown cannot hang."""
         self.running = False
         self.mutex.lock()
         self.condition.wakeAll()
         self.mutex.unlock()
-        self.wait()
+        if self.isRunning() and not self.wait(3000):
+            logger.warning("Live analysis worker did not stop in time; terminating it.")
+            self.terminate()
+            self.wait(1000)
 
+    # ------------------------------------------------------------------
+    # Worker loop
+    # ------------------------------------------------------------------
     def run(self):
         self.running = True
+        self.engine = None
         logger.info(f"LiveAnalysisWorker starting with engine: {self.engine_path}")
         try:
-            # Start engine
             import subprocess
             import sys
+
             popen_args = {}
             if sys.platform == "win32":
                 popen_args["creationflags"] = subprocess.CREATE_NO_WINDOW
-            self.engine = chess.engine.SimpleEngine.popen_uci(self.engine_path, **popen_args)
+            self.engine = chess.engine.SimpleEngine.popen_uci(
+                self.engine_path, **popen_args
+            )
             self.engine.configure({"Threads": self._threads(), "Hash": self._hash()})
 
             while self.running:
@@ -170,85 +222,57 @@ class LiveAnalysisWorker(QThread):
                     self.mutex.unlock()
                     break
 
+                # Read the FEN and its sequence atomically: a batch must never
+                # be stamped with the sequence of a *newer* position.
                 fen = self.current_fen
+                batch_seq = self.current_seq
+                chess960 = self.is_chess960
                 self.new_position = False
                 self.mutex.unlock()
 
-                # Start analysis
-                if fen:
-                    try:
-                        board = chess.Board(fen, chess960=self.is_chess960)
-                        self.thinking_started.emit()
-                        # Capture the seq at the start of this analysis batch
-                        self.mutex.lock()
-                        batch_seq = self.current_seq
-                        self.mutex.unlock()
-                        # Bounded by the live time budget (falling back to
-                        # the depth cap) so the engine never runs away.
-                        with self.engine.analysis(
-                            board,
-                            self._live_limit(),
-                            multipv=self._live_multi_pv(),
-                        ) as analysis:
-                            for info in analysis:
-                                self.mutex.lock()
-                                should_break = self.new_position or not self.running
-                                self.mutex.unlock()
-                                if should_break:
-                                    break
+                self._apply_pending_options(self.engine)
 
-                                # Process info
-                                processed_info = self._process_info(info, board)
-                                processed_info["seq"] = batch_seq
-                                self.info_ready.emit(processed_info)
-                        self.thinking_stopped.emit()
-                    except Exception as e:
-                        self.thinking_stopped.emit()
-                        logger.error(f"Live analysis error: {e}")
-                        time.sleep(0.5) # Wait before retrying
+                if not fen:
+                    continue
+
+                try:
+                    board = chess.Board(fen, chess960=chess960)
+                    self.thinking_started.emit()
+                    self.mutex.lock()
+                    self._searching = True
+                    self.mutex.unlock()
+                    with self.engine.analysis(
+                        board,
+                        self._live_limit(),
+                        multipv=self._live_multi_pv(),
+                    ) as analysis:
+                        for info in analysis:
+                            self.mutex.lock()
+                            should_break = self.new_position or not self.running
+                            self.mutex.unlock()
+                            if should_break:
+                                break
+                            line = line_from_engine_info(info, board)
+                            self.info_ready.emit({"seq": batch_seq, "line": line})
+                except Exception as e:
+                    logger.error(f"Live analysis error: {e}")
+                    self.error.emit(str(e))
+                    time.sleep(0.5)  # Wait before retrying
+                finally:
+                    self.mutex.lock()
+                    self._searching = False
+                    self.mutex.unlock()
+                    self.thinking_stopped.emit()
 
         except Exception as e:
             logger.error(f"Failed to start live analysis engine: {e}")
+            self.error.emit(str(e))
         finally:
-            if self.engine:
-                self.engine.quit()
+            engine = self.engine
+            self.engine = None
+            if engine:
+                try:
+                    engine.quit()
+                except Exception:
+                    pass
             logger.info("LiveAnalysisWorker stopped")
-
-    def _process_info(self, info, board):
-        """Converts engine info to friendly format."""
-        result = {}
-
-        # Depth
-        result["depth"] = info.get("depth", 0)
-        result["nodes"] = info.get("nodes", 0)
-        result["nps"] = info.get("nps", 0)
-
-        # Score
-        result["score_value"] = None
-        score = info.get("score")
-        if score:
-            if score.is_mate():
-                mate = score.relative.mate()
-                if mate is not None:
-                    result["mate"] = mate
-                    result["score_value"] = f"M{mate}"
-            else:
-                cp = score.relative.score(mate_score=10000)
-                if cp is not None:
-                    result["cp"] = cp
-                    result["score_value"] = f"{cp/100:.2f}"
-
-        # PV
-        pv_moves = info.get("pv", [])
-        result["pv_uci"] = [m.uci() for m in pv_moves]
-
-        # SAN
-        try:
-            result["pv_san"] = board.variation_san(pv_moves)
-        except Exception:
-            result["pv_san"] = " ".join([m.uci() for m in pv_moves])
-
-        # MultiPV ID
-        result["multipv"] = info.get("multipv", 1)
-
-        return result

@@ -103,8 +103,8 @@ class AnalysisMixin:
         if hasattr(self, "history_view") and self.current_game:
             self.history_view.set_analyzing_game_id(getattr(self.current_game, "game_id", None))
 
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
-            self.move_list_panel.live_worker.stop()
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
+            self.move_list_panel.session.pause()
 
         self.worker.start()
 
@@ -237,8 +237,8 @@ class AnalysisMixin:
                 logger.error(f"Failed saving paused game to history: {e}")
         self._update_analyze_button(running=False)
 
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
-            self.move_list_panel.live_worker.start()
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
+            self.move_list_panel.session.resume()
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
 
@@ -274,8 +274,8 @@ class AnalysisMixin:
         logger.info("Analysis finished successfully.")
         self.current_game = game
         self._update_analyze_button(running=False)
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
-            self.move_list_panel.live_worker.start()
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
+            self.move_list_panel.session.resume()
         self.move_list_panel.set_game(game)
         self.analysis_panel.set_game(game)
         if game.moves and any(m.classification for m in game.moves):
@@ -312,8 +312,8 @@ class AnalysisMixin:
         self._set_engine_state("ready")
         self._set_status(f"Analysis failed: {error_msg}", "error")
         logger.error(f"Analysis error: {error_msg}")
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
-            self.move_list_panel.live_worker.start()
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
+            self.move_list_panel.session.resume()
         if hasattr(self, "history_view"):
             self.history_view.set_analyzing_game_id(None)
             self.history_view.load_history()

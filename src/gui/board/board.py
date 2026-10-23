@@ -1,108 +1,79 @@
+"""The single chess board widget used by every page.
+
+Page differences — interactivity, overlays, eval bar, themes — are expressed with
+:class:`BoardConfig`. Pages instantiate ``Board`` with a config and connect its
+signals; they never subclass it or re-implement its interaction handling.
+"""
+
 import math
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from typing import Literal
 
 import chess
-import chess.svg
 from defusedxml.ElementTree import fromstring as safe_fromstring
 from PyQt6.QtCore import QByteArray, QEvent, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QCursor, QGuiApplication, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QColor, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtSvgWidgets import QSvgWidget
-from PyQt6.QtWidgets import (
-    QDialog,
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QSizePolicy,
-    QWidget,
-)
+from PyQt6.QtWidgets import QDialog, QGridLayout, QLabel, QSizePolicy, QWidget
 
 from src.utils.logger import logger
 
 from ..styles import Styles
 from .eval_bar import EvalBarWidget
+from .promotion_dialog import PromotionDialog
+
+ClassificationOverlay = Literal["none", "game_move", "last_move"]
 
 
-class PromotionDialog(QDialog):
-    """Pawn promotion piece picker dialog."""
+@dataclass(frozen=True)
+class BoardConfig:
+    """Behaviour switches for one board instance.
 
-    def __init__(self, color, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Promote pawn to...")
-        self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.selected_piece = None
+    These describe the board's *initial* state and its rendering policy. Runtime
+    methods (``load_game``, ``set_interactive``) still override state as the page
+    drives the session.
+    """
 
-        self.setStyleSheet(Styles.get_dialog_surface_style())
+    # Interaction
+    interactive: bool = True
+    drag_and_drop: bool = True
+    click_to_move: bool = True
+    show_legal_moves: bool = True
 
-        layout = QHBoxLayout(self)
-        layout.setSpacing(8)
-        layout.setContentsMargins(12, 12, 12, 12)
+    # Appearance
+    show_coordinates: bool | None = None
+    show_last_move: bool = True
+    show_eval_bar: bool = True
+    board_theme: str | None = None
+    piece_theme: str | None = None
 
-        from src.gui.board.piece_themes import _load_theme_cached, get_current_theme_name
+    # Analysis annotations
+    show_best_move_arrow: bool = True
+    # "game_move" draws the classification of the move being replayed; "last_move"
+    # draws the badge for the move just played (live exploration).
+    classification_overlay: ClassificationOverlay = "game_move"
+    # None follows the global setting; an explicit bool pins the overlay on or off.
+    show_classification_overlay: bool | None = None
 
-        pieces_svg = _load_theme_cached(get_current_theme_name())
-
-        piece_map = {
-            chess.QUEEN: "Q" if color == chess.WHITE else "q",
-            chess.ROOK: "R" if color == chess.WHITE else "r",
-            chess.BISHOP: "B" if color == chess.WHITE else "b",
-            chess.KNIGHT: "N" if color == chess.WHITE else "n",
-        }
-
-        for piece_type, symbol in piece_map.items():
-            btn = QPushButton()
-            btn.setFixedSize(52, 52)
-            g_content = pieces_svg.get(symbol, "")
-            if g_content:
-                svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
-                renderer = QSvgRenderer(QByteArray(svg_str.encode("utf-8")))
-                pixmap = QPixmap(42, 42)
-                pixmap.fill(Qt.GlobalColor.transparent)
-                painter = QPainter(pixmap)
-                renderer.render(painter)
-                painter.end()
-                btn.setIcon(QIcon(pixmap))
-                btn.setIconSize(pixmap.size())
-            btn.setStyleSheet(Styles.get_icon_button_style())
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _, pt=piece_type: self.select_piece(pt))
-            layout.addWidget(btn)
-
-        self.adjustSize()
-        self._position_at_cursor()
-
-    def _position_at_cursor(self):
-        cursor_pos = QCursor.pos()
-        screen = QGuiApplication.screenAt(cursor_pos)
-        if screen:
-            sg = screen.geometry()
-            x = max(
-                sg.x(),
-                min(cursor_pos.x() - self.width() // 2, sg.x() + sg.width() - self.width()),
-            )
-            y = max(
-                sg.y(),
-                min(cursor_pos.y() - self.height() // 2, sg.y() + sg.height() - self.height()),
-            )
-            self.move(x, y)
-        else:
-            self.move(cursor_pos.x() - self.width() // 2, cursor_pos.y() - self.height() // 2)
-
-    def select_piece(self, piece_type):
-        self.selected_piece = piece_type
-        self.accept()
+    # Rules
+    chess960: bool = False
 
 
-class BoardWidget(QWidget):
+class Board(QWidget):
+    """Interactive chess board with playback, annotation and free-play modes."""
+
     move_made = pyqtSignal(str)  # Emits board FEN after any move is played
     board_side_changed = pyqtSignal(int)  # Emits the rendered square board size
 
-    def __init__(self):
-        super().__init__()
-        self.board = chess.Board()
+    def __init__(self, config: BoardConfig | None = None, parent=None):
+        super().__init__(parent)
+        self.config = config or BoardConfig()
+
+        self.board = chess.Board(chess960=self.config.chess960)
         self.is_flipped = False  # False = White bottom, True = Black bottom
+        self.is_chess960 = self.config.chess960
         self._last_board_side = 0
 
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -110,6 +81,8 @@ class BoardWidget(QWidget):
 
         self.eval_bar = EvalBarWidget()
         self.eval_bar.setParent(self)
+        if not self.config.show_eval_bar:
+            self.eval_bar.hide()
 
         # Board Container (Stack Layout for Overlays)
         self.board_container = QWidget(self)
@@ -124,31 +97,32 @@ class BoardWidget(QWidget):
 
         # Overlay Widget (Layer 1)
         self.overlay_widget = QWidget()
-        self.overlay_widget.setAttribute(
-            Qt.WidgetAttribute.WA_TransparentForMouseEvents
-        )  # Let clicks pass through
-        self.overlay_widget.setAttribute(
-            Qt.WidgetAttribute.WA_TranslucentBackground
-        )  # Make background transparent
+        # Clicks belong to the SVG layer underneath.
+        self.overlay_widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.overlay_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.overlay_layout = QGridLayout(self.overlay_widget)
         self.overlay_layout.setContentsMargins(0, 0, 0, 0)
         self.overlay_layout.setSpacing(0)
 
         self.board_layout.addWidget(self.overlay_widget, 0, 0)
 
+        # Replay state
         self.current_move_index = -1
         self.game_moves = []
-        self.is_chess960 = False
 
-        # Interactive play state (active on empty board when no game is loaded)
-        self.interactive = True
-        self.show_legal_moves = True
+        # Interactive play state
+        self.interactive = self.config.interactive
+        self.show_legal_moves = self.config.show_legal_moves
         self.selected_square = None
         self.legal_destinations = []
 
-        # Analysis helpers: best-move arrow and a subtle "exploring" dim.
+        # Analysis annotations
         self.best_move_uci = None
         self.dimmed = False
+        self.last_move_classification = None
+        # Resolved from BoardConfig + the global appearance settings in update_board().
+        self._show_coordinates = True
+        self._show_classification = True
 
         # Drag and drop floating piece visual
         self.drag_piece_label = QLabel(self.board_container)
@@ -239,7 +213,11 @@ class BoardWidget(QWidget):
             self.draw_interactive_overlays()
         else:
             # Click to move
-            if self.selected_square is not None and sq in self.legal_destinations:
+            if (
+                self.config.click_to_move
+                and self.selected_square is not None
+                and sq in self.legal_destinations
+            ):
                 self.attempt_move(self.selected_square, sq)
             else:
                 self.selected_square = None
@@ -247,7 +225,7 @@ class BoardWidget(QWidget):
                 self.draw_interactive_overlays()
 
     def handle_move(self, x, y):
-        if self.drag_start_pos is None:
+        if not self.config.drag_and_drop or self.drag_start_pos is None:
             return
 
         if not self.is_dragging:
@@ -321,13 +299,13 @@ class BoardWidget(QWidget):
         svg_x = x / scale
         svg_y = y / scale
 
-        MARGIN = 15
-        SQ = 45
-        if svg_x < MARGIN or svg_x > 375 or svg_y < MARGIN or svg_y > 375:
+        margin = 15
+        square = 45
+        if svg_x < margin or svg_x > 375 or svg_y < margin or svg_y > 375:
             return None
 
-        file_click = int((svg_x - MARGIN) // SQ)
-        rank_click = int((svg_y - MARGIN) // SQ)
+        file_click = int((svg_x - margin) // square)
+        rank_click = int((svg_y - margin) // square)
 
         if not self.is_flipped:
             file_idx = file_click
@@ -343,9 +321,7 @@ class BoardWidget(QWidget):
     def attempt_move(self, from_sq, to_sq, promotion=None):
         piece = self.board.piece_at(from_sq)
         is_promo = (
-            piece
-            and piece.piece_type == chess.PAWN
-            and chess.square_rank(to_sq) in (0, 7)
+            piece and piece.piece_type == chess.PAWN and chess.square_rank(to_sq) in (0, 7)
         )
         if is_promo and promotion is None:
             dlg = PromotionDialog(piece.color, self)
@@ -361,12 +337,14 @@ class BoardWidget(QWidget):
             self.board.push(move)
             self.selected_square = None
             self.legal_destinations = []
+            # The engine arrow belongs to the position we just left.
+            self.best_move_uci = None
             self.update_board()
             self.draw_interactive_overlays()
             self.move_made.emit(self.board.fen())
 
     def draw_interactive_overlays(self):
-        """Draw selection highlight and legal-move dots."""
+        """Draw selection highlight, legal-move dots and the live classification badge."""
         while self.overlay_layout.count():
             child = self.overlay_layout.takeAt(0)
             if child.widget():
@@ -382,16 +360,41 @@ class BoardWidget(QWidget):
             for sq in self.legal_destinations:
                 dot = QLabel("●")
                 dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                c = QColor(Styles.COLOR_ACCENT)
+                colour = QColor(Styles.COLOR_ACCENT)
                 dot.setStyleSheet(
                     Styles.get_label_style(
-                        size=24, color=f"rgba({c.red()},{c.green()},{c.blue()},0.5)"
+                        size=24,
+                        color=f"rgba({colour.red()},{colour.green()},{colour.blue()},0.5)",
                     )
                     + " "
                     + Styles.get_transparent_label_style()
                 )
                 r, col = self._sq_to_grid(sq)
                 self.overlay_layout.addWidget(dot, r, col)
+
+        if self._show_classification and self.config.classification_overlay == "last_move":
+            self._draw_last_move_badge()
+
+    def _draw_last_move_badge(self):
+        if not self.last_move_classification or not self.board.move_stack:
+            return
+
+        from src.utils.resources import ResourceManager
+
+        icon = ResourceManager().get_icon(self.last_move_classification)
+        if icon.isNull():
+            return
+
+        badge = QLabel()
+        badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        badge.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+        badge.setPixmap(icon.pixmap(32, 32))
+        badge.setStyleSheet(Styles.get_transparent_label_style())
+
+        row, col = self._sq_to_grid(self.board.peek().to_square)
+        self.overlay_layout.addWidget(
+            badge, row, col, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight
+        )
 
     def _sq_to_grid(self, square):
         rank = chess.square_rank(square)
@@ -401,23 +404,30 @@ class BoardWidget(QWidget):
         return 7 - rank, file
 
     # ------------------------------------------------------------------ Historic / Free Position
-    def load_fen(self, fen: str, flipped: bool = False):
-        """Load a custom FEN for free-play exploration (landing page historic mode)."""
+    def load_fen(self, fen: str, flipped: bool | None = None, *, chess960: bool | None = None):
+        """Load a position for free play.
+
+        ``flipped`` and ``chess960`` are tri-state: pass a value to override the
+        caller's policy, omit it to keep the current orientation. Omitting
+        ``chess960`` resets to standard chess, preserving the historic-analysis
+        contract; live exploration always passes it explicitly.
+        """
+        if flipped is not None:
+            self.is_flipped = flipped
+        self.is_chess960 = bool(chess960) if chess960 is not None else False
+        self.board = chess.Board(fen, chess960=self.is_chess960)
         self.interactive = True
         self.dimmed = False
         self.best_move_uci = None
-        self.is_flipped = flipped
-        self.board = chess.Board(fen)
+        self.last_move_classification = None
         self.game_moves = []
         self.current_move_index = -1
-        self.is_chess960 = False
         self.selected_square = None
         self.legal_destinations = []
         self.drag_start_sq = None
         self.drag_start_pos = None
         self.is_dragging = False
-        if hasattr(self, "drag_piece_label"):
-            self.drag_piece_label.hide()
+        self.drag_piece_label.hide()
         self.update_board()
         self.draw_interactive_overlays()
 
@@ -426,12 +436,14 @@ class BoardWidget(QWidget):
         self.interactive = False
         self.dimmed = False
         self.best_move_uci = None
+        self.last_move_classification = None
         # Never inherit the orientation of a historic/free-play FEN.
         self.is_flipped = False
         self.selected_square = None
         self.legal_destinations = []
-        if hasattr(self, "drag_piece_label"):
-            self.drag_piece_label.hide()
+        self.drag_piece_label.hide()
+        self.is_dragging = False
+        self.drag_start_pos = None
         self.is_chess960 = game_analysis.metadata.chess960
         self.board = chess.Board(chess960=self.is_chess960)
         self.game_moves = game_analysis.moves
@@ -470,6 +482,17 @@ class BoardWidget(QWidget):
         self.draw_overlays(move_index)
         self.eval_bar.set_eval(cp, mate)
 
+    def set_board(self, board: chess.Board):
+        """Swap in an externally maintained board, clearing interaction state with it."""
+        self.board = board
+        self.is_chess960 = board.chess960
+        self.selected_square = None
+        self.legal_destinations = []
+        self.best_move_uci = None
+        self.last_move_classification = None
+        self.update_board()
+        self.draw_interactive_overlays()
+
     # ------------------------------------------------------------------ Analysis / Variation
     def load_analysis_position(self, fen: str, chess960: bool = False):
         """
@@ -481,20 +504,35 @@ class BoardWidget(QWidget):
         self.board = chess.Board(fen, chess960=chess960)
         self.is_chess960 = chess960
         self.interactive = True
+        self.last_move_classification = None
         self.selected_square = None
         self.legal_destinations = []
         self.drag_start_sq = None
         self.drag_start_pos = None
         self.is_dragging = False
-        if hasattr(self, "drag_piece_label"):
-            self.drag_piece_label.hide()
+        self.drag_piece_label.hide()
         self.update_board()
+        self.draw_interactive_overlays()
+
+    def set_interactive(self, enabled: bool):
+        self.interactive = enabled
+
+    def set_show_legal_moves(self, enabled: bool):
+        self.show_legal_moves = enabled
         self.draw_interactive_overlays()
 
     def set_best_move(self, uci: str | None):
         """Draw the engine's top move as an arrow over the board."""
+        if uci == self.best_move_uci:
+            return
         self.best_move_uci = uci
         self.update_board()
+
+    def set_last_move_classification(self, classification: str | None):
+        """Show (or clear) the badge for the move just played."""
+        self.last_move_classification = classification
+        if self.config.classification_overlay == "last_move":
+            self.draw_interactive_overlays()
 
     def set_dimmed(self, dimmed: bool):
         """Visually mark the board as an analysis/variation surface."""
@@ -529,6 +567,10 @@ class BoardWidget(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
+        if not self._show_classification:
+            return
+        if self.config.classification_overlay != "game_move":
+            return
         if move_index < 0 or move_index >= len(self.game_moves):
             return
 
@@ -564,14 +606,39 @@ class BoardWidget(QWidget):
         except Exception as e:
             logger.debug(f"Error drawing overlay: {e}")
 
+    def _resolve_display_preferences(self):
+        """Resolve appearance prefs: a page override wins, otherwise the user setting."""
+        from ...utils.config import ConfigManager
+
+        prefs = ConfigManager()
+        self._show_coordinates = (
+            self.config.show_coordinates
+            if self.config.show_coordinates is not None
+            else prefs.get("board_show_coordinates", True)
+        )
+        self._show_classification = (
+            self.config.show_classification_overlay
+            if self.config.show_classification_overlay is not None
+            else prefs.get("board_show_classification", True)
+        )
+
+    def refresh_settings(self):
+        """Re-read appearance settings and redraw, clearing any now-hidden overlay."""
+        self.update_board()
+        if self.interactive:
+            self.draw_interactive_overlays()
+        else:
+            self.draw_overlays(self.current_move_index)
+
     def update_board(self):
         # Determine colors from configured theme
         from ...utils.config import ConfigManager
         from .piece_themes import get_piece_defs
 
+        self._resolve_display_preferences()
         config = ConfigManager()
-        board_theme_name = config.get("board_theme", "Green")
-        piece_theme_name = config.get("piece_theme", "Standard")
+        board_theme_name = self.config.board_theme or config.get("board_theme", "Green")
+        piece_theme_name = self.config.piece_theme or config.get("piece_theme", "Standard")
         colors = Styles.get_board_colors(board_theme_name)
 
         # Get the piece definitions for the selected theme.
@@ -596,7 +663,9 @@ class BoardWidget(QWidget):
         orientation = not self.is_flipped  # True = white at bottom
 
         # Resolve last move to highlight
-        last_move = self.board.move_stack[-1] if self.board.move_stack else None
+        last_move = None
+        if self.config.show_last_move and self.board.move_stack:
+            last_move = self.board.move_stack[-1]
         last_from = last_move.from_square if last_move else None
         last_to = last_move.to_square if last_move else None
 
@@ -677,20 +746,25 @@ class BoardWidget(QWidget):
                 )
 
         # Draw coordinates
-        coord_style = f"font-size:10px;fill:{Styles.COLOR_TEXT_SECONDARY};font-family:sans-serif"
+        if self._show_coordinates:
+            coord_style = (
+                f"font-size:10px;fill:{Styles.COLOR_TEXT_SECONDARY};font-family:sans-serif"
+            )
 
-        for i in range(8):
-            file_letter = chess.FILE_NAMES[i if orientation else 7 - i]
-            file_x = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 - 3
-            ET.SubElement(
-                svg, "text", {"x": str(file_x), "y": str(FULL_SIZE - 3), "style": coord_style}
-            ).text = file_letter
+            for i in range(8):
+                file_letter = chess.FILE_NAMES[i if orientation else 7 - i]
+                file_x = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 - 3
+                ET.SubElement(
+                    svg,
+                    "text",
+                    {"x": str(file_x), "y": str(FULL_SIZE - 3), "style": coord_style},
+                ).text = file_letter
 
-            rank_number = str(8 - i if orientation else i + 1)
-            rank_y = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 + 4
-            ET.SubElement(
-                svg, "text", {"x": "3", "y": str(rank_y), "style": coord_style}
-            ).text = rank_number
+                rank_number = str(8 - i if orientation else i + 1)
+                rank_y = MARGIN + i * SQUARE_SIZE + SQUARE_SIZE // 2 + 4
+                ET.SubElement(
+                    svg, "text", {"x": "3", "y": str(rank_y), "style": coord_style}
+                ).text = rank_number
 
         # Draw pieces
         for square in chess.SQUARES:
@@ -732,7 +806,7 @@ class BoardWidget(QWidget):
                 },
             )
 
-        if self.best_move_uci and len(self.best_move_uci) >= 4:
+        if self.best_move_uci and self.config.show_best_move_arrow:
             self._draw_best_move_arrow(svg, MARGIN, SQUARE_SIZE)
 
         return ET.tostring(svg, encoding="utf-8")

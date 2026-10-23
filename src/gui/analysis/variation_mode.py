@@ -176,7 +176,7 @@ class VariationMode(QObject):
         self.move_list_panel.end_variation()
         self.board_widget.set_best_move(None)
         self.board_widget.set_dimmed(False)
-        self.board_widget.interactive = False
+        self.board_widget.set_interactive(False)
         self._best_uci = None
         self._best_san = None
         self.tree = None
@@ -357,7 +357,7 @@ class VariationMode(QObject):
         self.graph.set_ghost(san, self._eval_text(self.tree.active_node) if self.tree else None)
 
     # ------------------------------------------------------------------ engine results
-    def _on_lines_updated(self, lines: list, is_white: bool, fen: str) -> None:
+    def _on_lines_updated(self, lines: list, fen: str) -> None:
         if not self._active or self.tree is None or not lines:
             return
         node = self.tree.active_node
@@ -368,9 +368,7 @@ class VariationMode(QObject):
             return
 
         top = lines[0]
-        pv = top.get("pv_uci") or top.get("pv") or []
-        first = pv[0] if pv else None
-        uci = first if isinstance(first, str) else (first.uci() if first else None)
+        uci = top.first_move
         san = None
         if uci:
             try:
@@ -381,14 +379,12 @@ class VariationMode(QObject):
             except ValueError:
                 san = None
 
-        cp = top.get("cp")
-        mate = top.get("mate")
+        # Lines arrive White-perspective, so no side-to-move flip is needed.
+        cp = top.cp
+        mate = top.mate
         if cp is not None or mate is not None:
-            white_cp = cp if is_white else (-cp if cp is not None else None)
-            white_mate = mate if is_white else (-mate if mate is not None else None)
-            depth = top.get("depth")
-            self.tree.cache_eval(node, white_cp, white_mate, depth)
-            self.board_widget.eval_bar.set_eval(white_cp, white_mate)
+            self.tree.cache_eval(node, cp, mate, top.depth)
+            self.board_widget.eval_bar.set_eval(cp, mate)
             eval_text = self._eval_text(node)
             if eval_text:
                 self.graph.update_node_eval(node.node_id, eval_text)

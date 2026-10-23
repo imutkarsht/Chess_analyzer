@@ -1726,29 +1726,74 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_analysis_lines_style(cls):
+    def get_engine_lines_style(cls):
         p = ThemeManager.palette()
         return f"""
-            QFrame {{
+            QFrame#EngineLinesPanel {{
                 background-color: {p.surface};
                 border: 1px solid {p.border};
-                border-radius: 12px;
-                padding: 10px;
+                border-radius: 10px;
             }}
-            QWidget#AnalysisRow {{
+            QWidget#EngineLineRow {{
+                background-color: transparent;
+                border: none;
+                border-radius: 6px;
+            }}
+            QWidget#EngineLineRow:hover {{
                 background-color: {p.surface_light};
-                border-radius: 8px;
-                border: 1px solid {p.border};
             }}
-            QWidget#AnalysisRow:hover {{
-                background-color: {p.surface_light};
-                border: 1px solid {p.accent};
-            }}
-            QLabel {{
+            QWidget#EngineLineRow QLabel {{
                 border: none;
                 background: transparent;
             }}
+            QLabel#EngineLinesEmpty {{
+                color: {p.text_muted};
+                font-size: 12px;
+            }}
         """
+
+    @staticmethod
+    def _blend_hex(color_a, color_b, ratio):
+        """Linear blend between two ``#RRGGBB`` colours (ratio 0..1)."""
+        ratio = max(0.0, min(1.0, ratio))
+        a = color_a.lstrip("#")
+        b = color_b.lstrip("#")
+        if len(a) != 6 or len(b) != 6:
+            return color_a
+        channels = [
+            round(int(a[index : index + 2], 16) * (1 - ratio) + int(b[index : index + 2], 16) * ratio)
+            for index in (0, 2, 4)
+        ]
+        return "#" + "".join(f"{channel:02X}" for channel in channels)
+
+    @classmethod
+    def _contrast_text(cls, background):
+        """Pick the palette's light or dark ink for a blended badge background."""
+        p = ThemeManager.palette()
+        value = background.lstrip("#")
+        if len(value) != 6:
+            return p.text_primary
+        red, green, blue = (int(value[index : index + 2], 16) for index in (0, 2, 4))
+        luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+        return p.piece_black if luminance > 140 else p.piece_white
+
+    @classmethod
+    def get_engine_score_badge_style(cls, line):
+        """Score pill for a White-perspective ``EngineLine``."""
+        p = ThemeManager.palette()
+        if line.mate is not None:
+            if line.mate > 0:
+                return cls.get_eval_badge_style(p.piece_white, p.piece_black)
+            return cls.get_eval_badge_style(p.piece_black, p.piece_white)
+        if line.cp is None or line.cp == 0:
+            return cls.get_eval_badge_style(p.surface_light, p.text_primary)
+
+        intensity = min(1.0, abs(line.cp) / 300.0)
+        if line.cp > 0:
+            background = cls._blend_hex(p.surface_light, p.piece_white, 0.12 + 0.55 * intensity)
+        else:
+            background = cls._blend_hex(p.surface_light, p.piece_black, 0.12 + 0.60 * intensity)
+        return cls.get_eval_badge_style(background, cls._contrast_text(background))
 
     @classmethod
     def get_engine_status_style(cls, color):

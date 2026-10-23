@@ -10,7 +10,7 @@ ROW_GAP = 4
 class BoardPanel(QWidget):
     """Lay out the board between its two captured-piece/clock rows.
 
-    ``BoardWidget`` centers a square board inside a possibly wider/taller
+    ``Board`` centers a square board inside a possibly wider/taller
     rectangle.  Placing the rows in the outer layout therefore left a large
     dead gap whenever the board was width- or height-limited.  This container
     positions the rows against the board's actual geometry instead.
