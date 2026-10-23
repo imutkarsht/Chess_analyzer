@@ -58,7 +58,7 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
     - `Analyzer` runs the heavy computation (Stockfish analysis).
 2.  **View (GUI):** Displays the data.
     - `MainWindow` is the main container.
-    - `BoardWidget` draws the chess board.
+    - `Board` draws the chess board.
     - `AnalysisPanel` shows stats and graphs.
 3.  **Controller (Logic):**
     - `main.py` initializes the app.
@@ -83,7 +83,7 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 | :-- | :-- |
 | **[`main_window.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/main_window.py)** | **Main Application.** Sets up the window, sidebar, and orchestrates the interaction between different views. |
 | **[`analysis_view.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/views/analysis_view.py)** | **Analysis Dashboard.** Re-exports the `AnalysisPanel` and `MoveListPanel` views. |
-| **[`board_widget.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/board/board_widget.py)** | **Chess Board.** Renders the board and pieces, and handles flipping. |
+| **[`board.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/board/board.py)** | **Chess Board.** The single configurable board used by every page; renders pieces, handles flipping and interaction. |
 | **[`graph_widget.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/graph_widget.py)** | **Evaluation Graph.** Draws the visual evaluation chart using Matplotlib. |
 | **[`metrics_view.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/views/metrics_view.py)** | **Statistics Dashboard.** Coordinates the decomposed metrics dashboard card widgets under `src/gui/views/metrics/`. |
 | **[`styles.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/styles.py)** | **Theming.** Contains CSS-like stylesheets (QSS) and theme color settings. |

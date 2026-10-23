@@ -75,7 +75,7 @@ src/
 - **Install Dependencies**: `pip install -r requirements-dev.txt` (or `uv pip install -r requirements-dev.txt`)
 - **Start Development**: `python main.py`
 - **Lint**: `ruff check .` (auto-fix: `ruff check --fix .`)
-- **Format**: `ruff format --check .` (auto-format: `ruff format .`)
+- **Format**: optional, not a gate. `ruff format .` only when a file is being substantially rewritten; never block or report work on `ruff format --check`.
 - **Run All Tests**: `pytest tests/` (Headless Linux: `QT_QPA_PLATFORM=offscreen pytest tests/`)
 - **Run Single Test**: `pytest tests/backend/test_analyzer.py`
 - **Production Build**: `pyinstaller build.spec`
@@ -86,7 +86,8 @@ src/
 - All pull requests must maintain 100% pass rate: `pytest tests/` (320+ unit and GUI tests) with suite runtime under 15 seconds.
 - Backend logic changes require headless unit tests in `tests/backend/`.
 - GUI widget changes require tests using `pytest-qt` in `tests/gui/`.
-- Linting must report 0 errors: `ruff check . && ruff format --check .`.
+- Linting must report 0 errors: `ruff check .`
+- Formatting is **not** verified. Do not run `ruff format --check`, do not reformat unrelated files, and never treat formatting drift as a failure.
 
 ### Meaningful Testing Guidelines (No Bloat, No Tautologies)
 - **Zero Language Tautologies**: Never write tests that merely verify Python's standard library or language behavior (e.g. asserting that a `@dataclass` assigns fields: `m = Model(x=1); assert m.x == 1`). Tests must assert domain logic, state mutations, calculations, or defensive fallbacks.

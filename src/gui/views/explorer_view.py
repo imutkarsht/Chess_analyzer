@@ -30,7 +30,7 @@ from src.gui.analysis.analysis_lines_widget import AnalysisLinesWidget
 from src.gui.analysis.captured import CapturedPiecesWidget
 from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
 from src.gui.analysis.live_analysis import LiveAnalysisWorker
-from src.gui.board.explorer_board_widget import ExplorerBoardWidget
+from src.gui.board import Board, BoardConfig
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.styles import Styles
 from src.gui.views.explorer_book_row import BookRowWidget
@@ -187,7 +187,7 @@ class ExplorerView(QWidget):
         self.left_layout.addWidget(self.black_header_widget)
 
         # Board (contains its own eval bar internally laid out)
-        self.board_widget = ExplorerBoardWidget()
+        self.board_widget = Board(BoardConfig(classification_overlay="last_move"))
         self.board_widget.move_made.connect(self.on_move_made)
         self.left_layout.addWidget(self.board_widget, stretch=1)
 
@@ -491,10 +491,8 @@ class ExplorerView(QWidget):
             if source_moves and i < len(source_moves) and source_moves[i].classification:
                 self.move_list_widget.update_classification(i, source_moves[i].classification)
 
-        self.board_widget.best_move_uci = None
-        self.board_widget.last_move_classification = None
-        self.board_widget.update_board()
-        self.board_widget.draw_interactive_overlays()
+        self.board_widget.set_best_move(None)
+        self.board_widget.set_last_move_classification(None)
         self.board_widget.move_made.connect(self.on_move_made)
 
         fen = self.board.fen()
@@ -906,13 +904,7 @@ class ExplorerView(QWidget):
                 self.board.push(self.move_history[i][0])
 
         # Sync board widget
-        self.board_widget.board = self.board.copy()
-        self.board_widget.selected_square = None
-        self.board_widget.legal_destinations = []
-        self.board_widget.best_move_uci = None
-        self.board_widget.last_move_classification = None
-        self.board_widget.update_board()
-        self.board_widget.draw_interactive_overlays()
+        self.board_widget.set_board(self.board.copy())
 
         # Sync move list
         self.move_list_widget.set_index(index)
@@ -969,8 +961,7 @@ class ExplorerView(QWidget):
             self._start_backlog_classification()
 
     def on_legal_moves_toggled(self, checked):
-        self.board_widget.show_legal_moves = checked
-        self.board_widget.draw_interactive_overlays()
+        self.board_widget.set_show_legal_moves(checked)
 
     def on_engine_toggled(self, enabled):
         self.lines_widget.setVisible(enabled)
@@ -1070,8 +1061,7 @@ class ExplorerView(QWidget):
 
         if is_book:
             self.move_list_widget.update_classification(self.pending_classification_index, "Book")
-            self.board_widget.last_move_classification = "Book"
-            self.board_widget.draw_interactive_overlays()
+            self.board_widget.set_last_move_classification("Book")
             self.pending_classification_index = -1
             return
 
@@ -1098,8 +1088,7 @@ class ExplorerView(QWidget):
 
         if ctx.classification:
             self.move_list_widget.update_classification(self.pending_classification_index, ctx.classification)
-            self.board_widget.last_move_classification = ctx.classification
-            self.board_widget.draw_interactive_overlays()
+            self.board_widget.set_last_move_classification(ctx.classification)
 
         self.pending_classification_index = -1
 

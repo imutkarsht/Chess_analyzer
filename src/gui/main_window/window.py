@@ -21,7 +21,7 @@ from src.backend.storage.historic_games import get_random_historic_position
 from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
-from src.gui.board import BoardGameHeader, BoardPanel, BoardWidget
+from src.gui.board import Board, BoardGameHeader, BoardPanel
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.components.sidebar import Sidebar
 from src.gui.components.tour_manager import TourManager
@@ -496,7 +496,7 @@ class MainWindow(
         self.captured_black = CapturedPiecesWidget(side="black")
         self.captured_widget = self.captured_white
 
-        self.board_widget = BoardWidget()
+        self.board_widget = Board()
         self.board_panel = BoardPanel(
             self.board_widget, self.captured_white, self.captured_black
         )

@@ -5,7 +5,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
-from src.gui.board import BoardWidget
+from src.gui.board import Board
 
 AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 AFTER_D4 = "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1"
@@ -27,7 +27,7 @@ class _StubMoveList(QObject):
 
 
 def _mode():
-    board = BoardWidget()
+    board = Board()
     panel = _StubMoveList()
     graph = VariationGraph()
     return VariationMode(board, panel, graph), board, panel, graph

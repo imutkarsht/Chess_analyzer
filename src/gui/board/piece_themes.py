@@ -63,7 +63,7 @@ _PIECE_TYPE_INDEX = {"p": 1, "n": 2, "b": 3, "r": 4, "q": 5, "k": 6}
 
 
 def _expected_id(symbol: str) -> str:
-    """Return the SVG element id that board_widget.py references via <use>."""
+    """Return the SVG element id that board.py references via <use>."""
     color = "white" if symbol.isupper() else "black"
     return f"{color}-{chess.PIECE_NAMES[_PIECE_TYPE_INDEX[symbol.lower()]]}"
 

@@ -176,7 +176,7 @@ class VariationMode(QObject):
         self.move_list_panel.end_variation()
         self.board_widget.set_best_move(None)
         self.board_widget.set_dimmed(False)
-        self.board_widget.interactive = False
+        self.board_widget.set_interactive(False)
         self._best_uci = None
         self._best_san = None
         self.tree = None
