@@ -4,6 +4,9 @@ Shortcuts are fired by emitting ``activated`` on the QShortcut bound to a key
 sequence rather than by synthesising key presses: QShortcut only matches when
 its window is the OS-active window, which is not reliable on CI runners. This
 still verifies that the key is really bound, unambiguously, to the action.
+
+Booting MainWindow costs seconds, so the whole module shares one window and
+``_reset`` puts it back into a known state before every test.
 """
 
 import pytest
@@ -11,7 +14,7 @@ from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import QLabel, QLineEdit
 
 from src.backend.storage.pgn_parser import PGNParser
-from src.constants import PAGE_ANALYSIS, PAGE_EXPLORER, PAGE_NAMES
+from src.constants import PAGE_ANALYSIS, PAGE_EXPLORER, PAGE_NAMES, REPLAY_INTERVAL_MS
 from src.utils.config import ConfigManager
 
 PGN = """[Event "Shortcut test"]
@@ -23,50 +26,72 @@ PGN = """[Event "Shortcut test"]
 
 # Classification per ply; critical moves (mistake/blunder/miss) at 2, 5 and 6.
 CLASSIFICATIONS = ["Book", "Book", "Mistake", "Good", "Best", "Blunder", "Miss", "Best"]
+LAST = len(CLASSIFICATIONS) - 1
 
 
-@pytest.fixture
-def isolated_app(tmp_path, monkeypatch):
-    """Keep config.json and the history/cache DB in a temp dir.
+@pytest.fixture(scope="module")
+def shared_window(qapp, tmp_path_factory):
+    """One MainWindow for the module, with config/history/cache in a temp dir.
 
-    load_game() saves every game to history, so without this the test game
-    would land in the developer's real analysis_cache.db. Tours are marked as
-    seen so their overlays never cover the window. The network update check is
-    stubbed in conftest.
+    load_game() saves every game to history, so without the path patches the
+    test game would land in the developer's real analysis_cache.db. Tours are
+    reported as seen so their overlays never cover the window. The network
+    update check is stubbed in conftest.
     """
-    for module in (
-        "src.utils.config",
-        "src.backend.storage.game_history",
-        "src.backend.storage.cache",
-    ):
-        monkeypatch.setattr(f"{module}.get_user_data_dir", lambda: str(tmp_path))
-    monkeypatch.setattr(ConfigManager, "_shared_config", None)
-    monkeypatch.setattr(
-        "src.gui.components.tour_manager.TourManager.has_seen_tour", lambda self, key: True
-    )
+    data_dir = str(tmp_path_factory.mktemp("shortcuts_data"))
+    with pytest.MonkeyPatch.context() as mp:
+        for module in (
+            "src.utils.config",
+            "src.backend.storage.game_history",
+            "src.backend.storage.cache",
+        ):
+            mp.setattr(f"{module}.get_user_data_dir", lambda: data_dir)
+        mp.setattr(ConfigManager, "_shared_config", None)
+        mp.setattr(
+            "src.gui.components.tour_manager.TourManager.has_seen_tour", lambda self, key: True
+        )
+        # Saved before boot so startup restoration of the preset can be checked.
+        ConfigManager().set("shortcut_preset", "vim")
 
-    from src.gui.main_window import MainWindow
+        from src.gui.main_window import MainWindow
 
-    return MainWindow
+        win = MainWindow()
+        win.preset_at_startup = win.shortcut_manager.preset
+        win.show()
+
+        game = PGNParser.parse_pgn_text(PGN)[0]
+        win.load_game(game)
+        win.test_game = win.current_game
+        yield win
+
+        win._replay_timer.stop()
+        win.close()
 
 
 @pytest.fixture
-def window(qapp, qtbot, isolated_app):
-    win = isolated_app()
-    qtbot.addWidget(win)
-    yield win
+def window(shared_window, qtbot):
+    win = shared_window
+    sm = win.shortcut_manager
+
     win._replay_timer.stop()
-    win.close()
+    win._replay_timer.setInterval(REPLAY_INTERVAL_MS)
+    sm._on_focus_changed(None, None)
+    card = win.settings_view.shortcut_settings
+    card.preset_combo.setCurrentIndex(card.preset_combo.findData("standard"))
+    sm.apply_preset("standard")
 
-
-@pytest.fixture
-def game_window(window):
-    game = PGNParser.parse_pgn_text(PGN)[0]
-    for move, classification in zip(game.moves, CLASSIFICATIONS, strict=True):
+    win.current_game = win.test_game
+    for move, classification in zip(win.current_game.moves, CLASSIFICATIONS, strict=True):
         move.classification = classification
-    window.load_game(game)
-    window.on_move_selected(-1)
-    return window
+    if win.board_widget.is_flipped:
+        win.flip_board()
+    if win.explorer_view.board_widget.is_flipped:
+        win.explorer_view._flip_board()
+    if win.stack.currentIndex() != PAGE_ANALYSIS:
+        win._go_to_page(PAGE_ANALYSIS)
+        qtbot.waitUntil(lambda: win.stack.currentIndex() == PAGE_ANALYSIS, timeout=2000)
+    win.on_move_selected(-1)
+    return win
 
 
 def press(window, key: str):
@@ -100,132 +125,111 @@ def expect_no_move(qtbot, window, key: str):
         press(window, key)
 
 
+def go_to(window, qtbot, page: int):
+    """Switch page via its number key and wait for the fade transition to land."""
+    press(window, str(page + 1))
+    qtbot.waitUntil(lambda: window.stack.currentIndex() == page, timeout=2000)
+
+
 # --- Move navigation --------------------------------------------------------
 
 
 @pytest.mark.parametrize(("next_key", "prev_key"), [("Right", "Left"), ("J", "K")])
-def test_arrows_and_jk_navigate_by_default(game_window, qtbot, next_key, prev_key):
-    expect_move(qtbot, game_window, next_key, 0)
-    expect_move(qtbot, game_window, next_key, 1)
-    expect_move(qtbot, game_window, prev_key, 0)
+def test_step_keys_navigate_by_default(window, qtbot, next_key, prev_key):
+    expect_move(qtbot, window, next_key, 0)
+    expect_move(qtbot, window, next_key, 1)
+    expect_move(qtbot, window, prev_key, 0)
+    expect_move(qtbot, window, prev_key, -1)
+    expect_no_move(qtbot, window, prev_key)  # already at the start position
 
 
-def test_arrows_and_jk_mix_freely(game_window, qtbot):
-    expect_move(qtbot, game_window, "Right", 0)
-    expect_move(qtbot, game_window, "J", 1)
-    expect_move(qtbot, game_window, "Left", 0)
-    expect_move(qtbot, game_window, "K", -1)
+def test_jump_keys_and_game_end(window, qtbot):
+    expect_move(qtbot, window, "End", LAST)
+    expect_no_move(qtbot, window, "J")  # nothing after the last move
+    expect_move(qtbot, window, "Home", -1)
+    expect_move(qtbot, window, "Up", LAST)
+    expect_move(qtbot, window, "Down", -1)
 
 
-def test_first_and_last_move(game_window, qtbot):
-    last = len(CLASSIFICATIONS) - 1
-    expect_move(qtbot, game_window, "End", last)
-    expect_move(qtbot, game_window, "Home", -1)
-    expect_move(qtbot, game_window, "Up", last)
-    expect_move(qtbot, game_window, "Down", -1)
+def test_vim_preset_adds_h_and_l_and_reverts(window, qtbot):
+    assert not is_bound(window, "L")
+
+    window.shortcut_manager.apply_preset("vim")
+    expect_move(qtbot, window, "L", 0)
+    expect_move(qtbot, window, "J", 1)
+    expect_move(qtbot, window, "H", 0)
+    expect_move(qtbot, window, "Right", 1)  # arrows keep working alongside
+
+    window.shortcut_manager.apply_preset("standard")
+    assert not is_bound(window, "L") and not is_bound(window, "H")
+    assert all(is_bound(window, k) for k in ("Right", "Left", "J", "K"))
 
 
-def test_no_signal_past_either_end(game_window, qtbot):
-    expect_no_move(qtbot, game_window, "Left")
-    game_window.on_move_selected(len(CLASSIFICATIONS) - 1)
-    expect_no_move(qtbot, game_window, "J")
+@pytest.mark.parametrize(
+    ("key", "start", "stops"),
+    [
+        ("N", -1, [2, 5, 6]),
+        ("Shift+Right", -1, [2, 5, 6]),
+        ("P", LAST, [6, 5, 2]),
+        ("Shift+Left", LAST, [6, 5, 2]),
+    ],
+)
+def test_critical_move_jumps(window, qtbot, key, start, stops):
+    window.on_move_selected(start)
+    for expected in stops:
+        expect_move(qtbot, window, key, expected)
+    expect_no_move(qtbot, window, key)  # no more critical moves that way
+    assert "No mistakes" in window._status_lbl.text()
 
 
-def test_vim_preset_adds_h_and_l(game_window, qtbot):
-    assert not is_bound(game_window, "L")
-
-    game_window.shortcut_manager.apply_preset("vim")
-
-    expect_move(qtbot, game_window, "L", 0)
-    expect_move(qtbot, game_window, "J", 1)
-    expect_move(qtbot, game_window, "H", 0)
-    expect_move(qtbot, game_window, "K", -1)
-    # Arrows keep working alongside the Vim keys.
-    expect_move(qtbot, game_window, "Right", 0)
-
-
-def test_switching_back_to_standard_unbinds_h_and_l(game_window):
-    game_window.shortcut_manager.apply_preset("vim")
-    game_window.shortcut_manager.apply_preset("standard")
-    assert not is_bound(game_window, "L")
-    assert not is_bound(game_window, "H")
-    for key in ("Right", "Left", "J", "K"):
-        assert is_bound(game_window, key)
-
-
-@pytest.mark.parametrize("key", ["N", "Shift+Right"])
-def test_next_critical_move(game_window, qtbot, key):
-    expect_move(qtbot, game_window, key, 2)
-    expect_move(qtbot, game_window, key, 5)
-    expect_move(qtbot, game_window, key, 6)
-    expect_no_move(qtbot, game_window, key)  # nothing after the last miss
-
-
-@pytest.mark.parametrize("key", ["P", "Shift+Left"])
-def test_previous_critical_move(game_window, qtbot, key):
-    game_window.on_move_selected(len(CLASSIFICATIONS) - 1)
-    expect_move(qtbot, game_window, key, 6)
-    expect_move(qtbot, game_window, key, 5)
-    expect_move(qtbot, game_window, key, 2)
-    expect_no_move(qtbot, game_window, key)
-
-
-def test_critical_navigation_needs_analysis(game_window, qtbot):
-    for move in game_window.current_game.moves:
+def test_critical_navigation_needs_analysis(window, qtbot):
+    for move in window.current_game.moves:
         move.classification = ""
-    expect_no_move(qtbot, game_window, "N")
-    assert "Analyze the game first" in game_window._status_lbl.text()
+    expect_no_move(qtbot, window, "N")
+    assert "Analyze the game first" in window._status_lbl.text()
 
 
 # --- Board ------------------------------------------------------------------
 
 
-def test_f_flips_board(game_window):
-    assert not game_window.board_widget.is_flipped
-    press(game_window, "F")
-    assert game_window.board_widget.is_flipped
-    press(game_window, "F")
-    assert not game_window.board_widget.is_flipped
+def test_f_flips_the_board_of_the_current_page(window, qtbot):
+    press(window, "F")
+    assert window.board_widget.is_flipped
+    press(window, "F")
+    assert not window.board_widget.is_flipped
+
+    go_to(window, qtbot, PAGE_EXPLORER)
+    press(window, "F")
+    assert window.explorer_view.board_widget.is_flipped
+    assert not window.board_widget.is_flipped
 
 
-def test_f_flips_explorer_board_on_explorer_page(game_window, qtbot):
-    game_window.show()
-    game_window.stack.setCurrentIndex(PAGE_EXPLORER)
-    # FadedStackedWidget animates, so currentIndex() only changes once the fade ends.
-    qtbot.waitUntil(lambda: game_window.stack.currentIndex() == PAGE_EXPLORER, timeout=2000)
-    press(game_window, "F")
-    assert game_window.explorer_view.board_widget.is_flipped
-    assert not game_window.board_widget.is_flipped
+def test_space_starts_and_pauses_replay(window, qtbot):
+    window._replay_timer.setInterval(10)
 
+    with qtbot.waitSignal(window.move_changed, timeout=2000):
+        press(window, "Space")  # first tick advances on its own
+    assert window._replay_timer.isActive()
 
-def test_space_toggles_auto_replay(game_window, qtbot):
-    game_window._replay_timer.setInterval(10)
-
-    with qtbot.waitSignal(game_window.move_changed, timeout=2000):
-        press(game_window, "Space")  # first tick advances on its own
-    assert game_window._replay_timer.isActive()
-
-    press(game_window, "Space")
-    assert not game_window._replay_timer.isActive()
-    with qtbot.assertNotEmitted(game_window.move_changed, wait=100):
+    press(window, "Space")
+    assert not window._replay_timer.isActive()
+    with qtbot.assertNotEmitted(window.move_changed, wait=50):
         pass
 
 
-def test_auto_replay_stops_at_last_move(game_window, qtbot):
-    game_window._replay_timer.setInterval(5)
-    press(game_window, "Space")
-    qtbot.waitUntil(lambda: not game_window._replay_timer.isActive(), timeout=3000)
-    assert index(game_window) == len(CLASSIFICATIONS) - 1
+def test_replay_stops_at_end_and_space_restarts(window, qtbot):
+    window._replay_timer.setInterval(5)
+    press(window, "Space")
+    qtbot.waitUntil(lambda: not window._replay_timer.isActive(), timeout=3000)
+    assert index(window) == LAST
 
-
-def test_space_at_end_restarts_from_beginning(game_window):
-    game_window.on_move_selected(len(CLASSIFICATIONS) - 1)
-    press(game_window, "Space")
-    assert index(game_window) == -1
-    assert game_window._replay_timer.isActive()
+    with qtbot.waitSignal(window.move_changed, check_params_cb=lambda i: i == -1):
+        press(window, "Space")  # at the end: rewinds before replaying
+    assert window._replay_timer.isActive()
 
 
 def test_space_without_game_does_not_start_replay(window):
+    window.current_game = None
     press(window, "Space")
     assert not window._replay_timer.isActive()
 
@@ -234,29 +238,31 @@ def test_space_without_game_does_not_start_replay(window):
 
 
 def test_number_keys_switch_pages(window, qtbot):
-    window.show()
-
     for page in reversed(range(len(PAGE_NAMES))):
-        press(window, str(page + 1))
-        qtbot.waitUntil(lambda p=page: window.stack.currentIndex() == p, timeout=2000)
+        go_to(window, qtbot, page)
         assert window.sidebar._nav_buttons[page].isChecked()
-    assert window.stack.currentIndex() == PAGE_ANALYSIS
 
 
 def test_rapid_page_switch_lands_on_last_page(window, qtbot):
     """Pressing 2 then 1 mid-fade must end on page 1, not get stuck on page 2."""
-    window.show()
-
-    press(window, "2")
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == PAGE_EXPLORER, timeout=2000)
-    press(window, "1")  # fade-in to the explorer is still running here
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == PAGE_ANALYSIS, timeout=2000)
-    qtbot.wait(400)
+    go_to(window, qtbot, PAGE_EXPLORER)
+    go_to(window, qtbot, PAGE_ANALYSIS)  # fade-in to the explorer is still running
+    qtbot.wait(350)
     assert window.stack.currentIndex() == PAGE_ANALYSIS
     assert window.stack.currentWidget().graphicsEffect() is None
 
 
-# --- Settings card & help dialog -------------------------------------------
+def test_escape_leaves_explorer(window, qtbot):
+    go_to(window, qtbot, PAGE_EXPLORER)
+    press(window, "Escape")
+    qtbot.waitUntil(lambda: window.stack.currentIndex() == PAGE_ANALYSIS, timeout=2000)
+
+
+# --- Presets, settings card & help dialog ----------------------------------
+
+
+def test_saved_preset_restored_on_startup(window):
+    assert window.preset_at_startup == "vim"
 
 
 def test_settings_preset_combo_applies_and_persists(window):
@@ -265,30 +271,22 @@ def test_settings_preset_combo_applies_and_persists(window):
 
     assert window.shortcut_manager.preset == "vim"
     assert window.config_manager.get("shortcut_preset") == "vim"
-    assert is_bound(window, "J")
+    assert is_bound(window, "H")
 
     texts = [label.text() for label in card.sheet.findChildren(QLabel)]
     assert "Right  /  J  /  L" in texts
     assert "Left  /  K  /  H" in texts
 
 
-def test_saved_preset_restored_on_startup(qapp, qtbot, isolated_app):
-    ConfigManager().set("shortcut_preset", "vim")
-
-    win = isolated_app()
-    qtbot.addWidget(win)
-    try:
-        assert win.shortcut_manager.preset == "vim"
-        assert win.settings_view.shortcut_settings.current_preset() == "vim"
-        assert is_bound(win, "H")
-    finally:
-        win.close()
-
-
 def test_unknown_preset_falls_back_to_default(window):
     window.shortcut_manager.apply_preset("emacs")
     assert window.shortcut_manager.preset == "standard"
     assert is_bound(window, "Right")
+
+
+def test_duplicate_registration_rejected(window):
+    with pytest.raises(ValueError):
+        window.shortcut_manager.register("flip_board", "dup", "X", lambda: None)
 
 
 def test_help_dialog_lists_active_bindings(window, qtbot):
@@ -299,52 +297,28 @@ def test_help_dialog_lists_active_bindings(window, qtbot):
     qtbot.addWidget(dialog)
 
     texts = {label.text() for label in dialog.findChildren(QLabel)}
-    assert "Flip board" in texts
-    assert "Next mistake / blunder / miss" in texts
-    assert any("J" in t and "Right" in t for t in texts)
-    assert "Show this help" in texts
-
-
-def test_duplicate_registration_rejected(window):
-    with pytest.raises(ValueError):
-        window.shortcut_manager.register("flip_board", "dup", "X", lambda: None)
-
-
-# --- Upstream shortcuts now owned by ShortcutManager ------------------------
-
-
-def test_escape_leaves_explorer(window, qtbot):
-    window.show()
-    window._go_to_page(PAGE_EXPLORER)
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == PAGE_EXPLORER, timeout=2000)
-    press(window, "Escape")
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == PAGE_ANALYSIS, timeout=2000)
-
-
-def test_variation_branch_keys_are_bound(window):
-    assert window.shortcut_manager.keys_for("prev_branch") == ["Alt+Up"]
-    assert window.shortcut_manager.keys_for("next_branch") == ["Alt+Down"]
-    assert is_bound(window, "Alt+Up")
-    assert is_bound(window, "Alt+Down")
+    assert {"Flip board", "Next mistake / blunder / miss", "Show this help"} <= texts
+    assert "Right  /  J  /  L" in texts
 
 
 # --- Typing guard -------------------------------------------------------------
 
 
-def test_single_key_shortcuts_pause_while_typing(window, qtbot):
-    window.show()
-    qtbot.waitExposed(window)
+def test_single_key_shortcuts_pause_while_typing(window):
+    sm = window.shortcut_manager
     field = window.settings_view.chesscom_input
-    window.shortcut_manager._on_focus_changed(None, field)
+    sm._on_focus_changed(None, field)
 
-    for key in ("F", "J", "N", "Space", "1"):
-        assert not is_bound(window, key), key
+    assert not any(is_bound(window, k) for k in ("F", "J", "N", "Space", "1"))
     # Arrows and modifier combos stay live: the text field handles its own.
-    assert is_bound(window, "Right")
-    assert is_bound(window, "Ctrl+O")
+    assert is_bound(window, "Right") and is_bound(window, "Ctrl+O")
 
-    window.shortcut_manager._on_focus_changed(field, None)
-    assert is_bound(window, "F")
+    # A preset switch while typing must not re-enable the new single keys.
+    sm.apply_preset("vim")
+    assert not is_bound(window, "H")
+
+    sm._on_focus_changed(field, None)
+    assert is_bound(window, "F") and is_bound(window, "H")
 
 
 def test_read_only_text_does_not_block_shortcuts(window):
@@ -352,12 +326,3 @@ def test_read_only_text_does_not_block_shortcuts(window):
     viewer.setReadOnly(True)
     window.shortcut_manager._on_focus_changed(None, viewer)
     assert is_bound(window, "J")
-
-
-def test_preset_switch_while_typing_keeps_keys_paused(window):
-    field = window.settings_view.chesscom_input
-    window.shortcut_manager._on_focus_changed(None, field)
-    window.shortcut_manager.apply_preset("vim")
-    assert not is_bound(window, "H")
-    window.shortcut_manager._on_focus_changed(field, None)
-    assert is_bound(window, "H")

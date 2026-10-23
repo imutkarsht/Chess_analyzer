@@ -28,15 +28,18 @@ def _reset_engine_cache():
 
 
 # ============ Network Update Check Guard ============
-@pytest.fixture(autouse=True)
-def _no_update_check(monkeypatch):
+@pytest.fixture(scope="session", autouse=True)
+def _no_update_check():
     """Never let a test MainWindow query GitHub for releases.
 
     Otherwise a shown window can open the real update dialog, whose download
-    path runs the installer on the developer's machine.
+    path runs the installer on the developer's machine. Session-scoped so it is
+    already active when module-scoped fixtures build a window.
     """
     from src.gui.main_window import MainWindow
-    monkeypatch.setattr(MainWindow, "check_for_updates", lambda self: None)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(MainWindow, "check_for_updates", lambda self: None)
+        yield
 
 
 # ============ Mock Fixtures ============
