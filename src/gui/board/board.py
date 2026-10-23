@@ -337,6 +337,8 @@ class Board(QWidget):
             self.board.push(move)
             self.selected_square = None
             self.legal_destinations = []
+            # The engine arrow belongs to the position we just left.
+            self.best_move_uci = None
             self.update_board()
             self.draw_interactive_overlays()
             self.move_made.emit(self.board.fen())
@@ -521,6 +523,8 @@ class Board(QWidget):
 
     def set_best_move(self, uci: str | None):
         """Draw the engine's top move as an arrow over the board."""
+        if uci == self.best_move_uci:
+            return
         self.best_move_uci = uci
         self.update_board()
 

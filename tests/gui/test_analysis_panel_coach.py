@@ -18,6 +18,7 @@ from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.analysis.analysis_panel import AnalysisPanel
 from src.gui.analysis.coach_card_widget import CoachState
+from src.gui.analysis.line_utils import lines_for_move
 
 LEGAL_PATH = ["e4", "e5", "Nf3", "Nc6", "Bc4", "d6", "Nc3", "Bg4", "Nxe5", "Bxd1"]
 
@@ -84,7 +85,7 @@ def _game() -> GameAnalysis:
     blunder.best_move = chess.Board(blunder.fen_before).parse_san("d4").uci()
     blunder.multi_pvs = [{"pv": ["d2d4"], "pv_san": "d4", "cp": 30, "mate": None}]
     reply.classification = "Blunder"
-    reply.multi_pvs = [{"pv": ["g4d1"], "pv_san": "Bxd1", "cp": None, "mate": 0}]
+    reply.multi_pvs = [{"pv": ["g4d1"], "pv_san": "Bxd1", "cp": None, "mate": 1}]
 
     meta = GameMetadata(white="A", black="B", white_elo="1600", black_elo="1500")
     return GameAnalysis(game_id="coach", metadata=meta, moves=moves)
@@ -168,24 +169,32 @@ class TestAskGate:
 
 class TestReplay:
     @pytest.mark.parametrize(
-        ("replay", "expected_move", "turn"),
+        ("replay", "expected_move", "fen_from"),
         [
             # 5.Nxe5 is punished by 5...Bxd1: the opponent's line lives one ply later
-            ("replay_refutation", 9, chess.BLACK),
+            ("replay_refutation", 9, 8),
             # the alternatives belong to the played move's own position
-            ("replay_best", 8, chess.WHITE),
+            ("replay_best", 8, None),
         ],
     )
-    def test_replay_shows_the_right_line_and_turn(self, panel, replay, expected_move, turn):
+    def test_replay_shows_the_right_line(self, panel, replay, expected_move, fen_from):
         panel.set_selected_move(8)
         panel.tabs.setCurrentIndex(2)
 
         getattr(panel, replay)()
 
-        assert (
-            panel.lines_widget._last_multi_pvs == panel.current_game.moves[expected_move].multi_pvs
-        )
-        assert panel.lines_widget._last_turn_color == turn
+        move = panel.current_game.moves[expected_move]
+        shown = panel.lines_widget.lines
+        assert len(shown) == len(move.multi_pvs)
+        assert shown[0].first_move == move.multi_pvs[0]["pv"][0]
+
+        if fen_from is None:
+            assert panel._lines_fen == move.fen_before
+        else:
+            played = panel.current_game.moves[fen_from]
+            board = chess.Board(played.fen_before)
+            board.push_uci(played.uci)
+            assert panel._lines_fen == board.fen()
 
     def test_replay_refutation_brings_the_evaluation_tab_forward(self, panel):
         """The lines widget lives in the Evaluation tab, so it must be shown."""
@@ -215,15 +224,16 @@ class TestReplay:
         requests = []
         panel.variation_requested.connect(lambda f, u: requests.append((f, u)))
 
-        panel.update_lines(move.multi_pvs, True, fen=move.fen_before)
+        lines, lines_fen = lines_for_move(move)
+        panel.update_lines(lines, fen=lines_fen)
         # Cached analysis stores the PV as "pv"; the row must still be clickable.
-        assert panel.lines_widget.rows[0][0].uci_move == "d2d4"
+        assert panel.lines_widget.lines[0].first_move == "d2d4"
 
         panel._on_line_clicked("d2d4")
         assert requests == [(move.fen_before, "d2d4")]
 
         # Clearing the lines must also clear the FEN, or clicks would branch
         # from a position that is no longer displayed.
-        panel.update_lines([], True, fen=None)
+        panel.update_lines([], fen=None)
         panel._on_line_clicked("d2d4")
         assert requests == [(move.fen_before, "d2d4")]

@@ -27,6 +27,7 @@ from src.constants import EXPLANATION_DEBOUNCE_MS
 from src.gui.components import CircularAccuracyWidget
 from src.gui.components.graph_widget import GraphWidget
 from src.gui.components.pulsing_skeleton import PulsingSkeleton
+from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (
     clear_layout,
@@ -39,10 +40,9 @@ from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
 from src.utils.resources import ResourceManager
 
-from .analysis_lines_widget import AnalysisLinesWidget
 from .coach_card_widget import CoachCardWidget
 from .coach_worker import ExplainMoveWorker, RequestLimiter
-from .line_utils import lines_for_display
+from .line_utils import lines_for_move
 
 # Tabs that make no sense (and would fight the engine) mid-analysis.
 _TABS_LOCKED_DURING_ANALYSIS = (1, 2)
@@ -127,9 +127,15 @@ class AnalysisPanel(QWidget):
         self._apply_toggle_style()
 
         # Analysis Lines
-        self.lines_widget = AnalysisLinesWidget()
+        self.lines_widget = EngineLinesWidget(
+            EngineLinesConfig(empty_text="No engine lines yet")
+        )
         self.lines_widget.line_clicked.connect(self._on_line_clicked)
-        self.eval_layout.addWidget(self.lines_widget, stretch=1)
+        self.eval_layout.addWidget(self.lines_widget, stretch=0)
+        # Keep the graph, toggles and lines stacked; without a trailing
+        # stretch the box layout spreads the leftover height as gaps between
+        # them, which made the panel look like it was floating.
+        self.eval_layout.addStretch(1)
 
         self.tabs.addTab(self.eval_tab, "Evaluation")
         self._apply_tabs_style()
@@ -300,10 +306,12 @@ class AnalysisPanel(QWidget):
 
     def refresh(self):
         if not self.current_game:
+            self._lines_fen = None
             self.lines_widget.clear()
             return
 
         try:
+            self._lines_fen = None
             self.lines_widget.clear()
             self.graph_widget.plot_game(self.current_game)
             self._update_summary(self.current_game.summary)
@@ -647,9 +655,10 @@ class AnalysisPanel(QWidget):
         except Exception as e:
             logger.warning("Could not store the AI summary for game %s: %s", game_id, e)
 
-    def update_lines(self, lines, is_white, fen: str | None = None):
+    def update_lines(self, lines, fen: str | None = None):
+        """Render White-perspective engine lines for the board position."""
         self._lines_fen = fen
-        self.lines_widget.update_lines(lines, chess.WHITE if is_white else chess.BLACK)
+        self.lines_widget.set_lines(lines)
 
     def _on_line_clicked(self, uci: str) -> None:
         """Enter variation mode at the position the displayed lines belong to."""
@@ -774,10 +783,8 @@ class AnalysisPanel(QWidget):
             return
 
         fen_after = self._fen_after_played_move(insight)
-        # The opponent moves next, so the side to move is the player's opposite.
-        self.update_lines(
-            lines_for_display(reply), insight.side == "black", fen=fen_after
-        )
+        lines, _lines_fen = lines_for_move(reply, chess960=self._is_chess960())
+        self.update_lines(lines, fen=fen_after)
         self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
 
         if fen_after and insight.refutation_san:
@@ -803,8 +810,8 @@ class AnalysisPanel(QWidget):
         if not played.multi_pvs:
             return
 
-        lines = lines_for_display(played)
-        self.update_lines(lines, insight.side == "white", fen=played.fen_before)
+        lines, _lines_fen = lines_for_move(played, chess960=self._is_chess960())
+        self.update_lines(lines, fen=played.fen_before)
         self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
 
         best_uci = insight.best_move_uci

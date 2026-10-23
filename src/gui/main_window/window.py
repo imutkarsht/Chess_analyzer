@@ -236,19 +236,19 @@ class MainWindow(
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Failed to save window state: {e}")
 
-        # Stop live analysis worker thread cleanly
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
+        # Stop the shared live-engine sessions cleanly
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
             try:
-                self.move_list_panel.live_worker.stop()
+                self.move_list_panel.session.shutdown()
             except Exception as e:
-                logger.error(f"Failed to stop analysis live worker: {e}")
+                logger.error(f"Failed to stop analysis live session: {e}")
 
-        # Stop explorer's live analysis worker
-        if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "live_worker"):
+        # Stop explorer's live engine session
+        if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "session"):
             try:
-                self.explorer_view.live_worker.stop()
+                self.explorer_view.session.shutdown()
             except Exception as e:
-                logger.error(f"Failed to stop explorer live worker: {e}")
+                logger.error(f"Failed to stop explorer live session: {e}")
 
         # Stop full analysis worker if it is running
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
@@ -476,9 +476,8 @@ class MainWindow(
 
         self.move_list_panel = MoveListPanel(self.engine_path, config_manager=self.config_manager)
         self.move_list_panel.move_selected.connect(self.on_move_selected)
-        # Wire live-engine thinking signals to the status bar indicator
-        self.move_list_panel.live_worker.thinking_started.connect(self._on_live_thinking_started)
-        self.move_list_panel.live_worker.thinking_stopped.connect(self._on_live_thinking_stopped)
+        # Wire live-engine lifecycle to the status bar indicator
+        self.move_list_panel.session.state_changed.connect(self._on_live_engine_state)
         left_layout.addWidget(self.move_list_panel)
 
         splitter.addWidget(self.left_widget)
