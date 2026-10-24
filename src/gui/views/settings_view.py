@@ -3,10 +3,21 @@ Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QScrollArea,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
+from src.config.settings_schema import SETTINGS
 from src.constants import DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV
-from src.gui.components import MasonryLayout
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
@@ -80,9 +91,43 @@ class SettingsView(QWidget):
         self.content_container = QWidget()
         self.content_container.setStyleSheet(Styles.get_background_style())
 
-        # Use MasonryLayout for 2-column/3-column dynamic design
-        self.container_layout = MasonryLayout(self.content_container, margin=40, spacing=25)
+        content_layout = QHBoxLayout(self.content_container)
+        content_layout.setContentsMargins(24, 20, 24, 24)
+        content_layout.setSpacing(24)
 
+        # Left category rail
+        rail = QWidget()
+        rail.setFixedWidth(220)
+        rail_layout = QVBoxLayout(rail)
+        rail_layout.setContentsMargins(0, 0, 0, 0)
+        rail_layout.setSpacing(10)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search settings...")
+        self.search_input.setStyleSheet(Styles.get_input_style())
+        self.search_input.textChanged.connect(self._filter_categories)
+        rail_layout.addWidget(self.search_input)
+
+        self.category_list = QListWidget()
+        self.category_list.setFrameShape(QFrame.Shape.NoFrame)
+        self.category_list.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.category_list.setSpacing(2)
+        rail_layout.addWidget(self.category_list, 1)
+        content_layout.addWidget(rail)
+
+        # Right pages inside a distinct surface panel so the options area
+        # reads as a separate region from the navigation rail.
+        self.settings_panel = QFrame()
+        self.settings_panel.setObjectName("SettingsPanel")
+        self.settings_panel.setStyleSheet(self._panel_style())
+        panel_layout = QVBoxLayout(self.settings_panel)
+        panel_layout.setContentsMargins(28, 24, 28, 28)
+        panel_layout.setSpacing(0)
+
+        self.pages = QStackedWidget()
+        self.pages.setStyleSheet("QStackedWidget { background: transparent; }")
+        panel_layout.addWidget(self.pages)
+        content_layout.addWidget(self.settings_panel, 1)
         self.scroll_area.setWidget(self.content_container)
         main_layout.addWidget(self.scroll_area)
 
@@ -96,15 +141,33 @@ class SettingsView(QWidget):
         self.links_settings = LinksSettings(self)
         self.shortcut_settings = ShortcutSettings(self.config_manager, self)
 
-        # Add components to layout
-        self.container_layout.addWidget(self.engine_settings)
-        self.container_layout.addWidget(self.book_settings)
-        self.container_layout.addWidget(self.api_settings)
-        self.container_layout.addWidget(self.player_settings)
-        self.container_layout.addWidget(self.appearance_settings)
-        self.container_layout.addWidget(self.data_settings)
-        self.container_layout.addWidget(self.links_settings)
-        self.container_layout.addWidget(self.shortcut_settings)
+        # Category pages. Existing cards are reused until the generic binder
+        # migration lands, but the navigation and layout are now scalable.
+        self._settings_pages = {
+            "Analysis": [self.engine_settings, self.book_settings],
+            "Appearance": [self.appearance_settings],
+            "AI Coach": [self.api_settings],
+            "Integrations": [self.player_settings],
+            "Data & Storage": [self.data_settings],
+            "Keyboard": [self.shortcut_settings],
+            "About & Links": [self.links_settings],
+        }
+        for _category, cards in self._settings_pages.items():
+            page = QWidget()
+            page.setObjectName("SettingsPage")
+            page.setStyleSheet("#SettingsPage { background: transparent; }")
+            page_layout = QVBoxLayout(page)
+            page_layout.setContentsMargins(0, 0, 0, 0)
+            page_layout.setSpacing(28)
+            for card in cards:
+                page_layout.addWidget(card)
+            page_layout.addStretch(1)
+            self.pages.addWidget(page)
+
+        self._search_index = self._build_search_index()
+        self._populate_categories()
+        self.category_list.currentRowChanged.connect(self._on_category_row_changed)
+        self._style_category_rail()
 
         # Connections
         self.appearance_settings.theme_refreshed.connect(self.on_theme_refreshed)
@@ -124,7 +187,7 @@ class SettingsView(QWidget):
         self.llm_key_input = self.api_settings.llm_key_input
         self.llm_model_input = self.api_settings.llm_model_input
         self.llm_url_input = self.api_settings.llm_url_input
-        self.lichess_token_input = self.api_settings.lichess_token_input
+        self.lichess_token_input = self.player_settings.lichess_token_input
         self.llm_test_btn = self.api_settings.llm_test_btn
         self.llm_test_result = self.api_settings.llm_test_result
         self.explain_trivial_checkbox = self.api_settings.explain_trivial_checkbox
@@ -157,7 +220,7 @@ class SettingsView(QWidget):
         self.book_settings.reload_from_config()
         self.player_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
-        self.api_settings.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.player_settings.reload_from_config()
         self.api_settings.sync_explanation_settings()
         self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
         self.appearance_settings.sync_sidebar_pref()
@@ -170,6 +233,162 @@ class SettingsView(QWidget):
             checkbox.blockSignals(False)
         self.api_settings._update_active_label()
         self.shortcut_settings.reload_from_config()
+
+    def _panel_style(self) -> str:
+        return f"""
+            QFrame#SettingsPanel {{
+                background-color: {Styles.COLOR_SURFACE};
+                border: none;
+                border-radius: 0px;
+            }}
+        """
+
+    def _build_search_index(self) -> dict[int, str]:
+        """Searchable keywords per category, so results stay at category level."""
+        page_for_category = {
+            "Analysis": "Analysis",
+            "Opening Explorer": "Analysis",
+            "Appearance": "Appearance",
+            "General": "Appearance",
+            "Integrations": "Integrations",
+            "AI Coach": "AI Coach",
+            "Keyboard": "Keyboard",
+        }
+        page_names = list(self._settings_pages)
+        index = {
+            page_index: category.lower()
+            for page_index, category in enumerate(page_names)
+        }
+        page_extras = {
+            "Analysis": "engine stockfish depth multipv opening book polyglot",
+            "Appearance": "theme accent colour color board pieces sidebar sound layout",
+            "AI Coach": "api key provider model llm profile coach explanation cache",
+            "Integrations": "chesscom lichess username token network games limit",
+            "Data & Storage": "cache database reset storage optimize clear data",
+            "Keyboard": "shortcuts keys bindings preset",
+            "About & Links": "website feedback bug update version links about",
+        }
+        for page_index, category in enumerate(page_names):
+            index[page_index] += " " + page_extras.get(category, "")
+
+        for spec in SETTINGS:
+            if not spec.ui or spec.tier == "internal":
+                continue
+            if self._mode == "basic" and spec.tier != "basic":
+                continue
+            category = page_for_category.get(spec.category)
+            if category is None:
+                continue
+            page_index = page_names.index(category)
+            index[page_index] += " " + " ".join(
+                [
+                    spec.key,
+                    spec.label,
+                    spec.description,
+                    spec.category,
+                    str(spec.default),
+                ]
+            ).lower()
+        return index
+
+    def _populate_categories(self, query: str = "") -> None:
+        self.category_list.blockSignals(True)
+        self.category_list.clear()
+        query = query.strip().lower()
+        visible = [
+            (any(not card.isHidden() for card in cards) if cards else True)
+            for cards in self._settings_pages.values()
+        ]
+
+        if not query:
+            for index, (category, _cards) in enumerate(self._settings_pages.items()):
+                if not visible[index]:
+                    continue
+                item = QListWidgetItem(category)
+                item.setData(Qt.ItemDataRole.UserRole, index)
+                self.category_list.addItem(item)
+        else:
+            for index, category in enumerate(self._settings_pages):
+                if not visible[index]:
+                    continue
+                if query in self._search_index.get(index, ""):
+                    item = QListWidgetItem(category)
+                    item.setData(Qt.ItemDataRole.UserRole, index)
+                    self.category_list.addItem(item)
+            if self.category_list.count() == 0:
+                item = QListWidgetItem("No settings found")
+                item.setFlags(Qt.ItemFlag.NoItemFlags)
+                self.category_list.addItem(item)
+
+        self.category_list.blockSignals(False)
+        if self.category_list.count():
+            self.category_list.setCurrentRow(0)
+            self._on_category_row_changed(0)
+
+    def _on_category_row_changed(self, row: int) -> None:
+        item = self.category_list.item(row)
+        if item is None:
+            return
+        page_index = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(page_index, int):
+            self.pages.setCurrentIndex(page_index)
+
+    def _filter_categories(self, text: str) -> None:
+        self._populate_categories(text)
+
+    def _refresh_category_visibility(self) -> None:
+        if self.search_input.text().strip():
+            return
+        current_page = self.pages.currentIndex()
+        self._populate_categories()
+        for row in range(self.category_list.count()):
+            item = self.category_list.item(row)
+            if item and item.data(Qt.ItemDataRole.UserRole) == current_page:
+                self.category_list.setCurrentRow(row)
+                return
+
+    def _style_category_rail(self) -> None:
+        self.search_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: transparent;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                padding: 9px 12px;
+                color: {Styles.COLOR_TEXT_PRIMARY};
+                font-size: 14px;
+            }}
+            QLineEdit:hover {{
+                border-color: {Styles.COLOR_TEXT_MUTED};
+            }}
+            QLineEdit:focus {{
+                border-color: {Styles.COLOR_ACCENT};
+            }}
+        """)
+        self.category_list.setStyleSheet(f"""
+            QListWidget {{
+                background: transparent;
+                border: none;
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 11px 14px;
+                margin: 1px 0;
+                border-radius: 8px;
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 15px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_ACCENT};
+                border-left: 2px solid {Styles.COLOR_ACCENT};
+                font-weight: 600;
+            }}
+        """)
 
     def _create_save_button(self):
         from PyQt6.QtCore import Qt
@@ -225,6 +444,8 @@ class SettingsView(QWidget):
         self.data_settings.set_advanced_visible(is_advanced)
         self.links_settings.set_advanced_visible(is_advanced)
         self.shortcut_settings.set_advanced_visible(is_advanced)
+        self._search_index = self._build_search_index()
+        self._refresh_category_visibility()
 
     def save_all_settings(self):
         """Save every setting in the app at once."""
@@ -255,7 +476,7 @@ class SettingsView(QWidget):
 
         # Check Lichess API Token presence
         import os
-        token = self.api_settings.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
+        token = self.player_settings.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
 
         clamped = False
         warning_msg = ""
@@ -289,8 +510,7 @@ class SettingsView(QWidget):
                 return
             profiles[idx] = new_profile
             # Set selected profile as active
-            self.config_manager.config["llm_active_profile"] = new_name
-            self.config_manager.config["llm_profiles"] = profiles
+            self.config_manager.set_profiles(profiles, active_name=new_name)
 
         path_changed = self.config_manager.get("engine_path") != path
         threads_changed = self.config_manager.get("engine_threads") != threads
@@ -312,7 +532,9 @@ class SettingsView(QWidget):
         except ValueError:
             self.config_manager.config["live_analysis_time"] = DEFAULT_LIVE_ANALYSIS_TIME
 
-        self.config_manager.config["lichess_token"] = self.api_settings.lichess_token_input.text().strip()
+        self.config_manager.set(
+            "lichess_token", self.player_settings.lichess_token_input.text().strip()
+        )
         self.config_manager.config["chesscom_username"] = chesscom
         self.config_manager.config["lichess_username"] = lichess
         self.config_manager.config["api_games_limit"] = limit
@@ -400,6 +622,10 @@ class SettingsView(QWidget):
             self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
         if hasattr(self, 'content_container'):
             self.content_container.setStyleSheet(Styles.get_background_style())
+        if hasattr(self, 'category_list'):
+            self._style_category_rail()
+        if hasattr(self, 'settings_panel'):
+            self.settings_panel.setStyleSheet(self._panel_style())
         if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
             self.save_settings_btn.setStyleSheet(Styles.get_button_style())
         if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:

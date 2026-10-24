@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -27,7 +26,7 @@ from src.constants import (
 )
 
 from ...styles import Styles
-from .helpers import create_icon_button
+from .components import PathField
 from .modern_widgets import ModernHashComboBox, ModernSliderCounter
 
 
@@ -61,17 +60,18 @@ class EngineSettings(QGroupBox):
 
     def setup_ui(self):
         engine_layout = QVBoxLayout(self)
-        engine_layout.setContentsMargins(20, 25, 20, 20)
+        engine_layout.setContentsMargins(0, 12, 0, 0)
 
         path_layout = QHBoxLayout()
-        self.path_input = QLineEdit()
+        self.path_field = PathField(
+            "Path to Stockfish executable...",
+            browse_callback=self.browse_engine,
+            parent=self,
+        )
+        self.path_input = self.path_field.line_edit
         self.path_input.setText(self.config_manager.get("engine_path", ""))
-        self.path_input.setPlaceholderText("Path to Stockfish executable...")
-        self.path_input.setStyleSheet(Styles.get_input_style())
-        path_layout.addWidget(self.path_input)
-
-        self.browse_btn = create_icon_button("Browse", "fa5s.folder-open", self.browse_engine, self)
-        path_layout.addWidget(self.browse_btn)
+        self.browse_btn = self.path_field.browse_btn
+        path_layout.addWidget(self.path_field)
 
         engine_layout.addLayout(path_layout)
 
@@ -87,7 +87,7 @@ class EngineSettings(QGroupBox):
 
 
         form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         form.setHorizontalSpacing(16)
         form.setVerticalSpacing(10)
@@ -124,6 +124,7 @@ class EngineSettings(QGroupBox):
         self.depth_combo.addItems(depth_values)
         self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)))
         self.depth_combo.setStyleSheet(combo_style)
+        self.depth_combo.setMaximumWidth(100)
         self.depth_combo.currentTextChanged.connect(self.change_analysis_depth)
         self._depth_lbl, depth_row = _wrap(
             "Analysis Depth:", self.depth_combo, "(Higher = more accurate but slower)"

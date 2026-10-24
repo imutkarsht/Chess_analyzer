@@ -768,9 +768,6 @@ class SetupWizard(QDialog):
                 })
             cfg.set("llm_profiles", profiles)
             cfg.set("active_llm_provider", prof["provider"])
-            # Backward compatibility key
-            if prof["provider"] == "groq" and prof["api_key"]:
-                cfg.set("groq_api_key", prof["api_key"])
 
         if "board_theme" in self.settings:
             cfg.set("board_theme", self.settings["board_theme"])

@@ -16,7 +16,7 @@ class TestConfigManager:
             manager = ConfigManager()
 
             assert manager.get("engine_path") == "stockfish"
-            assert manager.get("theme") == "dark"
+            assert manager.get("theme_mode") == "system"
             assert manager.get("multi_pv") == 2
             assert manager.get("live_analysis_time") == 0.5
             assert manager.get("analysis_depth") == 18
@@ -129,8 +129,8 @@ class TestConfigManager:
             manager2 = ConfigManager()
 
             # Initially same
-            assert manager1.get("theme") == "dark"
-            assert manager2.get("theme") == "dark"
+            assert manager1.get("theme_mode") == "system"
+            assert manager2.get("theme_mode") == "system"
 
             # Manually update config.json on disk to simulate external changes or reloads
             config_file = tmp_path / "config.json"

@@ -3,10 +3,10 @@ Opening Book Settings group component.
 """
 import os
 
-from PyQt6.QtWidgets import QFileDialog, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout
+from PyQt6.QtWidgets import QFileDialog, QGroupBox, QLabel, QVBoxLayout
 
 from ...styles import Styles
-from .helpers import create_icon_button
+from .components import PathField
 
 
 class BookSettings(QGroupBox):
@@ -19,22 +19,19 @@ class BookSettings(QGroupBox):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 25, 20, 20)
+        layout.setContentsMargins(0, 12, 0, 0)
 
-        path_layout = QHBoxLayout()
-        self.polyglot_path_input = QLineEdit()
+        self.path_field = PathField(
+            "Path to Polyglot book (.bin)... (Optional)",
+            browse_callback=self.browse_polyglot_book,
+            clear_callback=self.clear_polyglot_book,
+            parent=self,
+        )
+        self.polyglot_path_input = self.path_field.line_edit
         self.polyglot_path_input.setText(self.config_manager.get("polyglot_book_path", ""))
-        self.polyglot_path_input.setPlaceholderText("Path to Polyglot book (.bin)... (Optional)")
-        self.polyglot_path_input.setStyleSheet(Styles.get_input_style())
-        path_layout.addWidget(self.polyglot_path_input)
-
-        self.polyglot_browse_btn = create_icon_button("Browse", "fa5s.folder-open", self.browse_polyglot_book, self)
-        path_layout.addWidget(self.polyglot_browse_btn)
-
-        self.polyglot_clear_btn = create_icon_button("Clear", "fa5s.times", self.clear_polyglot_book, self)
-        path_layout.addWidget(self.polyglot_clear_btn)
-
-        layout.addLayout(path_layout)
+        self.polyglot_browse_btn = self.path_field.browse_btn
+        self.polyglot_clear_btn = self.path_field.clear_btn
+        layout.addWidget(self.path_field)
 
         # Polyglot Validation status label
         self.polyglot_validation_label = QLabel()

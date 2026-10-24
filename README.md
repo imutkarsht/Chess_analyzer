@@ -119,7 +119,7 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
 
 - **Local Database**: All analysis data and game history are stored in a local SQLite database (`analysis_cache.db`).
 - **No Cloud Uploads**: Your games and moves are **never** uploaded to our servers. Analysis happens entirely on your machine using the bundled Stockfish engine.
-- **Secure Config**: API keys (Groq, Lichess) are stored locally in `config.json` and are never shared.
+- **Secure Credentials**: API keys and Lichess tokens are stored in your operating system’s credential store (macOS Keychain, Windows Credential Locker, or Linux Secret Service), never in the plaintext `config.json`.
 
 ## 🛠️ Installation
 

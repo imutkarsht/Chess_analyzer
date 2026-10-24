@@ -11,6 +11,12 @@ GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/re
 WEBSITE_URL = "https://chessanalyzer.xyz"
 ABOUT_URL = "https://chessanalyzer.xyz/about"
 
+# Project author
+AUTHOR_NAME = "Utkarsh Tiwari"
+AUTHOR_GITHUB_URL = "https://github.com/imutkarsht"
+AUTHOR_LINKEDIN_URL = "https://www.linkedin.com/in/imutkarsht/"
+AUTHOR_EMAIL = "uktiwari023@gmail.com"
+
 # PGN Load Source IDs
 SRC_PGN_FILE = 0
 SRC_PGN_TEXT = 1
