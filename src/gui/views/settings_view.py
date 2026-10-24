@@ -33,6 +33,7 @@ class SettingsView(QWidget):
     engine_settings_changed = pyqtSignal()  # emitted when Threads/Hash change
     llm_config_changed = pyqtSignal()   # emitted after LLM settings are saved
     usernames_changed = pyqtSignal()
+    sidebar_prefs_changed = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -107,6 +108,7 @@ class SettingsView(QWidget):
 
         # Connections
         self.appearance_settings.theme_refreshed.connect(self.on_theme_refreshed)
+        self.appearance_settings.sidebar_prefs_changed.connect(self.sidebar_prefs_changed.emit)
 
         # Backwards compatibility aliases for tests
         self.path_input = self.engine_settings.path_input
@@ -158,6 +160,7 @@ class SettingsView(QWidget):
         self.api_settings.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         self.api_settings.sync_explanation_settings()
         self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
+        self.appearance_settings.sync_sidebar_pref()
         for checkbox, key in (
             (self.appearance_settings.coordinates_checkbox, "board_show_coordinates"),
             (self.appearance_settings.classification_checkbox, "board_show_classification"),

@@ -5,7 +5,6 @@ from PyQt6.QtCore import (
     QPropertyAnimation,
     QSize,
     Qt,
-    QTimer,
     pyqtProperty,
     pyqtSignal,
 )
@@ -14,6 +13,7 @@ from PyQt6.QtWidgets import QApplication, QFrame, QPushButton, QVBoxLayout
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.utils.config import ConfigManager
 from src.utils.path_utils import get_resource_path
 
 try:
@@ -39,12 +39,15 @@ EXPANDED_WIDTH = 200
 class Sidebar(QFrame):
     page_changed = pyqtSignal(int)
 
-    def __init__(self):
+    def __init__(self, config_manager=None):
         super().__init__()
         self.setObjectName("Sidebar")
-        self._collapsed = False
+        self._config = config_manager or ConfigManager()
+        self._start_collapsed = bool(self._config.get("sidebar_start_collapsed", False))
+        self._auto_expand_on_nav = not self._start_collapsed
+        self._collapsed = self._start_collapsed
         self._animating = False
-        self._sidebar_width = EXPANDED_WIDTH
+        self._sidebar_width = COLLAPSED_WIDTH if self._collapsed else EXPANDED_WIDTH
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout(self)
@@ -81,13 +84,13 @@ class Sidebar(QFrame):
         self.btn_exit.clicked.connect(QApplication.instance().quit)
         self.layout.addWidget(self.btn_exit)
 
-        ThemeManager.instance().theme_changed.connect(lambda mode: self.apply_style())
-        ThemeManager.instance().accent_changed.connect(lambda acc: self.apply_style())
+        ThemeManager.instance().theme_changed.connect(self.apply_style)
+        ThemeManager.instance().accent_changed.connect(self.apply_style)
 
         self.apply_style()
 
         self._update_labels_and_icons()
-        self.setFixedWidth(EXPANDED_WIDTH)
+        self.setFixedWidth(int(self._sidebar_width))
         self.set_active(0)
 
     def _get_sidebar_width(self):
@@ -123,7 +126,7 @@ class Sidebar(QFrame):
 
         return btn
 
-    def apply_style(self):
+    def apply_style(self, *_args):
         p = ThemeManager.palette()
         self.setStyleSheet(f"""
             #Sidebar {{
@@ -185,13 +188,10 @@ class Sidebar(QFrame):
             self.btn_collapse.setIconSize(QSize(16, 16))
 
     def handle_click(self, index):
-        if self._collapsed:
-            self.set_active(index)
-            self.page_changed.emit(index)
-            QTimer.singleShot(200, self.toggle_collapse)
-        else:
-            self.set_active(index)
-            self.page_changed.emit(index)
+        self.set_active(index)
+        self.page_changed.emit(index)
+        if self._collapsed and self._auto_expand_on_nav:
+            self._set_collapsed(False)
 
     def set_active(self, index):
         nav_specs = [
@@ -208,12 +208,24 @@ class Sidebar(QFrame):
     def toggle_collapse(self):
         if self._animating:
             return
-        self._animating = True
-        self._collapsed = not self._collapsed
-        target = COLLAPSED_WIDTH if self._collapsed else EXPANDED_WIDTH
+        self._set_collapsed(not self._collapsed)
+
+    def _set_collapsed(self, collapsed: bool):
+        """Animate to the requested state, cancelling any in-flight animation."""
+        if getattr(self, "_anim", None) is not None and self._animating:
+            try:
+                self._anim.finished.disconnect(self._on_anim_finished)
+            except TypeError:
+                pass
+            self._anim.stop()
+
+        self._animating = False
+        self._collapsed = collapsed
+        target = COLLAPSED_WIDTH if collapsed else EXPANDED_WIDTH
 
         self._update_labels_and_icons()
 
+        self._animating = True
         self._anim = QPropertyAnimation(self, b"sidebar_width")
         self._anim.setDuration(200)
         self._anim.setStartValue(float(self.width()))
@@ -221,6 +233,13 @@ class Sidebar(QFrame):
         self._anim.setEasingCurve(QEasingCurve.Type.OutQuad)
         self._anim.finished.connect(self._on_anim_finished)
         self._anim.start()
+
+    def apply_preferences(self):
+        """Re-read the configured default and reflect it immediately."""
+        self._start_collapsed = bool(self._config.get("sidebar_start_collapsed", False))
+        self._auto_expand_on_nav = not self._start_collapsed
+        if self._start_collapsed != self._collapsed:
+            self._set_collapsed(self._start_collapsed)
 
     def _on_anim_finished(self):
         self._animating = False
