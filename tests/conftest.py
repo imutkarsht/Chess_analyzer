@@ -50,6 +50,12 @@ def _no_lichess_explorer_worker(monkeypatch):
     monkeypatch.setattr(LichessExplorerWorker, "start", lambda self: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_os_keychain(monkeypatch):
+    """Never read/write the developer's real OS credential store during tests."""
+    monkeypatch.setattr("src.utils.secrets.KEYRING_AVAILABLE", False)
+
+
 # ============ Isolated User Data ============
 @pytest.fixture(scope="session", autouse=True)
 def _isolated_user_data(tmp_path_factory):

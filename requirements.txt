@@ -7,3 +7,4 @@ python-dotenv>=1.0.0
 qtawesome>=1.2.0
 packaging>=23.0
 defusedxml>=0.7.1
+keyring>=25.0.0
