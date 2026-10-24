@@ -114,7 +114,7 @@ class ApiSettings(QGroupBox):
 
     def setup_ui(self):
         api_layout = QVBoxLayout(self)
-        api_layout.setContentsMargins(20, 25, 20, 20)
+        api_layout.setContentsMargins(0, 12, 0, 0)
         api_layout.setSpacing(10)
 
         lbl_style = Styles.get_label_style(size=13)
@@ -130,8 +130,9 @@ class ApiSettings(QGroupBox):
 
         self.llm_profile_combo = QComboBox()
         self.llm_profile_combo.setStyleSheet(_combo_style)
+        self.llm_profile_combo.setMaximumWidth(420)
         self.llm_profile_combo.currentIndexChanged.connect(self._on_profile_selected)
-        prof_row.addWidget(self.llm_profile_combo, stretch=1)
+        prof_row.addWidget(self.llm_profile_combo, stretch=0)
 
         self.llm_add_btn = QPushButton()
         if HAS_QTAWESOME:
@@ -154,6 +155,7 @@ class ApiSettings(QGroupBox):
         self.llm_del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_del_btn.clicked.connect(self._delete_llm_profile)
         prof_row.addWidget(self.llm_del_btn)
+        prof_row.addStretch(1)
 
         api_layout.addLayout(prof_row)
 
@@ -173,6 +175,7 @@ class ApiSettings(QGroupBox):
         self._lbl_pname.setStyleSheet(lbl_style)
         self.llm_profile_name = QLineEdit()
         self.llm_profile_name.setStyleSheet(Styles.get_input_style())
+        self.llm_profile_name.setMaximumWidth(360)
         pf.addRow(self._lbl_pname, self.llm_profile_name)
 
         self._lbl_prov = QLabel("Provider:")
@@ -181,18 +184,21 @@ class ApiSettings(QGroupBox):
         for pkey, pmeta in self._llm_providers.items():
             self.llm_provider_combo.addItem(pmeta["label"], userData=pkey)
         self.llm_provider_combo.setStyleSheet(_combo_style)
+        self.llm_provider_combo.setMaximumWidth(300)
         self.llm_provider_combo.currentIndexChanged.connect(self._on_provider_changed)
         pf.addRow(self._lbl_prov, self.llm_provider_combo)
 
         self.lbl_llm_key = QLabel("API Key:")
         self.lbl_llm_key.setStyleSheet(lbl_style)
         self.llm_key_input = PasswordFieldWrapper(self)
+        self.llm_key_input.setMaximumWidth(420)
         pf.addRow(self.lbl_llm_key, self.llm_key_input)
 
         self._lbl_model = QLabel("Model:")
         self._lbl_model.setStyleSheet(lbl_style)
         self.llm_model_input = QLineEdit()
         self.llm_model_input.setStyleSheet(Styles.get_input_style())
+        self.llm_model_input.setMaximumWidth(360)
         pf.addRow(self._lbl_model, self.llm_model_input)
 
         self.lbl_llm_url = QLabel("Base URL:")
@@ -200,6 +206,7 @@ class ApiSettings(QGroupBox):
         self.llm_url_input = QLineEdit()
         self.llm_url_input.setPlaceholderText("http://localhost:1234/v1")
         self.llm_url_input.setStyleSheet(Styles.get_input_style())
+        self.llm_url_input.setMaximumWidth(520)
         pf.addRow(self.lbl_llm_url, self.llm_url_input)
 
         api_layout.addLayout(pf)
@@ -236,6 +243,7 @@ class ApiSettings(QGroupBox):
         self._lbl_lichess = QLabel("Lichess API Token:")
         self._lbl_lichess.setStyleSheet(lbl_style)
         self.lichess_token_input = PasswordFieldWrapper(self)
+        self.lichess_token_input.setMaximumWidth(420)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         lf.addRow(self._lbl_lichess, self.lichess_token_input)
         api_layout.addLayout(lf)
@@ -256,7 +264,7 @@ class ApiSettings(QGroupBox):
         api_layout.addWidget(self._lbl_explain)
 
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-        cb_style = Styles.get_checkbox_style(tick_path)
+        cb_style = Styles.get_settings_checkbox_style(tick_path)
 
         self.explain_trivial_checkbox = QCheckBox(
             "Also explain sound moves (Best, Excellent, Good, Book)"
@@ -274,6 +282,7 @@ class ApiSettings(QGroupBox):
         ttl_row.addWidget(self._lbl_explain_ttl)
         self.explain_ttl_combo = QComboBox()
         self.explain_ttl_combo.setStyleSheet(combo_style)
+        self.explain_ttl_combo.setMaximumWidth(180)
         for label, days in (
             ("7 days", 7),
             ("30 days", 30),
@@ -285,12 +294,14 @@ class ApiSettings(QGroupBox):
         stored_ttl = self.config_manager.get("explain_cache_ttl_days", 30)
         index = self.explain_ttl_combo.findData(stored_ttl)
         self.explain_ttl_combo.setCurrentIndex(max(0, index))
-        ttl_row.addWidget(self.explain_ttl_combo, stretch=1)
+        ttl_row.addWidget(self.explain_ttl_combo, stretch=0)
+        ttl_row.addStretch(1)
         api_layout.addLayout(ttl_row)
 
         self.clear_explanations_btn = create_icon_button(
             "Clear Explanation Cache", "fa5s.broom", self.clear_explanations, self
         )
+        self.clear_explanations_btn.setMaximumWidth(260)
         api_layout.addWidget(self.clear_explanations_btn)
 
     def clear_explanations(self) -> None:
@@ -499,18 +510,19 @@ class ApiSettings(QGroupBox):
         worker.start()
 
     def set_advanced_visible(self, visible):
-        self._lbl_pname.setVisible(visible)
-        self.llm_profile_name.setVisible(visible)
-        self.llm_add_btn.setVisible(visible)
-        self.llm_del_btn.setVisible(visible)
-        self.lbl_llm_url.setVisible(visible)
-        self.llm_url_input.setVisible(visible)
-        self.llm_test_btn.setVisible(visible)
-        self.llm_test_result.setVisible(visible)
-        self.llm_active_label.setVisible(visible)
-        self._api_div2.setVisible(visible)
-        self._lbl_lichess.setVisible(visible)
-        self.lichess_token_input.setVisible(visible)
+        for widget in (
+            self._lbl_pname,
+            self.llm_profile_name,
+            self.llm_add_btn,
+            self.llm_del_btn,
+            self.lbl_llm_url,
+            self.llm_url_input,
+            self._lbl_explain,
+            self.explain_trivial_checkbox,
+            self._lbl_explain_ttl,
+            self.explain_ttl_combo,
+        ):
+            widget.setVisible(visible)
 
     def _refresh_label(self, attr_name):
         lbl = getattr(self, attr_name, None)
@@ -567,5 +579,5 @@ class ApiSettings(QGroupBox):
         self._refresh_label('_lbl_explain_ttl')
         if hasattr(self, 'explain_trivial_checkbox'):
             tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-            cb_style = Styles.get_checkbox_style(tick_path)
+            cb_style = Styles.get_settings_checkbox_style(tick_path)
             self.explain_trivial_checkbox.setStyleSheet(cb_style)

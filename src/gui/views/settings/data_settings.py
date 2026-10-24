@@ -42,22 +42,25 @@ class DataSettings(QGroupBox):
 
     def setup_ui(self):
         data_layout = QGridLayout(self)
-        data_layout.setContentsMargins(20, 25, 20, 20)
+        data_layout.setContentsMargins(0, 12, 0, 0)
         data_layout.setSpacing(12)
 
         self.clear_cache_btn = create_icon_button(
             "Clear Cache", "fa5s.broom", self.clear_cache, self
         )
+        self.clear_cache_btn.setMaximumWidth(180)
         data_layout.addWidget(self.clear_cache_btn, 0, 0)
 
         self.optimize_db_btn = create_icon_button(
             "Optimize DB", "fa5s.tools", self.optimize_db, self
         )
+        self.optimize_db_btn.setMaximumWidth(180)
         data_layout.addWidget(self.optimize_db_btn, 0, 1)
 
         self.clear_data_btn = create_icon_button(
             "Reset All Data", "fa5s.trash-alt", self.clear_all_data, self, danger=True
         )
+        self.clear_data_btn.setMaximumWidth(180)
         data_layout.addWidget(self.clear_data_btn, 0, 2)
 
     def optimize_db(self):
@@ -104,7 +107,8 @@ class DataSettings(QGroupBox):
             MainWindow.toast_from_widget(self, "All data cleared.", "success")
 
     def set_advanced_visible(self, visible):
-        self.setVisible(visible)
+        # Data management is essential in both modes.
+        self.setVisible(True)
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())

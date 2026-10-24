@@ -57,9 +57,9 @@ class AppearanceSettings(QGroupBox):
 
     def setup_ui(self):
         layout = QFormLayout(self)
-        layout.setContentsMargins(20, 30, 20, 20)
-        layout.setSpacing(16)
-        layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        layout.setContentsMargins(0, 12, 0, 0)
+        layout.setSpacing(12)
+        layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         label_style = self._label_style()
         combo_style = self._combo_style()
@@ -143,6 +143,7 @@ class AppearanceSettings(QGroupBox):
         self.theme_combo.addItems(list(BOARD_THEMES.keys()))
         self.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
         self.theme_combo.setStyleSheet(combo_style)
+        self.theme_combo.setMaximumWidth(300)
         self.theme_combo.currentTextChanged.connect(self.change_board_theme)
         layout.addRow(lbl, self.theme_combo)
 
@@ -154,12 +155,13 @@ class AppearanceSettings(QGroupBox):
         self.piece_combo.addItems(get_piece_theme_names())
         self.piece_combo.setCurrentText(self.config_manager.get("piece_theme", "Standard"))
         self.piece_combo.setStyleSheet(combo_style)
+        self.piece_combo.setMaximumWidth(300)
         self.piece_combo.currentTextChanged.connect(self.change_piece_theme)
         layout.addRow(lbl, self.piece_combo)
 
     def _add_board_display_rows(self, layout, label_style):
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-        checkbox_style = Styles.get_checkbox_style(tick_path)
+        checkbox_style = Styles.get_settings_checkbox_style(tick_path)
 
         self._coords_lbl = QLabel("Board Details:")
         self._coords_lbl.setStyleSheet(label_style)
@@ -187,6 +189,7 @@ class AppearanceSettings(QGroupBox):
         self.import_theme_btn = create_icon_button(
             "Import Theme...", "fa5s.folder-open", self.import_theme, self
         )
+        self.import_theme_btn.setMaximumWidth(200)
         layout.addRow(import_lbl, self.import_theme_btn)
 
     def _add_sound_row(self, layout, label_style):
@@ -194,7 +197,7 @@ class AppearanceSettings(QGroupBox):
         self._sound_lbl.setStyleSheet(label_style)
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         self.sound_checkbox = QCheckBox("Enable Sound Effects")
-        self.sound_checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
+        self.sound_checkbox.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
         self.sound_checkbox.setChecked(self.config_manager.get("sound_enabled", True))
         self.sound_checkbox.stateChanged.connect(self.change_sound_setting)
         layout.addRow(self._sound_lbl, self.sound_checkbox)
@@ -326,7 +329,7 @@ class AppearanceSettings(QGroupBox):
             getattr(self, "classification_checkbox", None),
         ):
             if checkbox:
-                checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
+                checkbox.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
         for lbl in (
             getattr(self, "_sound_lbl", None),
             getattr(self, "_coords_lbl", None),

@@ -61,13 +61,14 @@ class EngineSettings(QGroupBox):
 
     def setup_ui(self):
         engine_layout = QVBoxLayout(self)
-        engine_layout.setContentsMargins(20, 25, 20, 20)
+        engine_layout.setContentsMargins(0, 12, 0, 0)
 
         path_layout = QHBoxLayout()
         self.path_input = QLineEdit()
         self.path_input.setText(self.config_manager.get("engine_path", ""))
         self.path_input.setPlaceholderText("Path to Stockfish executable...")
         self.path_input.setStyleSheet(Styles.get_input_style())
+        self.path_input.setMaximumWidth(720)
         path_layout.addWidget(self.path_input)
 
         self.browse_btn = create_icon_button("Browse", "fa5s.folder-open", self.browse_engine, self)
@@ -87,7 +88,7 @@ class EngineSettings(QGroupBox):
 
 
         form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         form.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         form.setHorizontalSpacing(16)
         form.setVerticalSpacing(10)
@@ -124,6 +125,7 @@ class EngineSettings(QGroupBox):
         self.depth_combo.addItems(depth_values)
         self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)))
         self.depth_combo.setStyleSheet(combo_style)
+        self.depth_combo.setMaximumWidth(100)
         self.depth_combo.currentTextChanged.connect(self.change_analysis_depth)
         self._depth_lbl, depth_row = _wrap(
             "Analysis Depth:", self.depth_combo, "(Higher = more accurate but slower)"

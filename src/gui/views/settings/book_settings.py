@@ -19,13 +19,14 @@ class BookSettings(QGroupBox):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 25, 20, 20)
+        layout.setContentsMargins(0, 12, 0, 0)
 
         path_layout = QHBoxLayout()
         self.polyglot_path_input = QLineEdit()
         self.polyglot_path_input.setText(self.config_manager.get("polyglot_book_path", ""))
         self.polyglot_path_input.setPlaceholderText("Path to Polyglot book (.bin)... (Optional)")
         self.polyglot_path_input.setStyleSheet(Styles.get_input_style())
+        self.polyglot_path_input.setMaximumWidth(600)
         path_layout.addWidget(self.polyglot_path_input)
 
         self.polyglot_browse_btn = create_icon_button("Browse", "fa5s.folder-open", self.browse_polyglot_book, self)

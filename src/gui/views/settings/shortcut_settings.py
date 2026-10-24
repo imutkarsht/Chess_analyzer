@@ -29,7 +29,7 @@ class ShortcutSettings(QGroupBox):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 24, 20, 20)
+        layout.setContentsMargins(0, 12, 0, 0)
         layout.setSpacing(12)
 
         self.desc_label = QLabel(
@@ -46,6 +46,7 @@ class ShortcutSettings(QGroupBox):
         self.preset_combo = QComboBox()
         for preset_id, label in SHORTCUT_PRESET_LABELS.items():
             self.preset_combo.addItem(label, preset_id)
+        self.preset_combo.setMaximumWidth(420)
         self._select_preset(self.config_manager.get("shortcut_preset", DEFAULT_SHORTCUT_PRESET))
         self.preset_combo.currentIndexChanged.connect(self._on_preset_selected)
         preset_row.addWidget(self.preset_combo, 1)
@@ -54,6 +55,7 @@ class ShortcutSettings(QGroupBox):
         self.help_btn = create_icon_button(
             "View All Shortcuts", "fa5s.keyboard", self._open_help, self
         )
+        self.help_btn.setMaximumWidth(220)
         layout.addWidget(self.help_btn)
 
         self.refresh_styles()

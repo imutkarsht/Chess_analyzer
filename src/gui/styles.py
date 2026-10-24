@@ -1372,6 +1372,40 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_settings_checkbox_style(cls, tick_path):
+        """Borderless checkbox style for settings rows."""
+        p = ThemeManager.palette()
+        return f"""
+            QCheckBox {{
+                color: {p.text_primary};
+                font-weight: 500;
+                font-size: 13px;
+                background: transparent;
+                border: none;
+                padding: 0px;
+                spacing: 8px;
+            }}
+            QCheckBox:hover {{
+                color: {p.text_primary};
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 1px solid {p.border};
+                border-radius: 4px;
+                background-color: {p.surface_light};
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: {p.accent};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {p.accent};
+                border-color: {p.accent};
+                image: url('{tick_path}');
+            }}
+        """
+
+    @classmethod
     def get_radio_group_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -1402,20 +1436,20 @@ class Styles(metaclass=_StylesMeta):
         p = ThemeManager.palette()
         return f"""
             QGroupBox {{
-                font-size: 16px;
-                font-weight: bold;
+                font-size: 17px;
+                font-weight: 600;
                 color: {p.text_primary};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-                margin-top: 20px;
-                padding: 20px 15px 15px 15px;
-                background-color: {p.surface};
+                border: none;
+                border-radius: 0;
+                margin-top: 18px;
+                padding: 6px 0 0 0;
+                background-color: transparent;
             }}
             QGroupBox::title {{
                 subcontrol-origin: margin;
                 subcontrol-position: top left;
-                left: 15px;
-                padding: 0 5px;
+                left: 0px;
+                padding: 0 0 6px 0;
                 color: {p.text_primary};
             }}
             QGroupBox QLabel {{

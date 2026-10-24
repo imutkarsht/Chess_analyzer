@@ -1,6 +1,7 @@
 """
 Player Usernames Settings group component.
 """
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFormLayout, QGroupBox, QLabel, QLineEdit
 
 from ...styles import Styles
@@ -17,19 +18,22 @@ class PlayerSettings(QGroupBox):
 
     def setup_ui(self):
         username_layout = QFormLayout(self)
-        username_layout.setContentsMargins(20, 25, 20, 20)
-        username_layout.setSpacing(15)
+        username_layout.setContentsMargins(0, 12, 0, 0)
+        username_layout.setSpacing(12)
         username_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+        username_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
         self.chesscom_input = QLineEdit()
         self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
         self.chesscom_input.setPlaceholderText("Chess.com Username")
         self.chesscom_input.setStyleSheet(Styles.get_input_style())
+        self.chesscom_input.setMaximumWidth(360)
 
         self.lichess_input = QLineEdit()
         self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
         self.lichess_input.setPlaceholderText("Lichess.org Username")
         self.lichess_input.setStyleSheet(Styles.get_input_style())
+        self.lichess_input.setMaximumWidth(360)
 
         self._lbl_chesscom = QLabel("Chess.com:")
         self._lbl_chesscom.setStyleSheet(Styles.get_label_style(size=13))

@@ -20,7 +20,7 @@ class LinksSettings(QGroupBox):
 
     def setup_ui(self):
         grid = QGridLayout(self)
-        grid.setContentsMargins(20, 25, 20, 20)
+        grid.setContentsMargins(0, 12, 0, 0)
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(10)
 
@@ -28,6 +28,8 @@ class LinksSettings(QGroupBox):
         self.update_btn = create_icon_button("Check for Updates", "fa5s.sync-alt", self.check_for_updates, self)
         self.feedback_btn = create_icon_button("Feedback & Bugs", "fa5s.comment-dots", self.open_feedback, self)
         self.rate_btn = create_icon_button("Rate App", "fa5s.star", self.open_review, self)
+        for button in (self.website_btn, self.update_btn, self.feedback_btn, self.rate_btn):
+            button.setMaximumWidth(200)
 
         grid.addWidget(self.website_btn, 0, 0)
         grid.addWidget(self.update_btn, 0, 1)
