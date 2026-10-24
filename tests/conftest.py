@@ -42,6 +42,35 @@ def _no_update_check():
         yield
 
 
+# ============ Network Explorer Guard ============
+@pytest.fixture(autouse=True)
+def _no_lichess_explorer_worker(monkeypatch):
+    """Keep ExplorerView's book worker offline; no test exercises its network path."""
+    from src.gui.views.explorer_lichess_worker import LichessExplorerWorker
+    monkeypatch.setattr(LichessExplorerWorker, "start", lambda self: None)
+
+
+# ============ Isolated User Data ============
+@pytest.fixture(scope="session", autouse=True)
+def _isolated_user_data(tmp_path_factory):
+    """Never let tests read or write the developer's real config/history DB."""
+    data_dir = str(tmp_path_factory.mktemp("user_data"))
+    targets = (
+        "src.utils.path_utils.get_user_data_dir",
+        "src.utils.config.get_user_data_dir",
+        "src.backend.storage.game_history.get_user_data_dir",
+        "src.backend.storage.cache.get_user_data_dir",
+        "src.backend.analysis.analyzer.get_user_data_dir",
+        "src.gui.views.explorer_view.get_user_data_dir",
+        "src.gui.board.piece_themes.get_user_data_dir",
+        "src.backend.services.feedback_service.get_user_data_dir",
+    )
+    with pytest.MonkeyPatch.context() as mp:
+        for target in targets:
+            mp.setattr(target, lambda: data_dir)
+        yield
+
+
 # ============ Mock Fixtures ============
 @pytest.fixture
 def mock_engine(mocker):

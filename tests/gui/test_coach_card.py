@@ -202,7 +202,7 @@ def _card_in_a_host(qtbot, width):
     qtbot.addWidget(host)  # owns (and deletes) the card with the host
     host.resize(width, 400)
     host.show()
-    qtbot.wait(1)
+    qtbot.waitUntil(lambda: card.width() > 0, timeout=2000)
     return host, card
 
 
@@ -216,7 +216,7 @@ class TestRowWrapping:
         assert not card._action_rows[1].isHidden()
 
         host.resize(1200, 400)
-        qtbot.wait(1)
+        qtbot.waitUntil(lambda: card.width() > 1000, timeout=2000)
 
         assert card._action_rows[1].isHidden()
         for button in (card.btn_ask, card.btn_refute, card.btn_best):

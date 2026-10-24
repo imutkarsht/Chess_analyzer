@@ -31,5 +31,9 @@ installers/linux/appimagetool*
 installers/mac/Output
 
 .opencode/*
-
 /planning
+/.agents
+
+graphify-out/
+.graphifyignore
+.graphify_*

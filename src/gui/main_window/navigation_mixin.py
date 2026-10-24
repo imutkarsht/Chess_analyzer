@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.navigation import find_critical_move
+from src.backend.storage.pgn_parser import looks_like_pgn
 from src.constants import (
     CRITICAL_CLASSIFICATIONS,
     DEFAULT_SHORTCUT_PRESET,
@@ -273,7 +274,7 @@ class NavigationMixin:
             return
 
         text = QApplication.clipboard().text().strip()
-        if text and ("[Event" in text or "1." in text):
+        if looks_like_pgn(text):
             QTimer.singleShot(0, lambda: self.open_load_dialog(initial_source=1, initial_text=text))
 
     def _nav_prev(self):

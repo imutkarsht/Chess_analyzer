@@ -145,13 +145,11 @@ class ThemeMixin:
         if hasattr(self, "center_widget"):
             self.center_widget.setStyleSheet(Styles.get_background_style())
         if hasattr(self, "empty_state_cta"):
-            self.empty_state_cta.setStyleSheet(f"""
-                QFrame#EmptyStateCTA {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 8px;
-                }}
-            """)
+            self.empty_state_cta.setStyleSheet(
+                Styles.get_empty_state_cta_style(
+                    getattr(self, "_drop_highlight_active", False)
+                )
+            )
         if hasattr(self, "historic_info_bar"):
             self.historic_info_bar.setStyleSheet(f"""
                 QFrame#HistoricInfoBar {{
@@ -173,8 +171,10 @@ class ThemeMixin:
             )
         if hasattr(self, "lbl_hero_hint"):
             self.lbl_hero_hint.setStyleSheet(
-                f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
+                Styles.get_hero_hint_style(getattr(self, "_drop_highlight_active", False))
             )
+        if hasattr(self, "lbl_hero_keys"):
+            self.lbl_hero_keys.setStyleSheet(Styles.get_keycap_style())
         if hasattr(self, "splitter"):
             self.splitter.setStyleSheet(f"""
                 QSplitter {{

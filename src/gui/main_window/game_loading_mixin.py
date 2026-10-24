@@ -1,9 +1,10 @@
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QDialog, QMessageBox
+from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 
-from src.backend.storage.pgn_parser import PGNParser
+from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
 from src.gui.dialogs.load_game_dialog import LoadGameDialog
 from src.gui.main_window.navigation_mixin import compute_clock_times
+from src.gui.styles import Styles
 from src.utils.logger import logger
 
 
@@ -72,6 +73,8 @@ class GameLoadingMixin:
 
     def _update_analysis_view_mode(self, has_game: bool):
         """Toggle between Hero focus landing (no game) and 3-column analysis workspace (game loaded)."""
+        if hasattr(self, "analysis_header_bar"):
+            self.analysis_header_bar.setVisible(has_game)
         if hasattr(self, "left_widget"):
             self.left_widget.setVisible(has_game)
         if hasattr(self, "analysis_panel"):
@@ -104,15 +107,18 @@ class GameLoadingMixin:
         if hasattr(self, "splitter"):
             total_w = self.splitter.width()
             if total_w < 500:
-                total_w = max(self.width(), 1100)
+                # The splitter has not been laid out yet; use the real window
+                # width minus the sidebar instead of a fixed design width.
+                sidebar_w = self.sidebar.width() if hasattr(self, "sidebar") else 0
+                total_w = max(self.width() - sidebar_w, 1)
             if has_game:
-                left_w = int(total_w * 0.20)
-                center_w = int(total_w * 0.60)
+                left_w = int(total_w * 0.25)
+                center_w = int(total_w * 0.45)
                 right_w = total_w - left_w - center_w
                 self.splitter.setSizes([left_w, center_w, right_w, 0])
-                self.splitter.setStretchFactor(0, 0)
-                self.splitter.setStretchFactor(1, 1)
-                self.splitter.setStretchFactor(2, 0)
+                self.splitter.setStretchFactor(0, 25)
+                self.splitter.setStretchFactor(1, 45)
+                self.splitter.setStretchFactor(2, 30)
                 self.splitter.setStretchFactor(3, 0)
             else:
                 left_w = int(total_w * 0.60)
@@ -310,20 +316,48 @@ class GameLoadingMixin:
         """Deprecated: Kept for compatibility. Called by LoadGameDialog when the user confirms a game selection."""
         self._parse_and_load_game(pgn_text, source_data=source_data, status_msg="Game loaded.")
 
+    def paste_pgn_from_clipboard(self):
+        """Landing quick action: load clipboard PGN, or open the dialog on its PGN tab."""
+        text = QApplication.clipboard().text().strip()
+        if looks_like_pgn(text):
+            self._parse_and_load_game(text, status_msg="Game loaded from clipboard.")
+            return
+        self.open_load_dialog(initial_source=1, initial_text=text or None)
+
+    def _set_drop_highlight(self, active: bool):
+        """Show the hero card as a drop target while a valid drag is in progress."""
+        self._drop_highlight_active = active
+        if hasattr(self, "empty_state_cta"):
+            self.empty_state_cta.setStyleSheet(Styles.get_empty_state_cta_style(active))
+        if hasattr(self, "lbl_hero_hint"):
+            self.lbl_hero_hint.setText(
+                "Drop to load game" if active else self._hero_hint_default
+            )
+            self.lbl_hero_hint.setStyleSheet(Styles.get_hero_hint_style(active))
+        if hasattr(self, "lbl_hero_keys"):
+            self.lbl_hero_keys.setVisible(not active)
+
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 if url.toLocalFile().lower().endswith((".pgn", ".txt")):
+                    self._set_drop_highlight(True)
                     event.acceptProposedAction()
                     return
         elif event.mimeData().hasText():
             text = event.mimeData().text()
-            if "[Event" in text or "1." in text:
+            if looks_like_pgn(text):
+                self._set_drop_highlight(True)
                 event.acceptProposedAction()
                 return
         event.ignore()
 
+    def dragLeaveEvent(self, event):
+        self._set_drop_highlight(False)
+        event.accept()
+
     def dropEvent(self, event):
+        self._set_drop_highlight(False)
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()

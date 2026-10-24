@@ -15,6 +15,12 @@ from .termination_detector import TerminationDetector
 _CLK_RE = re.compile(r"\[%clk\s+(\d+):(\d{1,2}):(\d{1,2}(?:\.\d+)?)\]")
 
 
+def looks_like_pgn(text: str | None) -> bool:
+    """Cheap entry-point check before invoking the full PGN parser."""
+    stripped = (text or "").strip()
+    return bool(stripped) and ("[Event" in stripped or "1." in stripped)
+
+
 def _parse_clk(comment: str | None) -> tuple[str | None, float | None]:
     """
     Pull the first [%clk …] value out of a move comment.
@@ -156,7 +162,18 @@ class PGNParser:
             except ValueError:
                 return None
 
+        def _increment_seconds() -> float:
+            """Seconds added after each move, e.g. the ``2`` in ``180+2``."""
+            tc = headers.get("TimeControl", "")
+            if not tc or "+" not in tc:
+                return 0.0
+            try:
+                return float(tc.rsplit("+", 1)[1])
+            except ValueError:
+                return 0.0
+
         start_clock = _initial_clock_seconds()
+        increment = _increment_seconds()
 
         for node in game.mainline():
             move = node.move
@@ -181,7 +198,9 @@ class PGNParser:
                 if previous is None and start_clock is not None:
                     previous = start_clock
                 if previous is not None:
-                    delta = previous - time_left
+                    # The recorded clock already includes the increment granted
+                    # after the move, so add it back to recover think time.
+                    delta = previous - time_left + increment
                     if delta >= 0:
                         time_spent = delta
                 last_clk[side_to_move] = time_left

@@ -313,7 +313,7 @@ class MoveListPanel(QWidget):
         """SAN wins when space is tight: drop the numeric think time, keep the bar."""
         if not self._move_widgets:
             return
-        compact = self.table.columnWidth(1) < 130
+        compact = self.table.columnWidth(1) < 100
         for widget in self._move_widgets.values():
             widget.set_compact(compact)
 
@@ -460,9 +460,12 @@ class MoveListPanel(QWidget):
         self.session.clear(emit=False)
 
     def set_engine_lines_enabled(self, enabled):
-        if self._variation_active:
-            return
         self.engine_lines_enabled = enabled
+        # The toggle stays live inside variation mode too; the variation's
+        # current FEN is the position to analyse or clear.
+        if self._variation_active:
+            self._apply_variation_lines()
+            return
         if enabled:
             self.start_live_analysis()
             return
@@ -477,6 +480,18 @@ class MoveListPanel(QWidget):
             return
         self._analysed_fen = None
         self.lines_updated.emit([], "")
+
+    def _apply_variation_lines(self) -> None:
+        """Start or clear engine lines for the active variation position."""
+        fen = self._analysed_fen
+        self.session.clear(emit=False)
+        if not fen:
+            self.lines_updated.emit([], "")
+            return
+        if self.engine_lines_enabled:
+            self.session.request(fen, chess960=self.is_chess960, emit_empty=False)
+        else:
+            self.lines_updated.emit([], fen)
 
     def start_live_analysis(self):
         if not self.current_game or self._variation_active or not self.engine_lines_enabled:

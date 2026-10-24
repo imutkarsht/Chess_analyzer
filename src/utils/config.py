@@ -45,6 +45,10 @@ class ConfigManager:
         "piece_theme": "Standard",
         "board_show_coordinates": True,
         "board_show_classification": True,
+        # Start the navigation sidebar collapsed. When enabled, clicking a
+        # nav item no longer auto-expands it; the chevron remains the
+        # explicit way to expand.
+        "sidebar_start_collapsed": False,
         "accent_color": "#FF9500",
         "lichess_token": "",
         "chesscom_username": "",

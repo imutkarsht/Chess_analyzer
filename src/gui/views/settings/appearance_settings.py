@@ -23,6 +23,7 @@ from .helpers import create_icon_button
 
 class AppearanceSettings(QGroupBox):
     theme_refreshed = pyqtSignal()
+    sidebar_prefs_changed = pyqtSignal()
 
     def __init__(self, config_manager, parent=None):
         super().__init__("Appearance", parent)
@@ -65,6 +66,7 @@ class AppearanceSettings(QGroupBox):
         radio_style = self._radio_style()
 
         self._add_theme_mode_row(layout, label_style, radio_style)
+        self._add_sidebar_row(layout, label_style, radio_style)
         self._add_board_theme_row(layout, label_style, combo_style)
         self._add_piece_style_row(layout, label_style, combo_style)
         self._add_board_display_rows(layout, label_style)
@@ -110,6 +112,29 @@ class AppearanceSettings(QGroupBox):
         mode = mapping.get(btn, "system")
         self.config_manager.set("theme_mode", mode)
         ThemeManager.set_theme_mode(mode)
+
+    def _add_sidebar_row(self, layout, label_style, radio_style):
+        self._sidebar_lbl = QLabel("Sidebar:")
+        self._sidebar_lbl.setStyleSheet(label_style)
+        self._sidebar_group, buttons, container = self._make_radio_group(
+            ["Expanded", "Collapsed"], self, radio_style
+        )
+        self.sidebar_expanded_radio, self.sidebar_collapsed_radio = buttons
+        self.sync_sidebar_pref()
+        self._sidebar_group.buttonClicked.connect(self._on_sidebar_mode_clicked)
+        layout.addRow(self._sidebar_lbl, container)
+
+    def _on_sidebar_mode_clicked(self, btn):
+        self.config_manager.set(
+            "sidebar_start_collapsed", btn is self.sidebar_collapsed_radio
+        )
+        self.sidebar_prefs_changed.emit()
+
+    def sync_sidebar_pref(self):
+        """Reflect the persisted default in the radio buttons without emitting."""
+        collapsed = bool(self.config_manager.get("sidebar_start_collapsed", False))
+        radio = self.sidebar_collapsed_radio if collapsed else self.sidebar_expanded_radio
+        radio.setChecked(True)
 
     def _add_board_theme_row(self, layout, label_style, combo_style):
         lbl = QLabel("Board Theme:")
@@ -306,6 +331,7 @@ class AppearanceSettings(QGroupBox):
             getattr(self, "_sound_lbl", None),
             getattr(self, "_coords_lbl", None),
             getattr(self, "_badges_lbl", None),
+            getattr(self, "_sidebar_lbl", None),
         ):
             if lbl:
                 lbl.setStyleSheet(self._label_style())
@@ -315,6 +341,8 @@ class AppearanceSettings(QGroupBox):
             getattr(self, '_theme_mode_system', None),
             getattr(self, '_theme_mode_light', None),
             getattr(self, '_theme_mode_dark', None),
+            getattr(self, 'sidebar_expanded_radio', None),
+            getattr(self, 'sidebar_collapsed_radio', None),
             getattr(self, 'accent_mode_system', None),
             getattr(self, 'accent_mode_custom', None),
         ):

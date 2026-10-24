@@ -84,11 +84,12 @@ class MainWindow(
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Chess Analyzer Pro")
-        self.resize(1600, 900)
+        self._apply_default_window_size()
 
         # State
         self.games = []
         self.current_game = None
+        self._drop_highlight_active = False
         self.config_manager = ConfigManager()
         resolved = resolve_engine_path(self.config_manager)
         self.engine_path = resolved or self.config_manager.get("engine_path", "stockfish")
@@ -184,6 +185,18 @@ class MainWindow(
     # ------------------------------------------------------------------
     # Window geometry persistence
     # ------------------------------------------------------------------
+
+    def _apply_default_window_size(self):
+        """Pick a first-launch size from the user's actual screen."""
+        screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            self.resize(1600, 900)
+            return
+        available = screen.availableGeometry()
+        self.resize(
+            max(1280, min(1920, int(available.width() * 0.85))),
+            max(720, min(1080, int(available.height() * 0.85))),
+        )
 
     def _restore_window_state(self):
         """Restore the main window's last-known position and size."""
@@ -334,7 +347,7 @@ class MainWindow(
         main_layout.setSpacing(0)
 
         # Sidebar
-        self.sidebar = Sidebar()
+        self.sidebar = Sidebar(self.config_manager)
         self.sidebar.page_changed.connect(self.switch_page)
         main_layout.addWidget(self.sidebar)
 
@@ -376,6 +389,7 @@ class MainWindow(
         self.settings_view.engine_settings_changed.connect(self.apply_engine_settings)
         self.settings_view.llm_config_changed.connect(self.update_llm_config)
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
+        self.settings_view.sidebar_prefs_changed.connect(self.sidebar.apply_preferences)
         self.stack.addWidget(self.settings_view)
 
         self.sidebar.set_active(0)
@@ -406,7 +420,8 @@ class MainWindow(
         header_layout = QHBoxLayout(self.analysis_header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
 
-        # Title
+        # Workspace-only title. The landing hides the whole header bar, so this
+        # never appears above the empty-state hero.
         self.title_lbl = QLabel("Analysis View")
         self.title_lbl.setStyleSheet(
             f"font-size: 20px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
@@ -474,6 +489,8 @@ class MainWindow(
         # Left: Move List
         self.left_widget = QWidget()
         self.left_widget.setMinimumWidth(240)
+        # Cap the pane so a wide drag does not leave the move columns mostly empty.
+        self.left_widget.setMaximumWidth(420)
         self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
         left_layout = QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -504,20 +521,17 @@ class MainWindow(
             self.board_widget, self.captured_white, self.captured_black
         )
 
-        # Hero empty-state CTA bar placed prominently above the board
+        # Hero empty-state CTA card placed prominently above the board
         self.empty_state_cta = QFrame()
         self.empty_state_cta.setObjectName("EmptyStateCTA")
-        self.empty_state_cta.setStyleSheet(f"""
-            QFrame#EmptyStateCTA {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
-        cta_layout = QHBoxLayout(self.empty_state_cta)
-        cta_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cta_layout.setContentsMargins(14, 6, 18, 6)
-        cta_layout.setSpacing(14)
+        self.empty_state_cta.setStyleSheet(Styles.get_empty_state_cta_style())
+        cta_layout = QVBoxLayout(self.empty_state_cta)
+        cta_layout.setContentsMargins(14, 10, 14, 10)
+        cta_layout.setSpacing(8)
+
+        hero_actions = QHBoxLayout()
+        hero_actions.setSpacing(10)
+        hero_actions.addStretch(1)
 
         self.btn_hero_load = create_button(
             "Load Game",
@@ -527,15 +541,40 @@ class MainWindow(
         )
         self.btn_hero_load.setFixedSize(140, 38)
         self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        cta_layout.addWidget(self.btn_hero_load)
+        hero_actions.addWidget(self.btn_hero_load)
 
-        paste_shortcut = "⌘V" if sys.platform == "darwin" else "Ctrl+V"
-        self.lbl_hero_hint = QLabel(f"Drop a .pgn file anywhere or press {paste_shortcut} to paste")
-        self.lbl_hero_hint.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
+        self.btn_hero_paste = create_button(
+            "Paste PGN",
+            style="secondary",
+            on_click=self.paste_pgn_from_clipboard,
+            icon_name="fa5s.paste",
         )
+        self.btn_hero_paste.setFixedSize(130, 38)
+        self.btn_hero_paste.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_hero_paste.setToolTip("Load PGN text from the clipboard")
+        hero_actions.addWidget(self.btn_hero_paste)
+
+        hero_actions.addStretch(1)
+        cta_layout.addLayout(hero_actions)
+
+        hint_row = QHBoxLayout()
+        hint_row.setSpacing(8)
+        hint_row.addStretch(1)
+
+        self._hero_hint_default = "Drop a .pgn anywhere"
+        self.lbl_hero_hint = QLabel(self._hero_hint_default)
+        self.lbl_hero_hint.setStyleSheet(Styles.get_hero_hint_style())
         self.lbl_hero_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        cta_layout.addWidget(self.lbl_hero_hint)
+        hint_row.addWidget(self.lbl_hero_hint)
+
+        open_key = "⌘O" if sys.platform == "darwin" else "Ctrl+O"
+        paste_key = "⌘V" if sys.platform == "darwin" else "Ctrl+V"
+        self.lbl_hero_keys = QLabel(f"{open_key} open   ·   {paste_key} paste")
+        self.lbl_hero_keys.setStyleSheet(Styles.get_keycap_style())
+        hint_row.addWidget(self.lbl_hero_keys)
+
+        hint_row.addStretch(1)
+        cta_layout.addLayout(hint_row)
 
         self.board_game_header = BoardGameHeader()
         self.board_game_header.setVisible(False)
@@ -584,6 +623,27 @@ class MainWindow(
         self._hib_title.setWordWrap(False)
         hib_top.addWidget(self._hib_title)
         hib_top.addStretch()
+        self.btn_hib_reveal = create_button(
+            "Reveal Move",
+            style="secondary",
+            on_click=self._reveal_historic_move,
+            icon_name="fa5s.eye",
+        )
+        self.btn_hib_reveal.setFixedHeight(30)
+        self.btn_hib_reveal.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_hib_reveal.setToolTip("Play the famous move on the board")
+        hib_top.addWidget(self.btn_hib_reveal)
+        self.btn_hib_explore = create_button(
+            "Explore Position",
+            style="secondary",
+            on_click=self._explore_historic_position,
+            icon_name="fa5s.compass",
+        )
+        self.btn_hib_explore.setFixedHeight(30)
+        self.btn_hib_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_hib_explore.setToolTip("Open this position in the Opening Explorer")
+        self.btn_hib_explore.hide()
+        hib_top.addWidget(self.btn_hib_explore)
         self._btn_shuffle = create_button(
             "Next Gem",
             style="secondary",
@@ -668,10 +728,9 @@ class MainWindow(
         self.welcome_panel = WelcomePanel(parent=self)
         splitter.addWidget(self.welcome_panel)
 
-        splitter.setSizes([280, 840, 280, 0])
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
+        splitter.setStretchFactor(0, 25)
+        splitter.setStretchFactor(1, 45)
+        splitter.setStretchFactor(2, 30)
         splitter.setStretchFactor(3, 0)
 
         self._update_analysis_view_mode(has_game=self.current_game is not None)
@@ -711,8 +770,36 @@ class MainWindow(
             self._hib_hint.setText(pos.turn_desc)
         if hasattr(self, "_hib_celebration"):
             self._hib_celebration.setVisible(False)
+        if hasattr(self, "btn_hib_reveal"):
+            self.btn_hib_reveal.setEnabled(True)
+            self.btn_hib_reveal.setText("  Reveal Move")
+            self.btn_hib_reveal.show()
+        if hasattr(self, "btn_hib_explore"):
+            self.btn_hib_explore.hide()
         if hasattr(self, "historic_info_bar") and not self.current_game:
             self.historic_info_bar.setVisible(True)
+
+    def _reveal_historic_move(self):
+        """Play the curated historic move so the landing puzzle is discoverable."""
+        pos = getattr(self, "_current_historic", None)
+        if pos is None or getattr(self, "_historic_move_found", False):
+            return
+
+        try:
+            board = chess.Board(pos.fen)
+            board.push(board.parse_san(pos.famous_move))
+        except (ValueError, AssertionError) as e:
+            logger.debug(f"Could not reveal historic move: {e}")
+            return
+
+        self.board_widget.load_fen(board.fen(), pos.flipped)
+        self._celebrate_historic_move(pos)
+
+    def _explore_historic_position(self):
+        """Open the revealed landing position in the Explorer page."""
+        self.sidebar.set_active(1)
+        self.switch_page(1)
+        self.explorer_view.load_fen(self.board_widget.board.fen())
 
     def _on_board_move_made(self, new_fen: str):
         """Called every time the user makes a move on the interactive landing board.
@@ -739,7 +826,13 @@ class MainWindow(
         """Reveal the historical blurb with an accent highlight when the famous move is found."""
         if not hasattr(self, "_hib_celebration"):
             return
+        self._historic_move_found = True
         self._hib_cel_text.setText(f"<b>{pos.famous_move}!</b> — {pos.blurb}")
+        if hasattr(self, "btn_hib_reveal"):
+            self.btn_hib_reveal.setEnabled(False)
+            self.btn_hib_reveal.hide()
+        if hasattr(self, "btn_hib_explore"):
+            self.btn_hib_explore.show()
         self._hib_celebration.setStyleSheet(f"""
             QFrame#HistoricCelebration {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
