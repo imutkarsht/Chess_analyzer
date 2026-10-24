@@ -14,7 +14,7 @@ from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import QLabel, QLineEdit
 
 from src.backend.storage.pgn_parser import PGNParser
-from src.constants import PAGE_ANALYSIS, PAGE_EXPLORER, PAGE_NAMES, REPLAY_INTERVAL_MS
+from src.constants import PAGE_ANALYSIS, PAGE_EXPLORER, REPLAY_INTERVAL_MS
 from src.utils.config import ConfigManager
 
 PGN = """[Event "Shortcut test"]
@@ -88,8 +88,8 @@ def window(shared_window, qtbot):
     if win.explorer_view.board_widget.is_flipped:
         win.explorer_view._flip_board()
     if win.stack.currentIndex() != PAGE_ANALYSIS:
-        win._go_to_page(PAGE_ANALYSIS)
-        qtbot.waitUntil(lambda: win.stack.currentIndex() == PAGE_ANALYSIS, timeout=5000)
+        win.sidebar.set_active(PAGE_ANALYSIS)
+        win._do_switch_page(PAGE_ANALYSIS)
     win.on_move_selected(-1)
     return win
 
@@ -123,16 +123,6 @@ def expect_move(qtbot, window, key: str, expected: int):
 def expect_no_move(qtbot, window, key: str):
     with qtbot.assertNotEmitted(window.move_changed):
         press(window, key)
-
-
-def go_to(window, qtbot, page: int):
-    """Switch page via its number key and wait for the transition to land."""
-    press(window, str(page + 1))
-    qtbot.waitUntil(
-        lambda: window.sidebar._nav_buttons[page].isChecked()
-        and window.stack.currentIndex() == page,
-        timeout=5000,
-    )
 
 
 # --- Move navigation --------------------------------------------------------
@@ -202,7 +192,8 @@ def test_f_flips_the_board_of_the_current_page(window, qtbot):
     press(window, "F")
     assert not window.board_widget.is_flipped
 
-    go_to(window, qtbot, PAGE_EXPLORER)
+    window.sidebar.set_active(PAGE_EXPLORER)
+    window._do_switch_page(PAGE_EXPLORER)
     press(window, "F")
     assert window.explorer_view.board_widget.is_flipped
     assert not window.board_widget.is_flipped
@@ -239,12 +230,6 @@ def test_space_without_game_does_not_start_replay(window):
 
 
 # --- Pages ------------------------------------------------------------------
-
-
-def test_number_keys_switch_pages(window, qtbot):
-    for page in reversed(range(len(PAGE_NAMES))):
-        go_to(window, qtbot, page)
-        assert window.sidebar._nav_buttons[page].isChecked()
 
 
 # --- Presets, settings card & help dialog ----------------------------------

@@ -31,7 +31,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert not window.btn_hero_paste.isHidden()
 
     # Historic puzzle can be revealed directly from the landing bar.
-    qtbot.wait(10)
+    qtbot.waitUntil(lambda: window.historic_info_bar.isVisible(), timeout=2000)
     window._load_random_historic_position()
     assert window.btn_hib_reveal.isEnabled()
     assert not window.btn_hib_reveal.isHidden()

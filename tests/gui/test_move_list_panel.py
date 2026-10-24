@@ -59,7 +59,7 @@ def test_think_time_stays_inline_at_default_pane_width(
     panel.resize(panel_width, 500)
     panel.set_game(_timed_game())
     panel.show()
-    qtbot.wait(10)
+    qtbot.waitUntil(lambda: panel.table.width() >= panel_width - 20, timeout=2000)
 
     panel._update_compact_mode()
 
@@ -73,13 +73,13 @@ def test_time_gap_grows_when_pane_is_stretched(qtbot, mocker):
     panel.show()
 
     panel.resize(280, 500)
-    qtbot.wait(10)
+    qtbot.waitUntil(lambda: panel.table.width() >= 260, timeout=2000)
     panel._update_compact_mode()
     cell = panel._move_widgets[0]
     narrow_time_x = cell._time_label.x()
 
     panel.resize(420, 500)
-    qtbot.wait(10)
+    qtbot.waitUntil(lambda: panel.table.width() >= 400, timeout=2000)
     wide_time_x = cell._time_label.x()
 
     assert wide_time_x > narrow_time_x
