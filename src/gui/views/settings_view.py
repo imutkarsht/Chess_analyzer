@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SETTINGS
-from src.constants import DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV
+from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
@@ -212,6 +212,17 @@ class SettingsView(QWidget):
         self.feedback_btn = self.links_settings.feedback_btn
         self.update_btn = self.links_settings.update_btn
 
+        # Engine values last applied to the running analyzer. Binder-driven
+        # cards persist on edit, so Save compares against what the engine
+        # actually uses instead of "config vs widget".
+        self._applied_engine_path = self.config_manager.get("engine_path", "")
+        self._applied_engine_threads = self.config_manager.get_int(
+            "engine_threads", DEFAULT_ENGINE_THREADS
+        )
+        self._applied_engine_hash = self.config_manager.get_int(
+            "engine_hash", DEFAULT_ENGINE_HASH_MB
+        )
+
         self._apply_mode()
 
     def reload_from_config(self):
@@ -219,18 +230,9 @@ class SettingsView(QWidget):
         self.engine_settings.reload_from_config()
         self.book_settings.reload_from_config()
         self.player_settings.reload_from_config()
+        self.appearance_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
-        self.player_settings.reload_from_config()
         self.api_settings.sync_explanation_settings()
-        self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
-        self.appearance_settings.sync_sidebar_pref()
-        for checkbox, key in (
-            (self.appearance_settings.coordinates_checkbox, "board_show_coordinates"),
-            (self.appearance_settings.classification_checkbox, "board_show_classification"),
-        ):
-            checkbox.blockSignals(True)
-            checkbox.setChecked(bool(self.config_manager.get(key, True)))
-            checkbox.blockSignals(False)
         self.api_settings._update_active_label()
         self.shortcut_settings.reload_from_config()
 
@@ -448,7 +450,7 @@ class SettingsView(QWidget):
         self._refresh_category_visibility()
 
     def save_all_settings(self):
-        """Save every setting in the app at once."""
+        """Flush every settings card, validate the engine, and notify consumers."""
         path = self.engine_settings.path_input.text().strip()
         if not path:
             from src.gui.main_window import MainWindow
@@ -460,38 +462,6 @@ class SettingsView(QWidget):
 
         if not threads_ok or not hash_ok:
             return
-
-        chesscom = self.player_settings.chesscom_input.text().strip()
-        lichess = self.player_settings.lichess_input.text().strip()
-
-        # Read and validate the games fetch limit
-        limit_text = self.player_settings.games_limit_input.text().strip()
-        try:
-            limit = int(limit_text)
-        except ValueError:
-            limit = 20
-
-        if limit < 1:
-            limit = 1
-
-        # Check Lichess API Token presence
-        import os
-        token = self.player_settings.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
-
-        clamped = False
-        warning_msg = ""
-        if token:
-            if limit > 30:
-                limit = 30
-                clamped = True
-                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
-        else:
-            if limit > 20:
-                limit = 20
-                clamped = True
-                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
-
-        self.player_settings.games_limit_input.setText(str(limit))
 
         # Save current LLM profile edits to in-memory profile list first
         profiles = self.config_manager.get_profiles()
@@ -512,34 +482,16 @@ class SettingsView(QWidget):
             # Set selected profile as active
             self.config_manager.set_profiles(profiles, active_name=new_name)
 
-        path_changed = self.config_manager.get("engine_path") != path
-        threads_changed = self.config_manager.get("engine_threads") != threads
-        hash_changed = self.config_manager.get("engine_hash") != hash_mb
-
-        # Update in-memory configuration
-        self.config_manager.config["engine_path"] = path
-        self.config_manager.config["engine_threads"] = threads
-        self.config_manager.config["engine_hash"] = hash_mb
-        self.config_manager.config["polyglot_book_path"] = self.book_settings.polyglot_path_input.text().strip()
-
-        try:
-            self.config_manager.config["multi_pv"] = int(self.engine_settings.multi_pv_input.text().strip())
-        except ValueError:
-            self.config_manager.config["multi_pv"] = DEFAULT_MULTI_PV
-
-        try:
-            self.config_manager.config["live_analysis_time"] = float(self.engine_settings.live_time_input.text().strip())
-        except ValueError:
-            self.config_manager.config["live_analysis_time"] = DEFAULT_LIVE_ANALYSIS_TIME
-
-        self.config_manager.set(
-            "lichess_token", self.player_settings.lichess_token_input.text().strip()
+        # Resolve the token-dependent games cap before flushing so the user
+        # still sees the warning when the requested value was too high.
+        warning_msg = self.player_settings.apply_games_limit(
+            self.player_settings.games_limit_input.text().strip()
         )
-        self.config_manager.config["chesscom_username"] = chesscom
-        self.config_manager.config["lichess_username"] = lichess
-        self.config_manager.config["api_games_limit"] = limit
 
-        # Coach move explanations (D8)
+        # Persist anything the binder cards have not auto-saved yet.
+        self._flush_binders()
+
+        # Coach move explanations (D8) are not binder-driven yet.
         self.config_manager.config["explain_llm_for_trivial_moves"] = (
             self.api_settings.explain_trivial_checkbox.isChecked()
         )
@@ -552,12 +504,19 @@ class SettingsView(QWidget):
 
         # Emit signals for UI and engine updates
         from ...utils.logger import logger
+        path_changed = self._applied_engine_path != path
+        threads_changed = self._applied_engine_threads != threads
+        hash_changed = self._applied_engine_hash != hash_mb
+
         if path_changed:
             logger.info(f"SettingsView: Engine path changed to {path}")
             self.engine_path_changed.emit(path)
+            self._applied_engine_path = path
         if threads_changed or hash_changed:
             logger.info(f"SettingsView: Engine settings changed. Threads={threads} (changed: {threads_changed}), Hash={hash_mb} (changed: {hash_changed})")
             self.engine_settings_changed.emit()
+            self._applied_engine_threads = threads
+            self._applied_engine_hash = hash_mb
         else:
             logger.info("SettingsView: Engine settings (Threads, Hash) were NOT modified during this save.")
 
@@ -569,45 +528,34 @@ class SettingsView(QWidget):
         self.api_settings._reload_profile_combo()
 
         from src.gui.main_window import MainWindow
-        if clamped:
+        if warning_msg:
             MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
         else:
             MainWindow.toast_from_widget(self, "All settings saved successfully.", "success")
 
+    def _flush_binders(self) -> None:
+        """Persist widget state for every card that uses a SettingsBinder."""
+        for card in (
+            self.engine_settings,
+            self.book_settings,
+            self.player_settings,
+            self.appearance_settings,
+            self.shortcut_settings,
+        ):
+            binder = getattr(card, "binder", None)
+            if binder is not None:
+                binder.commit_all()
+
     def save_usernames(self):
-        chesscom = self.chesscom_input.text()
-        lichess = self.lichess_input.text()
-        limit_text = self.games_limit_input.text().strip()
-        try:
-            limit = int(limit_text)
-        except ValueError:
-            limit = 20
-        if limit < 1:
-            limit = 1
-
-        import os
-        token = self.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
-        clamped = False
-        warning_msg = ""
-        if token:
-            if limit > 30:
-                limit = 30
-                clamped = True
-                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
-        else:
-            if limit > 20:
-                limit = 20
-                clamped = True
-                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
-
-        self.games_limit_input.setText(str(limit))
-        self.config_manager.set("chesscom_username", chesscom)
-        self.config_manager.set("lichess_username", lichess)
-        self.config_manager.set("api_games_limit", limit)
+        warning_msg = self.player_settings.apply_games_limit(
+            self.games_limit_input.text().strip()
+        )
+        self.config_manager.set("chesscom_username", self.chesscom_input.text().strip())
+        self.config_manager.set("lichess_username", self.lichess_input.text().strip())
         self.usernames_changed.emit()
 
         from src.gui.main_window import MainWindow
-        if clamped:
+        if warning_msg:
             MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
         else:
             MainWindow.toast_from_widget(self, "Settings saved successfully.", "success")

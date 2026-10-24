@@ -107,3 +107,28 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         view.engine_settings_changed.emit.assert_called_once()
         view.llm_config_changed.emit.assert_called_once()
         view.usernames_changed.emit.assert_called_once()
+
+
+def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isolated_config):
+    """Binder-driven cards persist on edit; Save must still notify the engine once."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        view.path_input.setText("stockfish-new")
+        view.path_input.editingFinished.emit()  # binder autosave
+        assert view.config_manager.get("engine_path") == "stockfish-new"
+
+        view.engine_path_changed = MagicMock()
+        view.engine_settings_changed = MagicMock()
+
+        with patch("src.gui.main_window.MainWindow.toast_from_widget"):
+            view.save_all_settings()
+            view.engine_path_changed.emit.assert_called_once_with("stockfish-new")
+
+            view.engine_path_changed.reset_mock()
+            view.save_all_settings()
+            view.engine_path_changed.emit.assert_not_called()
+

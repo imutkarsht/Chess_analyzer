@@ -75,3 +75,47 @@ def test_sidebar_mode_radio_writes_config_and_notifies(qapp):
     assert config.config["sidebar_start_collapsed"] is False
     assert len(changes) == 2
     widget.deleteLater()
+
+
+def test_board_theme_change_persists_and_requests_repaint(qapp):
+    config = _FakeConfig()
+    widget = AppearanceSettings(config)
+    repaints = []
+    widget.theme_refreshed.connect(lambda: repaints.append(True))
+
+    widget.theme_combo.setCurrentIndex(widget.theme_combo.findData("Blue"))
+
+    assert config.config["board_theme"] == "Blue"
+    assert repaints == [True]
+    widget.deleteLater()
+
+
+def test_theme_mode_radio_persists_and_applies_theme(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    applied = []
+    monkeypatch.setattr(ThemeManager, "set_theme_mode", lambda mode: applied.append(mode))
+    config = _FakeConfig()
+    widget = AppearanceSettings(config)
+
+    widget.theme_mode_choice.radios()[2].click()  # Dark
+
+    assert config.config["theme_mode"] == "dark"
+    assert applied == ["dark"]
+    widget.deleteLater()
+
+
+def test_custom_accent_mode_reveals_colour_picker(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
+    config = _FakeConfig()
+    widget = AppearanceSettings(config)
+    assert widget.color_btn.isHidden() is True
+
+    widget.accent_mode_custom.click()
+
+    assert config.config["accent_mode"] == "custom"
+    assert widget.color_btn.isHidden() is False
+    widget.deleteLater()
+

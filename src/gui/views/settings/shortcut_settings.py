@@ -3,10 +3,10 @@
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QLabel, QVBoxLayout
 
-from src.constants import DEFAULT_SHORTCUT_PRESET, SHORTCUT_PRESET_LABELS
+from src.constants import SHORTCUT_PRESET_LABELS
 
 from ...styles import Styles
-from .components import SettingsForm, make_combo
+from .components import SettingsBinder, SettingsForm, make_combo
 from .helpers import create_icon_button
 
 
@@ -35,12 +35,15 @@ class ShortcutSettings(QGroupBox):
         layout.addWidget(self.desc_label)
 
         self.form = SettingsForm(self)
+        self.binder = SettingsBinder(self.config_manager, self.form, self)
         self.preset_combo = make_combo(300)
         for preset_id, label in SHORTCUT_PRESET_LABELS.items():
             self.preset_combo.addItem(label, preset_id)
-        self._select_preset(self.config_manager.get("shortcut_preset", DEFAULT_SHORTCUT_PRESET))
-        self.preset_combo.currentIndexChanged.connect(self._on_preset_selected)
-        self.form.add_row("Preset", self.preset_combo)
+        self.binder.add(
+            "shortcut_preset",
+            self.preset_combo,
+            on_change=lambda _value: self.preset_changed.emit(self.current_preset()),
+        )
         layout.addWidget(self.form)
 
         self.help_btn = create_icon_button(
@@ -59,9 +62,7 @@ class ShortcutSettings(QGroupBox):
         self._bindings = bindings
 
     def reload_from_config(self):
-        self.preset_combo.blockSignals(True)
-        self._select_preset(self.config_manager.get("shortcut_preset", DEFAULT_SHORTCUT_PRESET))
-        self.preset_combo.blockSignals(False)
+        self.binder.load()
 
     def set_advanced_visible(self, visible):
         # Shortcuts are useful to every user.
@@ -76,15 +77,6 @@ class ShortcutSettings(QGroupBox):
         self.form.refresh_styles()
         self.preset_combo.setStyleSheet(Styles.get_combobox_style())
         self.help_btn.setStyleSheet(Styles.get_settings_default_button_style())
-
-    def _select_preset(self, preset_id: str):
-        index = self.preset_combo.findData(preset_id)
-        self.preset_combo.setCurrentIndex(max(index, 0))
-
-    def _on_preset_selected(self, _index: int):
-        preset_id = self.current_preset()
-        self.config_manager.set("shortcut_preset", preset_id)
-        self.preset_changed.emit(preset_id)
 
     def _open_help(self):
         window = self.window()

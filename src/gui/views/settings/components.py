@@ -6,19 +6,26 @@ live in one place instead of being reimplemented in every settings card.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from collections.abc import Callable
+
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QCheckBox,
     QComboBox,
+    QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QRadioButton,
     QSizePolicy,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
+from src.config.settings_schema import SettingSpec, get_spec
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 
@@ -31,6 +38,9 @@ CONTROL_WIDE = 520
 CONTROL_PATH = 600
 LABEL_WIDTH = 160
 ROW_SPACING = 10
+
+# Distinguishes "derive width from the spec" from "no maximum width".
+_UNSET = object()
 
 
 def _tick_path() -> str:
@@ -138,15 +148,310 @@ def make_line_edit(placeholder: str = "", max_width: int = CONTROL_DEFAULT) -> Q
     return edit
 
 
-def make_hint(text: str) -> QLabel:
-    label = QLabel(text)
-    label.setWordWrap(True)
-    label.setStyleSheet(
-        Styles.get_secondary_label_style(size=11)
-        + " "
-        + Styles.get_transparent_label_style()
-    )
-    return label
+def make_spin(maximum: int = 9999, minimum: int = 0, step: int = 1, suffix: str = "") -> QSpinBox:
+    spin = QSpinBox()
+    spin.setRange(minimum, maximum)
+    spin.setSingleStep(step)
+    if suffix:
+        spin.setSuffix(f" {suffix}")
+    spin.setMaximumWidth(140)
+    spin.setStyleSheet(Styles.get_input_style())
+    return spin
+
+
+def make_double_spin(
+    maximum: float = 100.0, minimum: float = 0.0, step: float = 0.1, suffix: str = ""
+) -> QDoubleSpinBox:
+    spin = QDoubleSpinBox()
+    spin.setRange(minimum, maximum)
+    spin.setSingleStep(step)
+    spin.setDecimals(1)
+    if suffix:
+        spin.setSuffix(f" {suffix}")
+    spin.setMaximumWidth(140)
+    spin.setStyleSheet(Styles.get_input_style())
+    return spin
+
+
+class RadioChoice(QWidget):
+    """Horizontal radio group bound to a single setting value.
+
+    Implements the binder widget protocol (``valueChanged`` +
+    ``settingValue``/``setSettingValue``) so radio groups need no special
+    casing in :class:`SettingsBinder`. ``valueChanged`` fires only on user
+    interaction, never on programmatic ``setValue``.
+    """
+
+    valueChanged = pyqtSignal(object)
+
+    def __init__(self, choices, *, trailing: QWidget | None = None, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(Styles.get_transparent_label_style())
+        self._values: dict[QRadioButton, object] = {}
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+
+        self._group = QButtonGroup(self)
+        for value, label in choices:
+            radio = QRadioButton(label)
+            self._group.addButton(radio)
+            self._values[radio] = value
+            layout.addWidget(radio)
+
+        if trailing is not None:
+            layout.addWidget(trailing)
+
+        layout.addStretch(1)
+        self._group.buttonClicked.connect(self._on_button_clicked)
+        self.refresh_styles()
+
+    def _on_button_clicked(self, button: QRadioButton) -> None:
+        self.valueChanged.emit(self._values[button])
+
+    def radios(self) -> list[QRadioButton]:
+        return list(self._values)
+
+    def value(self):
+        for radio, value in self._values.items():
+            if radio.isChecked():
+                return value
+        return None
+
+    def setValue(self, value) -> None:
+        """Select the radio for ``value`` without emitting ``valueChanged``."""
+        for radio, candidate in self._values.items():
+            if candidate == value:
+                radio.setChecked(True)
+                return
+        first = next(iter(self._values), None)
+        if first is not None:
+            first.setChecked(True)
+
+    # -- Binder widget protocol -------------------------------------------
+    def settingValue(self):
+        return self.value()
+
+    def setSettingValue(self, value) -> None:
+        self.setValue(value)
+
+    def refresh_styles(self) -> None:
+        style = Styles.get_radio_group_style()
+        for radio in self._values:
+            radio.setStyleSheet(style)
+
+
+class SettingsBinder(QObject):
+    """Binds widgets to settings specs and persists changes centrally."""
+
+    changed = pyqtSignal(str, object)
+
+    def __init__(self, config_manager, form: SettingsForm, parent=None):
+        super().__init__(parent)
+        self.config_manager = config_manager
+        self.form = form
+        self.widgets: dict[str, QWidget] = {}
+        self._advanced: list[str] = []
+        self._callbacks: dict[str, Callable] = {}
+
+    def add(
+        self,
+        key: str,
+        widget: QWidget | None = None,
+        *,
+        choices: list[tuple[object, str]] | None = None,
+        advanced: bool | None = None,
+        hint: str | None = None,
+        label: str | None = None,
+        width: int | None | object = _UNSET,
+        on_change: Callable | None = None,
+        container: QWidget | None = None,
+    ) -> QWidget:
+        spec = get_spec(key)
+        if spec is None:
+            raise KeyError(f"Unknown setting: {key}")
+
+        if widget is None:
+            widget = self._make_widget(spec, choices)
+        elif choices and isinstance(widget, QComboBox):
+            self._populate_combo(widget, choices)
+
+        if advanced is None:
+            advanced = spec.tier == "advanced"
+        if hint is None:
+            hint = spec.description
+        if width is _UNSET:
+            width = self._width_for(spec, widget)
+
+        self.form.add_row(
+            label or spec.label,
+            container or widget,
+            hint=hint,
+            advanced=advanced,
+            width=width,
+        )
+        self.widgets[key] = widget
+        if advanced:
+            self._advanced.append(key)
+        if on_change is not None:
+            self._callbacks[key] = on_change
+        self._connect(key, widget)
+        self._set_widget(key, self.config_manager.get(key, spec.default))
+        return widget
+
+    def _make_widget(self, spec: SettingSpec, choices):
+        if spec.kind == "bool":
+            return make_checkbox("")
+        if spec.kind == "choice":
+            combo = make_combo(CONTROL_DEFAULT)
+            self._populate_combo(
+                combo, choices or [(c.value, c.label) for c in spec.choices]
+            )
+            return combo
+        if spec.kind == "secret":
+            from .modern_widgets import PasswordFieldWrapper
+
+            wrapper = PasswordFieldWrapper()
+            wrapper.setMaximumWidth(420)
+            return wrapper
+        if spec.kind == "path":
+            return make_line_edit(spec.description, CONTROL_WIDE)
+        if spec.kind == "int":
+            return make_spin(
+                maximum=int(spec.maximum if spec.maximum is not None else 9999),
+                minimum=int(spec.minimum if spec.minimum is not None else 0),
+                step=int(spec.step or 1),
+            )
+        if spec.kind == "float":
+            return make_double_spin(
+                maximum=float(spec.maximum if spec.maximum is not None else 100.0),
+                minimum=float(spec.minimum if spec.minimum is not None else 0.0),
+                step=float(spec.step or 0.1),
+            )
+        return make_line_edit("", CONTROL_DEFAULT)
+
+    @staticmethod
+    def _populate_combo(combo: QComboBox, choices) -> None:
+        combo.blockSignals(True)
+        try:
+            combo.clear()
+            for value, label in choices:
+                combo.addItem(label, value)
+        finally:
+            combo.blockSignals(False)
+
+    @staticmethod
+    def _width_for(spec: SettingSpec, widget: QWidget) -> int | None:
+        if spec.kind in {"bool", "choice", "secret", "path"}:
+            return CONTROL_DEFAULT if spec.kind != "path" else CONTROL_WIDE
+        return None
+
+    @staticmethod
+    def _has_value_signal(widget: QWidget) -> bool:
+        """True for binder-protocol widgets and native numeric editors."""
+        return (
+            hasattr(widget, "settingValue") and hasattr(widget, "valueChanged")
+        ) or isinstance(widget, (QSpinBox, QDoubleSpinBox))
+
+    def _connect(self, key: str, widget: QWidget) -> None:
+        spec = get_spec(key)
+        if spec is None:
+            return
+
+        def commit() -> None:
+            self._commit_widget(key)
+
+        if self._has_value_signal(widget):
+            widget.valueChanged.connect(lambda _value: commit())
+        elif isinstance(widget, QComboBox):
+            widget.currentIndexChanged.connect(lambda _index: commit())
+        elif hasattr(widget, "editingFinished") and hasattr(widget, "text"):
+            widget.editingFinished.connect(commit)
+        elif spec.kind == "bool":
+            widget.stateChanged.connect(lambda _state: commit())
+
+    def _read_widget(self, key: str, widget: QWidget):
+        """Read a widget's current value, coerced to the spec's Python type."""
+        spec = get_spec(key)
+        if spec is None:
+            return None
+
+        if hasattr(widget, "settingValue"):
+            raw = widget.settingValue()
+        elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+            raw = widget.value()
+        elif isinstance(widget, QComboBox):
+            data = widget.currentData()
+            raw = data if data is not None else widget.currentText()
+        elif spec.kind == "bool" and isinstance(widget, QCheckBox):
+            raw = widget.isChecked()
+        else:
+            raw = widget.text().strip()
+
+        try:
+            if spec.kind == "int":
+                return int(float(raw))
+            if spec.kind == "float":
+                return float(raw)
+            if spec.kind == "bool":
+                return bool(raw)
+        except (TypeError, ValueError):
+            return None
+        return raw
+
+    def _commit_widget(self, key: str) -> None:
+        widget = self.widgets.get(key)
+        if widget is None:
+            return
+        value = self._read_widget(key, widget)
+        if value is None:
+            return
+        if self.config_manager.get(key, None) == value:
+            return
+        self.config_manager.set(key, value)
+        callback = self._callbacks.get(key)
+        if callback is not None:
+            callback(value)
+        self.changed.emit(key, value)
+
+    def commit_all(self) -> None:
+        """Flush every bound widget to config (used by the Save button)."""
+        for key in self.widgets:
+            self._commit_widget(key)
+
+    def _set_widget(self, key: str, value) -> None:
+        widget = self.widgets[key]
+        spec = get_spec(key)
+        if spec is None:
+            return
+        widget.blockSignals(True)
+        try:
+            if hasattr(widget, "setSettingValue"):
+                widget.setSettingValue(value)
+            elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                widget.setValue(value)
+            elif isinstance(widget, QComboBox):
+                index = widget.findData(value)
+                if index < 0 and hasattr(widget, "setText"):
+                    widget.setText(str(value))
+                else:
+                    widget.setCurrentIndex(max(index, 0))
+            elif spec.kind == "bool":
+                widget.setChecked(bool(value))
+            else:
+                widget.setText("" if value is None else str(value))
+        finally:
+            widget.blockSignals(False)
+
+    def load(self) -> None:
+        for key in self.widgets:
+            spec = get_spec(key)
+            default = spec.default if spec is not None else None
+            self._set_widget(key, self.config_manager.get(key, default))
+
+    def set_advanced_visible(self, visible: bool) -> None:
+        self.form.set_advanced_visible(visible)
 
 
 class PathField(QWidget):
@@ -197,6 +502,10 @@ class PathField(QWidget):
 
     def clear(self) -> None:
         self.line_edit.clear()
+
+    @property
+    def editingFinished(self):
+        return self.line_edit.editingFinished
 
     def setPlaceholderText(self, text: str) -> None:
         self.line_edit.setPlaceholderText(text)
