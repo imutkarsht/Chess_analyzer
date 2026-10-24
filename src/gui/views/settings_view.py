@@ -187,7 +187,7 @@ class SettingsView(QWidget):
         self.llm_key_input = self.api_settings.llm_key_input
         self.llm_model_input = self.api_settings.llm_model_input
         self.llm_url_input = self.api_settings.llm_url_input
-        self.lichess_token_input = self.api_settings.lichess_token_input
+        self.lichess_token_input = self.player_settings.lichess_token_input
         self.llm_test_btn = self.api_settings.llm_test_btn
         self.llm_test_result = self.api_settings.llm_test_result
         self.explain_trivial_checkbox = self.api_settings.explain_trivial_checkbox
@@ -220,7 +220,7 @@ class SettingsView(QWidget):
         self.book_settings.reload_from_config()
         self.player_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
-        self.api_settings.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.player_settings.reload_from_config()
         self.api_settings.sync_explanation_settings()
         self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
         self.appearance_settings.sync_sidebar_pref()
@@ -476,7 +476,7 @@ class SettingsView(QWidget):
 
         # Check Lichess API Token presence
         import os
-        token = self.api_settings.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
+        token = self.player_settings.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
 
         clamped = False
         warning_msg = ""
@@ -532,7 +532,9 @@ class SettingsView(QWidget):
         except ValueError:
             self.config_manager.config["live_analysis_time"] = DEFAULT_LIVE_ANALYSIS_TIME
 
-        self.config_manager.config["lichess_token"] = self.api_settings.lichess_token_input.text().strip()
+        self.config_manager.set(
+            "lichess_token", self.player_settings.lichess_token_input.text().strip()
+        )
         self.config_manager.config["chesscom_username"] = chesscom
         self.config_manager.config["lichess_username"] = lichess
         self.config_manager.config["api_games_limit"] = limit

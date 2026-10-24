@@ -1,76 +1,73 @@
-"""
-Player Usernames Settings group component.
-"""
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFormLayout, QGroupBox, QLabel, QLineEdit
+"""Player accounts and API credentials settings."""
+
+from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from ...styles import Styles
-from .modern_widgets import ModernSliderCounter
+from .components import CONTROL_DEFAULT, SettingsForm, make_line_edit
+from .modern_widgets import ModernSliderCounter, PasswordFieldWrapper
 
 
 class PlayerSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
-        super().__init__("Player Usernames", parent)
+        super().__init__("Accounts and Credentials", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
-
         self.setup_ui()
 
     def setup_ui(self):
-        username_layout = QFormLayout(self)
-        username_layout.setContentsMargins(0, 12, 0, 0)
-        username_layout.setSpacing(12)
-        username_layout.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        username_layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.form = SettingsForm(self)
 
-        self.chesscom_input = QLineEdit()
+        wrapper = QVBoxLayout(self)
+        wrapper.setContentsMargins(0, 8, 0, 0)
+        wrapper.addWidget(self.form)
+
+        self.chesscom_input = make_line_edit("Chess.com username", CONTROL_DEFAULT)
         self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
-        self.chesscom_input.setPlaceholderText("Chess.com Username")
-        self.chesscom_input.setStyleSheet(Styles.get_input_style())
-        self.chesscom_input.setMaximumWidth(360)
+        self.form.add_row("Chess.com", self.chesscom_input)
 
-        self.lichess_input = QLineEdit()
+        self.lichess_input = make_line_edit("Lichess.org username", CONTROL_DEFAULT)
         self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
-        self.lichess_input.setPlaceholderText("Lichess.org Username")
-        self.lichess_input.setStyleSheet(Styles.get_input_style())
-        self.lichess_input.setMaximumWidth(360)
+        self.form.add_row("Lichess.org", self.lichess_input)
 
-        self._lbl_chesscom = QLabel("Chess.com:")
-        self._lbl_chesscom.setStyleSheet(Styles.get_label_style(size=13))
+        self.lichess_token_input = PasswordFieldWrapper(self)
+        self.lichess_token_input.setMaximumWidth(420)
+        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.form.add_row(
+            "Lichess token",
+            self.lichess_token_input,
+            hint="Optional token for Lichess imports and the online explorer.",
+        )
 
-        self._lbl_lichess_user = QLabel("Lichess.org:")
-        self._lbl_lichess_user.setStyleSheet(Styles.get_label_style(size=13))
-
-        self.games_limit_input = ModernSliderCounter(1, 30, step=1, value=self.config_manager.get("api_games_limit", 20), parent=self)
+        self.games_limit_input = ModernSliderCounter(
+            1,
+            30,
+            step=1,
+            value=self.config_manager.get("api_games_limit", 20),
+            parent=self,
+        )
         self.games_limit_input.setMaximumWidth(220)
-
-        self._lbl_games_limit = QLabel("Games Fetch Limit:")
-        self._lbl_games_limit.setStyleSheet(Styles.get_label_style(size=13))
-
-        username_layout.addRow(self._lbl_chesscom, self.chesscom_input)
-        username_layout.addRow(self._lbl_lichess_user, self.lichess_input)
-        username_layout.addRow(self._lbl_games_limit, self.games_limit_input)
+        self.form.add_row(
+            "Games fetch limit",
+            self.games_limit_input,
+            hint="Maximum recent games to fetch at once.",
+            advanced=True,
+            width=None,
+        )
 
     def reload_from_config(self):
         self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
         self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
+        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
         self.games_limit_input.setText(str(self.config_manager.get("api_games_limit", 20)))
 
     def set_advanced_visible(self, visible):
-        self._lbl_games_limit.setVisible(visible)
-        self.games_limit_input.setVisible(visible)
+        self.form.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        if hasattr(self, 'chesscom_input'):
-            self.chesscom_input.setStyleSheet(Styles.get_input_style())
-        if hasattr(self, 'lichess_input'):
-            self.lichess_input.setStyleSheet(Styles.get_input_style())
-        if hasattr(self, '_lbl_chesscom'):
-            self._lbl_chesscom.setStyleSheet(Styles.get_label_style(size=13))
-        if hasattr(self, '_lbl_lichess_user'):
-            self._lbl_lichess_user.setStyleSheet(Styles.get_label_style(size=13))
-        if hasattr(self, '_lbl_games_limit'):
-            self._lbl_games_limit.setStyleSheet(Styles.get_label_style(size=13))
-        if hasattr(self.games_limit_input, 'refresh_styles'):
+        self.form.refresh_styles()
+        for field in (self.chesscom_input, self.lichess_input):
+            field.setStyleSheet(Styles.get_input_style())
+        self.lichess_token_input.update_style()
+        if hasattr(self.games_limit_input, "refresh_styles"):
             self.games_limit_input.refresh_styles()

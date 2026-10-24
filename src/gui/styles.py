@@ -1372,6 +1372,24 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_settings_link_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background: transparent;
+                border: none;
+                padding: 5px 2px;
+                text-align: left;
+                color: {p.text_secondary};
+                font-size: 13px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                color: {p.accent};
+            }}
+        """
+
+    @classmethod
     def get_settings_checkbox_style(cls, tick_path):
         """Borderless checkbox style for settings rows."""
         p = ThemeManager.palette()

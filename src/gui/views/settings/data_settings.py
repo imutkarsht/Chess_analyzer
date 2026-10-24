@@ -1,10 +1,9 @@
-"""
-Data Management Settings group component.
-"""
+"""Data management actions."""
 
-from PyQt6.QtWidgets import QGridLayout, QGroupBox
+from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from ...styles import Styles
+from .components import SettingsForm
 from .helpers import create_icon_button
 
 
@@ -37,31 +36,47 @@ class DataSettings(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Data Management", parent)
         self.setStyleSheet(Styles.get_group_box_style())
-
         self.setup_ui()
 
     def setup_ui(self):
-        data_layout = QGridLayout(self)
-        data_layout.setContentsMargins(0, 12, 0, 0)
-        data_layout.setSpacing(12)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 8, 0, 0)
+
+        self.form = SettingsForm(self)
+        outer.addWidget(self.form)
 
         self.clear_cache_btn = create_icon_button(
             "Clear Cache", "fa5s.broom", self.clear_cache, self
         )
-        self.clear_cache_btn.setMaximumWidth(180)
-        data_layout.addWidget(self.clear_cache_btn, 0, 0)
+        self.clear_cache_btn.setMaximumWidth(160)
+        self.form.add_row(
+            "Analysis cache",
+            self.clear_cache_btn,
+            hint="Remove cached engine evaluations and AI explanations.",
+            width=None,
+        )
 
         self.optimize_db_btn = create_icon_button(
             "Optimize DB", "fa5s.tools", self.optimize_db, self
         )
-        self.optimize_db_btn.setMaximumWidth(180)
-        data_layout.addWidget(self.optimize_db_btn, 0, 1)
+        self.optimize_db_btn.setMaximumWidth(160)
+        self.form.add_row(
+            "Database",
+            self.optimize_db_btn,
+            hint="Compact the history database and checkpoint WAL files.",
+            width=None,
+        )
 
         self.clear_data_btn = create_icon_button(
             "Reset All Data", "fa5s.trash-alt", self.clear_all_data, self, danger=True
         )
-        self.clear_data_btn.setMaximumWidth(180)
-        data_layout.addWidget(self.clear_data_btn, 0, 2)
+        self.clear_data_btn.setMaximumWidth(160)
+        self.form.add_row(
+            "Danger zone",
+            self.clear_data_btn,
+            hint="Delete all games and caches. This cannot be undone.",
+            width=None,
+        )
 
     def optimize_db(self):
         from src.backend.storage.game_history import GameHistoryManager
@@ -93,7 +108,6 @@ class DataSettings(QGroupBox):
             history = GameHistoryManager()
             history.clear_history()
 
-            # Also clear current games list in MainWindow if possible
             window = self.window()
             if hasattr(window, "games"):
                 window.games = []
@@ -112,6 +126,7 @@ class DataSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
+        self.form.refresh_styles()
         if hasattr(self, "clear_cache_btn"):
             self.clear_cache_btn.setStyleSheet(Styles.get_settings_default_button_style())
         if hasattr(self, "optimize_db_btn"):

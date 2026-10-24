@@ -230,23 +230,11 @@ class ApiSettings(QGroupBox):
         status_row.addWidget(self.llm_test_result)
         api_layout.addLayout(status_row)
 
-        # --- Lichess token ---
+        # --- Coach preferences ---
         self._api_div2 = QFrame()
         self._api_div2.setFrameShape(QFrame.Shape.HLine)
         self._api_div2.setStyleSheet(Styles.get_divider_style())
         api_layout.addWidget(self._api_div2)
-
-        lf = QFormLayout()
-        lf.setSpacing(10)
-        lf.setContentsMargins(0, 0, 0, 0)
-        lf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self._lbl_lichess = QLabel("Lichess API Token:")
-        self._lbl_lichess.setStyleSheet(lbl_style)
-        self.lichess_token_input = PasswordFieldWrapper(self)
-        self.lichess_token_input.setMaximumWidth(420)
-        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
-        lf.addRow(self._lbl_lichess, self.lichess_token_input)
-        api_layout.addLayout(lf)
 
         self._add_explanation_rows(api_layout, lbl_style, _combo_style)
 
@@ -552,7 +540,7 @@ class ApiSettings(QGroupBox):
             self.llm_model_input.setStyleSheet(Styles.get_input_style())
         if hasattr(self, 'llm_url_input'):
             self.llm_url_input.setStyleSheet(Styles.get_input_style())
-        for widget in [self.llm_key_input, self.lichess_token_input]:
+        for widget in [self.llm_key_input]:
             if hasattr(widget, 'refresh_styles'):
                 widget.refresh_styles()
         self._refresh_label('_lbl_prof')
@@ -561,7 +549,6 @@ class ApiSettings(QGroupBox):
         self._refresh_label('lbl_llm_key')
         self._refresh_label('_lbl_model')
         self._refresh_label('lbl_llm_url')
-        self._refresh_label('_lbl_lichess')
         self._refresh_secondary_label('llm_active_label')
         self._refresh_secondary_label('llm_test_result')
         if hasattr(self, '_div'):
