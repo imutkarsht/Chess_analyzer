@@ -1,85 +1,52 @@
 import json
 import os
+from copy import deepcopy
 
-from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV
-
-from .logger import logger
-from .path_utils import get_user_data_dir
+from src.config.settings_schema import (
+    SECRET_PROFILE_PREFIX,
+    default_config,
+    get_spec,
+)
+from src.utils.logger import logger
+from src.utils.path_utils import get_user_data_dir
+from src.utils.secrets import SecretStore
 
 
 class ConfigManager:
     CONFIG_FILE = "config.json"
+    SCHEMA_VERSION = 1
     _shared_config = None
     _shared_config_path = None
 
-    DEFAULT_CONFIG = {
-        "engine_path": "stockfish",
-        "polyglot_book_path": "",
-        "theme": "dark",
-        "sound_enabled": True,
-        # Profile-based LLM config.  Each profile is a dict with keys:
-        #   name, provider, api_key, model, base_url
-        "llm_profiles": [],
-        "llm_active_profile": "",
-        "analysis_depth": DEFAULT_ANALYSIS_DEPTH,
-        "api_games_limit": 20,
-        # Engine footprint controls (see issue #5).  multi_pv and
-        # live_analysis_time are the new user-tunable knobs; we seed
-        # them in DEFAULT_CONFIG so a brand-new install has safe
-        # values and the analyzers' `config_manager.get(key, default)`
-        # calls return the persisted number (not the literal default
-        # fallback) on first run.
-        #
-        # Note: engine_threads and engine_hash are *intentionally*
-        # absent from DEFAULT_CONFIG.  options_from_config() in
-        # backend/engine.py already falls back to its own conservative
-        # module-level constants when those keys are missing — adding
-        # them here as `None` would break that fallback (a stored None
-        # wins over a `.get(key, default)` fallback).
-        "multi_pv": DEFAULT_MULTI_PV,
-        "live_analysis_time": DEFAULT_LIVE_ANALYSIS_TIME,
-        # Last known main window geometry (x, y, width, height).
-        # Any field may be None, meaning "use Qt's default for that dimension".
-        "window_state": {"x": None, "y": None, "width": None, "height": None},
-        "board_theme": "Green",
-        "piece_theme": "Standard",
-        "board_show_coordinates": True,
-        "board_show_classification": True,
-        # Start the navigation sidebar collapsed. When enabled, clicking a
-        # nav item no longer auto-expands it; the chevron remains the
-        # explicit way to expand.
-        "sidebar_start_collapsed": False,
-        "accent_color": "#FF9500",
-        "lichess_token": "",
-        "chesscom_username": "",
-        "lichess_username": "",
-        # In-app review prompt tracking
-        "games_analyzed_count": 0,
-        "review_submitted": False,
-        "review_prompt_dismissed": False,
-        "review_next_prompt_count": 3,
-        # Coach move explanations (D2/D8).
-        "explain_cache_ttl_days": 30,
-        "explain_llm_for_trivial_moves": False,
-    }
+    # Derived from the settings registry so defaults have one source of truth.
+    DEFAULT_CONFIG = default_config()
 
-    # Human-readable name used when creating the first migration profile.
     _PROVIDER_LABELS = {
-        "groq": "Groq", "lmstudio": "LM Studio",
-        "minimax": "MiniMax", "custom": "Custom",
+        "groq": "Groq",
+        "lmstudio": "LM Studio",
+        "minimax": "MiniMax",
+        "custom": "Custom",
     }
 
     def __init__(self):
         self.config_path = os.path.join(get_user_data_dir(), self.CONFIG_FILE)
-        if (self.__class__._shared_config is None or
-                self.__class__._shared_config_path != self.config_path):
+        self.secrets = SecretStore(
+            os.path.join(os.path.dirname(self.config_path), SecretStore.FILE)
+        )
+        if (
+            self.__class__._shared_config is None
+            or self.__class__._shared_config_path != self.config_path
+        ):
             self.__class__._shared_config = self.load_config()
             self.__class__._shared_config_path = self.config_path
         self.config = self.__class__._shared_config
 
+    # ------------------------------------------------------------------
+    # Load / save / migration
+    # ------------------------------------------------------------------
     def load_config(self):
         if not os.path.exists(self.config_path):
-            cfg = self.DEFAULT_CONFIG.copy()
+            cfg = deepcopy(self.DEFAULT_CONFIG)
             self._ensure_default_profile(cfg)
             return cfg
 
@@ -88,92 +55,159 @@ class ConfigManager:
                 data = json.load(f)
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
-            cfg = self.DEFAULT_CONFIG.copy()
+            cfg = deepcopy(self.DEFAULT_CONFIG)
             self._ensure_default_profile(cfg)
             return cfg
 
-        # Fill any missing top-level keys from defaults
-        for key, value in self.DEFAULT_CONFIG.items():
-            data.setdefault(key, value)
+        changed = False
+        for spec in self.DEFAULT_CONFIG:
+            if spec not in data:
+                data[spec] = deepcopy(self.DEFAULT_CONFIG[spec])
+                changed = True
 
-        # One-time migration: build profile list from previous flat config keys.
-        migrated = False
-        if not data.get("llm_profiles"):
-            provider = (data.get("llm_provider")
-                        or (data.get("groq_api_key") and "groq")
-                        or "groq")
-            api_key  = data.get("llm_api_key", "") or data.get("groq_api_key", "")
-            model    = data.get("llm_model", "") or data.get("groq_model", "")
-            base_url = data.get("llm_base_url", "")
-            name = self._PROVIDER_LABELS.get(provider, provider.capitalize())
-            data["llm_profiles"] = [{
+        changed = self._migrate_legacy_llm(data) or changed
+        changed = self._migrate_secrets(data) or changed
+        if "schema_version" not in data:
+            data["schema_version"] = self.SCHEMA_VERSION
+            changed = True
+
+        if changed:
+            self._write_config(data)
+        return data
+
+    def _migrate_legacy_llm(self, data: dict) -> bool:
+        """Build the profile list from the pre-profile flat config."""
+        if data.get("llm_profiles"):
+            return False
+
+        provider = (
+            data.get("llm_provider")
+            or (data.get("groq_api_key") and "groq")
+            or "groq"
+        )
+        api_key = data.get("llm_api_key", "") or data.get("groq_api_key", "")
+        model = data.get("llm_model", "") or data.get("groq_model", "")
+        base_url = data.get("llm_base_url", "")
+        name = self._PROVIDER_LABELS.get(provider, provider.capitalize())
+        data["llm_profiles"] = [
+            {
                 "name": name,
                 "provider": provider,
                 "api_key": api_key,
                 "model": model or "llama-3.3-70b-versatile",
                 "base_url": base_url,
-            }]
-            data["llm_active_profile"] = name
-            logger.info(f"Config: migrated single LLM config to profile '{name}'")
-            migrated = True
+            }
+        ]
+        data["llm_active_profile"] = name
+        logger.info("Config: migrated single LLM config to profile '%s'", name)
 
-        # Always scrub legacy flat keys — covers both fresh migrations and
-        # configs that were already migrated but still have the old fields
-        # stamped in by a previous version of DEFAULT_CONFIG.
-        _LEGACY_KEYS = ("groq_api_key", "groq_model", "llm_api_key",
-                        "llm_model", "llm_provider", "llm_base_url")
-        purged = [k for k in _LEGACY_KEYS if k in data]
-        for k in purged:
-            data.pop(k)
+        legacy = (
+            "groq_api_key",
+            "groq_model",
+            "llm_api_key",
+            "llm_model",
+            "llm_provider",
+            "llm_base_url",
+        )
+        for key in legacy:
+            data.pop(key, None)
+        return True
 
-        if migrated or purged:
-            try:
-                with open(self.config_path, 'w') as f:
-                    json.dump(data, f, indent=4)
-                if purged:
-                    logger.info(f"Config: removed legacy keys {purged}")
-            except Exception:
-                pass
+    def _migrate_secrets(self, data: dict) -> bool:
+        """Move legacy inline secrets into secrets.json."""
+        changed = False
 
-        return data
+        token = data.get("lichess_token", "")
+        if token:
+            self.secrets.set("lichess_token", token)
+            if self.secrets.get("lichess_token") == token:
+                data["lichess_token"] = ""
+                changed = True
+
+        for profile in data.get("llm_profiles", []):
+            api_key = profile.get("api_key", "")
+            if api_key:
+                name = profile.get("name", "")
+                secret_key = f"{SECRET_PROFILE_PREFIX}{name}"
+                self.secrets.set(secret_key, api_key)
+                if self.secrets.get(secret_key) == api_key:
+                    profile.pop("api_key", None)
+                    changed = True
+
+        return changed
+
+    def _write_config(self, data: dict) -> None:
+        payload = deepcopy(data)
+
+        token = payload.get("lichess_token", "")
+        if token and self.secrets.get("lichess_token") == token:
+            payload["lichess_token"] = ""
+
+        for profile in payload.get("llm_profiles", []):
+            api_key = profile.get("api_key", "")
+            name = profile.get("name", "")
+            if api_key and self.secrets.get(f"{SECRET_PROFILE_PREFIX}{name}") == api_key:
+                profile.pop("api_key", None)
+
+        try:
+            with open(self.config_path, "w") as f:
+                json.dump(payload, f, indent=4)
+            logger.debug("Configuration saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to save config: {e}")
 
     def _ensure_default_profile(self, cfg: dict) -> None:
-        """Guarantee at least one profile exists in a fresh config."""
         if not cfg.get("llm_profiles"):
-            cfg["llm_profiles"] = [{
-                "name": "Groq",
-                "provider": "groq",
-                "api_key": "",
-                "model": "llama-3.3-70b-versatile",
-                "base_url": "",
-            }]
+            cfg["llm_profiles"] = [
+                {
+                    "name": "Groq",
+                    "provider": "groq",
+                    "api_key": "",
+                    "model": "llama-3.3-70b-versatile",
+                    "base_url": "",
+                }
+            ]
             cfg["llm_active_profile"] = "Groq"
 
     # ------------------------------------------------------------------
-    # Active profile helpers
+    # Profiles
     # ------------------------------------------------------------------
-
     def get_active_profile(self) -> dict:
-        """Return the active LLM profile dict, or the first profile as fallback."""
-        profiles = self.config.get("llm_profiles", [])
+        profiles = self.get_profiles()
         active_name = self.config.get("llm_active_profile", "")
         if profiles:
-            for p in profiles:
-                if p.get("name") == active_name:
-                    return p
+            for profile in profiles:
+                if profile.get("name") == active_name:
+                    return profile
             return profiles[0]
         return {}
 
     def get_profiles(self) -> list:
-        return self.config.get("llm_profiles", [])
+        profiles = deepcopy(self.config.get("llm_profiles", []))
+        for profile in profiles:
+            name = profile.get("name", "")
+            profile["api_key"] = self.secrets.get(f"{SECRET_PROFILE_PREFIX}{name}")
+        return profiles
 
     def set_profiles(self, profiles: list, active_name: str = "") -> None:
-        self.config["llm_profiles"] = profiles
+        sanitized = []
+        for profile in profiles:
+            entry = dict(profile)
+            name = entry.get("name", "")
+            self.secrets.set(
+                f"{SECRET_PROFILE_PREFIX}{name}", entry.pop("api_key", "")
+            )
+            sanitized.append(entry)
+        self.config["llm_profiles"] = sanitized
         if active_name:
             self.config["llm_active_profile"] = active_name
         self.save_config()
 
+    # ------------------------------------------------------------------
+    # Public accessors
+    # ------------------------------------------------------------------
     def reload_config(self):
+        self.secrets.reload()
         new_data = self.load_config()
         if self.__class__._shared_config is not None:
             self.__class__._shared_config.clear()
@@ -183,16 +217,89 @@ class ConfigManager:
         self.config = self.__class__._shared_config
 
     def save_config(self):
-        try:
-            with open(self.config_path, 'w') as f:
-                json.dump(self.config, f, indent=4)
-            logger.debug("Configuration saved successfully")
-        except Exception as e:
-            logger.error(f"Failed to save config: {e}")
+        self._migrate_secrets(self.config)
+        self._write_config(self.config)
 
     def get(self, key, default=None):
+        if key == "llm_profiles":
+            return self.get_profiles()
+        if key == "lichess_token":
+            return self.secrets.get("lichess_token", default or "")
         return self.config.get(key, default)
 
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        value = self.get(key, default)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return default
+
+    def get_int(self, key: str, default: int = 0) -> int:
+        try:
+            return int(self.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    def get_float(self, key: str, default: float = 0.0) -> float:
+        try:
+            return float(self.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    def get_choice(self, key: str, default: str = "") -> str:
+        spec = get_spec(key)
+        value = str(self.get(key, default))
+        if spec and spec.choices and value not in {c.value for c in spec.choices}:
+            return default
+        return value
+
     def set(self, key, value):
-        self.config[key] = value
+        if key == "llm_profiles":
+            self.set_profiles(value)
+            return
+        if key == "lichess_token":
+            self.secrets.set("lichess_token", value or "")
+            self.config[key] = ""
+            return
+        self.config[key] = self._coerce(key, value)
         self.save_config()
+
+    def _coerce(self, key: str, value):
+        """Validate/coerce known settings against the registry."""
+        spec = get_spec(key)
+        if spec is None:
+            return value
+        try:
+            if spec.kind == "bool":
+                if not isinstance(value, bool):
+                    raise ValueError("expected bool")
+                return value
+            if spec.kind == "int":
+                if isinstance(value, bool):
+                    raise ValueError("bool is not an int setting")
+                number = int(value)
+                if spec.minimum is not None:
+                    number = max(int(spec.minimum), number)
+                if spec.maximum is not None:
+                    number = min(int(spec.maximum), number)
+                return number
+            if spec.kind == "float":
+                number = float(value)
+                if spec.minimum is not None:
+                    number = max(float(spec.minimum), number)
+                if spec.maximum is not None:
+                    number = min(float(spec.maximum), number)
+                return number
+            if spec.kind == "choice":
+                if spec.choices and value not in {c.value for c in spec.choices}:
+                    raise ValueError(f"expected one of {[c.value for c in spec.choices]}")
+                return value
+            if spec.kind in {"text", "path", "secret", "json"}:
+                return value
+        except (TypeError, ValueError) as exc:
+            logger.warning("Config: invalid value for %s (%r): %s", key, value, exc)
+            return self.config.get(key, spec.default)
+        return value

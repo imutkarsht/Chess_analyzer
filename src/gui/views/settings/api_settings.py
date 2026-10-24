@@ -414,7 +414,7 @@ class ApiSettings(QGroupBox):
             "name": name, "provider": "groq", "api_key": "",
             "model": "llama-3.3-70b-versatile", "base_url": "",
         })
-        self.config_manager.config["llm_profiles"] = profiles
+        self.config_manager.set_profiles(profiles)
         self._reload_profile_combo()
         self.llm_profile_combo.setCurrentIndex(len(profiles) - 1)
 
@@ -437,8 +437,7 @@ class ApiSettings(QGroupBox):
         active = self.config_manager.get("llm_active_profile", "")
         if active == name:
             active = profiles[0]["name"]
-        self.config_manager.config["llm_profiles"] = profiles
-        self.config_manager.config["llm_active_profile"] = active
+        self.config_manager.set_profiles(profiles, active_name=active)
         self._reload_profile_combo()
 
     def _test_llm_profile(self) -> None:

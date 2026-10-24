@@ -3,10 +3,19 @@ Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QScrollArea,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.constants import DEFAULT_LIVE_ANALYSIS_TIME, DEFAULT_MULTI_PV
-from src.gui.components import MasonryLayout
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
@@ -80,9 +89,32 @@ class SettingsView(QWidget):
         self.content_container = QWidget()
         self.content_container.setStyleSheet(Styles.get_background_style())
 
-        # Use MasonryLayout for 2-column/3-column dynamic design
-        self.container_layout = MasonryLayout(self.content_container, margin=40, spacing=25)
+        content_layout = QHBoxLayout(self.content_container)
+        content_layout.setContentsMargins(24, 20, 24, 24)
+        content_layout.setSpacing(24)
 
+        # Left category rail
+        rail = QWidget()
+        rail.setFixedWidth(190)
+        rail_layout = QVBoxLayout(rail)
+        rail_layout.setContentsMargins(0, 0, 0, 0)
+        rail_layout.setSpacing(8)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search settings...")
+        self.search_input.setStyleSheet(Styles.get_input_style())
+        self.search_input.textChanged.connect(self._filter_categories)
+        rail_layout.addWidget(self.search_input)
+
+        self.category_list = QListWidget()
+        self.category_list.setFrameShape(QFrame.Shape.NoFrame)
+        self.category_list.setCursor(Qt.CursorShape.PointingHandCursor)
+        rail_layout.addWidget(self.category_list, 1)
+        content_layout.addWidget(rail)
+
+        # Right pages
+        self.pages = QStackedWidget()
+        content_layout.addWidget(self.pages, 1)
         self.scroll_area.setWidget(self.content_container)
         main_layout.addWidget(self.scroll_area)
 
@@ -96,15 +128,31 @@ class SettingsView(QWidget):
         self.links_settings = LinksSettings(self)
         self.shortcut_settings = ShortcutSettings(self.config_manager, self)
 
-        # Add components to layout
-        self.container_layout.addWidget(self.engine_settings)
-        self.container_layout.addWidget(self.book_settings)
-        self.container_layout.addWidget(self.api_settings)
-        self.container_layout.addWidget(self.player_settings)
-        self.container_layout.addWidget(self.appearance_settings)
-        self.container_layout.addWidget(self.data_settings)
-        self.container_layout.addWidget(self.links_settings)
-        self.container_layout.addWidget(self.shortcut_settings)
+        # Category pages. Existing cards are reused until the generic binder
+        # migration lands, but the navigation and layout are now scalable.
+        self._settings_pages = {
+            "About & Links": [self.links_settings],
+            "Appearance": [self.appearance_settings],
+            "Analysis": [self.engine_settings, self.book_settings],
+            "AI Coach": [self.api_settings],
+            "Integrations": [self.player_settings],
+            "Data & Storage": [self.data_settings],
+            "Keyboard": [self.shortcut_settings],
+        }
+        for category, cards in self._settings_pages.items():
+            page = QWidget()
+            page_layout = QVBoxLayout(page)
+            page_layout.setContentsMargins(0, 0, 0, 0)
+            page_layout.setSpacing(20)
+            for card in cards:
+                page_layout.addWidget(card)
+            page_layout.addStretch(1)
+            self.category_list.addItem(category)
+            self.pages.addWidget(page)
+
+        self.category_list.currentRowChanged.connect(self.pages.setCurrentIndex)
+        self.category_list.setCurrentRow(0)
+        self._style_category_rail()
 
         # Connections
         self.appearance_settings.theme_refreshed.connect(self.on_theme_refreshed)
@@ -170,6 +218,44 @@ class SettingsView(QWidget):
             checkbox.blockSignals(False)
         self.api_settings._update_active_label()
         self.shortcut_settings.reload_from_config()
+
+    def _filter_categories(self, text: str) -> None:
+        query = text.strip().lower()
+        first_visible = -1
+        for index in range(self.category_list.count()):
+            item = self.category_list.item(index)
+            hidden = bool(query) and query not in item.text().lower()
+            item.setHidden(hidden)
+            if not hidden and first_visible < 0:
+                first_visible = index
+        if first_visible >= 0 and self.category_list.currentRow() != first_visible:
+            self.category_list.setCurrentRow(first_visible)
+
+    def _style_category_rail(self) -> None:
+        self.search_input.setStyleSheet(Styles.get_input_style())
+        self.category_list.setStyleSheet(f"""
+            QListWidget {{
+                background: transparent;
+                border: none;
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 10px 12px;
+                border-radius: 8px;
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 13px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_PRIMARY};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_ACCENT};
+                font-weight: 600;
+            }}
+        """)
 
     def _create_save_button(self):
         from PyQt6.QtCore import Qt
@@ -289,8 +375,7 @@ class SettingsView(QWidget):
                 return
             profiles[idx] = new_profile
             # Set selected profile as active
-            self.config_manager.config["llm_active_profile"] = new_name
-            self.config_manager.config["llm_profiles"] = profiles
+            self.config_manager.set_profiles(profiles, active_name=new_name)
 
         path_changed = self.config_manager.get("engine_path") != path
         threads_changed = self.config_manager.get("engine_threads") != threads
@@ -400,6 +485,8 @@ class SettingsView(QWidget):
             self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
         if hasattr(self, 'content_container'):
             self.content_container.setStyleSheet(Styles.get_background_style())
+        if hasattr(self, 'category_list'):
+            self._style_category_rail()
         if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
             self.save_settings_btn.setStyleSheet(Styles.get_button_style())
         if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
