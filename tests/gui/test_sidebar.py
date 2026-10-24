@@ -1,7 +1,6 @@
 """Sidebar default-state and navigation behavior."""
 
 import pytest
-from PyQt6.QtTest import QTest
 
 from src.gui.components.sidebar import COLLAPSED_WIDTH, EXPANDED_WIDTH, Sidebar
 
@@ -56,12 +55,12 @@ def test_expanded_preference_auto_expands_after_navigation(qapp):
     sidebar.deleteLater()
 
 
-def test_explicit_toggle_overrides_collapsed_preference(qapp):
+def test_explicit_toggle_overrides_collapsed_preference(qapp, qtbot):
     sidebar = Sidebar(_FakeConfig(collapsed=True))
 
     sidebar.toggle_collapse()
     assert sidebar._collapsed is False
-    QTest.qWait(250)
+    qtbot.waitUntil(lambda: not sidebar._animating, timeout=2000)
 
     sidebar.toggle_collapse()
     assert sidebar._collapsed is True
