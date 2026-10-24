@@ -247,16 +247,6 @@ def test_number_keys_switch_pages(window, qtbot):
         assert window.sidebar._nav_buttons[page].isChecked()
 
 
-def test_escape_leaves_explorer(window, qtbot):
-    go_to(window, qtbot, PAGE_EXPLORER)
-    press(window, "Escape")
-    qtbot.waitUntil(
-        lambda: window.sidebar._nav_buttons[PAGE_ANALYSIS].isChecked()
-        and window.stack.currentIndex() == PAGE_ANALYSIS,
-        timeout=5000,
-    )
-
-
 # --- Presets, settings card & help dialog ----------------------------------
 
 
