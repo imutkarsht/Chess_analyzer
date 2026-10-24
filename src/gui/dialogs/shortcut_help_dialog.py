@@ -25,10 +25,15 @@ except ImportError:
 
 
 class ShortcutHelpDialog(QDialog):
-    """Dialog showing all available keyboard shortcuts."""
+    """Dialog showing the keyboard shortcuts that are currently active.
 
-    def __init__(self, parent=None):
+    Bindings come from the main window's ShortcutManager so the list follows
+    the selected preset. Pass ``bindings`` explicitly to override that lookup.
+    """
+
+    def __init__(self, parent=None, bindings: list[dict] | None = None):
         super().__init__(parent)
+        self._bindings = bindings if bindings is not None else self._lookup_bindings(parent)
         self.setWindowTitle("Keyboard Shortcuts")
         self.resize(520, 620)
         self.setMinimumSize(480, 540)
@@ -91,29 +96,7 @@ class ShortcutHelpDialog(QDialog):
         content_layout.setSpacing(12)
         content_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Shortcuts grouped by category
-        shortcuts = {
-            "Navigation": [
-                ("←  →", "Previous / Next move"),
-                ("Home", "First move"),
-                ("End", "Last move"),
-            ],
-            "Board": [
-                ("F", "Flip board"),
-            ],
-            "Variations": [
-                ("Alt+↑ / Alt+↓", "Previous / next sibling branch"),
-                ("Esc", "Exit variation"),
-            ],
-            "Actions": [
-                ("Ctrl+O", "Open PGN file"),
-                ("Ctrl+A", "Analyze game"),
-            ],
-            "General": [
-                ("F1", "Show this help"),
-                ("Esc", "Close dialogs"),
-            ],
-        }
+        shortcuts = self._group_bindings(self._bindings)
 
         for category, items in shortcuts.items():
             # Category Header
@@ -122,10 +105,13 @@ class ShortcutHelpDialog(QDialog):
 
             if HAS_QTAWESOME:
                 cat_icons = {
+                    "File": "fa5s.folder-open",
+                    "Analysis": "fa5s.bolt",
                     "Navigation": "fa5s.arrows-alt",
                     "Board": "fa5s.chess-board",
                     "Variations": "fa5s.code-branch",
-                    "Actions": "fa5s.bolt",
+                    "Pages": "fa5s.columns",
+                    "Help": "fa5s.question-circle",
                     "General": "fa5s.cog",
                 }
                 cat_icon = QLabel()
@@ -208,6 +194,29 @@ class ShortcutHelpDialog(QDialog):
         btn_layout.addStretch()
         btn_layout.addWidget(btn_close)
         layout.addLayout(btn_layout)
+
+    @staticmethod
+    def _lookup_bindings(parent) -> list[dict]:
+        window = parent.window() if parent is not None else None
+        manager = getattr(window, "shortcut_manager", None)
+        return manager.get_bindings() if manager is not None else []
+
+    @staticmethod
+    def _group_bindings(bindings: list[dict]) -> dict[str, list[tuple[str, str]]]:
+        """Group ``ShortcutManager.get_bindings()`` output by category, in order."""
+        grouped: dict[str, list[tuple[str, str]]] = {}
+        for binding in bindings:
+            if binding["keys"]:
+                keys = "  /  ".join(binding["keys"])
+                grouped.setdefault(binding["category"], []).append((keys, binding["description"]))
+        # F1/? and dialog Esc are handled outside ShortcutManager (keyPressEvent / QDialog).
+        grouped.setdefault("General", []).extend(
+            [
+                ("F1  /  ?", "Show this help"),
+                ("Esc", "Close dialogs"),
+            ]
+        )
+        return grouped
 
     def _open_feedback(self):
         from .feedback_dialog import FeedbackDialog

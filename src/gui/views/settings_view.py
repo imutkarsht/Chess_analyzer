@@ -18,6 +18,7 @@ from .settings import (
     EngineSettings,
     LinksSettings,
     PlayerSettings,
+    ShortcutSettings,
 )
 
 try:
@@ -92,6 +93,7 @@ class SettingsView(QWidget):
         self.appearance_settings = AppearanceSettings(self.config_manager, self)
         self.data_settings = DataSettings(self)
         self.links_settings = LinksSettings(self)
+        self.shortcut_settings = ShortcutSettings(self.config_manager, self)
 
         # Add components to layout
         self.container_layout.addWidget(self.engine_settings)
@@ -101,6 +103,7 @@ class SettingsView(QWidget):
         self.container_layout.addWidget(self.appearance_settings)
         self.container_layout.addWidget(self.data_settings)
         self.container_layout.addWidget(self.links_settings)
+        self.container_layout.addWidget(self.shortcut_settings)
 
         # Connections
         self.appearance_settings.theme_refreshed.connect(self.on_theme_refreshed)
@@ -163,6 +166,7 @@ class SettingsView(QWidget):
             checkbox.setChecked(bool(self.config_manager.get(key, True)))
             checkbox.blockSignals(False)
         self.api_settings._update_active_label()
+        self.shortcut_settings.reload_from_config()
 
     def _create_save_button(self):
         from PyQt6.QtCore import Qt
@@ -217,6 +221,7 @@ class SettingsView(QWidget):
         self.appearance_settings.set_advanced_visible(is_advanced)
         self.data_settings.set_advanced_visible(is_advanced)
         self.links_settings.set_advanced_visible(is_advanced)
+        self.shortcut_settings.set_advanced_visible(is_advanced)
 
     def save_all_settings(self):
         """Save every setting in the app at once."""
@@ -406,6 +411,7 @@ class SettingsView(QWidget):
             getattr(self, 'appearance_settings', None),
             getattr(self, 'data_settings', None),
             getattr(self, 'links_settings', None),
+            getattr(self, 'shortcut_settings', None),
         )
         for card in cards:
             if card and hasattr(card, 'refresh_styles'):

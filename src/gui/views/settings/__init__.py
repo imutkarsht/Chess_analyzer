@@ -8,12 +8,14 @@ from .data_settings import DataSettings
 from .engine_settings import EngineSettings
 from .links_settings import LinksSettings
 from .player_settings import PlayerSettings
+from .shortcut_settings import ShortcutSettings
 
 __all__ = [
     'EngineSettings',
     'BookSettings',
     'ApiSettings',
     'PlayerSettings',
+    'ShortcutSettings',
     'AppearanceSettings',
     'DataSettings',
     'LinksSettings',

@@ -146,3 +146,40 @@ SOUND_CLASSIFICATIONS = frozenset({"Best", "Excellent", "Good", "Book"})
 SACRIFICIAL_CLASSIFICATIONS = frozenset({"Brilliant", "Great"})
 PROBLEM_CLASSIFICATIONS = frozenset({"Inaccuracy", "Mistake", "Miss", "Blunder"})
 LLM_WORTHY_CLASSIFICATIONS = SACRIFICIAL_CLASSIFICATIONS | PROBLEM_CLASSIFICATIONS
+
+# ---------------------------------------------------------------------------
+# Keyboard shortcuts (issue #67)
+# ---------------------------------------------------------------------------
+# Indices into MainWindow.stack, in sidebar order.
+PAGE_ANALYSIS = 0
+PAGE_EXPLORER = 1
+PAGE_HISTORY = 2
+PAGE_METRICS = 3
+PAGE_SETTINGS = 4
+
+# Labels for the 1-5 "go to page" shortcuts. The order must match the indices above.
+PAGE_NAMES = ("Analyze", "Explore", "History", "Metrics", "Settings")
+
+# Delay between moves during Space auto-replay, in milliseconds.
+REPLAY_INTERVAL_MS = 1000
+
+# Classifications that N / Shift+Right and P / Shift+Left jump between.
+# Inaccuracies are left out on purpose: they are too frequent to be "critical".
+CRITICAL_CLASSIFICATIONS = frozenset({"Mistake", "Miss", "Blunder"})
+
+# Each preset maps action ids to replacement keys. Actions a preset leaves out
+# keep the defaults registered in NavigationMixin._setup_shortcuts(), where
+# Right/J and Left/K always step through moves. Vim adds H/L on top; every
+# preset keeps the defaults so switching never takes a binding away.
+SHORTCUT_PRESETS = {
+    "standard": {},
+    "vim": {
+        "nav_next": ("Right", "J", "L"),
+        "nav_prev": ("Left", "K", "H"),
+    },
+}
+SHORTCUT_PRESET_LABELS = {
+    "standard": "Standard (Arrows + J/K)",
+    "vim": "Vim (J/K/H/L)",
+}
+DEFAULT_SHORTCUT_PRESET = "standard"
