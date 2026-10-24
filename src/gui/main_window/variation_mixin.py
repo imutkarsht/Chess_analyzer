@@ -46,8 +46,6 @@ class VariationMixin:
     def _finish_variation_ui(self) -> None:
         if not self.variation.is_active:
             return
-        self.analysis_panel.toggle_checkbox.setEnabled(False)
-        self.analysis_panel.toggle_checkbox.setToolTip("Exit the variation to change engine lines")
         self._update_explore_controls()
 
     def _on_variation_exited(self, index: int) -> None:

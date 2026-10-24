@@ -13,6 +13,28 @@ from src.utils.logger import logger
 from .base_api import BaseChessAPI
 
 
+def _result_for_side(game_data: dict, side: str) -> str:
+    """Map a Lichess result to the Chess.com-style value used by the UI.
+
+    Lichess only sends a winner for decisive games, so the old fallback turned
+    every resignation/timeout into an agreed draw. Keep the loss reason so
+    history records and win/loss metrics stay accurate.
+    """
+    if game_data.get("winner") == side:
+        return "win"
+
+    status = game_data.get("status", "")
+    if status == "resign":
+        return "resigned"
+    if status in ("outoftime", "timeout"):
+        return "timeout"
+    if status == "mate":
+        return "checkmated"
+    if status == "stalemate":
+        return "stalemate"
+    return "agreed"
+
+
 class LichessAPI(BaseChessAPI):
     BASE_URL = LICHESS_BASE_URL
 
@@ -80,11 +102,7 @@ class LichessAPI(BaseChessAPI):
                                 "rating": game_data.get("players", {})
                                 .get("white", {})
                                 .get("rating", "?"),
-                                "result": "win"
-                                if game_data.get("winner") == "white"
-                                else "checkmated"
-                                if game_data.get("status") == "mate"
-                                else "agreed",
+                                "result": _result_for_side(game_data, "white"),
                             },
                             "black": {
                                 "username": game_data.get("players", {})
@@ -94,11 +112,7 @@ class LichessAPI(BaseChessAPI):
                                 "rating": game_data.get("players", {})
                                 .get("black", {})
                                 .get("rating", "?"),
-                                "result": "win"
-                                if game_data.get("winner") == "black"
-                                else "checkmated"
-                                if game_data.get("status") == "mate"
-                                else "agreed",
+                                "result": _result_for_side(game_data, "black"),
                             },
                             "time_class": game_data.get("speed", "standard"),
                             "end_time": int(
@@ -160,11 +174,7 @@ class LichessAPI(BaseChessAPI):
                                 "rating": game_data.get("players", {})
                                 .get("white", {})
                                 .get("rating", "?"),
-                                "result": "win"
-                                if game_data.get("winner") == "white"
-                                else "checkmated"
-                                if game_data.get("status") == "mate"
-                                else "agreed",
+                                "result": _result_for_side(game_data, "white"),
                             },
                             "black": {
                                 "username": game_data.get("players", {})
@@ -174,11 +184,7 @@ class LichessAPI(BaseChessAPI):
                                 "rating": game_data.get("players", {})
                                 .get("black", {})
                                 .get("rating", "?"),
-                                "result": "win"
-                                if game_data.get("winner") == "black"
-                                else "checkmated"
-                                if game_data.get("status") == "mate"
-                                else "agreed",
+                                "result": _result_for_side(game_data, "black"),
                             },
                             "time_class": game_data.get("speed", "standard"),
                             "end_time": int(game_data.get("createdAt", 0) / 1000),

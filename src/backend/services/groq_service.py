@@ -83,7 +83,7 @@ def _detect_ui_locale_code() -> str:
         lang_env = os.environ.get("LANG") or os.environ.get("LANGUAGE") or ""
         code = lang_env.split(".")[0].split("_")[0].lower()
         if not code:
-            loc = locale.getdefaultlocale()
+            loc = locale.getlocale()
             code = (loc[0] or "").split("_")[0].lower()
         return code or "en"
     except Exception:
@@ -97,14 +97,14 @@ def _detect_ui_language() -> str:
 
     Resolution order:
       1. LANG / LANGUAGE environment variables  (most reliable on Linux)
-      2. Python locale.getdefaultlocale()
+      2. Python locale.getlocale()
       3. Falls back to 'English'
     """
     try:
         lang_env = os.environ.get("LANG") or os.environ.get("LANGUAGE") or ""
         code = lang_env.split(".")[0].split("_")[0].lower()
         if not code:
-            loc = locale.getdefaultlocale()
+            loc = locale.getlocale()
             code = (loc[0] or "").split("_")[0].lower()
     except Exception:
         code = ""

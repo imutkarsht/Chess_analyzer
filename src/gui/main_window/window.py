@@ -84,7 +84,7 @@ class MainWindow(
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Chess Analyzer Pro")
-        self.resize(1600, 900)
+        self._apply_default_window_size()
 
         # State
         self.games = []
@@ -185,6 +185,18 @@ class MainWindow(
     # ------------------------------------------------------------------
     # Window geometry persistence
     # ------------------------------------------------------------------
+
+    def _apply_default_window_size(self):
+        """Pick a first-launch size from the user's actual screen."""
+        screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            self.resize(1600, 900)
+            return
+        available = screen.availableGeometry()
+        self.resize(
+            max(1280, min(1920, int(available.width() * 0.85))),
+            max(720, min(1080, int(available.height() * 0.85))),
+        )
 
     def _restore_window_state(self):
         """Restore the main window's last-known position and size."""
@@ -716,10 +728,9 @@ class MainWindow(
         self.welcome_panel = WelcomePanel(parent=self)
         splitter.addWidget(self.welcome_panel)
 
-        splitter.setSizes([280, 840, 280, 0])
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
+        splitter.setStretchFactor(0, 25)
+        splitter.setStretchFactor(1, 45)
+        splitter.setStretchFactor(2, 30)
         splitter.setStretchFactor(3, 0)
 
         self._update_analysis_view_mode(has_game=self.current_game is not None)

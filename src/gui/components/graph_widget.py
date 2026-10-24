@@ -19,6 +19,11 @@ class GraphWidget(QWidget):
         self.layout.addWidget(self.canvas)
         self.ax = self.figure.add_subplot(111)
 
+        # Attach once; _render_plot() runs on every analysed move and must not
+        # accumulate duplicate callbacks on the canvas.
+        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
+        self.canvas.mpl_connect("button_press_event", self.on_click)
+
         self.setFixedHeight(int(self.figure.get_figheight() * self.figure.get_dpi()))
 
         self.clear()
@@ -175,9 +180,6 @@ class GraphWidget(QWidget):
                             fontsize=11,
                             arrowprops=dict(arrowstyle="->", color=Styles.COLOR_TEXT_SECONDARY))
         self.annot.set_visible(False)
-
-        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
-        self.canvas.mpl_connect("button_press_event", self.on_click)
 
     def set_current_move(self, move_index):
         if not hasattr(self, 'current_move_line') or self.current_move_line is None:

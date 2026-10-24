@@ -458,25 +458,28 @@ class Board(QWidget):
         If move_index is -1, set to initial position.
         """
         self.current_move_index = move_index
-        if self.game_moves:
-            self.board = chess.Board(self.game_moves[0].fen_before, chess960=self.is_chess960)
-        else:
-            self.board = chess.Board(chess960=self.is_chess960)
-
         cp = 0.0
         mate = None
 
-        # Replay moves
-        for i in range(move_index + 1):
-            if i < len(self.game_moves):
-                move = self.game_moves[i]
-                self.board.push_uci(move.uci)
-
-                if i == move_index:
-                    if move.eval_after_mate is not None:
-                        mate = move.eval_after_mate
-                    elif move.eval_after_cp is not None:
-                        cp = move.eval_after_cp
+        if self.game_moves and move_index >= 0:
+            idx = min(move_index, len(self.game_moves) - 1)
+            move = self.game_moves[idx]
+            # fen_before is cached on every MoveAnalysis, so rebuilding the
+            # board from move 0 on every navigation step is unnecessary.
+            self.board = chess.Board(move.fen_before, chess960=self.is_chess960)
+            self.board.push_uci(move.uci)
+            if move_index == idx:
+                if move.eval_after_mate is not None:
+                    mate = move.eval_after_mate
+                elif move.eval_after_cp is not None:
+                    cp = move.eval_after_cp
+        else:
+            start_fen = self.game_moves[0].fen_before if self.game_moves else None
+            self.board = (
+                chess.Board(start_fen, chess960=self.is_chess960)
+                if start_fen
+                else chess.Board(chess960=self.is_chess960)
+            )
 
         self.update_board()
         self.draw_overlays(move_index)

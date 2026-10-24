@@ -107,15 +107,18 @@ class GameLoadingMixin:
         if hasattr(self, "splitter"):
             total_w = self.splitter.width()
             if total_w < 500:
-                total_w = max(self.width(), 1100)
+                # The splitter has not been laid out yet; use the real window
+                # width minus the sidebar instead of a fixed design width.
+                sidebar_w = self.sidebar.width() if hasattr(self, "sidebar") else 0
+                total_w = max(self.width() - sidebar_w, 1)
             if has_game:
-                left_w = int(total_w * 0.20)
-                center_w = int(total_w * 0.60)
+                left_w = int(total_w * 0.25)
+                center_w = int(total_w * 0.45)
                 right_w = total_w - left_w - center_w
                 self.splitter.setSizes([left_w, center_w, right_w, 0])
-                self.splitter.setStretchFactor(0, 0)
-                self.splitter.setStretchFactor(1, 1)
-                self.splitter.setStretchFactor(2, 0)
+                self.splitter.setStretchFactor(0, 25)
+                self.splitter.setStretchFactor(1, 45)
+                self.splitter.setStretchFactor(2, 30)
                 self.splitter.setStretchFactor(3, 0)
             else:
                 left_w = int(total_w * 0.60)

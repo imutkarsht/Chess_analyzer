@@ -162,7 +162,18 @@ class PGNParser:
             except ValueError:
                 return None
 
+        def _increment_seconds() -> float:
+            """Seconds added after each move, e.g. the ``2`` in ``180+2``."""
+            tc = headers.get("TimeControl", "")
+            if not tc or "+" not in tc:
+                return 0.0
+            try:
+                return float(tc.rsplit("+", 1)[1])
+            except ValueError:
+                return 0.0
+
         start_clock = _initial_clock_seconds()
+        increment = _increment_seconds()
 
         for node in game.mainline():
             move = node.move
@@ -187,7 +198,9 @@ class PGNParser:
                 if previous is None and start_clock is not None:
                     previous = start_clock
                 if previous is not None:
-                    delta = previous - time_left
+                    # The recorded clock already includes the increment granted
+                    # after the move, so add it back to recover think time.
+                    delta = previous - time_left + increment
                     if delta >= 0:
                         time_spent = delta
                 last_clk[side_to_move] = time_left
