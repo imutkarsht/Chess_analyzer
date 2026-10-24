@@ -1583,6 +1583,38 @@ class Styles(metaclass=_StylesMeta):
         return f"background-color: {p.surface};"
 
     @classmethod
+    def get_empty_state_cta_style(cls, drag_active: bool = False):
+        """Landing hero card; the accent border doubles as the drop-target cue."""
+        p = ThemeManager.palette()
+        border = p.accent if drag_active else p.border
+        return f"""
+            QFrame#EmptyStateCTA {{
+                background-color: {p.surface_light};
+                border: 1px solid {border};
+                border-radius: 8px;
+            }}
+        """
+
+    @classmethod
+    def get_hero_hint_style(cls, drag_active: bool = False):
+        p = ThemeManager.palette()
+        color = p.accent if drag_active else p.text_secondary
+        weight = "600" if drag_active else "500"
+        return (
+            f"font-size: 12px; font-weight: {weight}; color: {color}; "
+            "background: transparent;"
+        )
+
+    @classmethod
+    def get_keycap_style(cls):
+        p = ThemeManager.palette()
+        return (
+            f"font-size: 11px; font-weight: 600; color: {p.text_muted}; "
+            f"background-color: {p.surface}; border: 1px solid {p.border}; "
+            "border-radius: 9px; padding: 2px 8px;"
+        )
+
+    @classmethod
     def get_sidebar_style(cls):
         p = ThemeManager.palette()
         return f"""

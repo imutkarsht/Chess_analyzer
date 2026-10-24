@@ -15,6 +15,12 @@ from .termination_detector import TerminationDetector
 _CLK_RE = re.compile(r"\[%clk\s+(\d+):(\d{1,2}):(\d{1,2}(?:\.\d+)?)\]")
 
 
+def looks_like_pgn(text: str | None) -> bool:
+    """Cheap entry-point check before invoking the full PGN parser."""
+    stripped = (text or "").strip()
+    return bool(stripped) and ("[Event" in stripped or "1." in stripped)
+
+
 def _parse_clk(comment: str | None) -> tuple[str | None, float | None]:
     """
     Pull the first [%clk …] value out of a move comment.
