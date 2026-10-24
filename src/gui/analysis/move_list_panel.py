@@ -313,7 +313,7 @@ class MoveListPanel(QWidget):
         """SAN wins when space is tight: drop the numeric think time, keep the bar."""
         if not self._move_widgets:
             return
-        compact = self.table.columnWidth(1) < 130
+        compact = self.table.columnWidth(1) < 100
         for widget in self._move_widgets.values():
             widget.set_compact(compact)
 

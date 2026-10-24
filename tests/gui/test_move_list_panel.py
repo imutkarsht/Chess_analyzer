@@ -1,6 +1,7 @@
 """Move-list selection: White-perspective lines for the position on the board."""
 
 import chess
+import pytest
 
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.analysis.move_list_panel import MoveListPanel
@@ -29,6 +30,59 @@ def _panel(qtbot, mocker) -> MoveListPanel:
     panel = MoveListPanel()
     qtbot.addWidget(panel)
     return panel
+
+
+def _timed_game() -> GameAnalysis:
+    moves = [
+        MoveAnalysis(1, i + 1, san, uci, chess.STARTING_FEN, time_spent=2.0)
+        for i, (san, uci) in enumerate(
+            [("e4", "e2e4"), ("e5", "e7e5"), ("Nf3", "g1f3"), ("Nc6", "b8c6")]
+        )
+    ]
+    return GameAnalysis(
+        game_id="timed",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=moves,
+        pgn_content="",
+    )
+
+
+@pytest.mark.parametrize(
+    ("panel_width", "expect_time"),
+    [(280, True), (220, False)],
+)
+def test_think_time_stays_inline_at_default_pane_width(
+    qtbot, mocker, panel_width, expect_time
+):
+    """The allowed splitter width must not force users to expand for clocks."""
+    panel = _panel(qtbot, mocker)
+    panel.resize(panel_width, 500)
+    panel.set_game(_timed_game())
+    panel.show()
+    qtbot.wait(10)
+
+    panel._update_compact_mode()
+
+    assert all(w._compact != expect_time for w in panel._move_widgets.values())
+
+
+def test_time_gap_grows_when_pane_is_stretched(qtbot, mocker):
+    """Extra column width belongs between the SAN and the clock, not as dead space."""
+    panel = _panel(qtbot, mocker)
+    panel.set_game(_timed_game())
+    panel.show()
+
+    panel.resize(280, 500)
+    qtbot.wait(10)
+    panel._update_compact_mode()
+    cell = panel._move_widgets[0]
+    narrow_time_x = cell._time_label.x()
+
+    panel.resize(420, 500)
+    qtbot.wait(10)
+    wide_time_x = cell._time_label.x()
+
+    assert wide_time_x > narrow_time_x
 
 
 def test_checkmate_shows_only_the_mating_line(qtbot, mocker):

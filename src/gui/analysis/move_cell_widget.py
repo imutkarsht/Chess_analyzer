@@ -28,13 +28,15 @@ class MoveCellWidget(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(10, 4, 8, 4)
+        outer.setContentsMargins(8, 4, 6, 4)
         outer.setSpacing(3)
 
-        # Top row: icon + SAN + time label
+        # Top row: icon + SAN + time label, with the time kept adjacent to the
+        # move text so it fits in a narrow pane instead of being pushed to the
+        # far edge of a stretched column.
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
-        top_row.setSpacing(6)
+        top_row.setSpacing(4)
 
         self._icon_label = QLabel(self)
         self._icon_label.setFixedSize(16, 16)
@@ -59,7 +61,7 @@ class MoveCellWidget(QWidget):
         top_row.addWidget(self._variation_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._time_label = QLabel(self)
-        self._time_label.setFixedWidth(34)
+        self._time_label.setFixedWidth(30)
         self._time_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         self._time_label.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
