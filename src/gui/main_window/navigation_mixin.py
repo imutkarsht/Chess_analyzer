@@ -246,10 +246,9 @@ class NavigationMixin:
         if variation is not None and variation.is_active:
             variation.exit()
             return
-        if getattr(self, "stack", None) is not None and self.stack.currentIndex() == 1:
+        if getattr(self, "stack", None) is not None and self.stack.currentIndex() == PAGE_EXPLORER:
             # The Explorer page is reached via "Explore from here"; Esc returns.
-            self.sidebar.set_active(0)
-            self.switch_page(0)
+            self._go_to_page(PAGE_ANALYSIS)
 
     def _handle_analyze_shortcut(self):
         """Handle Ctrl+A shortcut without hijacking select-all in editable fields."""

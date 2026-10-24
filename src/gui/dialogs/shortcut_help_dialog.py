@@ -35,8 +35,8 @@ class ShortcutHelpDialog(QDialog):
         super().__init__(parent)
         self._bindings = bindings if bindings is not None else self._lookup_bindings(parent)
         self.setWindowTitle("Keyboard Shortcuts")
-        self.resize(520, 620)
-        self.setMinimumSize(480, 540)
+        self.resize(760, 580)
+        self.setMinimumSize(680, 480)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
             QDialog {{
@@ -51,8 +51,8 @@ class ShortcutHelpDialog(QDialog):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
 
         # Header with icon
         header_layout = QHBoxLayout()
@@ -61,7 +61,7 @@ class ShortcutHelpDialog(QDialog):
         if HAS_QTAWESOME:
             icon_label = QLabel()
             icon_label.setPixmap(
-                qta.icon("fa5s.keyboard", color=Styles.COLOR_ACCENT).pixmap(28, 28)
+                qta.icon("fa5s.keyboard", color=Styles.COLOR_ACCENT).pixmap(26, 26)
             )
             header_layout.addWidget(icon_label)
 
@@ -76,12 +76,12 @@ class ShortcutHelpDialog(QDialog):
         layout.addLayout(header_layout)
 
         # Subtitle
-        subtitle = QLabel("Master these shortcuts to analyze games faster")
+        subtitle = QLabel("Master these shortcuts to navigate and analyze games faster")
         subtitle.setStyleSheet(f"""
             font-size: 12px;
             color: {Styles.COLOR_TEXT_SECONDARY};
             background: transparent;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         """)
         layout.addWidget(subtitle)
 
@@ -92,16 +92,35 @@ class ShortcutHelpDialog(QDialog):
         scroll.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND}; border: none;")
 
         content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setSpacing(12)
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout = QHBoxLayout(content)
+        content_layout.setSpacing(18)
+        content_layout.setContentsMargins(0, 0, 4, 0)
+
+        left_column = QVBoxLayout()
+        left_column.setSpacing(10)
+        left_column.setContentsMargins(0, 0, 0, 0)
+
+        right_column = QVBoxLayout()
+        right_column.setSpacing(10)
+        right_column.setContentsMargins(0, 0, 0, 0)
+
+        content_layout.addLayout(left_column, 1)
+        content_layout.addLayout(right_column, 1)
 
         shortcuts = self._group_bindings(self._bindings)
+        left_categories = {"Navigation", "Board", "Variations"}
 
         for category, items in shortcuts.items():
+            target_col = left_column if category in left_categories else right_column
+
+            cat_widget = QWidget()
+            cat_layout = QVBoxLayout(cat_widget)
+            cat_layout.setContentsMargins(0, 0, 0, 0)
+            cat_layout.setSpacing(4)
+
             # Category Header
-            cat_layout = QHBoxLayout()
-            cat_layout.setSpacing(8)
+            hdr_layout = QHBoxLayout()
+            hdr_layout.setSpacing(8)
 
             if HAS_QTAWESOME:
                 cat_icons = {
@@ -120,7 +139,7 @@ class ShortcutHelpDialog(QDialog):
                         cat_icons.get(category, "fa5s.circle"), color=Styles.COLOR_ACCENT
                     ).pixmap(14, 14)
                 )
-                cat_layout.addWidget(cat_icon)
+                hdr_layout.addWidget(cat_icon)
 
             category_label = QLabel(category)
             category_label.setStyleSheet(f"""
@@ -128,22 +147,20 @@ class ShortcutHelpDialog(QDialog):
                 font-weight: 600;
                 color: {Styles.COLOR_ACCENT};
             """)
-            cat_layout.addWidget(category_label)
-            cat_layout.addStretch()
-
-            content_layout.addLayout(cat_layout)
+            hdr_layout.addWidget(category_label)
+            hdr_layout.addStretch()
+            cat_layout.addLayout(hdr_layout)
 
             # Shortcut items
             for key, description in items:
                 row = self._create_shortcut_row(key, description)
-                content_layout.addWidget(row)
+                cat_layout.addWidget(row)
 
-            # Add spacing between categories
-            spacer = QWidget()
-            spacer.setFixedHeight(4)
-            content_layout.addWidget(spacer)
+            target_col.addWidget(cat_widget)
 
-        content_layout.addStretch()
+        left_column.addStretch()
+        right_column.addStretch()
+
         scroll.setWidget(content)
         layout.addWidget(scroll)
 
@@ -154,7 +171,7 @@ class ShortcutHelpDialog(QDialog):
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 color: {Styles.COLOR_TEXT_SECONDARY};
                 border: 1px solid {Styles.COLOR_BORDER};
-                padding: 9px 18px;
+                padding: 8px 16px;
                 border-radius: 6px;
                 font-weight: 500;
                 font-size: 12px;
@@ -177,7 +194,7 @@ class ShortcutHelpDialog(QDialog):
                 background-color: {Styles.COLOR_ACCENT};
                 color: white;
                 border: none;
-                padding: 9px 24px;
+                padding: 8px 24px;
                 border-radius: 6px;
                 font-weight: 600;
                 font-size: 13px;
@@ -225,12 +242,18 @@ class ShortcutHelpDialog(QDialog):
         dialog.exec()
 
     def _create_shortcut_row(self, key, description):
-        """Create a row with key badge and description."""
+        """Create a compact row with key badge and description."""
         row = QFrame()
+        row.setObjectName("ShortcutRow")
         row.setStyleSheet(f"""
-            QFrame {{
+            QFrame#ShortcutRow {{
                 background-color: {Styles.COLOR_SURFACE};
+                border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
+            }}
+            QFrame#ShortcutRow:hover {{
+                border-color: {Styles.COLOR_ACCENT};
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
             }}
             QFrame QLabel {{
                 background: transparent;
@@ -238,30 +261,31 @@ class ShortcutHelpDialog(QDialog):
         """)
 
         row_layout = QHBoxLayout(row)
-        row_layout.setContentsMargins(12, 8, 12, 8)
+        row_layout.setContentsMargins(10, 5, 10, 5)
+        row_layout.setSpacing(10)
 
         # Key badge
         key_label = QLabel(key)
         key_label.setStyleSheet(f"""
             background-color: {Styles.COLOR_SURFACE_LIGHT};
             color: {Styles.COLOR_TEXT_PRIMARY};
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
             border: 1px solid {Styles.COLOR_BORDER};
         """)
-        key_label.setMinimumWidth(80)
+        key_label.setMinimumWidth(68)
         key_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         row_layout.addWidget(key_label)
 
         # Description
         desc_label = QLabel(description)
         desc_label.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
+            color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 12px;
-            padding-left: 8px;
+            font-weight: 500;
         """)
         row_layout.addWidget(desc_label)
         row_layout.addStretch()

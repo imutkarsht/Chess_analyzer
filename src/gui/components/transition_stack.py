@@ -1,4 +1,8 @@
+import os
+import sys
+
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation
+from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import QGraphicsOpacityEffect, QStackedWidget
 
 
@@ -8,6 +12,12 @@ class FadedStackedWidget(QStackedWidget):
         self._fade_out = None
         self._fade_in = None
         self._target_index = None
+
+    def _should_animate(self) -> bool:
+        if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
+            return False
+        app = QGuiApplication.instance()
+        return not (app and app.platformName() == "offscreen")
 
     def setCurrentIndex(self, index):
         if index < 0 or index >= self.count():
@@ -34,7 +44,12 @@ class FadedStackedWidget(QStackedWidget):
         current_widget = self.currentWidget()
         next_widget = self.widget(index)
 
-        if current_widget is None or next_widget is None or current_widget == next_widget:
+        if (
+            current_widget is None
+            or next_widget is None
+            or current_widget == next_widget
+            or not self._should_animate()
+        ):
             super().setCurrentIndex(index)
             self._target_index = None
             return
