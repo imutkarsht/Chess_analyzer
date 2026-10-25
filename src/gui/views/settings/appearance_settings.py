@@ -21,7 +21,6 @@ from .components import (
     RadioChoice,
     SettingsBinder,
     SettingsForm,
-    make_checkbox,
     make_combo,
 )
 from .helpers import create_icon_button
@@ -146,27 +145,16 @@ class AppearanceSettings(QGroupBox):
     def _add_board_display_rows(self):
         self.coordinates_checkbox = self.binder.add(
             "board_show_coordinates",
-            make_checkbox("Show coordinates"),
-            hint="",
-            width=None,
             on_change=lambda _value: self.theme_refreshed.emit(),
         )
 
         self.classification_checkbox = self.binder.add(
             "board_show_classification",
-            make_checkbox("Show move quality badges"),
-            hint="",
-            width=None,
             on_change=lambda _value: self.theme_refreshed.emit(),
         )
 
     def _add_sound_row(self):
-        self.sound_checkbox = self.binder.add(
-            "sound_enabled",
-            make_checkbox("Enable Sound Effects"),
-            hint="",
-            width=None,
-        )
+        self.sound_checkbox = self.binder.add("sound_enabled")
 
     def _add_accent_row(self):
         self.color_btn = QPushButton("Choose Color")
@@ -238,7 +226,7 @@ class AppearanceSettings(QGroupBox):
             return
 
         choices = [(name, name) for name in get_piece_theme_names()]
-        SettingsBinder._populate_combo(self.piece_combo, choices)
+        self.binder.set_choices("piece_theme", choices)
         self.piece_combo.setCurrentIndex(max(self.piece_combo.findData(theme_name), 0))
         MainWindow.toast_from_widget(
             self, f"Piece theme '{theme_name}' imported and active.", "success"

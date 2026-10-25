@@ -5,7 +5,7 @@ import os
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from ...styles import Styles
-from .components import SettingsBinder, SettingsForm, make_line_edit
+from .components import CONTROL_WIDE, SettingsBinder, SettingsForm, make_line_edit
 from .modern_widgets import ModernSliderCounter, PasswordFieldWrapper
 
 
@@ -44,7 +44,7 @@ class PlayerSettings(QGroupBox):
             "api_games_limit",
             self.games_limit_input,
             hint="Maximum recent games to fetch at once.",
-            width=None,
+            width=CONTROL_WIDE,
             on_change=self._on_games_limit_changed,
         )
 
