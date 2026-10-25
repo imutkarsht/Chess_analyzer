@@ -52,7 +52,11 @@ class MoveListPanel(QWidget):
         )
         self.session.lines_changed.connect(self._on_session_lines)
 
-        self.engine_lines_enabled = False  # Off by default!
+        self.engine_lines_enabled = (
+            bool(config_manager.get("engine_lines_enabled", False))
+            if config_manager is not None
+            else False
+        )
         # The move list's live engine is shared with variation exploration.
         self._analysed_fen: str | None = None
         self._variation_active = False

@@ -18,7 +18,7 @@ from src.constants import (
     DEFAULT_ENGINE_HASH_MB,
     DEFAULT_ENGINE_THREADS,
     DEFAULT_LIVE_ANALYSIS_TIME,
-    DEFAULT_MULTI_PV,
+    DEFAULT_LIVE_MULTI_PV,
 )
 from src.utils.logger import logger
 
@@ -71,12 +71,14 @@ class LiveAnalysisWorker(QThread):
     def _live_multi_pv(self) -> int:
         if self.config_manager is not None:
             try:
-                value = int(self.config_manager.get("multi_pv", DEFAULT_MULTI_PV))
+                value = int(
+                    self.config_manager.get("live_multi_pv", DEFAULT_LIVE_MULTI_PV)
+                )
                 if value >= 1:
                     return value
             except (TypeError, ValueError):
                 pass
-        return DEFAULT_MULTI_PV
+        return DEFAULT_LIVE_MULTI_PV
 
     def _live_depth(self) -> int:
         if self.config_manager is not None:

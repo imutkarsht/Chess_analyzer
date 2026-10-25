@@ -19,7 +19,11 @@ class TestConfigManager:
             assert manager.get("theme_mode") == "system"
             assert manager.get("multi_pv") == 2
             assert manager.get("live_analysis_time") == 0.5
+            assert manager.get("live_multi_pv") == 2
             assert manager.get("analysis_depth") == 18
+            assert manager.get("time_per_move") == 1.0
+            assert manager.get("use_cache") is True
+            assert manager.get("engine_lines_enabled") is False
             assert manager.get("api_games_limit") == 20
 
     def test_get_nonexistent_key(self, tmp_path):
@@ -155,6 +159,16 @@ class TestConfigManager:
             manager.set("explain_cache_ttl_days", None)
 
             assert manager.get("explain_cache_ttl_days") is None
+
+    def test_nullable_float_setting_accepts_none(self, tmp_path):
+        """The time cap stores ``None`` for a depth-only search."""
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager = ConfigManager()
+
+            manager.set("time_per_move", None)
+
+            assert manager.get("time_per_move") is None
 
     def test_non_nullable_int_setting_rejects_none(self, tmp_path):
         """Specs without ``nullable`` keep their previous value instead of going null."""

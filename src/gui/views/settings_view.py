@@ -28,7 +28,9 @@ from .settings import (
     CoachSettings,
     DataSettings,
     EngineSettings,
+    FullAnalysisSettings,
     LinksSettings,
+    LiveAnalysisSettings,
     PlayerSettings,
     ShortcutSettings,
 )
@@ -46,6 +48,7 @@ class SettingsView(QWidget):
     llm_config_changed = pyqtSignal()   # emitted after LLM settings are saved
     usernames_changed = pyqtSignal()
     sidebar_prefs_changed = pyqtSignal()
+    analysis_prefs_changed = pyqtSignal()  # cache / engine-lines shortcuts changed
 
     def __init__(self):
         super().__init__()
@@ -134,6 +137,8 @@ class SettingsView(QWidget):
 
         # Instantiate modular components
         self.engine_settings = EngineSettings(self.config_manager, self)
+        self.full_analysis_settings = FullAnalysisSettings(self.config_manager, self)
+        self.live_analysis_settings = LiveAnalysisSettings(self.config_manager, self)
         self.book_settings = BookSettings(self.config_manager, self)
         self.api_settings = ApiSettings(self.config_manager, self)
         self.coach_settings = CoachSettings(self.config_manager, self)
@@ -147,7 +152,12 @@ class SettingsView(QWidget):
         # migration lands, but the navigation and layout are now scalable.
         self._page_dividers: list[tuple[QFrame, QWidget]] = []
         self._settings_pages = {
-            "Analysis": [self.engine_settings, self.book_settings],
+            "Analysis": [
+                self.engine_settings,
+                self.full_analysis_settings,
+                self.live_analysis_settings,
+                self.book_settings,
+            ],
             "Appearance": [self.appearance_settings],
             "AI Coach": [self.api_settings, self.coach_settings],
             "Integrations": [self.player_settings],
@@ -179,12 +189,18 @@ class SettingsView(QWidget):
         # Connections
         self.appearance_settings.theme_refreshed.connect(self.on_theme_refreshed)
         self.appearance_settings.sidebar_prefs_changed.connect(self.sidebar_prefs_changed.emit)
+        for card in (self.full_analysis_settings, self.live_analysis_settings):
+            card.binder.changed.connect(self._on_analysis_binder_changed)
 
         # Backwards compatibility aliases for tests
         self.path_input = self.engine_settings.path_input
-        self.depth_combo = self.engine_settings.depth_combo
-        self.multi_pv_input = self.engine_settings.multi_pv_input
-        self.live_time_input = self.engine_settings.live_time_input
+        self.depth_combo = self.full_analysis_settings.depth_combo
+        self.time_cap_combo = self.full_analysis_settings.time_cap_combo
+        self.multi_pv_input = self.full_analysis_settings.multi_pv_input
+        self.use_cache_checkbox = self.full_analysis_settings.cache_checkbox
+        self.live_time_input = self.live_analysis_settings.live_time_input
+        self.live_multi_pv_input = self.live_analysis_settings.live_multi_pv_input
+        self.engine_lines_checkbox = self.live_analysis_settings.engine_lines_checkbox
         self.threads_input = self.engine_settings.threads_input
         self.hash_input = self.engine_settings.hash_input
 
@@ -235,6 +251,8 @@ class SettingsView(QWidget):
     def reload_from_config(self):
         self.config_manager.reload_config()
         self.engine_settings.reload_from_config()
+        self.full_analysis_settings.reload_from_config()
+        self.live_analysis_settings.reload_from_config()
         self.book_settings.reload_from_config()
         self.player_settings.reload_from_config()
         self.appearance_settings.reload_from_config()
@@ -264,6 +282,16 @@ class SettingsView(QWidget):
         """Hide a divider when the card it introduces is hidden (Basic mode)."""
         for divider, card in self._page_dividers:
             divider.setVisible(not card.isHidden())
+
+    def _on_analysis_binder_changed(self, key, _value) -> None:
+        """Mirror the panel shortcuts when their settings change."""
+        if key in {"use_cache", "engine_lines_enabled"}:
+            self.analysis_prefs_changed.emit()
+
+    def sync_analysis_shortcuts(self) -> None:
+        """Reload analysis cards after the eval panel changed the same keys."""
+        self.full_analysis_settings.binder.load()
+        self.live_analysis_settings.binder.load()
 
     def _build_search_index(self) -> dict[int, str]:
         """Searchable keywords per category, so results stay at category level."""
@@ -459,6 +487,8 @@ class SettingsView(QWidget):
         is_advanced = self._mode == "advanced"
 
         self.engine_settings.set_advanced_visible(is_advanced)
+        self.full_analysis_settings.set_advanced_visible(is_advanced)
+        self.live_analysis_settings.set_advanced_visible(is_advanced)
         self.book_settings.set_advanced_visible(is_advanced)
         self.api_settings.set_advanced_visible(is_advanced)
         self.coach_settings.set_advanced_visible(is_advanced)
@@ -551,6 +581,8 @@ class SettingsView(QWidget):
         """Persist widget state for every card that uses a SettingsBinder."""
         binder_cards = (
             (self.engine_settings, "binder"),
+            (self.full_analysis_settings, "binder"),
+            (self.live_analysis_settings, "binder"),
             (self.book_settings, "binder"),
             (self.player_settings, "binder"),
             (self.appearance_settings, "binder"),
@@ -598,6 +630,8 @@ class SettingsView(QWidget):
 
         cards = (
             getattr(self, 'engine_settings', None),
+            getattr(self, 'full_analysis_settings', None),
+            getattr(self, 'live_analysis_settings', None),
             getattr(self, 'book_settings', None),
             getattr(self, 'api_settings', None),
             getattr(self, 'coach_settings', None),

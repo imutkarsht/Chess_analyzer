@@ -457,7 +457,9 @@ class SettingsBinder(QObject):
         value = self._read_widget(key, widget)
         if value is _INVALID:
             return
-        if self.config_manager.get(key, None) == value:
+        spec = get_spec(key)
+        current = self.config_manager.get(key, spec.default if spec else None)
+        if current == value:
             return
         self.config_manager.set(key, value)
         callback = self._callbacks.get(key)

@@ -358,4 +358,34 @@ class AnalysisMixin:
             )
 
     def on_cache_toggled(self, checked):
-        self.analyzer.config["use_cache"] = checked
+        self.config_manager.set("use_cache", bool(checked))
+        if getattr(self, "analyzer", None):
+            self.analyzer.config["use_cache"] = bool(checked)
+        if hasattr(self, "settings_view"):
+            self.settings_view.sync_analysis_shortcuts()
+
+    def on_engine_lines_toggled(self, checked):
+        self.config_manager.set("engine_lines_enabled", bool(checked))
+        if hasattr(self, "settings_view"):
+            self.settings_view.sync_analysis_shortcuts()
+
+    def sync_analysis_prefs(self):
+        """Mirror the settings-page analysis shortcuts into the live panel."""
+        if not hasattr(self, "analysis_panel"):
+            return
+        use_cache = bool(self.config_manager.get("use_cache", True))
+        engine_lines = bool(self.config_manager.get("engine_lines_enabled", False))
+        if getattr(self, "analyzer", None):
+            self.analyzer.config["use_cache"] = use_cache
+        for checkbox, value in (
+            (self.analysis_panel.cache_checkbox, use_cache),
+            (self.analysis_panel.toggle_checkbox, engine_lines),
+        ):
+            checkbox.blockSignals(True)
+            checkbox.setChecked(value)
+            checkbox.blockSignals(False)
+        if (
+            hasattr(self, "move_list_panel")
+            and self.move_list_panel.engine_lines_enabled != engine_lines
+        ):
+            self.move_list_panel.set_engine_lines_enabled(engine_lines)

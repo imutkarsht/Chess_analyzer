@@ -13,11 +13,13 @@ from PyQt6.QtWidgets import (
 )
 
 from ...styles import Styles
-from .components import PathField, SettingsBinder, SettingsForm, make_combo
+from .components import PathField, SettingsBinder, SettingsForm
 from .modern_widgets import ModernHashComboBox, ModernSliderCounter
 
 
 class EngineSettings(QGroupBox):
+    """Stockfish binary, thread count, and transposition-table size."""
+
     def __init__(self, config_manager, parent=None):
         super().__init__("Chess Engine", parent)
         self.config_manager = config_manager
@@ -33,9 +35,6 @@ class EngineSettings(QGroupBox):
         layout.addWidget(self.form)
 
         self._add_path_row()
-        self._add_depth_row()
-        self._add_multi_pv_row()
-        self._add_live_time_row()
         self._add_threads_row()
         self._add_hash_row()
 
@@ -63,37 +62,6 @@ class EngineSettings(QGroupBox):
 
         self.binder.add("engine_path", self.path_field, container=container, hint="", width=None)
         self.path_input.editingFinished.connect(self.validate_engine_path)
-
-    def _add_depth_row(self):
-        self.depth_combo = self.binder.add(
-            "analysis_depth",
-            make_combo(100),
-            choices=[(depth, str(depth)) for depth in range(10, 26)],
-            hint="Higher depth is more accurate but slower.",
-            width=100,
-        )
-
-    def _add_multi_pv_row(self):
-        self.multi_pv_input = ModernSliderCounter(1, 5, step=1, parent=self)
-        self.multi_pv_input.setMaximumWidth(220)
-        self.binder.add(
-            "multi_pv",
-            self.multi_pv_input,
-            hint="1–5; 1 = best line only, recommended for laptops.",
-            width=None,
-        )
-
-    def _add_live_time_row(self):
-        self.live_time_input = ModernSliderCounter(
-            0.5, 10.0, step=0.1, is_float=True, parent=self
-        )
-        self.live_time_input.setMaximumWidth(220)
-        self.binder.add(
-            "live_analysis_time",
-            self.live_time_input,
-            hint="0.5–10.0; per-position CPU budget for the live panel.",
-            width=None,
-        )
 
     def _add_threads_row(self):
         max_threads = os.cpu_count() or 1
@@ -225,10 +193,8 @@ class EngineSettings(QGroupBox):
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.depth_combo.setStyleSheet(Styles.get_combobox_style())
         self.hash_input.refresh_styles()
         self.path_input.setStyleSheet(Styles.get_input_style())
         self.browse_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        for widget in (self.multi_pv_input, self.live_time_input, self.threads_input):
-            widget.refresh_styles()
+        self.threads_input.refresh_styles()
         self.validate_engine_path()

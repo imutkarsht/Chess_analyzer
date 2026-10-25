@@ -60,7 +60,9 @@ class Analyzer:
             # of laptop overheating because evaluating 3 PVs roughly
             # triples the search tree.
             "multi_pv": self.config_manager.get("multi_pv", DEFAULT_MULTI_PV),
-            "use_cache": True,
+            # The eval-panel checkbox writes this key too, so a saved preference
+            # survives restarts instead of silently reverting to True.
+            "use_cache": bool(self.config_manager.get("use_cache", True)),
         }
 
     def close(self):
@@ -190,6 +192,7 @@ class Analyzer:
         self.config["time_per_move"] = self.config_manager.get("time_per_move", 1.0)
         self.config["depth"] = self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)
         self.config["multi_pv"] = self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)
+        self.config["use_cache"] = bool(self.config_manager.get("use_cache", True))
 
         # Update Polyglot book path from settings if changed
         new_polyglot_path = self.config_manager.get("polyglot_book_path", "")

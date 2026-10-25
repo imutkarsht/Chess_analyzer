@@ -429,3 +429,77 @@ def test_analyzer_pause_and_resume_never_skips_move(mocker, tmp_path):
     assert 2 in reported_indices, "Move 2 was skipped in callback updates!"
     assert 3 in reported_indices, "Move 3 was skipped in callback updates!"
     assert game.status == "completed"
+
+
+def test_position_analysis_honours_null_time_cap_and_cache_off(mocker, mock_engine):
+    """`No cap` must reach the engine as time=None, and cache-off skips the cache."""
+    engine_manager = EngineManager("dummy_path")
+    engine_manager.engine = mock_engine
+    analyzer = Analyzer(engine_manager)
+    analyzer.config.update(
+        {"time_per_move": None, "depth": 18, "multi_pv": 1, "use_cache": False}
+    )
+    analyzer.cache = mocker.Mock()
+    mocker.patch.object(
+        analyzer.engine_manager,
+        "analyze_position",
+        return_value=[{"pv": [], "score": None, "depth": 18}],
+    )
+
+    move = MoveAnalysis(
+        move_number=1,
+        ply=1,
+        san="e4",
+        uci="e2e4",
+        fen_before=chess.STARTING_FEN,
+    )
+    analyzer._get_position_analysis(chess.Board(), move)
+
+    analyzer.engine_manager.analyze_position.assert_called_once_with(
+        mocker.ANY, time_limit=None, depth=18, multi_pv=1
+    )
+    analyzer.cache.get_analysis.assert_not_called()
+    analyzer.cache.save_analysis.assert_not_called()
+
+
+def test_analyze_positions_refreshes_analysis_prefs_from_config(mocker, mock_engine):
+    """Saved time cap / cache preferences apply to the next analysis run."""
+    engine_manager = EngineManager("dummy_path")
+    engine_manager.engine = mock_engine
+    analyzer = Analyzer(engine_manager)
+    analyzer.config_manager = mocker.Mock()
+    analyzer.config_manager.get.side_effect = lambda key, default=None: {
+        "time_per_move": None,
+        "analysis_depth": 20,
+        "multi_pv": 1,
+        "use_cache": False,
+        "polyglot_book_path": "",
+    }.get(key, default)
+
+    mocker.patch.object(analyzer, "_get_position_analysis", return_value=[])
+    mocker.patch.object(analyzer, "_analyze_final_position", return_value=None)
+    mocker.patch.object(analyzer, "_classify_and_calculate_stats")
+    mocker.patch.object(analyzer, "_calculate_final_accuracy")
+    mocker.patch.object(analyzer, "_log_classification_summary")
+    mocker.patch.object(engine_manager, "start_engine")
+    mocker.patch.object(engine_manager, "stop_engine")
+
+    game = GameAnalysis(
+        game_id="prefs_test",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=[
+            MoveAnalysis(
+                move_number=1,
+                ply=1,
+                san="e4",
+                uci="e2e4",
+                fen_before=chess.STARTING_FEN,
+            )
+        ],
+    )
+
+    analyzer._analyze_positions(game)
+
+    assert analyzer.config["time_per_move"] is None
+    assert analyzer.config["depth"] == 20
+    assert analyzer.config["use_cache"] is False

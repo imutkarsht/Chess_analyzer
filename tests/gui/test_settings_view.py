@@ -74,7 +74,7 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         # Modify some UI fields
         view.path_input.setText("mock-stockfish")
         view.threads_input.setText("3")
-        view.hash_input.setText("128")
+        view.hash_input.setText("256")
         view.chesscom_input.setText("NewUserChessCom")
         view.lichess_input.setText("NewUserLichess")
         view.games_limit_input.setText("15")
@@ -93,7 +93,7 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         # Verify changes are stored in the config
         assert view.config_manager.get("engine_path") == "mock-stockfish"
         assert view.config_manager.get("engine_threads") == 3
-        assert view.config_manager.get("engine_hash") == 128
+        assert view.config_manager.get("engine_hash") == 256
         assert view.config_manager.get("chesscom_username") == "NewUserChessCom"
         assert view.config_manager.get("lichess_username") == "NewUserLichess"
         assert view.config_manager.get("api_games_limit") == 15
@@ -128,6 +128,33 @@ def test_mode_toggle_hides_advanced_cards_and_their_dividers(qapp, qtbot, isolat
         view.mode_toggle_btn.click()  # -> Basic
         assert view.coach_settings.isHidden() is True
         assert divider.isHidden() is True
+
+
+def test_analysis_page_groups_cards_and_mirrors_shortcuts(qapp, qtbot, isolated_config):
+    """Analysis owns four cards, and the eval-panel shortcuts share their keys."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view._settings_pages["Analysis"] == [
+            view.engine_settings,
+            view.full_analysis_settings,
+            view.live_analysis_settings,
+            view.book_settings,
+        ]
+
+        emitted = []
+        view.analysis_prefs_changed.connect(lambda: emitted.append(True))
+
+        view.use_cache_checkbox.setChecked(False)
+        assert view.config_manager.get("use_cache") is False
+        assert emitted == [True]
+
+        view.engine_lines_checkbox.setChecked(True)
+        assert view.config_manager.get("engine_lines_enabled") is True
+        assert emitted == [True, True]
 
 
 def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isolated_config):

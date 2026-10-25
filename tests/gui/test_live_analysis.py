@@ -50,7 +50,7 @@ def test_live_limit_bounds_the_search_by_time(mocker):
     cm.get.side_effect = lambda key, default=None: {
         "live_analysis_time": 1.0,
         "analysis_depth": 20,
-        "multi_pv": 2,
+        "live_multi_pv": 2,
     }.get(key, default)
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
 
@@ -77,7 +77,7 @@ def test_live_worker_reads_config(mocker):
     cm = mocker.Mock()
     cm.get.side_effect = lambda key, default=None: {
         "live_analysis_time": 5.0,
-        "multi_pv": 3,
+        "live_multi_pv": 3,
     }.get(key, default)
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
     assert worker._live_time() == 5.0
@@ -90,7 +90,7 @@ def test_live_worker_falls_back_safely_on_garbage_config(mocker):
     cm = mocker.Mock()
     cm.get.side_effect = lambda key, default=None: {
         "live_analysis_time": "not-a-number",
-        "multi_pv": 0,  # invalid (< 1) — should be rejected
+        "live_multi_pv": 0,  # invalid (< 1) — should be rejected
     }.get(key, default)
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
     assert worker._live_time() == 0.5
