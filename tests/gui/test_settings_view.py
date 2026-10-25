@@ -157,6 +157,30 @@ def test_analysis_page_groups_cards_and_mirrors_shortcuts(qapp, qtbot, isolated_
         assert emitted == [True, True]
 
 
+def test_appearance_page_groups_four_cards(qapp, qtbot, isolated_config):
+    """Appearance is split into theme, board, layout, and sound cards."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view._settings_pages["Appearance"] == [
+            view.theme_accent_settings,
+            view.board_pieces_settings,
+            view.window_layout_settings,
+            view.sound_settings,
+        ]
+
+        # Board annotation and volume rows are advanced-only.
+        assert view.best_move_arrow_checkbox.parentWidget().isHidden() is True
+        assert view.sound_volume_input.parentWidget().isHidden() is True
+
+        view.mode_toggle_btn.click()  # -> Advanced
+        assert view.best_move_arrow_checkbox.parentWidget().isHidden() is False
+        assert view.sound_volume_input.parentWidget().isHidden() is False
+
+
 def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isolated_config):
     """Binder-driven cards persist on edit; Save must still notify the engine once."""
     from src.gui.views.settings_view import SettingsView

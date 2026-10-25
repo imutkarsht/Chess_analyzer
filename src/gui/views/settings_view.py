@@ -23,7 +23,7 @@ from src.utils.config import ConfigManager
 
 from .settings import (
     ApiSettings,
-    AppearanceSettings,
+    BoardPiecesSettings,
     BookSettings,
     CoachSettings,
     DataSettings,
@@ -33,6 +33,9 @@ from .settings import (
     LiveAnalysisSettings,
     PlayerSettings,
     ShortcutSettings,
+    SoundSettings,
+    ThemeAccentSettings,
+    WindowLayoutSettings,
 )
 
 try:
@@ -143,7 +146,10 @@ class SettingsView(QWidget):
         self.api_settings = ApiSettings(self.config_manager, self)
         self.coach_settings = CoachSettings(self.config_manager, self)
         self.player_settings = PlayerSettings(self.config_manager, self)
-        self.appearance_settings = AppearanceSettings(self.config_manager, self)
+        self.theme_accent_settings = ThemeAccentSettings(self.config_manager, self)
+        self.board_pieces_settings = BoardPiecesSettings(self.config_manager, self)
+        self.window_layout_settings = WindowLayoutSettings(self.config_manager, self)
+        self.sound_settings = SoundSettings(self.config_manager, self)
         self.data_settings = DataSettings(self)
         self.links_settings = LinksSettings(self)
         self.shortcut_settings = ShortcutSettings(self.config_manager, self)
@@ -158,7 +164,12 @@ class SettingsView(QWidget):
                 self.live_analysis_settings,
                 self.book_settings,
             ],
-            "Appearance": [self.appearance_settings],
+            "Appearance": [
+                self.theme_accent_settings,
+                self.board_pieces_settings,
+                self.window_layout_settings,
+                self.sound_settings,
+            ],
             "AI Coach": [self.api_settings, self.coach_settings],
             "Integrations": [self.player_settings],
             "Data & Storage": [self.data_settings],
@@ -187,8 +198,11 @@ class SettingsView(QWidget):
         self._style_category_rail()
 
         # Connections
-        self.appearance_settings.theme_refreshed.connect(self.on_theme_refreshed)
-        self.appearance_settings.sidebar_prefs_changed.connect(self.sidebar_prefs_changed.emit)
+        for card in (self.theme_accent_settings, self.board_pieces_settings):
+            card.theme_refreshed.connect(self.on_theme_refreshed)
+        self.window_layout_settings.sidebar_prefs_changed.connect(
+            self.sidebar_prefs_changed.emit
+        )
         for card in (self.full_analysis_settings, self.live_analysis_settings):
             card.binder.changed.connect(self._on_analysis_binder_changed)
 
@@ -221,12 +235,21 @@ class SettingsView(QWidget):
         self.lichess_input = self.player_settings.lichess_input
         self.games_limit_input = self.player_settings.games_limit_input
 
-        self.theme_combo = self.appearance_settings.theme_combo
-        self.piece_combo = self.appearance_settings.piece_combo
-        self.sound_checkbox = self.appearance_settings.sound_checkbox
-        self.coordinates_checkbox = self.appearance_settings.coordinates_checkbox
-        self.classification_checkbox = self.appearance_settings.classification_checkbox
-        self.color_btn = self.appearance_settings.color_btn
+        self.theme_combo = self.board_pieces_settings.theme_combo
+        self.piece_combo = self.board_pieces_settings.piece_combo
+        self.sound_checkbox = self.sound_settings.sound_checkbox
+        self.sound_volume_input = self.sound_settings.volume_input
+        self.coordinates_checkbox = self.board_pieces_settings.coordinates_checkbox
+        self.classification_checkbox = self.board_pieces_settings.classification_checkbox
+        self.best_move_arrow_checkbox = (
+            self.board_pieces_settings.best_move_arrow_checkbox
+        )
+        self.last_move_checkbox = self.board_pieces_settings.last_move_checkbox
+        self.eval_bar_checkbox = self.board_pieces_settings.eval_bar_checkbox
+        self.remember_window_checkbox = (
+            self.window_layout_settings.remember_window_checkbox
+        )
+        self.color_btn = self.theme_accent_settings.color_btn
 
         self.clear_cache_btn = self.data_settings.clear_cache_btn
         self.clear_data_btn = self.data_settings.clear_data_btn
@@ -255,7 +278,10 @@ class SettingsView(QWidget):
         self.live_analysis_settings.reload_from_config()
         self.book_settings.reload_from_config()
         self.player_settings.reload_from_config()
-        self.appearance_settings.reload_from_config()
+        self.theme_accent_settings.reload_from_config()
+        self.board_pieces_settings.reload_from_config()
+        self.window_layout_settings.reload_from_config()
+        self.sound_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
         self.coach_settings.sync_explanation_settings()
         self.api_settings._update_active_label()
@@ -493,7 +519,10 @@ class SettingsView(QWidget):
         self.api_settings.set_advanced_visible(is_advanced)
         self.coach_settings.set_advanced_visible(is_advanced)
         self.player_settings.set_advanced_visible(is_advanced)
-        self.appearance_settings.set_advanced_visible(is_advanced)
+        self.theme_accent_settings.set_advanced_visible(is_advanced)
+        self.board_pieces_settings.set_advanced_visible(is_advanced)
+        self.window_layout_settings.set_advanced_visible(is_advanced)
+        self.sound_settings.set_advanced_visible(is_advanced)
         self.data_settings.set_advanced_visible(is_advanced)
         self.links_settings.set_advanced_visible(is_advanced)
         self.shortcut_settings.set_advanced_visible(is_advanced)
@@ -585,7 +614,10 @@ class SettingsView(QWidget):
             (self.live_analysis_settings, "binder"),
             (self.book_settings, "binder"),
             (self.player_settings, "binder"),
-            (self.appearance_settings, "binder"),
+            (self.theme_accent_settings, "binder"),
+            (self.board_pieces_settings, "binder"),
+            (self.window_layout_settings, "binder"),
+            (self.sound_settings, "binder"),
             (self.shortcut_settings, "binder"),
             (self.coach_settings, "binder"),
         )
@@ -636,7 +668,10 @@ class SettingsView(QWidget):
             getattr(self, 'api_settings', None),
             getattr(self, 'coach_settings', None),
             getattr(self, 'player_settings', None),
-            getattr(self, 'appearance_settings', None),
+            getattr(self, 'theme_accent_settings', None),
+            getattr(self, 'board_pieces_settings', None),
+            getattr(self, 'window_layout_settings', None),
+            getattr(self, 'sound_settings', None),
             getattr(self, 'data_settings', None),
             getattr(self, 'links_settings', None),
             getattr(self, 'shortcut_settings', None),

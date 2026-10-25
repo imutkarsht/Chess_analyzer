@@ -578,7 +578,8 @@ class TourMixin:
         elif page_index == 4 or tour_key == "settings":  # ── Settings ─────────────────────────────────
             mode_btn = getattr(sv, "mode_toggle_btn", None)
             eng = getattr(sv, "engine_settings", None)
-            app = getattr(sv, "appearance_settings", None)
+            app = getattr(sv, "theme_accent_settings", None)
+            board = getattr(sv, "board_pieces_settings", None)
             api = getattr(sv, "api_settings", None)
             ply = getattr(sv, "player_settings", None)
             bok = getattr(sv, "book_settings", None)
@@ -610,8 +611,18 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=app,
-                        title="Appearance & Themes",
-                        text="Appearance: Switch between Dark & Light themes, choose custom board themes, import custom piece SVGs, pick live accent colors, and toggle sound effects.",
+                        title="Theme & Accent",
+                        text="Theme & Accent: Switch between Dark & Light themes and pick a system or custom accent colour.",
+                        position="below",
+                        page_index=4,
+                    )
+                )
+            if board and board.isVisible():
+                steps.append(
+                    TourStep(
+                        target=board,
+                        title="Board & Pieces",
+                        text="Board & Pieces: Choose board and piece themes, import custom piece SVGs, and toggle coordinates, quality badges, arrows, and the evaluation bar.",
                         position="below",
                         page_index=4,
                     )

@@ -200,6 +200,8 @@ class MainWindow(
 
     def _restore_window_state(self):
         """Restore the main window's last-known position and size."""
+        if not self.config_manager.get("remember_window_geometry", True):
+            return
         state = self.config_manager.get("window_state") or {}
         try:
             x = state.get("x")
@@ -235,6 +237,8 @@ class MainWindow(
 
     def _save_window_state(self):
         """Persist the current window geometry to the user config."""
+        if not self.config_manager.get("remember_window_geometry", True):
+            return
         frame = self.frameGeometry()
         self.config_manager.set(
             "window_state",

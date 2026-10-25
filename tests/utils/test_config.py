@@ -24,6 +24,11 @@ class TestConfigManager:
             assert manager.get("time_per_move") == 1.0
             assert manager.get("use_cache") is True
             assert manager.get("engine_lines_enabled") is False
+            assert manager.get("board_show_best_move_arrow") is True
+            assert manager.get("board_show_last_move") is True
+            assert manager.get("board_show_eval_bar") is True
+            assert manager.get("remember_window_geometry") is True
+            assert manager.get("sound_volume") == 50
             assert manager.get("api_games_limit") == 20
 
     def test_get_nonexistent_key(self, tmp_path):

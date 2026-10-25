@@ -42,15 +42,15 @@ class BoardConfig:
     click_to_move: bool = True
     show_legal_moves: bool = True
 
-    # Appearance
+    # Appearance. None follows the global setting; an explicit bool pins it.
     show_coordinates: bool | None = None
-    show_last_move: bool = True
-    show_eval_bar: bool = True
+    show_last_move: bool | None = None
+    show_eval_bar: bool | None = None
     board_theme: str | None = None
     piece_theme: str | None = None
 
     # Analysis annotations
-    show_best_move_arrow: bool = True
+    show_best_move_arrow: bool | None = None
     # "game_move" draws the classification of the move being replayed; "last_move"
     # draws the badge for the move just played (live exploration).
     classification_overlay: ClassificationOverlay = "game_move"
@@ -81,8 +81,6 @@ class Board(QWidget):
 
         self.eval_bar = EvalBarWidget()
         self.eval_bar.setParent(self)
-        if not self.config.show_eval_bar:
-            self.eval_bar.hide()
 
         # Board Container (Stack Layout for Overlays)
         self.board_container = QWidget(self)
@@ -123,6 +121,12 @@ class Board(QWidget):
         # Resolved from BoardConfig + the global appearance settings in update_board().
         self._show_coordinates = True
         self._show_classification = True
+        self._show_last_move = True
+        self._show_best_move_arrow = True
+        self._show_eval_bar = True
+        # Hosts (analysis page, explorer) decide when the bar is meaningful;
+        # the setting only controls whether it may appear at all.
+        self._eval_bar_host_visible = True
 
         # Drag and drop floating piece visual
         self.drag_piece_label = QLabel(self.board_container)
@@ -614,16 +618,34 @@ class Board(QWidget):
         from ...utils.config import ConfigManager
 
         prefs = ConfigManager()
-        self._show_coordinates = (
-            self.config.show_coordinates
-            if self.config.show_coordinates is not None
-            else prefs.get("board_show_coordinates", True)
+
+        def resolve(override: bool | None, key: str, default: bool = True) -> bool:
+            return bool(override) if override is not None else bool(prefs.get(key, default))
+
+        self._show_coordinates = resolve(
+            self.config.show_coordinates, "board_show_coordinates"
         )
-        self._show_classification = (
-            self.config.show_classification_overlay
-            if self.config.show_classification_overlay is not None
-            else prefs.get("board_show_classification", True)
+        self._show_classification = resolve(
+            self.config.show_classification_overlay, "board_show_classification"
         )
+        self._show_last_move = resolve(
+            self.config.show_last_move, "board_show_last_move"
+        )
+        self._show_best_move_arrow = resolve(
+            self.config.show_best_move_arrow, "board_show_best_move_arrow"
+        )
+        self._show_eval_bar = resolve(
+            self.config.show_eval_bar, "board_show_eval_bar"
+        )
+
+    def set_eval_bar_visible(self, visible: bool) -> None:
+        """Tell the board whether its host currently has a position worth showing."""
+        self._eval_bar_host_visible = bool(visible)
+        self._apply_eval_bar_visibility()
+
+    def _apply_eval_bar_visibility(self) -> None:
+        if hasattr(self, "eval_bar"):
+            self.eval_bar.setVisible(self._eval_bar_host_visible and self._show_eval_bar)
 
     def refresh_settings(self):
         """Re-read appearance settings and redraw, clearing any now-hidden overlay."""
@@ -639,6 +661,7 @@ class Board(QWidget):
         from .piece_themes import get_piece_defs
 
         self._resolve_display_preferences()
+        self._apply_eval_bar_visibility()
         config = ConfigManager()
         board_theme_name = self.config.board_theme or config.get("board_theme", "Green")
         piece_theme_name = self.config.piece_theme or config.get("piece_theme", "Standard")
@@ -667,7 +690,7 @@ class Board(QWidget):
 
         # Resolve last move to highlight
         last_move = None
-        if self.config.show_last_move and self.board.move_stack:
+        if self._show_last_move and self.board.move_stack:
             last_move = self.board.move_stack[-1]
         last_from = last_move.from_square if last_move else None
         last_to = last_move.to_square if last_move else None
@@ -809,7 +832,7 @@ class Board(QWidget):
                 },
             )
 
-        if self.best_move_uci and self.config.show_best_move_arrow:
+        if self.best_move_uci and self._show_best_move_arrow:
             self._draw_best_move_arrow(svg, MARGIN, SQUARE_SIZE)
 
         return ET.tostring(svg, encoding="utf-8")

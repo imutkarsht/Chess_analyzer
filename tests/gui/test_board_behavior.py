@@ -42,7 +42,13 @@ def board(qapp):
 def board_prefs(qapp):
     """Mutate the global board preferences and restore them afterwards."""
     config = ConfigManager()
-    keys = ("board_show_coordinates", "board_show_classification")
+    keys = (
+        "board_show_coordinates",
+        "board_show_classification",
+        "board_show_best_move_arrow",
+        "board_show_last_move",
+        "board_show_eval_bar",
+    )
     original = {key: config.config.get(key) for key in keys}
     yield config
     for key, value in original.items():
@@ -292,6 +298,52 @@ def test_refresh_settings_hides_coordinates(qapp, board_prefs):
     board.refresh_settings()
     shown_svg = board._generate_custom_board_svg({"light": "#fff", "dark": "#000"}, "")
     assert b"<text" in shown_svg
+
+
+def test_refresh_settings_hides_last_move_highlight(qapp, board_prefs):
+    board = _make()
+    board.attempt_move(chess.E2, chess.E4)
+
+    def svg() -> bytes:
+        return board._generate_custom_board_svg({"light": "#fff", "dark": "#000"}, "")
+
+    assert b'opacity="0.35"' in svg()
+
+    board_prefs.config["board_show_last_move"] = False
+    board.refresh_settings()
+    assert b'opacity="0.35"' not in svg()
+
+
+def test_refresh_settings_hides_best_move_arrow(qapp, board_prefs):
+    board = _make()
+    board.set_best_move("e2e4")
+
+    def svg() -> bytes:
+        return board._generate_custom_board_svg({"light": "#fff", "dark": "#000"}, "")
+
+    assert b'stroke-width="14"' in svg()
+
+    board_prefs.config["board_show_best_move_arrow"] = False
+    board.refresh_settings()
+    assert b'stroke-width="14"' not in svg()
+
+
+def test_eval_bar_respects_setting_and_host_visibility(qapp, board_prefs):
+    board = _make()
+    assert board.eval_bar.isHidden() is False
+
+    board_prefs.config["board_show_eval_bar"] = False
+    board.refresh_settings()
+    assert board.eval_bar.isHidden() is True
+
+    # Re-enabling the setting cannot override a host with no position.
+    board.set_eval_bar_visible(False)
+    board_prefs.config["board_show_eval_bar"] = True
+    board.refresh_settings()
+    assert board.eval_bar.isHidden() is True
+
+    board.set_eval_bar_visible(True)
+    assert board.eval_bar.isHidden() is False
 
 
 def test_refresh_settings_hides_live_classification_badge(qapp, board_prefs):
