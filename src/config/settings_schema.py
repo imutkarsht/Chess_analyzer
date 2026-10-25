@@ -10,9 +10,11 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from src.constants import (
+    DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
     DEFAULT_ANALYSIS_DEPTH,
     DEFAULT_ENGINE_HASH_MB,
     DEFAULT_ENGINE_THREADS,
+    DEFAULT_EXPLORER_CACHE_TTL_HOURS,
     DEFAULT_LIVE_ANALYSIS_TIME,
     DEFAULT_LIVE_MULTI_PV,
     DEFAULT_MULTI_PV,
@@ -434,17 +436,50 @@ def _specs() -> tuple[SettingSpec, ...]:
         ),
         SettingSpec(
             "explain_cache_ttl_days",
-            "AI Coach",
-            "Explanations",
+            "Data & Storage",
+            "Retention",
             "Explanation cache TTL",
             "How long LLM explanations are reused. 'Never expire' keeps them forever.",
             "int",
             30,
             tier="advanced",
+            apply="live",
             minimum=7,
             maximum=365,
             step=1,
             nullable=True,
+        ),
+        # ------------------------------------------------------------
+        # Data & Storage
+        # ------------------------------------------------------------
+        SettingSpec(
+            "explorer_cache_ttl_hours",
+            "Data & Storage",
+            "Retention",
+            "Explorer cache TTL",
+            "How long cached opening-explorer responses are reused.",
+            "int",
+            DEFAULT_EXPLORER_CACHE_TTL_HOURS,
+            tier="advanced",
+            apply="live",
+            minimum=1,
+            maximum=8760,
+            step=1,
+            nullable=True,
+        ),
+        SettingSpec(
+            "analysis_cache_max_entries",
+            "Data & Storage",
+            "Retention",
+            "Cached evaluations kept",
+            "Oldest cached engine evaluations are pruned beyond this count.",
+            "int",
+            DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
+            tier="advanced",
+            apply="live",
+            minimum=10000,
+            maximum=1000000,
+            step=10000,
         ),
         # ------------------------------------------------------------
         # Keyboard / internal UI state

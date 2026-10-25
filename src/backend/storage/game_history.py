@@ -26,6 +26,7 @@ from src.backend.storage.games_repo import (
 from src.backend.storage.models import GameAnalysis
 from src.backend.storage.schema_constants import (
     CURRENT_SCHEMA_VERSION,
+    DATA_TABLES,
     EXPLORER_CACHE_TTL_SECONDS,
     GAME_COLUMNS,
     GAME_CSV_COLUMNS,
@@ -245,6 +246,30 @@ class GameHistoryManager:
     def get_explorer_cache(self, fen: str) -> str | None:
         """Retrieves a cached explorer response json by FEN, deleting expired entries."""
         return self._explorer_cache_repo.get_explorer_cache(fen)
+
+    def clear_explorer_cache(self) -> int:
+        """Deletes every cached explorer response; returns the removed row count."""
+        return self._explorer_cache_repo.clear_explorer_cache()
+
+    # --- Whole-store operations ---
+
+    def clear_all_data(self) -> None:
+        """Delete games and every cache table, then reclaim disk space.
+
+        Used by the reset action. Raises on failure so the caller can report it
+        instead of showing a false success message.
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                for table in DATA_TABLES:
+                    cursor.execute(f"DELETE FROM {table}")
+                conn.commit()
+                cursor.execute("VACUUM")
+            logger.info("All local game and cache data cleared.")
+        except Exception as e:
+            logger.error("Failed to clear all data: %s", e)
+            raise
 
     @staticmethod
     def _parse_cached_at_to_epoch(cached_at: Any) -> float:

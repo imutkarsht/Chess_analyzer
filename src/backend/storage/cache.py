@@ -5,7 +5,11 @@ import threading
 import time
 from typing import Any, Final
 
-from src.constants import DEFAULT_MULTI_PV, EXPLANATION_CACHE_TTL_DAYS
+from src.constants import (
+    DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
+    DEFAULT_MULTI_PV,
+    EXPLANATION_CACHE_TTL_DAYS,
+)
 from src.utils.logger import logger
 from src.utils.path_utils import get_user_data_dir
 
@@ -38,6 +42,10 @@ class AnalysisCache:
             self.db_path = db_path
         self.conn = None
         self._lock = threading.Lock()
+        # Pruning runs a COUNT(*) scan, so it is amortised across writes
+        # instead of running on every cached position.
+        self._PRUNE_INTERVAL = 500
+        self._saves_since_prune = 0
         self._ensure_connection()
         self._init_db()
 
@@ -161,6 +169,28 @@ class AnalysisCache:
                     ),
                 )
                 self.conn.commit()
+
+        self._saves_since_prune += 1
+        if self._saves_since_prune >= self._PRUNE_INTERVAL:
+            self._saves_since_prune = 0
+            self.prune_cache(self._configured_max_entries())
+
+    @staticmethod
+    def _configured_max_entries() -> int:
+        """Resolve the cache capacity from the saved setting."""
+        from src.utils.config import ConfigManager
+
+        try:
+            return max(
+                1_000,
+                int(
+                    ConfigManager().get(
+                        "analysis_cache_max_entries", DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES
+                    )
+                ),
+            )
+        except (TypeError, ValueError):
+            return DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES
 
     # ------------------------------------------------------------------
     # Coach move explanations (Phase 1)
@@ -348,19 +378,46 @@ class AnalysisCache:
             logger.debug(f"Failed to prune analysis cache: {e}")
             return 0
 
-    def clear_cache(self):
-        """Clears all cached analysis and reclaims disk space via VACUUM."""
+    def clear_cache(self) -> int:
+        """Delete cached engine evaluations and return the number of rows removed.
+
+        Explanation caching is a separate concern with its own TTL, so it is
+        cleared by :meth:`clear_explanations` instead.
+        """
         try:
             with self._lock:
                 self._ensure_connection()
                 cursor = self.conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM analysis")
+                total = int(cursor.fetchone()[0])
                 cursor.execute("DELETE FROM analysis")
+                self.conn.commit()
+                try:
+                    cursor.execute("VACUUM")
+                except Exception:
+                    pass
+                logger.info("Analysis cache cleared (%d entries) and vacuumed", total)
+                return total
+        except Exception as e:
+            logger.error(f"Failed to clear cache: {e}")
+            return 0
+
+    def clear_explanations(self) -> int:
+        """Delete cached LLM explanations and return how many were removed."""
+        try:
+            with self._lock:
+                self._ensure_connection()
+                cursor = self.conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM move_explanations")
+                total = int(cursor.fetchone()[0])
                 cursor.execute("DELETE FROM move_explanations")
                 self.conn.commit()
                 try:
                     cursor.execute("VACUUM")
                 except Exception:
                     pass
-                logger.info("Analysis cache cleared and vacuumed")
+                logger.info("Explanation cache cleared (%d entries) and vacuumed", total)
+                return total
         except Exception as e:
-            logger.error(f"Failed to clear cache: {e}")
+            logger.error(f"Failed to clear explanation cache: {e}")
+            return 0

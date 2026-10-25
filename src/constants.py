@@ -155,6 +155,14 @@ PROBLEM_CLASSIFICATIONS = frozenset({"Inaccuracy", "Mistake", "Miss", "Blunder"}
 LLM_WORTHY_CLASSIFICATIONS = SACRIFICIAL_CLASSIFICATIONS | PROBLEM_CLASSIFICATIONS
 
 # ---------------------------------------------------------------------------
+# Local data retention
+# ---------------------------------------------------------------------------
+# Defaults shared by the storage layer and the settings schema so the two can
+# never drift apart.
+DEFAULT_EXPLORER_CACHE_TTL_HOURS = 48
+DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES = 250_000
+
+# ---------------------------------------------------------------------------
 # Keyboard shortcuts (issue #67)
 # ---------------------------------------------------------------------------
 # Indices into MainWindow.stack, in sidebar order.

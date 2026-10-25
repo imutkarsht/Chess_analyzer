@@ -4,6 +4,8 @@ Tests for ConfigManager - loading, saving, defaults.
 import json
 from unittest.mock import patch
 
+import pytest
+
 
 class TestConfigManager:
     """Tests for ConfigManager functionality."""
@@ -30,6 +32,9 @@ class TestConfigManager:
             assert manager.get("remember_window_geometry") is True
             assert manager.get("sound_volume") == 50
             assert manager.get("api_games_limit") == 20
+            assert manager.get("explorer_cache_ttl_hours") == 48
+            assert manager.get("analysis_cache_max_entries") == 250_000
+            assert manager.get("explain_cache_ttl_days") == 30
 
     def test_get_nonexistent_key(self, tmp_path):
         """Test getting a key that doesn't exist returns default."""
@@ -155,15 +160,18 @@ class TestConfigManager:
             assert manager1.get("theme") == "light"
             assert manager2.get("theme") == "light"
 
-    def test_nullable_int_setting_accepts_none(self, tmp_path):
-        """The explanation cache TTL stores ``None`` for "never expire"."""
+    @pytest.mark.parametrize(
+        "key", ["explain_cache_ttl_days", "explorer_cache_ttl_hours"]
+    )
+    def test_nullable_int_setting_accepts_none(self, tmp_path, key):
+        """Cache TTLs store ``None`` for "never expire"."""
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
             from src.utils.config import ConfigManager
             manager = ConfigManager()
 
-            manager.set("explain_cache_ttl_days", None)
+            manager.set(key, None)
 
-            assert manager.get("explain_cache_ttl_days") is None
+            assert manager.get(key) is None
 
     def test_nullable_float_setting_accepts_none(self, tmp_path):
         """The time cap stores ``None`` for a depth-only search."""
