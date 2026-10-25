@@ -583,7 +583,8 @@ class TourMixin:
             api = getattr(sv, "api_settings", None)
             ply = getattr(sv, "player_settings", None)
             bok = getattr(sv, "book_settings", None)
-            dat = getattr(sv, "data_settings", None)
+            dat = getattr(sv, "storage_settings", None)
+            bak = getattr(sv, "backup_settings", None)
             lnk = getattr(sv, "links_settings", None)
             save_btn = getattr(sv, "save_settings_btn", None)
 
@@ -662,7 +663,17 @@ class TourMixin:
                     TourStep(
                         target=dat,
                         title="Data & Storage",
-                        text="Data & Storage: View database file sizes, clear cached engine evaluations, or safely manage local application data.",
+                        text="Storage: See exactly how much space your database, evaluations, explanations, and caches use, and open the data folder in one click.",
+                        position="above",
+                        page_index=4,
+                    )
+                )
+            if bak and bak.isVisible():
+                steps.append(
+                    TourStep(
+                        target=bak,
+                        title="Backup & Restore",
+                        text="Backup & Restore: Save a consistent snapshot of your whole library, or restore one later. A safety copy of the current database is always kept.",
                         position="above",
                         page_index=4,
                     )

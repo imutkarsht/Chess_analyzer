@@ -181,6 +181,39 @@ def test_appearance_page_groups_four_cards(qapp, qtbot, isolated_config):
         assert view.sound_volume_input.parentWidget().isHidden() is False
 
 
+def test_data_storage_page_groups_five_cards(qapp, qtbot, isolated_config):
+    """Storage, retention, maintenance, backup, and reset are separate cards."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view._settings_pages["Data & Storage"] == [
+            view.storage_settings,
+            view.retention_settings,
+            view.maintenance_settings,
+            view.backup_settings,
+            view.danger_settings,
+        ]
+
+        # Usage, maintenance, backup, and reset matter in both modes; only the
+        # retention policy is advanced.
+        assert view.storage_settings.isHidden() is False
+        assert view.retention_settings.isHidden() is True
+        retention_divider = next(
+            bar for bar, card in view._page_dividers if card is view.retention_settings
+        )
+        assert retention_divider.isHidden() is True
+
+        view.search_input.setText("backup")
+        found = [
+            view.category_list.item(row).text()
+            for row in range(view.category_list.count())
+        ]
+        assert found == ["Data & Storage"]
+
+
 def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isolated_config):
     """Binder-driven cards persist on edit; Save must still notify the engine once."""
     from src.gui.views.settings_view import SettingsView

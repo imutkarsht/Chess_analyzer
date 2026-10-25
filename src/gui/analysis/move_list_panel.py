@@ -165,6 +165,14 @@ class MoveListPanel(QWidget):
         self.session.clear(emit=False)
         self.refresh()
 
+    def clear(self) -> None:
+        """Drop the loaded game and its live-engine session."""
+        self.current_game = None
+        self._variation_counts = {}
+        self._selected_index = None
+        self.session.clear(emit=False)
+        self.refresh()
+
     def refresh(self):
         if not self.current_game:
             self.table.clearContents()

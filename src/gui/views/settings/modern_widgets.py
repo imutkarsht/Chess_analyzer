@@ -16,12 +16,23 @@ except ImportError:
 class ModernSliderCounter(QWidget):
     editingFinished = pyqtSignal()
 
-    def __init__(self, min_val, max_val, step=1, value=0, is_float=False, parent=None):
+    def __init__(
+        self,
+        min_val,
+        max_val,
+        step=1,
+        value=0,
+        is_float=False,
+        parent=None,
+        format_value=None,
+    ):
         super().__init__(parent)
         self.min_val = min_val
         self.max_val = max_val
         self.step = step
         self.is_float = is_float
+        # Optional display formatter, e.g. thousands separators for large caps.
+        self._format_value = format_value
 
         self._scale = 10 if is_float else 1
 
@@ -80,7 +91,9 @@ class ModernSliderCounter(QWidget):
         self._update_label(actual_val)
 
     def _update_label(self, val):
-        if self.is_float:
+        if self._format_value is not None:
+            self.value_label.setText(self._format_value(val))
+        elif self.is_float:
             self.value_label.setText(f"{val:.1f}")
         else:
             self.value_label.setText(str(int(val)))
