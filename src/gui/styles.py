@@ -1391,7 +1391,11 @@ class Styles(metaclass=_StylesMeta):
 
     @classmethod
     def get_settings_checkbox_style(cls, tick_path):
-        """Borderless checkbox style for settings rows."""
+        """Borderless checkbox style for settings rows.
+
+        Checked and unchecked states share the same box (size, radius, border)
+        so toggles read as one control in every card.
+        """
         p = ThemeManager.palette()
         return f"""
             QCheckBox {{
@@ -1407,11 +1411,11 @@ class Styles(metaclass=_StylesMeta):
                 color: {p.text_primary};
             }}
             QCheckBox::indicator {{
-                width: 16px;
-                height: 16px;
-                border: 1px solid {p.border};
+                width: 18px;
+                height: 18px;
+                border: 1px solid {p.border_light};
                 border-radius: 4px;
-                background-color: {p.surface_light};
+                background-color: {p.surface};
             }}
             QCheckBox::indicator:hover {{
                 border-color: {p.accent};
@@ -1420,6 +1424,14 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.accent};
                 border-color: {p.accent};
                 image: url('{tick_path}');
+            }}
+            QCheckBox::indicator:checked:hover {{
+                background-color: {p.accent_hover};
+                border-color: {p.accent_hover};
+            }}
+            QCheckBox::indicator:disabled {{
+                border-color: {p.border};
+                background-color: {p.surface_light};
             }}
         """
 

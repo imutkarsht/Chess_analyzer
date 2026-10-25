@@ -184,6 +184,9 @@ class ModernHashComboBox(QComboBox):
         super().__init__(parent)
         self.addItems(["16", "32", "64", "128", "256", "512", "1024", "2048", "4096"])
         self.currentTextChanged.connect(lambda _: self.editingFinished.emit())
+        # Rows live inside wrappers that strip borders for layout reasons, so
+        # the combo needs its own style or it renders as bare text.
+        self.refresh_styles()
 
     def text(self) -> str:
         return self.currentText()

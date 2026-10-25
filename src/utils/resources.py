@@ -123,7 +123,8 @@ class ResourceManager:
         a still-playing instance of the same sound.
         """
         from .config import ConfigManager
-        if not ConfigManager().get("sound_enabled", True):
+        config = ConfigManager()
+        if not config.get("sound_enabled", True):
             return
 
         pool = self.sounds.get(name)
@@ -132,6 +133,12 @@ class ResourceManager:
         idx = self._sound_index[name]
         effect = pool[idx]
         self._sound_index[name] = (idx + 1) % len(pool)
+        # Read per play so volume changes apply without rebuilding the pool.
+        try:
+            volume = int(config.get("sound_volume", 50))
+        except (TypeError, ValueError):
+            volume = 50
+        effect.setVolume(max(0.0, min(1.0, volume / 100.0)))
         # Explicitly stop first: a QSoundEffect in a still-playing state
         # silently drops reentrant play() calls, so we always reset.
         if effect.isPlaying():

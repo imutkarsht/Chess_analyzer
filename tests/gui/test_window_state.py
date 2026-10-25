@@ -103,4 +103,23 @@ def test_restore_window_state_defensive(qtbot, isolated_config):
     assert window.width() > 100
     assert window.height() > 100
     assert screen.intersects(window.frameGeometry())
+
+    # Case 4: disabling "remember geometry" skips both restore and save.
+    window.resize(1200, 800)
+    window.config_manager.set("remember_window_geometry", False)
+    window.config_manager.set(
+        "window_state",
+        {"x": 40, "y": 40, "width": 1111, "height": 777},
+    )
+
+    window._restore_window_state()
+    assert (window.width(), window.height()) == (1200, 800)
+
+    window.resize(1234, 789)
+    window._save_window_state()
+    assert window.config_manager.get("window_state")["width"] == 1111
+
+    window.config_manager.set("remember_window_geometry", True)
+    window._save_window_state()
+    assert window.config_manager.get("window_state")["width"] == 1234
     window.close()

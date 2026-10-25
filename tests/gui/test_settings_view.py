@@ -74,7 +74,7 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         # Modify some UI fields
         view.path_input.setText("mock-stockfish")
         view.threads_input.setText("3")
-        view.hash_input.setText("128")
+        view.hash_input.setText("256")
         view.chesscom_input.setText("NewUserChessCom")
         view.lichess_input.setText("NewUserLichess")
         view.games_limit_input.setText("15")
@@ -93,7 +93,7 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         # Verify changes are stored in the config
         assert view.config_manager.get("engine_path") == "mock-stockfish"
         assert view.config_manager.get("engine_threads") == 3
-        assert view.config_manager.get("engine_hash") == 128
+        assert view.config_manager.get("engine_hash") == 256
         assert view.config_manager.get("chesscom_username") == "NewUserChessCom"
         assert view.config_manager.get("lichess_username") == "NewUserLichess"
         assert view.config_manager.get("api_games_limit") == 15
@@ -107,3 +107,100 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         view.engine_settings_changed.emit.assert_called_once()
         view.llm_config_changed.emit.assert_called_once()
         view.usernames_changed.emit.assert_called_once()
+
+
+def test_mode_toggle_hides_advanced_cards_and_their_dividers(qapp, qtbot, isolated_config):
+    """Basic mode must not leave a divider dangling above a hidden card."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        divider = next(
+            bar for bar, card in view._page_dividers if card is view.coach_settings
+        )
+
+        view.mode_toggle_btn.click()  # -> Advanced
+        assert view.coach_settings.isHidden() is False
+        assert divider.isHidden() is False
+
+        view.mode_toggle_btn.click()  # -> Basic
+        assert view.coach_settings.isHidden() is True
+        assert divider.isHidden() is True
+
+
+def test_analysis_page_groups_cards_and_mirrors_shortcuts(qapp, qtbot, isolated_config):
+    """Analysis owns four cards, and the eval-panel shortcuts share their keys."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view._settings_pages["Analysis"] == [
+            view.engine_settings,
+            view.full_analysis_settings,
+            view.live_analysis_settings,
+            view.book_settings,
+        ]
+
+        emitted = []
+        view.analysis_prefs_changed.connect(lambda: emitted.append(True))
+
+        view.use_cache_checkbox.setChecked(False)
+        assert view.config_manager.get("use_cache") is False
+        assert emitted == [True]
+
+        view.engine_lines_checkbox.setChecked(True)
+        assert view.config_manager.get("engine_lines_enabled") is True
+        assert emitted == [True, True]
+
+
+def test_appearance_page_groups_four_cards(qapp, qtbot, isolated_config):
+    """Appearance is split into theme, board, layout, and sound cards."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view._settings_pages["Appearance"] == [
+            view.theme_accent_settings,
+            view.board_pieces_settings,
+            view.window_layout_settings,
+            view.sound_settings,
+        ]
+
+        # Board annotation and volume rows are advanced-only.
+        assert view.best_move_arrow_checkbox.parentWidget().isHidden() is True
+        assert view.sound_volume_input.parentWidget().isHidden() is True
+
+        view.mode_toggle_btn.click()  # -> Advanced
+        assert view.best_move_arrow_checkbox.parentWidget().isHidden() is False
+        assert view.sound_volume_input.parentWidget().isHidden() is False
+
+
+def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isolated_config):
+    """Binder-driven cards persist on edit; Save must still notify the engine once."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        view.path_input.setText("stockfish-new")
+        view.path_input.editingFinished.emit()  # binder autosave
+        assert view.config_manager.get("engine_path") == "stockfish-new"
+
+        view.engine_path_changed = MagicMock()
+        view.engine_settings_changed = MagicMock()
+
+        with patch("src.gui.main_window.MainWindow.toast_from_widget"):
+            view.save_all_settings()
+            view.engine_path_changed.emit.assert_called_once_with("stockfish-new")
+
+            view.engine_path_changed.reset_mock()
+            view.save_all_settings()
+            view.engine_path_changed.emit.assert_not_called()
+

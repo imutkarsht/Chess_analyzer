@@ -113,12 +113,14 @@ class AnalysisPanel(QWidget):
         from PyQt6.QtWidgets import QCheckBox
 
         self.toggle_checkbox = QCheckBox("Engine Lines")
-        self.toggle_checkbox.setChecked(False)
+        self.toggle_checkbox.setChecked(
+            bool(self.config_manager.get("engine_lines_enabled", False))
+        )
         self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         toggles_layout.addWidget(self.toggle_checkbox)
 
         self.cache_checkbox = QCheckBox("Use Cache")
-        self.cache_checkbox.setChecked(True)
+        self.cache_checkbox.setChecked(bool(self.config_manager.get("use_cache", True)))
         self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         toggles_layout.addWidget(self.cache_checkbox)

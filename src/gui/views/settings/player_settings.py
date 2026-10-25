@@ -1,9 +1,11 @@
 """Player accounts and API credentials settings."""
 
+import os
+
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from ...styles import Styles
-from .components import CONTROL_DEFAULT, SettingsForm, make_line_edit
+from .components import CONTROL_WIDE, SettingsBinder, SettingsForm, make_line_edit
 from .modern_widgets import ModernSliderCounter, PasswordFieldWrapper
 
 
@@ -16,52 +18,85 @@ class PlayerSettings(QGroupBox):
 
     def setup_ui(self):
         self.form = SettingsForm(self)
-
         wrapper = QVBoxLayout(self)
         wrapper.setContentsMargins(0, 8, 0, 0)
         wrapper.addWidget(self.form)
 
-        self.chesscom_input = make_line_edit("Chess.com username", CONTROL_DEFAULT)
-        self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
-        self.form.add_row("Chess.com", self.chesscom_input)
+        self.binder = SettingsBinder(self.config_manager, self.form, self)
 
-        self.lichess_input = make_line_edit("Lichess.org username", CONTROL_DEFAULT)
-        self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
-        self.form.add_row("Lichess.org", self.lichess_input)
+        self.chesscom_input = self.binder.add(
+            "chesscom_username",
+            make_line_edit("Chess.com username"),
+        )
+        self.lichess_input = self.binder.add(
+            "lichess_username",
+            make_line_edit("Lichess.org username"),
+        )
 
         self.lichess_token_input = PasswordFieldWrapper(self)
         self.lichess_token_input.setMaximumWidth(420)
-        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
-        self.form.add_row(
-            "Lichess token",
-            self.lichess_token_input,
-            hint="Optional token for Lichess imports and the online explorer.",
-        )
+        self.binder.add("lichess_token", self.lichess_token_input)
 
         self.games_limit_input = ModernSliderCounter(
-            1,
-            30,
-            step=1,
-            value=self.config_manager.get("api_games_limit", 20),
-            parent=self,
+            1, 30, step=1, value=20, parent=self
         )
-        self.games_limit_input.setMaximumWidth(220)
-        self.form.add_row(
-            "Games fetch limit",
+        self.binder.add(
+            "api_games_limit",
             self.games_limit_input,
             hint="Maximum recent games to fetch at once.",
-            advanced=True,
-            width=None,
+            width=CONTROL_WIDE,
+            on_change=self._on_games_limit_changed,
         )
 
+    def current_token(self) -> str:
+        return (
+            self.lichess_token_input.text().strip()
+            or self.config_manager.get("lichess_token", "")
+            or os.getenv("LICHESS_TOKEN")
+            or ""
+        )
+
+    def max_games_limit(self) -> int:
+        """Token holders may fetch up to 30 games; anonymous users cap at 20."""
+        return 30 if self.current_token() else 20
+
+    def clamp_games_limit(self, value) -> int:
+        try:
+            limit = int(value)
+        except (TypeError, ValueError):
+            limit = 20
+        return max(1, min(limit, self.max_games_limit()))
+
+    def apply_games_limit(self, value) -> str:
+        """Clamp, persist and sync the games limit; return a warning or ""."""
+        try:
+            requested = max(1, int(value))
+        except (TypeError, ValueError):
+            requested = 20
+        limit = self.clamp_games_limit(requested)
+        self.config_manager.set("api_games_limit", limit)
+        if str(limit) != self.games_limit_input.text().strip():
+            self.games_limit_input.setText(str(limit))
+        if limit == requested:
+            return ""
+        if self.max_games_limit() == 30:
+            return (
+                "Games limit capped at 30 (the maximum allowed when a "
+                "Lichess API token is configured)."
+            )
+        return (
+            "Games limit capped at 20. Configure a Lichess API Token in the "
+            "API Configuration section above to increase this limit to 30."
+        )
+
+    def _on_games_limit_changed(self, value):
+        self.apply_games_limit(value)
+
     def reload_from_config(self):
-        self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
-        self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
-        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
-        self.games_limit_input.setText(str(self.config_manager.get("api_games_limit", 20)))
+        self.binder.load()
 
     def set_advanced_visible(self, visible):
-        self.form.set_advanced_visible(visible)
+        self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())

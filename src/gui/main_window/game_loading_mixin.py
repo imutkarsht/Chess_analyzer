@@ -98,9 +98,10 @@ class GameLoadingMixin:
         if hasattr(self, "btn_analyze"):
             self.btn_analyze.setVisible(has_game)
 
-        # Eval bar is only shown during game playback / analysis
-        if hasattr(self, "board_widget") and hasattr(self.board_widget, "eval_bar"):
-            self.board_widget.eval_bar.setVisible(has_game)
+        # Eval bar is only shown during game playback / analysis, and only
+        # when the user has not disabled it in Appearance settings.
+        if hasattr(self, "board_widget") and hasattr(self.board_widget, "set_eval_bar_visible"):
+            self.board_widget.set_eval_bar_visible(has_game)
             if hasattr(self.board_widget, "_enforce_square_board"):
                 self.board_widget._enforce_square_board()
 

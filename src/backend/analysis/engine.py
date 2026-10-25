@@ -270,7 +270,7 @@ class EngineManager:
     def analyze_position(
         self,
         board: chess.Board,
-        time_limit: float = 0.1,
+        time_limit: float | None = 0.1,
         depth: int | None = None,
         multi_pv: int = 1,
     ) -> chess.engine.InfoDict:

@@ -200,6 +200,8 @@ class MainWindow(
 
     def _restore_window_state(self):
         """Restore the main window's last-known position and size."""
+        if not self.config_manager.get("remember_window_geometry", True):
+            return
         state = self.config_manager.get("window_state") or {}
         try:
             x = state.get("x")
@@ -235,6 +237,8 @@ class MainWindow(
 
     def _save_window_state(self):
         """Persist the current window geometry to the user config."""
+        if not self.config_manager.get("remember_window_geometry", True):
+            return
         frame = self.frameGeometry()
         self.config_manager.set(
             "window_state",
@@ -390,6 +394,7 @@ class MainWindow(
         self.settings_view.llm_config_changed.connect(self.update_llm_config)
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.settings_view.sidebar_prefs_changed.connect(self.sidebar.apply_preferences)
+        self.settings_view.analysis_prefs_changed.connect(self.sync_analysis_prefs)
         self.stack.addWidget(self.settings_view)
 
         self.sidebar.set_active(0)
@@ -708,6 +713,9 @@ class MainWindow(
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
         self.analysis_panel.toggle_checkbox.toggled.connect(
             self.move_list_panel.set_engine_lines_enabled
+        )
+        self.analysis_panel.toggle_checkbox.toggled.connect(
+            self.on_engine_lines_toggled
         )
 
         # Variation mode: makes the main board playable for "Show best move",

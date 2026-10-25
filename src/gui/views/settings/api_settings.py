@@ -3,20 +3,19 @@ API Configuration Settings group component.
 """
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QComboBox,
-    QFormLayout,
-    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from src.gui.styles import Styles
 
+from .components import SettingsForm
 from .helpers import create_icon_button
 
 try:
@@ -28,7 +27,6 @@ except ImportError:
 from src.backend.services.groq_service import GroqService
 from src.constants import PROVIDERS
 from src.gui.utils.gui_utils import show_error_dialog
-from src.utils.path_utils import get_resource_path
 
 from .modern_widgets import PasswordFieldWrapper
 
@@ -117,22 +115,17 @@ class ApiSettings(QGroupBox):
         api_layout.setContentsMargins(0, 12, 0, 0)
         api_layout.setSpacing(10)
 
-        lbl_style = Styles.get_label_style(size=13)
         _combo_style = Styles.get_combobox_style()
         sq_btn_style = Styles.get_settings_square_icon_style()
 
-        # --- Profile selector row ---
-        prof_row = QHBoxLayout()
-        self._lbl_prof = QLabel("LLM Profile:")
-        self._lbl_prof.setStyleSheet(lbl_style)
-        self._lbl_prof.setFixedWidth(88)
-        prof_row.addWidget(self._lbl_prof)
+        self._profile_form = SettingsForm(self)
+        api_layout.addWidget(self._profile_form)
 
+        # --- Profile selector row ---
         self.llm_profile_combo = QComboBox()
         self.llm_profile_combo.setStyleSheet(_combo_style)
         self.llm_profile_combo.setMaximumWidth(420)
         self.llm_profile_combo.currentIndexChanged.connect(self._on_profile_selected)
-        prof_row.addWidget(self.llm_profile_combo, stretch=0)
 
         self.llm_add_btn = QPushButton()
         if HAS_QTAWESOME:
@@ -143,7 +136,6 @@ class ApiSettings(QGroupBox):
         self.llm_add_btn.setToolTip("New profile")
         self.llm_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_add_btn.clicked.connect(self._new_llm_profile)
-        prof_row.addWidget(self.llm_add_btn)
 
         self.llm_del_btn = QPushButton()
         if HAS_QTAWESOME:
@@ -154,62 +146,45 @@ class ApiSettings(QGroupBox):
         self.llm_del_btn.setToolTip("Delete profile")
         self.llm_del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_del_btn.clicked.connect(self._delete_llm_profile)
-        prof_row.addWidget(self.llm_del_btn)
-        prof_row.addStretch(1)
 
-        api_layout.addLayout(prof_row)
+        selector = QWidget()
+        selector.setStyleSheet(Styles.get_transparent_label_style())
+        selector_row = QHBoxLayout(selector)
+        selector_row.setContentsMargins(0, 0, 0, 0)
+        selector_row.setSpacing(8)
+        selector_row.addWidget(self.llm_profile_combo)
+        selector_row.addWidget(self.llm_add_btn)
+        selector_row.addWidget(self.llm_del_btn)
+        selector_row.addStretch(1)
+        self._profile_form.add_row("LLM Profile", selector, width=None)
 
-        # --- Thin divider ---
-        _div = QFrame()
-        _div.setFrameShape(QFrame.Shape.HLine)
-        _div.setStyleSheet(Styles.get_divider_style())
-        api_layout.addWidget(_div)
-
-        # --- Profile editor form ---
-        pf = QFormLayout()
-        pf.setSpacing(10)
-        pf.setContentsMargins(0, 0, 0, 0)
-        pf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-
-        self._lbl_pname = QLabel("Name:")
-        self._lbl_pname.setStyleSheet(lbl_style)
+        # --- Profile editor rows ---
         self.llm_profile_name = QLineEdit()
         self.llm_profile_name.setStyleSheet(Styles.get_input_style())
-        self.llm_profile_name.setMaximumWidth(360)
-        pf.addRow(self._lbl_pname, self.llm_profile_name)
+        self._profile_form.add_row(
+            "Name", self.llm_profile_name, advanced=True, width=360
+        )
 
-        self._lbl_prov = QLabel("Provider:")
-        self._lbl_prov.setStyleSheet(lbl_style)
         self.llm_provider_combo = QComboBox()
         for pkey, pmeta in self._llm_providers.items():
             self.llm_provider_combo.addItem(pmeta["label"], userData=pkey)
         self.llm_provider_combo.setStyleSheet(_combo_style)
-        self.llm_provider_combo.setMaximumWidth(300)
         self.llm_provider_combo.currentIndexChanged.connect(self._on_provider_changed)
-        pf.addRow(self._lbl_prov, self.llm_provider_combo)
+        self._profile_form.add_row("Provider", self.llm_provider_combo, width=300)
 
-        self.lbl_llm_key = QLabel("API Key:")
-        self.lbl_llm_key.setStyleSheet(lbl_style)
         self.llm_key_input = PasswordFieldWrapper(self)
-        self.llm_key_input.setMaximumWidth(420)
-        pf.addRow(self.lbl_llm_key, self.llm_key_input)
+        self._profile_form.add_row("API Key", self.llm_key_input, width=420)
 
-        self._lbl_model = QLabel("Model:")
-        self._lbl_model.setStyleSheet(lbl_style)
         self.llm_model_input = QLineEdit()
         self.llm_model_input.setStyleSheet(Styles.get_input_style())
-        self.llm_model_input.setMaximumWidth(360)
-        pf.addRow(self._lbl_model, self.llm_model_input)
+        self._profile_form.add_row("Model", self.llm_model_input, width=360)
 
-        self.lbl_llm_url = QLabel("Base URL:")
-        self.lbl_llm_url.setStyleSheet(lbl_style)
         self.llm_url_input = QLineEdit()
         self.llm_url_input.setPlaceholderText("http://localhost:1234/v1")
         self.llm_url_input.setStyleSheet(Styles.get_input_style())
-        self.llm_url_input.setMaximumWidth(520)
-        pf.addRow(self.lbl_llm_url, self.llm_url_input)
-
-        api_layout.addLayout(pf)
+        self._profile_form.add_row(
+            "Base URL", self.llm_url_input, advanced=True, width=520
+        )
 
         # --- Save / Activate / Test buttons ---
         act_row = QHBoxLayout()
@@ -230,83 +205,7 @@ class ApiSettings(QGroupBox):
         status_row.addWidget(self.llm_test_result)
         api_layout.addLayout(status_row)
 
-        # --- Coach preferences ---
-        self._api_div2 = QFrame()
-        self._api_div2.setFrameShape(QFrame.Shape.HLine)
-        self._api_div2.setStyleSheet(Styles.get_divider_style())
-        api_layout.addWidget(self._api_div2)
-
-        self._add_explanation_rows(api_layout, lbl_style, _combo_style)
-
         self._reload_profile_combo()
-
-    def _add_explanation_rows(self, api_layout, lbl_style, combo_style) -> None:
-        """Move-explanation (Coach) options, cache policy and the data note (D8)."""
-        self._api_div3 = QFrame()
-        self._api_div3.setFrameShape(QFrame.Shape.HLine)
-        self._api_div3.setStyleSheet(Styles.get_divider_style())
-        api_layout.addWidget(self._api_div3)
-
-        self._lbl_explain = QLabel("Move Explanations (Coach):")
-        self._lbl_explain.setStyleSheet(lbl_style)
-        api_layout.addWidget(self._lbl_explain)
-
-        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-        cb_style = Styles.get_settings_checkbox_style(tick_path)
-
-        self.explain_trivial_checkbox = QCheckBox(
-            "Also explain sound moves (Best, Excellent, Good, Book)"
-        )
-        self.explain_trivial_checkbox.setStyleSheet(cb_style)
-        self.explain_trivial_checkbox.setChecked(
-            bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
-        )
-        self.explain_trivial_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
-        api_layout.addWidget(self.explain_trivial_checkbox)
-
-        ttl_row = QHBoxLayout()
-        self._lbl_explain_ttl = QLabel("Explanation cache:")
-        self._lbl_explain_ttl.setStyleSheet(lbl_style)
-        ttl_row.addWidget(self._lbl_explain_ttl)
-        self.explain_ttl_combo = QComboBox()
-        self.explain_ttl_combo.setStyleSheet(combo_style)
-        self.explain_ttl_combo.setMaximumWidth(180)
-        for label, days in (
-            ("7 days", 7),
-            ("30 days", 30),
-            ("90 days", 90),
-            ("1 year", 365),
-            ("Never expire", None),
-        ):
-            self.explain_ttl_combo.addItem(label, userData=days)
-        stored_ttl = self.config_manager.get("explain_cache_ttl_days", 30)
-        index = self.explain_ttl_combo.findData(stored_ttl)
-        self.explain_ttl_combo.setCurrentIndex(max(0, index))
-        ttl_row.addWidget(self.explain_ttl_combo, stretch=0)
-        ttl_row.addStretch(1)
-        api_layout.addLayout(ttl_row)
-
-        self.clear_explanations_btn = create_icon_button(
-            "Clear Explanation Cache", "fa5s.broom", self.clear_explanations, self
-        )
-        self.clear_explanations_btn.setMaximumWidth(260)
-        api_layout.addWidget(self.clear_explanations_btn)
-
-    def clear_explanations(self) -> None:
-        """Drop every cached explanation (shared confirmation with Data settings)."""
-        from .data_settings import clear_analysis_cache
-
-        clear_analysis_cache(self)
-
-    def sync_explanation_settings(self) -> None:
-        """Re-read the Coach settings from config into the widgets."""
-        self.explain_trivial_checkbox.setChecked(
-            bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
-        )
-        index = self.explain_ttl_combo.findData(
-            self.config_manager.get("explain_cache_ttl_days", 30)
-        )
-        self.explain_ttl_combo.setCurrentIndex(max(0, index))
 
     def _reload_profile_combo(self) -> None:
         self._loading_profile = True
@@ -362,12 +261,9 @@ class ApiSettings(QGroupBox):
         preset = self._llm_providers.get(provider_key, {})
 
         self.llm_key_input.setEnabled(True)
-        self.lbl_llm_key.setEnabled(True)
         self.llm_key_input.setPlaceholderText(preset.get("key_placeholder", ""))
         self.llm_model_input.setPlaceholderText(preset.get("model_placeholder", ""))
 
-        self.lbl_llm_url.setVisible(True)
-        self.llm_url_input.setVisible(True)
         current_url = self.llm_url_input.text().strip()
         known_preset_urls = {
             meta.get("base_url", "") for meta in self._llm_providers.values()
@@ -498,24 +394,9 @@ class ApiSettings(QGroupBox):
         worker.start()
 
     def set_advanced_visible(self, visible):
-        for widget in (
-            self._lbl_pname,
-            self.llm_profile_name,
-            self.llm_add_btn,
-            self.llm_del_btn,
-            self.lbl_llm_url,
-            self.llm_url_input,
-            self._lbl_explain,
-            self.explain_trivial_checkbox,
-            self._lbl_explain_ttl,
-            self.explain_ttl_combo,
-        ):
+        self._profile_form.set_advanced_visible(visible)
+        for widget in (self.llm_add_btn, self.llm_del_btn):
             widget.setVisible(visible)
-
-    def _refresh_label(self, attr_name):
-        lbl = getattr(self, attr_name, None)
-        if lbl:
-            lbl.setStyleSheet(Styles.get_label_style(size=13))
 
     def _refresh_secondary_label(self, attr_name):
         lbl = getattr(self, attr_name, None)
@@ -540,31 +421,10 @@ class ApiSettings(QGroupBox):
             self.llm_model_input.setStyleSheet(Styles.get_input_style())
         if hasattr(self, 'llm_url_input'):
             self.llm_url_input.setStyleSheet(Styles.get_input_style())
+        if hasattr(self, '_profile_form'):
+            self._profile_form.refresh_styles()
         for widget in [self.llm_key_input]:
             if hasattr(widget, 'refresh_styles'):
                 widget.refresh_styles()
-        self._refresh_label('_lbl_prof')
-        self._refresh_label('_lbl_pname')
-        self._refresh_label('_lbl_prov')
-        self._refresh_label('lbl_llm_key')
-        self._refresh_label('_lbl_model')
-        self._refresh_label('lbl_llm_url')
         self._refresh_secondary_label('llm_active_label')
         self._refresh_secondary_label('llm_test_result')
-        if hasattr(self, '_div'):
-            self._div.setStyleSheet(Styles.get_divider_style())
-        if hasattr(self, '_api_div2'):
-            self._api_div2.setStyleSheet(Styles.get_divider_style())
-
-        if hasattr(self, '_api_div3'):
-            self._api_div3.setStyleSheet(Styles.get_divider_style())
-        if hasattr(self, 'explain_ttl_combo'):
-            self.explain_ttl_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'clear_explanations_btn'):
-            self.clear_explanations_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        self._refresh_label('_lbl_explain')
-        self._refresh_label('_lbl_explain_ttl')
-        if hasattr(self, 'explain_trivial_checkbox'):
-            tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-            cb_style = Styles.get_settings_checkbox_style(tick_path)
-            self.explain_trivial_checkbox.setStyleSheet(cb_style)
