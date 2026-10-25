@@ -109,6 +109,27 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         view.usernames_changed.emit.assert_called_once()
 
 
+def test_mode_toggle_hides_advanced_cards_and_their_dividers(qapp, qtbot, isolated_config):
+    """Basic mode must not leave a divider dangling above a hidden card."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        divider = next(
+            bar for bar, card in view._page_dividers if card is view.coach_settings
+        )
+
+        view.mode_toggle_btn.click()  # -> Advanced
+        assert view.coach_settings.isHidden() is False
+        assert divider.isHidden() is False
+
+        view.mode_toggle_btn.click()  # -> Basic
+        assert view.coach_settings.isHidden() is True
+        assert divider.isHidden() is True
+
+
 def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isolated_config):
     """Binder-driven cards persist on edit; Save must still notify the engine once."""
     from src.gui.views.settings_view import SettingsView

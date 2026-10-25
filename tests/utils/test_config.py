@@ -145,3 +145,24 @@ class TestConfigManager:
             # Verify both see it because dictionary is updated in-place
             assert manager1.get("theme") == "light"
             assert manager2.get("theme") == "light"
+
+    def test_nullable_int_setting_accepts_none(self, tmp_path):
+        """The explanation cache TTL stores ``None`` for "never expire"."""
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager = ConfigManager()
+
+            manager.set("explain_cache_ttl_days", None)
+
+            assert manager.get("explain_cache_ttl_days") is None
+
+    def test_non_nullable_int_setting_rejects_none(self, tmp_path):
+        """Specs without ``nullable`` keep their previous value instead of going null."""
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager = ConfigManager()
+            manager.set("analysis_depth", 22)
+
+            manager.set("analysis_depth", None)
+
+            assert manager.get("analysis_depth") == 22

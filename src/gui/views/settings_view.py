@@ -25,6 +25,7 @@ from .settings import (
     ApiSettings,
     AppearanceSettings,
     BookSettings,
+    CoachSettings,
     DataSettings,
     EngineSettings,
     LinksSettings,
@@ -135,6 +136,7 @@ class SettingsView(QWidget):
         self.engine_settings = EngineSettings(self.config_manager, self)
         self.book_settings = BookSettings(self.config_manager, self)
         self.api_settings = ApiSettings(self.config_manager, self)
+        self.coach_settings = CoachSettings(self.config_manager, self)
         self.player_settings = PlayerSettings(self.config_manager, self)
         self.appearance_settings = AppearanceSettings(self.config_manager, self)
         self.data_settings = DataSettings(self)
@@ -143,10 +145,11 @@ class SettingsView(QWidget):
 
         # Category pages. Existing cards are reused until the generic binder
         # migration lands, but the navigation and layout are now scalable.
+        self._page_dividers: list[tuple[QFrame, QWidget]] = []
         self._settings_pages = {
             "Analysis": [self.engine_settings, self.book_settings],
             "Appearance": [self.appearance_settings],
-            "AI Coach": [self.api_settings],
+            "AI Coach": [self.api_settings, self.coach_settings],
             "Integrations": [self.player_settings],
             "Data & Storage": [self.data_settings],
             "Keyboard": [self.shortcut_settings],
@@ -158,8 +161,12 @@ class SettingsView(QWidget):
             page.setStyleSheet("#SettingsPage { background: transparent; }")
             page_layout = QVBoxLayout(page)
             page_layout.setContentsMargins(0, 0, 0, 0)
-            page_layout.setSpacing(28)
-            for card in cards:
+            page_layout.setSpacing(18)
+            for index, card in enumerate(cards):
+                if index:
+                    divider = self._section_divider()
+                    self._page_dividers.append((divider, card))
+                    page_layout.addWidget(divider)
                 page_layout.addWidget(card)
             page_layout.addStretch(1)
             self.pages.addWidget(page)
@@ -190,9 +197,9 @@ class SettingsView(QWidget):
         self.lichess_token_input = self.player_settings.lichess_token_input
         self.llm_test_btn = self.api_settings.llm_test_btn
         self.llm_test_result = self.api_settings.llm_test_result
-        self.explain_trivial_checkbox = self.api_settings.explain_trivial_checkbox
-        self.explain_ttl_combo = self.api_settings.explain_ttl_combo
-        self.clear_explanations_btn = self.api_settings.clear_explanations_btn
+        self.explain_trivial_checkbox = self.coach_settings.explain_trivial_checkbox
+        self.explain_ttl_combo = self.coach_settings.explain_ttl_combo
+        self.clear_explanations_btn = self.coach_settings.clear_explanations_btn
 
         self.chesscom_input = self.player_settings.chesscom_input
         self.lichess_input = self.player_settings.lichess_input
@@ -232,7 +239,7 @@ class SettingsView(QWidget):
         self.player_settings.reload_from_config()
         self.appearance_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
-        self.api_settings.sync_explanation_settings()
+        self.coach_settings.sync_explanation_settings()
         self.api_settings._update_active_label()
         self.shortcut_settings.reload_from_config()
 
@@ -244,6 +251,19 @@ class SettingsView(QWidget):
                 border-radius: 0px;
             }}
         """
+
+    @staticmethod
+    def _section_divider() -> QFrame:
+        """Single separator between cards, so every page divides groups the same way."""
+        divider = QFrame()
+        divider.setFrameShape(QFrame.Shape.HLine)
+        divider.setStyleSheet(Styles.get_divider_style())
+        return divider
+
+    def _sync_section_dividers(self) -> None:
+        """Hide a divider when the card it introduces is hidden (Basic mode)."""
+        for divider, card in self._page_dividers:
+            divider.setVisible(not card.isHidden())
 
     def _build_search_index(self) -> dict[int, str]:
         """Searchable keywords per category, so results stay at category level."""
@@ -441,11 +461,13 @@ class SettingsView(QWidget):
         self.engine_settings.set_advanced_visible(is_advanced)
         self.book_settings.set_advanced_visible(is_advanced)
         self.api_settings.set_advanced_visible(is_advanced)
+        self.coach_settings.set_advanced_visible(is_advanced)
         self.player_settings.set_advanced_visible(is_advanced)
         self.appearance_settings.set_advanced_visible(is_advanced)
         self.data_settings.set_advanced_visible(is_advanced)
         self.links_settings.set_advanced_visible(is_advanced)
         self.shortcut_settings.set_advanced_visible(is_advanced)
+        self._sync_section_dividers()
         self._search_index = self._build_search_index()
         self._refresh_category_visibility()
 
@@ -491,14 +513,6 @@ class SettingsView(QWidget):
         # Persist anything the binder cards have not auto-saved yet.
         self._flush_binders()
 
-        # Coach move explanations (D8) are not binder-driven yet.
-        self.config_manager.config["explain_llm_for_trivial_moves"] = (
-            self.api_settings.explain_trivial_checkbox.isChecked()
-        )
-        self.config_manager.config["explain_cache_ttl_days"] = (
-            self.api_settings.explain_ttl_combo.currentData()
-        )
-
         # Save to disk
         self.config_manager.save_config()
 
@@ -535,14 +549,16 @@ class SettingsView(QWidget):
 
     def _flush_binders(self) -> None:
         """Persist widget state for every card that uses a SettingsBinder."""
-        for card in (
-            self.engine_settings,
-            self.book_settings,
-            self.player_settings,
-            self.appearance_settings,
-            self.shortcut_settings,
-        ):
-            binder = getattr(card, "binder", None)
+        binder_cards = (
+            (self.engine_settings, "binder"),
+            (self.book_settings, "binder"),
+            (self.player_settings, "binder"),
+            (self.appearance_settings, "binder"),
+            (self.shortcut_settings, "binder"),
+            (self.coach_settings, "binder"),
+        )
+        for card, attr in binder_cards:
+            binder = getattr(card, attr, None)
             if binder is not None:
                 binder.commit_all()
 
@@ -584,6 +600,7 @@ class SettingsView(QWidget):
             getattr(self, 'engine_settings', None),
             getattr(self, 'book_settings', None),
             getattr(self, 'api_settings', None),
+            getattr(self, 'coach_settings', None),
             getattr(self, 'player_settings', None),
             getattr(self, 'appearance_settings', None),
             getattr(self, 'data_settings', None),

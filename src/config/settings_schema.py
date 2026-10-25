@@ -46,6 +46,7 @@ class SettingSpec:
     maximum: float | None = None
     step: float | None = None
     secret: bool = False
+    nullable: bool = False
     persist_default: bool = True
     ui: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -323,18 +324,21 @@ def _specs() -> tuple[SettingSpec, ...]:
             "Also explain Best, Excellent, Good, and Book moves.",
             "bool",
             False,
+            tier="advanced",
         ),
         SettingSpec(
             "explain_cache_ttl_days",
             "AI Coach",
             "Explanations",
             "Explanation cache TTL",
-            "How long LLM explanations are reused.",
+            "How long LLM explanations are reused. 'Never expire' keeps them forever.",
             "int",
             30,
+            tier="advanced",
             minimum=7,
             maximum=365,
             step=1,
+            nullable=True,
         ),
         # ------------------------------------------------------------
         # Keyboard / internal UI state

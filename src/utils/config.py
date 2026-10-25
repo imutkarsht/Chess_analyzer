@@ -277,6 +277,10 @@ class ConfigManager:
                 if not isinstance(value, bool):
                     raise ValueError("expected bool")
                 return value
+            if spec.kind in {"int", "float"} and value is None:
+                if spec.nullable:
+                    return None
+                raise ValueError("expected a number, got None")
             if spec.kind == "int":
                 if isinstance(value, bool):
                     raise ValueError("bool is not an int setting")
