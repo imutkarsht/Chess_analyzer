@@ -64,13 +64,10 @@ class BookSettings(QGroupBox):
     def validate_polyglot_path(self):
         path = self.polyglot_path_input.text().strip()
         if not path:
-            self.polyglot_validation_label.setText(
-                "⚠️ No polyglot book specified (SQLite book will be used)"
-            )
-            self.polyglot_validation_label.setStyleSheet(
-                f"color: {Styles.COLOR_MISTAKE}; font-size: 12px; font-weight: bold; background: transparent;"
-            )
-            self.polyglot_validation_label.setVisible(True)
+            # Empty is a supported state: the built-in SQLite book handles it,
+            # so stay quiet instead of flagging a non-problem.
+            self.polyglot_validation_label.clear()
+            self.polyglot_validation_label.setVisible(False)
             return
 
         is_file = os.path.exists(path) and os.path.isfile(path)
