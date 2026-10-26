@@ -22,7 +22,7 @@ from src.backend.services.feedback_service import (
     FeedbackWorker,
     get_recent_logs,
 )
-from src.gui.components import Tabs, TabVariant
+from src.gui.components import Button, ButtonVariant, Tabs, TabVariant
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -172,17 +172,13 @@ class FeedbackDialog(QDialog):
         btn_layout.setContentsMargins(0, 4, 0, 0)
         btn_layout.setSpacing(12)
 
-        self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_cancel.setStyleSheet(Styles.get_control_button_style())
+        self.btn_cancel = Button("Cancel", ButtonVariant.FILLED)
         self.btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
         btn_layout.addStretch()
 
-        self.btn_submit = QPushButton("Submit")
-        self.btn_submit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_submit.setStyleSheet(Styles.get_button_style())
+        self.btn_submit = Button("Submit", ButtonVariant.PRIMARY)
         self.btn_submit.clicked.connect(self._on_submit)
         btn_layout.addWidget(self.btn_submit)
 
@@ -476,9 +472,7 @@ class FeedbackDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_done = QPushButton("Done")
-        btn_done.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_done.setStyleSheet(Styles.get_button_style())
+        btn_done = Button("Done", ButtonVariant.PRIMARY)
         btn_done.clicked.connect(self.accept)
         layout.addWidget(btn_done, alignment=Qt.AlignmentFlag.AlignCenter)
 

@@ -225,7 +225,7 @@ class LinksSettings(QGroupBox):
             + Styles.get_transparent_label_style()
         )
         for button, icon_name in self._link_icons:
-            button.setStyleSheet(Styles.get_settings_link_button_style())
+            button.refresh_styles()
             if HAS_QTAWESOME:
                 qta_icon = qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY)
                 button.setIcon(qta_icon)

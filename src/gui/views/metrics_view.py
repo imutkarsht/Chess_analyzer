@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
-    QPushButton,
     QScrollArea,
     QStackedWidget,
     QVBoxLayout,
@@ -15,7 +14,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
 from src.backend.services.groq_service import GroqService
-from src.gui.components import MasonryLayout, StatCard, StatsLayout
+from src.gui.components import Button, ButtonVariant, MasonryLayout, StatCard, StatsLayout
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
@@ -245,7 +244,7 @@ class MetricsWidget(QWidget):
             )
 
         if hasattr(self, "btn_refresh") and self.btn_refresh:
-            self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
+            self.btn_refresh.refresh_styles()
             try:
                 import qtawesome as qta
 
@@ -256,7 +255,7 @@ class MetricsWidget(QWidget):
                 pass
 
         if hasattr(self, "btn_reset_filters") and self.btn_reset_filters:
-            self.btn_reset_filters.setStyleSheet(Styles.get_control_button_style())
+            self.btn_reset_filters.refresh_styles()
             try:
                 import qtawesome as qta
 
@@ -494,10 +493,8 @@ class MetricsWidget(QWidget):
         layout.addWidget(msg)
 
         if btn_text and btn_callback:
-            btn = QPushButton(btn_text)
-            btn.setStyleSheet(Styles.get_button_style())
+            btn = Button(btn_text, ButtonVariant.PRIMARY, on_click=btn_callback)
             btn.setFixedWidth(200)
-            btn.clicked.connect(btn_callback)
             layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.content_layout.addWidget(container)

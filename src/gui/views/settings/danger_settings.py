@@ -83,4 +83,4 @@ class DangerSettings(StorageCard):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.clear_data_btn.setStyleSheet(Styles.get_settings_danger_button_style())
+        self.clear_data_btn.refresh_styles()

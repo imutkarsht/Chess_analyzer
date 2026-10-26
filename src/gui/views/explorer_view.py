@@ -32,6 +32,7 @@ from src.backend.storage.game_history import GameHistoryManager
 from src.gui.analysis.captured import CapturedPiecesWidget
 from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
 from src.gui.board import Board, BoardConfig
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.engine_lines import (
     EngineLinesConfig,
@@ -166,22 +167,19 @@ class ExplorerView(QWidget):
         header_layout.addStretch()
 
         # Action buttons header style
-        self.btn_flip = QPushButton("Flip Board")
-        self.btn_flip.setStyleSheet(Styles.get_action_button_style())
-        self.btn_flip.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_flip.clicked.connect(self._flip_board)
+        self.btn_flip = Button(
+            "Flip Board", ButtonVariant.HOLLOW, ButtonSize.SM, on_click=self._flip_board
+        )
         header_layout.addWidget(self.btn_flip)
 
-        self.btn_copy_fen = QPushButton("Copy FEN")
-        self.btn_copy_fen.setStyleSheet(Styles.get_action_button_style())
-        self.btn_copy_fen.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_copy_fen.clicked.connect(self._copy_fen)
+        self.btn_copy_fen = Button(
+            "Copy FEN", ButtonVariant.HOLLOW, ButtonSize.SM, on_click=self._copy_fen
+        )
         header_layout.addWidget(self.btn_copy_fen)
 
-        self.btn_copy_pgn = QPushButton("Copy PGN")
-        self.btn_copy_pgn.setStyleSheet(Styles.get_action_button_style())
-        self.btn_copy_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_copy_pgn.clicked.connect(self._copy_pgn)
+        self.btn_copy_pgn = Button(
+            "Copy PGN", ButtonVariant.HOLLOW, ButtonSize.SM, on_click=self._copy_pgn
+        )
         header_layout.addWidget(self.btn_copy_pgn)
 
         main_layout.addWidget(self.header_bar)
@@ -1312,11 +1310,11 @@ class ExplorerView(QWidget):
         if hasattr(self, 'opening_badge'):
             self.opening_badge.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; padding: 0px 0px 0px 12px; " + Styles.get_transparent_label_style())
         if hasattr(self, 'btn_flip'):
-            self.btn_flip.setStyleSheet(Styles.get_action_button_style())
+            self.btn_flip.refresh_styles()
         if hasattr(self, 'btn_copy_fen'):
-            self.btn_copy_fen.setStyleSheet(Styles.get_action_button_style())
+            self.btn_copy_fen.refresh_styles()
         if hasattr(self, 'btn_copy_pgn'):
-            self.btn_copy_pgn.setStyleSheet(Styles.get_action_button_style())
+            self.btn_copy_pgn.refresh_styles()
         if hasattr(self, 'splitter'):
             self.splitter.setStyleSheet(Styles.get_splitter_style())
         if hasattr(self, 'left_panel'):

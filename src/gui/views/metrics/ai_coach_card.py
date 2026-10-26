@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
+from src.gui.components import Button, ButtonVariant
 from src.gui.components.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
@@ -326,9 +327,11 @@ class AICoachCard(MetricCard):
         btn_row.setSpacing(10)
 
         if "not configured" in err_msg.lower():
-            btn_cfg = QPushButton("Configure LLM in Settings")
-            btn_cfg.setStyleSheet(Styles.get_button_style())
-            btn_cfg.clicked.connect(self._open_settings)
+            btn_cfg = Button(
+                "Configure LLM in Settings",
+                ButtonVariant.PRIMARY,
+                on_click=self._open_settings,
+            )
             btn_row.addWidget(btn_cfg)
         else:
             show_error_dialog(
@@ -338,9 +341,9 @@ class AICoachCard(MetricCard):
                 err_msg,
             )
 
-        btn_retry = QPushButton("Retry Analysis")
-        btn_retry.setStyleSheet(Styles.get_control_button_style())
-        btn_retry.clicked.connect(self._generate_insights)
+        btn_retry = Button(
+            "Retry Analysis", ButtonVariant.FILLED, on_click=self._generate_insights
+        )
         btn_row.addWidget(btn_retry)
         btn_row.addStretch()
 

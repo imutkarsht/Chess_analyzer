@@ -18,15 +18,10 @@ from PyQt6.QtWidgets import (
 
 from src.backend.services.feedback_service import FeedbackService, FeedbackWorker
 from src.constants import REVIEW_SNOOZE_INTERVAL
+from src.gui.components import Button, ButtonVariant
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
-
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class ReviewPromptDialog(QDialog):
@@ -186,17 +181,13 @@ class ReviewPromptDialog(QDialog):
 
         btn_layout.addStretch()
 
-        self.btn_remind = QPushButton("Remind Later")
-        self.btn_remind.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_remind.setStyleSheet(Styles.get_control_button_style())
+        self.btn_remind = Button("Remind Later", ButtonVariant.FILLED)
         self.btn_remind.clicked.connect(self._on_remind_later)
         btn_layout.addWidget(self.btn_remind)
 
-        self.btn_submit = QPushButton("  Submit Review")
-        self.btn_submit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        if HAS_QTAWESOME:
-            self.btn_submit.setIcon(qta.icon("fa5s.paper-plane", color="#FFFFFF"))
-        self.btn_submit.setStyleSheet(Styles.get_button_style())
+        self.btn_submit = Button(
+            "Submit Review", ButtonVariant.PRIMARY, icon="fa5s.paper-plane"
+        )
         self.btn_submit.clicked.connect(self._on_submit_review)
         btn_layout.addWidget(self.btn_submit)
 
@@ -236,9 +227,7 @@ class ReviewPromptDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_close = QPushButton("Keep Analyzing")
-        btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_close.setStyleSheet(Styles.get_button_style())
+        btn_close = Button("Keep Analyzing", ButtonVariant.PRIMARY)
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignCenter)
 
