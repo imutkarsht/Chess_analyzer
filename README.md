@@ -67,7 +67,7 @@
 - **Move Classification**: Automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss) with sacrifice detection for brilliancies.
 - **AI Coach Summaries**: Generates natural language post-game explanations using any OpenAI-compatible endpoint. Out-of-the-box support for **Groq** (Cloud), **LM Studio** (Local), **MiniMax** (Cloud), and **Custom endpoints**.
 - **Win Probability**: Calculates and displays win probability swings for every move.
-- **Opening Explorer**: Deep opening analysis using a built-in local SQLite openings database, custom Polyglot opening books (`*.bin` files), and live **Lichess Masters & Public game database integration** with Win/Draw/Loss ratio bars.
+- **Opening Explorer**: Deep opening analysis using a built-in local SQLite openings database, custom Polyglot opening books (`*.bin` files), and live **Lichess game database integration** (a Lichess token is required for live data) with Win/Draw/Loss ratio bars.
 - **Ending & Termination Analysis**: Detects and charts game outcomes by exact termination reason (Checkmate, Time, Resignation, Stalemate, Abandonment, Insufficient Material).
 
 ### Performance Analytics
