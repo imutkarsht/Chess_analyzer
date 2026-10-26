@@ -324,15 +324,18 @@ class Styles(metaclass=_StylesMeta):
         size: str = "md",
         accent: str | None = None,
         align: str | None = None,
+        danger: bool = False,
     ) -> str:
         """Stylesheet for :class:`src.gui.components.button.Button`.
 
         One generator for every button in the app, so hover/pressed/checked/
         disabled states stay identical everywhere and follow the live palette.
+        ``danger`` recolors any variant with the destructive tone; the
+        ``danger`` variant is the outlined red look on its own.
         """
         p = ThemeManager.palette()
         acc = accent or p.accent
-        danger = cls.COLOR_BLUNDER
+        danger_color = cls.COLOR_BLUNDER
         on_acc = cls.COLOR_ON_ACCENT
         spec = cls._BUTTON_SIZES.get(size, cls._BUTTON_SIZES["md"])
 
@@ -367,10 +370,10 @@ class Styles(metaclass=_StylesMeta):
             checked = (p.accent_subtle, p.text_primary, "transparent")
             disabled_bg = "transparent"
         elif variant == "danger":
-            bg, fg, border = "transparent", danger, danger
-            hover = (danger, on_acc, danger)
-            pressed = (danger, on_acc, danger)
-            checked = (danger, on_acc, danger)
+            bg, fg, border = "transparent", danger_color, danger_color
+            hover = (danger_color, on_acc, danger_color)
+            pressed = (danger_color, on_acc, danger_color)
+            checked = (danger_color, on_acc, danger_color)
             disabled_bg = "transparent"
         else:  # link
             bg, fg, border = "transparent", p.text_secondary, "transparent"
@@ -378,6 +381,15 @@ class Styles(metaclass=_StylesMeta):
             pressed = ("transparent", acc, "transparent")
             checked = ("transparent", acc, "transparent")
             disabled_bg = "transparent"
+
+        if danger and variant != "danger":
+            fg = danger_color
+            border = danger_color
+            hover = (danger_color, on_acc, danger_color)
+            pressed = (danger_color, on_acc, danger_color)
+            checked = (danger_color, on_acc, danger_color)
+            if bg != "transparent":
+                bg = danger_color
 
         align_rule = f"text-align: {align};" if align else ""
         return f"""

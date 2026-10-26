@@ -6,23 +6,16 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
+from src.gui.components import Button, ButtonVariant
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button, create_combobox
 from src.utils.logger import logger
-
-try:
-    import qtawesome as qta
-
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class GameImportWorker(QThread):
@@ -216,17 +209,14 @@ class HistoryView(QWidget):
         self.load_history()
 
     def _create_icon_button(self, text, icon_name, callback, danger=False):
-        """Create a styled button with qtawesome icon."""
-        btn = QPushButton(f"  {text}")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(Styles.get_control_button_style(danger=danger))
-
-        if HAS_QTAWESOME:
-            icon_color = Styles.COLOR_BLUNDER if danger else Styles.COLOR_TEXT_SECONDARY
-            btn.setIcon(qta.icon(icon_name, color=icon_color))
-
-        btn.clicked.connect(callback)
-        return btn
+        """Create a Button with a themed icon."""
+        return Button(
+            text,
+            ButtonVariant.FILLED,
+            icon=icon_name,
+            danger=danger,
+            on_click=callback,
+        )
 
     def apply_default_view_mode(self):
         """Apply the Appearance default layout without overriding a manual toggle."""

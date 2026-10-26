@@ -78,6 +78,7 @@ class Button(QPushButton):
         full_width: bool = False,
         align: str | None = None,
         accent: str | None = None,
+        danger: bool = False,
         tooltip: str | None = None,
         on_click=None,
         parent: QWidget | None = None,
@@ -92,6 +93,7 @@ class Button(QPushButton):
         self._icon_size_override = icon_size
         self._align = align
         self._accent = accent
+        self._danger = danger
         self._loading = False
         self._enabled_before_loading = True
         self._spin_angle = 0
@@ -153,6 +155,12 @@ class Button(QPushButton):
         self.refresh_styles()
         self._apply_icon()
 
+    def set_danger(self, danger: bool) -> None:
+        """Recolor a variant with the destructive tone."""
+        self._danger = danger
+        self.refresh_styles()
+        self._apply_icon()
+
     def set_icon_spec(self, icon: QIcon | str | None) -> None:
         self._icon_spec = icon
         self._apply_icon()
@@ -184,6 +192,7 @@ class Button(QPushButton):
                 size=self._size.value,
                 accent=self._accent,
                 align=self._align,
+                danger=self._danger,
             )
         )
 
@@ -195,10 +204,10 @@ class Button(QPushButton):
 
     def _icon_color(self) -> str:
         v = self._variant
+        if self._danger or v is ButtonVariant.DANGER:
+            return Styles.COLOR_BLUNDER
         if v is ButtonVariant.PRIMARY:
             return Styles.COLOR_ON_ACCENT
-        if v is ButtonVariant.DANGER:
-            return Styles.COLOR_BLUNDER
         if v is ButtonVariant.LINK or v is ButtonVariant.OUTLINED:
             return self._accent or Styles.COLOR_ACCENT
         return Styles.COLOR_TEXT_SECONDARY
