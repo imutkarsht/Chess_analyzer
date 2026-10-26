@@ -3,7 +3,7 @@
 One widget and one stylesheet generator replace the ad-hoc button styles that
 used to live in ``styles.py`` getters, helper factories and per-widget QSS:
 
-* seven variants: primary, filled, outlined, hollow, ghost, danger, link
+* eight variants: primary, filled, outlined, tonal, hollow, ghost, danger, link
 * three sizes with optional icon-only and full-width layouts
 * built-in loading state (spinner + input lock) and checkable support
 
@@ -34,6 +34,7 @@ class ButtonVariant(StrEnum):
     PRIMARY = "primary"
     FILLED = "filled"
     OUTLINED = "outlined"
+    TONAL = "tonal"
     HOLLOW = "hollow"
     GHOST = "ghost"
     DANGER = "danger"
@@ -155,6 +156,11 @@ class Button(QPushButton):
         self.refresh_styles()
         self._apply_icon()
 
+    def set_align(self, align: str | None) -> None:
+        """Change text/icon alignment (left, center or right)."""
+        self._align = align
+        self.refresh_styles()
+
     def set_danger(self, danger: bool) -> None:
         """Recolor a variant with the destructive tone."""
         self._danger = danger
@@ -204,11 +210,12 @@ class Button(QPushButton):
 
     def _icon_color(self) -> str:
         v = self._variant
+        if v is ButtonVariant.PRIMARY:
+            # Destructive primaries keep the white label/icon for contrast.
+            return Styles.COLOR_ON_ACCENT
         if self._danger or v is ButtonVariant.DANGER:
             return Styles.COLOR_BLUNDER
-        if v is ButtonVariant.PRIMARY:
-            return Styles.COLOR_ON_ACCENT
-        if v is ButtonVariant.LINK or v is ButtonVariant.OUTLINED:
+        if v is ButtonVariant.OUTLINED or v is ButtonVariant.TONAL:
             return self._accent or Styles.COLOR_ACCENT
         return Styles.COLOR_TEXT_SECONDARY
 
