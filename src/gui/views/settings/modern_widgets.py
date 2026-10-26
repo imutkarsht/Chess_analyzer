@@ -107,6 +107,13 @@ class ModernSliderCounter(QWidget):
     def value(self) -> float:
         return self.slider.value() / self._scale
 
+    def set_maximum(self, max_val) -> None:
+        """Change the upper bound (used when a token raises the import cap)."""
+        self.max_val = max_val
+        self.slider.setMaximum(round(max_val * self._scale))
+        if self.value() > max_val:
+            self.setValue(max_val)
+
     def setValue(self, val):
         try:
             fval = float(val)

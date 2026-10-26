@@ -174,7 +174,10 @@ def build_profile_page(wizard) -> QWidget:
     wizard.lichess_token_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.lichess_token_input)
 
-    hint = QLabel("Required by Lichess to download full private game archives and explorer stats.")
+    hint = QLabel(
+        "Optional. Raises the import limit from 20 to 30 games, unlocks "
+        "private archive downloads, and enables the online opening explorer."
+    )
     hint.setProperty("class", "wizard-hint")
     card_layout.addWidget(hint)
 

@@ -12,7 +12,12 @@ from .full_analysis_settings import FullAnalysisSettings
 from .links_settings import LinksSettings
 from .live_analysis_settings import LiveAnalysisSettings
 from .maintenance_settings import MaintenanceSettings
-from .player_settings import PlayerSettings
+from .player_settings import (
+    ChessComCard,
+    ImportNetworkCard,
+    LichessCard,
+    PlayerSettings,
+)
 from .retention_settings import RetentionSettings
 from .shortcut_settings import ShortcutSettings
 from .sound_settings import SoundSettings
@@ -28,6 +33,9 @@ __all__ = [
     'ApiSettings',
     'CoachSettings',
     'PlayerSettings',
+    'ChessComCard',
+    'LichessCard',
+    'ImportNetworkCard',
     'ShortcutSettings',
     'ThemeAccentSettings',
     'BoardPiecesSettings',

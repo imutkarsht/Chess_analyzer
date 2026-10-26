@@ -214,6 +214,33 @@ def test_data_storage_page_groups_five_cards(qapp, qtbot, isolated_config):
         assert found == ["Data & Storage"]
 
 
+def test_integrations_page_composes_three_cards_and_persists_network_options(
+    qapp, qtbot, isolated_config
+):
+    """Integrations stays one page with three independently bound cards."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view._settings_pages["Integrations"] == [view.player_settings]
+        assert [card.title() for card in view.player_settings.cards] == [
+            "Chess.com",
+            "Lichess",
+            "Import & Network",
+        ]
+
+        view.player_settings.lichess_card.explorer_checkbox.setChecked(False)
+        ttl_combo = view.player_settings.import_network_card.cache_ttl_combo
+        ttl_combo.setCurrentIndex(ttl_combo.findData(168))
+
+        view.player_settings.commit_all()
+
+        assert view.config_manager.get("lichess_explorer_enabled") is False
+        assert view.config_manager.get("profile_cache_ttl_hours") == 168
+
+
 def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isolated_config):
     """Binder-driven cards persist on edit; Save must still notify the engine once."""
     from src.gui.views.settings_view import SettingsView

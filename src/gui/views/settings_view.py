@@ -370,7 +370,10 @@ class SettingsView(QWidget):
             "Analysis": "engine stockfish depth multipv opening book polyglot",
             "Appearance": "theme accent colour color board pieces sidebar sound layout",
             "AI Coach": "api key provider model llm profile coach explanation cache",
-            "Integrations": "chesscom lichess username token network games limit",
+            "Integrations": (
+                "chesscom lichess username token network games limit profile "
+                "preview avatar cache ttl explorer opening"
+            ),
             "Data & Storage": (
                 "cache database reset storage optimize clear backup restore "
                 "maintenance vacuum retention ttl"
@@ -651,7 +654,6 @@ class SettingsView(QWidget):
             (self.full_analysis_settings, "binder"),
             (self.live_analysis_settings, "binder"),
             (self.book_settings, "binder"),
-            (self.player_settings, "binder"),
             (self.theme_accent_settings, "binder"),
             (self.board_pieces_settings, "binder"),
             (self.window_layout_settings, "binder"),
@@ -665,10 +667,18 @@ class SettingsView(QWidget):
             if binder is not None:
                 binder.commit_all()
 
+        # The Integrations page is a composite of three cards, each with its
+        # own binder, so it cannot be expressed as a single (card, "binder").
+        self.player_settings.commit_all()
+
     def save_usernames(self):
+        # Resolve the requested cap before flushing: the binder commit writes
+        # the already-clamped value back to the slider, which would hide the
+        # warning. The token provider reads the just-typed field directly.
         warning_msg = self.player_settings.apply_games_limit(
             self.games_limit_input.text().strip()
         )
+        self.player_settings.commit_all()
         self.config_manager.set("chesscom_username", self.chesscom_input.text().strip())
         self.config_manager.set("lichess_username", self.lichess_input.text().strip())
         self.usernames_changed.emit()
