@@ -293,6 +293,19 @@ def _init_cache_tables(cursor: sqlite3.Cursor) -> None:
                 cached_at REAL NOT NULL
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS api_profile_cache (
+                platform TEXT NOT NULL,
+                username_key TEXT NOT NULL,
+                username TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                avatar_url TEXT,
+                avatar_blob BLOB,
+                avatar_mime TEXT,
+                fetched_at REAL NOT NULL,
+                PRIMARY KEY (platform, username_key)
+            )
+        """)
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_api_cache_date ON api_game_cache(source, date)"
         )

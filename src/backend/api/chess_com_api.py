@@ -1,12 +1,13 @@
 import datetime
 import re
+from urllib.parse import quote
 
 import requests
 
 from src.constants import CHESSCOM_BASE_URL, CHESSCOM_HEADERS
 from src.utils.logger import logger
 
-from .base_api import BaseChessAPI
+from .base_api import BaseChessAPI, ProfileResult
 
 
 class ChessComAPI(BaseChessAPI):
@@ -182,29 +183,38 @@ class ChessComAPI(BaseChessAPI):
         return None
 
     @staticmethod
-    def get_user_profile(username: str) -> dict | None:
-        """
-        Fetches public profile & live rating stats for a Chess.com user.
-        Returns normalized dictionary with avatar, ratings, total games, win rate, etc.
-        """
-        clean_user = username.strip().lower()
+    def _country_code(value: str | None) -> str | None:
+        """Chess.com returns a country API URL; the UI wants the country code."""
+        if not value:
+            return None
+        text = str(value).strip().rstrip("/")
+        if not text:
+            return None
+        return text.rsplit("/", 1)[-1].upper()
+
+    @staticmethod
+    def get_user_profile_result(username: str) -> ProfileResult:
+        """Fetch public profile, stats, and avatar with an explicit status."""
+        clean_user = username.strip()
         if not clean_user:
-            return None
+            return ProfileResult(None, "not_found")
 
-        profile_url = f"{ChessComAPI.BASE_URL}/player/{clean_user}"
-        stats_url = f"{ChessComAPI.BASE_URL}/player/{clean_user}/stats"
+        encoded = quote(clean_user, safe="")
+        profile_url = f"{ChessComAPI.BASE_URL}/player/{encoded}"
+        stats_url = f"{ChessComAPI.BASE_URL}/player/{encoded}/stats"
 
-        prof_resp = BaseChessAPI._make_request(profile_url, ChessComAPI.HEADERS)
-        if not prof_resp:
-            return None
-        prof_data = BaseChessAPI._safe_json(prof_resp)
-        if not prof_data:
-            return None
+        prof_data, status = BaseChessAPI._request_json(
+            profile_url, ChessComAPI.HEADERS
+        )
+        if status != "ok" or not isinstance(prof_data, dict):
+            return ProfileResult(None, status if status != "ok" else "error")
 
-        stats_data = {}
-        stats_resp = BaseChessAPI._make_request(stats_url, ChessComAPI.HEADERS)
-        if stats_resp:
-            stats_data = BaseChessAPI._safe_json(stats_resp) or {}
+        stats_data, stats_status = BaseChessAPI._request_json(
+            stats_url, ChessComAPI.HEADERS
+        )
+        if stats_status != "ok" or not isinstance(stats_data, dict):
+            # Ratings are useful but not essential; keep the profile visible.
+            stats_data = {}
 
         def parse_stat(key: str) -> dict:
             item = stats_data.get(key, {})
@@ -243,12 +253,17 @@ class ChessComAPI(BaseChessAPI):
         total_draws = bullet["draw"] + blitz["draw"] + rapid["draw"] + daily["draw"]
         win_rate = (total_wins / total_games * 100) if total_games > 0 else 0.0
 
-        return {
+        avatar_url = prof_data.get("avatar")
+        avatar_bytes, avatar_mime = BaseChessAPI.fetch_avatar(
+            avatar_url, ChessComAPI.HEADERS
+        )
+
+        profile = {
             "platform": "chesscom",
             "username": prof_data.get("username", clean_user),
             "title": prof_data.get("title"),
-            "avatar": prof_data.get("avatar"),
-            "country": prof_data.get("country"),
+            "avatar": avatar_url,
+            "country": ChessComAPI._country_code(prof_data.get("country")),
             "joined": prof_data.get("joined"),
             "url": prof_data.get("url"),
             "bullet": bullet,
@@ -264,3 +279,10 @@ class ChessComAPI(BaseChessAPI):
                 "draw": total_draws,
             },
         }
+        return ProfileResult(profile, "ok", avatar_bytes, avatar_mime)
+
+    @staticmethod
+    def get_user_profile(username: str) -> dict | None:
+        """Backward-compatible profile-only accessor."""
+        return ChessComAPI.get_user_profile_result(username).profile
+

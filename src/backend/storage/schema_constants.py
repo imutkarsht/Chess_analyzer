@@ -85,5 +85,6 @@ DATA_TABLES: tuple[str, ...] = (
     "analysis",
     "move_explanations",
     "api_game_cache",
+    "api_profile_cache",
     "explorer_cache",
 )

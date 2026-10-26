@@ -1,4 +1,16 @@
+from unittest.mock import MagicMock
+
+import pytest
+
 from src.backend.api.chess_com_api import ChessComAPI
+
+
+def _json_response(payload):
+    response = MagicMock()
+    response.status_code = 200
+    response.ok = True
+    response.json.return_value = payload
+    return response
 
 
 def test_get_last_games(mock_requests):
@@ -86,8 +98,49 @@ def test_get_user_profile(mock_requests):
     assert prof["platform"] == "chesscom"
     assert prof["username"] == "hikaru"
     assert prof["title"] == "GM"
+    assert prof["country"] == "US"
     assert prof["bullet"]["rating"] == 3200
     assert prof["bullet"]["peak"] == 3350
     assert prof["blitz"]["rating"] == 3150
     assert prof["puzzle"]["rating"] == 3400
     assert prof["total_games"] == 650 + 520
+
+
+def test_get_user_profile_classifies_missing_user(mock_requests):
+    mock_requests.return_value.status_code = 404
+
+    result = ChessComAPI.get_user_profile_result("nobody")
+
+    assert result.profile is None
+    assert result.status == "not_found"
+
+
+@pytest.mark.parametrize(
+    ("content_type", "expected_bytes"),
+    [("image/png", b"avatar-bytes"), ("application/json", None)],
+)
+def test_get_user_profile_accepts_only_image_avatars(
+    mock_requests, content_type, expected_bytes
+):
+    avatar = MagicMock()
+    avatar.status_code = 200
+    avatar.headers = {"Content-Type": content_type}
+    avatar.iter_content.return_value = [b"avatar-bytes"]
+    avatar.__enter__.return_value = avatar
+    mock_requests.side_effect = [
+        _json_response(
+            {
+                "username": "hikaru",
+                "avatar": "https://example.com/avatar.png",
+                "country": "https://api.chess.com/pub/country/US",
+            }
+        ),
+        _json_response({}),
+        avatar,
+    ]
+
+    result = ChessComAPI.get_user_profile_result("hikaru")
+
+    assert result.status == "ok"
+    assert result.avatar_bytes == expected_bytes
+    assert result.avatar_mime == (content_type if expected_bytes else None)

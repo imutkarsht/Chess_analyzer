@@ -696,6 +696,7 @@ def test_clear_all_data_wipes_games_and_every_cache_table(temp_db):
         "1. e4 e5 1-0",
     )
     manager.save_explorer_cache("fen_a", '{"moves": []}')
+    manager.save_cached_profile("chesscom", "Hikaru", {"username": "Hikaru"})
 
     cache = AnalysisCache(temp_db)
     cache.save_analysis("fen_a", {"depth": 10, "multi_pv": 2}, {"score": 5})
