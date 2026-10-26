@@ -179,7 +179,7 @@ class TestReplay:
     )
     def test_replay_shows_the_right_line(self, panel, replay, expected_move, fen_from):
         panel.set_selected_move(8)
-        panel.tabs.setCurrentIndex(2)
+        panel.tabs.set_current_index(2)
 
         getattr(panel, replay)()
 
@@ -199,11 +199,11 @@ class TestReplay:
     def test_replay_refutation_brings_the_evaluation_tab_forward(self, panel):
         """The lines widget lives in the Evaluation tab, so it must be shown."""
         panel.set_selected_move(8)
-        panel.tabs.setCurrentIndex(2)
+        panel.tabs.set_current_index(2)
 
         panel.replay_refutation()
 
-        assert panel.tabs.currentIndex() == 0
+        assert panel.tabs.current_index() == 0
 
     def test_replay_requests_the_matching_board_position(self, panel):
         panel.set_selected_move(8)

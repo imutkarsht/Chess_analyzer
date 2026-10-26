@@ -273,8 +273,8 @@ class SettingsView(QWidget):
         self.lichess_input = self.player_settings.lichess_input
         self.games_limit_input = self.player_settings.games_limit_input
 
-        self.theme_combo = self.board_pieces_settings.theme_combo
-        self.piece_combo = self.board_pieces_settings.piece_combo
+        self.theme_combo = None
+        self.piece_combo = None
         self.sound_checkbox = self.sound_settings.sound_checkbox
         self.sound_volume_input = self.sound_settings.volume_input
         self.coordinates_checkbox = self.board_pieces_settings.coordinates_checkbox

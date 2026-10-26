@@ -12,7 +12,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QSizePolicy,
-    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -24,7 +23,7 @@ from src.backend.services.groq_service import GroqService
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import EXPLANATION_DEBOUNCE_MS
-from src.gui.components import CircularAccuracyWidget
+from src.gui.components import CircularAccuracyWidget, Tabs, TabVariant
 from src.gui.components.graph_widget import GraphWidget
 from src.gui.components.pulsing_skeleton import PulsingSkeleton
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
@@ -89,9 +88,10 @@ class AnalysisPanel(QWidget):
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
-        # Tabs
-        self.tabs = QTabWidget()
-        self.tabs.currentChanged.connect(self._on_tab_changed)
+        # Tabs: the shared segmented control. Expanding keeps the three
+        # sections split evenly across the narrow analysis panel.
+        self.tabs = Tabs(TabVariant.SEGMENTED, font_size=12, padding=(8, 10, 8, 10))
+        self.tabs.current_changed.connect(self._on_tab_changed)
         self.layout.addWidget(self.tabs)
 
         # --- Tab 1: Evaluation ---
@@ -139,7 +139,7 @@ class AnalysisPanel(QWidget):
         # them, which made the panel look like it was floating.
         self.eval_layout.addStretch(1)
 
-        self.tabs.addTab(self.eval_tab, "Evaluation")
+        self.tabs.add_tab("Evaluation", self.eval_tab)
         self._apply_tabs_style()
 
         # --- Tab 2: Report ---
@@ -267,7 +267,7 @@ class AnalysisPanel(QWidget):
         # Keep the Report tab top-aligned now that its last section moved out.
         self.report_layout.addStretch()
 
-        self.tabs.addTab(self.report_tab, "Report")
+        self.tabs.add_tab("Report", self.report_tab)
 
         # --- Tab 3: Coach (D1) ---
         self.coach_tab = QWidget()
@@ -291,14 +291,14 @@ class AnalysisPanel(QWidget):
         coach_layout.addWidget(self.div_summary)
         coach_layout.addWidget(self.ai_summary_frame, stretch=1)
 
-        self.tabs.addTab(self.coach_tab, "Coach")
+        self.tabs.add_tab("Coach", self.coach_tab)
 
     def set_analysis_running(self, running: bool):
         self._analysis_running = running
 
     def _on_tab_changed(self, index):
         if self._analysis_running and index in _TABS_LOCKED_DURING_ANALYSIS:
-            self.tabs.setCurrentIndex(0)
+            self.tabs.set_current_index(0)
 
     def set_game(self, game_analysis):
         self.current_game = game_analysis
@@ -576,7 +576,7 @@ class AnalysisPanel(QWidget):
         self._apply_toggle_style()
 
         if hasattr(self, "tabs"):
-            self.tabs.setStyleSheet(Styles.get_tab_style())
+            self.tabs.refresh_styles()
 
         if hasattr(self, "lines_widget"):
             self.lines_widget.refresh_styles()
@@ -599,8 +599,8 @@ class AnalysisPanel(QWidget):
             self.cache_checkbox.setStyleSheet(cb_style)
 
     def _apply_tabs_style(self):
-        """Applies the themed QTabWidget stylesheet."""
-        self.tabs.setStyleSheet(Styles.get_tab_style())
+        """Regenerates the tab stylesheet from the active theme."""
+        self.tabs.refresh_styles()
 
     def on_summary_generated(self, summary):
         self._set_summary_loading(False)
@@ -787,7 +787,7 @@ class AnalysisPanel(QWidget):
         fen_after = self._fen_after_played_move(insight)
         lines, _lines_fen = lines_for_move(reply, chess960=self._is_chess960())
         self.update_lines(lines, fen=fen_after)
-        self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+        self.tabs.set_current_index(0)  # the replayed lines live in the Evaluation tab
 
         if fen_after and insight.refutation_san:
             try:
@@ -814,7 +814,7 @@ class AnalysisPanel(QWidget):
 
         lines, _lines_fen = lines_for_move(played, chess960=self._is_chess960())
         self.update_lines(lines, fen=played.fen_before)
-        self.tabs.setCurrentIndex(0)  # the replayed lines live in the Evaluation tab
+        self.tabs.set_current_index(0)  # the replayed lines live in the Evaluation tab
 
         best_uci = insight.best_move_uci
         if not best_uci:

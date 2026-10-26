@@ -237,32 +237,8 @@ QTabWidget::pane {{
     background-color: transparent;
 }}
 
-QTabBar {{
-    qproperty-drawBase: 0;
-}}
-
-QTabBar::tab {{
-    background-color: {SURFACE};
-    color: {TEXT_SECONDARY};
-    padding: 7px 18px;
-    font-weight: 600;
-    font-size: 12px;
-    border: 1px solid {BORDER};
-    border-radius: 8px;
-    margin-right: 6px;
-}}
-
-QTabBar::tab:selected {{
-    background-color: {SURFACE_LIGHT};
-    color: {TEXT_PRIMARY};
-    border-color: {ACCENT};
-}}
-
-QTabBar::tab:hover:!selected {{
-    background-color: {SURFACE_LIGHT};
-    color: {TEXT_PRIMARY};
-    border-color: {BORDER_LIGHT};
-}}
+/* Tabs are styled by src/gui/components/tabs.py (Styles.get_tabs_style);
+   a global QTabBar rule here would leak into that component. */
 
 /* Checkboxes */
 QCheckBox {{
