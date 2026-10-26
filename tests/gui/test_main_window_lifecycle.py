@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from src.backend.storage.models import GameAnalysis, GameMetadata
 from src.gui.main_window import MainWindow
@@ -30,8 +30,12 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert not window.btn_hero_load.isHidden()
     assert not window.btn_hero_paste.isHidden()
 
+    # showEvent defers the historic puzzle with a zero-delay timer; drain it
+    # deterministically instead of polling with a timeout.
+    QApplication.processEvents()
+    assert window.historic_info_bar.isVisible()
+
     # Historic puzzle can be revealed directly from the landing bar.
-    qtbot.waitUntil(lambda: window.historic_info_bar.isVisible(), timeout=2000)
     window._load_random_historic_position()
     assert window.btn_hib_reveal.isEnabled()
     assert not window.btn_hib_reveal.isHidden()
@@ -53,14 +57,15 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     # The revealed position opens directly in the Explorer.
     revealed_fen = window.board_widget.board.fen()
     window._explore_historic_position()
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == 1, timeout=2500)
     assert window.explorer_view.starting_fen == revealed_fen
+
+    # switch_page defers the stack change with a zero-delay timer.
+    QApplication.processEvents()
+    assert window.stack.currentIndex() == 1
 
     # Trigger switch to page 1
     window.switch_page(1)
-
-    # Deferral: wait for singleShot + transition to complete
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == 1, timeout=2500)
+    QApplication.processEvents()
     assert window.stack.currentIndex() == 1
 
     # Guard ongoing analysis: clicking active game returns to page 0; other game is blocked
@@ -85,7 +90,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert not window.board_widget.eval_bar.isHidden()
 
     window.load_game_from_history(game_active)
-    qtbot.waitUntil(lambda: window.stack.currentIndex() == 0, timeout=2500)
+    QApplication.processEvents()
     assert window.stack.currentIndex() == 0
     assert window.btn_load.isVisible()
 
