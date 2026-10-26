@@ -27,15 +27,19 @@ def fake_config(monkeypatch):
     """Replace ConfigManager() inside groq_service with a stub that returns a
     profile we control per-test."""
     profiles = {}
+    settings = {}
 
-    def _set(profile):
+    def _set(profile, **overrides):
         profiles["current"] = profile
+        settings.clear()
+        settings.update(overrides)
 
     def _factory():
         cfg = MagicMock()
         cfg.get_active_profile.return_value = profiles.get(
             "current", _FakeProfile(provider="groq", api_key="", model="")
         )
+        cfg.get.side_effect = lambda key, default=None: settings.get(key, default)
         return cfg
 
     monkeypatch.setattr("src.backend.services.groq_service.ConfigManager", _factory)
@@ -403,8 +407,13 @@ class _CapturingClient:
 def configured_service(fake_config, monkeypatch):
     """Factory: build a GroqService backed by a capturing client."""
 
-    def _make(reply: str = "ok", fail_first: str | None = None):
-        fake_config(_FakeProfile(provider="groq", api_key="k", model="openai/gpt-oss-120b"))
+    def _make(reply: str = "ok", fail_first: str | None = None, **settings):
+        fake_config(
+            _FakeProfile(
+                provider="groq", api_key="k", model="openai/gpt-oss-120b"
+            ),
+            **settings,
+        )
         client = _CapturingClient(reply=reply, fail_first=fail_first)
         monkeypatch.setattr("src.backend.services.groq_service.OpenAI", lambda **kw: client)
         return GroqService(), client
@@ -436,24 +445,58 @@ class TestExplainMove:
         assert sent["timeout"] == 20.0
         assert sent["max_tokens"] == 1024
         assert sent["temperature"] == 0.3
-        assert sent["reasoning_effort"] == "low"
+        assert "reasoning_effort" not in sent
         # retries are a client-level option, applied via with_options
         assert client.with_options_calls == [{"max_retries": 0}]
         assert "max_retries" not in sent
 
+    def test_tuning_settings_reach_the_request(self, configured_service):
+        service, client = configured_service(
+            explain_temperature=1.1,
+            explain_max_tokens=2048,
+            explain_reasoning_effort="medium",
+        )
+
+        service.explain_move(FACTS, "Blunder")
+
+        sent = client.calls[0]
+        assert sent["temperature"] == 1.1
+        assert sent["max_tokens"] == 2048
+        assert sent["reasoning_effort"] == "medium"
+
+    def test_provider_default_effort_omits_the_parameter(self, configured_service):
+        service, client = configured_service(explain_reasoning_effort="")
+
+        service.explain_move(FACTS, "Blunder")
+
+        assert "reasoning_effort" not in client.calls[0]
+
+    def test_invalid_tuning_values_are_clamped(self, configured_service):
+        service, client = configured_service(
+            explain_temperature=9.0,
+            explain_max_tokens=10,
+            explain_reasoning_effort="extreme",
+        )
+
+        service.explain_move(FACTS, "Blunder")
+
+        sent = client.calls[0]
+        assert sent["temperature"] == 2.0
+        assert sent["max_tokens"] == 256
+        assert "reasoning_effort" not in sent
+
 
 class TestChatHardening:
-    def test_reasoning_effort_is_dropped_when_provider_rejects_it(self, configured_service):
+    def test_rejected_reasoning_effort_is_not_retried(self, configured_service):
         service, client = configured_service(
             "plain answer", fail_first="Unknown parameter: reasoning_effort"
         )
 
         out = service._chat("hi", reasoning_effort="low")
 
-        assert out == "plain answer"
-        assert len(client.calls) == 2
+        assert "Unknown parameter" in out
+        assert len(client.calls) == 1
         assert client.calls[0]["reasoning_effort"] == "low"
-        assert "reasoning_effort" not in client.calls[1]
 
     def test_unrelated_failure_is_reported_not_retried(self, configured_service):
         service, client = configured_service(fail_first="connection reset")

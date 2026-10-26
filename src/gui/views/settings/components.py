@@ -59,6 +59,8 @@ class SettingsForm(QWidget):
         self._advanced_rows: list[tuple[QLabel, QWidget]] = []
         self._label_widgets: list[QLabel] = []
         self._hint_widgets: list[QLabel] = []
+        self._advanced_visible = True
+        self._forced_visible: set[QWidget] = set()
 
         self.form = QFormLayout(self)
         self.form.setContentsMargins(0, 12, 0, 0)
@@ -128,9 +130,27 @@ class SettingsForm(QWidget):
         return wrapper
 
     def set_advanced_visible(self, visible: bool) -> None:
+        self._advanced_visible = visible
+        self._apply_advanced_visibility()
+
+    def set_row_forced_visible(self, row: QWidget, visible: bool) -> None:
+        """Keep an advanced row visible outside Advanced mode.
+
+        Used for controls that stop being merely "advanced" for a specific
+        selection (e.g. a custom provider's Base URL). The row still follows
+        ``set_advanced_visible`` for every other state.
+        """
+        if visible:
+            self._forced_visible.add(row)
+        else:
+            self._forced_visible.discard(row)
+        self._apply_advanced_visibility()
+
+    def _apply_advanced_visibility(self) -> None:
         for lbl, wrapper in self._advanced_rows:
-            lbl.setVisible(visible)
-            wrapper.setVisible(visible)
+            shown = self._advanced_visible or wrapper in self._forced_visible
+            lbl.setVisible(shown)
+            wrapper.setVisible(shown)
 
     def refresh_styles(self) -> None:
         for lbl in self._label_widgets:

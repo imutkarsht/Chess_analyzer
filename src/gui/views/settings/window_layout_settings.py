@@ -5,13 +5,14 @@ from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from ....utils.path_utils import get_resource_path
 from ...styles import Styles
-from .components import RadioChoice, SettingsBinder, SettingsForm
+from .components import RadioChoice, SettingsBinder, SettingsForm, make_combo
 
 
 class WindowLayoutSettings(QGroupBox):
     """Sidebar behaviour and window geometry persistence."""
 
     sidebar_prefs_changed = pyqtSignal()
+    history_view_changed = pyqtSignal()
 
     def __init__(self, config_manager, parent=None):
         super().__init__("Window && Layout", parent)
@@ -28,6 +29,12 @@ class WindowLayoutSettings(QGroupBox):
         outer.addWidget(self.form)
 
         self._add_sidebar_row()
+        self.history_view_combo = self.binder.add(
+            "history_view_mode",
+            make_combo(180),
+            width=180,
+            on_change=lambda _value: self.history_view_changed.emit(),
+        )
         self.remember_window_checkbox = self.binder.add("remember_window_geometry")
 
     def _add_sidebar_row(self):
@@ -63,6 +70,7 @@ class WindowLayoutSettings(QGroupBox):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
         self.sidebar_choice.refresh_styles()
+        self.history_view_combo.setStyleSheet(Styles.get_combobox_style())
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         self.remember_window_checkbox.setStyleSheet(
             Styles.get_settings_checkbox_style(tick_path)

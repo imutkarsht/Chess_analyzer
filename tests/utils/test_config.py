@@ -35,6 +35,10 @@ class TestConfigManager:
             assert manager.get("explorer_cache_ttl_hours") == 48
             assert manager.get("analysis_cache_max_entries") == 250_000
             assert manager.get("explain_cache_ttl_days") == 30
+            assert manager.get("explain_temperature") == 0.3
+            assert manager.get("explain_max_tokens") == 1024
+            assert manager.get("explain_reasoning_effort") == ""
+            assert manager.get("history_view_mode") == "compact"
 
     def test_get_nonexistent_key(self, tmp_path):
         """Test getting a key that doesn't exist returns default."""

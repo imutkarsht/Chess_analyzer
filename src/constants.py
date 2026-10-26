@@ -142,11 +142,13 @@ EXPLANATION_DEBOUNCE_MS = 400
 EXPLANATION_MIN_INTERVAL_S = 3.0
 EXPLANATION_MAX_PER_MINUTE = 20
 # Reasoning models (e.g. openai/gpt-oss-*) spend tokens on hidden reasoning, so a
-# small max_tokens silently yields an empty reply. 1024 + low effort is the
-# combination validated in the R&D lab.
+# small max_tokens silently yields an empty reply. 1024 plus a low effort (when
+# the model supports reasoning_effort) is the combination validated in the R&D lab.
 EXPLANATION_MAX_TOKENS = 1024
 EXPLANATION_TEMPERATURE = 0.3
-EXPLANATION_REASONING_EFFORT = "low"
+# Default omits the parameter so non-reasoning models never receive an
+# unsupported option. Reasoning models can opt into low/medium/high.
+EXPLANATION_REASONING_EFFORT = ""
 
 # Classification buckets, expressed once and reused by the fact builder
 # (offline wording) and the GUI (whether the Ask button is offered at all).

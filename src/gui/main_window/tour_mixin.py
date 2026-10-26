@@ -1,3 +1,4 @@
+from PyQt6 import sip
 from PyQt6.QtCore import QTimer
 
 from src.gui.components.tour_manager import TourStep
@@ -10,6 +11,8 @@ class TourMixin:
         QTimer.singleShot(0, lambda: self._do_switch_page(index))
 
     def _do_switch_page(self, index):
+        if sip.isdeleted(self):
+            return
         self.stack.setCurrentIndex(index)
         if index == 2 and hasattr(self, "history_view"):
             analyzing_id = (
@@ -67,6 +70,8 @@ class TourMixin:
 
     def _auto_start_tour(self, page_index: int):
         """Start tour on first visit only — guards against delayed mis-fires."""
+        if sip.isdeleted(self):
+            return
         if self.stack.currentIndex() != page_index:
             return  # user navigated away during the 400ms delay
         tour_key = self._get_tour_key(page_index)

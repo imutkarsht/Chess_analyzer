@@ -109,8 +109,8 @@ def test_save_all_settings_flow(qapp, qtbot, isolated_config):
         view.usernames_changed.emit.assert_called_once()
 
 
-def test_mode_toggle_hides_advanced_cards_and_their_dividers(qapp, qtbot, isolated_config):
-    """Basic mode must not leave a divider dangling above a hidden card."""
+def test_mode_toggle_keeps_the_coach_card_and_its_divider(qapp, qtbot, isolated_config):
+    """The Coach card is Basic-tier even though its tuning rows are advanced."""
     from src.gui.views.settings_view import SettingsView
 
     with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
@@ -126,8 +126,9 @@ def test_mode_toggle_hides_advanced_cards_and_their_dividers(qapp, qtbot, isolat
         assert divider.isHidden() is False
 
         view.mode_toggle_btn.click()  # -> Basic
-        assert view.coach_settings.isHidden() is True
-        assert divider.isHidden() is True
+        assert view.coach_settings.isHidden() is False
+        assert divider.isHidden() is False
+        assert view.coach_settings.temperature_input.parentWidget().isHidden() is True
 
 
 def test_analysis_page_groups_cards_and_mirrors_shortcuts(qapp, qtbot, isolated_config):

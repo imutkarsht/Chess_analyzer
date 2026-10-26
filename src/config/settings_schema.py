@@ -19,6 +19,9 @@ from src.constants import (
     DEFAULT_LIVE_MULTI_PV,
     DEFAULT_MULTI_PV,
     DEFAULT_PROFILE_CACHE_TTL_HOURS,
+    EXPLANATION_MAX_TOKENS,
+    EXPLANATION_REASONING_EFFORT,
+    EXPLANATION_TEMPERATURE,
 )
 
 SettingKind = Literal[
@@ -350,6 +353,20 @@ def _specs() -> tuple[SettingSpec, ...]:
             step=5,
         ),
         SettingSpec(
+            "history_view_mode",
+            "Appearance",
+            "Game History",
+            "History view",
+            "Default layout when Game History opens. The list header toggle "
+            "still lets you switch at any time.",
+            "choice",
+            "compact",
+            choices=(
+                Choice("compact", "Compact list"),
+                Choice("detailed", "Detailed cards"),
+            ),
+        ),
+        SettingSpec(
             "window_state",
             "Appearance",
             "Window & Layout",
@@ -462,7 +479,52 @@ def _specs() -> tuple[SettingSpec, ...]:
             "Also explain Best, Excellent, Good, and Book moves.",
             "bool",
             False,
+            tier="basic",
+        ),
+        SettingSpec(
+            "explain_temperature",
+            "AI Coach",
+            "Explanations",
+            "Explanation temperature",
+            "Lower is more literal; higher is more varied. Facts are still "
+            "validated, but high values can add noise.",
+            "float",
+            EXPLANATION_TEMPERATURE,
             tier="advanced",
+            minimum=0.0,
+            maximum=2.0,
+            step=0.1,
+        ),
+        SettingSpec(
+            "explain_max_tokens",
+            "AI Coach",
+            "Explanations",
+            "Max explanation tokens",
+            "Caps the reply length. Reasoning models spend hidden tokens, so too "
+            "low a value can return an empty explanation.",
+            "int",
+            EXPLANATION_MAX_TOKENS,
+            tier="advanced",
+            minimum=256,
+            maximum=4096,
+            step=128,
+        ),
+        SettingSpec(
+            "explain_reasoning_effort",
+            "AI Coach",
+            "Explanations",
+            "Reasoning effort",
+            "Only reasoning models use this. Leave it on Provider default for "
+            "models that do not support reasoning effort.",
+            "choice",
+            EXPLANATION_REASONING_EFFORT,
+            tier="advanced",
+            choices=(
+                Choice("", "Provider default"),
+                Choice("low", "Low"),
+                Choice("medium", "Medium"),
+                Choice("high", "High"),
+            ),
         ),
         SettingSpec(
             "explain_cache_ttl_days",

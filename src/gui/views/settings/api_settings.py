@@ -1,7 +1,10 @@
 """
 API Configuration Settings group component.
 """
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+import time
+
+from PyQt6.QtCore import Qt, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QComboBox,
     QGroupBox,
@@ -15,7 +18,11 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 
-from .components import SettingsForm
+from .components import (
+    CONTROL_DEFAULT,
+    CONTROL_WIDE,
+    SettingsForm,
+)
 from .helpers import create_icon_button
 
 try:
@@ -24,15 +31,21 @@ try:
 except ImportError:
     HAS_QTAWESOME = False
 
-from src.backend.services.groq_service import GroqService
+from src.backend.services.groq_service import GroqService, explanation_tuning
 from src.constants import PROVIDERS
 from src.gui.utils.gui_utils import show_error_dialog
 
 from .modern_widgets import PasswordFieldWrapper
 
 
-def test_llm_sync(profile: dict) -> tuple:
+def test_llm_sync(profile: dict, tuning: tuple | None = None) -> tuple:
     """Run a one-shot chat completion against the given profile.
+
+    ``tuning`` is ``(temperature, max_tokens, reasoning_effort)`` from the
+    explanation settings. Passing it makes the test exercise the same optional
+    parameters as a real explanation, so an unsupported tuning choice fails
+    here instead of silently falling back later.
+
     Returns (success: bool, short_message: str, full_details: str).
     """
     try:
@@ -71,12 +84,19 @@ def test_llm_sync(profile: dict) -> tuple:
         return (False, "✗ No model set", "Set a model name.")
 
     try:
+        temperature, max_tokens, reasoning_effort = tuning or (None, None, "")
+        options = {"max_tokens": max_tokens or 10}
+        if temperature is not None:
+            options["temperature"] = temperature
+        if reasoning_effort:
+            options["reasoning_effort"] = reasoning_effort
+
         client = OpenAI(api_key=api_key, base_url=base_url)
         client.chat.completions.create(
             model=model,
             messages=[{"role": "user",
                        "content": "Reply with exactly: OK"}],
-            max_tokens=10,
+            **options,
         )
         return (True, "✓ Connected", "")
     except Exception as exc:
@@ -107,6 +127,9 @@ class ApiSettings(QGroupBox):
         self._llm_providers = PROVIDERS
         self._loading_profile = False
         self._current_profile_index = -1
+        self._advanced_visible = True
+        self._help_url = ""
+        self._base_url_wrapper: QWidget | None = None
 
         self.setup_ui()
 
@@ -134,6 +157,7 @@ class ApiSettings(QGroupBox):
             self.llm_add_btn.setText("+")
         self.llm_add_btn.setStyleSheet(sq_btn_style)
         self.llm_add_btn.setToolTip("New profile")
+        self.llm_add_btn.setAccessibleName("Add LLM profile")
         self.llm_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_add_btn.clicked.connect(self._new_llm_profile)
 
@@ -144,8 +168,17 @@ class ApiSettings(QGroupBox):
             self.llm_del_btn.setText("−")
         self.llm_del_btn.setStyleSheet(sq_btn_style)
         self.llm_del_btn.setToolTip("Delete profile")
+        self.llm_del_btn.setAccessibleName("Delete LLM profile")
         self.llm_del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_del_btn.clicked.connect(self._delete_llm_profile)
+
+        self.llm_set_active_btn = create_icon_button(
+            "Set active", "fa5s.star", self._on_set_active, self
+        )
+        self.llm_set_active_btn.setToolTip(
+            "Use this profile for AI Coach and game reports."
+        )
+        self.llm_set_active_btn.setAccessibleName("Set active LLM profile")
 
         selector = QWidget()
         selector.setStyleSheet(Styles.get_transparent_label_style())
@@ -155,14 +188,24 @@ class ApiSettings(QGroupBox):
         selector_row.addWidget(self.llm_profile_combo)
         selector_row.addWidget(self.llm_add_btn)
         selector_row.addWidget(self.llm_del_btn)
+        selector_row.addWidget(self.llm_set_active_btn)
         selector_row.addStretch(1)
-        self._profile_form.add_row("LLM Profile", selector, width=None)
+        self._profile_form.add_row(
+            "LLM Profile",
+            selector,
+            width=None,
+            hint="Only the active profile is used by Coach and game reports.",
+        )
 
         # --- Profile editor rows ---
         self.llm_profile_name = QLineEdit()
         self.llm_profile_name.setStyleSheet(Styles.get_input_style())
         self._profile_form.add_row(
-            "Name", self.llm_profile_name, advanced=True, width=360
+            "Name",
+            self.llm_profile_name,
+            advanced=True,
+            width=CONTROL_DEFAULT,
+            hint="A label like Work or Local. Must be unique.",
         )
 
         self.llm_provider_combo = QComboBox()
@@ -170,25 +213,74 @@ class ApiSettings(QGroupBox):
             self.llm_provider_combo.addItem(pmeta["label"], userData=pkey)
         self.llm_provider_combo.setStyleSheet(_combo_style)
         self.llm_provider_combo.currentIndexChanged.connect(self._on_provider_changed)
-        self._profile_form.add_row("Provider", self.llm_provider_combo, width=300)
+        self._profile_form.add_row(
+            "Provider",
+            self.llm_provider_combo,
+            width=CONTROL_DEFAULT,
+            hint=(
+                "Cloud providers receive game data. LM Studio runs entirely "
+                "on this machine."
+            ),
+        )
 
         self.llm_key_input = PasswordFieldWrapper(self)
-        self._profile_form.add_row("API Key", self.llm_key_input, width=420)
+        self.llm_key_input.setMaximumWidth(420)
+        self.llm_help_btn = QPushButton("Get API key ↗")
+        self.llm_help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.llm_help_btn.setStyleSheet(Styles.get_settings_link_button_style())
+        self.llm_help_btn.setAccessibleName("Open provider API key page")
+        self.llm_help_btn.clicked.connect(self._open_provider_help)
+        self.llm_help_btn.setVisible(False)
+
+        key_row = QWidget()
+        key_row.setStyleSheet(Styles.get_transparent_label_style())
+        key_layout = QHBoxLayout(key_row)
+        key_layout.setContentsMargins(0, 0, 0, 0)
+        key_layout.setSpacing(8)
+        key_layout.addWidget(self.llm_key_input)
+        key_layout.addWidget(self.llm_help_btn)
+        key_layout.addStretch(1)
+        self._profile_form.add_row(
+            "API Key",
+            key_row,
+            width=None,
+            hint="Stored in the OS keychain, never in config.json.",
+        )
 
         self.llm_model_input = QLineEdit()
         self.llm_model_input.setStyleSheet(Styles.get_input_style())
-        self._profile_form.add_row("Model", self.llm_model_input, width=360)
+        self._profile_form.add_row(
+            "Model",
+            self.llm_model_input,
+            width=CONTROL_DEFAULT,
+            hint="Use the provider's exact model id.",
+        )
 
         self.llm_url_input = QLineEdit()
         self.llm_url_input.setPlaceholderText("http://localhost:1234/v1")
         self.llm_url_input.setStyleSheet(Styles.get_input_style())
-        self._profile_form.add_row(
-            "Base URL", self.llm_url_input, advanced=True, width=520
+        self._base_url_wrapper = self._profile_form.add_row(
+            "Base URL",
+            self.llm_url_input,
+            advanced=True,
+            width=CONTROL_WIDE,
+            hint="Auto-filled for presets. Change only for proxies or self-hosted endpoints.",
         )
 
-        # --- Save / Activate / Test buttons ---
+        for field in (
+            self.llm_profile_name,
+            self.llm_model_input,
+            self.llm_url_input,
+        ):
+            field.editingFinished.connect(self._persist_current_profile)
+        self.llm_key_input.editingFinished.connect(self._persist_current_profile)
+
+        # --- Test connection ---
         act_row = QHBoxLayout()
-        self.llm_test_btn = create_icon_button("Test LLM", "fa5s.plug", self._test_llm_profile, self)
+        self.llm_test_btn = create_icon_button(
+            "Test connection", "fa5s.plug", self._test_llm_profile, self
+        )
+        self.llm_test_btn.setAccessibleName("Test LLM connection")
         act_row.addWidget(self.llm_test_btn)
         act_row.addStretch()
         api_layout.addLayout(act_row)
@@ -205,8 +297,22 @@ class ApiSettings(QGroupBox):
         status_row.addWidget(self.llm_test_result)
         api_layout.addLayout(status_row)
 
+        self.llm_privacy_label = QLabel(
+            "Cloud providers receive the game data you send for explanations "
+            "and reports. LM Studio runs locally. Without a working profile, "
+            "Coach uses offline summaries."
+        )
+        self.llm_privacy_label.setWordWrap(True)
+        self.llm_privacy_label.setStyleSheet(
+            Styles.get_secondary_label_style(size=11)
+        )
+        api_layout.addWidget(self.llm_privacy_label)
+
         self._reload_profile_combo()
 
+    # ------------------------------------------------------------------
+    # Profile state
+    # ------------------------------------------------------------------
     def _reload_profile_combo(self) -> None:
         self._loading_profile = True
         self.llm_profile_combo.blockSignals(True)
@@ -225,18 +331,30 @@ class ApiSettings(QGroupBox):
         if 0 <= select_idx < len(profiles):
             self._load_profile_into_form(profiles[select_idx])
         self._loading_profile = False
+        self._update_profile_actions()
+        self._update_active_label()
 
     def _on_profile_selected(self, index: int) -> None:
         if self._loading_profile:
             return
         profiles = self.config_manager.get_profiles()
+        current = self._current_profile_index
 
-        if 0 <= self._current_profile_index < len(profiles):
-            profiles[self._current_profile_index] = self._current_profile_dict()
+        if 0 <= current < len(profiles) and not self._persist_current_profile(
+            index=current
+        ):
+            # Keep the invalid profile in the editor instead of loading another.
+            self._loading_profile = True
+            self.llm_profile_combo.setCurrentIndex(current)
+            self._loading_profile = False
+            return
 
+        profiles = self.config_manager.get_profiles()
         if 0 <= index < len(profiles):
             self._load_profile_into_form(profiles[index])
             self._current_profile_index = index
+        self._update_profile_actions()
+        self._update_active_label()
 
     def _load_profile_into_form(self, profile: dict) -> None:
         self._loading_profile = True
@@ -251,32 +369,36 @@ class ApiSettings(QGroupBox):
         self.llm_url_input.setText(profile.get("base_url", ""))
         self._loading_profile = False
 
-        self._on_provider_changed()
+        self._apply_provider_state(reset_defaults=False)
         self._update_active_label()
 
     def _on_provider_changed(self, _index=None) -> None:
         if self._loading_profile:
             return
-        provider_key = self.llm_provider_combo.currentData() or "groq"
-        preset = self._llm_providers.get(provider_key, {})
+        self._apply_provider_state(reset_defaults=True)
+        self._persist_current_profile()
 
-        self.llm_key_input.setEnabled(True)
+    def _apply_provider_state(self, *, reset_defaults: bool) -> None:
+        provider = self.llm_provider_combo.currentData() or "groq"
+        preset = self._llm_providers.get(provider, {})
+        is_custom = provider == "custom"
+        requires_key = preset.get("requires_key", True)
+
+        self.llm_key_input.setEnabled(requires_key or is_custom)
         self.llm_key_input.setPlaceholderText(preset.get("key_placeholder", ""))
         self.llm_model_input.setPlaceholderText(preset.get("model_placeholder", ""))
 
-        current_url = self.llm_url_input.text().strip()
-        known_preset_urls = {
-            meta.get("base_url", "") for meta in self._llm_providers.values()
-        }
-        if not current_url or current_url in known_preset_urls:
-            self.llm_url_input.setText(preset.get("base_url", ""))
+        self._help_url = preset.get("help_url", "")
+        self.llm_help_btn.setVisible(bool(self._help_url))
 
-    def _update_active_label(self) -> None:
-        active = self.config_manager.get("llm_active_profile", "")
-        if active:
-            self.llm_active_label.setText(f"Active: \"{active}\"")
-        else:
-            self.llm_active_label.setText("")
+        if self._base_url_wrapper is not None:
+            self._profile_form.set_row_forced_visible(
+                self._base_url_wrapper, is_custom
+            )
+
+        if reset_defaults:
+            self.llm_model_input.setText(preset.get("default_model", ""))
+            self.llm_url_input.setText(preset.get("base_url", ""))
 
     def _current_profile_dict(self) -> dict:
         provider = self.llm_provider_combo.currentData() or "groq"
@@ -294,6 +416,83 @@ class ApiSettings(QGroupBox):
             "base_url": base_url,
         }
 
+    def _persist_current_profile(
+        self, index: int | None = None, activate: bool = False
+    ) -> bool:
+        """Persist the editor to the profile list.
+
+        Profile edits save on field commit like every binder-driven card, so
+        switching profiles or closing Settings cannot silently discard them.
+        ``index`` lets a profile-switch commit the profile that is still shown
+        in the editor *before* loading the newly selected one.
+        """
+        if self._loading_profile:
+            return False
+        profiles = self.config_manager.get_profiles()
+        idx = self.llm_profile_combo.currentIndex() if index is None else index
+        if not (0 <= idx < len(profiles)):
+            return False
+
+        old_name = profiles[idx].get("name", "")
+        profile = self._current_profile_dict()
+        new_name = profile["name"]
+        if not new_name:
+            self._warn("Profile name cannot be empty.")
+            return False
+        if new_name != old_name and any(
+            p.get("name") == new_name for p in profiles
+        ):
+            self._warn(f'A profile named "{new_name}" already exists.')
+            return False
+
+        profiles[idx] = profile
+        active = self.config_manager.get("llm_active_profile", "")
+        if active == old_name:
+            active = new_name
+        if activate:
+            active = new_name
+        self.config_manager.set_profiles(profiles, active_name=active)
+
+        if self.llm_profile_combo.itemText(idx) != new_name:
+            self.llm_profile_combo.blockSignals(True)
+            self.llm_profile_combo.setItemText(idx, new_name)
+            self.llm_profile_combo.blockSignals(False)
+
+        self._update_active_label()
+        return True
+
+    def _on_set_active(self) -> None:
+        self._persist_current_profile(activate=True)
+
+    def _update_active_label(self) -> None:
+        active = self.config_manager.get("llm_active_profile", "")
+        if active:
+            self.llm_active_label.setText(f'Active profile: "{active}"')
+        else:
+            self.llm_active_label.setText("")
+
+        current = self.llm_profile_name.text().strip()
+        self.llm_set_active_btn.setEnabled(bool(current) and current != active)
+
+    def _update_profile_actions(self) -> None:
+        can_delete = self.llm_profile_combo.count() > 1
+        self.llm_del_btn.setEnabled(can_delete)
+        self.llm_del_btn.setToolTip(
+            "Delete profile" if can_delete else "Keep at least one profile"
+        )
+
+    def _warn(self, message: str) -> None:
+        from src.gui.main_window import MainWindow
+
+        MainWindow.toast_from_widget(self, message, "warning")
+
+    def _open_provider_help(self) -> None:
+        if self._help_url:
+            QDesktopServices.openUrl(QUrl(self._help_url))
+
+    # ------------------------------------------------------------------
+    # Profile actions
+    # ------------------------------------------------------------------
     def _new_llm_profile(self) -> None:
         from PyQt6.QtWidgets import QInputDialog
         name, ok = QInputDialog.getText(self, "New LLM Profile", "Profile name:")
@@ -302,22 +501,26 @@ class ApiSettings(QGroupBox):
         name = name.strip()
         profiles = self.config_manager.get_profiles()
         if any(p["name"] == name for p in profiles):
-            from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, f'A profile named "{name}" already exists.', "warning")
+            self._warn(f'A profile named "{name}" already exists.')
             return
+        preset = self._llm_providers["groq"]
         profiles.append({
-            "name": name, "provider": "groq", "api_key": "",
-            "model": "llama-3.3-70b-versatile", "base_url": "",
+            "name": name,
+            "provider": "groq",
+            "api_key": "",
+            "model": preset["default_model"],
+            "base_url": preset["base_url"],
         })
         self.config_manager.set_profiles(profiles)
         self._reload_profile_combo()
         self.llm_profile_combo.setCurrentIndex(len(profiles) - 1)
 
     def _delete_llm_profile(self) -> None:
+        if not self._persist_current_profile():
+            return
         profiles = self.config_manager.get_profiles()
         if len(profiles) <= 1:
-            from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, "You must keep at least one profile.", "warning")
+            self._warn("You must keep at least one profile.")
             return
         idx = self.llm_profile_combo.currentIndex()
         if not (0 <= idx < len(profiles)):
@@ -335,6 +538,9 @@ class ApiSettings(QGroupBox):
         self.config_manager.set_profiles(profiles, active_name=active)
         self._reload_profile_combo()
 
+    # ------------------------------------------------------------------
+    # Connection test
+    # ------------------------------------------------------------------
     def _test_llm_profile(self) -> None:
         prev = getattr(self, "_test_worker", None)
         if prev is not None and prev.isRunning():
@@ -342,33 +548,39 @@ class ApiSettings(QGroupBox):
             prev.wait(2000)
 
         class _TestWorker(QThread):
-            done = pyqtSignal(bool, str, str)
+            done = pyqtSignal(bool, str, str, float)
 
-            def __init__(self, profile: dict, parent=None):
+            def __init__(self, profile: dict, tuning: tuple, parent=None):
                 super().__init__(parent)
                 self._profile = profile
+                self._tuning = tuning
 
             def run(self):
-                ok, short, full = test_llm_sync(self._profile)
-                self.done.emit(ok, short, full)
+                start = time.perf_counter()
+                ok, short, full = test_llm_sync(self._profile, self._tuning)
+                elapsed_ms = (time.perf_counter() - start) * 1000
+                self.done.emit(ok, short, full, elapsed_ms)
 
         profile = self._current_profile_dict()
+        model = profile.get("model") or "default model"
+        tuning = explanation_tuning(self.config_manager)
 
         self.llm_test_btn.setEnabled(False)
         self.llm_test_result.setStyleSheet(
             f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
         self.llm_test_result.setText("Testing…")
 
-        worker = _TestWorker(profile, parent=self)
+        worker = _TestWorker(profile, tuning, parent=self)
         self._test_worker = worker
 
-        def _on_done(success: bool, msg: str, details: str):
+        def _on_done(success: bool, msg: str, details: str, elapsed_ms: float):
             if self._test_worker is not worker:
                 return
             color = Styles.COLOR_GOOD if success else Styles.COLOR_BLUNDER
             self.llm_test_result.setStyleSheet(
                 f"color: {color}; font-size: 11px; font-weight: bold; background: transparent;")
-            self.llm_test_result.setText(msg)
+            text = f"{msg} · {model} · {elapsed_ms:.0f} ms" if success else msg
+            self.llm_test_result.setText(text)
             self.llm_test_btn.setEnabled(True)
             if not success and details:
                 try:
@@ -394,9 +606,13 @@ class ApiSettings(QGroupBox):
         worker.start()
 
     def set_advanced_visible(self, visible):
+        self._advanced_visible = visible
         self._profile_form.set_advanced_visible(visible)
-        for widget in (self.llm_add_btn, self.llm_del_btn):
-            widget.setVisible(visible)
+        provider = self.llm_provider_combo.currentData() or "groq"
+        if self._base_url_wrapper is not None:
+            self._profile_form.set_row_forced_visible(
+                self._base_url_wrapper, provider == "custom"
+            )
 
     def _refresh_secondary_label(self, attr_name):
         lbl = getattr(self, attr_name, None)
@@ -413,6 +629,12 @@ class ApiSettings(QGroupBox):
             self.llm_add_btn.setStyleSheet(Styles.get_settings_square_icon_style())
         if hasattr(self, 'llm_del_btn'):
             self.llm_del_btn.setStyleSheet(Styles.get_settings_square_icon_style())
+        if hasattr(self, 'llm_set_active_btn'):
+            self.llm_set_active_btn.setStyleSheet(
+                Styles.get_settings_default_button_style()
+            )
+        if hasattr(self, 'llm_help_btn'):
+            self.llm_help_btn.setStyleSheet(Styles.get_settings_link_button_style())
         if hasattr(self, 'llm_test_btn'):
             self.llm_test_btn.setStyleSheet(Styles.get_settings_default_button_style())
         if hasattr(self, 'llm_profile_name'):
@@ -428,3 +650,7 @@ class ApiSettings(QGroupBox):
                 widget.refresh_styles()
         self._refresh_secondary_label('llm_active_label')
         self._refresh_secondary_label('llm_test_result')
+        if hasattr(self, 'llm_privacy_label'):
+            self.llm_privacy_label.setStyleSheet(
+                Styles.get_secondary_label_style(size=11)
+            )

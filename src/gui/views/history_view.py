@@ -208,6 +208,7 @@ class HistoryView(QWidget):
         self.game_list.game_action_requested.connect(self.game_action_requested.emit)
         self.game_list.game_deleted.connect(self.game_deleted)
         content_layout.addWidget(self.game_list)
+        self.apply_default_view_mode()
 
         self.layout.addWidget(self.content_widget)
 
@@ -226,6 +227,15 @@ class HistoryView(QWidget):
 
         btn.clicked.connect(callback)
         return btn
+
+    def apply_default_view_mode(self):
+        """Apply the Appearance default layout without overriding a manual toggle."""
+        mode = "compact"
+        if self.config_manager:
+            mode = self.config_manager.get("history_view_mode", "compact")
+        if mode not in ("compact", "detailed"):
+            mode = "compact"
+        self.game_list.set_view_mode(mode)
 
     def set_analyzing_game_id(self, game_id: str | None):
         """Inform HistoryView of the game currently being analyzed."""
