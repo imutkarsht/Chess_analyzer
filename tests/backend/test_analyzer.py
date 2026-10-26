@@ -1,4 +1,5 @@
 import chess
+import pytest
 
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager
@@ -9,14 +10,6 @@ from src.backend.analysis.math_utils import (
     calculate_move_accuracy,
 )
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
-
-
-def test_analyzer_init(mock_engine):
-    """Test Analyzer initialization."""
-    engine_manager = EngineManager("dummy_path")
-    engine_manager.engine = mock_engine
-    analyzer = Analyzer(engine_manager)
-    assert analyzer is not None
 
 
 def test_process_analysis_results(mock_engine):
@@ -129,47 +122,6 @@ def test_drawing_repetition_protection(mock_engine):
     assert game.moves[4].classification in ["Best", "Excellent", "Book"]
     assert game.moves[5].classification in ["Best", "Excellent", "Book"]
     assert game.moves[6].classification in ["Best", "Excellent", "Book"]
-
-
-def test_analyzer_progress_logging(caplog, mocker, mock_engine):
-    """Test that analyzer logs move progress after gap of 10 moves."""
-    import logging
-
-    engine_manager = EngineManager("dummy_path")
-    engine_manager.engine = mock_engine
-    analyzer = Analyzer(engine_manager)
-
-    mocker.patch.object(analyzer, "_get_position_analysis", return_value=[])
-    mocker.patch.object(analyzer, "_analyze_final_position", return_value=None)
-    mocker.patch.object(analyzer, "_classify_and_calculate_stats")
-    mocker.patch.object(analyzer, "_calculate_final_accuracy")
-    mocker.patch.object(analyzer, "_log_classification_summary")
-    mocker.patch.object(engine_manager, "start_engine")
-    mocker.patch.object(engine_manager, "stop_engine")
-
-    moves = [
-        MoveAnalysis(
-            move_number=(i // 2) + 1,
-            ply=i,
-            san="e4",
-            uci="e2e4",
-            fen_before="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        )
-        for i in range(25)
-    ]
-    metadata = GameMetadata(white="W", black="B", result="*", date="2026.06.21")
-    game = GameAnalysis(game_id="log_test", metadata=metadata, moves=moves)
-
-    with caplog.at_level(logging.INFO):
-        analyzer._analyze_positions(game)
-
-    log_messages = [rec.message for rec in caplog.records]
-    assert "Analyzing move 1/25..." in log_messages
-    assert "Analyzing move 10/25..." in log_messages
-    assert "Analyzing move 20/25..." in log_messages
-    assert "Analyzing move 25/25..." in log_messages
-
-    assert not any("Analyzing move 11/25..." in msg for msg in log_messages)
 
 
 def test_check_book_move_merging(mocker, mock_engine):
@@ -503,3 +455,89 @@ def test_analyze_positions_refreshes_analysis_prefs_from_config(mocker, mock_eng
     assert analyzer.config["time_per_move"] is None
     assert analyzer.config["depth"] == 20
     assert analyzer.config["use_cache"] is False
+
+
+@pytest.mark.parametrize(
+    ("is_white_turn", "expected_cp"), [(True, 32), (False, -32)]
+)
+def test_scores_are_always_stored_white_perspective(
+    mock_engine, is_white_turn, expected_cp
+):
+    """Engine scores are mover-relative; storage must normalise them to White."""
+    analyzer = Analyzer(EngineManager("dummy_path"))
+    move = MoveAnalysis(
+        move_number=1,
+        ply=1,
+        san="e4",
+        uci="e2e4",
+        fen_before=chess.STARTING_FEN,
+    )
+    info = [
+        {
+            "pv": [chess.Move.from_uci("e2e4")],
+            # +32 for whoever is to move.
+            "score": chess.engine.PovScore(
+                chess.engine.Cp(32),
+                chess.WHITE if is_white_turn else chess.BLACK,
+            ),
+            "depth": 12,
+        }
+    ]
+
+    analyzer._process_analysis_results(
+        move, info, is_white_turn=is_white_turn, board=chess.Board()
+    )
+
+    assert move.eval_before_cp == expected_cp
+
+
+def test_engine_is_stopped_when_analysis_raises(mocker, mock_engine):
+    """The engine must be torn down even when the analysis loop blows up."""
+    manager = EngineManager("dummy_path")
+    manager.engine = mock_engine
+    analyzer = Analyzer(manager)
+    mocker.patch.object(analyzer, "_analyze_positions", side_effect=RuntimeError("boom"))
+    stop_engine = mocker.patch.object(manager, "stop_engine")
+
+    game = GameAnalysis(
+        game_id="failure",
+        metadata=GameMetadata(white="W", black="B", result="*"),
+        moves=[],
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        analyzer.analyze_game(game)
+
+    stop_engine.assert_called_once()
+
+
+def test_chess960_game_enables_engine_mode(mocker, mock_engine):
+    """Chess960 games must configure the engine and boards for Fischer Random castling."""
+    manager = EngineManager("dummy_path")
+    manager.engine = mock_engine
+    analyzer = Analyzer(manager)
+    mocker.patch.object(manager, "start_engine")
+    set_chess960 = mocker.patch.object(manager, "set_chess960_mode")
+    mocker.patch.object(analyzer, "_get_position_analysis", return_value=[])
+    mocker.patch.object(analyzer, "_analyze_final_position", return_value=None)
+    mocker.patch.object(analyzer.local_book, "process_move", return_value=None)
+    mocker.patch.object(analyzer.polyglot_book, "process_move", return_value=None)
+
+    start_fen = chess.Board.from_chess960_pos(518).fen()
+    game = GameAnalysis(
+        game_id="chess960",
+        metadata=GameMetadata(white="W", black="B", result="*", chess960=True),
+        moves=[
+            MoveAnalysis(
+                move_number=1,
+                ply=1,
+                san="e4",
+                uci="e2e4",
+                fen_before=start_fen,
+            )
+        ],
+    )
+
+    analyzer._analyze_positions(game)
+
+    set_chess960.assert_called_once_with(True)

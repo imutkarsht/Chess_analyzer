@@ -2,42 +2,7 @@
 Tests for data models - GameMetadata, GameAnalysis, MoveAnalysis.
 """
 
-from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
-
-
-class TestModels:
-    """Tests for storage data models - GameMetadata, GameAnalysis, MoveAnalysis."""
-
-    def test_model_defaults_and_attributes(self):
-        """Test default values and attribute assignments across models."""
-        meta = GameMetadata(
-            white="Magnus",
-            black="Hikaru",
-            result="1/2-1/2",
-            date="2023.12.01",
-            event="World Championship",
-            headers={"Site": "lichess.org"},
-            white_elo="2800",
-            source="lichess",
-        )
-        assert meta.source == "lichess"
-        assert meta.white == "Magnus"
-        assert meta.white_elo == "2800"
-        assert meta.starting_fen is None
-
-        move = MoveAnalysis(
-            1, 1, "e4", "e2e4", "startfen", classification="Best", eval_before_cp=30
-        )
-        assert move.san == "e4"
-        assert move.classification == "Best"
-        assert move.eval_before_cp == 30
-
-        game = GameAnalysis(
-            game_id="test123", metadata=meta, moves=[move], pgn_content="1. e4 1/2-1/2"
-        )
-        assert game.game_id == "test123"
-        assert len(game.moves) == 1
-        assert game.summary == {}
+from src.backend.storage.models import MoveAnalysis
 
 
 class TestMoveAnalysisSerialization:

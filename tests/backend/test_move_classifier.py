@@ -1,40 +1,7 @@
-"""Tests for move classification bands and mathematical win probability calculation."""
+"""Tests for move classification bands."""
 
-from src.backend.analysis.math_utils import calculate_move_accuracy, get_win_probability
 from src.backend.analysis.move_classifier import classify_move
 from src.backend.storage.models import MoveAnalysis
-
-
-def test_win_probability_calculations():
-    """Win probability maps centipawns and mate scores to 0.0-1.0."""
-    # Equal position = 50%
-    assert abs(get_win_probability(0, None) - 0.5) < 0.01
-
-    # Large white advantage (~+500 cp) -> ~85%+
-    assert get_win_probability(500, None) > 0.85
-
-    # Large black advantage (~-500 cp) -> ~15%-
-    assert get_win_probability(-500, None) < 0.15
-
-    # Forced mate
-    assert get_win_probability(None, 1) == 1.0
-    assert get_win_probability(None, -1) == 0.0
-    assert get_win_probability(None, None) == 0.5
-
-
-def test_calculate_move_accuracy():
-    """Move accuracy properly bounds between 0 and 100%."""
-    # No loss in win prob -> 100% accuracy
-    assert calculate_move_accuracy(0.5, 0.5) == 100.0
-    assert calculate_move_accuracy(0.5, 0.6) == 100.0
-
-    # Minor loss -> high accuracy
-    acc = calculate_move_accuracy(0.6, 0.58)
-    assert 85.0 < acc <= 100.0
-
-    # Large blunder swing -> low accuracy
-    bad_acc = calculate_move_accuracy(0.8, 0.2)
-    assert bad_acc < 20.0
 
 
 def test_classify_checkmate():

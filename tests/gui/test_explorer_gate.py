@@ -38,13 +38,11 @@ def _gate(config, offline_until: float = 0.0) -> bool:
     return ExplorerView._online_explorer_allowed(view)
 
 
-def test_online_explorer_gate_requires_a_token():
+def test_online_explorer_gate_requires_token_and_allows_traffic():
+    """Token, toggle, and cooldown all gate live explorer traffic."""
     assert _gate(_Config()) is True
     assert _gate(_Config(token="")) is False
     assert _gate(_Config(token="   ")) is False
-
-
-def test_online_explorer_gate_honours_toggle_and_cooldown():
     assert _gate(_Config(enabled=False)) is False
     assert _gate(_Config(), offline_until=time.time() + 60) is False
 

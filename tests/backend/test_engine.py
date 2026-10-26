@@ -324,3 +324,256 @@ class TestRecheckEnginePath:
 
         result = manager.recheck_engine_path()
         assert result is False
+
+
+# ── engine lifecycle ────────────────────────────────────────────────────
+
+class TestEngineLifecycle:
+    def test_start_engine_launches_and_applies_options(self, mocker):
+        fake_engine = mocker.Mock()
+        popen = mocker.patch(
+            "src.backend.analysis.engine.chess.engine.SimpleEngine.popen_uci",
+            return_value=fake_engine,
+        )
+        manager = EngineManager("/fake/stockfish")
+        manager.options = {"Threads": 1, "Hash": 128}
+
+        manager.start_engine()
+
+        popen.assert_called_once_with("/fake/stockfish")
+        fake_engine.configure.assert_has_calls(
+            [mocker.call({"Threads": 1}), mocker.call({"Hash": 128})],
+            any_order=True,
+        )
+        assert manager.engine is fake_engine
+
+    def test_start_engine_is_idempotent(self, mocker):
+        popen = mocker.patch(
+            "src.backend.analysis.engine.chess.engine.SimpleEngine.popen_uci"
+        )
+        manager = EngineManager("/fake/stockfish")
+        manager.engine = mocker.Mock()
+
+        manager.start_engine()
+
+        popen.assert_not_called()
+
+    def test_start_engine_propagates_failure(self, mocker):
+        mocker.patch(
+            "src.backend.analysis.engine.chess.engine.SimpleEngine.popen_uci",
+            side_effect=OSError("missing binary"),
+        )
+        manager = EngineManager("/missing/stockfish")
+
+        with pytest.raises(OSError, match="missing binary"):
+            manager.start_engine()
+
+        assert manager.engine is None
+
+    def test_stop_engine_quits_and_clears_analysis(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+        fake_engine = mocker.Mock()
+        manager.engine = fake_engine
+        analysis = mocker.Mock()
+        manager._current_analysis = analysis
+
+        manager.stop_engine()
+
+        analysis.stop.assert_called_once()
+        fake_engine.quit.assert_called_once()
+        assert manager.engine is None
+        assert manager._current_analysis is None
+
+    def test_stop_engine_swallows_quit_failure(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+        manager.engine = mocker.Mock()
+        manager.engine.quit.side_effect = RuntimeError("already dead")
+
+        manager.stop_engine()
+
+        assert manager.engine is None
+
+    def test_cancel_analysis_clears_even_if_stop_fails(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+        manager._current_analysis = mocker.Mock()
+        manager._current_analysis.stop.side_effect = RuntimeError("gone")
+
+        manager.cancel_current_analysis()
+
+        assert manager._current_analysis is None
+
+    def test_configure_failure_does_not_block_other_options(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+        manager.engine = mocker.Mock()
+        manager.engine.configure.side_effect = [RuntimeError("bad"), None]
+
+        manager.configure_engine({"Threads": 4, "Hash": 256})
+
+        assert manager.engine.configure.call_count == 2
+        assert manager.options["Threads"] == 4
+        assert manager.options["Hash"] == 256
+
+    def test_chess960_mode_toggles_uci_option(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+        manager.engine = mocker.Mock()
+
+        manager.set_chess960_mode(True)
+        manager.set_chess960_mode(False)
+
+        manager.engine.configure.assert_has_calls(
+            [mocker.call({"UCI_Chess960": "true"}), mocker.call({"UCI_Chess960": "false"})]
+        )
+
+    def test_chess960_mode_is_noop_without_engine(self):
+        manager = EngineManager("/fake/stockfish")
+
+        manager.set_chess960_mode(True)
+
+        assert manager.engine is None
+
+    def test_chess960_failure_is_non_fatal(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+        manager.engine = mocker.Mock()
+        manager.engine.configure.side_effect = RuntimeError("auto-managed")
+
+        manager.set_chess960_mode(True)
+
+        assert manager.engine is not None
+
+    def test_apply_settings_from_config_reloads_values(self, mocker):
+        config = mocker.Mock()
+        config.get.side_effect = [3, 256]
+        manager = EngineManager("/fake/stockfish")
+        manager.config_manager = config
+        manager.engine = mocker.Mock()
+
+        manager.apply_settings_from_config()
+
+        assert manager.options["Threads"] == 3
+        assert manager.options["Hash"] == 256
+
+    def test_options_from_config_uses_configured_values(self, mocker):
+        config = mocker.Mock()
+        config.get.side_effect = [4, 512]
+
+        assert options_from_config(config) == {"Threads": 4, "Hash": 512}
+
+
+class TestAnalyzePosition:
+    def _manager_with_stream(self, mocker, stream):
+        manager = EngineManager("/fake/stockfish")
+        manager.engine = mocker.Mock()
+        context = mocker.MagicMock()
+        context.__enter__.return_value = stream
+        manager.engine.analysis.return_value = context
+        return manager
+
+    def test_requires_started_engine(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+
+        with pytest.raises(RuntimeError, match="Engine not started"):
+            manager.analyze_position(mocker.Mock())
+
+    def test_returns_single_pv_info(self, mocker):
+        stream = mocker.Mock()
+        stream.info = {"depth": 20, "pv": []}
+        stream.multipv = [{"depth": 20}]
+        manager = self._manager_with_stream(mocker, stream)
+        board = mocker.Mock()
+
+        result = manager.analyze_position(board, time_limit=0.5, depth=18)
+
+        assert result == {"depth": 20, "pv": []}
+        stream.wait.assert_called_once()
+        manager.engine.analysis.assert_called_once()
+
+    def test_returns_multipv_list(self, mocker):
+        stream = mocker.Mock()
+        stream.multipv = [{"depth": 20}, {"depth": 19}]
+        manager = self._manager_with_stream(mocker, stream)
+
+        result = manager.analyze_position(mocker.Mock(), multi_pv=2)
+
+        assert result == [{"depth": 20}, {"depth": 19}]
+
+    def test_clears_active_analysis_when_wait_fails(self, mocker):
+        stream = mocker.Mock()
+        stream.wait.side_effect = RuntimeError("cancelled")
+        manager = self._manager_with_stream(mocker, stream)
+
+        with pytest.raises(RuntimeError, match="cancelled"):
+            manager.analyze_position(mocker.Mock())
+
+        assert manager._current_analysis is None
+
+
+class TestGetBestMove:
+    def test_requires_started_engine(self, mocker):
+        manager = EngineManager("/fake/stockfish")
+
+        with pytest.raises(RuntimeError, match="Engine not started"):
+            manager.get_best_move(mocker.Mock())
+
+    def test_returns_engine_move(self, mocker):
+        import chess
+
+        manager = EngineManager("/fake/stockfish")
+        manager.engine = mocker.Mock()
+        best = chess.Move.from_uci("e2e4")
+        manager.engine.play.return_value = mocker.Mock(move=best)
+
+        assert manager.get_best_move(chess.Board()) == best
+
+
+class TestResolveFallbackConfig:
+    def test_stale_config_is_updated_to_working_path(self, mocker):
+        config = mocker.Mock()
+        config.get.side_effect = ["", "/stale/stockfish"]
+        config.config = {"engine_path": "/stale/stockfish"}
+        mocker.patch("shutil.which", return_value="/usr/bin/stockfish")
+        mocker.patch("os.path.isfile", return_value=True)
+        mocker.patch("os.access", return_value=True)
+
+        assert resolve_engine_path(config) == "/usr/bin/stockfish"
+
+        config.save_config.assert_called_once()
+        assert config.config["engine_path"] == "/usr/bin/stockfish"
+
+    def test_resolution_is_cached_between_calls(self, mocker):
+        which = mocker.patch("shutil.which", return_value="/usr/bin/stockfish")
+        mocker.patch("os.path.isfile", return_value=True)
+        mocker.patch("os.access", return_value=True)
+
+        assert resolve_engine_path(None) == "/usr/bin/stockfish"
+        assert resolve_engine_path(None) == "/usr/bin/stockfish"
+
+        which.assert_called_once()
+
+    def test_deep_probe_rejects_binary_that_fails_handshake(self, mocker):
+        config = mocker.Mock()
+        config.get.return_value = "/broken/stockfish"
+        mocker.patch("os.path.isfile", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("shutil.which", return_value=None)
+        mocker.patch(
+            "src.backend.analysis.engine.get_stockfish_common_paths", return_value=[]
+        )
+        mocker.patch(
+            "src.backend.analysis.engine.get_engine_data_dir", return_value="/tmp/engine"
+        )
+        probe = mocker.patch(
+            "src.backend.analysis.engine.probe_engine_binary", return_value=False
+        )
+
+        assert resolve_engine_path(config, deep_probe=True) is None
+        assert probe.call_count >= 2
+
+    def test_deep_probe_accepts_working_binary(self, mocker):
+        mocker.patch("os.path.isfile", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("shutil.which", return_value="/usr/bin/stockfish")
+        mocker.patch(
+            "src.backend.analysis.engine.probe_engine_binary", return_value=True
+        )
+
+        assert resolve_engine_path(None, deep_probe=True) == "/usr/bin/stockfish"
