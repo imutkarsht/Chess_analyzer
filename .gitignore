@@ -30,6 +30,12 @@ installers/linux/AppDir/
 installers/linux/appimagetool*
 installers/mac/Output
 
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.json
+htmlcov/
+
 .opencode/*
 /planning
 /.agents

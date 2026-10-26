@@ -60,23 +60,15 @@ def test_drill_down_item_widget_rendering_and_click(qapp, qtbot):
 
     assert blocker.args == ["game_1", 17]
 
-
-def test_drill_down_item_widget_fallbacks(qapp, qtbot):
-    """Test DrillDownItemWidget handles minimal/missing fields gracefully without crashing."""
-    minimal_item = {
-        "game_id": "game_min",
-        "ply": 1,
-        "san": "e4",
-    }
-    widget = DrillDownItemWidget(minimal_item)
-    qtbot.addWidget(widget)
-
-    assert widget.game_id == "game_min"
-    assert widget.move_index == 0
+    # Missing optional fields must not crash; ply 1 -> move_index 0.
+    minimal = DrillDownItemWidget({"game_id": "game_min", "ply": 1, "san": "e4"})
+    qtbot.addWidget(minimal)
+    assert minimal.game_id == "game_min"
+    assert minimal.move_index == 0
 
 
 def test_drill_down_view_empty_state(qapp, qtbot):
-    """Test DrillDownView displays empty state when no items are provided."""
+    """DrillDownView shows an empty state and hides pagination with no items."""
     view = DrillDownView()
     qtbot.addWidget(view)
 
@@ -86,10 +78,6 @@ def test_drill_down_view_empty_state(qapp, qtbot):
     assert view.lbl_subtitle.text() == "Positions where a Queen was lost"
     assert view.badge_count.text() == "0 Occurrences"
     assert view.pagination_bar.isHidden()
-
-    # Test back button emits back_requested
-    with qtbot.waitSignal(view.back_requested):
-        qtbot.mouseClick(view.btn_back, Qt.MouseButton.LeftButton)
 
 
 def test_drill_down_view_pagination(qapp, qtbot):

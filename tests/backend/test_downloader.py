@@ -26,34 +26,23 @@ def _asset(name, url=None):
 
 
 class TestGetCurrentPlatform:
-    def test_darwin_arm64(self, mocker):
-        mocker.patch.object(sys, "platform", "darwin")
-        mocker.patch("platform.machine", return_value="arm64")
-        assert get_current_platform() == ("darwin", "arm64")
-
-    def test_darwin_x86_64(self, mocker):
-        mocker.patch.object(sys, "platform", "darwin")
-        mocker.patch("platform.machine", return_value="x86_64")
-        assert get_current_platform() == ("darwin", "x86_64")
-
-    def test_win32(self, mocker):
-        mocker.patch.object(sys, "platform", "win32")
-        assert get_current_platform() == ("win32", "x86_64")
-
-    def test_linux(self, mocker):
-        mocker.patch.object(sys, "platform", "linux")
-        mocker.patch("platform.machine", return_value="x86_64")
-        assert get_current_platform() == ("linux", "x86_64")
-
-    def test_linux_aarch64_normalized(self, mocker):
-        mocker.patch.object(sys, "platform", "linux")
-        mocker.patch("platform.machine", return_value="aarch64")
-        assert get_current_platform() == ("linux", "arm64")
-
-    def test_linux_amd64_normalized(self, mocker):
-        mocker.patch.object(sys, "platform", "linux")
-        mocker.patch("platform.machine", return_value="AMD64")
-        assert get_current_platform() == ("linux", "x86_64")
+    @pytest.mark.parametrize(
+        ("sys_platform", "machine", "expected"),
+        [
+            ("darwin", "arm64", ("darwin", "arm64")),
+            ("darwin", "x86_64", ("darwin", "x86_64")),
+            # Windows reports no useful machine; the default is x86_64.
+            ("win32", None, ("win32", "x86_64")),
+            ("linux", "x86_64", ("linux", "x86_64")),
+            ("linux", "aarch64", ("linux", "arm64")),
+            ("linux", "AMD64", ("linux", "x86_64")),
+        ],
+    )
+    def test_supported_platforms(self, mocker, sys_platform, machine, expected):
+        mocker.patch.object(sys, "platform", sys_platform)
+        if machine is not None:
+            mocker.patch("platform.machine", return_value=machine)
+        assert get_current_platform() == expected
 
     def test_unsupported_platform_raises(self, mocker):
         mocker.patch.object(sys, "platform", "cygwin")
@@ -62,19 +51,18 @@ class TestGetCurrentPlatform:
 
 
 class TestGetExpectedAssetName:
-    def test_macos_universal(self, mocker):
-        mocker.patch.object(sys, "platform", "darwin")
-        mocker.patch("platform.machine", return_value="arm64")
-        assert get_expected_asset_name() == "stockfish-macos-universal.tar.gz"
-
-    def test_windows_universal(self, mocker):
-        mocker.patch.object(sys, "platform", "win32")
-        assert get_expected_asset_name() == "stockfish-windows-x86-64-universal.zip"
-
-    def test_linux_universal(self, mocker):
-        mocker.patch.object(sys, "platform", "linux")
-        mocker.patch("platform.machine", return_value="x86_64")
-        assert get_expected_asset_name() == "stockfish-linux-x86-64-universal.tar.gz"
+    @pytest.mark.parametrize(
+        ("sys_platform", "machine", "expected"),
+        [
+            ("darwin", "arm64", "stockfish-macos-universal.tar.gz"),
+            ("win32", "x86_64", "stockfish-windows-x86-64-universal.zip"),
+            ("linux", "x86_64", "stockfish-linux-x86-64-universal.tar.gz"),
+        ],
+    )
+    def test_universal_asset_names(self, mocker, sys_platform, machine, expected):
+        mocker.patch.object(sys, "platform", sys_platform)
+        mocker.patch("platform.machine", return_value=machine)
+        assert get_expected_asset_name() == expected
 
 
 class TestSelectAssets:

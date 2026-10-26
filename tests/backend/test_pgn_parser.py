@@ -202,3 +202,58 @@ class TestClockIntegration:
         assert len(games) == 1
         assert games[0].metadata.speed_category == "Daily"
         assert games[0].moves[0].time_spent == pytest.approx(60.0)
+
+
+class TestSpeedCategory:
+    @pytest.mark.parametrize(
+        ("time_control", "event", "expected"),
+        [
+            ("15", None, "UltraBullet"),
+            ("60", None, "Bullet"),
+            ("180+2", None, "Blitz"),
+            ("600", None, "Rapid"),
+            ("3600", None, "Classical"),
+            ("86400", None, "Daily"),
+            ("1/259200", None, "Daily"),
+            ("3/180", None, "Blitz"),
+            ("40/7200", None, "Classical"),
+            ("", "Rated Bullet game", "Bullet"),
+            ("", "Rated Blitz game", "Blitz"),
+            ("", "Rated Rapid game", "Rapid"),
+            ("", "Casual Classical game", "Classical"),
+            ("", "Correspondence game", "Daily"),
+            ("", "", "Blitz"),
+        ],
+    )
+    def test_time_controls_and_event_fallbacks(self, time_control, event, expected):
+        assert PGNParser.detect_speed_category(time_control, event) == expected
+
+
+class TestChess960Detection:
+    def test_variant_header_marks_the_game_as_chess960(self):
+        pgn = (
+            '[Event "Rated Chess960 game"]\n[Variant "Chess960"]\n'
+            '[Result "*"]\n\n1. e4 e5 *'
+        )
+
+        game = PGNParser.parse_pgn_text(pgn)[0]
+
+        assert game.metadata.chess960 is True
+        assert len(game.moves) == 2
+
+    def test_non_standard_castling_rights_mark_the_game_as_chess960(self):
+        pgn = (
+            '[Event "Chess960"]\n'
+            '[FEN "bbqnnrkr/pppppppp/8/8/8/8/PPPPPPPP/BBQNNRKR w HFhf - 0 1"]\n'
+            '[SetUp "1"]\n[Result "*"]\n\n1. Nf3 *'
+        )
+
+        game = PGNParser.parse_pgn_text(pgn)[0]
+
+        assert game.metadata.chess960 is True
+        assert game.moves[0].san == "Nf3"
+
+    def test_standard_castling_rights_are_not_chess960(self):
+        pgn = '[Event "Test"]\n[Result "*"]\n\n1. e4 e5 *'
+
+        assert PGNParser.parse_pgn_text(pgn)[0].metadata.chess960 is False

@@ -56,6 +56,19 @@ def _no_os_keychain(monkeypatch):
     monkeypatch.setattr("src.utils.secrets.KEYRING_AVAILABLE", False)
 
 
+# ============ Provider Environment Isolation ============
+@pytest.fixture(autouse=True)
+def _isolated_provider_env(monkeypatch):
+    """Stop a developer's .env file from turning unit tests into live LLM calls.
+
+    LichessAPI.__init__ calls load_dotenv(), which persists real keys in
+    os.environ for the rest of the session; GroqService then falls back to them
+    and attempts a network request instead of reporting "not configured".
+    """
+    for key in ("GROQ_API_KEY", "GROQ_KEY", "OPENAI_API_KEY", "OPENAI_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
+
 # ============ Isolated User Data ============
 @pytest.fixture(scope="session", autouse=True)
 def _isolated_user_data(tmp_path_factory):

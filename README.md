@@ -197,15 +197,22 @@ Run the test suite to ensure everything is working correctly:
 # Install dev dependencies first
 pip install -r requirements-dev.txt
 
-# Run all tests
+# Run all tests (the suite should finish in under 20 seconds)
 PYTHONPATH=. pytest tests/ -v
+
+# Check backend/utility branch coverage (85% floor)
+PYTHONPATH=. pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 ```
 
 > On Linux servers or CI without a display, set `QT_QPA_PLATFORM=offscreen` before running pytest.
 
+Tests run against temporary data and must stay offline, fast, deterministic, and cross-platform. See [CONTRIBUTING.md](CONTRIBUTING.md#8-test-quality-expectations) for the full test-quality guidelines.
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get started, set up your development environment, and submit pull requests.
+Contributions are welcome, but they are **issue-first**: every pull request must close or reference an existing issue. If you want to add a feature or fix something that has no issue yet, open one and let a maintainer verify it before you start coding. PRs without a linked issue will not be approved.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, development setup, test requirements, and branch conventions.
 
 ## 📄 License
 

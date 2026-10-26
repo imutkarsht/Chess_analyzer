@@ -55,27 +55,6 @@ def test_metrics_view_filter_toolbar(qapp, qtbot):
     widget.stop_worker()
 
 
-def test_accuracy_trend_figure_generation():
-    """Test create_accuracy_trend_figure with various data shapes."""
-    from src.gui.metrics.charts import create_accuracy_trend_figure
-
-    # 1. Empty data
-    fig_empty = create_accuracy_trend_figure([])
-    assert fig_empty is not None
-
-    # 2. Single item
-    fig_one = create_accuracy_trend_figure([82.5])
-    assert fig_one is not None
-
-    # 3. Small list with baseline
-    fig_small = create_accuracy_trend_figure([70.0, 85.0, 92.0, 78.0, 88.0], baseline_acc=80.0)
-    assert fig_small is not None
-
-    # 4. Long list (e.g. 25 games)
-    fig_long = create_accuracy_trend_figure([75.0 + (i % 15) for i in range(25)])
-    assert fig_long is not None
-
-
 def test_accuracy_trend_card_widget(qapp, qtbot):
     """Test AccuracyTrendCard rendering and segmented window switching."""
     from src.gui.views.metrics.accuracy_trend_card import AccuracyTrendCard
@@ -99,40 +78,6 @@ def test_accuracy_trend_card_widget(qapp, qtbot):
     # Switch to All
     card.btn_all.click()
     assert card.current_window == "all"
-
-    # Refresh styles
-    card.refresh_styles()
-
-
-def test_phase_performance_card_widget(qapp, qtbot):
-    """Test PhasePerformanceCard rendering and empty state."""
-    from src.gui.views.metrics.phase_performance_card import PhasePerformanceCard
-
-    card = PhasePerformanceCard()
-    qtbot.addWidget(card)
-
-    # 1. Empty stats
-    card.set_stats({})
-    assert card.content_widget is not None
-
-    # 2. Rich phase stats
-    stats = {
-        "total": 10,
-        "phase_stats": {
-            "accuracies": {
-                "opening": 86.5,
-                "middlegame": 74.2,
-                "endgame": 68.0,
-            },
-            "blunders": {
-                "opening": 0,
-                "middlegame": 4,
-                "endgame": 2,
-            },
-        },
-    }
-    card.set_stats(stats)
-    assert card.content_widget is not None
 
     # Refresh styles
     card.refresh_styles()
@@ -348,66 +293,6 @@ def test_time_management_card_widget(qapp, qtbot):
     card.btn_pace.click()
     assert card.current_mode == "pace"
     assert card.stack.currentWidget() == card.pace_page
-
-    # Refresh styles
-    card.refresh_styles()
-
-
-def test_hanging_pieces_card_widget(qapp, qtbot):
-    """Test HangingPiecesCard rendering, piece breakdowns, and vigilance progress."""
-    from src.gui.views.metrics.hanging_pieces_card import HangingPiecesCard
-
-    card = HangingPiecesCard()
-    qtbot.addWidget(card)
-
-    # 1. Empty state
-    card.set_stats({})
-    assert card.content_widget is not None
-
-    # 2. Rich hanging stats
-    stats = {
-        "total": 10,
-        "hanging_stats": {
-            "total_hung": 4,
-            "hanging_blunders": 2,
-            "by_piece": {"pawn": 1, "knight": 2, "bishop": 1, "rook": 0, "queen": 0},
-            "opponent_hanging_captured": 5,
-            "opponent_hanging_missed": 1,
-            "captured_by_piece": {"pawn": 2, "knight": 1, "bishop": 1, "rook": 1, "queen": 0},
-        },
-    }
-    card.set_stats(stats)
-    assert card.content_widget is not None
-
-    # Refresh styles
-    card.refresh_styles()
-
-
-def test_tactical_themes_card_widget(qapp, qtbot):
-    """Test TacticalThemesCard rendering, motif breakdown grid, and hero pillars."""
-    from src.gui.views.metrics.tactical_themes_card import TacticalThemesCard
-
-    card = TacticalThemesCard()
-    qtbot.addWidget(card)
-
-    # 1. Empty state
-    card.set_stats({})
-    assert card.content_widget is not None
-
-    # 2. Rich tactical stats
-    stats = {
-        "total": 15,
-        "tactical_themes": {
-            "fork": 8,
-            "pin": 5,
-            "skewer": 2,
-            "discovered_attack": 4,
-            "sacrifice": 1,
-            "back_rank": 3,
-        },
-    }
-    card.set_stats(stats)
-    assert card.content_widget is not None
 
     # Refresh styles
     card.refresh_styles()

@@ -78,25 +78,40 @@ src/
 - **Format**: optional, not a gate. `ruff format .` only when a file is being substantially rewritten; never block or report work on `ruff format --check`.
 - **Run All Tests**: `pytest tests/` (Headless Linux: `QT_QPA_PLATFORM=offscreen pytest tests/`)
 - **Run Single Test**: `pytest tests/backend/test_analyzer.py`
+- **Measure Coverage**: `pytest tests/ --cov=src --cov-branch --cov-report=term-missing` (branch coverage, GUI excluded, 85% floor)
 - **Production Build**: `pyinstaller build.spec`
 
 ---
 
 ## 7. Testing & Verification
-- All pull requests must maintain 100% pass rate: `pytest tests/` (320+ unit and GUI tests) with suite runtime under 15 seconds.
+- All pull requests must maintain a 100% pass rate: `pytest tests/` (990+ unit and GUI tests). The full suite must stay under 20 seconds, and the coverage gate must pass.
 - Backend logic changes require headless unit tests in `tests/backend/`.
 - GUI widget changes require tests using `pytest-qt` in `tests/gui/`.
 - Linting must report 0 errors: `ruff check .`
 - Formatting is **not** verified. Do not run `ruff format --check`, do not reformat unrelated files, and never treat formatting drift as a failure.
 
+### Coverage Requirements
+- **Coverage Is a Floor, Not a Target**: Backend and utility code must keep branch coverage at or above the 85% `fail_under` threshold in `pyproject.toml`. GUI modules are excluded deliberately because they are expensive to instantiate and would make the metric noisy.
+- **Test New Behavior, Not Line Counts**: New logic must ship with tests that assert its meaningful branches, calculations, state mutations, and failure fallbacks. Do not chase 100% or add tests for generated code, trivial delegation, or pure language behavior.
+- **Fix Regressions, Don't Lower the Floor**: If coverage drops, add or strengthen a meaningful test. Do not lower `fail_under` or exclude modules to make the gate pass.
+
 ### Meaningful Testing Guidelines (No Bloat, No Tautologies)
 - **Zero Language Tautologies**: Never write tests that merely verify Python's standard library or language behavior (e.g. asserting that a `@dataclass` assigns fields: `m = Model(x=1); assert m.x == 1`). Tests must assert domain logic, state mutations, calculations, or defensive fallbacks.
 - **Black-Box Over Private Implementation**: Test through public contracts and interfaces. Do not write redundant unit tests for private helper functions whose outputs are already asserted by the public API.
 - **Eliminate Cross-Module Duplication**: If domain behavior is exhaustively tested in a dedicated test file (e.g. `test_move_classifier.py` for classifications and win probabilities), do not copy-paste duplicate tests into other test suites (`test_analyzer.py`).
-- **Heavy GUI Test Conservation**: Instantiating full-app windows (`MainWindow`) is expensive (~2-3s per instance). Never boot multiple full `MainWindow` instances to test simple defensive or config parsing branches. Consolidate save/restore tests into a single lifecycle test, and test defensive methods directly on the instance. Keep the total test suite duration under 15 seconds.
+- **No Test Bloat**: Extend or parameterize an existing test instead of adding a near-duplicate. Delete tests that only smoke-check construction, duplicate another module's coverage, or do not protect app-breaking behavior.
+- **Heavy GUI Test Conservation**: Instantiating full-app windows (`MainWindow`) is expensive (~2-3s per instance). Never boot multiple full `MainWindow` instances to test simple defensive or config parsing branches. Consolidate save/restore tests into a single lifecycle test, and test defensive methods directly on the instance.
 - **Parameterize Over Duplication**: Use `@pytest.mark.parametrize` for multiple input variants, malformed strings, or platform formats rather than copy-pasting 4-5 near-identical test functions.
 - **Consolidated Metadata Assertions**: Avoid re-reading or re-parsing the same fixture across multiple tests to assert one field at a time. Assert the full record in a single coherent test.
 - **Guard Critical Invariants**: Tests must strictly protect core invariants: Stockfish UCI lifecycle, 10% accuracy floor, White-perspective scores, thermal safety defaults, deterministic MD5 hashing, and Chess960 castling.
+
+### Speed & Determinism Rules
+- **No Timeout-Based Tests**: Never make a test pass by letting a timer expire, and never use `time.sleep()`, `QTest.qWait()`, or real network/request timeouts to wait for work to finish. Run workers synchronously (`worker.run()`), observe emitted signals directly, or inject fake clocks so tests are deterministic and instant.
+- **Wait on Conditions, Not Clocks**: `qtbot.waitUntil`/`waitSignal` are acceptable only for unavoidable Qt layout or debounce events, always with a tight timeout and a condition that would be true immediately in a correct implementation.
+- **Keep Tests Fast**: The whole suite must finish in under 20 seconds. Any single test approaching ~1 second needs justification; find outliers with `pytest --durations=10`. Reuse fixtures/fakes and test logic directly instead of driving the full UI.
+- **No Network in Tests**: Mock every HTTP client and LLM call. Tests must pass offline, and a local `.env` must never turn a unit test into a live request.
+- **Never Write to Real Persistence**: Tests must never write to the user's real database, config, secrets, logs, or backup files. Use pytest's `tmp_path`/`tmp_path_factory`; the shared `tests/conftest.py` already redirects `get_user_data_dir()` and disables the OS keychain. Never bypass those patches or build a store without an explicit temporary path.
+- **Cross-Platform by Default**: Every test must pass on Windows, macOS, and Linux. Build paths with `pathlib.Path`, never hardcoded separators or drive letters. Do not assert POSIX-only behavior (permission bits, exec bits, `chmod`, shell scripts) on Windows — guard it with `sys.platform`/`os.name` or mock the platform branch. Patch platform-specific APIs instead of depending on the host OS, and keep assertions OS-agnostic wherever the behavior is shared.
 
 ---
 
@@ -115,3 +130,4 @@ src/
 3. **Implement**: Keep changes modular and focused. Avoid mixing refactors with bug fixes.
 4. **Verify**: Always run `ruff check .` and `pytest tests/` before considering work complete.
 5. **Git Hygiene**: Never run destructive Git commands (`git reset --hard`, force pushes). Write meaningful Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`).
+6. **Issue-First**: Every PR must close or target an existing issue. If no issue exists for the requested feature or fix, open one and get maintainer verification before implementing. Unlinked PRs are not approved.

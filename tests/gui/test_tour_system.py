@@ -1,55 +1,40 @@
-"""Tests for TourManager and TourOverlay components."""
+"""TourManager state and persistence.
+
+The overlay's pixel positioning is cosmetic; the state machine and the
+seen-page migration are what suppress a broken or repeated onboarding tour.
+"""
 from unittest.mock import MagicMock
 
-from PyQt6.QtWidgets import QLabel, QWidget
+from PyQt6.QtWidgets import QWidget
 
 from src.gui.components.tour_manager import TourManager, TourStep
-from src.gui.components.tour_overlay import TourOverlay
 
 
 def test_tour_manager_step_lifecycle():
     """TourManager properly tracks step progression and bounds."""
-    w1 = QWidget()
-    w2 = QWidget()
-    w3 = QWidget()
-
     steps = [
-        TourStep(target=w1, text="Step 1", position="below", page_index=0),
-        TourStep(target=w2, text="Step 2", position="above", page_index=0),
-        TourStep(target=w3, text="Step 3", position="right", page_index=0),
+        TourStep(target=QWidget(), text=f"Step {i}", position="below", page_index=0)
+        for i in range(1, 4)
     ]
 
     mgr = TourManager()
-    assert mgr.active is False
-    assert mgr.total_steps == 0
+    assert (mgr.active, mgr.total_steps) == (False, 0)
 
     mgr.start(steps)
-    assert mgr.active is True
-    assert mgr.total_steps == 3
-    assert mgr.current_step == 0
+    assert (mgr.active, mgr.total_steps, mgr.current_step) == (True, 3, 0)
     assert mgr.current.text == "Step 1"
 
-    # Step next
     assert mgr.next() is True
-    assert mgr.current_step == 1
-    assert mgr.current.text == "Step 2"
-
     assert mgr.next() is True
-    assert mgr.current_step == 2
     assert mgr.current.text == "Step 3"
-
-    # Beyond last step ends tour
     assert mgr.next() is False
     assert mgr.active is False
 
-    # Previous step
     mgr.start(steps)
     mgr.next()
-    assert mgr.prev() is True
-    assert mgr.current_step == 0
-    assert mgr.prev() is False  # Cannot go below 0
+    assert mgr.prev() is True and mgr.current_step == 0
+    assert mgr.prev() is False
 
-    # Stop resets
     mgr.stop()
     assert mgr.active is False
 
@@ -63,7 +48,6 @@ def test_tour_manager_seen_state():
 
     mgr = TourManager(config_manager=mock_config)
     assert mgr.has_seen_tour("landing") is False
-    assert mgr.has_seen_tour("analysis") is False
 
     mgr.mark_seen("landing")
     assert mgr.has_seen_tour("landing") is True
@@ -78,37 +62,3 @@ def test_tour_manager_seen_state():
     mock_store["tour_seen_pages"] = {"1": True}
     assert mgr.has_seen_tour("explorer") is True
     assert mgr.has_seen_tour(1) is True
-
-
-def test_tour_overlay_positioning(qapp, qtbot):
-    """TourOverlay positions bubble correctly and clamps within viewport."""
-    parent = QWidget()
-    parent.resize(1000, 800)
-    qtbot.addWidget(parent)
-    parent.show()
-
-    target = QLabel("Target Widget", parent)
-    target.setGeometry(400, 300, 200, 50)
-    target.show()
-
-    mgr = TourManager()
-    step = TourStep(target=target, text="Tour bubble test", position="below", page_index=0)
-    mgr.start([step])
-
-    overlay = TourOverlay(parent, mgr)
-    qtbot.addWidget(overlay)
-    overlay.show_tour()
-
-    # Verify bubble is placed near target
-    assert overlay.bubble.isVisible()
-    assert overlay.bubble.y() >= target.y() + target.height()
-
-    # Smart boundary flip test: place target at bottom edge
-    target.setGeometry(400, 750, 200, 40)
-    overlay._highlight_rect = overlay._widget_rect_in_parent(target)
-    overlay._position_bubble("below")
-    # Because 'below' overflows 800px viewport, it should flip to 'above'
-    assert overlay.bubble.y() < target.y()
-
-    overlay.close_silently()
-

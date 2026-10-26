@@ -196,6 +196,38 @@ To run a specific test file:
 PYTHONPATH=. pytest tests/backend/test_analyzer.py -v
 ```
 
+### Coverage and Test Quality
+
+Backend and utility modules are measured with branch coverage (GUI modules are
+excluded). The report fails below the `fail_under` threshold in
+`pyproject.toml`:
+
+```bash
+PYTHONPATH=. pytest tests/ --cov=src --cov-branch --cov-report=term-missing
+```
+
+When adding tests:
+
+- Cover meaningful behavior and failure paths, not line counts; do not lower the
+  coverage floor to make a build pass.
+- Avoid test bloat. Extend or parameterize existing tests and delete tests that
+  only smoke-check construction or duplicate another module's coverage.
+- Keep the suite fast: the full run should finish in under 20 seconds. Use
+  `pytest tests/ --durations=10` to find slow tests.
+- Never make a test pass by letting a timer expire, and never use
+  `time.sleep()`, `QTest.qWait()`, or real request timeouts to wait for work to
+  finish. Run workers synchronously or inject fake clocks instead.
+  `qtbot.waitUntil`/`waitSignal` are only for unavoidable Qt layout or debounce
+  events, with a tight timeout and an immediately-true condition.
+- Mock all HTTP and LLM calls so tests pass offline.
+- Never write to real persistence. Use pytest's `tmp_path`/`tmp_path_factory`
+  and pass explicit temporary paths; never touch the user's real database,
+  config, secrets, logs, or backups.
+- Keep every test cross-platform: it must pass on Windows, macOS, and Linux. Use
+  `pathlib.Path` rather than hardcoded separators, and guard POSIX-only
+  assertions (permission or exec bits, `chmod` results) behind
+  `sys.platform`/`os.name` instead of assuming a Unix host.
+
 > [!IMPORTANT] **Always run tests after adding a new feature!** Ensuring that new code doesn't break existing functionality is key to maintaining a healthy codebase.
 
 ---

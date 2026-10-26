@@ -4,55 +4,27 @@ Tests for Lichess API - URL parsing, game ID extraction.
 
 import pytest
 
-from src.backend.api.lichess_api import LichessAPI
+from src.backend.api.lichess_api import LichessAPI, _result_for_side
 
 
 class TestGameIdExtraction:
     """Tests for extracting game IDs from Lichess URLs."""
 
-    def test_extract_from_standard_url(self):
-        """Test extracting ID from standard game URL."""
-        api = LichessAPI()
-        url = "https://lichess.org/abcd1234"
-        game_id = api.extract_game_id(url)
-        assert game_id == "abcd1234"
-
-    def test_extract_from_url_with_color(self):
-        """Test extracting ID from URL with color suffix."""
-        api = LichessAPI()
-        url = "https://lichess.org/abcd1234/white"
-        game_id = api.extract_game_id(url)
-        assert game_id == "abcd1234"
-
-    def test_extract_from_url_with_black(self):
-        """Test extracting ID from URL with black suffix."""
-        api = LichessAPI()
-        url = "https://lichess.org/abcd1234/black"
-        game_id = api.extract_game_id(url)
-        assert game_id == "abcd1234"
-
-    def test_extract_from_12char_id(self):
-        """Test extracting 12-character game ID (truncated to 8)."""
-        api = LichessAPI()
-        url = "https://lichess.org/abcd1234efgh"
-        game_id = api.extract_game_id(url)
-        # API truncates to first 8 chars
-        assert game_id == "abcd1234"
-
-    def test_extract_returns_empty_for_short_id(self):
-        """Test short URL segment returns empty string."""
-        api = LichessAPI()
-        url = "https://lichess.org/abc"  # Too short (less than 8)
-        game_id = api.extract_game_id(url)
-        assert game_id == ""
-
-    def test_extract_returns_empty_for_empty_path(self):
-        """Test invalid domain returns empty string."""
-        api = LichessAPI()
-        # pathological URL that after parsing doesn't have valid segment
-        url = ""
-        game_id = api.extract_game_id(url)
-        assert game_id == ""
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            ("https://lichess.org/abcd1234", "abcd1234"),
+            ("https://lichess.org/abcd1234/white", "abcd1234"),
+            ("https://lichess.org/abcd1234/black", "abcd1234"),
+            # A 12-character ID is truncated to the canonical 8.
+            ("https://lichess.org/abcd1234efgh", "abcd1234"),
+            # Too short (less than 8) and pathological empty URLs yield nothing.
+            ("https://lichess.org/abc", ""),
+            ("", ""),
+        ],
+    )
+    def test_extract_game_id(self, url, expected):
+        assert LichessAPI().extract_game_id(url) == expected
 
 
 class TestGetGameById:
@@ -239,3 +211,112 @@ class TestPublicProfileAndToken:
         api.get_user_games("magnus", requested)
 
         assert mock_requests.call_args.kwargs["params"]["max"] == expected_max
+
+
+@pytest.mark.parametrize(
+    ("game_data", "side", "expected"),
+    [
+        ({"winner": "white"}, "white", "win"),
+        ({"winner": "black"}, "black", "win"),
+        ({"status": "resign"}, "white", "resigned"),
+        ({"status": "outoftime"}, "white", "timeout"),
+        ({"status": "timeout"}, "black", "timeout"),
+        ({"status": "mate"}, "black", "checkmated"),
+        ({"status": "stalemate"}, "white", "stalemate"),
+        ({"status": "draw"}, "white", "agreed"),
+        ({}, "black", "agreed"),
+    ],
+)
+def test_result_for_side_maps_loss_reasons(game_data, side, expected):
+    assert _result_for_side(game_data, side) == expected
+
+
+class TestGetUserGamesEdgeCases:
+    def test_malformed_lines_are_skipped(self, mock_requests):
+        mock_requests.return_value.iter_lines.return_value = [
+            b"",
+            b"   ",
+            b"not json",
+            b'{"id": "abcd1234", "players": {}, "pgn": "1. e4"}',
+        ]
+
+        games = LichessAPI().get_user_games("magnus")
+
+        assert len(games) == 1
+        assert games[0]["white"] == {"username": "?", "rating": "?", "result": "agreed"}
+        assert games[0]["url"] == "https://lichess.org/abcd1234"
+
+    def test_transport_failure_returns_empty_list(self, mocker):
+        import requests
+
+        mocker.patch(
+            "requests.get", side_effect=requests.exceptions.ConnectionError("offline")
+        )
+
+        assert LichessAPI().get_user_games("magnus") == []
+
+
+class TestGetUserGamesByDate:
+    def test_success_uses_date_window(self, mock_requests, mocker):
+        import datetime
+
+        mock_requests.return_value.iter_lines.return_value = [
+            b"broken",
+            b'{"id": "abcd1234", "players": {"white": {"user": {"name": "W"}, "rating": 2000}}, "pgn": "1. e4", "speed": "blitz", "createdAt": 1700000000000}',
+        ]
+
+        games = LichessAPI().get_user_games_by_date("W", datetime.date(2024, 5, 1))
+
+        assert len(games) == 1
+        assert games[0]["white"]["username"] == "W"
+        assert games[0]["black"]["username"] == "?"
+        assert games[0]["time_class"] == "blitz"
+        assert games[0]["end_time"] == 1_700_000_000
+        params = mock_requests.call_args.kwargs["params"]
+        assert params["since"] < params["until"]
+        assert params["max"] == 100
+
+    def test_transport_failure_returns_empty_list(self, mocker):
+        import datetime
+
+        import requests
+
+        mocker.patch(
+            "requests.get", side_effect=requests.exceptions.ConnectionError("offline")
+        )
+
+        assert LichessAPI().get_user_games_by_date("W", datetime.date(2024, 5, 1)) == []
+
+
+class TestLichessProfileEdges:
+    def test_blank_username_is_not_found(self, mock_requests):
+        result = LichessAPI().get_user_profile_result("   ")
+
+        assert result.profile is None
+        assert result.status == "not_found"
+        mock_requests.assert_not_called()
+
+    def test_non_object_payload_is_an_error(self, mock_requests):
+        mock_requests.return_value.status_code = 200
+        mock_requests.return_value.json.return_value = ["not", "a", "profile"]
+
+        result = LichessAPI().get_user_profile_result("magnus")
+
+        assert result.profile is None
+        assert result.status == "error"
+
+    def test_flag_is_used_for_country_and_empty_counts_are_safe(self, mock_requests):
+        mock_requests.return_value.status_code = 200
+        mock_requests.return_value.json.return_value = {
+            "username": "magnus",
+            "perfs": {},
+            "count": {},
+            "profile": {"flag": "NO"},
+        }
+
+        profile = LichessAPI().get_user_profile("magnus")
+
+        assert profile["country"] == "NO"
+        assert profile["total_games"] == 0
+        assert profile["win_rate"] == 0.0
+        assert profile["record"] == {"win": 0, "loss": 0, "draw": 0}

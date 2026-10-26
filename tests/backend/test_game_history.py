@@ -317,43 +317,42 @@ def test_checkpoint_and_vacuum(temp_db):
     manager.close()
 
 
-def test_explorer_cache_ttl_and_prune(temp_db):
-    """Test explorer_cache saves, retrieves, and prunes expired records."""
+def test_explorer_cache_ttl_epoch_storage_and_prune(temp_db):
+    """Explorer cache round-trips, stores epoch timestamps, and prunes expired rows."""
+    import sqlite3
     import time
 
     manager = GameHistoryManager(temp_db)
     fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
-    response_data = '{"moves": []}'
+    response_data = '{"moves": [{"san": "e5"}]}'
 
-    # 1. Save valid entry
     manager.save_explorer_cache(fen, response_data)
-    cached = manager.get_explorer_cache(fen)
-    assert cached == response_data
+    assert manager.get_explorer_cache(fen) == response_data
 
-    # 2. Simulate expired entry (> 48 hours old)
-    old_time = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() - 200000))
-    with manager._get_connection() as conn:
-        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (old_time, fen))
+    # cached_at is stored as a numeric epoch, not a formatted string.
+    with sqlite3.connect(temp_db) as conn:
+        row = conn.execute(
+            "SELECT cached_at FROM explorer_cache WHERE fen = ?", (fen,)
+        ).fetchone()
+    assert float(row[0]) > 0
+    assert isinstance(manager._parse_cached_at_to_epoch(row[0]), float)
+
+    # Expiry is detected and the row removed, whatever the stored representation.
+    old_epoch = time.time() - 200_000.0
+    with sqlite3.connect(temp_db) as conn:
+        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (old_epoch, fen))
         conn.commit()
+    assert manager.get_explorer_cache(fen) is None
+    with sqlite3.connect(temp_db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM explorer_cache").fetchone()[0] == 0
 
-    # get_explorer_cache should detect expiration and delete it
-    cached_expired = manager.get_explorer_cache(fen)
-    assert cached_expired is None
-
-    # Verify row was deleted
-    with manager._get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM explorer_cache")
-        assert cursor.fetchone()[0] == 0
-
-    # 3. Test prune_explorer_cache
+    # Legacy formatted timestamps are still parsed and pruned by prune_explorer_cache.
+    legacy = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(old_epoch))
     manager.save_explorer_cache(fen, response_data)
-    with manager._get_connection() as conn:
-        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (old_time, fen))
+    with sqlite3.connect(temp_db) as conn:
+        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (legacy, fen))
         conn.commit()
-
-    pruned = manager.prune_explorer_cache()
-    assert pruned == 1
+    assert manager.prune_explorer_cache() == 1
 
 
 def test_analysis_cache_thread_safety_and_pruning(tmp_path):
@@ -498,46 +497,6 @@ def test_row_to_game_analysis_preserves_starting_fen_and_metadata(temp_db):
     assert analysis.metadata.speed_category == "Chess960"
     assert analysis.metadata.termination_mode == "resignation"
     assert analysis.metadata.termination == "White won by resignation"
-
-
-def test_explorer_cache_epoch_timestamp_and_pruning(temp_db):
-    """Test that explorer cache stores epoch timestamp as REAL and prunes reliably."""
-    import sqlite3
-    import time
-
-    manager = GameHistoryManager(temp_db)
-    fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
-    response_json = '{"moves": [{"san": "e5"}]}'
-
-    manager.save_explorer_cache(fen, response_json)
-
-    # 1. Verify stored cached_at is float/int epoch timestamp
-    with sqlite3.connect(temp_db) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT cached_at FROM explorer_cache WHERE fen = ?", (fen,))
-        row = cursor.fetchone()
-        assert float(row[0]) > 0
-        assert isinstance(manager._parse_cached_at_to_epoch(row[0]), float)
-
-    # 2. Verify retrieval works within TTL
-    assert manager.get_explorer_cache(fen) == response_json
-
-    # 3. Simulate expired entry (> 48 hours) using epoch timestamp
-    expired_epoch = time.time() - 200000.0
-    with sqlite3.connect(temp_db) as conn:
-        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (expired_epoch, fen))
-        conn.commit()
-
-    # 4. Verify get_explorer_cache deletes expired entry
-    assert manager.get_explorer_cache(fen) is None
-
-    # 5. Verify prune_explorer_cache cleans up expired epoch records
-    manager.save_explorer_cache(fen, response_json)
-    with sqlite3.connect(temp_db) as conn:
-        conn.execute("UPDATE explorer_cache SET cached_at = ? WHERE fen = ?", (expired_epoch, fen))
-        conn.commit()
-    pruned = manager.prune_explorer_cache()
-    assert pruned == 1
 
 
 def test_ai_summary_is_stored_on_the_game_and_survives_resaving(temp_db):
