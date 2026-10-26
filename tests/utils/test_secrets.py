@@ -2,6 +2,7 @@
 
 import json
 import stat
+import sys
 
 import pytest
 
@@ -61,7 +62,9 @@ def test_set_failure_writes_private_fallback_file(keychain, legacy_path, mocker)
     assert json.loads(legacy_path.read_text(encoding="utf-8")) == {
         "openai_api_key": "sk-test-value"
     }
-    assert stat.S_IMODE(legacy_path.stat().st_mode) == 0o600
+    # Windows has no POSIX mode bits: chmod only flips the read-only flag.
+    if sys.platform != "win32":
+        assert stat.S_IMODE(legacy_path.stat().st_mode) == 0o600
     assert SecretStore(str(legacy_path)).get("openai_api_key") == "sk-test-value"
 
 

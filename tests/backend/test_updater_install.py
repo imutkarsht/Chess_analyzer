@@ -1,6 +1,7 @@
 """Tests for update download, platform install dispatch, and release parsing."""
 
 import stat
+import sys
 
 import pytest
 import requests
@@ -202,8 +203,11 @@ class TestInstallLinux:
         assert f'TARGET="{tmp_path / "current.AppImage"}"' in script
         assert f'NEW_APPIMAGE="{new_appimage}"' in script
         assert 'exec "' in script
-        assert stat.S_IMODE(script_path.stat().st_mode) == 0o700
-        assert new_appimage.stat().st_mode & stat.S_IXUSR
+        # Windows only emulates the read-only bit; POSIX permission bits are
+        # not meaningful there, so the mode assertions are Unix-only.
+        if sys.platform != "win32":
+            assert stat.S_IMODE(script_path.stat().st_mode) == 0o700
+            assert new_appimage.stat().st_mode & stat.S_IXUSR
         popen.assert_called_once_with(
             ["bash", str(script_path)],
             start_new_session=True,

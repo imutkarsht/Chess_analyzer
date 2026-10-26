@@ -223,6 +223,10 @@ When adding tests:
 - Never write to real persistence. Use pytest's `tmp_path`/`tmp_path_factory`
   and pass explicit temporary paths; never touch the user's real database,
   config, secrets, logs, or backups.
+- Keep every test cross-platform: it must pass on Windows, macOS, and Linux. Use
+  `pathlib.Path` rather than hardcoded separators, and guard POSIX-only
+  assertions (permission or exec bits, `chmod` results) behind
+  `sys.platform`/`os.name` instead of assuming a Unix host.
 
 > [!IMPORTANT] **Always run tests after adding a new feature!** Ensuring that new code doesn't break existing functionality is key to maintaining a healthy codebase.
 

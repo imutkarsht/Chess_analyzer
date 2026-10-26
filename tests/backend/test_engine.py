@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 
 import pytest
@@ -340,7 +341,14 @@ class TestEngineLifecycle:
 
         manager.start_engine()
 
-        popen.assert_called_once_with("/fake/stockfish")
+        popen.assert_called_once()
+        assert popen.call_args.args == ("/fake/stockfish",)
+        if sys.platform == "win32":
+            assert popen.call_args.kwargs == {
+                "creationflags": subprocess.CREATE_NO_WINDOW
+            }
+        else:
+            assert popen.call_args.kwargs == {}
         fake_engine.configure.assert_has_calls(
             [mocker.call({"Threads": 1}), mocker.call({"Hash": 128})],
             any_order=True,

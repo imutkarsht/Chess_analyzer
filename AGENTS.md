@@ -111,6 +111,7 @@ src/
 - **Keep Tests Fast**: The whole suite must finish in under 20 seconds. Any single test approaching ~1 second needs justification; find outliers with `pytest --durations=10`. Reuse fixtures/fakes and test logic directly instead of driving the full UI.
 - **No Network in Tests**: Mock every HTTP client and LLM call. Tests must pass offline, and a local `.env` must never turn a unit test into a live request.
 - **Never Write to Real Persistence**: Tests must never write to the user's real database, config, secrets, logs, or backup files. Use pytest's `tmp_path`/`tmp_path_factory`; the shared `tests/conftest.py` already redirects `get_user_data_dir()` and disables the OS keychain. Never bypass those patches or build a store without an explicit temporary path.
+- **Cross-Platform by Default**: Every test must pass on Windows, macOS, and Linux. Build paths with `pathlib.Path`, never hardcoded separators or drive letters. Do not assert POSIX-only behavior (permission bits, exec bits, `chmod`, shell scripts) on Windows — guard it with `sys.platform`/`os.name` or mock the platform branch. Patch platform-specific APIs instead of depending on the host OS, and keep assertions OS-agnostic wherever the behavior is shared.
 
 ---
 

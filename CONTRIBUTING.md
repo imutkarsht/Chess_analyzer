@@ -152,6 +152,10 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
   `tmp_path`/`tmp_path_factory` and pass explicit temporary paths to caches,
   repositories, and `SecretStore`; the shared `conftest.py` already redirects
   `get_user_data_dir()` and disables the OS keychain, so never bypass it.
+- **Pass on every platform.** Tests must pass on Windows, macOS, and Linux. Use
+  `pathlib.Path` instead of hardcoded separators, and do not assert POSIX-only
+  behavior (permission or exec bits, `chmod` results) on Windows — guard those
+  checks with `sys.platform`/`os.name` or mock the platform-specific branch.
 
 ---
 

@@ -206,7 +206,7 @@ PYTHONPATH=. pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 
 > On Linux servers or CI without a display, set `QT_QPA_PLATFORM=offscreen` before running pytest.
 
-Tests must stay fast and deterministic: do not use sleeps, wall-clock timeouts, or live network calls. They run against temporary databases and never touch your real config, history, or OS keychain. See [CONTRIBUTING.md](CONTRIBUTING.md#8-test-quality-expectations) for the full test-quality guidelines.
+Tests run against temporary data and must stay offline, fast, deterministic, and cross-platform. See [CONTRIBUTING.md](CONTRIBUTING.md#8-test-quality-expectations) for the full test-quality guidelines.
 
 ## 🤝 Contributing
 
