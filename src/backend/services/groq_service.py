@@ -193,6 +193,34 @@ def validate_explanation(
 # ---------------------------------------------------------------------------
 
 
+def explanation_tuning(cfg=None) -> tuple[float, int, str]:
+    """Read the user's move-explanation tuning with safe fallbacks.
+
+    The settings UI constrains these values, but config.json is user-editable,
+    so clamp again here rather than trusting whatever is on disk. ``cfg`` lets
+    callers pass their injected ConfigManager (used by the settings Test button).
+    """
+    cfg = cfg or ConfigManager()
+    try:
+        temperature = float(cfg.get("explain_temperature", EXPLANATION_TEMPERATURE))
+    except (TypeError, ValueError):
+        temperature = EXPLANATION_TEMPERATURE
+    try:
+        max_tokens = int(cfg.get("explain_max_tokens", EXPLANATION_MAX_TOKENS))
+    except (TypeError, ValueError):
+        max_tokens = EXPLANATION_MAX_TOKENS
+
+    effort = cfg.get("explain_reasoning_effort", EXPLANATION_REASONING_EFFORT) or ""
+    if effort not in {"", "low", "medium", "high"}:
+        effort = EXPLANATION_REASONING_EFFORT
+
+    return (
+        min(2.0, max(0.0, temperature)),
+        min(4096, max(256, max_tokens)),
+        effort,
+    )
+
+
 class GroqService:
     """
     OpenAI-compatible LLM service with pluggable, multi-profile provider
@@ -405,20 +433,9 @@ class GroqService:
                 model=self._model, messages=messages, **options
             )
         except Exception as exc:
-            if "reasoning_effort" in options and "reasoning_effort" in str(exc):
-                # Not every OpenAI-compatible provider knows this parameter.
-                logger.info("Provider rejected reasoning_effort; retrying without it")
-                options.pop("reasoning_effort")
-                try:
-                    completion = client.chat.completions.create(
-                        model=self._model, messages=messages, **options
-                    )
-                except Exception as retry_exc:
-                    exc = retry_exc
-            if completion is None:
-                exc_type = type(exc).__name__
-                logger.error("LLM completion failed [%s]: %s", exc_type, exc)
-                return f"Error [{exc_type}]: {exc}"
+            exc_type = type(exc).__name__
+            logger.error("LLM completion failed [%s]: %s", exc_type, exc)
+            return f"Error [{exc_type}]: {exc}"
 
         text = completion.choices[0].message.content
         logger.info("Received LLM completion response (%d chars)", len(text.strip()) if text else 0)
@@ -531,6 +548,8 @@ class GroqService:
         if not self.client:
             return "Error: LLM not configured. Go to Settings → API Configuration."
 
+        temperature, max_tokens, reasoning_effort = explanation_tuning()
+
         system = EXPLANATION_SYSTEM_PROMPT
         if classification:
             system += f" The move was classified as {classification}."
@@ -542,10 +561,10 @@ class GroqService:
             facts_text,
             system=system,
             timeout=EXPLANATION_REQUEST_TIMEOUT_S,
-            max_tokens=EXPLANATION_MAX_TOKENS,
-            temperature=EXPLANATION_TEMPERATURE,
+            max_tokens=max_tokens,
+            temperature=temperature,
             max_retries=0,
-            reasoning_effort=EXPLANATION_REASONING_EFFORT,
+            reasoning_effort=reasoning_effort or None,
         )
 
     def generate_coach_insights(self, stats_text: str) -> str:

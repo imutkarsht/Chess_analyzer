@@ -23,6 +23,7 @@ class _FakeConfig:
             "board_show_last_move": True,
             "board_show_eval_bar": True,
             "sidebar_start_collapsed": False,
+            "history_view_mode": "compact",
             "remember_window_geometry": True,
             "sound_enabled": True,
             "sound_volume": 50,
@@ -122,6 +123,22 @@ def test_sidebar_mode_radio_writes_config_and_notifies(qapp):
 
     assert config.config["sidebar_start_collapsed"] is False
     assert len(changes) == 2
+    widget.deleteLater()
+
+
+def test_history_view_mode_persists_and_notifies(qapp):
+    config = _FakeConfig({"history_view_mode": "compact"})
+    widget = WindowLayoutSettings(config)
+    changes = []
+    widget.history_view_changed.connect(lambda: changes.append(True))
+
+    assert widget.history_view_combo.currentData() == "compact"
+    widget.history_view_combo.setCurrentIndex(
+        widget.history_view_combo.findData("detailed")
+    )
+
+    assert config.config["history_view_mode"] == "detailed"
+    assert changes == [True]
     widget.deleteLater()
 
 

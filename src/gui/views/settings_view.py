@@ -55,6 +55,7 @@ class SettingsView(QWidget):
     llm_config_changed = pyqtSignal()   # emitted after LLM settings are saved
     usernames_changed = pyqtSignal()
     sidebar_prefs_changed = pyqtSignal()
+    appearance_prefs_changed = pyqtSignal()  # history default layout etc.
     analysis_prefs_changed = pyqtSignal()  # cache / engine-lines shortcuts changed
 
     def __init__(self):
@@ -217,6 +218,9 @@ class SettingsView(QWidget):
         self.window_layout_settings.sidebar_prefs_changed.connect(
             self.sidebar_prefs_changed.emit
         )
+        self.window_layout_settings.history_view_changed.connect(
+            self.appearance_prefs_changed.emit
+        )
         for card in (self.full_analysis_settings, self.live_analysis_settings):
             card.binder.changed.connect(self._on_analysis_binder_changed)
         for card in (
@@ -369,7 +373,10 @@ class SettingsView(QWidget):
         page_extras = {
             "Analysis": "engine stockfish depth multipv opening book polyglot",
             "Appearance": "theme accent colour color board pieces sidebar sound layout",
-            "AI Coach": "api key provider model llm profile coach explanation cache",
+            "AI Coach": (
+                "api key provider model llm profile coach explanation cache "
+                "temperature tokens reasoning effort"
+            ),
             "Integrations": (
                 "chesscom lichess username token network games limit profile "
                 "preview avatar cache ttl explorer opening"
@@ -585,24 +592,10 @@ class SettingsView(QWidget):
         if not threads_ok or not hash_ok:
             return
 
-        # Save current LLM profile edits to in-memory profile list first
-        profiles = self.config_manager.get_profiles()
-        idx = self.api_settings.llm_profile_combo.currentIndex()
-        if 0 <= idx < len(profiles):
-            old_name = profiles[idx].get("name", "")
-            new_profile = self.api_settings._current_profile_dict()
-            new_name = new_profile["name"]
-            if not new_name:
-                from src.gui.main_window import MainWindow
-                MainWindow.toast_from_widget(self, "Profile name cannot be empty.", "warning")
-                return
-            if new_name != old_name and any(p["name"] == new_name for p in profiles):
-                from src.gui.main_window import MainWindow
-                MainWindow.toast_from_widget(self, f'A profile named "{new_name}" already exists.', "warning")
-                return
-            profiles[idx] = new_profile
-            # Set selected profile as active
-            self.config_manager.set_profiles(profiles, active_name=new_name)
+        # Persist the profile editor without changing the active profile unless
+        # the active profile itself was renamed.
+        if not self.api_settings._persist_current_profile():
+            return
 
         # Resolve the token-dependent games cap before flushing so the user
         # still sees the warning when the requested value was too high.
