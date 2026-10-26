@@ -62,12 +62,12 @@ class GameInfo:
         data = json.loads(line)
 
         # Players
-        players = data.get("players", {})
-        white_player = players.get("white", {})
-        black_player = players.get("black", {})
+        players = data.get("players") or {}
+        white_player = players.get("white") or {}
+        black_player = players.get("black") or {}
 
-        white = white_player.get("user", {}).get("name", "?")
-        black = black_player.get("user", {}).get("name", "?")
+        white = (white_player.get("user") or {}).get("name", "?")
+        black = (black_player.get("user") or {}).get("name", "?")
 
         # Ratings
         white_elo = str(white_player.get("rating")) if white_player.get("rating") is not None else None
@@ -93,7 +93,7 @@ class GameInfo:
         pgn = data.get("pgn", "")
 
         # Opening
-        opening = data.get("opening", {}).get("name")
+        opening = (data.get("opening") or {}).get("name")
 
         # Move count estimation
         move_count = None
