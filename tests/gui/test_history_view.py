@@ -88,6 +88,27 @@ def test_game_import_worker_execution(tmp_path, qtbot):
     assert g1["speed_category"] == "Blitz"
 
 
+class _HistoryConfig:
+    def __init__(self, mode):
+        self.mode = mode
+
+    def get(self, key, default=None):
+        if key == "history_view_mode":
+            return self.mode
+        return default
+
+
+def test_history_view_applies_configured_default_layout(qapp, qtbot):
+    view = HistoryView(_HistoryConfig("detailed"))
+    qtbot.addWidget(view)
+
+    assert view.game_list.view_mode == "detailed"
+
+    view.game_list.set_view_mode("compact")
+    view.apply_default_view_mode()
+    assert view.game_list.view_mode == "detailed"
+
+
 def test_history_view_load_history_fast_path(tmp_path, qtbot, qapp):
     """Test HistoryView load_history utilizes cached speed_category and termination_mode."""
     db_path = str(tmp_path / "test_load.db")
