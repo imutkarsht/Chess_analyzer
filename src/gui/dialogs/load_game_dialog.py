@@ -4,20 +4,21 @@ Replaces the fragmented dropdown menu + multiple OS dialogs with a single,
 fully-styled modal that handles all load sources inline.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
-    QButtonGroup,
     QDialog,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from src.constants import SRC_CHESSCOM, SRC_LICHESS, SRC_PGN_FILE, SRC_PGN_TEXT
+from src.gui.components import Tabs, TabVariant
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
+from src.utils.path_utils import get_resource_path
 
 from .load_game import (
     OnlineFetchPanel,
@@ -99,6 +100,7 @@ class LoadGameDialog(QDialog):
 
         # ── Navigation bar ──────────────────────────────────────────────────
         nav_bar = QWidget()
+        nav_bar.setFixedHeight(48)
         nav_bar.setStyleSheet(f"""
             QWidget {{
                 background-color: {Styles.COLOR_SURFACE};
@@ -109,53 +111,24 @@ class LoadGameDialog(QDialog):
         nav_layout.setContentsMargins(20, 0, 20, 0)
         nav_layout.setSpacing(12)
 
-        # Online tab button
-        self.btn_online = QPushButton("  Online Fetch")
-        self.btn_online.setCheckable(True)
-        self.btn_online.setChecked(True)
-        self.btn_online.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_online.setFixedHeight(48)
-
-        # Pgn tab button
-        self.btn_pgn = QPushButton("  PGN Text / File")
-        self.btn_pgn.setCheckable(True)
-        self.btn_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_pgn.setFixedHeight(48)
-
-        self.tab_group = QButtonGroup(self)
-        self.tab_group.setExclusive(True)
-        self.tab_group.addButton(self.btn_online)
-        self.tab_group.addButton(self.btn_pgn)
-
-        # Style tab buttons to be borderless with an underline indicator when checked
-        tab_style = f"""
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                border-bottom: 3px solid transparent;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 14px;
-                font-weight: 600;
-                padding: 0px 16px;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                background-color: rgba(255, 255, 255, 0.03);
-            }}
-            QPushButton:checked {{
-                color: {Styles.COLOR_ACCENT};
-                border-bottom: 3px solid {Styles.COLOR_ACCENT};
-            }}
-        """
-        self.btn_online.setStyleSheet(tab_style)
-        self.btn_pgn.setStyleSheet(tab_style)
-
-        self.btn_online.clicked.connect(lambda: self._on_tab_changed("online"))
-        self.btn_pgn.clicked.connect(lambda: self._on_tab_changed("pgn"))
-
-        nav_layout.addWidget(self.btn_online)
-        nav_layout.addWidget(self.btn_pgn)
-        nav_layout.addStretch()
+        # Tabs sit flush against the nav bar's bottom border, so the accent
+        # underline reads as part of the divider.
+        self.tabs = Tabs(
+            TabVariant.UNDERLINE,
+            active_style="accent",
+            spacing=16,
+            padding=(0, 16, 0, 16),
+            font_size=14,
+            icon_size=18,
+        )
+        self.tabs.add_tab("Online Fetch", icon="fa5s.globe")
+        self.tabs.add_tab(
+            "PGN Text / File",
+            icon=QIcon(get_resource_path("assets/icons/file.png")),
+        )
+        self.tabs.current_changed.connect(self._on_tab_index_changed)
+        self.tabs.setFixedHeight(48)
+        nav_layout.addWidget(self.tabs, 1)
 
         root.addWidget(nav_bar)
 
@@ -217,47 +190,35 @@ class LoadGameDialog(QDialog):
         # Internal state
         self._pending_pgn = None
         self._pending_source_data = None
-        self._refresh_nav_icons()
 
     # ── Tab switching ───────────────────────────────────────────────────────
-    def _refresh_nav_icons(self):
-        import qtawesome as qta
-        from PyQt6.QtGui import QIcon
+    _TAB_KEYS = ("online", "pgn")
 
-        from src.utils.path_utils import get_resource_path
-
-        pgn_icon = QIcon(get_resource_path("assets/icons/file.png"))
-        self.btn_pgn.setIcon(pgn_icon)
-
-        if self.btn_online.isChecked():
-            self.btn_online.setIcon(qta.icon("fa5s.globe", color=Styles.COLOR_ACCENT))
-        else:
-            self.btn_online.setIcon(qta.icon("fa5s.globe", color=Styles.COLOR_TEXT_SECONDARY))
+    def _on_tab_index_changed(self, index: int) -> None:
+        if 0 <= index < len(self._TAB_KEYS):
+            self._on_tab_changed(self._TAB_KEYS[index])
 
     def _on_tab_changed(self, tab_key: str):
         self._set_pending(None, None)
         if tab_key == "online":
-            self.btn_online.setChecked(True)
             self.pages.setCurrentIndex(0)
             self._online_fetch_panel.reset()
         else:
-            self.btn_pgn.setChecked(True)
             self.pages.setCurrentIndex(1)
             self._pgn_file_panel.reset()
             self._pgn_text_panel.reset()
-        self._refresh_nav_icons()
 
     # ── Source switching ────────────────────────────────────────────────────
     def _switch_source(self, src_id: int):
         self._set_pending(None, None)
         if src_id in [SRC_CHESSCOM, SRC_LICHESS]:
-            self._on_tab_changed("online")
+            self.tabs.set_current_index(0)
             platform = "chesscom" if src_id == SRC_CHESSCOM else "lichess"
             self._online_fetch_panel.platform_selector.setValue(platform)
             self._online_fetch_panel._on_platform_changed(platform)
             self._online_fetch_panel.reset()
         else:
-            self._on_tab_changed("pgn")
+            self.tabs.set_current_index(1)
             self._pgn_file_panel.reset()
             self._pgn_text_panel.reset()
 

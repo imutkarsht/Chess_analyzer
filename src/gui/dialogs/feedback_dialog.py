@@ -5,10 +5,8 @@ Clean, modern design matching Chess Analyzer Pro standards.
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
-    QButtonGroup,
     QCheckBox,
     QDialog,
-    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -24,6 +22,7 @@ from src.backend.services.feedback_service import (
     FeedbackWorker,
     get_recent_logs,
 )
+from src.gui.components import Tabs, TabVariant
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -66,7 +65,7 @@ class FeedbackDialog(QDialog):
         self._initial_logs = initial_logs or get_recent_logs(max_chars=1000)
 
         self.setup_ui()
-        self._switch_tab(self._current_tab)
+        self._select_tab(self._current_tab)
 
     def setup_ui(self):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -120,31 +119,20 @@ class FeedbackDialog(QDialog):
         body_layout.setContentsMargins(24, 20, 24, 20)
         body_layout.setSpacing(16)
 
-        # Segmented Tab Selector
-        tab_container = QFrame()
-        tab_container.setObjectName("TabContainer")
-        tab_container.setStyleSheet(f"""
-            #TabContainer {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
-        tab_layout = QHBoxLayout(tab_container)
-        tab_layout.setContentsMargins(4, 4, 4, 4)
-        tab_layout.setSpacing(4)
-
-        self.tab_group = QButtonGroup(self)
-        self.tab_group.setExclusive(True)
-
-        self.btn_tab_bug = self._create_tab_button("Report a Bug", "fa5s.bug", "bug")
-        self.btn_tab_feature = self._create_tab_button("Feature Request", "fa5s.lightbulb", "feature")
-        self.btn_tab_review = self._create_tab_button("Write Review", "fa5s.star", "review")
-
-        tab_layout.addWidget(self.btn_tab_bug)
-        tab_layout.addWidget(self.btn_tab_feature)
-        tab_layout.addWidget(self.btn_tab_review)
-        body_layout.addWidget(tab_container)
+        # Tab selector: the shared accent-filled segmented control.
+        self.tabs = Tabs(
+            TabVariant.SEGMENTED,
+            active_style="accent",
+            font_size=13,
+            padding=(7, 14, 7, 14),
+            radius=6,
+            track_padding=4,
+        )
+        self.tabs.add_tab("Report a Bug", icon="fa5s.bug")
+        self.tabs.add_tab("Feature Request", icon="fa5s.lightbulb")
+        self.tabs.add_tab("Write Review", icon="fa5s.star")
+        self.tabs.current_changed.connect(self._on_tab_index_changed)
+        body_layout.addWidget(self.tabs)
 
         # Stacked Pages
         self.stacked_widget = QStackedWidget(self)
@@ -169,7 +157,7 @@ class FeedbackDialog(QDialog):
         self._setup_success_page(self.page_success)
         self.stacked_widget.addWidget(self.page_success)
 
-        body_layout.addWidget(self.stacked_widget)
+        body_layout.addWidget(self.stacked_widget, 1)
 
         # Status / Error Label
         self.status_lbl = QLabel("")
@@ -201,78 +189,41 @@ class FeedbackDialog(QDialog):
         body_layout.addWidget(self.bottom_bar)
         root_layout.addWidget(body_widget)
 
-    def _create_tab_button(self, label: str, icon_name: str, tab_id: str) -> QPushButton:
-        btn = QPushButton(f"  {label}")
-        btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn.setCheckable(True)
-        btn.setFixedHeight(34)
-        btn.setProperty("icon_name", icon_name)
-        self.tab_group.addButton(btn)
+    _TAB_IDS = ("bug", "feature", "review")
 
-        btn.clicked.connect(lambda: self._switch_tab(tab_id))
-        return btn
+    def _on_tab_index_changed(self, index: int) -> None:
+        if 0 <= index < len(self._TAB_IDS):
+            self._switch_tab(self._TAB_IDS[index])
+
+    def _select_tab(self, tab_id: str) -> None:
+        """Show ``tab_id`` programmatically, keeping the tab bar in sync."""
+        if tab_id not in self._TAB_IDS:
+            return
+        index = self._TAB_IDS.index(tab_id)
+        if self.tabs.current_index() == index:
+            self._switch_tab(tab_id)
+        else:
+            self.tabs.set_current_index(index)
 
     def _switch_tab(self, tab_id: str):
         self._current_tab = tab_id
         self.status_lbl.hide()
 
-        tabs = [
-            (self.btn_tab_bug, "bug"),
-            (self.btn_tab_feature, "feature"),
-            (self.btn_tab_review, "review"),
-        ]
-
-        for btn, tid in tabs:
-            is_active = (tid == tab_id)
-            btn.setChecked(is_active)
-            icon_name = btn.property("icon_name")
-
-            if is_active:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {Styles.COLOR_ACCENT};
-                        color: #FFFFFF !important;
-                        font-weight: 600;
-                        font-size: 13px;
-                        border: none;
-                        border-radius: 6px;
-                    }}
-                """)
-                if HAS_QTAWESOME and icon_name:
-                    btn.setIcon(qta.icon(icon_name, color="#FFFFFF"))
-            else:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: transparent;
-                        color: {Styles.COLOR_TEXT_SECONDARY};
-                        font-weight: 500;
-                        font-size: 13px;
-                        border: none;
-                        border-radius: 6px;
-                    }}
-                    QPushButton:hover {{
-                        color: {Styles.COLOR_TEXT_PRIMARY};
-                        background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    }}
-                """)
-                if HAS_QTAWESOME and icon_name:
-                    btn.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
-
         if tab_id == "bug":
             self.stacked_widget.setCurrentIndex(0)
             self.btn_submit.setText("  Submit Bug Report")
-            if HAS_QTAWESOME:
-                self.btn_submit.setIcon(qta.icon("fa5s.paper-plane", color="#FFFFFF"))
+            submit_icon = "fa5s.paper-plane"
         elif tab_id == "feature":
             self.stacked_widget.setCurrentIndex(1)
             self.btn_submit.setText("  Submit Feature Request")
-            if HAS_QTAWESOME:
-                self.btn_submit.setIcon(qta.icon("fa5s.paper-plane", color="#FFFFFF"))
-        elif tab_id == "review":
+            submit_icon = "fa5s.paper-plane"
+        else:
             self.stacked_widget.setCurrentIndex(2)
             self.btn_submit.setText("  Submit Review")
-            if HAS_QTAWESOME:
-                self.btn_submit.setIcon(qta.icon("fa5s.star", color="#FFFFFF"))
+            submit_icon = "fa5s.star"
+
+        if HAS_QTAWESOME:
+            self.btn_submit.setIcon(qta.icon(submit_icon, color="#FFFFFF"))
 
         self.bottom_bar.show()
 

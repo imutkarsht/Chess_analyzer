@@ -131,6 +131,36 @@ def test_mode_toggle_keeps_the_coach_card_and_its_divider(qapp, qtbot, isolated_
         assert view.coach_settings.temperature_input.parentWidget().isHidden() is True
 
 
+def test_settings_nav_rail_stays_outside_the_scroll_area(qapp, qtbot, isolated_config):
+    """The category rail must stay fixed while the options panel scrolls."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view.scroll_area.widget() is view.settings_panel
+        assert view.scroll_area.isAncestorOf(view.category_rail) is False
+
+
+def test_search_scrolls_to_the_matching_card(qapp, qtbot, isolated_config):
+    """Searching jumps the options panel to the relevant card, not the top."""
+    from src.gui.views.settings_view import SettingsView
+
+    with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
+        view = SettingsView()
+        qtbot.addWidget(view)
+        view.resize(1100, 600)
+        view.show()
+        qapp.processEvents()
+
+        view.search_input.setText("sound effects")
+        qapp.processEvents()
+
+        assert view.category_list.currentItem().text() == "Appearance"
+        assert view.scroll_area.verticalScrollBar().value() > 0
+
+
 def test_analysis_page_groups_cards_and_mirrors_shortcuts(qapp, qtbot, isolated_config):
     """Analysis owns four cards, and the eval-panel shortcuts share their keys."""
     from src.gui.views.settings_view import SettingsView
@@ -158,8 +188,8 @@ def test_analysis_page_groups_cards_and_mirrors_shortcuts(qapp, qtbot, isolated_
         assert emitted == [True, True]
 
 
-def test_appearance_page_groups_four_cards(qapp, qtbot, isolated_config):
-    """Appearance is split into theme, board, layout, and sound cards."""
+def test_appearance_page_groups_five_cards(qapp, qtbot, isolated_config):
+    """Appearance is split into theme, board, layout, dashboard, and sound cards."""
     from src.gui.views.settings_view import SettingsView
 
     with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
@@ -170,6 +200,7 @@ def test_appearance_page_groups_four_cards(qapp, qtbot, isolated_config):
             view.theme_accent_settings,
             view.board_pieces_settings,
             view.window_layout_settings,
+            view.dashboard_layout_settings,
             view.sound_settings,
         ]
 

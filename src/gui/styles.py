@@ -1,6 +1,10 @@
 from src.gui.theme import ThemeManager
 from src.gui.theme.palette import BOARD_THEMES
 
+# Text/icons drawn on top of a filled accent surface. White reads on every
+# accent the app allows, in both light and dark mode.
+ON_ACCENT = "#FFFFFF"
+
 
 class _StylesMeta(type):
     # ═══════════════════════════════════════════════════════════════
@@ -45,6 +49,10 @@ class _StylesMeta(type):
     @property
     def COLOR_ACCENT_SUBTLE(cls):
         return ThemeManager.palette().accent_subtle
+
+    @property
+    def COLOR_ON_ACCENT(cls):
+        return ON_ACCENT
 
     @property
     def COLOR_BORDER(cls):
@@ -1298,38 +1306,130 @@ class Styles(metaclass=_StylesMeta):
     #  TABS
     # ═══════════════════════════════════════════════════════════════
     @classmethod
-    def get_tab_style(cls):
+    def get_tabs_style(
+        cls,
+        *,
+        variant: str = "underline",
+        spacing: int = 24,
+        padding: tuple[int, int, int, int] = (8, 18, 10, 18),
+        font_size: int = 15,
+        font_weight: int = 600,
+        radius: int = 8,
+        track: bool = False,
+        track_padding: int = 4,
+        active_style: str = "filled",
+        indicator_size: int = 3,
+        accent: str | None = None,
+    ) -> str:
+        """Stylesheet for ``src.gui.components.tabs.Tabs``.
+
+        One generator backs both looks: ``underline`` draws an accent bar under
+        the active label, ``segmented`` renders button-like segments that either
+        sit in a rounded ``#TabTrack`` container or float as detached pills.
+        Rules are scoped to ``#TabTrack`` so a nested tab bar inside a page can
+        never inherit an outer bar's look.
+
+        The underline uses the palette accent unless ``accent`` is passed;
+        ``active_style="accent"`` also tints the active label, while the default
+        ``"underline"`` keeps it in the primary text color.
+        """
         p = ThemeManager.palette()
-        return f"""
-            QTabWidget {{
-                background-color: {p.background};
-            }}
-            QTabWidget::pane {{
+        top, right, bottom, left = padding
+        font = f"font-size: {font_size}px; font-weight: {font_weight};"
+
+        if variant == "underline":
+            indicator = accent or p.accent
+            selected_text = indicator if active_style == "accent" else p.text_primary
+            return f"""
+                #TabTrack {{
+                    background: transparent;
+                    border: none;
+                }}
+                #TabTrack QTabBar {{
+                    background: transparent;
+                }}
+                #TabTrack QTabBar::tab {{
+                    background: transparent;
+                    color: {p.text_secondary};
+                    padding: {top}px {right}px {bottom}px {left}px;
+                    margin-right: {spacing}px;
+                    border: none;
+                    border-bottom: {indicator_size}px solid transparent;
+                    border-radius: 0;
+                    {font}
+                }}
+                #TabTrack QTabBar::tab:last {{
+                    margin-right: 0;
+                }}
+                #TabTrack QTabBar::tab:selected {{
+                    color: {selected_text};
+                    border-bottom: {indicator_size}px solid {indicator};
+                }}
+                #TabTrack QTabBar::tab:hover:!selected {{
+                    color: {p.text_primary};
+                }}
+                #TabTrack QTabBar::tab:disabled {{
+                    color: {p.text_muted};
+                }}
+            """
+
+        track_rule = """
+            #TabTrack {
+                background: transparent;
                 border: none;
-                background-color: transparent;
+            }
+        """
+        if track:
+            # The active pill is inset by the track padding, so the container
+            # radius has to grow by that amount or the corners look pinched.
+            track_rule = f"""
+                #TabTrack {{
+                    background-color: {p.surface};
+                    border: 1px solid {p.border};
+                    border-radius: {radius + track_padding}px;
+                }}
+            """
+            base_background = "transparent"
+            base_border = "1px solid transparent"
+        else:
+            base_background = p.surface
+            base_border = f"1px solid {p.border}"
+
+        selected_border = (accent or p.accent) if active_style == "outline" else p.border_light
+        selected_background = p.surface_light
+        selected_text = p.text_primary
+        if active_style == "accent":
+            selected_background = accent or p.accent
+            selected_border = selected_background
+            selected_text = ON_ACCENT
+        return f"""
+            {track_rule}
+            #TabTrack QTabBar {{
+                background: transparent;
             }}
-            QTabBar {{
-                qproperty-drawBase: 0;
-            }}
-            QTabBar::tab {{
-                background-color: {p.surface};
+            #TabTrack QTabBar::tab {{
+                background-color: {base_background};
                 color: {p.text_secondary};
-                padding: 7px 18px;
-                font-weight: 600;
-                font-size: 12px;
-                border: 1px solid {p.border};
-                border-radius: 8px;
-                margin-right: 6px;
+                padding: {top}px {right}px {bottom}px {left}px;
+                margin-right: {spacing}px;
+                border: {base_border};
+                border-radius: {radius}px;
+                {font}
             }}
-            QTabBar::tab:selected {{
+            #TabTrack QTabBar::tab:last {{
+                margin-right: 0;
+            }}
+            #TabTrack QTabBar::tab:selected {{
+                background-color: {selected_background};
+                color: {selected_text};
+                border-color: {selected_border};
+            }}
+            #TabTrack QTabBar::tab:hover:!selected {{
                 background-color: {p.surface_light};
                 color: {p.text_primary};
-                border-color: {p.accent};
             }}
-            QTabBar::tab:hover:!selected {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                border-color: {p.border_light};
+            #TabTrack QTabBar::tab:disabled {{
+                color: {p.text_muted};
             }}
         """
 
@@ -1386,6 +1486,45 @@ class Styles(metaclass=_StylesMeta):
             }}
             QPushButton:hover {{
                 color: {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_board_swatch_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QPushButton {{
+                background: transparent;
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 2px;
+            }}
+            QPushButton:hover {{
+                border-color: {p.text_muted};
+            }}
+            QPushButton:checked {{
+                border: 2px solid {p.accent};
+            }}
+        """
+
+    @classmethod
+    def get_theme_card_button_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QToolButton {{
+                background-color: {p.surface_card};
+                color: {p.text_primary};
+                border: 1px solid {p.border};
+                border-radius: 10px;
+                padding: 6px;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            QToolButton:hover {{
+                border-color: {p.text_muted};
+            }}
+            QToolButton:checked {{
+                border: 2px solid {p.accent};
             }}
         """
 

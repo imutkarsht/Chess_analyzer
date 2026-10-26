@@ -1,13 +1,12 @@
 import datetime
 
 from PyQt6.QtCore import QDate, QObject, Qt, pyqtSignal
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
-    QButtonGroup,
     QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -16,10 +15,12 @@ from src.backend.api.import_limits import clamp_games_limit, current_token
 from src.backend.cache.api_cache import ApiGameCache
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_history import GameHistoryManager
+from src.gui.components import Tabs, TabVariant
 from src.gui.components.toast import Toast
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 from src.utils.config import ConfigManager
+from src.utils.path_utils import get_resource_path
 
 from .api_worker import ApiWorker, register_worker, remove_worker
 from .inline_game_list import InlineGameList
@@ -46,116 +47,72 @@ class DateClickFilter(QObject):
 
 
 class SegmentedSelector(QWidget):
+    """Accent-filled segmented control backed by the shared Tabs component.
+
+    Keeps the key/value contract the fetch panel expects while delegating all
+    geometry, hover and icon-state handling to ``Tabs``.
+    """
+
     valueChanged = pyqtSignal(str)
 
     def __init__(self, options: list[tuple], initial_key: str = None, parent=None):
         super().__init__(parent)
-        self.options = options
-        self.buttons = {}
-        self.selected_key = initial_key or options[0][0]
-        self.setup_ui()
+        self._keys = [opt[0] for opt in options]
+        self._updating = False
+        self.selected_key = initial_key or self._keys[0]
 
-    def setup_ui(self):
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setObjectName("SegmentedSelector")
+        self.tabs = Tabs(
+            TabVariant.SEGMENTED,
+            active_style="accent",
+            expand=False,
+            track_padding=2,
+            spacing=2,
+            padding=(4, 14, 4, 14),
+            radius=6,
+            font_size=13,
+            icon_size=16,
+        )
+        for opt in options:
+            label = opt[1]
+            icon = self._icon_spec(opt[2]) if len(opt) > 2 else None
+            self.tabs.add_tab(label, icon=icon)
+        self.tabs.current_changed.connect(self._on_tab_changed)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(2)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.tabs)
 
-        self.group = QButtonGroup(self)
-        self.group.setExclusive(True)
+        self.tabs.set_current_index(self._keys.index(self.selected_key))
 
-        for opt in self.options:
-            key = opt[0]
-            label = opt[1]
-            icon_name = opt[2] if len(opt) > 2 else None
+    @staticmethod
+    def _icon_spec(icon_name: str):
+        """Asset paths become QIcons; anything else is a themed icon name."""
+        if icon_name.startswith("assets/") or "/" in icon_name:
+            return QIcon(get_resource_path(icon_name))
+        return icon_name
 
-            btn = QPushButton(label)
-            btn.setCheckable(True)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setFixedHeight(28)
-            if icon_name:
-                btn.setProperty("icon_name", icon_name)
-
-            self.buttons[key] = btn
-            self.group.addButton(btn)
-            layout.addWidget(btn)
-
-            if key == self.selected_key:
-                btn.setChecked(True)
-
-            btn.clicked.connect(lambda checked, k=key: self._on_btn_clicked(k))
-
-        self.refresh_styles()
-
-    def _on_btn_clicked(self, key):
-        self.selected_key = key
-        self.refresh_styles()
-        self.valueChanged.emit(key)
+    def _on_tab_changed(self, index: int) -> None:
+        if not 0 <= index < len(self._keys):
+            return
+        self.selected_key = self._keys[index]
+        if not self._updating:
+            self.valueChanged.emit(self.selected_key)
 
     def value(self) -> str:
         return self.selected_key
 
     def setValue(self, key: str):
-        if key in self.buttons:
-            self.buttons[key].setChecked(True)
+        if key not in self._keys:
+            return
+        self._updating = True
+        try:
             self.selected_key = key
-            self.refresh_styles()
+            self.tabs.set_current_index(self._keys.index(key))
+        finally:
+            self._updating = False
 
     def refresh_styles(self):
-        import qtawesome as qta
-        from PyQt6.QtGui import QIcon
-
-        from src.utils.path_utils import get_resource_path
-
-        self.setStyleSheet(f"""
-            #SegmentedSelector {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
-        for btn in self.buttons.values():
-            icon_name = btn.property("icon_name")
-            if btn.isChecked():
-                if icon_name:
-                    if icon_name.startswith("assets/") or "/" in icon_name:
-                        btn.setIcon(QIcon(get_resource_path(icon_name)))
-                    else:
-                        btn.setIcon(qta.icon(icon_name, color="#FFFFFF"))
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {Styles.COLOR_ACCENT};
-                        color: #FFFFFF !important;
-                        border: none;
-                        border-radius: 6px;
-                        font-size: 13px;
-                        font-weight: 700;
-                        padding: 0px 14px;
-                    }}
-                """)
-            else:
-                if icon_name:
-                    if icon_name.startswith("assets/") or "/" in icon_name:
-                        btn.setIcon(QIcon(get_resource_path(icon_name)))
-                    else:
-                        btn.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: transparent;
-                        color: {Styles.COLOR_TEXT_SECONDARY};
-                        border: none;
-                        border-radius: 6px;
-                        font-size: 13px;
-                        font-weight: 500;
-                        padding: 0px 14px;
-                    }}
-                    QPushButton:hover {{
-                        color: {Styles.COLOR_TEXT_PRIMARY};
-                        background-color: rgba(255, 255, 255, 0.05);
-                    }}
-                """)
+        self.tabs.refresh_styles()
 
 
 def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date: datetime.date, url: str, game_id: str, limit: int) -> list[GameInfo]:

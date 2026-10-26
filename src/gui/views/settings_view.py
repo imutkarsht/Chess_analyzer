@@ -2,9 +2,10 @@
 Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -28,6 +29,7 @@ from .settings import (
     BookSettings,
     CoachSettings,
     DangerSettings,
+    DashboardLayoutSettings,
     EngineSettings,
     FullAnalysisSettings,
     LinksSettings,
@@ -93,13 +95,8 @@ class SettingsView(QWidget):
 
         main_layout.addWidget(self.header_bar)
 
-        # Scroll Area
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
-
-        # Container for content inside scroll area
+        # Body: the category rail stays fixed while only the options panel
+        # scrolls, so navigation remains visible on long pages.
         self.content_container = QWidget()
         self.content_container.setStyleSheet(Styles.get_background_style())
 
@@ -109,6 +106,7 @@ class SettingsView(QWidget):
 
         # Left category rail
         rail = QWidget()
+        self.category_rail = rail
         rail.setFixedWidth(220)
         rail_layout = QVBoxLayout(rail)
         rail_layout.setContentsMargins(0, 0, 0, 0)
@@ -139,9 +137,14 @@ class SettingsView(QWidget):
         self.pages = QStackedWidget()
         self.pages.setStyleSheet("QStackedWidget { background: transparent; }")
         panel_layout.addWidget(self.pages)
-        content_layout.addWidget(self.settings_panel, 1)
-        self.scroll_area.setWidget(self.content_container)
-        main_layout.addWidget(self.scroll_area)
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
+        self.scroll_area.setWidget(self.settings_panel)
+        content_layout.addWidget(self.scroll_area, 1)
+        main_layout.addWidget(self.content_container, 1)
 
         # Instantiate modular components
         self.engine_settings = EngineSettings(self.config_manager, self)
@@ -154,6 +157,9 @@ class SettingsView(QWidget):
         self.theme_accent_settings = ThemeAccentSettings(self.config_manager, self)
         self.board_pieces_settings = BoardPiecesSettings(self.config_manager, self)
         self.window_layout_settings = WindowLayoutSettings(self.config_manager, self)
+        self.dashboard_layout_settings = DashboardLayoutSettings(
+            self.config_manager, self
+        )
         self.sound_settings = SoundSettings(self.config_manager, self)
         self.storage_settings = StorageSettings(self)
         self.retention_settings = RetentionSettings(self.config_manager, self)
@@ -177,6 +183,7 @@ class SettingsView(QWidget):
                 self.theme_accent_settings,
                 self.board_pieces_settings,
                 self.window_layout_settings,
+                self.dashboard_layout_settings,
                 self.sound_settings,
             ],
             "AI Coach": [self.api_settings, self.coach_settings],
@@ -221,6 +228,9 @@ class SettingsView(QWidget):
         self.window_layout_settings.history_view_changed.connect(
             self.appearance_prefs_changed.emit
         )
+        self.dashboard_layout_settings.order_changed.connect(
+            self.appearance_prefs_changed.emit
+        )
         for card in (self.full_analysis_settings, self.live_analysis_settings):
             card.binder.changed.connect(self._on_analysis_binder_changed)
         for card in (
@@ -263,8 +273,8 @@ class SettingsView(QWidget):
         self.lichess_input = self.player_settings.lichess_input
         self.games_limit_input = self.player_settings.games_limit_input
 
-        self.theme_combo = self.board_pieces_settings.theme_combo
-        self.piece_combo = self.board_pieces_settings.piece_combo
+        self.theme_combo = None
+        self.piece_combo = None
         self.sound_checkbox = self.sound_settings.sound_checkbox
         self.sound_volume_input = self.sound_settings.volume_input
         self.coordinates_checkbox = self.board_pieces_settings.coordinates_checkbox
@@ -309,6 +319,7 @@ class SettingsView(QWidget):
         self.theme_accent_settings.reload_from_config()
         self.board_pieces_settings.reload_from_config()
         self.window_layout_settings.reload_from_config()
+        self.dashboard_layout_settings.reload_from_config()
         self.sound_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
         self.coach_settings.sync_explanation_settings()
@@ -372,7 +383,10 @@ class SettingsView(QWidget):
         }
         page_extras = {
             "Analysis": "engine stockfish depth multipv opening book polyglot",
-            "Appearance": "theme accent colour color board pieces sidebar sound layout",
+            "Appearance": (
+                "theme accent colour color board pieces sidebar sound layout "
+                "dashboard cards order metrics"
+            ),
             "AI Coach": (
                 "api key provider model llm profile coach explanation cache "
                 "temperature tokens reasoning effort"
@@ -455,6 +469,41 @@ class SettingsView(QWidget):
 
     def _filter_categories(self, text: str) -> None:
         self._populate_categories(text)
+        query = text.strip()
+        if query:
+            QTimer.singleShot(0, lambda q=query: self._scroll_to_query(q))
+        else:
+            QTimer.singleShot(0, self._scroll_to_top)
+
+    def _scroll_to_top(self) -> None:
+        if hasattr(self, "scroll_area"):
+            self.scroll_area.verticalScrollBar().setValue(0)
+
+    def _scroll_to_query(self, query: str) -> None:
+        """Scroll the options panel to the first card matching the search."""
+        if not query or not hasattr(self, "scroll_area"):
+            return
+        categories = list(self._settings_pages)
+        page_index = self.pages.currentIndex()
+        if not 0 <= page_index < len(categories):
+            return
+
+        candidates = []
+        for root in self._settings_pages[categories[page_index]]:
+            candidates.append(root)
+            candidates.extend(root.findChildren(QGroupBox))
+
+        needle = query.lower()
+        for card in candidates:
+            if card.isHidden():
+                continue
+            texts = [card.title()] if isinstance(card, QGroupBox) else []
+            texts.extend(label.text() for label in card.findChildren(QLabel))
+            if any(needle in text.lower() for text in texts if text):
+                offset = card.mapTo(self.settings_panel, QPoint(0, 0)).y()
+                self.scroll_area.verticalScrollBar().setValue(max(0, offset - 16))
+                return
+        self._scroll_to_top()
 
     def _refresh_category_visibility(self) -> None:
         if self.search_input.text().strip():
@@ -566,6 +615,7 @@ class SettingsView(QWidget):
         self.theme_accent_settings.set_advanced_visible(is_advanced)
         self.board_pieces_settings.set_advanced_visible(is_advanced)
         self.window_layout_settings.set_advanced_visible(is_advanced)
+        self.dashboard_layout_settings.set_advanced_visible(is_advanced)
         self.sound_settings.set_advanced_visible(is_advanced)
         self.storage_settings.set_advanced_visible(is_advanced)
         self.retention_settings.set_advanced_visible(is_advanced)
@@ -713,6 +763,7 @@ class SettingsView(QWidget):
             getattr(self, 'theme_accent_settings', None),
             getattr(self, 'board_pieces_settings', None),
             getattr(self, 'window_layout_settings', None),
+            getattr(self, 'dashboard_layout_settings', None),
             getattr(self, 'sound_settings', None),
             getattr(self, 'storage_settings', None),
             getattr(self, 'retention_settings', None),

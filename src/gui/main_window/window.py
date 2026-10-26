@@ -397,6 +397,9 @@ class MainWindow(
         self.settings_view.appearance_prefs_changed.connect(
             self.history_view.apply_default_view_mode
         )
+        self.settings_view.appearance_prefs_changed.connect(
+            self.metrics_view.reload_dashboard
+        )
         self.settings_view.analysis_prefs_changed.connect(self.sync_analysis_prefs)
         self.stack.addWidget(self.settings_view)
 

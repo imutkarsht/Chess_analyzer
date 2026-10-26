@@ -160,9 +160,23 @@ def test_board_theme_change_persists_and_requests_repaint(qapp):
     repaints = []
     widget.theme_refreshed.connect(lambda: repaints.append(True))
 
-    widget.theme_combo.setCurrentIndex(widget.theme_combo.findData("Blue"))
+    widget.board_buttons["Blue"].click()
 
     assert config.config["board_theme"] == "Blue"
+    assert repaints == [True]
+    widget.deleteLater()
+
+
+def test_piece_theme_change_persists_and_requests_repaint(qapp):
+    config = _FakeConfig()
+    widget = BoardPiecesSettings(config)
+    repaints = []
+    widget.theme_refreshed.connect(lambda: repaints.append(True))
+
+    assert "Standard" in widget.piece_buttons
+    widget.piece_buttons["Standard"].click()
+
+    assert config.config["piece_theme"] == "Standard"
     assert repaints == [True]
     widget.deleteLater()
 

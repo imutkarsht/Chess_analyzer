@@ -39,6 +39,7 @@ class TestConfigManager:
             assert manager.get("explain_max_tokens") == 1024
             assert manager.get("explain_reasoning_effort") == ""
             assert manager.get("history_view_mode") == "compact"
+            assert manager.get("metrics_card_order") == []
 
     def test_get_nonexistent_key(self, tmp_path):
         """Test getting a key that doesn't exist returns default."""

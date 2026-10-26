@@ -367,6 +367,17 @@ def _specs() -> tuple[SettingSpec, ...]:
             ),
         ),
         SettingSpec(
+            "metrics_card_order",
+            "Appearance",
+            "Dashboard",
+            "Dashboard card order",
+            "Saved order for the sortable Performance Dashboard chart cards.",
+            "json",
+            [],
+            tier="internal",
+            ui=False,
+        ),
+        SettingSpec(
             "window_state",
             "Appearance",
             "Window & Layout",
