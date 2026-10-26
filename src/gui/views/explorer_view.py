@@ -1,7 +1,9 @@
 """
 Explorer View - The main container for the Opening Explorer.
 """
+import json
 import os
+import time
 
 import chess
 from PyQt6.QtCore import QByteArray, Qt, QTimer
@@ -25,6 +27,7 @@ from src.backend.analysis.math_utils import get_win_probability
 from src.backend.analysis.move_classifier import classify_move
 from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
 from src.backend.analysis.polyglot_book import PolyglotBookManager
+from src.backend.api.import_limits import current_token
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.analysis.captured import CapturedPiecesWidget
 from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
@@ -90,6 +93,24 @@ class ExplorerView(QWidget):
         self.polyglot_manager = PolyglotBookManager(polyglot_path if polyglot_path else None)
 
         self.setup_ui()
+
+        # Online explorer: Lichess requires a token for explorer requests.
+        # Debounce move stepping, coalesce to the latest FEN, rate-limit to the
+        # account's 20 req/min budget, and stop retrying for a while after
+        # repeated failures.
+        self._book_row_widgets: list[QWidget] = []
+        self._explorer_workers: set[LichessExplorerWorker] = set()
+        self._explorer_worker: LichessExplorerWorker | None = None
+        self._explorer_pending_fen: str | None = None
+        self._explorer_failures = 0
+        self._explorer_offline_until = 0.0
+        # 20 requests/minute = one every 3s. Cheap local cache hits bypass this.
+        self._explorer_min_interval = 3.0
+        self._explorer_last_request = 0.0
+        self._explorer_debounce = QTimer(self)
+        self._explorer_debounce.setSingleShot(True)
+        self._explorer_debounce.setInterval(180)
+        self._explorer_debounce.timeout.connect(self._start_lichess_explorer)
 
         # Loading overlay for background tasks
         self.loading_overlay = LoadingOverlay(self)
@@ -264,6 +285,17 @@ class ExplorerView(QWidget):
         self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
         self.book_toggle.toggled.connect(self._toggle_book)
         right_layout.addWidget(self.book_toggle)
+
+        self.explorer_hint = QLabel()
+        self.explorer_hint.setWordWrap(True)
+        self.explorer_hint.setOpenExternalLinks(False)
+        self.explorer_hint.setStyleSheet(
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+            + "; padding: 2px 14px; "
+            + Styles.get_transparent_label_style()
+        )
+        self.explorer_hint.hide()
+        right_layout.addWidget(self.explorer_hint)
 
         self.book_scroll = QScrollArea()
         self.book_scroll.setWidgetResizable(True)
@@ -642,62 +674,82 @@ class ExplorerView(QWidget):
 
         return row_widget
 
-    def update_opening_db(self, fen):
-        norm_fen = _normalize_fen(fen)
-        node_id = self.opening_db.get_node_by_fen(norm_fen)
-        self.board_widget.book_destinations = []
+    def _history(self) -> GameHistoryManager:
+        """Lazily share one history/cache manager across workers."""
+        if not hasattr(self, "_history_manager"):
+            self._history_manager = GameHistoryManager()
+        return self._history_manager
 
-        # Remove all existing book row widgets
-        if hasattr(self, '_book_row_widgets'):
-            for w in self._book_row_widgets:
-                self.book_layout.removeWidget(w)
-                w.deleteLater()
+    def _explorer_enabled(self) -> bool:
+        try:
+            return bool(self.config_manager.get("lichess_explorer_enabled", True))
+        except Exception:
+            return True
+
+    def _online_explorer_allowed(self) -> bool:
+        """Whether the online explorer is enabled, authorised, and not cooling down."""
+        return (
+            bool(current_token(self.config_manager))
+            and self._explorer_enabled()
+            and time.time() >= self._explorer_offline_until
+        )
+
+    def _explorer_disabled_reason(self) -> str:
+        """Human-readable reason the online explorer is not being used."""
+        if not current_token(self.config_manager):
+            return "Add a Lichess token in Settings → Integrations to load online explorer data."
+        if not self._explorer_enabled():
+            return "Online explorer is disabled in Settings → Integrations."
+        return ""
+
+    def _render_cached_explorer(self, fen: str) -> bool:
+        """Render a cached explorer response so offline use needs no token."""
+        if not self.chk_cache.isChecked():
+            return False
+        try:
+            raw = self._history().get_explorer_cache(_normalize_fen(fen))
+            data = json.loads(raw) if raw else None
+        except Exception:
+            return False
+        if not isinstance(data, dict) or not data.get("moves"):
+            return False
+        self.on_lichess_explorer_finished(data)
+        return True
+
+    def _update_explorer_hint(self, message: str | None = None) -> None:
+        """Show the token/settings hint when online data is unavailable."""
+        text = message if message is not None else self._explorer_disabled_reason()
+        if text:
+            self.explorer_hint.setText(text)
+            self.explorer_hint.show()
+        else:
+            self.explorer_hint.clear()
+            self.explorer_hint.hide()
+
+    def _clear_book_rows(self) -> None:
+        for widget in self._book_row_widgets:
+            self.book_layout.removeWidget(widget)
+            widget.deleteLater()
         self._book_row_widgets = []
+        self.board_widget.book_destinations = []
+        self._current_book_count = 0
 
-        if not self.board_widget.board.move_stack:
-            self.opening_badge.setText("Opening: -")
-
-        # --- Update opening badge from SQLite (always) ---
-        if node_id is not None:
-            openings = self.opening_db.get_openings_at_node(node_id)
-            if openings:
-                best_name = max(openings, key=lambda x: len(x[1]))[1]
-                best_eco = max(openings, key=lambda x: len(x[1]))[0]
-                self.opening_badge.setText(f"Opening: {best_eco} - {best_name}")
-
-        # Check if we should use Lichess Explorer (token present)
-        lichess_token = self.config_manager.get("lichess_token", "").strip()
-        if lichess_token:
-            # Hide book scroll temporarily while fetching
-            self.book_scroll.hide()
-            self.book_toggle.setText("▶  Book Moves  (loading...)")
+    def _update_book_toggle(self, suffix: str = "") -> None:
+        arrow = "▼" if self.book_toggle.isChecked() else "▶"
+        self.book_toggle.setText(
+            f"{arrow}  Book Moves  ({self._current_book_count}){suffix}"
+        )
+        if self._current_book_count > 0:
             self.book_toggle.show()
+            self.book_scroll.setVisible(self.book_toggle.isChecked())
+        else:
+            self.book_toggle.hide()
+            self.book_scroll.hide()
 
-            # Start Lichess worker
-            if (
-                hasattr(self, '_lichess_worker')
-                and self._lichess_worker is not None
-                and self._lichess_worker.isRunning()
-            ):
-                try:
-                    self._lichess_worker.finished.disconnect()
-                    self._lichess_worker.error.disconnect()
-                except (TypeError, RuntimeError):
-                    pass
+    def _draw_local_book(self, node_id) -> int:
+        """Render the offline Polyglot/SQLite book; return the row count."""
+        self._clear_book_rows()
 
-            self._lichess_worker = LichessExplorerWorker(
-                self.board_widget.board.fen(),
-                self.chk_cache.isChecked(),
-                GameHistoryManager(),
-                token=lichess_token,
-                parent=self
-            )
-            self._lichess_worker.finished.connect(self.on_lichess_explorer_finished)
-            self._lichess_worker.error.connect(self.on_lichess_explorer_error)
-            self._lichess_worker.start()
-            return
-
-        self.lichess_attribution.setVisible(False)
         # --- Try Polyglot book first (higher priority) ---
         polyglot_used = False
         current_path = self.config_manager.get("polyglot_book_path", "")
@@ -720,7 +772,9 @@ class ExplorerView(QWidget):
                         weight_str = str(entry.weight)
                         piece = board.piece_at(ply_move.from_square)
                         piece_symbol = piece.symbol() if piece else None
-                        row_widget = self._create_book_row_widget(san, weight_str, piece_symbol)
+                        row_widget = self._create_book_row_widget(
+                            san, weight_str, piece_symbol
+                        )
                         self.book_layout.addWidget(row_widget)
                         self._book_row_widgets.append(row_widget)
             except Exception as e:
@@ -743,9 +797,13 @@ class ExplorerView(QWidget):
 
                         child_node_id = self.opening_db.get_node_by_fen(child_fen)
                         if child_node_id is not None:
-                            child_openings = self.opening_db.get_openings_at_node(child_node_id)
+                            child_openings = self.opening_db.get_openings_at_node(
+                                child_node_id
+                            )
                             if child_openings:
-                                best_name = max(child_openings, key=lambda x: len(x[1]))[1]
+                                best_name = max(
+                                    child_openings, key=lambda x: len(x[1])
+                                )[1]
                                 move_name = best_name
 
                         self.board_widget.book_destinations.append(move.to_square)
@@ -760,25 +818,162 @@ class ExplorerView(QWidget):
 
                     piece = self.board_widget.board.piece_at(move.from_square)
                     piece_symbol = piece.symbol() if piece else None
-                    row_widget = self._create_book_row_widget(san, move_name, piece_symbol)
+                    row_widget = self._create_book_row_widget(
+                        san, move_name, piece_symbol
+                    )
                     self.book_layout.addWidget(row_widget)
                     self._book_row_widgets.append(row_widget)
 
         self._current_book_count = len(self._book_row_widgets)
-        arrow = "▼" if self.book_toggle.isChecked() else "▶"
-        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
+        self._update_book_toggle()
+        return self._current_book_count
 
-        if self._current_book_count > 0:
-            self.book_toggle.show()
-            if not self.book_toggle.isChecked():
-                self.book_scroll.hide()
-            else:
-                self.book_scroll.show()
-        else:
-            self.book_toggle.hide()
-            self.book_scroll.hide()
-
+    def _draw_local_book_fallback(self) -> None:
+        """Show the local book after the online request failed."""
+        node_id = self.opening_db.get_node_by_fen(
+            _normalize_fen(self.board_widget.board.fen())
+        )
+        self._draw_local_book(node_id)
+        if self._current_book_count:
+            self._update_book_toggle("  · local book")
+        self.lichess_attribution.setVisible(False)
         self.board_widget.draw_interactive_overlays()
+
+    def update_opening_db(self, fen):
+        norm_fen = _normalize_fen(fen)
+        node_id = self.opening_db.get_node_by_fen(norm_fen)
+
+        if not self.board_widget.board.move_stack:
+            self.opening_badge.setText("Opening: -")
+
+        # --- Update opening badge from SQLite (always) ---
+        if node_id is not None:
+            openings = self.opening_db.get_openings_at_node(node_id)
+            if openings:
+                best_name = max(openings, key=lambda x: len(x[1]))[1]
+                best_eco = max(openings, key=lambda x: len(x[1]))[0]
+                self.opening_badge.setText(f"Opening: {best_eco} - {best_name}")
+
+        # Offline book renders immediately; online data replaces it when ready.
+        self._draw_local_book(node_id)
+
+        if not self._online_explorer_allowed():
+            self._explorer_pending_fen = None
+            self._explorer_debounce.stop()
+            hint = ""
+            cached_shown = self._explorer_enabled() and self._render_cached_explorer(
+                self.board_widget.board.fen()
+            )
+            if cached_shown:
+                if not current_token(self.config_manager):
+                    hint = (
+                        "Showing cached explorer data. Add a Lichess token in "
+                        "Settings → Integrations for live updates."
+                    )
+            else:
+                if self._current_book_count:
+                    self._update_book_toggle("  · local book")
+                self.lichess_attribution.setVisible(False)
+            self._update_explorer_hint(hint or None)
+            self.board_widget.draw_interactive_overlays()
+            return
+
+        self._update_explorer_hint("")
+        # Explorer requests need the user's Lichess token; debounce rapid moves.
+        self._explorer_pending_fen = self.board_widget.board.fen()
+        arrow = "▼" if self.book_toggle.isChecked() else "▶"
+        if self._current_book_count:
+            self.book_toggle.setText(
+                f"{arrow}  Book Moves  ({self._current_book_count})  · loading…"
+            )
+            self.book_toggle.show()
+            self.book_scroll.setVisible(self.book_toggle.isChecked())
+        else:
+            self.book_toggle.setText("▶  Book Moves  (loading...)")
+            self.book_toggle.show()
+            self.book_scroll.hide()
+        self._explorer_debounce.start()
+        self.board_widget.draw_interactive_overlays()
+
+    def _start_lichess_explorer(self) -> None:
+        fen = self._explorer_pending_fen
+        if not fen or not self._online_explorer_allowed():
+            return
+        if self._explorer_worker is not None and self._explorer_worker.isRunning():
+            # The pending FEN is picked up when the active request retires.
+            return
+
+        # Stay inside the 20 requests/minute account budget. If we are early,
+        # keep only the latest FEN and retry once the interval has elapsed.
+        elapsed = time.time() - self._explorer_last_request
+        remaining = self._explorer_min_interval - elapsed
+        if remaining > 0:
+            self._explorer_debounce.start(int(remaining * 1000) + 1)
+            return
+
+        self._explorer_pending_fen = None
+        self._explorer_last_request = time.time()
+        worker = LichessExplorerWorker(
+            fen,
+            self.chk_cache.isChecked(),
+            self._history(),
+            current_token(self.config_manager),
+        )
+        self._explorer_workers.add(worker)
+        self._explorer_worker = worker
+        worker.loaded.connect(
+            lambda data, w=worker: self._on_explorer_data(w, data)
+        )
+        worker.error.connect(
+            lambda message, w=worker: self._on_explorer_error(w, message)
+        )
+        worker.finished.connect(
+            lambda w=worker: self._retire_explorer_worker(w)
+        )
+        worker.start()
+
+    def _retire_explorer_worker(self, worker: LichessExplorerWorker) -> None:
+        self._explorer_workers.discard(worker)
+        worker.deleteLater()
+        if worker is self._explorer_worker:
+            self._explorer_worker = None
+        if self._explorer_pending_fen and self._online_explorer_allowed():
+            QTimer.singleShot(0, self._start_lichess_explorer)
+
+    def _on_explorer_data(self, worker: LichessExplorerWorker, data) -> None:
+        if worker is not self._explorer_worker:
+            return
+        self._explorer_failures = 0
+        if not isinstance(data, dict):
+            self._on_explorer_error(worker, "invalid_response")
+            return
+        if not data.get("moves") and self._current_book_count:
+            # A valid but empty response should not hide the local book.
+            self._update_book_toggle("  · local book")
+            self.lichess_attribution.setVisible(False)
+            return
+        self._update_explorer_hint("")
+        self.on_lichess_explorer_finished(data)
+
+    def _on_explorer_error(
+        self, worker: LichessExplorerWorker, message: str
+    ) -> None:
+        if worker is not self._explorer_worker:
+            return
+        logger.warning(f"Lichess explorer fetch failed: {message}")
+        self._explorer_failures += 1
+        if message == "unauthorized":
+            self._update_explorer_hint(
+                "Lichess rejected the explorer token. Update it in "
+                "Settings → Integrations."
+            )
+        elif message in {"offline", "rate_limited"} or self._explorer_failures >= 3:
+            cooldown = 300 if message == "offline" else 120
+            self._explorer_offline_until = time.time() + cooldown
+            logger.info(
+                "Lichess explorer paused for %ss after: %s", cooldown, message
+            )
+        self._draw_local_book_fallback()
 
     def on_book_move_clicked(self, san):
         if not san:
@@ -1090,6 +1285,12 @@ class ExplorerView(QWidget):
 
     def closeEvent(self, event):
         self.session.shutdown()
+        self._explorer_debounce.stop()
+        for worker in list(self._explorer_workers):
+            try:
+                worker.wait(1500)
+            except RuntimeError:
+                pass
         if hasattr(self, 'opening_db') and self.opening_db:
             try:
                 self.opening_db.close()
@@ -1128,6 +1329,12 @@ class ExplorerView(QWidget):
             self.right_panel.setStyleSheet(Styles.get_background_style())
         if hasattr(self, 'book_toggle'):
             self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
+        if hasattr(self, 'explorer_hint'):
+            self.explorer_hint.setStyleSheet(
+                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+                + "; padding: 2px 14px; "
+                + Styles.get_transparent_label_style()
+            )
         if hasattr(self, 'book_scroll'):
             self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
         if hasattr(self, 'book_container'):
@@ -1152,12 +1359,7 @@ class ExplorerView(QWidget):
             child.style().polish(child)
 
     def on_lichess_explorer_finished(self, data):
-        if hasattr(self, '_book_row_widgets'):
-            for w in self._book_row_widgets:
-                self.book_layout.removeWidget(w)
-                w.deleteLater()
-        self._book_row_widgets = []
-        self.board_widget.book_destinations = []
+        self._clear_book_rows()
 
         moves = data.get("moves", [])
         for m in moves:
@@ -1193,37 +1395,14 @@ class ExplorerView(QWidget):
             except Exception:
                 pass
 
-            row_widget = self._create_book_row_widget(san, None, piece_symbol, stats=stats)
+            row_widget = self._create_book_row_widget(
+                san, None, piece_symbol, stats=stats
+            )
             self.book_layout.addWidget(row_widget)
             self._book_row_widgets.append(row_widget)
 
         self._current_book_count = len(self._book_row_widgets)
-        arrow = "▼" if self.book_toggle.isChecked() else "▶"
-        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
-
-        self.lichess_attribution.setVisible(True)
-        if self._current_book_count > 0:
-            self.book_toggle.show()
-            if not self.book_toggle.isChecked():
-                self.book_scroll.hide()
-            else:
-                self.book_scroll.show()
-        else:
-            self.book_toggle.hide()
-            self.book_scroll.hide()
-
+        self._update_book_toggle()
+        self.lichess_attribution.setVisible(self._current_book_count > 0)
         self.board_widget.draw_interactive_overlays()
 
-    def on_lichess_explorer_error(self, err):
-        logger.warning(f"Lichess explorer fetch failed: {err}")
-        if hasattr(self, '_book_row_widgets'):
-            for w in self._book_row_widgets:
-                self.book_layout.removeWidget(w)
-                w.deleteLater()
-        self._book_row_widgets = []
-        self._current_book_count = 0
-        arrow = "▼" if self.book_toggle.isChecked() else "▶"
-        self.book_toggle.setText(f"{arrow}  Book Moves  (failed)")
-        self.book_toggle.show()
-        self.book_scroll.hide()
-        self.lichess_attribution.setVisible(False)

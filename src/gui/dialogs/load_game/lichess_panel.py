@@ -8,10 +8,19 @@ from src.gui.components.toast import Toast
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 
+from ....backend.api.import_limits import clamp_games_limit, current_token
 from ....utils.config import ConfigManager
 from .api_worker import ApiWorker, register_worker, remove_worker
 from .helpers import classify_time_control
 from .inline_game_list import InlineGameList
+
+
+def _configured_limit() -> int:
+    """Resolve the import cap the same way the fetch worker will."""
+    manager = ConfigManager()
+    return clamp_games_limit(
+        manager.get("api_games_limit", 20), current_token(manager)
+    )
 
 
 def fetch_and_parse_lichess(username: str, limit: int) -> list:
@@ -120,7 +129,7 @@ class LichessPanel(QWidget):
         root.addWidget(self._game_list, stretch=1)
 
     def update_help_label(self):
-        limit = ConfigManager().get("api_games_limit", 20)
+        limit = _configured_limit()
         self._help_lbl.setText(f"Fetches the last {limit} games for a username.")
 
     def _fetch(self):
@@ -147,7 +156,7 @@ class LichessPanel(QWidget):
         if game_id:
             self._worker = ApiWorker(fetch_single_lichess, game_id, parent=self)
         else:
-            limit = ConfigManager().get("api_games_limit", 20)
+            limit = _configured_limit()
             self._worker = ApiWorker(fetch_and_parse_lichess, text, limit, parent=self)
 
         register_worker(self._worker)

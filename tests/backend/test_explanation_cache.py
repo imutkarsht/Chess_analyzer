@@ -78,7 +78,13 @@ def test_prune_removes_only_expired_rows(cache):
     assert _read(cache, uci="d2d4") is None
 
 
-def test_clear_cache_also_drops_explanations(cache):
+def test_clear_cache_and_explanations_are_independent(cache):
+    """Engine evaluations and LLM explanations have separate lifetimes."""
     _store(cache, "text")
-    cache.clear_cache()
+
+    # Clearing evaluations must not throw away paid-for explanations.
+    assert cache.clear_cache() == 0
+    assert _read(cache) == "text"
+
+    assert cache.clear_explanations() == 1
     assert _read(cache) is None

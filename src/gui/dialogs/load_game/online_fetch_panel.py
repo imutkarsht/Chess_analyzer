@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.api.import_limits import clamp_games_limit, current_token
 from src.backend.cache.api_cache import ApiGameCache
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_history import GameHistoryManager
@@ -459,7 +460,10 @@ class OnlineFetchPanel(QWidget):
             except (TypeError, RuntimeError):
                 pass
 
-        limit = self.config_manager.get("api_games_limit", 20)
+        limit = clamp_games_limit(
+            self.config_manager.get("api_games_limit", 20),
+            current_token(self.config_manager),
+        )
 
         # Start ApiWorker with fetch_job helper
         self._worker = ApiWorker(

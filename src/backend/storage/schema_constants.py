@@ -2,6 +2,8 @@
 Schema constants and SQL query definitions for the storage layer.
 """
 
+from src.constants import DEFAULT_EXPLORER_CACHE_TTL_HOURS
+
 GAME_COLUMNS: tuple[str, ...] = (
     "id",
     "white",
@@ -74,4 +76,15 @@ _API_CACHE_PLACEHOLDERS_SQL: str = ", ".join(["?"] * len(API_CACHE_COLUMNS))
 INSERT_API_CACHE_SQL: str = f"INSERT OR REPLACE INTO api_game_cache ({_API_CACHE_COLS_SQL}) VALUES ({_API_CACHE_PLACEHOLDERS_SQL})"
 
 CURRENT_SCHEMA_VERSION: int = 3
-EXPLORER_CACHE_TTL_SECONDS: float = 48 * 3600.0  # 48 hours
+EXPLORER_CACHE_TTL_SECONDS: float = DEFAULT_EXPLORER_CACHE_TTL_HOURS * 3600.0
+
+# Every table that stores user or cache data. The clear-all path and the
+# storage report both read this tuple so they can never drift apart.
+DATA_TABLES: tuple[str, ...] = (
+    "games",
+    "analysis",
+    "move_explanations",
+    "api_game_cache",
+    "api_profile_cache",
+    "explorer_cache",
+)

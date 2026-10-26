@@ -2,6 +2,8 @@
 Tests for Lichess API - URL parsing, game ID extraction.
 """
 
+import pytest
+
 from src.backend.api.lichess_api import LichessAPI
 
 
@@ -155,3 +157,85 @@ class TestGetUserProfile:
         assert prof["puzzle"]["rating"] == 2600
         assert prof["total_games"] == 3020
         assert prof["country"] == "NO"
+
+
+class TestPublicProfileAndToken:
+    """The public preview must work anonymously and classify failures."""
+
+    def test_public_profile_never_sends_the_saved_token(self, mock_requests, monkeypatch):
+        api = LichessAPI()
+        monkeypatch.setattr(
+            api.config_manager,
+            "get",
+            lambda key, default=None: "lip_secret" if key == "lichess_token" else default,
+        )
+        mock_requests.return_value.status_code = 200
+        mock_requests.return_value.json.return_value = {
+            "username": "MagnusCarlsen",
+            "perfs": {},
+            "count": {},
+        }
+
+        result = api.get_user_profile_result("MagnusCarlsen")
+
+        assert result.status == "ok"
+        assert "Authorization" not in mock_requests.call_args.kwargs["headers"]
+
+    @pytest.mark.parametrize(
+        ("status_code", "expected"),
+        [(404, "not_found"), (429, "rate_limited"), (401, "unauthorized")],
+    )
+    def test_profile_status_classification(
+        self, mock_requests, status_code, expected
+    ):
+        mock_requests.return_value.status_code = status_code
+
+        result = LichessAPI().get_user_profile_result("nobody")
+
+        assert result.profile is None
+        assert result.status == expected
+
+    def test_account_check_uses_explicit_token(self, mock_requests):
+        mock_requests.return_value.status_code = 200
+        mock_requests.return_value.json.return_value = {"username": "MagnusCarlsen"}
+
+        data, status = LichessAPI().get_account("lip_typed")
+
+        assert status == "ok"
+        assert data["username"] == "MagnusCarlsen"
+        assert (
+            mock_requests.call_args.kwargs["headers"]["Authorization"]
+            == "Bearer lip_typed"
+        )
+
+    def test_account_check_without_token_is_unauthorized(self, mock_requests, monkeypatch):
+        api = LichessAPI()
+        monkeypatch.delenv("LICHESS_TOKEN", raising=False)
+        monkeypatch.setattr(
+            api.config_manager, "get", lambda key, default=None: default
+        )
+
+        assert api.get_account() == (None, "unauthorized")
+        mock_requests.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("token", "requested", "expected_max"),
+        [("", 50, 20), ("lip_secret", 50, 30), ("", 5, 5)],
+    )
+    def test_fetch_time_import_clamp(
+        self, mock_requests, monkeypatch, token, requested, expected_max
+    ):
+        api = LichessAPI()
+        monkeypatch.delenv("LICHESS_TOKEN", raising=False)
+        monkeypatch.setattr(
+            api.config_manager,
+            "get",
+            lambda key, default=None: token if key == "lichess_token" else default,
+        )
+        mock_requests.return_value.iter_lines.return_value = [
+            b'{"id": "abcd1234", "players": {}, "pgn": "1. e4"}'
+        ]
+
+        api.get_user_games("magnus", requested)
+
+        assert mock_requests.call_args.kwargs["params"]["max"] == expected_max

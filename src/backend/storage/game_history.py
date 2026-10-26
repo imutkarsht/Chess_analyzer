@@ -24,8 +24,13 @@ from src.backend.storage.games_repo import (
     _to_int_or_none,
 )
 from src.backend.storage.models import GameAnalysis
+from src.backend.storage.profile_cache_repo import (
+    CachedProfile,
+    ProfileCacheRepo,
+)
 from src.backend.storage.schema_constants import (
     CURRENT_SCHEMA_VERSION,
+    DATA_TABLES,
     EXPLORER_CACHE_TTL_SECONDS,
     GAME_COLUMNS,
     GAME_CSV_COLUMNS,
@@ -67,6 +72,7 @@ class GameHistoryManager:
         self._games_repo = GamesRepo(self.db_path)
         self._api_cache_repo = ApiCacheRepo(self.db_path)
         self._explorer_cache_repo = ExplorerCacheRepo(self.db_path)
+        self._profile_cache_repo = ProfileCacheRepo(self.db_path)
 
         self._init_db()
 
@@ -245,6 +251,63 @@ class GameHistoryManager:
     def get_explorer_cache(self, fen: str) -> str | None:
         """Retrieves a cached explorer response json by FEN, deleting expired entries."""
         return self._explorer_cache_repo.get_explorer_cache(fen)
+
+    def clear_explorer_cache(self) -> int:
+        """Deletes every cached explorer response; returns the removed row count."""
+        return self._explorer_cache_repo.clear_explorer_cache()
+
+    # --- Profile Cache Methods ---
+
+    def get_cached_profile(self, platform: str, username: str) -> CachedProfile | None:
+        """Retrieves a cached public profile (possibly stale) for offline display."""
+        return self._profile_cache_repo.get_profile(platform, username)
+
+    def save_cached_profile(
+        self,
+        platform: str,
+        username: str,
+        profile: dict[str, Any],
+        avatar_bytes: bytes | None = None,
+        avatar_mime: str | None = None,
+        avatar_url: str | None = None,
+    ) -> None:
+        """Stores a fetched profile and avatar for the settings preview."""
+        self._profile_cache_repo.save_profile(
+            platform,
+            username,
+            profile,
+            avatar_bytes=avatar_bytes,
+            avatar_mime=avatar_mime,
+            avatar_url=avatar_url,
+        )
+
+    def prune_profile_cache(self, max_age_days: int | None = None) -> int:
+        """Removes profiles older than the offline grace period."""
+        return self._profile_cache_repo.prune_profile_cache(max_age_days=max_age_days)
+
+    def clear_profile_cache(self) -> int:
+        """Deletes every cached profile; returns the removed row count."""
+        return self._profile_cache_repo.clear_profile_cache()
+
+    # --- Whole-store operations ---
+
+    def clear_all_data(self) -> None:
+        """Delete games and every cache table, then reclaim disk space.
+
+        Used by the reset action. Raises on failure so the caller can report it
+        instead of showing a false success message.
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                for table in DATA_TABLES:
+                    cursor.execute(f"DELETE FROM {table}")
+                conn.commit()
+                cursor.execute("VACUUM")
+            logger.info("All local game and cache data cleared.")
+        except Exception as e:
+            logger.error("Failed to clear all data: %s", e)
+            raise
 
     @staticmethod
     def _parse_cached_at_to_epoch(cached_at: Any) -> float:

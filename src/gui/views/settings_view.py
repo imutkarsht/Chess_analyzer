@@ -23,17 +23,21 @@ from src.utils.config import ConfigManager
 
 from .settings import (
     ApiSettings,
+    BackupSettings,
     BoardPiecesSettings,
     BookSettings,
     CoachSettings,
-    DataSettings,
+    DangerSettings,
     EngineSettings,
     FullAnalysisSettings,
     LinksSettings,
     LiveAnalysisSettings,
+    MaintenanceSettings,
     PlayerSettings,
+    RetentionSettings,
     ShortcutSettings,
     SoundSettings,
+    StorageSettings,
     ThemeAccentSettings,
     WindowLayoutSettings,
 )
@@ -150,7 +154,11 @@ class SettingsView(QWidget):
         self.board_pieces_settings = BoardPiecesSettings(self.config_manager, self)
         self.window_layout_settings = WindowLayoutSettings(self.config_manager, self)
         self.sound_settings = SoundSettings(self.config_manager, self)
-        self.data_settings = DataSettings(self)
+        self.storage_settings = StorageSettings(self)
+        self.retention_settings = RetentionSettings(self.config_manager, self)
+        self.maintenance_settings = MaintenanceSettings(self)
+        self.backup_settings = BackupSettings(self)
+        self.danger_settings = DangerSettings(self)
         self.links_settings = LinksSettings(self)
         self.shortcut_settings = ShortcutSettings(self.config_manager, self)
 
@@ -172,7 +180,13 @@ class SettingsView(QWidget):
             ],
             "AI Coach": [self.api_settings, self.coach_settings],
             "Integrations": [self.player_settings],
-            "Data & Storage": [self.data_settings],
+            "Data & Storage": [
+                self.storage_settings,
+                self.retention_settings,
+                self.maintenance_settings,
+                self.backup_settings,
+                self.danger_settings,
+            ],
             "Keyboard": [self.shortcut_settings],
             "About & Links": [self.links_settings],
         }
@@ -205,6 +219,14 @@ class SettingsView(QWidget):
         )
         for card in (self.full_analysis_settings, self.live_analysis_settings):
             card.binder.changed.connect(self._on_analysis_binder_changed)
+        for card in (
+            self.storage_settings,
+            self.retention_settings,
+            self.maintenance_settings,
+            self.backup_settings,
+            self.danger_settings,
+        ):
+            card.data_changed.connect(self._on_storage_data_changed)
 
         # Backwards compatibility aliases for tests
         self.path_input = self.engine_settings.path_input
@@ -228,8 +250,10 @@ class SettingsView(QWidget):
         self.llm_test_btn = self.api_settings.llm_test_btn
         self.llm_test_result = self.api_settings.llm_test_result
         self.explain_trivial_checkbox = self.coach_settings.explain_trivial_checkbox
-        self.explain_ttl_combo = self.coach_settings.explain_ttl_combo
-        self.clear_explanations_btn = self.coach_settings.clear_explanations_btn
+        self.explain_ttl_combo = self.retention_settings.explain_ttl_combo
+        self.clear_explanations_btn = (
+            self.maintenance_settings.clear_explanations_btn
+        )
 
         self.chesscom_input = self.player_settings.chesscom_input
         self.lichess_input = self.player_settings.lichess_input
@@ -251,8 +275,8 @@ class SettingsView(QWidget):
         )
         self.color_btn = self.theme_accent_settings.color_btn
 
-        self.clear_cache_btn = self.data_settings.clear_cache_btn
-        self.clear_data_btn = self.data_settings.clear_data_btn
+        self.clear_cache_btn = self.maintenance_settings.clear_cache_btn
+        self.clear_data_btn = self.danger_settings.clear_data_btn
 
         self.website_btn = self.links_settings.website_btn
         self.feedback_btn = self.links_settings.feedback_btn
@@ -286,6 +310,8 @@ class SettingsView(QWidget):
         self.coach_settings.sync_explanation_settings()
         self.api_settings._update_active_label()
         self.shortcut_settings.reload_from_config()
+        self.retention_settings.reload_from_config()
+        self.storage_settings.refresh_stats()
 
     def _panel_style(self) -> str:
         return f"""
@@ -314,6 +340,10 @@ class SettingsView(QWidget):
         if key in {"use_cache", "engine_lines_enabled"}:
             self.analysis_prefs_changed.emit()
 
+    def _on_storage_data_changed(self) -> None:
+        """Re-read usage numbers after any storage card mutates local data."""
+        self.storage_settings.refresh_stats()
+
     def sync_analysis_shortcuts(self) -> None:
         """Reload analysis cards after the eval panel changed the same keys."""
         self.full_analysis_settings.binder.load()
@@ -329,6 +359,7 @@ class SettingsView(QWidget):
             "Integrations": "Integrations",
             "AI Coach": "AI Coach",
             "Keyboard": "Keyboard",
+            "Data & Storage": "Data & Storage",
         }
         page_names = list(self._settings_pages)
         index = {
@@ -339,8 +370,14 @@ class SettingsView(QWidget):
             "Analysis": "engine stockfish depth multipv opening book polyglot",
             "Appearance": "theme accent colour color board pieces sidebar sound layout",
             "AI Coach": "api key provider model llm profile coach explanation cache",
-            "Integrations": "chesscom lichess username token network games limit",
-            "Data & Storage": "cache database reset storage optimize clear data",
+            "Integrations": (
+                "chesscom lichess username token network games limit profile "
+                "preview avatar cache ttl explorer opening"
+            ),
+            "Data & Storage": (
+                "cache database reset storage optimize clear backup restore "
+                "maintenance vacuum retention ttl"
+            ),
             "Keyboard": "shortcuts keys bindings preset",
             "About & Links": "website feedback bug update version links about",
         }
@@ -523,7 +560,11 @@ class SettingsView(QWidget):
         self.board_pieces_settings.set_advanced_visible(is_advanced)
         self.window_layout_settings.set_advanced_visible(is_advanced)
         self.sound_settings.set_advanced_visible(is_advanced)
-        self.data_settings.set_advanced_visible(is_advanced)
+        self.storage_settings.set_advanced_visible(is_advanced)
+        self.retention_settings.set_advanced_visible(is_advanced)
+        self.maintenance_settings.set_advanced_visible(is_advanced)
+        self.backup_settings.set_advanced_visible(is_advanced)
+        self.danger_settings.set_advanced_visible(is_advanced)
         self.links_settings.set_advanced_visible(is_advanced)
         self.shortcut_settings.set_advanced_visible(is_advanced)
         self._sync_section_dividers()
@@ -613,23 +654,31 @@ class SettingsView(QWidget):
             (self.full_analysis_settings, "binder"),
             (self.live_analysis_settings, "binder"),
             (self.book_settings, "binder"),
-            (self.player_settings, "binder"),
             (self.theme_accent_settings, "binder"),
             (self.board_pieces_settings, "binder"),
             (self.window_layout_settings, "binder"),
             (self.sound_settings, "binder"),
             (self.shortcut_settings, "binder"),
             (self.coach_settings, "binder"),
+            (self.retention_settings, "binder"),
         )
         for card, attr in binder_cards:
             binder = getattr(card, attr, None)
             if binder is not None:
                 binder.commit_all()
 
+        # The Integrations page is a composite of three cards, each with its
+        # own binder, so it cannot be expressed as a single (card, "binder").
+        self.player_settings.commit_all()
+
     def save_usernames(self):
+        # Resolve the requested cap before flushing: the binder commit writes
+        # the already-clamped value back to the slider, which would hide the
+        # warning. The token provider reads the just-typed field directly.
         warning_msg = self.player_settings.apply_games_limit(
             self.games_limit_input.text().strip()
         )
+        self.player_settings.commit_all()
         self.config_manager.set("chesscom_username", self.chesscom_input.text().strip())
         self.config_manager.set("lichess_username", self.lichess_input.text().strip())
         self.usernames_changed.emit()
@@ -672,7 +721,11 @@ class SettingsView(QWidget):
             getattr(self, 'board_pieces_settings', None),
             getattr(self, 'window_layout_settings', None),
             getattr(self, 'sound_settings', None),
-            getattr(self, 'data_settings', None),
+            getattr(self, 'storage_settings', None),
+            getattr(self, 'retention_settings', None),
+            getattr(self, 'maintenance_settings', None),
+            getattr(self, 'backup_settings', None),
+            getattr(self, 'danger_settings', None),
             getattr(self, 'links_settings', None),
             getattr(self, 'shortcut_settings', None),
         )

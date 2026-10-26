@@ -2,15 +2,17 @@ import datetime
 import json
 import os
 import sys
+from urllib.parse import quote
 
 import requests
 from dotenv import load_dotenv
 
-from src.constants import LICHESS_BASE_URL, LICHESS_USER_URL
+from src.constants import LICHESS_ACCOUNT_URL, LICHESS_BASE_URL, LICHESS_USER_URL
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 
-from .base_api import BaseChessAPI
+from .base_api import ApiStatus, BaseChessAPI, ProfileResult
+from .import_limits import clamp_games_limit, current_token
 
 
 def _result_for_side(game_data: dict, side: str) -> str:
@@ -53,7 +55,7 @@ class LichessAPI(BaseChessAPI):
             pass
 
     def get_headers(self):
-        token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
+        token = current_token(self.config_manager)
         headers = BaseChessAPI.DEFAULT_HEADERS.copy()
         headers.update(
             {
@@ -69,6 +71,9 @@ class LichessAPI(BaseChessAPI):
         """
         Fetches last N games from Lichess and returns JSON (NDJSON parsed)
         """
+        # Enforce the token-dependent cap here as well as in the UI: a setting
+        # saved while a token was present must not over-fetch after it is gone.
+        max_games = clamp_games_limit(max_games, current_token(self.config_manager))
         logger.info("Fetching last %d games for user '%s' from Lichess", max_games, username)
         try:
             url = f"{LichessAPI.BASE_URL}/{username}"
@@ -276,28 +281,25 @@ class LichessAPI(BaseChessAPI):
             logger.error(f"Error fetching game {game_id}: {e}")
             return {}
 
-    def get_user_profile(self, username: str) -> dict | None:
-        """
-        Fetches public profile & live rating stats for a Lichess user.
-        Returns normalized dictionary with avatar, ratings, total games, win rate, etc.
-        """
-        clean_user = username.strip().lower()
-        if not clean_user:
-            return None
+    def get_user_profile_result(self, username: str) -> ProfileResult:
+        """Fetch a public Lichess profile together with its transport status.
 
-        url = f"{LICHESS_USER_URL}/{clean_user}"
+        The public profile endpoint does not require authentication. We
+        deliberately omit the user's API token here so an expired token cannot
+        break the settings preview; token health is checked separately through
+        :meth:`get_account`.
+        """
+        clean_user = username.strip()
+        if not clean_user:
+            return ProfileResult(None, "not_found")
+
+        url = f"{LICHESS_USER_URL}/{quote(clean_user, safe='')}"
         headers = BaseChessAPI.DEFAULT_HEADERS.copy()
         headers["Accept"] = "application/json"
-        token = self.config_manager.get("lichess_token") or os.getenv("LICHESS_TOKEN")
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
 
-        resp = BaseChessAPI._make_request(url, headers)
-        if not resp:
-            return None
-        data = BaseChessAPI._safe_json(resp)
-        if not data:
-            return None
+        data, status = BaseChessAPI._request_json(url, headers)
+        if status != "ok" or not isinstance(data, dict):
+            return ProfileResult(None, status if status != "ok" else "error")
 
         perfs = data.get("perfs", {})
 
@@ -323,12 +325,14 @@ class LichessAPI(BaseChessAPI):
         win_rate = (wins / total_games * 100) if total_games > 0 else 0.0
         profile_info = data.get("profile", {})
 
-        return {
+        profile = {
             "platform": "lichess",
             "username": data.get("username", clean_user),
             "title": data.get("title"),
             "avatar": None,
-            "country": profile_info.get("country"),
+            # Lichess stores the country under "flag" (a two-letter code).
+            # Accept "country" too for older payloads/fixtures.
+            "country": profile_info.get("flag") or profile_info.get("country"),
             "joined": data.get("createdAt"),
             "url": data.get("url"),
             "bullet": bullet,
@@ -344,3 +348,28 @@ class LichessAPI(BaseChessAPI):
                 "draw": draws,
             },
         }
+        return ProfileResult(profile, "ok")
+
+    def get_user_profile(self, username: str) -> dict | None:
+        """Backward-compatible profile-only accessor."""
+        return self.get_user_profile_result(username).profile
+
+    def get_account(self, token: str | None = None) -> tuple[dict | None, ApiStatus]:
+        """Validate a token against the authenticated account endpoint.
+
+        ``token`` may be passed explicitly because the settings card validates
+        the value the user just typed, before the binder has persisted it.
+        """
+        token = (token or current_token(self.config_manager)).strip()
+        if not token:
+            return None, "unauthorized"
+
+        headers = BaseChessAPI.DEFAULT_HEADERS.copy()
+        headers.update(
+            {
+                "Accept": "application/json",
+                "Authorization": f"Bearer {token}",
+            }
+        )
+        return BaseChessAPI._request_json(LICHESS_ACCOUNT_URL, headers)
+

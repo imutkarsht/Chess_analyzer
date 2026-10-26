@@ -30,10 +30,11 @@ CHESSCOM_HEADERS = {
 }
 LICHESS_BASE_URL = "https://lichess.org/api/games/user"
 LICHESS_USER_URL = "https://lichess.org/api/user"
+LICHESS_ACCOUNT_URL = "https://lichess.org/api/account"
 LICHESS_EXPORT_URL = "https://lichess.org/game/export"
 CHESSCOM_CALLBACK_LIVE = "https://www.chess.com/callback/live/game"
 CHESSCOM_CALLBACK_DAILY = "https://www.chess.com/callback/daily/game"
-LICHESS_EXPLORER_URL = "https://explorer.lichess.ovh/lichess"
+LICHESS_EXPLORER_URL = "https://explorer.lichess.org/lichess"
 
 # Feedback & Review API
 FEEDBACK_API_BASE = "https://chessanalyzer.xyz"
@@ -153,6 +154,20 @@ SOUND_CLASSIFICATIONS = frozenset({"Best", "Excellent", "Good", "Book"})
 SACRIFICIAL_CLASSIFICATIONS = frozenset({"Brilliant", "Great"})
 PROBLEM_CLASSIFICATIONS = frozenset({"Inaccuracy", "Mistake", "Miss", "Blunder"})
 LLM_WORTHY_CLASSIFICATIONS = SACRIFICIAL_CLASSIFICATIONS | PROBLEM_CLASSIFICATIONS
+
+# ---------------------------------------------------------------------------
+# Local data retention
+# ---------------------------------------------------------------------------
+# Defaults shared by the storage layer and the settings schema so the two can
+# never drift apart.
+DEFAULT_EXPLORER_CACHE_TTL_HOURS = 48
+DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES = 250_000
+# Chess.com refreshes public profile/stats data at most every 12–24 hours, so
+# one day is the smallest useful default before re-fetching a preview.
+DEFAULT_PROFILE_CACHE_TTL_HOURS = 24
+# Expired profiles stay available for offline viewing, but are removed after
+# this grace period so trying many usernames cannot grow the DB forever.
+PROFILE_CACHE_MAX_AGE_DAYS = 90
 
 # ---------------------------------------------------------------------------
 # Keyboard shortcuts (issue #67)

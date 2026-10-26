@@ -679,3 +679,71 @@ def test_save_game_preserves_analyzed_progress_when_unanalyzed_loaded(temp_db):
     overwritten_summary = json.loads(overwritten["summary_json"])
     assert overwritten_summary["analysis_status"] == "not_started"
     assert overwritten_summary["analyzed_moves"] == 0
+
+
+def test_clear_all_data_wipes_games_and_every_cache_table(temp_db):
+    """Reset must not leave cached evaluations or explanations behind."""
+    from src.backend.storage.cache import AnalysisCache
+    from src.backend.storage.schema_constants import DATA_TABLES
+
+    manager = GameHistoryManager(temp_db)
+    manager.save_game(
+        GameAnalysis(
+            game_id="keep_me",
+            metadata=GameMetadata(white="A", black="B", result="1-0"),
+            pgn_content="1. e4 e5 1-0",
+        ),
+        "1. e4 e5 1-0",
+    )
+    manager.save_explorer_cache("fen_a", '{"moves": []}')
+    manager.save_cached_profile("chesscom", "Hikaru", {"username": "Hikaru"})
+
+    cache = AnalysisCache(temp_db)
+    cache.save_analysis("fen_a", {"depth": 10, "multi_pv": 2}, {"score": 5})
+    cache.set_explanation(
+        explanation="Good move.",
+        fen="fen_a",
+        uci="e2e4",
+        model="openai/gpt-oss-120b",
+        lang_code="en",
+        prompt_version=1,
+    )
+    cache.close()
+
+    manager.clear_all_data()
+
+    with manager._get_connection() as conn:
+        for table in DATA_TABLES:
+            count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            assert count == 0, f"{table} still holds rows after a reset"
+
+
+def test_explorer_cache_ttl_is_configurable_and_can_never_expire(temp_db):
+    """The TTL override drives both lookup and pruning; ``None`` disables expiry."""
+    import sqlite3
+    import time
+
+    from src.backend.storage.explorer_cache_repo import ExplorerCacheRepo
+
+    GameHistoryManager(temp_db)  # create the schema the repo reads
+    fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    payload = '{"moves": []}'
+
+    def _age(row_fen: str, seconds: float) -> None:
+        with sqlite3.connect(temp_db) as conn:
+            conn.execute(
+                "UPDATE explorer_cache SET cached_at = ? WHERE fen = ?",
+                (time.time() - seconds, row_fen),
+            )
+            conn.commit()
+
+    expiring = ExplorerCacheRepo(temp_db, ttl_seconds=3600)
+    expiring.save_explorer_cache(fen, payload)
+    _age(fen, 7200)
+    assert expiring.get_explorer_cache(fen) is None
+
+    never = ExplorerCacheRepo(temp_db, ttl_seconds=None)
+    never.save_explorer_cache(fen, payload)
+    _age(fen, 60 * 60 * 24 * 365)
+    assert never.get_explorer_cache(fen) == payload
+    assert never.prune_explorer_cache() == 0
