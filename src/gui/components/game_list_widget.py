@@ -119,6 +119,8 @@ class GameListWidget(QWidget):
         is_detailed = self.view_mode == "detailed"
         self.btn_detailed.setChecked(is_detailed)
         self.btn_compact.setChecked(not is_detailed)
+        self.btn_detailed.refresh_styles()
+        self.btn_compact.refresh_styles()
 
     # ── Public API ────────────────────────────────────────────────────────────
 

@@ -245,25 +245,9 @@ class MetricsWidget(QWidget):
 
         if hasattr(self, "btn_refresh") and self.btn_refresh:
             self.btn_refresh.refresh_styles()
-            try:
-                import qtawesome as qta
-
-                self.btn_refresh.setIcon(
-                    qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
-                )
-            except ImportError:
-                pass
 
         if hasattr(self, "btn_reset_filters") and self.btn_reset_filters:
             self.btn_reset_filters.refresh_styles()
-            try:
-                import qtawesome as qta
-
-                self.btn_reset_filters.setIcon(
-                    qta.icon("fa5s.undo", color=Styles.COLOR_TEXT_SECONDARY)
-                )
-            except ImportError:
-                pass
 
         if hasattr(self, "content_widget") and self.content_widget:
             self.content_widget.setStyleSheet(Styles.get_background_style())

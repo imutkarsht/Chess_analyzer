@@ -20,6 +20,7 @@ from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 
 try:
     import qtawesome as qta
@@ -116,6 +117,12 @@ class Button(QPushButton):
         else:
             self.setMinimumHeight(_SIZE_SPECS[self._size]["height"])
 
+        # Theme/accent changes must retint the icon and regenerate the QSS even
+        # when a parent widget forgets to call refresh_styles().
+        theme_manager = ThemeManager.instance()
+        theme_manager.theme_changed.connect(self._on_theme_changed)
+        theme_manager.accent_changed.connect(self._on_theme_changed)
+
         self.refresh_styles()
         if icon is not None:
             self._apply_icon()
@@ -191,7 +198,7 @@ class Button(QPushButton):
             self.setEnabled(self._enabled_before_loading)
 
     def refresh_styles(self) -> None:
-        """Regenerate the stylesheet from the current theme and config."""
+        """Regenerate the stylesheet and re-tint the icon for the current theme."""
         self.setStyleSheet(
             Styles.get_button_qss(
                 variant=self._variant.value,
@@ -201,6 +208,10 @@ class Button(QPushButton):
                 danger=self._danger,
             )
         )
+        self._apply_icon()
+
+    def _on_theme_changed(self, *_args) -> None:
+        self.refresh_styles()
 
     # ------------------------------------------------------------------
     # Icons and spinner

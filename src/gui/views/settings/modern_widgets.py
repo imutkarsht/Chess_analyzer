@@ -219,8 +219,10 @@ class PasswordFieldWrapper(QWidget):
             variant=ButtonVariant.GHOST,
             size=ButtonSize.SM,
             icon_position="only",
+            tooltip="Show password",
             on_click=self.toggle_visibility,
         )
+        self.toggle_btn.setAccessibleName("Show password")
         self.toggle_btn.setFixedSize(24, 24)
         layout.addWidget(self.toggle_btn)
 
@@ -252,6 +254,9 @@ class PasswordFieldWrapper(QWidget):
     def update_icon(self):
         icon_name = "fa5s.eye-slash" if self._visible else "fa5s.eye"
         self.toggle_btn.set_icon_spec(icon_name if HAS_QTAWESOME else None)
+        label = "Hide password" if self._visible else "Show password"
+        self.toggle_btn.setToolTip(label)
+        self.toggle_btn.setAccessibleName(label)
 
     def update_style(self, focused=False):
         border_color = Styles.COLOR_ACCENT if focused else Styles.COLOR_BORDER

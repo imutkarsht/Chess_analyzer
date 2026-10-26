@@ -513,7 +513,7 @@ class UpdateNotificationDialog(QDialog):
                 f"{filename} — open it, then drag Chess Analyzer Pro to Applications."
             )
             self._btn_open_finder.show()
-            self._btn_open_finder.setText("  Open DMG")
+            self._btn_open_finder.setText("Open DMG")
             self._dest_path = local_path   # used by _open_in_finder
 
         else:  # Linux

@@ -226,7 +226,7 @@ class ReviewPromptDialog(QDialog):
             return
 
         self.btn_submit.setEnabled(False)
-        self.btn_submit.setText("  Submitting...")
+        self.btn_submit.setText("Submitting...")
         self.status_lbl.hide()
 
         username = self.name_input.text().strip()
@@ -243,7 +243,7 @@ class ReviewPromptDialog(QDialog):
 
     def _on_submission_finished(self, success: bool, message: str, data: dict):
         self.btn_submit.setEnabled(True)
-        self.btn_submit.setText("  Submit Review")
+        self.btn_submit.setText("Submit Review")
 
         if success:
             self.config_manager.set("review_submitted", True)

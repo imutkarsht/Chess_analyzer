@@ -1,8 +1,10 @@
 """Central Button component: variants, sizes, loading and selection."""
 
+import ast
 from pathlib import Path
 
 import pytest
+from PyQt6.QtGui import QIcon
 
 from src.gui.components import Button, ButtonSize, ButtonVariant
 
@@ -31,6 +33,47 @@ def test_no_raw_push_or_tool_buttons_outside_the_central_component():
         text = path.read_text(encoding="utf-8")
         if "QPushButton(" in text or "QToolButton(" in text:
             offenders.append(relative)
+
+    assert offenders == []
+
+
+def test_central_buttons_are_not_restyled_or_reiconed_manually():
+    """Button owns its QSS/icon; callers must use refresh_styles/set_icon_spec."""
+    repo_root = Path(__file__).resolve().parents[2]
+    gui_root = repo_root / "src" / "gui"
+    factories = {"Button", "create_button", "create_icon_button"}
+    overrides = {"setStyleSheet", "setIcon", "setIconSize"}
+    offenders = []
+
+    for path in gui_root.rglob("*.py"):
+        relative = path.relative_to(repo_root).as_posix()
+        if relative == "src/gui/components/button.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+
+        button_names: set[str] = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                continue
+            value = node.value
+            if not (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id in factories
+            ):
+                continue
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            button_names.update(ast.unparse(target) for target in targets)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr not in overrides:
+                continue
+            if ast.unparse(node.func.value) in button_names:
+                offenders.append(
+                    f"{relative}:{node.lineno} calls {node.func.attr} on a Button"
+                )
 
     assert offenders == []
 
@@ -117,7 +160,24 @@ def test_variant_and_size_changes_preserve_state(qtbot):
     assert button.isChecked()
 
 
-def test_invalid_variant_and_icon_position_are_rejected(qtbot):
+def test_refresh_styles_reapplies_the_icon(qtbot):
+    button = _button(qtbot, "Coach", variant=ButtonVariant.TONAL, icon="fa5s.magic")
+    button.setIcon(QIcon())
+
+    button.refresh_styles()
+
+    assert not button.icon().isNull()
+
+
+def test_accent_signal_refreshes_buttons_automatically(qtbot):
+    from src.gui.theme import ThemeManager
+
+    button = _button(qtbot, "Coach", variant=ButtonVariant.TONAL, icon="fa5s.magic")
+    button.setIcon(QIcon())
+
+    ThemeManager.instance().accent_changed.emit("#123456")
+
+    assert not button.icon().isNull()
     with pytest.raises(ValueError):
         Button(variant="banana")
     with pytest.raises(ValueError):

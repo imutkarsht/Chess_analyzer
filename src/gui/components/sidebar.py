@@ -3,7 +3,6 @@ import os
 from PyQt6.QtCore import (
     QEasingCurve,
     QPropertyAnimation,
-    QSize,
     Qt,
     pyqtProperty,
     pyqtSignal,
@@ -110,12 +109,10 @@ class Sidebar(QFrame):
         if HAS_QTAWESOME and icon_name in QTAWESOME_ICONS:
             color_str = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
             btn.set_icon_spec(qta.icon(QTAWESOME_ICONS[icon_name], color=color_str))
-            btn.setIconSize(QSize(22, 22))
         else:
             icon_path = get_resource_path(os.path.join("assets", "icons", icon_name))
             if os.path.exists(icon_path):
                 btn.set_icon_spec(QIcon(icon_path))
-                btn.setIconSize(QSize(22, 22))
 
     def _make_nav_button(self, text: str, icon_name: str, index: int) -> Button:
         on_click = (
@@ -179,7 +176,6 @@ class Sidebar(QFrame):
         self.btn_collapse.setText(icon_char)
         icon_name = "fa5s.chevron-left" if not self._collapsed else "fa5s.chevron-right"
         self.btn_collapse.set_icon_spec(icon_name)
-        self.btn_collapse.setIconSize(QSize(16, 16))
 
     def handle_click(self, index):
         self.set_active(index)

@@ -26,10 +26,6 @@ from src.utils.path_utils import get_resource_path
 
 from ...components import Button, ButtonVariant
 from ...styles import Styles
-from .helpers import HAS_QTAWESOME
-
-if HAS_QTAWESOME:
-    import qtawesome as qta
 
 LINK_COLUMNS = 4
 
@@ -231,11 +227,8 @@ class LinksSettings(QGroupBox):
             f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; "
             + Styles.get_transparent_label_style()
         )
-        for button, icon_name in self._link_icons:
+        for button, _icon_name in self._link_icons:
             button.refresh_styles()
-            if HAS_QTAWESOME:
-                qta_icon = qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY)
-                button.setIcon(qta_icon)
 
     # ------------------------------------------------------------------
     # Actions
@@ -283,7 +276,7 @@ class LinksSettings(QGroupBox):
         from ...dialogs import UpdateNotificationDialog
 
         self.update_btn.setEnabled(False)
-        self.update_btn.setText("  Checking...")
+        self.update_btn.setText("Checking...")
         QApplication.processEvents()
 
         try:
@@ -305,11 +298,8 @@ class LinksSettings(QGroupBox):
             )
         finally:
             self.update_btn.setEnabled(True)
-            self.update_btn.setText("  Check for Updates")
-            if HAS_QTAWESOME:
-                self.update_btn.setIcon(
-                    qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
-                )
+            self.update_btn.setText("Check for Updates")
+            self.update_btn.refresh_styles()
 
     def set_advanced_visible(self, visible):
         pass

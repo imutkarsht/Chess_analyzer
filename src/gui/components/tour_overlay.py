@@ -131,41 +131,9 @@ class TourOverlay(QWidget):
                 background: transparent;
             }}
         """)
-        self.next_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 7px 22px;
-                font-size: 13px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-        """)
-        self.prev_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 7px 16px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
-            QPushButton:disabled {{ color: {Styles.COLOR_TEXT_MUTED}; border-color: {Styles.COLOR_BORDER}; }}
-        """)
-        self.close_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_MUTED};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 7px 11px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{ color: {Styles.COLOR_TEXT_PRIMARY}; border-color: {Styles.COLOR_ACCENT}; }}
-        """)
+        self.next_btn.refresh_styles()
+        self.prev_btn.refresh_styles()
+        self.close_btn.refresh_styles()
 
     # ── Internal ─────────────────────────────────────────────────────────
 

@@ -70,6 +70,9 @@ class ThemeAccentSettings(QGroupBox):
             width=None,
             on_change=self._on_accent_mode_changed,
         )
+        # The binder loads the stored mode without emitting valueChanged, so
+        # evaluate the picker visibility again after the initial value is set.
+        self._update_accent_btn_visibility()
 
     def _on_accent_mode_changed(self, mode):
         self._update_accent_btn_visibility()

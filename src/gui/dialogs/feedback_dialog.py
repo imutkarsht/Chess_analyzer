@@ -205,19 +205,19 @@ class FeedbackDialog(QDialog):
 
         if tab_id == "bug":
             self.stacked_widget.setCurrentIndex(0)
-            self.btn_submit.setText("  Submit Bug Report")
+            self.btn_submit.setText("Submit Bug Report")
             submit_icon = "fa5s.paper-plane"
         elif tab_id == "feature":
             self.stacked_widget.setCurrentIndex(1)
-            self.btn_submit.setText("  Submit Feature Request")
+            self.btn_submit.setText("Submit Feature Request")
             submit_icon = "fa5s.paper-plane"
         else:
             self.stacked_widget.setCurrentIndex(2)
-            self.btn_submit.setText("  Submit Review")
+            self.btn_submit.setText("Submit Review")
             submit_icon = "fa5s.star"
 
         if HAS_QTAWESOME:
-            self.btn_submit.setIcon(qta.icon(submit_icon, color="#FFFFFF"))
+            self.btn_submit.set_icon_spec(submit_icon)
 
         self.bottom_bar.show()
 
@@ -540,7 +540,7 @@ class FeedbackDialog(QDialog):
 
     def _set_submitting(self, submitting: bool):
         self.btn_submit.setEnabled(not submitting)
-        self.btn_submit.setText("  Submitting..." if submitting else "Submit")
+        self.btn_submit.setText("Submitting..." if submitting else "Submit")
 
     def _show_error(self, message: str):
         self.status_lbl.setText(message)

@@ -38,12 +38,15 @@ class PromotionDialog(QDialog):
         }
 
         for piece_type, symbol in piece_map.items():
+            piece_label = chess.piece_name(piece_type).capitalize()
             btn = Button(
                 variant=ButtonVariant.FILLED,
                 icon_position="only",
                 icon_size=42,
+                tooltip=f"Promote to {piece_label}",
             )
             btn.setFixedSize(52, 52)
+            btn.setAccessibleName(f"Promote to {piece_label}")
             g_content = pieces_svg.get(symbol, "")
             if g_content:
                 svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'

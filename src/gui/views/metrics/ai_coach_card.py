@@ -208,26 +208,7 @@ class AICoachCard(MetricCard):
             border-radius: 6px;
             padding: 3px 8px;
         """)
-        self.btn_refresh_insights.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        try:
-            import qtawesome as qta
-
-            self.btn_refresh_insights.setIcon(
-                qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
-            )
-        except ImportError:
-            pass
+        self.btn_refresh_insights.refresh_styles()
 
         super().refresh_styles()
         if self.current_insights:

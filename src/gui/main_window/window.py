@@ -786,7 +786,7 @@ class MainWindow(
             self._hib_celebration.setVisible(False)
         if hasattr(self, "btn_hib_reveal"):
             self.btn_hib_reveal.setEnabled(True)
-            self.btn_hib_reveal.setText("  Reveal Move")
+            self.btn_hib_reveal.setText("Reveal Move")
             self.btn_hib_reveal.show()
         if hasattr(self, "btn_hib_explore"):
             self.btn_hib_explore.hide()
