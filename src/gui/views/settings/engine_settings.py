@@ -195,6 +195,6 @@ class EngineSettings(QGroupBox):
         self.form.refresh_styles()
         self.hash_input.refresh_styles()
         self.path_input.setStyleSheet(Styles.get_input_style())
-        self.browse_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        self.browse_btn.refresh_styles()
         self.threads_input.refresh_styles()
         self.validate_engine_path()

@@ -3,8 +3,9 @@ Error dialog for when the LLM is not configured,
 offering Configure Now and Skip actions.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout
 
+from ..components import Button, ButtonVariant
 from ..styles import Styles
 
 
@@ -51,44 +52,16 @@ class LlmNotConfiguredDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        self._skip_btn = QPushButton("Skip")
-        self._skip_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._skip_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 8px 20px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        self._skip_btn.clicked.connect(self.reject)
+        self._skip_btn = Button("Skip", ButtonVariant.FILLED, on_click=self.reject)
         btn_layout.addWidget(self._skip_btn)
 
         btn_layout.addSpacing(12)
 
-        self._configure_btn = QPushButton("  Configure Now")
-        self._configure_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._configure_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                padding: 8px 20px;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-        """)
-        self._configure_btn.clicked.connect(self._on_configure)
+        self._configure_btn = Button(
+            "Configure Now",
+            ButtonVariant.PRIMARY,
+            on_click=self._on_configure,
+        )
         btn_layout.addWidget(self._configure_btn)
 
         layout.addLayout(btn_layout)

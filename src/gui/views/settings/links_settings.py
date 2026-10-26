@@ -24,11 +24,8 @@ from src.constants import (
 )
 from src.utils.path_utils import get_resource_path
 
+from ...components import Button, ButtonVariant
 from ...styles import Styles
-from .helpers import HAS_QTAWESOME, create_icon_button
-
-if HAS_QTAWESOME:
-    import qtawesome as qta
 
 LINK_COLUMNS = 4
 
@@ -191,8 +188,14 @@ class LinksSettings(QGroupBox):
         return footer
 
     def _make_link(self, text: str, icon_name: str, callback) -> QWidget:
-        button = create_icon_button(text, icon_name, callback, self)
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button = Button(
+            text,
+            ButtonVariant.LINK,
+            icon=icon_name,
+            align="left",
+            on_click=callback,
+            parent=self,
+        )
         self._link_icons.append((button, icon_name))
         return button
 
@@ -224,11 +227,8 @@ class LinksSettings(QGroupBox):
             f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; "
             + Styles.get_transparent_label_style()
         )
-        for button, icon_name in self._link_icons:
-            button.setStyleSheet(Styles.get_settings_link_button_style())
-            if HAS_QTAWESOME:
-                qta_icon = qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY)
-                button.setIcon(qta_icon)
+        for button, _icon_name in self._link_icons:
+            button.refresh_styles()
 
     # ------------------------------------------------------------------
     # Actions
@@ -276,7 +276,7 @@ class LinksSettings(QGroupBox):
         from ...dialogs import UpdateNotificationDialog
 
         self.update_btn.setEnabled(False)
-        self.update_btn.setText("  Checking...")
+        self.update_btn.setText("Checking...")
         QApplication.processEvents()
 
         try:
@@ -298,11 +298,8 @@ class LinksSettings(QGroupBox):
             )
         finally:
             self.update_btn.setEnabled(True)
-            self.update_btn.setText("  Check for Updates")
-            if HAS_QTAWESOME:
-                self.update_btn.setIcon(
-                    qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
-                )
+            self.update_btn.setText("Check for Updates")
+            self.update_btn.refresh_styles()
 
     def set_advanced_visible(self, visible):
         pass

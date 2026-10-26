@@ -112,8 +112,8 @@ class StorageSettings(StorageCard):
             label.setStyleSheet(
                 Styles.get_label_style(size=13) + Styles.get_transparent_label_style()
             )
-        self.refresh_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        self.open_folder_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        self.refresh_btn.refresh_styles()
+        self.open_folder_btn.refresh_styles()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)

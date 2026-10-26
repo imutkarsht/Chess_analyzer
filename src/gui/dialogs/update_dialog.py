@@ -22,7 +22,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
-    QPushButton,
     QStackedWidget,
     QTextBrowser,
     QVBoxLayout,
@@ -37,6 +36,7 @@ from src.backend.updater.updater import (
 )
 
 from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
+from ..components import Button, ButtonVariant
 from ..styles import Styles
 
 try:
@@ -181,23 +181,11 @@ class UpdateNotificationDialog(QDialog):
             top_row.addStretch()
 
             if self.update_info.html_url:
-                btn_gh = QPushButton("View on GitHub ↗")
-                btn_gh.setCursor(Qt.CursorShape.PointingHandCursor)
-                btn_gh.setStyleSheet(f"""
-                    QPushButton {{
-                        background: transparent;
-                        color: {Styles.COLOR_TEXT_MUTED};
-                        border: none;
-                        font-size: 11px;
-                        font-weight: 500;
-                        padding: 0 4px;
-                    }}
-                    QPushButton:hover {{
-                        color: {Styles.COLOR_ACCENT};
-                        text-decoration: underline;
-                    }}
-                """)
-                btn_gh.clicked.connect(self._open_github_release)
+                btn_gh = Button(
+                    "View on GitHub ↗",
+                    ButtonVariant.LINK,
+                    on_click=self._open_github_release,
+                )
                 top_row.addWidget(btn_gh)
 
             layout.addLayout(top_row)
@@ -277,13 +265,13 @@ class UpdateNotificationDialog(QDialog):
         layout.setSpacing(12)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        btn_later = QPushButton("  Remind Later")
-        if HAS_QTAWESOME:
-            btn_later.setIcon(qta.icon('fa5s.clock', color=Styles.COLOR_TEXT_SECONDARY))
-        btn_later.setStyleSheet(self._btn_style_secondary())
+        btn_later = Button(
+            "Remind Later",
+            ButtonVariant.FILLED,
+            icon="fa5s.clock",
+            on_click=self.reject,
+        )
         btn_later.setFixedHeight(40)
-        btn_later.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_later.clicked.connect(self.reject)
         layout.addWidget(btn_later, 0, Qt.AlignmentFlag.AlignVCenter)
 
         layout.addStretch()
@@ -292,13 +280,13 @@ class UpdateNotificationDialog(QDialog):
         dl_col = QVBoxLayout()
         dl_col.setSpacing(4)
 
-        self._btn_download = QPushButton("  Download Update")
-        if HAS_QTAWESOME:
-            self._btn_download.setIcon(qta.icon('fa5s.download', color="#ffffff"))
-        self._btn_download.setStyleSheet(self._btn_style_primary())
+        self._btn_download = Button(
+            "Download Update",
+            ButtonVariant.PRIMARY,
+            icon="fa5s.download",
+            on_click=self._start_download,
+        )
         self._btn_download.setFixedHeight(40)
-        self._btn_download.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_download.clicked.connect(self._start_download)
         dl_col.addWidget(self._btn_download)
 
         if self.update_info.install_hint:
@@ -346,11 +334,8 @@ class UpdateNotificationDialog(QDialog):
         """)
         layout.addWidget(self._progress_bar)
 
-        btn_cancel = QPushButton("Cancel")
-        btn_cancel.setStyleSheet(self._btn_style_secondary())
+        btn_cancel = Button("Cancel", ButtonVariant.FILLED, on_click=self._cancel_download)
         btn_cancel.setFixedWidth(90)
-        btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_cancel.clicked.connect(self._cancel_download)
         cancel_row = QHBoxLayout()
         cancel_row.addStretch()
         cancel_row.addWidget(btn_cancel)
@@ -381,12 +366,12 @@ class UpdateNotificationDialog(QDialog):
         row.addStretch()
 
         # macOS only: "Open in Finder" button (hidden on other platforms)
-        self._btn_open_finder = QPushButton("  Open in Finder")
-        if HAS_QTAWESOME:
-            self._btn_open_finder.setIcon(qta.icon('fa5s.folder-open', color="#ffffff"))
-        self._btn_open_finder.setStyleSheet(self._btn_style_primary())
-        self._btn_open_finder.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_open_finder.clicked.connect(self._open_in_finder)
+        self._btn_open_finder = Button(
+            "Open in Finder",
+            ButtonVariant.PRIMARY,
+            icon="fa5s.folder-open",
+            on_click=self._open_in_finder,
+        )
         self._btn_open_finder.hide()
         row.addWidget(self._btn_open_finder)
 
@@ -431,12 +416,12 @@ class UpdateNotificationDialog(QDialog):
         layout.addLayout(err_col)
         layout.addStretch()
 
-        btn_browser = QPushButton("  Open in Browser")
-        if HAS_QTAWESOME:
-            btn_browser.setIcon(qta.icon('fa5s.external-link-alt', color="#ffffff"))
-        btn_browser.setStyleSheet(self._btn_style_primary())
-        btn_browser.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_browser.clicked.connect(self._open_in_browser)
+        btn_browser = Button(
+            "Open in Browser",
+            ButtonVariant.PRIMARY,
+            icon="fa5s.external-link-alt",
+            on_click=self._open_in_browser,
+        )
         layout.addWidget(btn_browser)
 
         return w
@@ -528,7 +513,7 @@ class UpdateNotificationDialog(QDialog):
                 f"{filename} — open it, then drag Chess Analyzer Pro to Applications."
             )
             self._btn_open_finder.show()
-            self._btn_open_finder.setText("  Open DMG")
+            self._btn_open_finder.setText("Open DMG")
             self._dest_path = local_path   # used by _open_in_finder
 
         else:  # Linux
@@ -691,42 +676,6 @@ class UpdateNotificationDialog(QDialog):
         ver.setStyleSheet(f"color: {color}; font-size: 16px; font-weight: bold;")
         layout.addWidget(ver)
         return w
-
-    def _btn_style_primary(self) -> str:
-        return f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-            QPushButton:disabled {{
-                background-color: {Styles.COLOR_BORDER};
-                color: {Styles.COLOR_TEXT_MUTED};
-            }}
-        """
-
-    def _btn_style_secondary(self) -> str:
-        return f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 10px 18px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """
 
     @staticmethod
     def _clean_markdown(text: str) -> str:

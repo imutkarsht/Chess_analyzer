@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -29,17 +28,11 @@ from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.profile_cache_repo import CachedProfile
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.utils.logger import logger
 
 from .background_worker import BackgroundTaskWorker
-
-try:
-    import qtawesome as qta
-
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 AVATAR_SIZE = 56
 ACTIVE_PROFILE_WORKERS: set[BackgroundTaskWorker] = set()
@@ -294,10 +287,13 @@ class ProfilePreview(QFrame):
         )
         state_layout.addWidget(self.state_label, 1)
 
-        self.retry_btn = QPushButton("Retry")
-        self.retry_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.retry_btn.setStyleSheet(Styles.get_action_button_style())
-        self.retry_btn.clicked.connect(self.refresh)
+        self.retry_btn = Button(
+            "Retry",
+            ButtonVariant.HOLLOW,
+            ButtonSize.SM,
+            on_click=self.refresh,
+            parent=self,
+        )
         self.retry_btn.hide()
         state_layout.addWidget(self.retry_btn)
         body_layout.addWidget(self._state_row)
@@ -327,17 +323,15 @@ class ProfilePreview(QFrame):
         name_row.addWidget(self.country_label)
         name_row.addStretch(1)
 
-        self.refresh_btn = QPushButton()
-        self.refresh_btn.setFixedSize(28, 28)
-        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_btn.setToolTip("Refresh profile")
-        self.refresh_btn.clicked.connect(self.refresh)
-        if HAS_QTAWESOME:
-            self.refresh_btn.setIcon(
-                qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
-            )
-        else:
-            self.refresh_btn.setText("↻")
+        self.refresh_btn = Button(
+            variant=ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            icon="fa5s.sync-alt",
+            icon_position="only",
+            tooltip="Refresh profile",
+            on_click=self.refresh,
+            parent=self,
+        )
         name_row.addWidget(self.refresh_btn)
 
         self.link_label = QLabel()
@@ -647,11 +641,7 @@ class ProfilePreview(QFrame):
         """)
 
     def _refresh_button_style(self) -> None:
-        self.refresh_btn.setStyleSheet(Styles.get_settings_square_icon_style())
-        if HAS_QTAWESOME:
-            self.refresh_btn.setIcon(
-                qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
-            )
+        self.refresh_btn.refresh_styles()
 
     def refresh_styles(self) -> None:
         self.setStyleSheet(self._frame_style())
@@ -670,7 +660,7 @@ class ProfilePreview(QFrame):
             + " "
             + Styles.get_transparent_label_style()
         )
-        self.retry_btn.setStyleSheet(Styles.get_action_button_style())
+        self.retry_btn.refresh_styles()
         self._refresh_button_style()
         if self._last_load and self._data_widget.isVisible():
             self._render(self._last_load)

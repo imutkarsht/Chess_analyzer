@@ -27,7 +27,7 @@ def test_sidebar_starts_in_configured_state(qapp, collapsed, expected_width, has
 
     assert sidebar._collapsed is collapsed
     assert sidebar.width() == expected_width
-    assert sidebar._nav_buttons[0].text() == ("  Analyze" if has_labels else "")
+    assert sidebar._nav_buttons[0].text() == ("Analyze" if has_labels else "")
     sidebar.deleteLater()
 
 

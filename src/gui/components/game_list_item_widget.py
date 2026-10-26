@@ -12,13 +12,14 @@ import chess.svg
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtSvgWidgets import QSvgWidget
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from ...utils.config import ConfigManager
 from ...utils.logger import logger
 from ...utils.path_utils import get_resource_path
 from ..styles import Styles
 from ..theme.palette import BOARD_THEMES
+from .button import Button, ButtonSize, ButtonVariant
 
 try:
     import qtawesome as qta
@@ -404,12 +405,14 @@ class GameListItemWidget(QWidget):
         badge_font_size = 11 if btn_size == 22 else 12
         badge_padding = "2px 6px" if btn_size == 22 else "3px 8px"
 
-        action_btn = QPushButton()
+        action_btn = Button(
+            variant=ButtonVariant.GHOST,
+            size=ButtonSize.SM,
+            icon_position="only",
+        )
         action_btn.setFixedSize(btn_size, btn_size)
-        action_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         if getattr(self, "_is_analyzing", False):
-            action_btn.setStyleSheet(Styles.get_card_action_icon_button_style("paused"))
             status_lbl = QLabel("Analyzing...")
             status_lbl.setStyleSheet(
                 Styles.get_result_badge_style(
@@ -417,16 +420,11 @@ class GameListItemWidget(QWidget):
                 )
             )
             action_btn.setToolTip("View ongoing analysis")
-            if HAS_QTAWESOME:
-                action_btn.setIcon(qta.icon("fa5s.arrow-right", color=Styles.COLOR_ENGINE_BUSY))
-            else:
-                action_btn.setText("👁")
+            self._set_icon(action_btn, "fa5s.arrow-right", Styles.COLOR_ENGINE_BUSY)
             action_btn.clicked.connect(
                 lambda: self.action_requested.emit(self._game, "view_analysis")
             )
             return status_lbl, action_btn
-
-        action_btn.setStyleSheet(Styles.get_card_action_icon_button_style(status))
 
         if status == "completed":
             status_lbl = QLabel("Analyzed")
@@ -436,10 +434,7 @@ class GameListItemWidget(QWidget):
                 )
             )
             action_btn.setToolTip("Reanalyze game")
-            if HAS_QTAWESOME:
-                action_btn.setIcon(qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY))
-            else:
-                action_btn.setText("🔄")
+            self._set_icon(action_btn, "fa5s.sync-alt", Styles.COLOR_TEXT_SECONDARY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "reanalyze"))
         elif status == "paused":
             analyzed = getattr(self._game, "analyzed_moves_count", 0)
@@ -453,10 +448,7 @@ class GameListItemWidget(QWidget):
                 )
             )
             action_btn.setToolTip(f"Resume analysis ({analyzed}/{total})")
-            if HAS_QTAWESOME:
-                action_btn.setIcon(qta.icon("fa5s.play", color=Styles.COLOR_ENGINE_BUSY))
-            else:
-                action_btn.setText("▶")
+            self._set_icon(action_btn, "fa5s.play", Styles.COLOR_ENGINE_BUSY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "resume"))
         else:
             status_lbl = QLabel("Unanalyzed")
@@ -466,23 +458,26 @@ class GameListItemWidget(QWidget):
                 )
             )
             action_btn.setToolTip("Analyze game")
-            if HAS_QTAWESOME:
-                action_btn.setIcon(qta.icon("fa5s.play", color=Styles.COLOR_TEXT_SECONDARY))
-            else:
-                action_btn.setText("▶")
+            self._set_icon(action_btn, "fa5s.play", Styles.COLOR_TEXT_SECONDARY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "analyze"))
 
         return status_lbl, action_btn
 
+    @staticmethod
+    def _set_icon(btn: Button, icon_name: str, color: str) -> None:
+        """Keep the status-specific icon tint; qtawesome icons carry their own color."""
+        btn.set_icon_spec(qta.icon(icon_name, color=color) if HAS_QTAWESOME else icon_name)
+
     def _create_delete_button(self, btn_size: int = 22):
-        del_btn = QPushButton()
+        del_btn = Button(
+            variant=ButtonVariant.GHOST,
+            size=ButtonSize.SM,
+            icon="fa5s.trash-alt",
+            icon_position="only",
+            danger=True,
+            tooltip="Delete game",
+        )
         del_btn.setFixedSize(btn_size, btn_size)
-        del_btn.setToolTip("Delete game")
-        if HAS_QTAWESOME:
-            del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
-        else:
-            del_btn.setText("🗑")
-        del_btn.setStyleSheet(Styles.get_delete_button_style())
         game_id = getattr(self._game, "game_id", None)
         del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
         return del_btn

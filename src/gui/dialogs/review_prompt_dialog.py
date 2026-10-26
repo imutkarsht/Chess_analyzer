@@ -3,13 +3,11 @@ In-app rating & review prompt dialog for Chess Analyzer Pro.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QStackedWidget,
     QTextEdit,
     QVBoxLayout,
@@ -18,15 +16,10 @@ from PyQt6.QtWidgets import (
 
 from src.backend.services.feedback_service import FeedbackService, FeedbackWorker
 from src.constants import REVIEW_SNOOZE_INTERVAL
+from src.gui.components import Button, ButtonVariant
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
-
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class ReviewPromptDialog(QDialog):
@@ -165,38 +158,22 @@ class ReviewPromptDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        self.btn_skip = QPushButton("No, Thanks")
-        self.btn_skip.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_skip.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_MUTED};
-                border: none;
-                padding: 8px 10px;
-                font-size: 13px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                text-decoration: underline;
-            }}
-        """)
-        self.btn_skip.clicked.connect(self._on_no_thanks)
+        self.btn_skip = Button(
+            "No, Thanks",
+            ButtonVariant.LINK,
+            on_click=self._on_no_thanks,
+        )
         btn_layout.addWidget(self.btn_skip)
 
         btn_layout.addStretch()
 
-        self.btn_remind = QPushButton("Remind Later")
-        self.btn_remind.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_remind.setStyleSheet(Styles.get_control_button_style())
+        self.btn_remind = Button("Remind Later", ButtonVariant.FILLED)
         self.btn_remind.clicked.connect(self._on_remind_later)
         btn_layout.addWidget(self.btn_remind)
 
-        self.btn_submit = QPushButton("  Submit Review")
-        self.btn_submit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        if HAS_QTAWESOME:
-            self.btn_submit.setIcon(qta.icon("fa5s.paper-plane", color="#FFFFFF"))
-        self.btn_submit.setStyleSheet(Styles.get_button_style())
+        self.btn_submit = Button(
+            "Submit Review", ButtonVariant.PRIMARY, icon="fa5s.paper-plane"
+        )
         self.btn_submit.clicked.connect(self._on_submit_review)
         btn_layout.addWidget(self.btn_submit)
 
@@ -236,9 +213,7 @@ class ReviewPromptDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_close = QPushButton("Keep Analyzing")
-        btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_close.setStyleSheet(Styles.get_button_style())
+        btn_close = Button("Keep Analyzing", ButtonVariant.PRIMARY)
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -251,7 +226,7 @@ class ReviewPromptDialog(QDialog):
             return
 
         self.btn_submit.setEnabled(False)
-        self.btn_submit.setText("  Submitting...")
+        self.btn_submit.setText("Submitting...")
         self.status_lbl.hide()
 
         username = self.name_input.text().strip()
@@ -268,7 +243,7 @@ class ReviewPromptDialog(QDialog):
 
     def _on_submission_finished(self, success: bool, message: str, data: dict):
         self.btn_submit.setEnabled(True)
-        self.btn_submit.setText("  Submit Review")
+        self.btn_submit.setText("Submit Review")
 
         if success:
             self.config_manager.set("review_submitted", True)

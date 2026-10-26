@@ -6,23 +6,16 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
+from src.gui.components import Button, ButtonVariant
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button, create_combobox
 from src.utils.logger import logger
-
-try:
-    import qtawesome as qta
-
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class GameImportWorker(QThread):
@@ -216,17 +209,14 @@ class HistoryView(QWidget):
         self.load_history()
 
     def _create_icon_button(self, text, icon_name, callback, danger=False):
-        """Create a styled button with qtawesome icon."""
-        btn = QPushButton(f"  {text}")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(Styles.get_control_button_style(danger=danger))
-
-        if HAS_QTAWESOME:
-            icon_color = Styles.COLOR_BLUNDER if danger else Styles.COLOR_TEXT_SECONDARY
-            btn.setIcon(qta.icon(icon_name, color=icon_color))
-
-        btn.clicked.connect(callback)
-        return btn
+        """Create a Button with a themed icon."""
+        return Button(
+            text,
+            ButtonVariant.FILLED,
+            icon=icon_name,
+            danger=danger,
+            on_click=callback,
+        )
 
     def apply_default_view_mode(self):
         """Apply the Appearance default layout without overriding a manual toggle."""
@@ -523,13 +513,13 @@ class HistoryView(QWidget):
                 Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
             )
         if hasattr(self, "btn_import"):
-            self.btn_import.setStyleSheet(Styles.get_control_button_style())
+            self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):
-            self.btn_export.setStyleSheet(Styles.get_control_button_style())
+            self.btn_export.refresh_styles()
         if hasattr(self, "btn_clear"):
-            self.btn_clear.setStyleSheet(Styles.get_control_button_style(danger=True))
+            self.btn_clear.refresh_styles()
         if hasattr(self, "btn_refresh"):
-            self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
+            self.btn_refresh.refresh_styles()
         if hasattr(self, "result_filter"):
             self.result_filter.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, "type_filter"):

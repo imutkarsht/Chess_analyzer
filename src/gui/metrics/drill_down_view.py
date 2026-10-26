@@ -13,12 +13,12 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.metrics.drill_down_item import DrillDownItemWidget
 from src.gui.styles import Styles
 
@@ -70,27 +70,12 @@ class DrillDownView(QWidget):
         header_layout.setSpacing(14)
 
         # Back Button
-        self.btn_back = QPushButton(" Back to Dashboard")
-        self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
-        if HAS_QTAWESOME:
-            self.btn_back.setIcon(qta.icon("fa5s.arrow-left", color=Styles.COLOR_TEXT_PRIMARY))
-        self.btn_back.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 7px 16px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        self.btn_back.clicked.connect(self.back_requested.emit)
+        self.btn_back = Button(
+            "Back to Dashboard",
+            ButtonVariant.FILLED,
+            icon="fa5s.arrow-left",
+            on_click=self.back_requested.emit,
+        )
         header_layout.addWidget(self.btn_back)
 
         # Vertical Divider
@@ -170,9 +155,12 @@ class DrillDownView(QWidget):
         pag_layout.setContentsMargins(24, 10, 24, 10)
         pag_layout.setSpacing(10)
 
-        self.btn_prev = QPushButton("Previous")
-        self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_prev.clicked.connect(self._prev_page)
+        self.btn_prev = Button(
+            "Previous",
+            ButtonVariant.FILLED,
+            ButtonSize.SM,
+            on_click=self._prev_page,
+        )
 
         self.lbl_page = QLabel("Page 1 of 1")
         self.lbl_page.setStyleSheet(
@@ -181,32 +169,12 @@ class DrillDownView(QWidget):
             + Styles.get_transparent_label_style()
         )
 
-        self.btn_next = QPushButton("Next")
-        self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_next.clicked.connect(self._next_page)
-
-        btn_style = f"""
-            QPushButton {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 4px 14px;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton:hover:enabled {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-color: {Styles.COLOR_BORDER_LIGHT};
-            }}
-            QPushButton:disabled {{
-                color: {Styles.COLOR_TEXT_MUTED};
-                background-color: transparent;
-                border-color: transparent;
-            }}
-        """
-        self.btn_prev.setStyleSheet(btn_style)
-        self.btn_next.setStyleSheet(btn_style)
+        self.btn_next = Button(
+            "Next",
+            ButtonVariant.FILLED,
+            ButtonSize.SM,
+            on_click=self._next_page,
+        )
 
         pag_layout.addWidget(self.btn_prev)
         pag_layout.addStretch()
@@ -326,22 +294,9 @@ class DrillDownView(QWidget):
             }}
         """)
         self.sep.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
-        self.btn_back.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 7px 16px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        self.btn_back.refresh_styles()
+        self.btn_prev.refresh_styles()
+        self.btn_next.refresh_styles()
         self.badge_count.setStyleSheet(f"""
             QLabel {{
                 background-color: {Styles.COLOR_SURFACE};

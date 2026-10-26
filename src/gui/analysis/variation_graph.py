@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QEvent, QPoint, QPointF, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPen
+from PyQt6.QtCore import QEvent, QPoint, QPointF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.variation_tree import VariationBranch, VariationNode, VariationTree
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 
 try:
@@ -330,18 +331,18 @@ class VariationGraph(QFrame):
 
         self.refresh_styles()
 
-    def _action_button(self, icon_name: str, fallback: str, tooltip: str) -> QPushButton:
-        btn = QPushButton("", self)
+    def _action_button(self, icon_name: str, fallback: str, tooltip: str) -> Button:
+        btn = Button(
+            variant=ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            icon_position="only",
+            tooltip=tooltip,
+            parent=self,
+        )
         btn.setFixedSize(24, 24)
-        btn.setIconSize(QSize(12, 12))
+        btn.set_icon_spec(qta.icon(icon_name, color=Styles.COLOR_TEXT_PRIMARY) if HAS_QTAWESOME else None)
         btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setToolTip(tooltip)
         btn.setAccessibleName(tooltip)
-        if HAS_QTAWESOME:
-            btn.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_PRIMARY))
-        else:
-            btn.setText(fallback)
         return btn
 
     def _apply_action_icons(self) -> None:
@@ -358,10 +359,9 @@ class VariationGraph(QFrame):
                     if btn is self.btn_best
                     else Styles.COLOR_TEXT_PRIMARY
                 )
-                btn.setText("")
-                btn.setIcon(qta.icon(icon_name, color=color))
+                btn.set_icon_spec(qta.icon(icon_name, color=color))
             else:
-                btn.setIcon(QIcon())
+                btn.set_icon_spec(None)
                 btn.setText(fallback)
 
     # ------------------------------------------------------------------ public API
@@ -455,9 +455,8 @@ class VariationGraph(QFrame):
         self.lbl_context.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
         )
-        action_style = Styles.get_variation_action_button_style()
         for btn in (self.btn_best, self.btn_undo, self.btn_reset, self.btn_exit):
-            btn.setStyleSheet(action_style)
+            btn.refresh_styles()
         self._apply_action_icons()
         self.scroll.setStyleSheet("background: transparent; border: none;")
         if self.tree is not None:

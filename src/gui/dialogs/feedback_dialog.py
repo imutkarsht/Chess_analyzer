@@ -3,14 +3,12 @@ Unified Feedback, Bug Report, and Feature Suggestion Dialog.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QStackedWidget,
     QTextEdit,
     QVBoxLayout,
@@ -22,7 +20,7 @@ from src.backend.services.feedback_service import (
     FeedbackWorker,
     get_recent_logs,
 )
-from src.gui.components import Tabs, TabVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Tabs, TabVariant
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -172,17 +170,13 @@ class FeedbackDialog(QDialog):
         btn_layout.setContentsMargins(0, 4, 0, 0)
         btn_layout.setSpacing(12)
 
-        self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_cancel.setStyleSheet(Styles.get_control_button_style())
+        self.btn_cancel = Button("Cancel", ButtonVariant.FILLED)
         self.btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
         btn_layout.addStretch()
 
-        self.btn_submit = QPushButton("Submit")
-        self.btn_submit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_submit.setStyleSheet(Styles.get_button_style())
+        self.btn_submit = Button("Submit", ButtonVariant.PRIMARY)
         self.btn_submit.clicked.connect(self._on_submit)
         btn_layout.addWidget(self.btn_submit)
 
@@ -211,19 +205,19 @@ class FeedbackDialog(QDialog):
 
         if tab_id == "bug":
             self.stacked_widget.setCurrentIndex(0)
-            self.btn_submit.setText("  Submit Bug Report")
+            self.btn_submit.setText("Submit Bug Report")
             submit_icon = "fa5s.paper-plane"
         elif tab_id == "feature":
             self.stacked_widget.setCurrentIndex(1)
-            self.btn_submit.setText("  Submit Feature Request")
+            self.btn_submit.setText("Submit Feature Request")
             submit_icon = "fa5s.paper-plane"
         else:
             self.stacked_widget.setCurrentIndex(2)
-            self.btn_submit.setText("  Submit Review")
+            self.btn_submit.setText("Submit Review")
             submit_icon = "fa5s.star"
 
         if HAS_QTAWESOME:
-            self.btn_submit.setIcon(qta.icon(submit_icon, color="#FFFFFF"))
+            self.btn_submit.set_icon_spec(submit_icon)
 
         self.bottom_bar.show()
 
@@ -305,21 +299,12 @@ class FeedbackDialog(QDialog):
 
         log_header_layout.addStretch()
 
-        self.btn_toggle_log = QPushButton("Preview Log")
-        self.btn_toggle_log.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_toggle_log.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                color: {Styles.COLOR_ACCENT};
-                border: none;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                text-decoration: underline;
-            }}
-        """)
-        self.btn_toggle_log.clicked.connect(self._toggle_log_preview)
+        self.btn_toggle_log = Button(
+            "Preview Log",
+            ButtonVariant.LINK,
+            size=ButtonSize.SM,
+            on_click=self._toggle_log_preview,
+        )
         log_header_layout.addWidget(self.btn_toggle_log)
         layout.addLayout(log_header_layout)
 
@@ -476,9 +461,7 @@ class FeedbackDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_done = QPushButton("Done")
-        btn_done.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_done.setStyleSheet(Styles.get_button_style())
+        btn_done = Button("Done", ButtonVariant.PRIMARY)
         btn_done.clicked.connect(self.accept)
         layout.addWidget(btn_done, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -557,7 +540,7 @@ class FeedbackDialog(QDialog):
 
     def _set_submitting(self, submitting: bool):
         self.btn_submit.setEnabled(not submitting)
-        self.btn_submit.setText("  Submitting..." if submitting else "Submit")
+        self.btn_submit.setText("Submitting..." if submitting else "Submit")
 
     def _show_error(self, message: str):
         self.status_lbl.setText(message)

@@ -2,10 +2,10 @@
 Game navigation controls widget.
 """
 
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QHBoxLayout, QToolButton, QWidget
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 
 try:
@@ -68,37 +68,23 @@ class GameControlsWidget(QWidget):
         self.refresh_styles()
 
     def _make_button(self, icon_name, fallback, tooltip, signal):
-        btn = QToolButton()
-        btn.setAutoRaise(True)
+        btn = Button(
+            icon=icon_name if HAS_QTAWESOME else None,
+            icon_position="only" if HAS_QTAWESOME else "left",
+            variant=ButtonVariant.GHOST,
+            size=ButtonSize.SM,
+            tooltip=tooltip,
+            on_click=lambda: signal.emit(),
+        )
+        if not HAS_QTAWESOME:
+            btn.setText(fallback)
         btn.setFixedSize(32, 30)
-        btn.setIconSize(QSize(15, 15))
-        btn.setToolTip(tooltip)
         btn.setAccessibleName(tooltip)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
         # NoFocus prevents the buttons from stealing keyboard focus when clicked.
         btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        # Remember the icon spec: qtawesome bakes the colour into the pixmap, so
-        # theme switches must re-render it instead of only restyling the button.
-        btn._icon_name = icon_name
-        btn._fallback_text = fallback
-        self._apply_icon(btn)
-        btn.clicked.connect(lambda _checked=False: signal.emit())
         return btn
-
-    @staticmethod
-    def _apply_icon(btn):
-        if HAS_QTAWESOME:
-            icon = qta.icon(btn._icon_name, color=Styles.COLOR_TEXT_PRIMARY)
-            if not icon.isNull():
-                btn.setIcon(icon)
-                btn.setText("")
-                return
-        btn.setIcon(QIcon())
-        btn.setText(btn._fallback_text)
 
     def refresh_styles(self):
         self.setStyleSheet(Styles.get_board_controls_style())
-        button_style = Styles.get_nav_icon_button_style()
         for btn in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last, self.btn_flip):
-            btn.setStyleSheet(button_style)
-            self._apply_icon(btn)
+            btn.refresh_styles()

@@ -1,37 +1,21 @@
 """
 Helper utilities for the settings view modules.
 """
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QPushButton
 
-from ...styles import Styles
+from importlib.util import find_spec
 
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
+HAS_QTAWESOME = find_spec("qtawesome") is not None
+
 
 def create_icon_button(text, icon_name, callback, parent=None, danger=False, primary=False):
-    """Create a styled button with qtawesome icon."""
-    btn = QPushButton(f"  {text}", parent)
-    btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    """Create the central Button with a themed icon."""
+    from ...components import Button, ButtonVariant
 
-    if HAS_QTAWESOME:
-        if danger:
-            icon_color = Styles.COLOR_BLUNDER
-        elif primary:
-            icon_color = "#ffffff"
-        else:
-            icon_color = Styles.COLOR_TEXT_SECONDARY
-        btn.setIcon(qta.icon(icon_name, color=icon_color))
-
-    if danger:
-        btn.setStyleSheet(Styles.get_settings_danger_button_style())
-    elif primary:
-        btn.setStyleSheet(Styles.get_button_style())
-    else:
-        btn.setStyleSheet(Styles.get_settings_default_button_style())
-
-    btn.clicked.connect(callback)
-    return btn
+    variant = (
+        ButtonVariant.DANGER
+        if danger
+        else ButtonVariant.PRIMARY
+        if primary
+        else ButtonVariant.FILLED
+    )
+    return Button(text, variant, icon=icon_name, on_click=callback, parent=parent)

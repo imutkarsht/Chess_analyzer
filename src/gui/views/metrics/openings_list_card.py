@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -255,11 +256,14 @@ class OpeningsListCard(MetricCard):
             pagination_bar.setContentsMargins(4, 4, 4, 0)
             pagination_bar.setSpacing(10)
 
-            self.btn_prev_page = QPushButton("◀ Prev")
+            self.btn_prev_page = Button(
+                "◀ Prev",
+                ButtonVariant.FILLED,
+                ButtonSize.SM,
+                on_click=self._go_prev_page,
+            )
             self.btn_prev_page.setFixedHeight(26)
-            self.btn_prev_page.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_prev_page.setEnabled(self.current_page > 0)
-            self.btn_prev_page.clicked.connect(self._go_prev_page)
 
             self.lbl_page_info = QLabel(f"Page {self.current_page + 1} of {total_pages}")
             self.lbl_page_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -270,34 +274,14 @@ class OpeningsListCard(MetricCard):
                 background: transparent;
             """)
 
-            self.btn_next_page = QPushButton("Next ▶")
+            self.btn_next_page = Button(
+                "Next ▶",
+                ButtonVariant.FILLED,
+                ButtonSize.SM,
+                on_click=self._go_next_page,
+            )
             self.btn_next_page.setFixedHeight(26)
-            self.btn_next_page.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_next_page.setEnabled(self.current_page < total_pages - 1)
-            self.btn_next_page.clicked.connect(self._go_next_page)
-
-            btn_style = f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 4px;
-                    padding: 2px 10px;
-                    font-size: 11px;
-                    font-weight: 600;
-                }}
-                QPushButton:hover:enabled {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border-color: {Styles.COLOR_BORDER_LIGHT};
-                }}
-                QPushButton:disabled {{
-                    color: {Styles.COLOR_TEXT_MUTED};
-                    background-color: transparent;
-                    border-color: transparent;
-                }}
-            """
-            self.btn_prev_page.setStyleSheet(btn_style)
-            self.btn_next_page.setStyleSheet(btn_style)
 
             pagination_bar.addWidget(self.btn_prev_page)
             pagination_bar.addStretch()

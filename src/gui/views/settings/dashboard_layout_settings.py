@@ -102,5 +102,5 @@ class DashboardLayoutSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
-        self.reset_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        self.reset_btn.refresh_styles()
         self.sortable_list.viewport().update()

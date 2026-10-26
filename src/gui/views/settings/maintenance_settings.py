@@ -273,4 +273,4 @@ class MaintenanceSettings(StorageCard):
             self.optimize_db_btn,
             self.rebuild_index_btn,
         ):
-            btn.setStyleSheet(Styles.get_settings_default_button_style())
+            btn.refresh_styles()

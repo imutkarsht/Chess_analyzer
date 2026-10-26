@@ -142,5 +142,5 @@ class BackupSettings(StorageCard):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.backup_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        self.restore_btn.setStyleSheet(Styles.get_settings_danger_button_style())
+        self.backup_btn.refresh_styles()
+        self.restore_btn.refresh_styles()

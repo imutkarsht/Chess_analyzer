@@ -4,8 +4,9 @@ import chess
 from PyQt6.QtCore import QByteArray, Qt
 from PyQt6.QtGui import QCursor, QGuiApplication, QIcon, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QPushButton
+from PyQt6.QtWidgets import QDialog, QHBoxLayout
 
+from src.gui.components import Button, ButtonVariant
 from src.gui.styles import Styles
 
 
@@ -37,8 +38,15 @@ class PromotionDialog(QDialog):
         }
 
         for piece_type, symbol in piece_map.items():
-            btn = QPushButton()
+            piece_label = chess.piece_name(piece_type).capitalize()
+            btn = Button(
+                variant=ButtonVariant.FILLED,
+                icon_position="only",
+                icon_size=42,
+                tooltip=f"Promote to {piece_label}",
+            )
             btn.setFixedSize(52, 52)
+            btn.setAccessibleName(f"Promote to {piece_label}")
             g_content = pieces_svg.get(symbol, "")
             if g_content:
                 svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
@@ -48,10 +56,7 @@ class PromotionDialog(QDialog):
                 painter = QPainter(pixmap)
                 renderer.render(painter)
                 painter.end()
-                btn.setIcon(QIcon(pixmap))
-                btn.setIconSize(pixmap.size())
-            btn.setStyleSheet(Styles.get_icon_button_style())
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.set_icon_spec(QIcon(pixmap))
             btn.clicked.connect(lambda _, pt=piece_type: self.select_piece(pt))
             layout.addWidget(btn)
 

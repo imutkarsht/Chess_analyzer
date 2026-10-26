@@ -1,16 +1,15 @@
 """
 Modern, custom UI widgets for the settings panel.
 """
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider, QWidget
+from importlib.util import find_spec
 
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QSlider, QWidget
+
+from ...components import Button, ButtonSize, ButtonVariant
 from ...styles import Styles
 
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
+HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 class ModernSliderCounter(QWidget):
@@ -56,17 +55,15 @@ class ModernSliderCounter(QWidget):
         counter_layout.setSpacing(4)
         counter_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.minus_btn = QPushButton("−")
+        self.minus_btn = Button("−", ButtonVariant.FILLED, ButtonSize.SM, on_click=self.decrement)
         self.minus_btn.setFixedSize(26, 26)
-        self.minus_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.value_label = QLabel("0")
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setFixedWidth(40)
 
-        self.plus_btn = QPushButton("+")
+        self.plus_btn = Button("+", ButtonVariant.FILLED, ButtonSize.SM, on_click=self.increment)
         self.plus_btn.setFixedSize(26, 26)
-        self.plus_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         counter_layout.addWidget(self.minus_btn)
         counter_layout.addWidget(self.value_label)
@@ -76,10 +73,6 @@ class ModernSliderCounter(QWidget):
 
         # Signals
         self.slider.valueChanged.connect(self._on_slider_changed)
-        self.minus_btn.clicked.connect(self.decrement)
-        self.plus_btn.clicked.connect(self.increment)
-
-        self.slider.sliderReleased.connect(self.editingFinished.emit)
         self.minus_btn.clicked.connect(self.editingFinished.emit)
         self.plus_btn.clicked.connect(self.editingFinished.emit)
 
@@ -164,28 +157,8 @@ class ModernSliderCounter(QWidget):
         """
         self.slider.setStyleSheet(slider_style)
 
-        btn_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 0px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_ACCENT};
-            }}
-            QPushButton:pressed {{
-                background-color: {Styles.COLOR_ACCENT_SUBTLE};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """
-        self.minus_btn.setStyleSheet(btn_style)
-        self.plus_btn.setStyleSheet(btn_style)
+        self.minus_btn.refresh_styles()
+        self.plus_btn.refresh_styles()
 
         self.value_label.setStyleSheet(f"""
             QLabel {{
@@ -242,13 +215,16 @@ class PasswordFieldWrapper(QWidget):
         self.line_edit.setStyleSheet("border: none; background: transparent; padding: 10px 0px;")
         layout.addWidget(self.line_edit, stretch=1)
 
-        self.toggle_btn = QPushButton()
+        self.toggle_btn = Button(
+            variant=ButtonVariant.GHOST,
+            size=ButtonSize.SM,
+            icon_position="only",
+            tooltip="Show password",
+            on_click=self.toggle_visibility,
+        )
+        self.toggle_btn.setAccessibleName("Show password")
         self.toggle_btn.setFixedSize(24, 24)
-        self.toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.toggle_btn.setStyleSheet("border: none; background: transparent; padding: 0px;")
         layout.addWidget(self.toggle_btn)
-
-        self.toggle_btn.clicked.connect(self.toggle_visibility)
 
         self.line_edit.focusInEvent = lambda event: self._on_focus_changed(True, event)
         self.line_edit.focusOutEvent = lambda event: self._on_focus_changed(False, event)
@@ -276,11 +252,11 @@ class PasswordFieldWrapper(QWidget):
         self.update_icon()
 
     def update_icon(self):
-        if HAS_QTAWESOME:
-            icon_name = "fa5s.eye-slash" if self._visible else "fa5s.eye"
-            self.toggle_btn.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
-        else:
-            self.toggle_btn.setText("Hide" if self._visible else "Show")
+        icon_name = "fa5s.eye-slash" if self._visible else "fa5s.eye"
+        self.toggle_btn.set_icon_spec(icon_name if HAS_QTAWESOME else None)
+        label = "Hide password" if self._visible else "Show password"
+        self.toggle_btn.setToolTip(label)
+        self.toggle_btn.setAccessibleName(label)
 
     def update_style(self, focused=False):
         border_color = Styles.COLOR_ACCENT if focused else Styles.COLOR_BORDER

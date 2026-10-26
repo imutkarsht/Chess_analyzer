@@ -211,6 +211,16 @@ def test_custom_accent_mode_reveals_colour_picker(qapp, monkeypatch):
     widget.deleteLater()
 
 
+def test_stored_custom_accent_mode_shows_picker_on_first_render(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
+    widget = ThemeAccentSettings(_FakeConfig({"accent_mode": "custom"}))
+
+    assert widget.color_btn.isHidden() is False
+    widget.deleteLater()
+
+
 def test_sound_volume_defaults_and_persists(qapp):
     config = _FakeConfig()
     widget = SoundSettings(config)

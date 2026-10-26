@@ -294,21 +294,10 @@ class SetupWizard(QDialog):
             _apply_accent_button_style(self, accent_col, accent_mode)
 
         if hasattr(self, "wizard_reset_accent_btn"):
-            self.wizard_reset_accent_btn.setStyleSheet(Styles.get_control_button_style())
+            self.wizard_reset_accent_btn.refresh_styles()
 
         if hasattr(self, "done_btn"):
-            self.done_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_ACCENT};
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    padding: 0 40px;
-                    font-size: 14px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-            """)
+            self.done_btn.refresh_styles()
 
         if hasattr(self, "ready_label"):
             self.ready_label.setStyleSheet(
@@ -323,38 +312,16 @@ class SetupWizard(QDialog):
             self.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
 
         if hasattr(self, "llm_test_btn"):
-            self.llm_test_btn.setStyleSheet(Styles.get_control_button_style())
+            self.llm_test_btn.refresh_styles()
 
         if hasattr(self, "sf_browse_btn"):
-            self.sf_browse_btn.setStyleSheet(Styles.get_control_button_style())
+            self.sf_browse_btn.refresh_styles()
         if hasattr(self, "sf_cancel_btn"):
-            self.sf_cancel_btn.setStyleSheet(Styles.get_control_button_style())
+            self.sf_cancel_btn.refresh_styles()
         if hasattr(self, "sf_download_btn"):
-            self.sf_download_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_ACCENT};
-                    color: white;
-                    border: none;
-                    border-radius: 6px;
-                    padding: 0 20px;
-                    font-size: 13px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-            """)
+            self.sf_download_btn.refresh_styles()
         if hasattr(self, "get_started_btn"):
-            self.get_started_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_ACCENT};
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    padding: 0 44px;
-                    font-size: 15px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-            """)
+            self.get_started_btn.refresh_styles()
         if hasattr(self, "sf_progress"):
             self.sf_progress.setStyleSheet(Styles.get_progress_bar_style())
 

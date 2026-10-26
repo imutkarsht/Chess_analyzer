@@ -76,7 +76,7 @@ class ShortcutSettings(QGroupBox):
         )
         self.form.refresh_styles()
         self.preset_combo.setStyleSheet(Styles.get_combobox_style())
-        self.help_btn.setStyleSheet(Styles.get_settings_default_button_style())
+        self.help_btn.refresh_styles()
 
     def _open_help(self):
         window = self.window()

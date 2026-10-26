@@ -3,14 +3,14 @@ import os
 from PyQt6.QtCore import (
     QEasingCurve,
     QPropertyAnimation,
-    QSize,
     Qt,
     pyqtProperty,
     pyqtSignal,
 )
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication, QFrame, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import QApplication, QFrame, QVBoxLayout
 
+from src.gui.components.button import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.config import ConfigManager
@@ -74,10 +74,13 @@ class Sidebar(QFrame):
         self.btn_help.clicked.connect(self.show_help)
         self.layout.addWidget(self.btn_help)
 
-        self.btn_collapse = QPushButton()
+        self.btn_collapse = Button(
+            variant=ButtonVariant.GHOST,
+            align="left",
+            icon_size=16,
+            on_click=self.toggle_collapse,
+        )
         self.btn_collapse.setFixedHeight(40)
-        self.btn_collapse.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_collapse.clicked.connect(self.toggle_collapse)
         self.layout.addWidget(self.btn_collapse)
 
         self.btn_exit = self._make_nav_button("Exit", "exit.png", -1)
@@ -105,24 +108,29 @@ class Sidebar(QFrame):
     def _apply_icon(self, btn, icon_name):
         if HAS_QTAWESOME and icon_name in QTAWESOME_ICONS:
             color_str = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
-            btn.setIcon(qta.icon(QTAWESOME_ICONS[icon_name], color=color_str))
-            btn.setIconSize(QSize(22, 22))
+            btn.set_icon_spec(qta.icon(QTAWESOME_ICONS[icon_name], color=color_str))
         else:
             icon_path = get_resource_path(os.path.join("assets", "icons", icon_name))
             if os.path.exists(icon_path):
-                btn.setIcon(QIcon(icon_path))
-                btn.setIconSize(QSize(22, 22))
+                btn.set_icon_spec(QIcon(icon_path))
 
-    def _make_nav_button(self, text: str, icon_name: str, index: int) -> QPushButton:
-        btn = QPushButton(text)
+    def _make_nav_button(self, text: str, icon_name: str, index: int) -> Button:
+        on_click = (
+            (lambda _checked=False, idx=index: self.handle_click(idx))
+            if index >= 0
+            else None
+        )
+        btn = Button(
+            text,
+            ButtonVariant.GHOST,
+            icon_size=22,
+            checkable=index >= 0,
+            align="left",
+            on_click=on_click,
+        )
         btn.setFixedHeight(48)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setCheckable(index >= 0)
 
         self._apply_icon(btn, icon_name)
-
-        if index >= 0:
-            btn.clicked.connect(lambda checked, idx=index: self.handle_click(idx))
 
         return btn
 
@@ -133,28 +141,9 @@ class Sidebar(QFrame):
                 background-color: {p.surface};
                 border-right: 1px solid {p.border};
             }}
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                border-radius: 8px;
-                padding: 0px 12px;
-                text-align: left;
-                font-size: 14px;
-                font-weight: 500;
-                color: {p.text_secondary};
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-            }}
-            QPushButton:checked {{
-                background-color: transparent;
-                border-left: 3px solid {p.accent};
-                color: {p.accent};
-                font-weight: 600;
-                border-radius: 0;
-            }}
         """)
+        for btn in (*self._nav_buttons, self.btn_help, self.btn_exit, self.btn_collapse):
+            btn.refresh_styles()
 
         nav_specs = [
             ("Analyze", "analyze.png", 0),
@@ -171,21 +160,22 @@ class Sidebar(QFrame):
 
     def _update_labels_and_icons(self):
         nav_texts = ["Analyze", "Explorer", "History", "Stats", "Settings"]
+        align = "center" if self._collapsed else "left"
         for btn, txt in zip(self._nav_buttons, nav_texts, strict=False):
-            btn.setText(f"  {txt}" if not self._collapsed else "")
-        self.btn_help.setText("  Help (F1)" if not self._collapsed else "")
-        self.btn_exit.setText("  Exit" if not self._collapsed else "")
+            btn.setText(txt if not self._collapsed else "")
+            btn.set_align(align)
+        self.btn_help.setText("Help (F1)" if not self._collapsed else "")
+        self.btn_help.set_align(align)
+        self.btn_exit.setText("Exit" if not self._collapsed else "")
+        self.btn_exit.set_align(align)
+        self.btn_collapse.set_align(align)
         self._update_collapse_icon()
 
     def _update_collapse_icon(self):
         icon_char = "\u00ab" if not self._collapsed else "\u00bb"
-        self.btn_collapse.setText(f"  {icon_char}" if not self._collapsed else icon_char)
-        if HAS_QTAWESOME:
-            self.btn_collapse.setIcon(qta.icon(
-                "fa5s.chevron-left" if not self._collapsed else "fa5s.chevron-right",
-                color=Styles.COLOR_TEXT_SECONDARY,
-            ))
-            self.btn_collapse.setIconSize(QSize(16, 16))
+        self.btn_collapse.setText(icon_char)
+        icon_name = "fa5s.chevron-left" if not self._collapsed else "fa5s.chevron-right"
+        self.btn_collapse.set_icon_spec(icon_name)
 
     def handle_click(self, index):
         self.set_active(index)

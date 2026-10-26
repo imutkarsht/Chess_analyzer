@@ -4,29 +4,23 @@ Displayed on the right half of the main window when no game is loaded.
 """
 import os
 
-from PyQt6.QtCore import QSize, Qt, QUrl
-from PyQt6.QtGui import QCursor, QDesktopServices, QPixmap
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
 from src.constants import ABOUT_URL, APP_VERSION, GITHUB_REPO_URL, WEBSITE_URL
+from src.gui.components.button import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.path_utils import get_resource_path
-
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class WelcomePanel(QFrame):
@@ -45,7 +39,7 @@ class WelcomePanel(QFrame):
         super().__init__(parent)
         self.setObjectName("WelcomePanel")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self._buttons: list[tuple[QPushButton, str, bool]] = []
+        self._buttons: list[tuple[Button, str, bool]] = []
         self._setup_ui()
 
         ThemeManager.instance().theme_changed.connect(lambda mode: self.refresh_styles())
@@ -193,13 +187,11 @@ class WelcomePanel(QFrame):
         icon_name: str,
         callback,
         highlight: bool = False,
-    ) -> QPushButton:
+    ) -> Button:
         """Create a quick-action button with centered icon and text."""
-        btn = QPushButton(f"  {text}")
-        btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        variant = ButtonVariant.TONAL if highlight else ButtonVariant.FILLED
+        btn = Button(text, variant, icon=icon_name, full_width=True, on_click=callback)
         btn.setFixedHeight(self.BUTTON_HEIGHT)
-        btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        btn.clicked.connect(callback)
         self._buttons.append((btn, icon_name, highlight))
         return btn
 
@@ -237,32 +229,8 @@ class WelcomePanel(QFrame):
             f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
         )
 
-        for btn, icon_name, is_highlight in self._buttons:
-            border_color = Styles.COLOR_ACCENT if is_highlight else Styles.COLOR_BORDER
-            if HAS_QTAWESOME:
-                icon_color = Styles.COLOR_ACCENT if is_highlight else Styles.COLOR_TEXT_SECONDARY
-                btn.setIcon(qta.icon(icon_name, color=icon_color))
-                btn.setIconSize(QSize(16, 16))
-
-            # Text is centered by default; no text-align override.
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {border_color};
-                    border-radius: 8px;
-                    padding: 0px 14px;
-                    font-size: 13px;
-                    font-weight: 500;
-                }}
-                QPushButton:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border-color: {Styles.COLOR_ACCENT_HOVER};
-                }}
-                QPushButton:pressed {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                }}
-            """)
+        for btn, _icon_name, _is_highlight in self._buttons:
+            btn.refresh_styles()
 
     # ── Action callbacks ──────────────────────────────────────────────────
     def _open_github(self) -> None:

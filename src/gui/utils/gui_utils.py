@@ -4,14 +4,13 @@ Shared GUI utility functions and widget factories.
 import os
 from collections.abc import Callable
 
-from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
     QLayout,
     QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -89,50 +88,38 @@ def create_button(
     on_click: Callable | None = None,
     cursor: bool = True,
     icon_name: str | None = None
-) -> QPushButton:
+):
     """
-    Factory function to create styled buttons.
+    Factory kept for existing call sites; builds the central Button.
 
     Args:
         text: Button text
-        style: Style type - "primary", "secondary", "export", "import"
+        style: "primary", "secondary", "export", "import" or "danger"
         on_click: Click handler callback
         cursor: Whether to show pointer cursor on hover
         icon_name: Optional icon name from qtawesome (e.g. "fa5s.save")
 
     Returns:
-        Configured QPushButton
+        Configured Button
     """
-    from src.gui.styles import Styles  # Import here to avoid circular imports
+    from src.gui.components import Button, ButtonVariant
 
-    btn = QPushButton(f"  {text}" if icon_name else text)
-
-    style_map = {
-        "primary": Styles.get_button_style,
-        "secondary": Styles.get_control_button_style,
-        "export": Styles.get_export_button_style,
-        "import": Styles.get_import_button_style,
-        "danger": Styles.get_danger_button_style,
+    variants = {
+        "primary": ButtonVariant.PRIMARY,
+        "secondary": ButtonVariant.FILLED,
+        "export": ButtonVariant.FILLED,
+        "import": ButtonVariant.FILLED,
+        "danger": ButtonVariant.PRIMARY,
     }
-
-    style_func = style_map.get(style, Styles.get_button_style)
-    btn.setStyleSheet(style_func())
-
-    if icon_name:
-        try:
-            import qtawesome as qta
-            icon_color = "#ffffff" if style == "primary" else Styles.COLOR_TEXT_SECONDARY
-            btn.setIcon(qta.icon(icon_name, color=icon_color))
-            btn.setIconSize(QSize(16, 16))
-        except ImportError:
-            pass
-
-    if cursor:
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-
-    if on_click:
-        btn.clicked.connect(on_click)
-
+    btn = Button(
+        text,
+        variants.get(style, ButtonVariant.PRIMARY),
+        icon=icon_name,
+        danger=style == "danger",
+        on_click=on_click,
+    )
+    if not cursor:
+        btn.setCursor(Qt.CursorShape.ArrowCursor)
     return btn
 
 

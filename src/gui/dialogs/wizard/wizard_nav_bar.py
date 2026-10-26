@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
+from src.gui.components import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
@@ -48,18 +49,14 @@ class WizardNavBar(QWidget):
         layout.addWidget(self.steps_widget)
         layout.addStretch()
 
-        self.skip_btn = QPushButton("Skip AI Setup")
-        self.skip_btn.setFlat(True)
-        self.skip_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.skip_btn = Button("Skip AI Setup", ButtonVariant.GHOST)
         layout.addWidget(self.skip_btn)
 
-        self.back_btn = QPushButton("Back")
-        self.back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.back_btn = Button("Back", ButtonVariant.FILLED)
         self.back_btn.setFixedHeight(36)
         layout.addWidget(self.back_btn)
 
-        self.next_btn = QPushButton("Next")
-        self.next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.next_btn = Button("Next", ButtonVariant.PRIMARY)
         self.next_btn.setFixedHeight(36)
         layout.addWidget(self.next_btn)
 
@@ -76,51 +73,12 @@ class WizardNavBar(QWidget):
         self.step_name_label.setStyleSheet(
             f"color: {p.text_primary}; font-size: 13px; font-weight: 600; margin-left: 6px; {Styles.get_transparent_label_style()}"
         )
-        self.skip_btn.setStyleSheet(f"""
-            QPushButton {{
-                color: {p.text_secondary};
-                font-size: 13px;
-                border: none;
-                background: transparent;
-                padding: 6px 12px;
-            }}
-            QPushButton:hover {{
-                color: {p.text_primary};
-            }}
-        """)
+        self.skip_btn.refresh_styles()
         self.refresh_accent()
 
     def refresh_accent(self):
-        p = ThemeManager.palette()
-        self.next_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {p.accent};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 0 24px;
-                font-size: 13px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {p.accent_hover};
-            }}
-        """)
-        self.back_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 0 18px;
-                font-size: 13px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                border: 1px solid {p.accent};
-                background-color: {p.surface};
-            }}
-        """)
+        self.next_btn.refresh_styles()
+        self.back_btn.refresh_styles()
 
     def update(self, index: int, total: int = 7):
         # Map wizard page index to step indicator (0: Gatekeeper, 1: Welcome, 2: Profile, 3: Appearance, 4: Engine, 5: LLM, 6: Done)

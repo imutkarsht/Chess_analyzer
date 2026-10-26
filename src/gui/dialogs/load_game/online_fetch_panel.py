@@ -272,25 +272,6 @@ class OnlineFetchPanel(QWidget):
         self.fetch_btn = create_button("Fetch Games", style="primary", on_click=self._fetch, icon_name="fa5s.cloud-download-alt")
         self.fetch_btn.setFixedHeight(38)
         self.fetch_btn.setMinimumWidth(200)
-        self.fetch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.fetch_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: #FFFFFF !important;
-                border: none;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 700;
-                padding: 0 24px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-            QPushButton:disabled {{
-                background-color: {Styles.COLOR_BORDER};
-                color: {Styles.COLOR_TEXT_MUTED};
-            }}
-        """)
 
         btn_box = QHBoxLayout()
         btn_box.setContentsMargins(0, 8, 0, 0)

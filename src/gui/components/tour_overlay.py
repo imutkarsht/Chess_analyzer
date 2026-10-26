@@ -5,12 +5,12 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
+from src.gui.components.button import Button, ButtonVariant
 from src.gui.components.tour_manager import TourManager
 from src.gui.styles import Styles
 
@@ -91,57 +91,20 @@ class TourOverlay(QWidget):
         nav.setContentsMargins(0, 4, 0, 0)
         nav.setSpacing(8)
 
-        self.prev_btn = QPushButton("← Back")
-        self.prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.prev_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 7px 16px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
-            QPushButton:disabled {{ color: {Styles.COLOR_TEXT_MUTED}; border-color: {Styles.COLOR_BORDER}; }}
-        """)
-        self.prev_btn.clicked.connect(self._on_prev)
+        self.prev_btn = Button("← Back", ButtonVariant.FILLED, on_click=self._on_prev)
         nav.addWidget(self.prev_btn)
 
         nav.addStretch()
 
-        self.next_btn = QPushButton("Next →")
-        self.next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.next_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 7px 22px;
-                font-size: 13px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-        """)
-        self.next_btn.clicked.connect(self._on_next)
+        self.next_btn = Button("Next →", ButtonVariant.PRIMARY, on_click=self._on_next)
         nav.addWidget(self.next_btn)
 
-        self.close_btn = QPushButton("✕")
-        self.close_btn.setToolTip("Close tour  (Esc)")
-        self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.close_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_MUTED};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 7px 11px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{ color: {Styles.COLOR_TEXT_PRIMARY}; border-color: {Styles.COLOR_ACCENT}; }}
-        """)
-        self.close_btn.clicked.connect(self._on_close)
+        self.close_btn = Button(
+            "✕",
+            ButtonVariant.GHOST,
+            tooltip="Close tour  (Esc)",
+            on_click=self._on_close,
+        )
         nav.addWidget(self.close_btn)
 
         layout.addLayout(nav)
@@ -168,41 +131,9 @@ class TourOverlay(QWidget):
                 background: transparent;
             }}
         """)
-        self.next_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 7px 22px;
-                font-size: 13px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-        """)
-        self.prev_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 7px 16px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{ border-color: {Styles.COLOR_ACCENT}; }}
-            QPushButton:disabled {{ color: {Styles.COLOR_TEXT_MUTED}; border-color: {Styles.COLOR_BORDER}; }}
-        """)
-        self.close_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_MUTED};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 7px 11px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{ color: {Styles.COLOR_TEXT_PRIMARY}; border-color: {Styles.COLOR_ACCENT}; }}
-        """)
+        self.next_btn.refresh_styles()
+        self.prev_btn.refresh_styles()
+        self.close_btn.refresh_styles()
 
     # ── Internal ─────────────────────────────────────────────────────────
 
