@@ -8,13 +8,13 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMenu,
-    QPushButton,
     QVBoxLayout,
     QWidget,
     QWidgetAction,
 )
 
 from ..styles import Styles
+from .button import Button, ButtonSize, ButtonVariant
 
 try:
     import qtawesome as qta
@@ -173,24 +173,7 @@ class ModernDatePicker(QFrame):
         box_layout.addWidget(calendar)
 
         # Bottom Bar: "Today" shortcut button
-        today_btn = QPushButton("Today")
-        today_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        today_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 4px 12px;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
+        today_btn = Button("Today", ButtonVariant.FILLED, size=ButtonSize.SM)
 
         def on_today_clicked():
             today = QDate.currentDate()

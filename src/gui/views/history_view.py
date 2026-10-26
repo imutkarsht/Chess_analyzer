@@ -513,13 +513,13 @@ class HistoryView(QWidget):
                 Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
             )
         if hasattr(self, "btn_import"):
-            self.btn_import.setStyleSheet(Styles.get_control_button_style())
+            self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):
-            self.btn_export.setStyleSheet(Styles.get_control_button_style())
+            self.btn_export.refresh_styles()
         if hasattr(self, "btn_clear"):
-            self.btn_clear.setStyleSheet(Styles.get_control_button_style(danger=True))
+            self.btn_clear.refresh_styles()
         if hasattr(self, "btn_refresh"):
-            self.btn_refresh.setStyleSheet(Styles.get_control_button_style())
+            self.btn_refresh.refresh_styles()
         if hasattr(self, "result_filter"):
             self.result_filter.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, "type_filter"):

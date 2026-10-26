@@ -119,14 +119,12 @@ class ThemeMixin:
 
         # Header Buttons
         if hasattr(self, "btn_analyze"):
-            if getattr(self, "_full_analysis_running", False):
-                self.btn_analyze.setStyleSheet(Styles.get_danger_button_style())
-            else:
-                self.btn_analyze.setStyleSheet(Styles.get_button_style())
+            self.btn_analyze.set_danger(getattr(self, "_full_analysis_running", False))
+            self.btn_analyze.refresh_styles()
         if hasattr(self, "btn_explore"):
-            self.btn_explore.setStyleSheet(Styles.get_control_button_style())
+            self.btn_explore.refresh_styles()
         if hasattr(self, "btn_load"):
-            self.btn_load.setStyleSheet(Styles.get_control_button_style())
+            self.btn_load.refresh_styles()
 
         # Analysis page header containers
         if hasattr(self, "analysis_header_bar"):

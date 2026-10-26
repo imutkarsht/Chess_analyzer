@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 
 from src.config.settings_schema import SETTINGS
 from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
+from src.gui.components import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
@@ -43,12 +44,6 @@ from .settings import (
     ThemeAccentSettings,
     WindowLayoutSettings,
 )
-
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class SettingsView(QWidget):
@@ -560,16 +555,12 @@ class SettingsView(QWidget):
         """)
 
     def _create_save_button(self):
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtWidgets import QPushButton
-        btn = QPushButton("  Save Settings")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(Styles.get_button_style())
-
-        if HAS_QTAWESOME:
-            btn.setIcon(qta.icon("fa5s.save", color="#ffffff"))
-
-        btn.clicked.connect(self.save_all_settings)
+        btn = Button(
+            "Save Settings",
+            ButtonVariant.PRIMARY,
+            icon="fa5s.save",
+            on_click=self.save_all_settings,
+        )
         return btn
 
     def on_theme_refreshed(self):
@@ -578,22 +569,15 @@ class SettingsView(QWidget):
             window.refresh_theme()
 
     def _create_mode_toggle(self):
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtWidgets import QPushButton
-        btn = QPushButton()
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.clicked.connect(self._toggle_mode)
-        btn.setStyleSheet(Styles.get_control_button_style())
+        btn = Button(variant=ButtonVariant.FILLED, on_click=self._toggle_mode)
         self._update_mode_toggle_text(btn)
         return btn
 
     def _update_mode_toggle_text(self, btn=None):
         b = btn or self.mode_toggle_btn
-        b.setText("  Advanced Settings" if self._mode == "basic" else "  Basic Settings")
-        if HAS_QTAWESOME:
-            icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
-            b.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
-        b.setStyleSheet(Styles.get_control_button_style())
+        b.setText("Advanced Settings" if self._mode == "basic" else "Basic Settings")
+        icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
+        b.set_icon_spec(icon_name)
 
     def _toggle_mode(self):
         self._mode = "advanced" if self._mode == "basic" else "basic"
@@ -747,9 +731,9 @@ class SettingsView(QWidget):
         if hasattr(self, 'settings_panel'):
             self.settings_panel.setStyleSheet(self._panel_style())
         if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
-            self.save_settings_btn.setStyleSheet(Styles.get_button_style())
+            self.save_settings_btn.refresh_styles()
         if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
-            self.mode_toggle_btn.setStyleSheet(Styles.get_control_button_style())
+            self.mode_toggle_btn.refresh_styles()
             self._update_mode_toggle_text(self.mode_toggle_btn)
 
         cards = (

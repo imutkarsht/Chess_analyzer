@@ -121,12 +121,8 @@ class BookSettings(QGroupBox):
         if hasattr(self, "polyglot_path_input"):
             self.polyglot_path_input.setStyleSheet(Styles.get_input_style())
         if hasattr(self, "polyglot_browse_btn"):
-            self.polyglot_browse_btn.setStyleSheet(
-                Styles.get_settings_default_button_style()
-            )
+            self.polyglot_browse_btn.refresh_styles()
         if hasattr(self, "polyglot_clear_btn"):
-            self.polyglot_clear_btn.setStyleSheet(
-                Styles.get_settings_default_button_style()
-            )
+            self.polyglot_clear_btn.refresh_styles()
         if hasattr(self, "polyglot_validation_label"):
             self.validate_polyglot_path()

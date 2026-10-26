@@ -10,13 +10,13 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
     QHeaderView,
-    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.utils.resources import ResourceManager
 
@@ -74,28 +74,20 @@ class ExplorerMoveListWidget(QWidget):
         nav_layout.setContentsMargins(0, 4, 0, 0)
         nav_layout.setSpacing(10)
 
-        self.btn_first = QPushButton("⏮")
-        self.btn_prev = QPushButton("◀")
-        self.btn_next = QPushButton("▶")
-        self.btn_last = QPushButton("⏭")
+        self.btn_first = Button("⏮", ButtonVariant.FILLED, ButtonSize.LG, on_click=self.nav_first.emit)
+        self.btn_prev = Button("◀", ButtonVariant.FILLED, ButtonSize.LG, on_click=self.nav_prev.emit)
+        self.btn_next = Button("▶", ButtonVariant.FILLED, ButtonSize.LG, on_click=self.nav_next.emit)
+        self.btn_last = Button("⏭", ButtonVariant.FILLED, ButtonSize.LG, on_click=self.nav_last.emit)
 
         for btn in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
-            btn.setStyleSheet(Styles.get_nav_button_style())
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
             nav_layout.addWidget(btn)
-
-        self.btn_first.clicked.connect(self.nav_first.emit)
-        self.btn_prev.clicked.connect(self.nav_prev.emit)
-        self.btn_next.clicked.connect(self.nav_next.emit)
-        self.btn_last.clicked.connect(self.nav_last.emit)
 
         self.layout.addLayout(nav_layout)
 
     def refresh_styles(self):
         self.table.setStyleSheet(Styles.get_explorer_table_style())
-        btn_style = Styles.get_nav_button_style()
         for btn in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
-            btn.setStyleSheet(btn_style)
+            btn.refresh_styles()
 
     def add_move(self, san: str, classification: str = None):
         """Append a new move to the list."""

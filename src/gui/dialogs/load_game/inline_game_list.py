@@ -2,8 +2,9 @@
 Inline game list component for the Load Game dialog.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
+from ...components import Button, ButtonSize, ButtonVariant
 from ...styles import Styles
 from .game_card import GameCard
 
@@ -36,25 +37,13 @@ class InlineGameList(QWidget):
         h_layout.addWidget(self._header)
         h_layout.addStretch()
 
-        self.btn_clear = QPushButton("✕ Clear")
+        self.btn_clear = Button(
+            "✕ Clear",
+            ButtonVariant.HOLLOW,
+            ButtonSize.SM,
+            on_click=self.cleared.emit,
+        )
         self.btn_clear.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_clear.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 4px 10px;
-            }}
-            QPushButton:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-                color: {Styles.COLOR_ACCENT};
-                background-color: {Styles.COLOR_ACCENT_SUBTLE};
-            }}
-        """)
-        self.btn_clear.clicked.connect(self.cleared.emit)
         h_layout.addWidget(self.btn_clear)
 
         root.addWidget(header_widget)
@@ -95,11 +84,13 @@ class InlineGameList(QWidget):
         self._pagination_layout.setContentsMargins(2, 4, 2, 4)
         self._pagination_layout.setSpacing(10)
 
-        self.btn_prev = QPushButton("◀ Previous")
+        self.btn_prev = Button(
+            "◀ Previous",
+            ButtonVariant.FILLED,
+            ButtonSize.SM,
+            on_click=self._prev_page,
+        )
         self.btn_prev.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_prev.setStyleSheet(self._button_style())
-        self.btn_prev.clicked.connect(self._prev_page)
         self._pagination_layout.addWidget(self.btn_prev)
 
         self._pagination_layout.addStretch()
@@ -110,11 +101,13 @@ class InlineGameList(QWidget):
 
         self._pagination_layout.addStretch()
 
-        self.btn_next = QPushButton("Next ▶")
+        self.btn_next = Button(
+            "Next ▶",
+            ButtonVariant.FILLED,
+            ButtonSize.SM,
+            on_click=self._next_page,
+        )
         self.btn_next.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_next.setStyleSheet(self._button_style())
-        self.btn_next.clicked.connect(self._next_page)
         self._pagination_layout.addWidget(self.btn_next)
 
         root.addWidget(self._pagination_widget)
@@ -125,27 +118,6 @@ class InlineGameList(QWidget):
         self._current_page: int = 0
         self._games_per_page: int = 10
         self._header_template: str = ""
-
-    def _button_style(self):
-        return f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 12px;
-                padding: 5px 12px;
-            }}
-            QPushButton:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-                background-color: {Styles.COLOR_ACCENT_SUBTLE};
-            }}
-            QPushButton:disabled {{
-                background-color: transparent;
-                border-color: {Styles.COLOR_BORDER};
-                color: {Styles.COLOR_TEXT_MUTED};
-            }}
-        """
 
     def populate(self, rows: list[tuple[str, str]], header: str = ""):
         self._all_rows = rows

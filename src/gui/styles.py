@@ -353,10 +353,19 @@ class Styles(metaclass=_StylesMeta):
             disabled_bg = p.surface_light
         elif variant == "outlined":
             bg, fg, border = "transparent", acc, acc
-            hover = (acc, on_acc, acc)
-            pressed = (acc, on_acc, acc)
-            checked = (acc, on_acc, acc)
+            # Tint instead of filling: the accent-coloured icon must stay visible.
+            hover = (p.accent_subtle, acc, acc)
+            pressed = (p.accent_subtle, acc, acc)
+            checked = (p.accent_subtle, acc, acc)
             disabled_bg = "transparent"
+        elif variant == "tonal":
+            # Soft accent action: reads as AI/feature-level without competing
+            # with a solid primary button on the same screen.
+            bg, fg, border = p.accent_subtle, acc, p.accent_subtle
+            hover = (p.surface_light, acc, acc)
+            pressed = (p.accent_subtle, acc, acc)
+            checked = (p.accent_subtle, acc, acc)
+            disabled_bg = p.surface_light
         elif variant == "hollow":
             bg, fg, border = "transparent", p.text_primary, p.border
             hover = (p.surface_light, p.text_primary, acc)
@@ -371,9 +380,10 @@ class Styles(metaclass=_StylesMeta):
             disabled_bg = "transparent"
         elif variant == "danger":
             bg, fg, border = "transparent", danger_color, danger_color
-            hover = (danger_color, on_acc, danger_color)
-            pressed = (danger_color, on_acc, danger_color)
-            checked = (danger_color, on_acc, danger_color)
+            # Keep a tinted hover (not a red fill) so the red icon stays visible.
+            hover = (p.surface_light, danger_color, danger_color)
+            pressed = (p.accent_subtle, danger_color, danger_color)
+            checked = (p.accent_subtle, danger_color, danger_color)
             disabled_bg = "transparent"
         else:  # link
             bg, fg, border = "transparent", p.text_secondary, "transparent"
@@ -385,11 +395,26 @@ class Styles(metaclass=_StylesMeta):
         if danger and variant != "danger":
             fg = danger_color
             border = danger_color
-            hover = (danger_color, on_acc, danger_color)
-            pressed = (danger_color, on_acc, danger_color)
-            checked = (danger_color, on_acc, danger_color)
-            if bg != "transparent":
+            if variant == "primary":
+                # Solid destructive button: white label/icon on the red fill.
                 bg = danger_color
+                fg = on_acc
+                hover = ("#B01020", on_acc, "#B01020")
+                pressed = ("#900010", on_acc, "#900010")
+                checked = ("#B01020", on_acc, "#B01020")
+            elif variant in ("filled", "tonal"):
+                hover = (p.surface, danger_color, danger_color)
+                pressed = (p.surface_light, danger_color, danger_color)
+                checked = (p.surface_light, danger_color, danger_color)
+            elif variant in ("ghost", "link"):
+                border = "transparent"
+                hover = (p.surface_light, danger_color, "transparent")
+                pressed = (p.accent_subtle, danger_color, "transparent")
+                checked = (p.accent_subtle, danger_color, "transparent")
+            else:  # outlined / hollow
+                hover = (p.surface_light, danger_color, danger_color)
+                pressed = (p.accent_subtle, danger_color, danger_color)
+                checked = (p.accent_subtle, danger_color, danger_color)
 
         align_rule = f"text-align: {align};" if align else ""
         return f"""
@@ -425,88 +450,9 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
 
-    @classmethod
-    def get_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.accent};
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {p.accent_hover};
-            }}
-            QPushButton:pressed {{
-                background-color: {p.accent};
-            }}
-            QPushButton:disabled {{
-                background-color: {p.border};
-                color: {p.text_muted};
-            }}
-        """
 
-    @classmethod
-    def get_danger_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: #D02030;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: #B01020;
-            }}
-            QPushButton:pressed {{
-                background-color: #900010;
-            }}
-            QPushButton:disabled {{
-                background-color: {p.border};
-                color: {p.text_muted};
-            }}
-        """
 
-    @classmethod
-    def get_outline_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                border: 1px solid {p.accent};
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {p.accent};
-                color: #FFFFFF;
-            }}
-        """
 
-    @classmethod
-    def get_icon_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background: {p.surface_light};
-                border: 2px solid {p.border};
-                border-radius: 8px;
-            }}
-            QPushButton:hover {{
-                background: {p.accent};
-                border-color: {p.accent};
-            }}
-        """
 
     @classmethod
     def get_board_game_header_style(cls):
@@ -534,55 +480,10 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
 
-    @classmethod
-    def get_nav_icon_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QToolButton {{
-                background: transparent;
-                color: {p.text_primary};
-                border: none;
-                border-radius: 5px;
-                padding: 0px;
-            }}
-            QToolButton:hover {{
-                background-color: {p.surface};
-                color: {p.accent};
-            }}
-            QToolButton:pressed {{
-                background-color: {p.accent_subtle};
-            }}
-            QToolButton:disabled {{
-                color: {p.text_muted};
-            }}
-        """
 
     # ═══════════════════════════════════════════════════════════════
     #  VARIATION BRANCH GRAPH
     # ═══════════════════════════════════════════════════════════════
-    @classmethod
-    def get_variation_action_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.surface_card};
-                color: {p.text_primary};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 0px;
-            }}
-            QPushButton:hover {{
-                background-color: {p.accent_subtle};
-                border-color: {p.accent};
-            }}
-            QPushButton:pressed {{
-                background-color: {p.accent_subtle};
-            }}
-            QPushButton:disabled {{
-                background-color: {p.surface_light};
-                border-color: {p.border};
-            }}
-        """
 
     @classmethod
     def get_variation_graph_style(cls):
@@ -681,277 +582,17 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
 
-    @classmethod
-    def get_delete_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                border-radius: 4px;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface_light};
-                border: 1px solid {cls.COLOR_BLUNDER};
-            }}
-        """
 
-    @classmethod
-    def get_toggle_button_style(cls, active=False):
-        p = ThemeManager.palette()
-        bg = p.accent if active else p.surface_light
-        text_color = "#FFFFFF" if active else p.text_primary
-        border_color = p.accent if active else p.border
-        weight = "700" if active else "500"
-        return f"""
-            QPushButton {{
-                background-color: {bg};
-                color: {text_color} !important;
-                border: 1px solid {border_color};
-                border-radius: 5px;
-                padding: 0 10px;
-                font-size: 12px;
-                font-weight: {weight};
-            }}
-        """
 
-    @classmethod
-    def get_page_btn_style(cls, enabled=True):
-        p = ThemeManager.palette()
-        bg = p.surface_light if enabled else "transparent"
-        text = p.text_primary if enabled else p.text_muted
-        return f"""
-            QPushButton {{
-                background-color: {bg};
-                color: {text};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 0 12px;
-                font-size: 13px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {p.accent};
-                color: {p.text_primary};
-                border-color: {p.accent};
-            }}
-            QPushButton:disabled {{
-                opacity: 0.4;
-            }}
-        """
 
-    @classmethod
-    def get_page_num_btn_style(cls, active=False):
-        p = ThemeManager.palette()
-        bg = p.accent if active else p.surface_light
-        text = "#FFFFFF" if active else p.text_primary
-        border = p.accent if active else p.border
-        weight = "700" if active else "400"
-        return f"""
-            QPushButton {{
-                background-color: {bg};
-                color: {text} !important;
-                border: 1px solid {border};
-                border-radius: 6px;
-                padding: 0px !important;
-                font-size: 12px;
-                font-weight: {weight};
-                text-align: center !important;
-            }}
-            QPushButton:hover {{
-                background-color: {p.accent};
-                border-color: {p.accent};
-                color: #FFFFFF !important;
-            }}
-        """
 
-    @classmethod
-    def get_card_action_button_style(cls, primary=False):
-        p = ThemeManager.palette()
-        bg = p.accent if primary else p.surface_light
-        color = "#FFFFFF" if primary else p.text_primary
-        border = p.accent if primary else p.border
-        hover_bg = p.accent_hover if primary else p.surface
-        return f"""
-            QPushButton {{
-                background-color: {bg};
-                color: {color} !important;
-                border: 1px solid {border};
-                border-radius: 4px;
-                padding: 3px 8px;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {hover_bg};
-                color: #FFFFFF !important;
-                border-color: {p.accent};
-            }}
-            QPushButton:pressed {{
-                background-color: {p.accent};
-            }}
-        """
 
-    @classmethod
-    def get_card_action_icon_button_style(cls, status: str = "not_started"):
-        p = ThemeManager.palette()
-        hover_border = cls.COLOR_ENGINE_BUSY if status == "paused" else p.accent
-        return f"""
-            QPushButton {{
-                background-color: transparent;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                padding: 0px;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface_light};
-                border: 1px solid {hover_border};
-            }}
-            QPushButton:pressed {{
-                background-color: {p.surface};
-            }}
-        """
 
-    @classmethod
-    def get_control_button_style(cls, danger=False):
-        p = ThemeManager.palette()
-        color = p.text_primary
-        hover_color = p.text_primary
-        if danger:
-            color = cls.COLOR_BLUNDER
-            hover_color = cls.COLOR_BLUNDER
-        return f"""
-            QPushButton {{
-                background-color: {p.surface_light};
-                color: {color};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface};
-                color: {hover_color};
-                border: 1px solid {p.accent};
-            }}
-            QPushButton:pressed {{
-                background-color: {p.accent_subtle};
-                border: 1px solid {p.accent};
-            }}
-            QPushButton:disabled {{
-                background-color: {p.surface_light};
-                color: {p.text_muted};
-                border-color: {p.border};
-            }}
-        """
 
-    @classmethod
-    def get_nav_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface};
-                border: 1px solid {p.accent};
-            }}
-            QPushButton:pressed {{
-                background-color: {p.accent};
-                color: white;
-            }}
-            QPushButton:disabled {{
-                color: {p.text_muted};
-                background-color: {p.surface_light};
-            }}
-        """
 
-    @classmethod
-    def get_export_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: #2D5A27;
-                color: white;
-                border: 1px solid {p.border};
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-size: 14px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: #387030;
-            }}
-            QPushButton:pressed {{
-                background-color: #1E3C1A;
-            }}
-        """
 
-    @classmethod
-    def get_import_button_style(cls):
-        return """
-            QPushButton {
-                background-color: #2D4A6B;
-                color: white;
-                border: 1px solid #3D5A7B;
-                border-radius: 6px;
-                padding: 8px 14px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background-color: #3A5F85;
-                border: 1px solid #4A7095;
-            }
-            QPushButton:pressed {
-                background-color: #254060;
-            }
-        """
 
-    @classmethod
-    def get_action_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.surface};
-                color: {p.text_secondary};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface_light};
-                border-color: {p.accent};
-                color: {p.text_primary};
-            }}
-        """
 
-    @classmethod
-    def get_book_toggle_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background: transparent;
-                border: none;
-                text-align: left;
-                font-size: 14px;
-                font-weight: bold;
-                color: {p.text_primary};
-                padding: 2px 0px;
-            }}
-            QPushButton:hover {{
-                color: {p.accent};
-            }}
-        """
 
     # ═══════════════════════════════════════════════════════════════
     #  INPUTS / TEXT FIELDS
@@ -1586,23 +1227,6 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
 
-    @classmethod
-    def get_settings_link_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background: transparent;
-                border: none;
-                padding: 5px 2px;
-                text-align: left;
-                color: {p.text_secondary};
-                font-size: 13px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                color: {p.accent};
-            }}
-        """
 
     @classmethod
     def get_board_swatch_button_style(cls):
@@ -2226,62 +1850,8 @@ class Styles(metaclass=_StylesMeta):
     # ═══════════════════════════════════════════════════════════════
     #  SETTINGS PAGE
     # ═══════════════════════════════════════════════════════════════
-    @classmethod
-    def get_settings_default_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                border: 1px solid {p.border};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface};
-                border-color: {p.accent};
-            }}
-        """
 
-    @classmethod
-    def get_settings_danger_button_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.background};
-                color: {cls.COLOR_BLUNDER};
-                border: 1px solid {cls.COLOR_BLUNDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface_light};
-                color: {cls.COLOR_BLUNDER};
-                border: 1px solid {cls.COLOR_BLUNDER};
-            }}
-        """
 
-    @classmethod
-    def get_settings_square_icon_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QPushButton {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                font-size: 16px; font-weight: bold;
-                min-width: 28px; max-width: 28px;
-                min-height: 28px; max-height: 28px;
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface};
-                color: {p.text_primary};
-                border-color: {p.accent};
-            }}
-        """
 
     # ═══════════════════════════════════════════════════════════════
     #  UTILITY

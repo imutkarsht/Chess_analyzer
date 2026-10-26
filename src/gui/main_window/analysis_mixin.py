@@ -1,4 +1,3 @@
-import qtawesome as qta
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QDialog, QMessageBox
 
@@ -9,7 +8,6 @@ from src.gui.dialogs.engine_error_dialog import EngineNotFoundDialog
 from src.gui.dialogs.feedback_dialog import FeedbackDialog
 from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
 from src.gui.main_window.navigation_mixin import compute_clock_times
-from src.gui.styles import Styles
 from src.utils.logger import logger
 
 
@@ -131,12 +129,9 @@ class AnalysisMixin:
             pass
 
         if running:
-            self.btn_analyze.setText("  Stop Analysis")
-            self.btn_analyze.setStyleSheet(Styles.get_danger_button_style())
-            try:
-                self.btn_analyze.setIcon(qta.icon("fa5s.stop", color="#ffffff"))
-            except Exception:
-                pass
+            self.btn_analyze.setText("Stop Analysis")
+            self.btn_analyze.set_danger(True)
+            self.btn_analyze.set_icon_spec("fa5s.stop")
             self.btn_analyze.clicked.connect(self.stop_analysis)
             self.btn_analyze.setEnabled(True)
         else:
@@ -150,28 +145,19 @@ class AnalysisMixin:
                 total = getattr(self.current_game, "total_moves_count", 0) or len(
                     getattr(self.current_game, "moves", [])
                 )
-                self.btn_analyze.setText(f"  Resume ({analyzed}/{total})")
-                self.btn_analyze.setStyleSheet(Styles.get_button_style())
-                try:
-                    self.btn_analyze.setIcon(qta.icon("fa5s.play", color="#ffffff"))
-                except Exception:
-                    pass
+                self.btn_analyze.setText(f"Resume ({analyzed}/{total})")
+                self.btn_analyze.set_danger(False)
+                self.btn_analyze.set_icon_spec("fa5s.play")
                 self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=True))
             elif game_status == "completed":
-                self.btn_analyze.setText("  Reanalyze Game")
-                self.btn_analyze.setStyleSheet(Styles.get_button_style())
-                try:
-                    self.btn_analyze.setIcon(qta.icon("fa5s.sync-alt", color="#ffffff"))
-                except Exception:
-                    pass
+                self.btn_analyze.setText("Reanalyze Game")
+                self.btn_analyze.set_danger(False)
+                self.btn_analyze.set_icon_spec("fa5s.sync-alt")
                 self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))
             else:
-                self.btn_analyze.setText("  Analyze Game")
-                self.btn_analyze.setStyleSheet(Styles.get_button_style())
-                try:
-                    self.btn_analyze.setIcon(qta.icon("fa5s.play", color="#ffffff"))
-                except Exception:
-                    pass
+                self.btn_analyze.setText("Analyze Game")
+                self.btn_analyze.set_danger(False)
+                self.btn_analyze.set_icon_spec("fa5s.play")
                 self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))
             self.btn_analyze.setEnabled(True)
 

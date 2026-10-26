@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
@@ -24,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
-from src.gui.components import Button, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.components.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
@@ -70,32 +69,15 @@ class AICoachCard(MetricCard):
         header_act_layout.addWidget(self.provider_badge)
 
         # Refresh / Generate button
-        self.btn_refresh_insights = QPushButton()
+        self.btn_refresh_insights = Button(
+            variant=ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            icon="fa5s.sync-alt",
+            icon_position="only",
+            tooltip="Generate / Refresh AI Coaching",
+            on_click=self._generate_insights,
+        )
         self.btn_refresh_insights.setFixedSize(28, 28)
-        self.btn_refresh_insights.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_refresh_insights.setToolTip("Generate / Refresh AI Coaching")
-        self.btn_refresh_insights.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        try:
-            import qtawesome as qta
-
-            self.btn_refresh_insights.setIcon(
-                qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
-            )
-        except ImportError:
-            self.btn_refresh_insights.setText("↻")
-
-        self.btn_refresh_insights.clicked.connect(self._generate_insights)
         header_act_layout.addWidget(self.btn_refresh_insights)
 
         super().__init__(

@@ -16,11 +16,11 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
 from src.utils.config import ConfigManager
@@ -222,25 +222,12 @@ class DrillDownItemWidget(QFrame):
         action_text = self.item.get("action_text") or (
             "Analyze Game →" if self.item.get("is_game") else "Analyze Move →"
         )
-        btn_action = QPushButton(action_text)
-        btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_action.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_ACCENT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 6px 14px;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: #ffffff;
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        btn_action.clicked.connect(self._trigger_selection)
+        btn_action = Button(
+            action_text,
+            ButtonVariant.OUTLINED,
+            ButtonSize.SM,
+            on_click=self._trigger_selection,
+        )
         right_layout.addWidget(btn_action, 0, Qt.AlignmentFlag.AlignRight)
 
         main_layout.addLayout(right_layout, 0)

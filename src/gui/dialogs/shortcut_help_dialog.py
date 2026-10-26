@@ -8,12 +8,12 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
+from ..components import Button, ButtonVariant
 from ..styles import Styles
 
 try:
@@ -165,46 +165,15 @@ class ShortcutHelpDialog(QDialog):
         layout.addWidget(scroll)
 
         # Footer buttons
-        btn_feedback = QPushButton("  Report Bug / Feedback")
-        btn_feedback.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-weight: 500;
-                font-size: 12px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
-        btn_feedback.setCursor(Qt.CursorShape.PointingHandCursor)
-        if HAS_QTAWESOME:
-            btn_feedback.setIcon(qta.icon("fa5s.comment-dots", color=Styles.COLOR_TEXT_SECONDARY))
-        btn_feedback.clicked.connect(self._open_feedback)
+        btn_feedback = Button(
+            "Report Bug / Feedback",
+            ButtonVariant.FILLED,
+            icon="fa5s.comment-dots",
+            on_click=self._open_feedback,
+        )
 
         # Close button
-        btn_close = QPushButton("Got it")
-        btn_close.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: white;
-                border: none;
-                padding: 8px 24px;
-                border-radius: 6px;
-                font-weight: 600;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_ACCENT_HOVER};
-            }}
-        """)
-        btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_close.clicked.connect(self.accept)
+        btn_close = Button("Got it", ButtonVariant.PRIMARY, on_click=self.accept)
 
         btn_layout = QHBoxLayout()
         btn_layout.addWidget(btn_feedback)

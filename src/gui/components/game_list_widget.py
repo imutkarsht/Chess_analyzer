@@ -9,20 +9,13 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
 from ..styles import Styles
+from .button import Button, ButtonSize, ButtonVariant
 from .game_list_item_widget import GameListItemWidget
-
-try:
-    import qtawesome as qta
-
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class GameListWidget(QWidget):
@@ -69,25 +62,27 @@ class GameListWidget(QWidget):
         header_bar_layout.addStretch()
 
         # View mode toggle buttons
-        self.btn_detailed = QPushButton()
+        self.btn_detailed = Button(
+            variant=ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            icon="fa5s.th-large",
+            icon_position="only",
+            checkable=True,
+            tooltip="Detailed Cards View",
+            on_click=lambda: self.set_view_mode("detailed"),
+        )
         self.btn_detailed.setFixedSize(30, 26)
-        self.btn_detailed.setToolTip("Detailed Cards View")
-        self.btn_detailed.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.btn_compact = QPushButton()
+        self.btn_compact = Button(
+            variant=ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            icon="fa5s.list",
+            icon_position="only",
+            checkable=True,
+            tooltip="Compact Table View",
+            on_click=lambda: self.set_view_mode("compact"),
+        )
         self.btn_compact.setFixedSize(30, 26)
-        self.btn_compact.setToolTip("Compact Table View")
-        self.btn_compact.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        if HAS_QTAWESOME:
-            self.btn_detailed.setIcon(qta.icon("fa5s.th-large", color=Styles.COLOR_TEXT_PRIMARY))
-            self.btn_compact.setIcon(qta.icon("fa5s.list", color=Styles.COLOR_TEXT_PRIMARY))
-        else:
-            self.btn_detailed.setText("田")
-            self.btn_compact.setText("≡")
-
-        self.btn_detailed.clicked.connect(lambda: self.set_view_mode("detailed"))
-        self.btn_compact.clicked.connect(lambda: self.set_view_mode("compact"))
 
         header_bar_layout.addWidget(self.btn_detailed)
         header_bar_layout.addWidget(self.btn_compact)
@@ -122,13 +117,8 @@ class GameListWidget(QWidget):
 
     def _update_view_toggle_styles(self):
         is_detailed = self.view_mode == "detailed"
-        if HAS_QTAWESOME:
-            detailed_icon_color = "#FFFFFF" if is_detailed else Styles.COLOR_TEXT_PRIMARY
-            compact_icon_color = "#FFFFFF" if not is_detailed else Styles.COLOR_TEXT_PRIMARY
-            self.btn_detailed.setIcon(qta.icon("fa5s.th-large", color=detailed_icon_color))
-            self.btn_compact.setIcon(qta.icon("fa5s.list", color=compact_icon_color))
-        self.btn_detailed.setStyleSheet(Styles.get_toggle_button_style(active=is_detailed))
-        self.btn_compact.setStyleSheet(Styles.get_toggle_button_style(active=not is_detailed))
+        self.btn_detailed.setChecked(is_detailed)
+        self.btn_compact.setChecked(not is_detailed)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -313,20 +303,19 @@ class GameListWidget(QWidget):
 
     # ── Button factories ──────────────────────────────────────────────────────
 
-    def _make_page_btn(self, text: str, enabled: bool) -> QPushButton:
-        btn = QPushButton(text)
+    def _make_page_btn(self, text: str, enabled: bool) -> Button:
+        btn = Button(text, ButtonVariant.FILLED, ButtonSize.SM)
         btn.setFixedHeight(30)
         btn.setEnabled(enabled)
         btn.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)
-        btn.setStyleSheet(Styles.get_page_btn_style(enabled=enabled))
         return btn
 
-    def _make_page_num_btn(self, page: int) -> QPushButton:
+    def _make_page_num_btn(self, page: int) -> Button:
         is_current = page == self._current_page
-        btn = QPushButton(str(page + 1))
+        variant = ButtonVariant.PRIMARY if is_current else ButtonVariant.FILLED
+        btn = Button(str(page + 1), variant, ButtonSize.SM)
         btn.setFixedSize(30, 30)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(Styles.get_page_num_btn_style(active=is_current))
         btn.clicked.connect(lambda _, p=page: self._go_to_page(p))
         return btn
 

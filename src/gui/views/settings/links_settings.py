@@ -24,8 +24,9 @@ from src.constants import (
 )
 from src.utils.path_utils import get_resource_path
 
+from ...components import Button, ButtonVariant
 from ...styles import Styles
-from .helpers import HAS_QTAWESOME, create_icon_button
+from .helpers import HAS_QTAWESOME
 
 if HAS_QTAWESOME:
     import qtawesome as qta
@@ -191,8 +192,14 @@ class LinksSettings(QGroupBox):
         return footer
 
     def _make_link(self, text: str, icon_name: str, callback) -> QWidget:
-        button = create_icon_button(text, icon_name, callback, self)
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button = Button(
+            text,
+            ButtonVariant.LINK,
+            icon=icon_name,
+            align="left",
+            on_click=callback,
+            parent=self,
+        )
         self._link_icons.append((button, icon_name))
         return button
 

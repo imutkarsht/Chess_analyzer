@@ -182,9 +182,7 @@ class BoardPiecesSettings(QGroupBox):
             button.setStyleSheet(swatch_style)
         for button in self.piece_buttons.values():
             button.setStyleSheet(Styles.get_theme_card_button_style())
-        self.import_theme_btn.setStyleSheet(
-            Styles.get_settings_default_button_style()
-        )
+        self.import_theme_btn.refresh_styles()
 
     def _on_tab_changed(self, _index: int) -> None:
         self._render_gallery()

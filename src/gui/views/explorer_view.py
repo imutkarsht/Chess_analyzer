@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QScrollArea,
     QSplitter,
     QVBoxLayout,
@@ -276,11 +275,14 @@ class ExplorerView(QWidget):
 
         # Book Moves Toggle + Table
         self._current_book_count = 0
-        self.book_toggle = QPushButton("▶  Book Moves")
-        self.book_toggle.setCheckable(True)
+        self.book_toggle = Button(
+            "▶  Book Moves",
+            ButtonVariant.GHOST,
+            checkable=True,
+            align="left",
+            on_click=None,
+        )
         self.book_toggle.setChecked(True)
-        self.book_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
         self.book_toggle.toggled.connect(self._toggle_book)
         right_layout.addWidget(self.book_toggle)
 
@@ -1326,7 +1328,7 @@ class ExplorerView(QWidget):
         if hasattr(self, 'right_panel'):
             self.right_panel.setStyleSheet(Styles.get_background_style())
         if hasattr(self, 'book_toggle'):
-            self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
+            self.book_toggle.refresh_styles()
         if hasattr(self, 'explorer_hint'):
             self.explorer_hint.setStyleSheet(
                 Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)

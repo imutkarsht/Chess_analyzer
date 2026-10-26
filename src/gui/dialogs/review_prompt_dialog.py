@@ -3,13 +3,11 @@ In-app rating & review prompt dialog for Chess Analyzer Pro.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QStackedWidget,
     QTextEdit,
     QVBoxLayout,
@@ -160,23 +158,11 @@ class ReviewPromptDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        self.btn_skip = QPushButton("No, Thanks")
-        self.btn_skip.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_skip.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_MUTED};
-                border: none;
-                padding: 8px 10px;
-                font-size: 13px;
-                font-weight: 500;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                text-decoration: underline;
-            }}
-        """)
-        self.btn_skip.clicked.connect(self._on_no_thanks)
+        self.btn_skip = Button(
+            "No, Thanks",
+            ButtonVariant.LINK,
+            on_click=self._on_no_thanks,
+        )
         btn_layout.addWidget(self.btn_skip)
 
         btn_layout.addStretch()

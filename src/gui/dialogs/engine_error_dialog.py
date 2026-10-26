@@ -12,7 +12,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
-    QPushButton,
     QVBoxLayout,
 )
 
@@ -24,42 +23,8 @@ from ...backend.engine.downloader import (
 )
 from ...utils.logger import logger
 from ...utils.path_utils import get_engine_data_dir
+from ..components import Button, ButtonVariant
 from ..styles import Styles
-
-BUTTON_STYLE = f"""
-    QPushButton {{
-        background-color: {Styles.COLOR_SURFACE_LIGHT};
-        color: {Styles.COLOR_TEXT_PRIMARY};
-        border: 1px solid {Styles.COLOR_BORDER};
-        padding: 10px 18px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
-        text-align: left;
-    }}
-    QPushButton:hover {{
-        background-color: {Styles.COLOR_SURFACE};
-        border-color: {Styles.COLOR_ACCENT};
-    }}
-    QPushButton:disabled {{
-        color: {Styles.COLOR_TEXT_MUTED};
-    }}
-"""
-
-PRIMARY_BUTTON_STYLE = f"""
-    QPushButton {{
-        background-color: {Styles.COLOR_ACCENT};
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 600;
-    }}
-    QPushButton:hover {{
-        background-color: {Styles.COLOR_ACCENT_HOVER};
-    }}
-"""
 
 
 class EngineNotFoundDialog(QDialog):
@@ -124,22 +89,31 @@ class EngineNotFoundDialog(QDialog):
         btn_layout.setSpacing(10)
         btn_layout.setContentsMargins(0, 4, 0, 0)
 
-        self._auto_btn = QPushButton("  Auto-detect Stockfish")
-        self._auto_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._auto_btn.setStyleSheet(BUTTON_STYLE)
-        self._auto_btn.clicked.connect(self._auto_detect)
+        self._auto_btn = Button(
+            "Auto-detect Stockfish",
+            ButtonVariant.FILLED,
+            full_width=True,
+            align="left",
+            on_click=self._auto_detect,
+        )
         btn_layout.addWidget(self._auto_btn)
 
-        self._download_btn = QPushButton("  Download Stockfish")
-        self._download_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._download_btn.setStyleSheet(BUTTON_STYLE)
-        self._download_btn.clicked.connect(self._start_download)
+        self._download_btn = Button(
+            "Download Stockfish",
+            ButtonVariant.FILLED,
+            full_width=True,
+            align="left",
+            on_click=self._start_download,
+        )
         btn_layout.addWidget(self._download_btn)
 
-        self._browse_btn = QPushButton("  Browse for Stockfish...")
-        self._browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._browse_btn.setStyleSheet(BUTTON_STYLE)
-        self._browse_btn.clicked.connect(self._browse)
+        self._browse_btn = Button(
+            "Browse for Stockfish...",
+            ButtonVariant.FILLED,
+            full_width=True,
+            align="left",
+            on_click=self._browse,
+        )
         btn_layout.addWidget(self._browse_btn)
 
         layout.addLayout(btn_layout)
@@ -148,10 +122,7 @@ class EngineNotFoundDialog(QDialog):
 
         footer = QHBoxLayout()
         footer.addStretch()
-        self._cancel_btn = QPushButton("Cancel")
-        self._cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._cancel_btn.setStyleSheet(BUTTON_STYLE.replace("text-align: left;", ""))
-        self._cancel_btn.clicked.connect(self.reject)
+        self._cancel_btn = Button("Cancel", ButtonVariant.FILLED, on_click=self.reject)
         footer.addWidget(self._cancel_btn)
         layout.addLayout(footer)
 

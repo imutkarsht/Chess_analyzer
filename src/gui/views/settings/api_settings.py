@@ -3,7 +3,7 @@ API Configuration Settings group component.
 """
 import time
 
-from PyQt6.QtCore import Qt, QThread, QUrl, pyqtSignal
+from PyQt6.QtCore import QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -11,12 +11,15 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
+from src.backend.services.groq_service import GroqService, explanation_tuning
+from src.constants import PROVIDERS
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
+from src.gui.utils.gui_utils import show_error_dialog
 
 from .components import (
     CONTROL_DEFAULT,
@@ -24,17 +27,6 @@ from .components import (
     SettingsForm,
 )
 from .helpers import create_icon_button
-
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
-
-from src.backend.services.groq_service import GroqService, explanation_tuning
-from src.constants import PROVIDERS
-from src.gui.utils.gui_utils import show_error_dialog
-
 from .modern_widgets import PasswordFieldWrapper
 
 
@@ -139,7 +131,6 @@ class ApiSettings(QGroupBox):
         api_layout.setSpacing(10)
 
         _combo_style = Styles.get_combobox_style()
-        sq_btn_style = Styles.get_settings_square_icon_style()
 
         self._profile_form = SettingsForm(self)
         api_layout.addWidget(self._profile_form)
@@ -150,27 +141,28 @@ class ApiSettings(QGroupBox):
         self.llm_profile_combo.setMaximumWidth(420)
         self.llm_profile_combo.currentIndexChanged.connect(self._on_profile_selected)
 
-        self.llm_add_btn = QPushButton()
-        if HAS_QTAWESOME:
-            self.llm_add_btn.setIcon(qta.icon("fa5s.plus", color=Styles.COLOR_TEXT_PRIMARY))
-        else:
-            self.llm_add_btn.setText("+")
-        self.llm_add_btn.setStyleSheet(sq_btn_style)
-        self.llm_add_btn.setToolTip("New profile")
+        self.llm_add_btn = Button(
+            variant=ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            icon="fa5s.plus",
+            icon_position="only",
+            tooltip="New profile",
+            on_click=self._new_llm_profile,
+            parent=self,
+        )
         self.llm_add_btn.setAccessibleName("Add LLM profile")
-        self.llm_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.llm_add_btn.clicked.connect(self._new_llm_profile)
 
-        self.llm_del_btn = QPushButton()
-        if HAS_QTAWESOME:
-            self.llm_del_btn.setIcon(qta.icon("fa5s.minus", color=Styles.COLOR_BLUNDER))
-        else:
-            self.llm_del_btn.setText("−")
-        self.llm_del_btn.setStyleSheet(sq_btn_style)
-        self.llm_del_btn.setToolTip("Delete profile")
+        self.llm_del_btn = Button(
+            variant=ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            icon="fa5s.minus",
+            icon_position="only",
+            danger=True,
+            tooltip="Delete profile",
+            on_click=self._delete_llm_profile,
+            parent=self,
+        )
         self.llm_del_btn.setAccessibleName("Delete LLM profile")
-        self.llm_del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.llm_del_btn.clicked.connect(self._delete_llm_profile)
 
         self.llm_set_active_btn = create_icon_button(
             "Set active", "fa5s.star", self._on_set_active, self
@@ -225,11 +217,13 @@ class ApiSettings(QGroupBox):
 
         self.llm_key_input = PasswordFieldWrapper(self)
         self.llm_key_input.setMaximumWidth(420)
-        self.llm_help_btn = QPushButton("Get API key ↗")
-        self.llm_help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.llm_help_btn.setStyleSheet(Styles.get_settings_link_button_style())
+        self.llm_help_btn = Button(
+            "Get API key ↗",
+            ButtonVariant.LINK,
+            on_click=self._open_provider_help,
+            parent=self,
+        )
         self.llm_help_btn.setAccessibleName("Open provider API key page")
-        self.llm_help_btn.clicked.connect(self._open_provider_help)
         self.llm_help_btn.setVisible(False)
 
         key_row = QWidget()
@@ -626,17 +620,15 @@ class ApiSettings(QGroupBox):
         if hasattr(self, 'llm_provider_combo'):
             self.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, 'llm_add_btn'):
-            self.llm_add_btn.setStyleSheet(Styles.get_settings_square_icon_style())
+            self.llm_add_btn.refresh_styles()
         if hasattr(self, 'llm_del_btn'):
-            self.llm_del_btn.setStyleSheet(Styles.get_settings_square_icon_style())
+            self.llm_del_btn.refresh_styles()
         if hasattr(self, 'llm_set_active_btn'):
-            self.llm_set_active_btn.setStyleSheet(
-                Styles.get_settings_default_button_style()
-            )
+            self.llm_set_active_btn.refresh_styles()
         if hasattr(self, 'llm_help_btn'):
-            self.llm_help_btn.setStyleSheet(Styles.get_settings_link_button_style())
+            self.llm_help_btn.refresh_styles()
         if hasattr(self, 'llm_test_btn'):
-            self.llm_test_btn.setStyleSheet(Styles.get_settings_default_button_style())
+            self.llm_test_btn.refresh_styles()
         if hasattr(self, 'llm_profile_name'):
             self.llm_profile_name.setStyleSheet(Styles.get_input_style())
         if hasattr(self, 'llm_model_input'):

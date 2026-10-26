@@ -3,14 +3,12 @@ Unified Feedback, Bug Report, and Feature Suggestion Dialog.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QStackedWidget,
     QTextEdit,
     QVBoxLayout,
@@ -22,7 +20,7 @@ from src.backend.services.feedback_service import (
     FeedbackWorker,
     get_recent_logs,
 )
-from src.gui.components import Button, ButtonVariant, Tabs, TabVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Tabs, TabVariant
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -301,21 +299,12 @@ class FeedbackDialog(QDialog):
 
         log_header_layout.addStretch()
 
-        self.btn_toggle_log = QPushButton("Preview Log")
-        self.btn_toggle_log.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.btn_toggle_log.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                color: {Styles.COLOR_ACCENT};
-                border: none;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                text-decoration: underline;
-            }}
-        """)
-        self.btn_toggle_log.clicked.connect(self._toggle_log_preview)
+        self.btn_toggle_log = Button(
+            "Preview Log",
+            ButtonVariant.LINK,
+            size=ButtonSize.SM,
+            on_click=self._toggle_log_preview,
+        )
         log_header_layout.addWidget(self.btn_toggle_log)
         layout.addLayout(log_header_layout)
 

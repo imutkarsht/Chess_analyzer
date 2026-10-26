@@ -277,9 +277,7 @@ class LichessCard(_ProfileCard):
         self.form.refresh_styles()
         self.username_input.setStyleSheet(Styles.get_input_style())
         self.lichess_token_input.refresh_styles()
-        self.validate_token_btn.setStyleSheet(
-            Styles.get_settings_default_button_style()
-        )
+        self.validate_token_btn.refresh_styles()
         self.token_status_label.setStyleSheet(
             _status_style(Styles.COLOR_TEXT_SECONDARY)
         )

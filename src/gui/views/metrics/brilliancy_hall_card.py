@@ -12,12 +12,12 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
@@ -152,11 +152,14 @@ class BrilliancyHallCard(MetricCard):
             pagination_bar.setContentsMargins(4, 4, 4, 0)
             pagination_bar.setSpacing(10)
 
-            self.btn_prev = QPushButton("◀ Prev")
+            self.btn_prev = Button(
+                "◀ Prev",
+                ButtonVariant.FILLED,
+                ButtonSize.SM,
+                on_click=self._go_prev_page,
+            )
             self.btn_prev.setFixedHeight(26)
-            self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_prev.setEnabled(self.current_page > 0)
-            self.btn_prev.clicked.connect(self._go_prev_page)
 
             self.lbl_page = QLabel(f"Page {self.current_page + 1} of {total_pages}")
             self.lbl_page.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -167,34 +170,14 @@ class BrilliancyHallCard(MetricCard):
                 background: transparent;
             """)
 
-            self.btn_next = QPushButton("Next ▶")
+            self.btn_next = Button(
+                "Next ▶",
+                ButtonVariant.FILLED,
+                ButtonSize.SM,
+                on_click=self._go_next_page,
+            )
             self.btn_next.setFixedHeight(26)
-            self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_next.setEnabled(self.current_page < total_pages - 1)
-            self.btn_next.clicked.connect(self._go_next_page)
-
-            btn_style = f"""
-                QPushButton {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 4px;
-                    padding: 2px 10px;
-                    font-size: 11px;
-                    font-weight: 600;
-                }}
-                QPushButton:hover:enabled {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border-color: {Styles.COLOR_BORDER_LIGHT};
-                }}
-                QPushButton:disabled {{
-                    color: {Styles.COLOR_TEXT_MUTED};
-                    background-color: transparent;
-                    border-color: transparent;
-                }}
-            """
-            self.btn_prev.setStyleSheet(btn_style)
-            self.btn_next.setStyleSheet(btn_style)
 
             pagination_bar.addWidget(self.btn_prev)
             pagination_bar.addStretch()
@@ -324,24 +307,13 @@ class BrilliancyHallCard(MetricCard):
         r_layout.addWidget(text_container, stretch=1)
 
         # 3. Analyze Action Button
-        btn_analyze = QPushButton("Analyze →")
+        btn_analyze = Button(
+            "Analyze →",
+            ButtonVariant.OUTLINED,
+            ButtonSize.SM,
+            accent=Styles.COLOR_BRILLIANT,
+        )
         btn_analyze.setFixedHeight(24)
-        btn_analyze.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_analyze.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_BRILLIANT};
-                font-size: 11px;
-                font-weight: 600;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                padding: 2px 8px;
-            }}
-            QPushButton:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BRILLIANT};
-            }}
-        """)
         r_layout.addWidget(btn_analyze)
 
         # Wire click handler on both the row and the analyze button

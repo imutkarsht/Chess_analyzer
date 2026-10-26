@@ -48,8 +48,8 @@ _TABS_LOCKED_DURING_ANALYSIS = (1, 2)
 # The Generate button lives below the summary: once a report exists the text
 # fills the space above it, so the action has to sit in the lower half to stay
 # reachable and to stop competing with the first line of the report.
-_BTN_GENERATE_SUMMARY = " ✨  Generate AI coach summary"
-_BTN_REGENERATE_SUMMARY = " ✨  Regenerate AI coach summary"
+_BTN_GENERATE_SUMMARY = "Generate AI coach summary"
+_BTN_REGENERATE_SUMMARY = "Regenerate AI coach summary"
 
 # Placeholder shape for the report: a title line, then paragraphs of prose.
 _REPORT_SKELETON_SECTIONS = ((150, (0.96, 0.88, 0.62)), (120, (0.94, 0.70)))
@@ -257,7 +257,9 @@ class AnalysisPanel(QWidget):
         # Below the summary, at the bottom of the Coach tab, so a full report
         # never pushes the action off the panel.
         self.btn_generate_summary = Button(
-            _BTN_GENERATE_SUMMARY, ButtonVariant.OUTLINED
+            _BTN_GENERATE_SUMMARY,
+            ButtonVariant.TONAL,
+            icon="fa5s.magic",
         )
         self.btn_generate_summary.clicked.connect(self.generate_ai_summary)
         self.ai_summary_layout.addWidget(self.btn_generate_summary)

@@ -10,12 +10,12 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QProgressBar,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
 from src.constants import PROVIDERS
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 
@@ -89,22 +89,13 @@ def build_welcome_page(wizard) -> QWidget:
     btn_space.setFixedHeight(12)
     layout.addWidget(btn_space)
 
-    wizard.get_started_btn = QPushButton("Get Started")
-    wizard.get_started_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.get_started_btn = Button(
+        "Get Started",
+        ButtonVariant.PRIMARY,
+        size=ButtonSize.LG,
+        on_click=lambda: wizard._go_to(2),
+    )
     wizard.get_started_btn.setFixedHeight(44)
-    wizard.get_started_btn.setStyleSheet(f"""
-        QPushButton {{
-            background-color: {Styles.COLOR_ACCENT};
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 0 44px;
-            font-size: 15px;
-            font-weight: bold;
-        }}
-        QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-    """)
-    wizard.get_started_btn.clicked.connect(lambda: wizard._go_to(2))
     layout.addWidget(wizard.get_started_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
     layout.addStretch(1)
@@ -238,18 +229,21 @@ def build_appearance_page(wizard) -> QWidget:
     card_layout.addWidget(accent_lbl)
 
     accent_row = QHBoxLayout()
-    wizard.wizard_accent_btn = QPushButton("  Pick Accent Color")
-    wizard.wizard_accent_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.wizard_accent_btn = Button(
+        variant=ButtonVariant.FILLED,
+        align="left",
+        on_click=lambda: _pick_accent_color(wizard),
+    )
     wizard.wizard_accent_btn.setFixedHeight(38)
-    wizard.wizard_accent_btn.clicked.connect(lambda: _pick_accent_color(wizard))
     accent_row.addWidget(wizard.wizard_accent_btn, 1)
 
     # Reset button
-    wizard.wizard_reset_accent_btn = QPushButton("Reset to Default")
-    wizard.wizard_reset_accent_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.wizard_reset_accent_btn = Button(
+        "Reset to Default",
+        ButtonVariant.FILLED,
+        on_click=lambda: _reset_accent_color(wizard),
+    )
     wizard.wizard_reset_accent_btn.setFixedHeight(38)
-    wizard.wizard_reset_accent_btn.setStyleSheet(Styles.get_control_button_style())
-    wizard.wizard_reset_accent_btn.clicked.connect(lambda: _reset_accent_color(wizard))
     accent_row.addWidget(wizard.wizard_reset_accent_btn)
 
     card_layout.addLayout(accent_row)
@@ -289,40 +283,15 @@ def _reset_accent_color(wizard):
 def _apply_accent_button_style(wizard, hex_code: str, mode: str):
     if not hasattr(wizard, "wizard_accent_btn"):
         return
-    from src.gui.theme import ThemeManager
-    p = ThemeManager.palette()
+    btn = wizard.wizard_accent_btn
     if mode == "custom":
-        wizard.wizard_accent_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {hex_code};
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {hex_code}CC;
-            }}
-        """)
-        wizard.wizard_accent_btn.setText(f"  {hex_code}")
+        btn.set_variant(ButtonVariant.PRIMARY)
+        btn.set_accent(hex_code)
+        btn.setText(hex_code)
     else:
-        wizard.wizard_accent_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                border: 1px solid {p.border};
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-                text-align: left;
-            }}
-            QPushButton:hover {{
-                border: 1px solid {p.accent};
-            }}
-        """)
-        wizard.wizard_accent_btn.setText("  System Default Accent")
+        btn.set_variant(ButtonVariant.FILLED)
+        btn.set_accent(None)
+        btn.setText("System Default Accent")
 
 
 def _apply_accent(wizard, hex_code: str, mode: str = "custom"):
@@ -400,38 +369,30 @@ def build_stockfish_page(wizard) -> QWidget:
     btn_row = QHBoxLayout()
     btn_row.setSpacing(10)
 
-    wizard.sf_download_btn = QPushButton("Download Stockfish")
-    wizard.sf_download_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.sf_download_btn = Button(
+        "Download Stockfish",
+        ButtonVariant.PRIMARY,
+        on_click=wizard._download_stockfish,
+    )
     wizard.sf_download_btn.setFixedHeight(38)
-    wizard.sf_download_btn.setStyleSheet(f"""
-        QPushButton {{
-            background-color: {Styles.COLOR_ACCENT};
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 0 20px;
-            font-size: 13px;
-            font-weight: bold;
-        }}
-        QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-    """)
-    wizard.sf_download_btn.clicked.connect(wizard._download_stockfish)
     wizard.sf_download_btn.setVisible(False)
     btn_row.addWidget(wizard.sf_download_btn)
 
-    wizard.sf_cancel_btn = QPushButton("Cancel")
-    wizard.sf_cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.sf_cancel_btn = Button(
+        "Cancel",
+        ButtonVariant.FILLED,
+        on_click=wizard._cancel_stockfish_download,
+    )
     wizard.sf_cancel_btn.setFixedHeight(38)
-    wizard.sf_cancel_btn.setStyleSheet(Styles.get_control_button_style())
-    wizard.sf_cancel_btn.clicked.connect(wizard._cancel_stockfish_download)
     wizard.sf_cancel_btn.setVisible(False)
     btn_row.addWidget(wizard.sf_cancel_btn)
 
-    wizard.sf_browse_btn = QPushButton("Browse...")
-    wizard.sf_browse_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.sf_browse_btn = Button(
+        "Browse...",
+        ButtonVariant.FILLED,
+        on_click=lambda: _browse_stockfish_binary(wizard),
+    )
     wizard.sf_browse_btn.setFixedHeight(38)
-    wizard.sf_browse_btn.setStyleSheet(Styles.get_control_button_style())
-    wizard.sf_browse_btn.clicked.connect(lambda: _browse_stockfish_binary(wizard))
     btn_row.addWidget(wizard.sf_browse_btn)
 
     btn_row.addStretch()
@@ -527,11 +488,12 @@ def build_llm_page(wizard) -> QWidget:
 
     # Test button & result row
     test_row = QHBoxLayout()
-    wizard.llm_test_btn = QPushButton("Test Connection")
-    wizard.llm_test_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.llm_test_btn = Button(
+        "Test Connection",
+        ButtonVariant.FILLED,
+        on_click=wizard._test_llm,
+    )
     wizard.llm_test_btn.setFixedHeight(36)
-    wizard.llm_test_btn.setStyleSheet(Styles.get_control_button_style())
-    wizard.llm_test_btn.clicked.connect(wizard._test_llm)
     test_row.addWidget(wizard.llm_test_btn)
 
     wizard.llm_test_result = QLabel("")
@@ -641,22 +603,13 @@ def build_done_page(wizard) -> QWidget:
 
     layout.addSpacing(18)
 
-    wizard.done_btn = QPushButton("Launch Chess Analyzer Pro")
-    wizard.done_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    wizard.done_btn = Button(
+        "Launch Chess Analyzer Pro",
+        ButtonVariant.PRIMARY,
+        size=ButtonSize.LG,
+        on_click=wizard._on_finish,
+    )
     wizard.done_btn.setFixedHeight(44)
-    wizard.done_btn.setStyleSheet(f"""
-        QPushButton {{
-            background-color: {Styles.COLOR_ACCENT};
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 0 40px;
-            font-size: 14px;
-            font-weight: bold;
-        }}
-        QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
-    """)
-    wizard.done_btn.clicked.connect(wizard._on_finish)
     layout.addWidget(wizard.done_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
     layout.addStretch(1)

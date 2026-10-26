@@ -2,9 +2,10 @@
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QColorDialog, QGroupBox, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import QColorDialog, QGroupBox, QVBoxLayout
 
 from ....config.settings_schema import get_spec
+from ...components import Button, ButtonVariant
 from ...styles import Styles
 from ...theme import ThemeManager
 from .components import RadioChoice, SettingsBinder, SettingsForm
@@ -32,21 +33,6 @@ class ThemeAccentSettings(QGroupBox):
         self._add_theme_mode_row()
         self._add_accent_row()
 
-    def _accent_btn_style(self):
-        return f"""
-            QPushButton {{
-                padding: 6px 14px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                font-size: 13px;
-            }}
-            QPushButton:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """
-
     def _add_theme_mode_row(self):
         spec = get_spec("theme_mode")
         self.theme_mode_choice = RadioChoice(
@@ -64,10 +50,12 @@ class ThemeAccentSettings(QGroupBox):
         ThemeManager.set_theme_mode(mode)
 
     def _add_accent_row(self):
-        self.color_btn = QPushButton("Choose Color")
-        self.color_btn.setStyleSheet(self._accent_btn_style())
+        self.color_btn = Button(
+            "Choose Color",
+            ButtonVariant.FILLED,
+            on_click=self.change_accent_color,
+        )
         self.color_btn.setMaximumWidth(150)
-        self.color_btn.clicked.connect(self.change_accent_color)
 
         self.accent_choice = RadioChoice(
             [(choice.value, choice.label) for choice in get_spec("accent_mode").choices],
@@ -118,6 +106,6 @@ class ThemeAccentSettings(QGroupBox):
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.color_btn.setStyleSheet(self._accent_btn_style())
+        self.color_btn.refresh_styles()
         self.theme_mode_choice.refresh_styles()
         self.accent_choice.refresh_styles()

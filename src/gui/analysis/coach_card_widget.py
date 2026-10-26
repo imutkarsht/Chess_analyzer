@@ -31,6 +31,7 @@ from src.backend.analysis.tactics.insight import (
     move_prefix,
 )
 from src.constants import LLM_WORTHY_CLASSIFICATIONS
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 
 # The body is sized to its wrapped text: the tab has room to grow downwards, so
@@ -131,20 +132,33 @@ class CoachCardWidget(QFrame):
 
         # Parented to the card so a button that is briefly outside a row layout
         # is never a stray top-level window.
-        self.btn_ask = QPushButton("", self)
-        self.btn_ask.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ask = Button(
+            "",
+            ButtonVariant.TONAL,
+            size=ButtonSize.SM,
+            icon="fa5s.magic",
+            on_click=self.ask_requested.emit,
+            parent=self,
+        )
         self.btn_ask.setFixedHeight(_BUTTON_HEIGHT)
-        self.btn_ask.clicked.connect(self.ask_requested.emit)
 
-        self.btn_refute = QPushButton("Show refutation", self)
-        self.btn_refute.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_refute = Button(
+            "Show refutation",
+            ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            on_click=self.refutation_requested.emit,
+            parent=self,
+        )
         self.btn_refute.setFixedHeight(_BUTTON_HEIGHT)
-        self.btn_refute.clicked.connect(self.refutation_requested.emit)
 
-        self.btn_best = QPushButton("Show best move", self)
-        self.btn_best.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_best = Button(
+            "Show best move",
+            ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            on_click=self.best_move_requested.emit,
+            parent=self,
+        )
         self.btn_best.setFixedHeight(_BUTTON_HEIGHT)
-        self.btn_best.clicked.connect(self.best_move_requested.emit)
 
         self._header_badges = (self.class_pill, self.san_label, self.eval_label, self.phase_label)
         self._action_buttons = (self.btn_ask, self.btn_refute, self.btn_best)
@@ -214,7 +228,7 @@ class CoachCardWidget(QFrame):
         self.state = CoachState.OFFLINE
         self._set_body(format_move_insight_offline(insight))
 
-        self.btn_ask.setText(f"✨ Ask Coach: why is this a {insight.classification}?")
+        self.btn_ask.setText(f"Ask Coach: why is this a {insight.classification}?")
         self.btn_refute.setToolTip(self.refutation_label())
         self.btn_best.setToolTip(self.best_move_label())
         self._layout_rows()
@@ -255,7 +269,7 @@ class CoachCardWidget(QFrame):
             return False
         self.state = CoachState.READY
         self._set_body(text)
-        self.caption.setText("✨ Coach explanation — grounded in the analysis")
+        self.caption.setText("Coach explanation — grounded in the analysis")
         self.btn_ask.setEnabled(True)
         self._layout_rows()  # READY drops the Ask action
         return True
@@ -376,7 +390,7 @@ class CoachCardWidget(QFrame):
             + Styles.get_transparent_label_style()
         )
         for button in (self.btn_ask, self.btn_refute, self.btn_best):
-            button.setStyleSheet(Styles.get_outline_button_style())
+            button.refresh_styles()
         self._layout_rows()  # the styles decide the badge/button widths
         self._fit_body()  # ...and the body font decides the line height
 
