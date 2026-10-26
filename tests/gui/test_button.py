@@ -1,8 +1,38 @@
 """Central Button component: variants, sizes, loading and selection."""
 
+from pathlib import Path
+
 import pytest
 
 from src.gui.components import Button, ButtonSize, ButtonVariant
+
+# Purpose-built widgets that are not buttons (swatches, star rating, graph nodes)
+# or segmented chip controls whose checked look is customized per card.
+RAW_BUTTON_ALLOWLIST = {
+    "src/gui/analysis/move_cell_widget.py",
+    "src/gui/analysis/variation_graph.py",
+    "src/gui/components/star_rating_widget.py",
+    "src/gui/views/metrics/accuracy_trend_card.py",
+    "src/gui/views/metrics/ending_distribution_card.py",
+    "src/gui/views/metrics/time_management_card.py",
+    "src/gui/views/metrics/openings_list_card.py",
+    "src/gui/views/settings/board_pieces_settings.py",
+}
+
+
+def test_no_raw_push_or_tool_buttons_outside_the_central_component():
+    repo_root = Path(__file__).resolve().parents[2]
+    gui_root = repo_root / "src" / "gui"
+    offenders = []
+    for path in gui_root.rglob("*.py"):
+        relative = path.relative_to(repo_root).as_posix()
+        if relative == "src/gui/components/button.py" or relative in RAW_BUTTON_ALLOWLIST:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "QPushButton(" in text or "QToolButton(" in text:
+            offenders.append(relative)
+
+    assert offenders == []
 
 
 def _button(qtbot, text="", **kwargs):

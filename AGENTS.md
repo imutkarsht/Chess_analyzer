@@ -59,6 +59,7 @@ src/
 - **Typing**: Python 3.10+ modern syntax required: use `X | None` (never `Optional[X]`), `list[T]`, `dict[K, V]`.
 - **Logging**: Use `from src.utils.logger import logger`. **Never use `print()`**. Sensitive tokens (`sk-...`, `gsk_...`, Bearer) are automatically redacted.
 - **Styling**: **Never hardcode hex colors** in widget files. Use `Styles.COLOR_*` and generator helpers from `src/gui/styles.py`.
+- **Buttons**: Use `src/gui/components/button.py::Button` for every button. Pick a `ButtonVariant`/`ButtonSize` (or `create_button` / `create_icon_button`) instead of constructing `QPushButton`/`QToolButton` or writing button QSS. The only exceptions are the documented specials (board swatches, theme cards, star rating, variation graph nodes, segmented metric chips).
 - **Paths**: Use `src/utils/path_utils.py` (`get_resource_path`, `get_user_data_dir`). Never hardcode `/` or `\\`. Never propose `cd` in terminal commands.
 - **Config**: `ConfigManager` uses class-level `_shared_config`. Do not instantiate in tight loops; call `config_manager.reload_config()` after external file changes.
 - **Comments**: Explain non-obvious domain rationale (e.g. why a formula requires a 10% floor), not self-evident code syntax.
