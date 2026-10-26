@@ -5,6 +5,7 @@ Move List Panel - Displays the list of played moves in a paginated/tabular layou
 import contextlib
 
 import chess
+from PyQt6 import sip
 from PyQt6.QtCore import QEvent, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
@@ -173,20 +174,42 @@ class MoveListPanel(QWidget):
         self.session.clear(emit=False)
         self.refresh()
 
+    def _clear_move_widgets(self) -> None:
+        """Drop embedded cell widgets before the table destroys their C++ objects.
+
+        ``QTableWidget`` owns widgets installed with ``setCellWidget()``, so
+        clearing the table deletes them. Keeping the Python wrappers in
+        ``_move_widgets`` lets later signals call into deleted widgets.
+        """
+        for widget in self._think_bars:
+            if sip.isdeleted(widget):
+                continue
+            widget.setParent(None)
+            widget.deleteLater()
+        self._think_bars.clear()
+        self._move_widgets.clear()
+
+    def _live_move_widgets(self) -> list[tuple[int, MoveCellWidget]]:
+        """Return live cells, pruning wrappers whose C++ object was deleted."""
+        live: list[tuple[int, MoveCellWidget]] = []
+        for index, widget in list(self._move_widgets.items()):
+            if sip.isdeleted(widget):
+                self._move_widgets.pop(index, None)
+                continue
+            live.append((index, widget))
+        return live
+
     def refresh(self):
         if not self.current_game:
+            self._clear_move_widgets()
             self.table.clearContents()
             self.table.setRowCount(0)
-            self._think_bars.clear()
+            self._variation_counts = {}
             return
 
         try:
             # Clear previously-embedded bar widgets before re-inserting
-            for bar in self._think_bars:
-                bar.setParent(None)
-                bar.deleteLater()
-            self._think_bars.clear()
-            self._move_widgets.clear()
+            self._clear_move_widgets()
 
             # Clear table contents and reset row count to prevent leftover widgets/text
             self.table.clearContents()
@@ -282,7 +305,8 @@ class MoveListPanel(QWidget):
     ):
         """Update a single move cell's classification and eval display during analysis."""
         widget = self._move_widgets.get(move_index)
-        if widget is None:
+        if widget is None or sip.isdeleted(widget):
+            self._move_widgets.pop(move_index, None)
             return
         if move_index < 0 or move_index >= len(self.current_game.moves):
             return
@@ -315,7 +339,7 @@ class MoveListPanel(QWidget):
         """Paint the active half-move and a faint tint over its move pair."""
         self._selected_index = index
         active_row = None if index is None else index // 2
-        for move_index, widget in self._move_widgets.items():
+        for move_index, widget in self._live_move_widgets():
             widget.set_state(
                 selected=move_index == index,
                 row_active=active_row is not None and move_index // 2 == active_row,
@@ -323,10 +347,11 @@ class MoveListPanel(QWidget):
 
     def _update_compact_mode(self) -> None:
         """SAN wins when space is tight: drop the numeric think time, keep the bar."""
-        if not self._move_widgets:
+        widgets = self._live_move_widgets()
+        if not widgets:
             return
         compact = self.table.columnWidth(1) < 100
-        for widget in self._move_widgets.values():
+        for _, widget in widgets:
             widget.set_compact(compact)
 
     def _on_section_resized(self, *_args) -> None:
@@ -369,7 +394,7 @@ class MoveListPanel(QWidget):
     def set_variation_counts(self, counts: dict[int, int]) -> None:
         """Attach branch badges to game positions that own saved variation trees."""
         self._variation_counts = {int(k): int(v) for k, v in counts.items() if v > 0}
-        for index, widget in self._move_widgets.items():
+        for index, widget in self._live_move_widgets():
             widget.set_variation_count(self._variation_counts.get(index, 0))
 
     def refresh_styles(self):
@@ -386,7 +411,7 @@ class MoveListPanel(QWidget):
             if item:
                 item.setForeground(QBrush(secondary_color))
 
-        for cell in self._think_bars:
+        for _, cell in self._live_move_widgets():
             cell.refresh_styles()
 
         self._apply_selection(self._selected_index)

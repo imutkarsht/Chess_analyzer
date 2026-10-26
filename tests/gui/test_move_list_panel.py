@@ -2,6 +2,7 @@
 
 import chess
 import pytest
+from PyQt6 import sip
 
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.analysis.move_list_panel import MoveListPanel
@@ -181,3 +182,32 @@ def test_selected_move_shows_lines_from_the_next_position(qtbot, mocker):
     assert fen == after_e4
     # Black is to move, so the stored +0.20 becomes -0.20 for White.
     assert [(line.first_move, line.cp) for line in lines] == [("e7e5", -20), ("c7c5", -10)]
+
+
+def test_clear_drops_cell_widget_references(qtbot, mocker):
+    """A DB restore clears the move list while variation badges may still refresh."""
+    panel = _panel(qtbot, mocker)
+    panel.set_game(_timed_game())
+    assert panel._move_widgets
+
+    panel.clear()
+
+    assert panel._move_widgets == {}
+    assert panel._think_bars == []
+    # This used to call into QToolButtons deleted by table.clearContents().
+    panel.set_variation_counts({})
+    panel.set_variation_counts({0: 2})
+
+
+def test_variation_counts_prune_deleted_cell_widgets(qtbot, mocker):
+    from PyQt6.QtWidgets import QWidget
+
+    panel = _panel(qtbot, mocker)
+    panel.set_game(_timed_game())
+    ghost = QWidget()
+    sip.delete(ghost)
+    panel._move_widgets[99] = ghost
+
+    panel.set_variation_counts({0: 3})
+
+    assert 99 not in panel._move_widgets
