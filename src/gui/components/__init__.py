@@ -1,6 +1,7 @@
 """
 Shared GUI components module.
 """
+from .button import Button, ButtonSize, ButtonVariant
 from .circular_accuracy import CircularAccuracyWidget
 from .masonry_layout import MasonryLayout
 from .pulsing_skeleton import PulsingSkeleton
@@ -11,6 +12,9 @@ from .tabs import TabAppearance, Tabs, TabVariant
 from .welcome_panel import WelcomePanel
 
 __all__ = [
+    'Button',
+    'ButtonSize',
+    'ButtonVariant',
     'StatCard',
     'SimpleStatCard',
     'MasonryLayout',

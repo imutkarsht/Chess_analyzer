@@ -310,6 +310,109 @@ class Styles(metaclass=_StylesMeta):
     # ═══════════════════════════════════════════════════════════════
     #  BUTTONS
     # ═══════════════════════════════════════════════════════════════
+    _BUTTON_SIZES = {
+        "sm": {"font": 12, "pad_v": 4, "pad_h": 10, "radius": 6, "weight": 600},
+        "md": {"font": 13, "pad_v": 8, "pad_h": 16, "radius": 6, "weight": 600},
+        "lg": {"font": 14, "pad_v": 10, "pad_h": 22, "radius": 8, "weight": 600},
+    }
+
+    @classmethod
+    def get_button_qss(
+        cls,
+        *,
+        variant: str = "primary",
+        size: str = "md",
+        accent: str | None = None,
+        align: str | None = None,
+    ) -> str:
+        """Stylesheet for :class:`src.gui.components.button.Button`.
+
+        One generator for every button in the app, so hover/pressed/checked/
+        disabled states stay identical everywhere and follow the live palette.
+        """
+        p = ThemeManager.palette()
+        acc = accent or p.accent
+        danger = cls.COLOR_BLUNDER
+        on_acc = cls.COLOR_ON_ACCENT
+        spec = cls._BUTTON_SIZES.get(size, cls._BUTTON_SIZES["md"])
+
+        if variant == "primary":
+            bg, fg, border = acc, on_acc, acc
+            hover = (p.accent_hover, on_acc, p.accent_hover)
+            pressed = (acc, on_acc, acc)
+            checked = (p.accent_hover, on_acc, p.accent_hover)
+            disabled_bg = p.border
+        elif variant == "filled":
+            bg, fg, border = p.surface_light, p.text_primary, p.border
+            hover = (p.surface, p.text_primary, acc)
+            pressed = (p.accent_subtle, p.text_primary, acc)
+            checked = (p.accent_subtle, p.text_primary, acc)
+            disabled_bg = p.surface_light
+        elif variant == "outlined":
+            bg, fg, border = "transparent", acc, acc
+            hover = (acc, on_acc, acc)
+            pressed = (acc, on_acc, acc)
+            checked = (acc, on_acc, acc)
+            disabled_bg = "transparent"
+        elif variant == "hollow":
+            bg, fg, border = "transparent", p.text_primary, p.border
+            hover = (p.surface_light, p.text_primary, acc)
+            pressed = (p.accent_subtle, p.text_primary, acc)
+            checked = (p.accent_subtle, p.text_primary, acc)
+            disabled_bg = "transparent"
+        elif variant == "ghost":
+            bg, fg, border = "transparent", p.text_secondary, "transparent"
+            hover = (p.surface_light, p.text_primary, "transparent")
+            pressed = (p.accent_subtle, p.text_primary, "transparent")
+            checked = (p.accent_subtle, p.text_primary, "transparent")
+            disabled_bg = "transparent"
+        elif variant == "danger":
+            bg, fg, border = "transparent", danger, danger
+            hover = (danger, on_acc, danger)
+            pressed = (danger, on_acc, danger)
+            checked = (danger, on_acc, danger)
+            disabled_bg = "transparent"
+        else:  # link
+            bg, fg, border = "transparent", p.text_secondary, "transparent"
+            hover = ("transparent", acc, "transparent")
+            pressed = ("transparent", acc, "transparent")
+            checked = ("transparent", acc, "transparent")
+            disabled_bg = "transparent"
+
+        align_rule = f"text-align: {align};" if align else ""
+        return f"""
+            QPushButton {{
+                background-color: {bg};
+                color: {fg};
+                border: 1px solid {border};
+                border-radius: {spec['radius']}px;
+                padding: {spec['pad_v']}px {spec['pad_h']}px;
+                font-size: {spec['font']}px;
+                font-weight: {spec['weight']};
+                {align_rule}
+            }}
+            QPushButton:hover {{
+                background-color: {hover[0]};
+                color: {hover[1]};
+                border-color: {hover[2]};
+            }}
+            QPushButton:pressed {{
+                background-color: {pressed[0]};
+                color: {pressed[1]};
+                border-color: {pressed[2]};
+            }}
+            QPushButton:checked {{
+                background-color: {checked[0]};
+                color: {checked[1]};
+                border-color: {checked[2]};
+            }}
+            QPushButton:disabled {{
+                background-color: {disabled_bg};
+                color: {p.text_muted};
+                border-color: {p.border if variant in ("filled", "hollow") else "transparent"};
+            }}
+        """
+
     @classmethod
     def get_button_style(cls):
         p = ThemeManager.palette()

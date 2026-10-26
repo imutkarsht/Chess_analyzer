@@ -1,0 +1,94 @@
+"""Central Button component: variants, sizes, loading and selection."""
+
+import pytest
+
+from src.gui.components import Button, ButtonSize, ButtonVariant
+
+
+def _button(qtbot, text="", **kwargs):
+    button = Button(text, **kwargs)
+    qtbot.addWidget(button)
+    return button
+
+
+def test_click_runs_the_handler(qtbot):
+    calls = []
+    button = _button(qtbot, "Run", on_click=lambda: calls.append(True))
+
+    button.click()
+
+    assert calls == [True]
+
+
+def test_loading_disables_input_and_restores_it(qtbot):
+    calls = []
+    button = _button(qtbot, "Save", on_click=lambda: calls.append(True))
+
+    button.set_loading(True)
+
+    assert button.is_loading()
+    assert not button.isEnabled()
+    button.click()
+    assert calls == []
+
+    button.set_loading(False)
+
+    assert button.isEnabled()
+    assert not button.is_loading()
+    button.click()
+    assert calls == [True]
+
+
+def test_loading_keeps_a_previously_disabled_button_disabled(qtbot):
+    button = _button(qtbot, "Save")
+    button.setEnabled(False)
+
+    button.set_loading(True)
+    button.set_loading(False)
+
+    assert not button.isEnabled()
+
+
+def test_icon_only_button_is_square_and_hides_text(qtbot):
+    button = _button(
+        qtbot,
+        "Delete",
+        size=ButtonSize.SM,
+        icon_position="only",
+        icon="fa5s.trash",
+        tooltip="Delete",
+    )
+
+    assert button.text() == ""
+    assert button.width() == button.height() == 28
+    assert button.toolTip() == "Delete"
+
+
+def test_checkable_button_toggles(qtbot):
+    button = _button(qtbot, "Toggle", checkable=True)
+
+    assert not button.isChecked()
+
+    button.click()
+
+    assert button.isChecked()
+
+
+def test_variant_and_size_changes_preserve_state(qtbot):
+    button = _button(qtbot, "Load", checkable=True)
+    button.setChecked(True)
+
+    button.set_variant(ButtonVariant.OUTLINED)
+    button.set_size(ButtonSize.LG)
+
+    assert button.variant is ButtonVariant.OUTLINED
+    assert button.size is ButtonSize.LG
+    assert button.text() == "Load"
+    assert button.isChecked()
+
+
+def test_invalid_variant_and_icon_position_are_rejected(qtbot):
+    with pytest.raises(ValueError):
+        Button(variant="banana")
+    with pytest.raises(ValueError):
+        Button(icon_position="middle")
