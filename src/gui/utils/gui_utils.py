@@ -33,6 +33,9 @@ def clear_layout(layout: QLayout) -> None:
         item = layout.takeAt(0)
         widget = item.widget()
         if widget:
+            # Hide immediately: deleteLater can leave the old widget painted
+            # above its replacement until the event loop processes the delete.
+            widget.hide()
             widget.deleteLater()
         elif item.layout():
             clear_layout(item.layout())

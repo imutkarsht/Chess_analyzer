@@ -7,6 +7,7 @@ from .board_pieces_settings import BoardPiecesSettings
 from .book_settings import BookSettings
 from .coach_settings import CoachSettings
 from .danger_settings import DangerSettings
+from .dashboard_layout_settings import DashboardLayoutSettings
 from .engine_settings import EngineSettings
 from .full_analysis_settings import FullAnalysisSettings
 from .links_settings import LinksSettings
@@ -32,6 +33,7 @@ __all__ = [
     'BookSettings',
     'ApiSettings',
     'CoachSettings',
+    'DashboardLayoutSettings',
     'PlayerSettings',
     'ChessComCard',
     'LichessCard',

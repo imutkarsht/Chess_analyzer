@@ -35,6 +35,7 @@ from src.gui.views.metrics import (
     TacticalThemesCard,
     TimeManagementCard,
 )
+from src.gui.views.metrics.card_registry import normalise_card_order
 
 
 class MetricsWidget(QWidget):
@@ -473,6 +474,8 @@ class MetricsWidget(QWidget):
         )
 
     def _show_message_view(self, title_text, msg_text, btn_text, btn_callback):
+        self._chart_cards = {}
+        self.card_order = []
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -503,6 +506,9 @@ class MetricsWidget(QWidget):
         self.request_settings.emit()
 
     def show_dashboard(self, stats):
+        # Never leave a previous dashboard (or message view) behind: direct
+        # callers and async refreshes must not stack dashboards.
+        clear_layout(self.content_layout)
         self.current_stats = stats
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -516,6 +522,7 @@ class MetricsWidget(QWidget):
         dashboard_layout = QVBoxLayout(dashboard)
         dashboard_layout.setSpacing(16)
         dashboard_layout.setContentsMargins(24, 16, 24, 24)
+        self.dashboard_layout = dashboard_layout
 
         # 1. Key Metrics Row - uses custom adaptive StatsLayout
         self.stats_container = QWidget()
@@ -585,87 +592,118 @@ class MetricsWidget(QWidget):
 
         dashboard_layout.addWidget(self.stats_container)
 
-        # 2. Performance & Form Row — Accuracy Trend & Phase Performance (50% / 50%)
-        perf_row_widget = QWidget()
-        perf_row_layout = QHBoxLayout(perf_row_widget)
-        perf_row_layout.setSpacing(20)
-        perf_row_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.accuracy_card = AccuracyTrendCard()
-        self.accuracy_card.set_stats(stats)
-        perf_row_layout.addWidget(self.accuracy_card)
-
-        self.phase_card = PhasePerformanceCard()
-        self.phase_card.set_stats(stats)
-        perf_row_layout.addWidget(self.phase_card)
-
-        dashboard_layout.addWidget(perf_row_widget)
-
-        # 3. Distribution Row — Ending Distribution & Move Quality Distribution (50% / 50%)
-        dist_row_widget = QWidget()
-        dist_row_layout = QHBoxLayout(dist_row_widget)
-        dist_row_layout.setSpacing(20)
-        dist_row_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.ending_card = EndingDistributionCard()
-        self.ending_card.set_stats(stats)
-        dist_row_layout.addWidget(self.ending_card)
-
-        self.quality_card = MoveQualityCard()
-        self.quality_card.set_stats(stats)
-        dist_row_layout.addWidget(self.quality_card)
-
-        dashboard_layout.addWidget(dist_row_widget)
-
-        # 4. Remaining cards in a 2-column masonry (shortest-column packing)
+        # 2. Sortable chart cards — order is a saved user preference.
         self.charts_container = QWidget()
         self.charts_layout = MasonryLayout(
             self.charts_container, margin=0, spacing=20, min_col_width=400
         )
 
-        self.time_card = TimeManagementCard()
-        self.time_card.set_stats(stats)
-        self.charts_layout.addWidget(self.time_card)
-
-        self.hanging_card = HangingPiecesCard()
-        self.hanging_card.set_stats(stats)
-        self.hanging_card.drill_down_requested.connect(self._trigger_drill_down)
-        self.charts_layout.addWidget(self.hanging_card)
-
-        self.tactics_card = TacticalThemesCard()
-        self.tactics_card.set_stats(stats)
-        self.tactics_card.drill_down_requested.connect(self._trigger_drill_down)
-        self.charts_layout.addWidget(self.tactics_card)
-
-        self.advantage_card = AdvantageConversionCard()
-        self.advantage_card.set_stats(stats)
-        self.advantage_card.drill_down_requested.connect(self._trigger_drill_down)
-        self.charts_layout.addWidget(self.advantage_card)
-
-        self.brilliancy_card = BrilliancyHallCard()
-        self.brilliancy_card.set_stats(stats)
-        self.brilliancy_card.move_selected.connect(self._on_brilliancy_clicked)
-        self.charts_layout.addWidget(self.brilliancy_card)
-
-        self.openings_card = OpeningsListCard()
-        self.openings_card.set_stats(stats)
-        self.openings_card.drill_down_requested.connect(self._trigger_drill_down)
-        self.charts_layout.addWidget(self.openings_card)
-
-        self.ai_coach_card = AICoachCard(self.groq_service)
-        self.ai_coach_card.set_stats(stats)
-        if self.current_insights:
-            self.ai_coach_card.set_insights(self.current_insights)
-
-        # Connect AI card's signals to capture insights cache
-        self.ai_coach_card.insights_generated.connect(self._store_insights_cache)
-        self.ai_coach_card.btn_refresh_insights.clicked.connect(self._sync_insights_cache)
-        self.charts_layout.addWidget(self.ai_coach_card)
+        self.card_order = normalise_card_order(
+            self.config_manager.get("metrics_card_order", [])
+        )
+        self._chart_cards: dict[str, QWidget] = {}
+        for key in self.card_order:
+            card = self._build_chart_card(key, stats)
+            if card is not None:
+                self._chart_cards[key] = card
+                self.charts_layout.addWidget(card)
 
         dashboard_layout.addWidget(self.charts_container)
 
         self.scroll_area.setWidget(dashboard)
         self.content_layout.addWidget(self.scroll_area)
+
+    def _build_chart_card(self, key: str, stats):
+        """Create one sortable dashboard card, preserving its public attribute."""
+        if key == "accuracy_trend":
+            self.accuracy_card = AccuracyTrendCard()
+            self.accuracy_card.set_stats(stats)
+            return self.accuracy_card
+
+        if key == "phase_performance":
+            self.phase_card = PhasePerformanceCard()
+            self.phase_card.set_stats(stats)
+            return self.phase_card
+
+        if key == "ending_distribution":
+            self.ending_card = EndingDistributionCard()
+            self.ending_card.set_stats(stats)
+            return self.ending_card
+
+        if key == "move_quality":
+            self.quality_card = MoveQualityCard()
+            self.quality_card.set_stats(stats)
+            return self.quality_card
+
+        if key == "time_management":
+            self.time_card = TimeManagementCard()
+            self.time_card.set_stats(stats)
+            return self.time_card
+
+        if key == "hanging_pieces":
+            self.hanging_card = HangingPiecesCard()
+            self.hanging_card.set_stats(stats)
+            self.hanging_card.drill_down_requested.connect(self._trigger_drill_down)
+            return self.hanging_card
+
+        if key == "tactical_themes":
+            self.tactics_card = TacticalThemesCard()
+            self.tactics_card.set_stats(stats)
+            self.tactics_card.drill_down_requested.connect(self._trigger_drill_down)
+            return self.tactics_card
+
+        if key == "advantage_conversion":
+            self.advantage_card = AdvantageConversionCard()
+            self.advantage_card.set_stats(stats)
+            self.advantage_card.drill_down_requested.connect(self._trigger_drill_down)
+            return self.advantage_card
+
+        if key == "brilliancy_hall":
+            self.brilliancy_card = BrilliancyHallCard()
+            self.brilliancy_card.set_stats(stats)
+            self.brilliancy_card.move_selected.connect(self._on_brilliancy_clicked)
+            return self.brilliancy_card
+
+        if key == "openings":
+            self.openings_card = OpeningsListCard()
+            self.openings_card.set_stats(stats)
+            self.openings_card.drill_down_requested.connect(self._trigger_drill_down)
+            return self.openings_card
+
+        if key == "ai_coach":
+            self.ai_coach_card = AICoachCard(self.groq_service)
+            self.ai_coach_card.set_stats(stats)
+            if self.current_insights:
+                self.ai_coach_card.set_insights(self.current_insights)
+            self.ai_coach_card.insights_generated.connect(self._store_insights_cache)
+            self.ai_coach_card.btn_refresh_insights.clicked.connect(
+                self._sync_insights_cache
+            )
+            return self.ai_coach_card
+
+        return None
+
+    def reload_dashboard(self) -> None:
+        """Apply a new card order without rebuilding or duplicating cards."""
+        if not self.current_stats:
+            return
+        order = normalise_card_order(
+            self.config_manager.get("metrics_card_order", [])
+        )
+        if order == self.card_order:
+            return
+        if not self._chart_cards or not hasattr(self, "charts_layout"):
+            return
+
+        while self.charts_layout.count():
+            self.charts_layout.takeAt(0)
+        for key in order:
+            card = self._chart_cards.get(key)
+            if card is not None:
+                self.charts_layout.addWidget(card)
+        self.card_order = order
+        self.charts_container.updateGeometry()
+        self.charts_layout.invalidate()
 
     def _on_brilliancy_clicked(self, game_id: str, move_index: int):
         if not game_id or not self.history_manager:

@@ -7,6 +7,10 @@ from unittest.mock import MagicMock
 from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
 from src.gui.components.pulsing_skeleton import PulsingSkeleton
+from src.gui.views.metrics.card_registry import (
+    DEFAULT_CARD_ORDER,
+    normalise_card_order,
+)
 from src.gui.views.metrics_view import MetricsWidget
 
 
@@ -599,6 +603,50 @@ def test_metrics_widget_includes_advantage_and_ai_coach(qapp, qtbot):
     # Re-render dashboard (simulating page switch / refresh)
     widget.show_dashboard(stats)
     assert widget.ai_coach_card.get_insights() == test_insight
+
+
+def test_dashboard_applies_saved_chart_order(qapp, qtbot):
+    """Saved order drives the sortable cards; summary cards stay pinned."""
+    mock_config = MagicMock()
+    saved_order = ["ai_coach", "removed_card", "accuracy_trend"]
+
+    def _get(key, default=None):
+        if key == "metrics_card_order":
+            return saved_order
+        if "username" in key:
+            return "PlayerA"
+        return default
+
+    mock_config.get.side_effect = _get
+    mock_history = MagicMock()
+    mock_history.get_games_for_users.return_value = [{"id": "g1"}]
+
+    widget = MetricsWidget(mock_config, mock_history)
+    qtbot.addWidget(widget)
+
+    widget.show_dashboard({
+        "total": 5,
+        "win_rate": 80.0,
+        "avg_accuracy": 82.0,
+    })
+
+    expected = normalise_card_order(
+        ["ai_coach", "removed_card", "accuracy_trend"]
+    )
+    assert widget.card_order == expected
+    assert widget.dashboard_layout.count() == 2
+    assert widget.dashboard_layout.itemAt(0).widget() is widget.stats_container
+    assert widget.charts_layout.count() == len(DEFAULT_CARD_ORDER)
+    assert widget.charts_layout.itemAt(0).widget() is widget.ai_coach_card
+    assert widget.charts_layout.itemAt(1).widget() is widget.accuracy_card
+
+    ai_card = widget.ai_coach_card
+    saved_order[:] = ["openings", "ai_coach"]
+    widget.reload_dashboard()
+
+    assert widget.charts_layout.count() == len(DEFAULT_CARD_ORDER)
+    assert widget.charts_layout.itemAt(0).widget() is widget.openings_card
+    assert widget.charts_layout.itemAt(1).widget() is ai_card
 
 
 def test_metrics_widget_smart_invalidation_and_filter_cache(qapp, qtbot):
