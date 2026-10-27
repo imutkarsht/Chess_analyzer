@@ -311,6 +311,7 @@ class Styles(metaclass=_StylesMeta):
     #  BUTTONS
     # ═══════════════════════════════════════════════════════════════
     _BUTTON_SIZES = {
+        "xs": {"font": 11, "pad_v": 1, "pad_h": 7, "radius": 4, "weight": 600},
         "sm": {"font": 12, "pad_v": 4, "pad_h": 10, "radius": 6, "weight": 600},
         "md": {"font": 13, "pad_v": 8, "pad_h": 16, "radius": 6, "weight": 600},
         "lg": {"font": 14, "pad_v": 10, "pad_h": 22, "radius": 8, "weight": 600},
@@ -384,6 +385,14 @@ class Styles(metaclass=_StylesMeta):
             hover = (p.surface_light, danger_color, danger_color)
             pressed = (p.accent_subtle, danger_color, danger_color)
             checked = (p.accent_subtle, danger_color, danger_color)
+            disabled_bg = "transparent"
+        elif variant == "segment":
+            # Compact chip used inside SegmentedControl. The checked state is a
+            # raised card; unchecked chips stay quiet until hover.
+            bg, fg, border = "transparent", p.text_secondary, "transparent"
+            hover = (p.surface_light, p.text_primary, "transparent")
+            pressed = (p.surface_light, p.text_primary, "transparent")
+            checked = (p.surface_card, p.text_primary, p.border)
             disabled_bg = "transparent"
         else:  # link
             bg, fg, border = "transparent", p.text_secondary, "transparent"

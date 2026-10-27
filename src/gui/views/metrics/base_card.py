@@ -1,12 +1,14 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
+from src.gui.components.empty_state import EmptyState
 from src.gui.styles import Styles
 
 
 class MetricCard(QFrame):
     def __init__(self, title, parent=None, max_height=None, min_height=None, action_widget=None):
         super().__init__(parent)
+        self.content_widget: QWidget | None = None
         self.setObjectName("MetricCard")
         self.setProperty("metric_card", "true")
         self._apply_theme()
@@ -49,7 +51,45 @@ class MetricCard(QFrame):
         self._apply_theme()
         if hasattr(self, "lbl_title"):
             self.lbl_title.setStyleSheet(Styles.get_card_title_style())
+        if getattr(self, "stats", None) and hasattr(self, "_render_view"):
+            self._render_view()
+
+    def set_stats(self, stats):
+        """Store the latest stats and render the card."""
+        self.stats = stats or {}
+        self._render_view()
 
     def set_content(self, widget):
         widget.setStyleSheet("background: transparent;")
         self.card_layout.addWidget(widget, stretch=1)
+        self.content_widget = widget
+
+    def clear_content(self) -> None:
+        """Remove and dispose of the current content widget, if any."""
+        if self.content_widget is None:
+            return
+        self.card_layout.removeWidget(self.content_widget)
+        self.content_widget.setParent(None)
+        self.content_widget.deleteLater()
+        self.content_widget = None
+
+    def new_content(self, spacing: int = 6) -> QWidget:
+        """Replace the content area with a fresh transparent widget.
+
+        Returns the widget (already stored as ``content_widget``) with an empty
+        zero-margin vertical layout using ``spacing``.
+        """
+        self.clear_content()
+        widget = QWidget()
+        widget.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(spacing)
+        self.content_widget = widget
+        return widget
+
+    def show_empty(self, message: str, stretch: int = 0) -> None:
+        """Replace the content area with a centered shared empty state."""
+        widget = self.new_content()
+        widget.layout().addWidget(EmptyState(message), stretch=stretch)
+        self.set_content(widget)

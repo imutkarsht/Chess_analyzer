@@ -1,13 +1,10 @@
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
 )
 
+from src.gui.components import SegmentedControl
 from src.gui.metrics.charts import create_accuracy_trend_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
@@ -22,9 +19,12 @@ class AccuracyTrendCard(MetricCard):
     def __init__(self, parent=None):
         self.stats: dict = {}
         self.current_window = "20"  # "10", "20", "all"
-        self.content_widget: QWidget | None = None
 
-        self.segmented_control = self._build_segmented_control()
+        self.segmented_control = SegmentedControl(
+            options=[("10G", "10"), ("20G", "20"), ("All", "all")],
+            value=self.current_window,
+        )
+        self.segmented_control.valueChanged.connect(self.set_window)
         super().__init__(
             "Accuracy Trend",
             parent=parent,
@@ -32,85 +32,19 @@ class AccuracyTrendCard(MetricCard):
             action_widget=self.segmented_control,
         )
 
-    def _build_segmented_control(self) -> QFrame:
-        container = QFrame()
-        container.setObjectName("trend_segmented")
-        container.setStyleSheet(f"""
-            QFrame#trend_segmented {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 6px;
-                border: none;
-            }}
-        """)
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(2)
-
-        self.btn_10 = QPushButton("10G")
-        self.btn_20 = QPushButton("20G")
-        self.btn_all = QPushButton("All")
-
-        for btn, window in [
-            (self.btn_10, "10"),
-            (self.btn_20, "20"),
-            (self.btn_all, "all"),
-        ]:
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setFixedHeight(22)
-            btn.clicked.connect(lambda _, w=window: self.set_window(w))
-            layout.addWidget(btn)
-
-        self._update_segmented_styles()
-        return container
-
-    def _update_segmented_styles(self):
-        active_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_CARD};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-weight: 600;
-                font-size: 11px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-                padding: 1px 7px;
-            }}
-        """
-        inactive_style = f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-weight: 500;
-                font-size: 11px;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                padding: 1px 7px;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-        """
-        self.btn_10.setStyleSheet(active_style if self.current_window == "10" else inactive_style)
-        self.btn_20.setStyleSheet(active_style if self.current_window == "20" else inactive_style)
-        self.btn_all.setStyleSheet(active_style if self.current_window == "all" else inactive_style)
+        # Compatibility aliases for existing callers/tests.
+        self.btn_10 = self.segmented_control.button("10")
+        self.btn_20 = self.segmented_control.button("20")
+        self.btn_all = self.segmented_control.button("all")
 
     def set_window(self, window: str):
         if self.current_window == window:
             return
         self.current_window = window
-        self._update_segmented_styles()
-        self._render_view()
-
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
+        self.segmented_control.set_value(window, emit=False)
         self._render_view()
 
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         full_history = self.stats.get("accuracy_history", [])
 
         # History is ordered newest-to-oldest; reverse to plot chronologically left-to-right
@@ -121,24 +55,11 @@ class AccuracyTrendCard(MetricCard):
         else:
             accuracies = full_history[::-1] if full_history else []
 
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(6)
-
         if not accuracies:
-            empty_lbl = QLabel("No accuracy data available for selected filters.")
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl)
-            self.set_content(self.content_widget)
+            self.show_empty("No accuracy data available for selected filters.")
             return
+
+        main_vbox = self.new_content(spacing=6).layout()
 
         # 1. Quick Stats Strip
         stats_strip = QHBoxLayout()
@@ -251,17 +172,3 @@ class AccuracyTrendCard(MetricCard):
         main_vbox.addWidget(canvas, stretch=1)
 
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if hasattr(self, "segmented_control"):
-            self.segmented_control.setStyleSheet(f"""
-                QFrame#trend_segmented {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border-radius: 6px;
-                    border: none;
-                }}
-            """)
-            self._update_segmented_styles()
-        if self.stats:
-            self._render_view()

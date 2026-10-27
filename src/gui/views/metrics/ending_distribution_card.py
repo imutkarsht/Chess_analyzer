@@ -3,14 +3,11 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
-    QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
 )
 
+from src.gui.components import LegendList, SegmentedControl
 from src.gui.metrics.charts import create_donut_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
@@ -21,9 +18,12 @@ class EndingDistributionCard(MetricCard):
     def __init__(self, parent=None):
         self.current_mode = "all"  # "all", "won", "lost", "drawn"
         self.stats = {}
-        self.content_widget = None
 
-        self.segmented_control = self._build_segmented_control()
+        self.segmented_control = SegmentedControl(
+            options=[("All", "all"), ("Won", "won"), ("Lost", "lost"), ("Drawn", "drawn")],
+            value=self.current_mode,
+        )
+        self.segmented_control.valueChanged.connect(self.set_mode)
         super().__init__(
             "Ending Distribution",
             parent=parent,
@@ -31,89 +31,20 @@ class EndingDistributionCard(MetricCard):
             action_widget=self.segmented_control,
         )
 
-    def _build_segmented_control(self) -> QFrame:
-        container = QFrame()
-        container.setObjectName("ending_segmented")
-        container.setStyleSheet(f"""
-            QFrame#ending_segmented {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 6px;
-                border: none;
-            }}
-        """)
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(2)
-
-        self.btn_all = QPushButton("All")
-        self.btn_won = QPushButton("Won")
-        self.btn_lost = QPushButton("Lost")
-        self.btn_drawn = QPushButton("Drawn")
-
-        for btn, mode in [
-            (self.btn_all, "all"),
-            (self.btn_won, "won"),
-            (self.btn_lost, "lost"),
-            (self.btn_drawn, "drawn"),
-        ]:
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setFixedHeight(22)
-            btn.clicked.connect(lambda checked=False, m=mode: self.set_mode(m))
-            layout.addWidget(btn)
-
-        self._update_segmented_styles()
-        return container
-
-    def _update_segmented_styles(self):
-        active_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: #ffffff;
-                font-size: 11px;
-                font-weight: 600;
-                border-radius: 4px;
-                padding: 2px 8px;
-                border: none;
-            }}
-        """
-        inactive_style = f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 500;
-                border-radius: 4px;
-                padding: 2px 8px;
-                border: none;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """
-        self.btn_all.setStyleSheet(active_style if self.current_mode == "all" else inactive_style)
-        self.btn_won.setStyleSheet(active_style if self.current_mode == "won" else inactive_style)
-        self.btn_lost.setStyleSheet(active_style if self.current_mode == "lost" else inactive_style)
-        self.btn_drawn.setStyleSheet(
-            active_style if self.current_mode == "drawn" else inactive_style
-        )
+        # Compatibility aliases for existing callers/tests.
+        self.btn_all = self.segmented_control.button("all")
+        self.btn_won = self.segmented_control.button("won")
+        self.btn_lost = self.segmented_control.button("lost")
+        self.btn_drawn = self.segmented_control.button("drawn")
 
     def set_mode(self, mode: str):
         if self.current_mode == mode:
             return
         self.current_mode = mode
-        self._update_segmented_styles()
-        self._render_view()
-
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
+        self.segmented_control.set_value(mode, emit=False)
         self._render_view()
 
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         if self.current_mode == "won":
             counts = self.stats.get("win_term_counts", {})
             keys = ["Checkmate", "Resignation", "Time", "Abandon"]
@@ -189,22 +120,14 @@ class EndingDistributionCard(MetricCard):
         )
         canvas = fig_to_canvas(fig)
 
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(6)
+        main_vbox = self.new_content(spacing=6).layout()
 
         chart_row = QHBoxLayout()
         chart_row.setContentsMargins(0, 0, 0, 0)
         chart_row.addWidget(canvas, stretch=3)
 
         # Legend Sidebar
-        legend_widget = QWidget()
-        legend_widget.setStyleSheet("background: transparent;")
-        legend_layout = QVBoxLayout(legend_widget)
-        legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        legend_layout.setSpacing(6)
+        legend = LegendList(spacing=6)
 
         if total_endings == 0:
             mode_label = (
@@ -212,20 +135,12 @@ class EndingDistributionCard(MetricCard):
                 if self.current_mode != "all"
                 else "No games recorded"
             )
-            empty_lbl = QLabel(mode_label)
-            empty_lbl.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-style: italic; border: none; background: transparent;"
-            )
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            legend_layout.addWidget(empty_lbl)
+            legend.add_empty(mode_label, italic=True)
         else:
             for k in keys:
                 v = counts.get(k, 0)
                 if v == 0:
                     continue
-
-                row = QHBoxLayout()
-                row.setSpacing(8)
 
                 icon_file = icon_map.get(k)
                 icon_path = resolve_asset(icon_file) if icon_file else None
@@ -250,36 +165,15 @@ class EndingDistributionCard(MetricCard):
                     except Exception:
                         pixmap = None
 
-                if pixmap and not pixmap.isNull():
-                    lbl_icon = QLabel()
-                    lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet("border: none; background: transparent;")
-                    row.addWidget(lbl_icon)
-                else:
-                    dot = QLabel("●")
-                    dot.setStyleSheet(
-                        f"color: {type_colors.get(k, '#888888')}; font-size: 14px; border: none; background: transparent;"
-                    )
-                    row.addWidget(dot)
-
-                lbl_name = QLabel(k)
-                lbl_name.setStyleSheet(
-                    f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; border: none; background: transparent;"
-                )
-                row.addWidget(lbl_name)
-
-                row.addStretch()
-
                 pct = (v / total_endings * 100) if total_endings > 0 else 0
-                lbl_val = QLabel(f"{v} ({pct:.0f}%)")
-                lbl_val.setStyleSheet(
-                    f"color: {type_colors.get(k, '#888888')}; font-size: 12px; font-weight: bold; border: none; background: transparent;"
+                legend.add_row(
+                    k,
+                    f"{v} ({pct:.0f}%)",
+                    type_colors.get(k, "#888888"),
+                    pixmap,
                 )
-                row.addWidget(lbl_val)
 
-                legend_layout.addLayout(row)
-
-        chart_row.addWidget(legend_widget, stretch=3)
+        chart_row.addWidget(legend, stretch=3)
         main_vbox.addLayout(chart_row)
 
         # Clock Alert if losses on time >= 25% and at least 3 losses (relevant for All and Lost views)
@@ -301,17 +195,3 @@ class EndingDistributionCard(MetricCard):
                 main_vbox.addWidget(alert_lbl)
 
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if hasattr(self, "segmented_control"):
-            self.segmented_control.setStyleSheet(f"""
-                QFrame#ending_segmented {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border-radius: 6px;
-                    border: none;
-                }}
-            """)
-            self._update_segmented_styles()
-        if self.stats:
-            self._render_view()

@@ -12,12 +12,11 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QProgressBar,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
+from src.gui.components import MiniBar, SegmentedBar, StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -74,18 +73,8 @@ class TacticalThemesCard(MetricCard):
 
     def __init__(self, parent=None):
         self.stats: dict = {}
-        self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("Pattern Execution")
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.action_badge = StatusBadge("Pattern Execution", tone="neutral")
 
         super().__init__(
             "Tactical Motifs & Patterns",
@@ -94,42 +83,21 @@ class TacticalThemesCard(MetricCard):
             action_widget=self.action_badge,
         )
 
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
-        self._render_view()
-
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         themes = self.stats.get("tactical_themes", {})
         total_games = self.stats.get("total", 0)
         total_tactics = sum(themes.values())
 
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(14)
-
         if total_games == 0 or total_tactics == 0:
-            empty_lbl = QLabel(
-                "No tactical motifs recorded yet.\nAnalyze your games to reveal tactical patterns!"
+            self.show_empty(
+                "No tactical motifs recorded yet.\n"
+                "Analyze your games to reveal tactical patterns!"
                 if total_games > 0
                 else "No games available for tactical motif analysis."
             )
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl)
-            self.set_content(self.content_widget)
             return
+
+        main_vbox = self.new_content(spacing=14).layout()
 
         # Sort motifs by strike count descending (frequency ranking)
         sorted_motifs = sorted(
@@ -246,16 +214,7 @@ class TacticalThemesCard(MetricCard):
         # ═══════════════════════════════════════════════════════════════
         #  2. PROPORTIONAL DISTRIBUTION RIBBON (Multi-Segmented Bar)
         # ═══════════════════════════════════════════════════════════════
-        ribbon_frame = QFrame()
-        ribbon_frame.setFixedHeight(8)
-        ribbon_frame.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border-radius: 4px;
-        """)
-        r_layout = QHBoxLayout(ribbon_frame)
-        r_layout.setContentsMargins(0, 0, 0, 0)
-        r_layout.setSpacing(1)
-
+        segments = []
         for key in sorted_motifs:
             cnt = themes.get(key, 0)
             if cnt <= 0:
@@ -263,17 +222,24 @@ class TacticalThemesCard(MetricCard):
             pct = cnt / total_tactics * 100
             _, _, _, color_attr = self.MOTIF_CONFIG[key]
             seg_color = getattr(Styles, color_attr, Styles.COLOR_ACCENT)
+            segments.append(
+                (
+                    max(1, int(pct * 10)),
+                    seg_color,
+                    f"{self.MOTIF_CONFIG[key][0]}: {cnt} strikes ({pct:.1f}%)",
+                )
+            )
 
-            seg = QFrame()
-            seg.setFixedHeight(8)
-            seg.setStyleSheet(f"""
-                background-color: {seg_color};
-                border-radius: 2px;
-            """)
-            seg.setToolTip(f"{self.MOTIF_CONFIG[key][0]}: {cnt} strikes ({pct:.1f}%)")
-            r_layout.addWidget(seg, max(1, int(pct * 10)))
-
-        main_vbox.addWidget(ribbon_frame)
+        main_vbox.addWidget(
+            SegmentedBar(
+                segments,
+                height=8,
+                radius=4,
+                segment_radius=2,
+                spacing=1,
+                track_color=Styles.COLOR_SURFACE_LIGHT,
+            )
+        )
 
         # ═══════════════════════════════════════════════════════════════
         #  3. RANKED ARSENAL LIST (Clean, Open Rows with Proportional Bars)
@@ -344,24 +310,15 @@ class TacticalThemesCard(MetricCard):
             row_l.addWidget(lbl_name)
 
             # Proportional bar
-            pbar = QProgressBar()
-            pbar.setRange(0, 100)
-            pbar.setValue(int(pct))
-            pbar.setTextVisible(False)
-            pbar.setFixedHeight(6)
-            pbar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            pbar.setStyleSheet(f"""
-                QProgressBar {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: none;
-                    border-radius: 3px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {theme_color if cnt > 0 else "transparent"};
-                    border-radius: 3px;
-                }}
-            """)
-            row_l.addWidget(pbar)
+            row_l.addWidget(
+                MiniBar(
+                    int(pct),
+                    theme_color if cnt > 0 else "transparent",
+                    height=6,
+                    radius=3,
+                    track_color=Styles.COLOR_SURFACE_LIGHT,
+                )
+            )
 
             # Strikes count
             lbl_cnt = QLabel(f"{cnt} strikes" if cnt != 1 else "1 strike")
@@ -391,18 +348,3 @@ class TacticalThemesCard(MetricCard):
 
         main_vbox.addWidget(list_container)
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if hasattr(self, "action_badge"):
-            self.action_badge.setStyleSheet(f"""
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 600;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 3px 8px;
-            """)
-        if self.stats:
-            self._render_view()

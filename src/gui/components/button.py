@@ -3,8 +3,8 @@
 One widget and one stylesheet generator replace the ad-hoc button styles that
 used to live in ``styles.py`` getters, helper factories and per-widget QSS:
 
-* eight variants: primary, filled, outlined, tonal, hollow, ghost, danger, link
-* three sizes with optional icon-only and full-width layouts
+* nine variants: primary, filled, outlined, tonal, hollow, ghost, danger, link, segment
+* four sizes with optional icon-only and full-width layouts
 * built-in loading state (spinner + input lock) and checkable support
 
 Call sites never ship their own button QSS; the look comes from
@@ -40,15 +40,18 @@ class ButtonVariant(StrEnum):
     GHOST = "ghost"
     DANGER = "danger"
     LINK = "link"
+    SEGMENT = "segment"
 
 
 class ButtonSize(StrEnum):
+    XS = "xs"
     SM = "sm"
     MD = "md"
     LG = "lg"
 
 
 _SIZE_SPECS: dict[ButtonSize, dict[str, int]] = {
+    ButtonSize.XS: {"height": 22, "icon": 12, "font": 11, "pad_v": 1, "pad_h": 7},
     ButtonSize.SM: {"height": 28, "icon": 14, "font": 12, "pad_v": 4, "pad_h": 10},
     ButtonSize.MD: {"height": 34, "icon": 16, "font": 13, "pad_v": 8, "pad_h": 16},
     ButtonSize.LG: {"height": 42, "icon": 18, "font": 14, "pad_v": 10, "pad_h": 22},

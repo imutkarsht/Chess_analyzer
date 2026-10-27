@@ -10,12 +10,16 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import (
+    EmptyState,
+    PaginationBar,
+    SegmentedBar,
+    SegmentedControl,
+)
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -38,37 +42,13 @@ class OpeningsListCard(MetricCard):
         self.stats = {}
         self.current_sort = "played"  # 'played', 'winrate'
         self.current_page = 0
-        self.content_widget = None
 
         # Header Action Widget: Sort Control [Most Played | Win Rate]
-        self.sort_control = QFrame()
-        self.sort_control.setObjectName("opening_sort_control")
-        self.sort_control.setFixedHeight(24)
-        self.sort_control.setStyleSheet(f"""
-            QFrame#opening_sort_control {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 4px;
-                border: none;
-            }}
-        """)
-        sort_layout = QHBoxLayout(self.sort_control)
-        sort_layout.setContentsMargins(2, 2, 2, 2)
-        sort_layout.setSpacing(2)
-
-        self.btn_sort_played = QPushButton("Most Played")
-        self.btn_sort_played.setFixedHeight(20)
-        self.btn_sort_played.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_sort_played.clicked.connect(lambda: self.set_sort("played"))
-
-        self.btn_sort_winrate = QPushButton("Win Rate")
-        self.btn_sort_winrate.setFixedHeight(20)
-        self.btn_sort_winrate.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_sort_winrate.clicked.connect(lambda: self.set_sort("winrate"))
-
-        sort_layout.addWidget(self.btn_sort_played)
-        sort_layout.addWidget(self.btn_sort_winrate)
-
-        self._update_sort_styles()
+        self.sort_control = SegmentedControl(
+            options=[("Most Played", "played"), ("Win Rate", "winrate")],
+            value=self.current_sort,
+        )
+        self.sort_control.valueChanged.connect(self.set_sort)
 
         super().__init__(
             "Opening Repertoire",
@@ -77,45 +57,16 @@ class OpeningsListCard(MetricCard):
             action_widget=self.sort_control,
         )
 
-    def _update_sort_styles(self):
-        active_sort_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_SURFACE_CARD};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-weight: 600;
-                font-size: 10px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 3px;
-                padding: 1px 7px;
-            }}
-        """
-        inactive_sort_style = f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-weight: 500;
-                font-size: 10px;
-                border: 1px solid transparent;
-                border-radius: 3px;
-                padding: 1px 7px;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """
-        self.btn_sort_played.setStyleSheet(
-            active_sort_style if self.current_sort == "played" else inactive_sort_style
-        )
-        self.btn_sort_winrate.setStyleSheet(
-            active_sort_style if self.current_sort == "winrate" else inactive_sort_style
-        )
+        # Compatibility aliases for existing callers/tests.
+        self.btn_sort_played = self.sort_control.button("played")
+        self.btn_sort_winrate = self.sort_control.button("winrate")
 
     def set_sort(self, sort_by: str):
         if self.current_sort == sort_by:
             return
         self.current_sort = sort_by
         self.current_page = 0
-        self._update_sort_styles()
+        self.sort_control.set_value(sort_by, emit=False)
         self._render_view()
 
     def set_stats(self, stats: dict):
@@ -169,17 +120,7 @@ class OpeningsListCard(MetricCard):
         return items
 
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.setParent(None)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(8)
+        main_vbox = self.new_content(spacing=8).layout()
 
         openings_list = self._get_openings_list()
         active_color = self.stats.get("filter_applied", {}).get("color", "All Colors")
@@ -214,15 +155,9 @@ class OpeningsListCard(MetricCard):
         main_vbox.addLayout(sub_bar)
 
         if not openings_list:
-            empty_lbl = QLabel("No openings data found for the selected filters.")
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl, stretch=1)
+            main_vbox.addWidget(
+                EmptyState("No openings data found for the selected filters."), stretch=1
+            )
             self.set_content(self.content_widget)
             return
 
@@ -252,44 +187,18 @@ class OpeningsListCard(MetricCard):
 
         # 3. Pagination Bar
         if total_pages > 1:
-            pagination_bar = QHBoxLayout()
-            pagination_bar.setContentsMargins(4, 4, 4, 0)
-            pagination_bar.setSpacing(10)
-
-            self.btn_prev_page = Button(
-                "◀ Prev",
-                ButtonVariant.FILLED,
-                ButtonSize.SM,
-                on_click=self._go_prev_page,
+            pagination_bar = PaginationBar(
+                page=self.current_page,
+                total_pages=total_pages,
+                prev_text="◀ Prev",
+                next_text="Next ▶",
             )
-            self.btn_prev_page.setFixedHeight(26)
-            self.btn_prev_page.setEnabled(self.current_page > 0)
-
-            self.lbl_page_info = QLabel(f"Page {self.current_page + 1} of {total_pages}")
-            self.lbl_page_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.lbl_page_info.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 500;
-                background: transparent;
-            """)
-
-            self.btn_next_page = Button(
-                "Next ▶",
-                ButtonVariant.FILLED,
-                ButtonSize.SM,
-                on_click=self._go_next_page,
-            )
-            self.btn_next_page.setFixedHeight(26)
-            self.btn_next_page.setEnabled(self.current_page < total_pages - 1)
-
-            pagination_bar.addWidget(self.btn_prev_page)
-            pagination_bar.addStretch()
-            pagination_bar.addWidget(self.lbl_page_info)
-            pagination_bar.addStretch()
-            pagination_bar.addWidget(self.btn_next_page)
-
-            main_vbox.addLayout(pagination_bar)
+            pagination_bar.prev_clicked.connect(self._go_prev_page)
+            pagination_bar.next_clicked.connect(self._go_next_page)
+            self.btn_prev_page = pagination_bar.prev_btn
+            self.lbl_page_info = pagination_bar.label
+            self.btn_next_page = pagination_bar.next_btn
+            main_vbox.addWidget(pagination_bar)
 
         self.set_content(self.content_widget)
 
@@ -445,55 +354,43 @@ class OpeningsListCard(MetricCard):
             c_layout.addWidget(var_lbl)
 
         # Line 3: Proportional Stacked Bar [ Green Wins | Gray Draws | Red Losses ]
-        bar_container = QFrame()
-        bar_container.setFixedHeight(6)
-        bar_container.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-radius: 3px;
-                border: none;
-            }}
-        """)
-        bar_layout = QHBoxLayout(bar_container)
-        bar_layout.setContentsMargins(0, 0, 0, 0)
-        bar_layout.setSpacing(1)
-
+        segments = []
         if total > 0:
             if wins > 0:
-                w_seg = QFrame()
-                w_seg.setStyleSheet(f"""
-                    background-color: {Styles.COLOR_BEST};
-                    border-radius: 2px;
-                    border: none;
-                """)
-                w_seg.setToolTip(f"Wins: {wins} ({wins / total * 100:.0f}%)")
-                bar_layout.addWidget(w_seg, stretch=max(1, int(wins * 100 / total)))
-
+                segments.append(
+                    (
+                        max(1, int(wins * 100 / total)),
+                        Styles.COLOR_BEST,
+                        f"Wins: {wins} ({wins / total * 100:.0f}%)",
+                    )
+                )
             if draws > 0:
-                d_seg = QFrame()
-                d_seg.setStyleSheet(f"""
-                    background-color: {Styles.COLOR_BORDER};
-                    border-radius: 2px;
-                    border: none;
-                """)
-                d_seg.setToolTip(f"Draws: {draws} ({draws / total * 100:.0f}%)")
-                bar_layout.addWidget(d_seg, stretch=max(1, int(draws * 100 / total)))
-
+                segments.append(
+                    (
+                        max(1, int(draws * 100 / total)),
+                        Styles.COLOR_BORDER,
+                        f"Draws: {draws} ({draws / total * 100:.0f}%)",
+                    )
+                )
             if losses > 0:
-                l_seg = QFrame()
-                l_seg.setStyleSheet(f"""
-                    background-color: {Styles.COLOR_BLUNDER};
-                    border-radius: 2px;
-                    border: none;
-                """)
-                l_seg.setToolTip(f"Losses: {losses} ({losses / total * 100:.0f}%)")
-                bar_layout.addWidget(l_seg, stretch=max(1, int(losses * 100 / total)))
-        else:
-            empty_seg = QFrame()
-            empty_seg.setStyleSheet("background: transparent; border: none;")
-            bar_layout.addWidget(empty_seg)
+                segments.append(
+                    (
+                        max(1, int(losses * 100 / total)),
+                        Styles.COLOR_BLUNDER,
+                        f"Losses: {losses} ({losses / total * 100:.0f}%)",
+                    )
+                )
 
-        c_layout.addWidget(bar_container)
+        c_layout.addWidget(
+            SegmentedBar(
+                segments,
+                height=6,
+                radius=3,
+                segment_radius=2,
+                spacing=1,
+                track_color=Styles.COLOR_SURFACE,
+            )
+        )
 
         # Line 4: Breakdown Strip: "XW • YD • ZL" and "Avg Acc: XX.X%"
         line4 = QHBoxLayout()
@@ -537,17 +434,3 @@ class OpeningsListCard(MetricCard):
         c_layout.addLayout(line4)
 
         return card
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if hasattr(self, "sort_control"):
-            self.sort_control.setStyleSheet(f"""
-                QFrame#opening_sort_control {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border-radius: 4px;
-                    border: none;
-                }}
-            """)
-            self._update_sort_styles()
-        if self.stats:
-            self._render_view()

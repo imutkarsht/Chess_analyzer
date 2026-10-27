@@ -3,11 +3,10 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QProgressBar,
     QVBoxLayout,
-    QWidget,
 )
 
+from src.gui.components import MiniBar, StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -22,18 +21,8 @@ class PhasePerformanceCard(MetricCard):
 
     def __init__(self, parent=None):
         self.stats: dict = {}
-        self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("3 Game Phases")
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.action_badge = StatusBadge("3 Game Phases", tone="neutral")
 
         super().__init__(
             "Phase Performance",
@@ -42,40 +31,18 @@ class PhasePerformanceCard(MetricCard):
             action_widget=self.action_badge,
         )
 
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
-        self._render_view()
-
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         phase_data = self.stats.get("phase_stats", {})
         accuracies = phase_data.get("accuracies", {})
         blunders = phase_data.get("blunders", {})
 
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(12)
-
         # Check for valid data
         has_data = any(accuracies.get(p, 0.0) > 0 for p in ("opening", "middlegame", "endgame"))
         if not has_data:
-            empty_lbl = QLabel("No phase accuracy data available for selected games.")
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl)
-            self.set_content(self.content_widget)
+            self.show_empty("No phase accuracy data available for selected games.")
             return
+
+        main_vbox = self.new_content(spacing=12).layout()
 
         phases = [
             ("Opening", "opening", "fa5s.chess-pawn", "Moves 1–15"),
@@ -184,23 +151,9 @@ class PhasePerformanceCard(MetricCard):
             p_layout.addWidget(acc_lbl)
 
             # Native Progress Bar
-            pbar = QProgressBar()
-            pbar.setRange(0, 100)
-            pbar.setValue(int(acc))
-            pbar.setTextVisible(False)
-            pbar.setFixedHeight(6)
-            pbar.setStyleSheet(f"""
-                QProgressBar {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: none;
-                    border-radius: 3px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {bar_color};
-                    border-radius: 3px;
-                }}
-            """)
-            p_layout.addWidget(pbar)
+            p_layout.addWidget(
+                MiniBar(int(acc), bar_color, height=6, radius=3)
+            )
 
             p_layout.addSpacing(4)
 
@@ -225,18 +178,3 @@ class PhasePerformanceCard(MetricCard):
         main_vbox.addLayout(col_row, stretch=1)
 
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if hasattr(self, "action_badge"):
-            self.action_badge.setStyleSheet(f"""
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 600;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 3px 8px;
-            """)
-        if self.stats:
-            self._render_view()

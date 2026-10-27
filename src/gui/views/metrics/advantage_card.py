@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.components import SegmentedBar, StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -30,18 +31,8 @@ class AdvantageConversionCard(MetricCard):
 
     def __init__(self, parent=None):
         self.stats: dict = {}
-        self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("Conversion Analytics")
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.action_badge = StatusBadge("Conversion Analytics", tone="neutral")
 
         super().__init__(
             "Advantage Capitalization & Comeback",
@@ -50,16 +41,7 @@ class AdvantageConversionCard(MetricCard):
             action_widget=self.action_badge,
         )
 
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
-        self._render_view()
-
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         adv = self.stats.get("advantage_stats", {})
         total_games = self.stats.get("total", 0)
 
@@ -79,28 +61,16 @@ class AdvantageConversionCard(MetricCard):
         # Update action badge
         if hwa > 0:
             throw_text = f" • {thrown} Thrown" if thrown > 0 else ""
-            self.action_badge.setText(f"{conv_rate:.0f}% Conversion{throw_text}")
+            self.action_badge.set_text(f"{conv_rate:.0f}% Conversion{throw_text}")
         else:
-            self.action_badge.setText("Conversion Analytics")
-
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(4, 4, 4, 4)
-        main_vbox.setSpacing(14)
+            self.action_badge.set_text("Conversion Analytics")
 
         if total_games == 0:
-            empty_lbl = QLabel("No games available for advantage conversion analysis.")
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl)
-            self.set_content(self.content_widget)
+            self.show_empty("No games available for advantage conversion analysis.")
             return
+
+        main_vbox = self.new_content(spacing=14).layout()
+        main_vbox.setContentsMargins(4, 4, 4, 4)
 
         # ═══════════════════════════════════════════════════════════════
         #  1. TOP ROW: 2 CLEAN OPEN PANELS
@@ -158,44 +128,36 @@ class AdvantageConversionCard(MetricCard):
 
         # Segmented conversion bar (clean 6px bar)
         if hwa > 0:
-            bar_frame = QFrame()
-            bar_frame.setFixedHeight(6)
-            bar_layout = QHBoxLayout(bar_frame)
-            bar_layout.setContentsMargins(0, 0, 0, 0)
-            bar_layout.setSpacing(2)
-
             win_w = max(1, int(converted / hwa * 100))
             draw_w = max(1, int(squandered / hwa * 100)) if squandered > 0 else 0
             loss_w = max(1, int(thrown / hwa * 100)) if thrown > 0 else 0
 
-            seg_win = QFrame()
-            seg_win.setStyleSheet(
-                f"background-color: {Styles.COLOR_RESULT_WIN}; border-radius: 3px;"
-            )
-            bar_layout.addWidget(seg_win, win_w)
-
+            segments = [(win_w, Styles.COLOR_RESULT_WIN, None)]
             if draw_w > 0:
-                seg_draw = QFrame()
-                seg_draw.setStyleSheet(
-                    f"background-color: {Styles.COLOR_RESULT_DRAW}; border-radius: 3px;"
-                )
-                bar_layout.addWidget(seg_draw, draw_w)
-
+                segments.append((draw_w, Styles.COLOR_RESULT_DRAW, None))
             if loss_w > 0:
-                seg_loss = QFrame()
-                seg_loss.setStyleSheet(
-                    f"background-color: {Styles.COLOR_BLUNDER}; border-radius: 3px;"
-                )
-                bar_layout.addWidget(seg_loss, loss_w)
+                segments.append((loss_w, Styles.COLOR_BLUNDER, None))
 
-            adv_vbox.addWidget(bar_frame)
-        else:
-            bar_placeholder = QFrame()
-            bar_placeholder.setFixedHeight(6)
-            bar_placeholder.setStyleSheet(
-                f"background-color: {Styles.COLOR_BORDER}; border-radius: 3px;"
+            adv_vbox.addWidget(
+                SegmentedBar(
+                    segments,
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=None,
+                )
             )
-            adv_vbox.addWidget(bar_placeholder)
+        else:
+            adv_vbox.addWidget(
+                SegmentedBar(
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=Styles.COLOR_BORDER,
+                )
+            )
 
         # Clean typography stats (NO nested box clutter)
         stats_line = QHBoxLayout()
@@ -318,37 +280,35 @@ class AdvantageConversionCard(MetricCard):
 
         # Segmented comeback bar
         if hlp > 0:
-            cb_bar_frame = QFrame()
-            cb_bar_frame.setFixedHeight(6)
-            cb_bar_layout = QHBoxLayout(cb_bar_frame)
-            cb_bar_layout.setContentsMargins(0, 0, 0, 0)
-            cb_bar_layout.setSpacing(2)
-
             res_w = max(1, int(comeback_total / hlp * 100)) if comeback_total > 0 else 0
             def_w = max(1, int(lost_deficit / hlp * 100)) if lost_deficit > 0 else 0
 
+            segments = []
             if res_w > 0:
-                seg_res = QFrame()
-                seg_res.setStyleSheet(
-                    f"background-color: {Styles.COLOR_ACCENT}; border-radius: 3px;"
-                )
-                cb_bar_layout.addWidget(seg_res, res_w)
-
+                segments.append((res_w, Styles.COLOR_ACCENT, None))
             if def_w > 0:
-                seg_def = QFrame()
-                seg_def.setStyleSheet(
-                    f"background-color: {Styles.COLOR_BORDER}; border-radius: 3px;"
-                )
-                cb_bar_layout.addWidget(seg_def, def_w)
+                segments.append((def_w, Styles.COLOR_BORDER, None))
 
-            cb_vbox.addWidget(cb_bar_frame)
-        else:
-            cb_bar_placeholder = QFrame()
-            cb_bar_placeholder.setFixedHeight(6)
-            cb_bar_placeholder.setStyleSheet(
-                f"background-color: {Styles.COLOR_BORDER}; border-radius: 3px;"
+            cb_vbox.addWidget(
+                SegmentedBar(
+                    segments,
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=None,
+                )
             )
-            cb_vbox.addWidget(cb_bar_placeholder)
+        else:
+            cb_vbox.addWidget(
+                SegmentedBar(
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=Styles.COLOR_BORDER,
+                )
+            )
 
         # Clean typography stats for Comeback
         cb_stats_line = QHBoxLayout()
@@ -422,16 +382,3 @@ class AdvantageConversionCard(MetricCard):
 
         main_vbox.addWidget(insight_frame)
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
-        super().refresh_styles()
-        self._render_view()
