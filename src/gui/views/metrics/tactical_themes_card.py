@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.components import StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -74,18 +75,8 @@ class TacticalThemesCard(MetricCard):
 
     def __init__(self, parent=None):
         self.stats: dict = {}
-        self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("Pattern Execution")
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.action_badge = StatusBadge("Pattern Execution", tone="neutral")
 
         super().__init__(
             "Tactical Motifs & Patterns",
@@ -99,37 +90,20 @@ class TacticalThemesCard(MetricCard):
         self._render_view()
 
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         themes = self.stats.get("tactical_themes", {})
         total_games = self.stats.get("total", 0)
         total_tactics = sum(themes.values())
 
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(14)
-
         if total_games == 0 or total_tactics == 0:
-            empty_lbl = QLabel(
-                "No tactical motifs recorded yet.\nAnalyze your games to reveal tactical patterns!"
+            self.show_empty(
+                "No tactical motifs recorded yet.\n"
+                "Analyze your games to reveal tactical patterns!"
                 if total_games > 0
                 else "No games available for tactical motif analysis."
             )
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl)
-            self.set_content(self.content_widget)
             return
+
+        main_vbox = self.new_content(spacing=14).layout()
 
         # Sort motifs by strike count descending (frequency ranking)
         sorted_motifs = sorted(
@@ -394,15 +368,5 @@ class TacticalThemesCard(MetricCard):
 
     def refresh_styles(self):
         super().refresh_styles()
-        if hasattr(self, "action_badge"):
-            self.action_badge.setStyleSheet(f"""
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 600;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 3px 8px;
-            """)
         if self.stats:
             self._render_view()

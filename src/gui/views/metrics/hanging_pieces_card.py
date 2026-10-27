@@ -15,9 +15,9 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QSizePolicy,
     QVBoxLayout,
-    QWidget,
 )
 
+from src.gui.components import StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -41,18 +41,8 @@ class HangingPiecesCard(MetricCard):
 
     def __init__(self, parent=None):
         self.stats: dict = {}
-        self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("Board Awareness")
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.action_badge = StatusBadge("Board Awareness", tone="neutral")
 
         super().__init__(
             "Piece Safety & Awareness",
@@ -66,11 +56,6 @@ class HangingPiecesCard(MetricCard):
         self._render_view()
 
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         h_stats = self.stats.get("hanging_stats", {})
         total_games = self.stats.get("total", 0)
 
@@ -82,24 +67,11 @@ class HangingPiecesCard(MetricCard):
         opp_missed = h_stats.get("opponent_hanging_missed", 0)
         captured_by_piece = h_stats.get("captured_by_piece", {})
 
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(12)
-
         if total_games == 0:
-            empty_lbl = QLabel("No games available for piece safety analysis.")
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl)
-            self.set_content(self.content_widget)
+            self.show_empty("No games available for piece safety analysis.")
             return
+
+        main_vbox = self.new_content(spacing=12).layout()
 
         # ═══════════════════════════════════════════════════════════════
         #  DUAL PILLARS: DEFENSIVE LEAKS (LEFT) vs TACTICAL VIGILANCE (RIGHT)
@@ -513,15 +485,5 @@ class HangingPiecesCard(MetricCard):
 
     def refresh_styles(self):
         super().refresh_styles()
-        if hasattr(self, "action_badge"):
-            self.action_badge.setStyleSheet(f"""
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 600;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 3px 8px;
-            """)
         if self.stats:
             self._render_view()

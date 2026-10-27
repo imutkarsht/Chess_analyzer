@@ -17,7 +17,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    PaginationBar,
+    StatusBadge,
+)
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
@@ -54,19 +60,9 @@ class BrilliancyHallCard(MetricCard):
 
     def __init__(self, parent=None):
         self.stats: dict = {}
-        self.content_widget: QWidget | None = None
         self.current_page: int = 0
 
-        self.action_badge = QLabel("0 Brilliancies")
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.action_badge = StatusBadge("0 Brilliancies", tone="neutral")
 
         super().__init__(
             "Brilliancy Hall",
@@ -81,11 +77,6 @@ class BrilliancyHallCard(MetricCard):
         self._render_view()
 
     def _render_view(self):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-            self.content_widget = None
-
         raw_brilliancies = self.stats.get("brilliancies", [])
         # Strictly filter for classification == 'Brilliant'
         brilliants = [b for b in raw_brilliancies if b.get("classification") == "Brilliant"]
@@ -93,37 +84,15 @@ class BrilliancyHallCard(MetricCard):
 
         # Update header badge
         badge_text = f"{count} Brilliancy" if count == 1 else f"{count} Brilliancies"
-        self.action_badge.setText(badge_text)
-        badge_border = Styles.COLOR_BRILLIANT if count > 0 else Styles.COLOR_BORDER
-        badge_color = Styles.COLOR_BRILLIANT if count > 0 else Styles.COLOR_TEXT_SECONDARY
-        self.action_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {badge_color};
-            font-size: 11px;
-            font-weight: 700;
-            border: 1px solid {badge_border};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
-
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        main_vbox = QVBoxLayout(self.content_widget)
-        main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(8)
+        self.action_badge.set_text(badge_text)
+        self.action_badge.set_tone("brilliant" if count > 0 else "neutral")
+        self.action_badge.set_weight(700 if count > 0 else 600)
 
         if not brilliants:
-            empty_lbl = QLabel("No brilliant moves found in selected games.")
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            main_vbox.addWidget(empty_lbl, stretch=1)
-            self.set_content(self.content_widget)
+            self.show_empty("No brilliant moves found in selected games.", stretch=1)
             return
+
+        main_vbox = self.new_content(spacing=8).layout()
 
         total_pages = max(1, (count + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
         self.current_page = max(0, min(self.current_page, total_pages - 1))
@@ -148,44 +117,18 @@ class BrilliancyHallCard(MetricCard):
 
         # Pagination Bar
         if total_pages > 1:
-            pagination_bar = QHBoxLayout()
-            pagination_bar.setContentsMargins(4, 4, 4, 0)
-            pagination_bar.setSpacing(10)
-
-            self.btn_prev = Button(
-                "◀ Prev",
-                ButtonVariant.FILLED,
-                ButtonSize.SM,
-                on_click=self._go_prev_page,
+            pagination_bar = PaginationBar(
+                page=self.current_page,
+                total_pages=total_pages,
+                prev_text="◀ Prev",
+                next_text="Next ▶",
             )
-            self.btn_prev.setFixedHeight(26)
-            self.btn_prev.setEnabled(self.current_page > 0)
-
-            self.lbl_page = QLabel(f"Page {self.current_page + 1} of {total_pages}")
-            self.lbl_page.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.lbl_page.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 500;
-                background: transparent;
-            """)
-
-            self.btn_next = Button(
-                "Next ▶",
-                ButtonVariant.FILLED,
-                ButtonSize.SM,
-                on_click=self._go_next_page,
-            )
-            self.btn_next.setFixedHeight(26)
-            self.btn_next.setEnabled(self.current_page < total_pages - 1)
-
-            pagination_bar.addWidget(self.btn_prev)
-            pagination_bar.addStretch()
-            pagination_bar.addWidget(self.lbl_page)
-            pagination_bar.addStretch()
-            pagination_bar.addWidget(self.btn_next)
-
-            main_vbox.addLayout(pagination_bar)
+            pagination_bar.prev_clicked.connect(self._go_prev_page)
+            pagination_bar.next_clicked.connect(self._go_next_page)
+            self.btn_prev = pagination_bar.prev_btn
+            self.lbl_page = pagination_bar.label
+            self.btn_next = pagination_bar.next_btn
+            main_vbox.addWidget(pagination_bar)
 
         self.set_content(self.content_widget)
 
@@ -328,15 +271,5 @@ class BrilliancyHallCard(MetricCard):
 
     def refresh_styles(self):
         super().refresh_styles()
-        if hasattr(self, "action_badge"):
-            self.action_badge.setStyleSheet(f"""
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 600;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 3px 8px;
-            """)
         if self.stats:
             self._render_view()

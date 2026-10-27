@@ -14,13 +14,8 @@ from src.gui.views.metrics.base_card import MetricCard
 class MoveQualityCard(MetricCard):
     def __init__(self, parent=None):
         super().__init__("Move Quality Distribution", parent=parent, max_height=310)
-        self.content_widget = None
 
     def set_stats(self, stats):
-        if self.content_widget:
-            self.card_layout.removeWidget(self.content_widget)
-            self.content_widget.deleteLater()
-
         counts = stats.get("detailed_quality_counts") or stats.get("quality_counts", {})
 
         order = [
@@ -115,10 +110,9 @@ class MoveQualityCard(MetricCard):
         canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         # Container for Chart + Legend
-        self.content_widget = QWidget()
-        self.content_widget.setStyleSheet("background: transparent;")
-        layout = QHBoxLayout(self.content_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
+        chart_row = self.new_content().layout()
+        layout = QHBoxLayout()
+        chart_row.addLayout(layout)
         layout.addWidget(canvas, stretch=3)
 
         # Custom Legend Sidebar

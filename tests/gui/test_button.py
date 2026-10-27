@@ -8,16 +8,11 @@ from PyQt6.QtGui import QIcon
 
 from src.gui.components import Button, ButtonSize, ButtonVariant
 
-# Purpose-built widgets that are not buttons (swatches, star rating, graph nodes)
-# or segmented chip controls whose checked look is customized per card.
+# Purpose-built widgets that are not buttons (swatches, star rating, graph nodes).
 RAW_BUTTON_ALLOWLIST = {
     "src/gui/analysis/move_cell_widget.py",
     "src/gui/analysis/variation_graph.py",
     "src/gui/components/star_rating_widget.py",
-    "src/gui/views/metrics/accuracy_trend_card.py",
-    "src/gui/views/metrics/ending_distribution_card.py",
-    "src/gui/views/metrics/time_management_card.py",
-    "src/gui/views/metrics/openings_list_card.py",
     "src/gui/views/settings/board_pieces_settings.py",
 }
 

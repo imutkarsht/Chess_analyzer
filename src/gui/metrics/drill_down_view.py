@@ -18,7 +18,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    PaginationBar,
+)
 from src.gui.metrics.drill_down_item import DrillDownItemWidget
 from src.gui.styles import Styles
 
@@ -152,35 +156,24 @@ class DrillDownView(QWidget):
             }}
         """)
         pag_layout = QHBoxLayout(self.pagination_bar)
-        pag_layout.setContentsMargins(24, 10, 24, 10)
-        pag_layout.setSpacing(10)
+        pag_layout.setContentsMargins(0, 0, 0, 0)
+        pag_layout.setSpacing(0)
 
-        self.btn_prev = Button(
-            "Previous",
-            ButtonVariant.FILLED,
-            ButtonSize.SM,
-            on_click=self._prev_page,
+        self.pagination = PaginationBar(
+            page=0,
+            total_pages=1,
+            prev_text="Previous",
+            next_text="Next",
+            margins=(24, 10, 24, 10),
+            button_height=None,
+            label_font_size=12,
         )
-
-        self.lbl_page = QLabel("Page 1 of 1")
-        self.lbl_page.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-
-        self.btn_next = Button(
-            "Next",
-            ButtonVariant.FILLED,
-            ButtonSize.SM,
-            on_click=self._next_page,
-        )
-
-        pag_layout.addWidget(self.btn_prev)
-        pag_layout.addStretch()
-        pag_layout.addWidget(self.lbl_page)
-        pag_layout.addStretch()
-        pag_layout.addWidget(self.btn_next)
+        self.btn_prev = self.pagination.prev_btn
+        self.lbl_page = self.pagination.label
+        self.btn_next = self.pagination.next_btn
+        self.pagination.prev_clicked.connect(self._prev_page)
+        self.pagination.next_clicked.connect(self._next_page)
+        pag_layout.addWidget(self.pagination)
 
         layout.addWidget(self.pagination_bar)
 
@@ -229,11 +222,9 @@ class DrillDownView(QWidget):
         # Update pagination controls
         if total_pages > 1:
             self.pagination_bar.setVisible(True)
-            self.lbl_page.setText(
-                f"Page {self.current_page + 1} of {total_pages} ({len(self.items)} total)"
+            self.pagination.set_page(
+                self.current_page, total_pages, total_items=len(self.items)
             )
-            self.btn_prev.setEnabled(self.current_page > 0)
-            self.btn_next.setEnabled(self.current_page < total_pages - 1)
         else:
             self.pagination_bar.setVisible(False)
 
@@ -295,8 +286,7 @@ class DrillDownView(QWidget):
         """)
         self.sep.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
         self.btn_back.refresh_styles()
-        self.btn_prev.refresh_styles()
-        self.btn_next.refresh_styles()
+        self.pagination.refresh_styles()
         self.badge_count.setStyleSheet(f"""
             QLabel {{
                 background-color: {Styles.COLOR_SURFACE};

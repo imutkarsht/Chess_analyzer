@@ -12,12 +12,12 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from src.gui.components import EmptyState, SegmentedControl
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -45,7 +45,11 @@ class TimeManagementCard(MetricCard):
         self.current_mode = "formats"  # "formats", "pace", "trouble"
 
         # Action widget: segmented control
-        self.segmented_control = self._build_segmented_control()
+        self.segmented_control = SegmentedControl(
+            options=[("Formats", "formats"), ("Move Pace", "pace"), ("Time Trouble", "trouble")],
+            value=self.current_mode,
+        )
+        self.segmented_control.valueChanged.connect(self.set_mode)
 
         super().__init__(
             "Time & Clock Analytics",
@@ -53,6 +57,11 @@ class TimeManagementCard(MetricCard):
             min_height=320,
             action_widget=self.segmented_control,
         )
+
+        # Compatibility aliases for existing callers/tests.
+        self.btn_formats = self.segmented_control.button("formats")
+        self.btn_pace = self.segmented_control.button("pace")
+        self.btn_trouble = self.segmented_control.button("trouble")
 
         # Central container using QStackedWidget for instant flicker-free switching
         self.stack = QStackedWidget()
@@ -81,75 +90,9 @@ class TimeManagementCard(MetricCard):
 
         self.set_content(self.stack)
 
-    def _build_segmented_control(self) -> QFrame:
-        container = QFrame()
-        container.setObjectName("time_segmented")
-        container.setStyleSheet(f"""
-            QFrame#time_segmented {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 6px;
-                border: none;
-            }}
-        """)
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.setSpacing(2)
-
-        self.btn_formats = QPushButton("Formats")
-        self.btn_pace = QPushButton("Move Pace")
-        self.btn_trouble = QPushButton("Time Trouble")
-
-        for btn, mode in [
-            (self.btn_formats, "formats"),
-            (self.btn_pace, "pace"),
-            (self.btn_trouble, "trouble"),
-        ]:
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setFixedHeight(22)
-            btn.clicked.connect(lambda checked=False, m=mode: self.set_mode(m))
-            layout.addWidget(btn)
-
-        self._update_segmented_styles()
-        return container
-
-    def _update_segmented_styles(self):
-        active_style = f"""
-            QPushButton {{
-                background-color: {Styles.COLOR_ACCENT};
-                color: #ffffff;
-                font-size: 11px;
-                font-weight: 600;
-                border-radius: 4px;
-                padding: 2px 8px;
-                border: none;
-            }}
-        """
-        inactive_style = f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 500;
-                border-radius: 4px;
-                padding: 2px 8px;
-                border: none;
-            }}
-            QPushButton:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                background-color: rgba(255, 255, 255, 0.05);
-            }}
-        """
-        self.btn_formats.setStyleSheet(
-            active_style if self.current_mode == "formats" else inactive_style
-        )
-        self.btn_pace.setStyleSheet(active_style if self.current_mode == "pace" else inactive_style)
-        self.btn_trouble.setStyleSheet(
-            active_style if self.current_mode == "trouble" else inactive_style
-        )
-
     def set_mode(self, mode: str):
         self.current_mode = mode
-        self._update_segmented_styles()
+        self.segmented_control.set_value(mode, emit=False)
         if mode == "formats":
             self.stack.setCurrentWidget(self.formats_page)
         elif mode == "pace":
@@ -163,7 +106,6 @@ class TimeManagementCard(MetricCard):
 
     def refresh_styles(self):
         super().refresh_styles()
-        self._update_segmented_styles()
         self._rebuild_all_views()
 
     def _clear_layout(self, layout: QVBoxLayout):
@@ -187,15 +129,9 @@ class TimeManagementCard(MetricCard):
 
         # 1. Rebuild Formats Page
         if not formats and not has_clock:
-            empty_lbl = QLabel("No time control or clock data available for selected games.")
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                padding: 40px 10px;
-                background: transparent;
-            """)
-            self.formats_layout.addWidget(empty_lbl)
+            self.formats_layout.addWidget(
+                EmptyState("No time control or clock data available for selected games.")
+            )
         else:
             self._build_formats_view(self.formats_layout, formats)
 
