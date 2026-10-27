@@ -4,9 +4,12 @@ Shared GUI components module.
 from .button import Button, ButtonSize, ButtonVariant
 from .circular_accuracy import CircularAccuracyWidget
 from .empty_state import EmptyState
+from .legend_list import LegendList
 from .masonry_layout import MasonryLayout
+from .mini_bar import MiniBar
 from .pagination_bar import PaginationBar
 from .pulsing_skeleton import PulsingSkeleton
+from .segmented_bar import SegmentedBar
 from .segmented_control import SegmentedControl
 from .sortable_item_list import SortableItem, SortableItemList
 from .stat_card import SimpleStatCard, StatCard
@@ -20,7 +23,10 @@ __all__ = [
     'ButtonSize',
     'ButtonVariant',
     'EmptyState',
+    'LegendList',
+    'MiniBar',
     'PaginationBar',
+    'SegmentedBar',
     'SegmentedControl',
     'StatCard',
     'SimpleStatCard',

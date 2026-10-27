@@ -3,11 +3,10 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QProgressBar,
     QVBoxLayout,
 )
 
-from src.gui.components import StatusBadge
+from src.gui.components import MiniBar, StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -31,10 +30,6 @@ class PhasePerformanceCard(MetricCard):
             max_height=310,
             action_widget=self.action_badge,
         )
-
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
-        self._render_view()
 
     def _render_view(self):
         phase_data = self.stats.get("phase_stats", {})
@@ -156,23 +151,9 @@ class PhasePerformanceCard(MetricCard):
             p_layout.addWidget(acc_lbl)
 
             # Native Progress Bar
-            pbar = QProgressBar()
-            pbar.setRange(0, 100)
-            pbar.setValue(int(acc))
-            pbar.setTextVisible(False)
-            pbar.setFixedHeight(6)
-            pbar.setStyleSheet(f"""
-                QProgressBar {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: none;
-                    border-radius: 3px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {bar_color};
-                    border-radius: 3px;
-                }}
-            """)
-            p_layout.addWidget(pbar)
+            p_layout.addWidget(
+                MiniBar(int(acc), bar_color, height=6, radius=3)
+            )
 
             p_layout.addSpacing(4)
 
@@ -197,8 +178,3 @@ class PhasePerformanceCard(MetricCard):
         main_vbox.addLayout(col_row, stretch=1)
 
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if self.stats:
-            self._render_view()

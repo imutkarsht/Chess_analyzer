@@ -44,10 +44,6 @@ class AccuracyTrendCard(MetricCard):
         self.segmented_control.set_value(window, emit=False)
         self._render_view()
 
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
-        self._render_view()
-
     def _render_view(self):
         full_history = self.stats.get("accuracy_history", [])
 
@@ -176,8 +172,3 @@ class AccuracyTrendCard(MetricCard):
         main_vbox.addWidget(canvas, stretch=1)
 
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if self.stats:
-            self._render_view()

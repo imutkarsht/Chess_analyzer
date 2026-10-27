@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components import StatusBadge
+from src.gui.components import SegmentedBar, StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -40,10 +40,6 @@ class AdvantageConversionCard(MetricCard):
             min_height=280,
             action_widget=self.action_badge,
         )
-
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
-        self._render_view()
 
     def _render_view(self):
         adv = self.stats.get("advantage_stats", {})
@@ -132,44 +128,36 @@ class AdvantageConversionCard(MetricCard):
 
         # Segmented conversion bar (clean 6px bar)
         if hwa > 0:
-            bar_frame = QFrame()
-            bar_frame.setFixedHeight(6)
-            bar_layout = QHBoxLayout(bar_frame)
-            bar_layout.setContentsMargins(0, 0, 0, 0)
-            bar_layout.setSpacing(2)
-
             win_w = max(1, int(converted / hwa * 100))
             draw_w = max(1, int(squandered / hwa * 100)) if squandered > 0 else 0
             loss_w = max(1, int(thrown / hwa * 100)) if thrown > 0 else 0
 
-            seg_win = QFrame()
-            seg_win.setStyleSheet(
-                f"background-color: {Styles.COLOR_RESULT_WIN}; border-radius: 3px;"
-            )
-            bar_layout.addWidget(seg_win, win_w)
-
+            segments = [(win_w, Styles.COLOR_RESULT_WIN, None)]
             if draw_w > 0:
-                seg_draw = QFrame()
-                seg_draw.setStyleSheet(
-                    f"background-color: {Styles.COLOR_RESULT_DRAW}; border-radius: 3px;"
-                )
-                bar_layout.addWidget(seg_draw, draw_w)
-
+                segments.append((draw_w, Styles.COLOR_RESULT_DRAW, None))
             if loss_w > 0:
-                seg_loss = QFrame()
-                seg_loss.setStyleSheet(
-                    f"background-color: {Styles.COLOR_BLUNDER}; border-radius: 3px;"
-                )
-                bar_layout.addWidget(seg_loss, loss_w)
+                segments.append((loss_w, Styles.COLOR_BLUNDER, None))
 
-            adv_vbox.addWidget(bar_frame)
-        else:
-            bar_placeholder = QFrame()
-            bar_placeholder.setFixedHeight(6)
-            bar_placeholder.setStyleSheet(
-                f"background-color: {Styles.COLOR_BORDER}; border-radius: 3px;"
+            adv_vbox.addWidget(
+                SegmentedBar(
+                    segments,
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=None,
+                )
             )
-            adv_vbox.addWidget(bar_placeholder)
+        else:
+            adv_vbox.addWidget(
+                SegmentedBar(
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=Styles.COLOR_BORDER,
+                )
+            )
 
         # Clean typography stats (NO nested box clutter)
         stats_line = QHBoxLayout()
@@ -292,37 +280,35 @@ class AdvantageConversionCard(MetricCard):
 
         # Segmented comeback bar
         if hlp > 0:
-            cb_bar_frame = QFrame()
-            cb_bar_frame.setFixedHeight(6)
-            cb_bar_layout = QHBoxLayout(cb_bar_frame)
-            cb_bar_layout.setContentsMargins(0, 0, 0, 0)
-            cb_bar_layout.setSpacing(2)
-
             res_w = max(1, int(comeback_total / hlp * 100)) if comeback_total > 0 else 0
             def_w = max(1, int(lost_deficit / hlp * 100)) if lost_deficit > 0 else 0
 
+            segments = []
             if res_w > 0:
-                seg_res = QFrame()
-                seg_res.setStyleSheet(
-                    f"background-color: {Styles.COLOR_ACCENT}; border-radius: 3px;"
-                )
-                cb_bar_layout.addWidget(seg_res, res_w)
-
+                segments.append((res_w, Styles.COLOR_ACCENT, None))
             if def_w > 0:
-                seg_def = QFrame()
-                seg_def.setStyleSheet(
-                    f"background-color: {Styles.COLOR_BORDER}; border-radius: 3px;"
-                )
-                cb_bar_layout.addWidget(seg_def, def_w)
+                segments.append((def_w, Styles.COLOR_BORDER, None))
 
-            cb_vbox.addWidget(cb_bar_frame)
-        else:
-            cb_bar_placeholder = QFrame()
-            cb_bar_placeholder.setFixedHeight(6)
-            cb_bar_placeholder.setStyleSheet(
-                f"background-color: {Styles.COLOR_BORDER}; border-radius: 3px;"
+            cb_vbox.addWidget(
+                SegmentedBar(
+                    segments,
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=None,
+                )
             )
-            cb_vbox.addWidget(cb_bar_placeholder)
+        else:
+            cb_vbox.addWidget(
+                SegmentedBar(
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=2,
+                    track_color=Styles.COLOR_BORDER,
+                )
+            )
 
         # Clean typography stats for Comeback
         cb_stats_line = QHBoxLayout()
@@ -396,8 +382,3 @@ class AdvantageConversionCard(MetricCard):
 
         main_vbox.addWidget(insight_frame)
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if self.stats:
-            self._render_view()

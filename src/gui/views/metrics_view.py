@@ -126,68 +126,41 @@ class MetricsWidget(QWidget):
 
         lbl_style = f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)} border: none; background: transparent;"
 
-        # 1. Color Filter
-        self.lbl_color = QLabel("Color:")
-        self.lbl_color.setStyleSheet(lbl_style)
-        filter_layout.addWidget(self.lbl_color)
-
-        self.combo_color = create_combobox(
-            items=["All Colors", "White", "Black"],
-            on_change=self.on_filter_changed,
+        # 1-4. Color / Format / Source / Period filters
+        filter_specs = (
+            ("Color:", "color", ["All Colors", "White", "Black"], 110),
+            (
+                "Format:",
+                "format",
+                ["All Formats", "Rapid", "Blitz", "Bullet", "Classical", "Freestyle (Chess960)"],
+                155,
+            ),
+            ("Source:", "source", ["All Sources", "Chess.com", "Lichess", "File"], 110),
+            (
+                "Period:",
+                "period",
+                [
+                    "All Time",
+                    "Last 24 Hours",
+                    "Last 7 Days",
+                    "Last 30 Days",
+                    "Last 90 Days",
+                    "This Year",
+                ],
+                135,
+            ),
         )
-        self.combo_color.setFixedWidth(110)
-        filter_layout.addWidget(self.combo_color)
+        for label_text, key, items, width in filter_specs:
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet(lbl_style)
+            filter_layout.addWidget(lbl)
+            setattr(self, f"lbl_{key}", lbl)
 
-        filter_layout.addSpacing(10)
-
-        # 2. Format Filter
-        self.lbl_format = QLabel("Format:")
-        self.lbl_format.setStyleSheet(lbl_style)
-        filter_layout.addWidget(self.lbl_format)
-
-        self.combo_format = create_combobox(
-            items=["All Formats", "Rapid", "Blitz", "Bullet", "Classical", "Freestyle (Chess960)"],
-            on_change=self.on_filter_changed,
-        )
-        self.combo_format.setFixedWidth(155)
-        filter_layout.addWidget(self.combo_format)
-
-        filter_layout.addSpacing(10)
-
-        # 3. Source Filter
-        self.lbl_source = QLabel("Source:")
-        self.lbl_source.setStyleSheet(lbl_style)
-        filter_layout.addWidget(self.lbl_source)
-
-        self.combo_source = create_combobox(
-            items=["All Sources", "Chess.com", "Lichess", "File"],
-            on_change=self.on_filter_changed,
-        )
-        self.combo_source.setFixedWidth(110)
-        filter_layout.addWidget(self.combo_source)
-
-        filter_layout.addSpacing(10)
-
-        # 4. Period Filter
-        self.lbl_period = QLabel("Period:")
-        self.lbl_period.setStyleSheet(lbl_style)
-        filter_layout.addWidget(self.lbl_period)
-
-        self.combo_period = create_combobox(
-            items=[
-                "All Time",
-                "Last 24 Hours",
-                "Last 7 Days",
-                "Last 30 Days",
-                "Last 90 Days",
-                "This Year",
-            ],
-            on_change=self.on_filter_changed,
-        )
-        self.combo_period.setFixedWidth(135)
-        filter_layout.addWidget(self.combo_period)
-
-        filter_layout.addSpacing(10)
+            combo = create_combobox(items=items, on_change=self.on_filter_changed)
+            combo.setFixedWidth(width)
+            filter_layout.addWidget(combo)
+            setattr(self, f"combo_{key}", combo)
+            filter_layout.addSpacing(10)
 
         # Reset button
         self.btn_reset_filters = create_button(

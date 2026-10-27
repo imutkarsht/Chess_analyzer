@@ -8,16 +8,15 @@ Structured dual-pillar layout with zero duplication and zero cryptic fractions.
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QProgressBar,
-    QSizePolicy,
     QVBoxLayout,
 )
 
-from src.gui.components import StatusBadge
+from src.gui.components import MiniBar, StatusBadge
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -51,10 +50,6 @@ class HangingPiecesCard(MetricCard):
             action_widget=self.action_badge,
         )
 
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
-        self._render_view()
-
     def _render_view(self):
         h_stats = self.stats.get("hanging_stats", {})
         total_games = self.stats.get("total", 0)
@@ -72,75 +67,8 @@ class HangingPiecesCard(MetricCard):
             return
 
         main_vbox = self.new_content(spacing=12).layout()
-
-        # ═══════════════════════════════════════════════════════════════
-        #  DUAL PILLARS: DEFENSIVE LEAKS (LEFT) vs TACTICAL VIGILANCE (RIGHT)
-        # ═══════════════════════════════════════════════════════════════
         pillars_row = QHBoxLayout()
         pillars_row.setSpacing(14)
-
-        # -------------------------------------------------------------
-        # Left Pillar: Defensive Leaks
-        # -------------------------------------------------------------
-        leak_pillar = QFrame()
-        leak_pillar.setObjectName("leak_pillar")
-        leak_pillar.setStyleSheet(f"""
-            QFrame#leak_pillar {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
-        l_layout = QVBoxLayout(leak_pillar)
-        l_layout.setContentsMargins(14, 12, 14, 12)
-        l_layout.setSpacing(8)
-
-        # Header with Shield Icon
-        l_top = QHBoxLayout()
-        l_top.setSpacing(8)
-        try:
-            import qtawesome as qta
-
-            ic_l = QLabel()
-            ic_l.setPixmap(
-                qta.icon(
-                    "fa5s.shield-alt",
-                    color=Styles.COLOR_BLUNDER if total_hung > 0 else Styles.COLOR_BEST,
-                ).pixmap(14, 14)
-            )
-            ic_l.setStyleSheet("border: none; background: transparent;")
-            l_top.addWidget(ic_l)
-        except Exception:
-            pass
-
-        lbl_leak_title = QLabel("DEFENSIVE LEAKS")
-        lbl_leak_title.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            border: none;
-            background: transparent;
-        """)
-        l_top.addWidget(lbl_leak_title)
-        l_top.addStretch()
-        l_layout.addLayout(l_top)
-
-        # Hero Stat: Total Dropped
-        lbl_hung_val = QLabel(f"{total_hung} Dropped")
-        lbl_hung_val.setCursor(Qt.CursorShape.PointingHandCursor)
-        lbl_hung_val.setToolTip("Click to inspect all dropped piece positions")
-        lbl_hung_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
-            "hung_pieces", "all"
-        )
-        lbl_hung_val.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 22px;
-            font-weight: 800;
-            border: none;
-            background: transparent;
-        """)
-        l_layout.addWidget(lbl_hung_val)
 
         hung_per_game = (total_hung / total_games) if total_games > 0 else 0.0
         hung_sub = (
@@ -148,170 +76,27 @@ class HangingPiecesCard(MetricCard):
             if total_games > 1
             else f"Caused {hanging_blunders} blunders"
         )
-        lbl_hung_sub = QLabel(hung_sub)
-        lbl_hung_sub.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            border: none;
-            background: transparent;
-        """)
-        l_layout.addWidget(lbl_hung_sub)
 
-        # Divider
-        div_l = QFrame()
-        div_l.setFixedHeight(1)
-        div_l.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
-        l_layout.addWidget(div_l)
-
-        # Subtitle
-        lbl_leak_sub = QLabel("DROPPED BY PIECE")
-        lbl_leak_sub.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_MUTED};
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            border: none;
-            background: transparent;
-        """)
-        l_layout.addWidget(lbl_leak_sub)
-
-        # 5 piece rows sorted descending by hung count
-        sorted_leaks = sorted(
-            self.PIECE_CONFIG.keys(),
-            key=lambda p: by_piece.get(p, 0),
-            reverse=True,
-        )
-        piece_list_l = QVBoxLayout()
-        piece_list_l.setSpacing(5)
-
-        for p_key in sorted_leaks:
-            icon_name, p_name = self.PIECE_CONFIG[p_key]
-            h_cnt = by_piece.get(p_key, 0)
-            h_share = (h_cnt / total_hung * 100) if total_hung > 0 else 0.0
-
-            row_frame = QFrame()
-            row_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-            row_frame.setToolTip(f"Click to inspect {h_cnt} dropped {p_name} positions")
-            row_frame.setStyleSheet(f"""
-                QFrame {{
-                    background: transparent;
-                    border-radius: 4px;
-                }}
-                QFrame:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                }}
-            """)
-            row_frame.mousePressEvent = lambda e, k=p_key: self.drill_down_requested.emit(
-                "hung_pieces", k
+        pillars_row.addWidget(
+            self._build_piece_pillar(
+                object_name="leak_pillar",
+                title="DEFENSIVE LEAKS",
+                icon_name="fa5s.shield-alt",
+                icon_color=Styles.COLOR_BLUNDER if total_hung > 0 else Styles.COLOR_BEST,
+                hero_text=f"{total_hung} Dropped",
+                hero_tooltip="Click to inspect all dropped piece positions",
+                hero_color=Styles.COLOR_TEXT_PRIMARY,
+                hero_category="hung_pieces",
+                hero_subtitle=hung_sub,
+                section_title="DROPPED BY PIECE",
+                piece_counts=by_piece,
+                share_total=total_hung,
+                bar_color=Styles.COLOR_BLUNDER,
+                row_category="hung_pieces",
+                row_tooltip_template="Click to inspect {count} dropped {name} positions",
             )
+        )
 
-            p_row = QHBoxLayout(row_frame)
-            p_row.setContentsMargins(4, 2, 4, 2)
-            p_row.setSpacing(6)
-
-            try:
-                import qtawesome as qta
-
-                p_ic = QLabel()
-                p_ic.setPixmap(
-                    qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(12, 12)
-                )
-                p_ic.setStyleSheet("border: none; background: transparent;")
-                p_row.addWidget(p_ic)
-            except Exception:
-                pass
-
-            p_lbl = QLabel(p_name)
-            p_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 11px;
-                font-weight: 600;
-                border: none;
-                background: transparent;
-            """)
-            p_lbl.setFixedWidth(60)
-            p_row.addWidget(p_lbl)
-
-            # Mini bar
-            pbar = QProgressBar()
-            pbar.setRange(0, 100)
-            pbar.setValue(int(h_share))
-            pbar.setTextVisible(False)
-            pbar.setFixedHeight(4)
-            pbar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            pbar.setStyleSheet(f"""
-                QProgressBar {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: none;
-                    border-radius: 2px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {Styles.COLOR_BLUNDER if h_cnt > 0 else "transparent"};
-                    border-radius: 2px;
-                }}
-            """)
-            p_row.addWidget(pbar)
-
-            cnt_lbl = QLabel(f"{h_cnt}")
-            cnt_lbl.setFixedWidth(24)
-            cnt_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            cnt_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY if h_cnt > 0 else Styles.COLOR_TEXT_MUTED};
-                font-size: 11px;
-                font-weight: 700;
-                border: none;
-                background: transparent;
-            """)
-            p_row.addWidget(cnt_lbl)
-
-            piece_list_l.addWidget(row_frame)
-
-        l_layout.addLayout(piece_list_l)
-        pillars_row.addWidget(leak_pillar)
-
-        # -------------------------------------------------------------
-        # Right Pillar: Tactical Vigilance
-        # -------------------------------------------------------------
-        vig_pillar = QFrame()
-        vig_pillar.setObjectName("vigilance_pillar")
-        vig_pillar.setStyleSheet(f"""
-            QFrame#vigilance_pillar {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
-        v_layout = QVBoxLayout(vig_pillar)
-        v_layout.setContentsMargins(14, 12, 14, 12)
-        v_layout.setSpacing(8)
-
-        # Header with Crosshairs Icon
-        v_top = QHBoxLayout()
-        v_top.setSpacing(8)
-        try:
-            import qtawesome as qta
-
-            ic_v = QLabel()
-            ic_v.setPixmap(qta.icon("fa5s.crosshairs", color=Styles.COLOR_BEST).pixmap(14, 14))
-            ic_v.setStyleSheet("border: none; background: transparent;")
-            v_top.addWidget(ic_v)
-        except Exception:
-            pass
-
-        lbl_vig_title = QLabel("TACTICAL VIGILANCE")
-        lbl_vig_title.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            border: none;
-            background: transparent;
-        """)
-        v_top.addWidget(lbl_vig_title)
-        v_top.addStretch()
-        v_layout.addLayout(v_top)
-
-        # Hero Stat: Capitalization Rate
         total_opp_hanging = opp_captured + opp_missed
         cap_rate = (opp_captured / total_opp_hanging * 100) if total_opp_hanging > 0 else 0.0
         bar_pct_color = (
@@ -319,64 +104,137 @@ class HangingPiecesCard(MetricCard):
             if cap_rate >= 70
             else (Styles.COLOR_GOOD if cap_rate >= 50 else Styles.COLOR_INACCURACY)
         )
-
-        lbl_vig_val = QLabel(f"{cap_rate:.0f}% Capitalized" if total_opp_hanging > 0 else "N/A")
-        lbl_vig_val.setCursor(Qt.CursorShape.PointingHandCursor)
-        lbl_vig_val.setToolTip("Click to inspect all opponent hanging pieces punished")
-        lbl_vig_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
-            "opp_captured", "all"
-        )
-        lbl_vig_val.setStyleSheet(f"""
-            color: {bar_pct_color if total_opp_hanging > 0 else Styles.COLOR_TEXT_PRIMARY};
-            font-size: 22px;
-            font-weight: 800;
-            border: none;
-            background: transparent;
-        """)
-        v_layout.addWidget(lbl_vig_val)
-
         vig_sub = (
             f"{opp_captured} of {total_opp_hanging} seized • {opp_missed} missed"
             if total_opp_hanging > 0
             else "No opponent hanging pieces recorded"
         )
-        lbl_vig_sub = QLabel(vig_sub)
-        lbl_vig_sub.setStyleSheet(f"""
+
+        pillars_row.addWidget(
+            self._build_piece_pillar(
+                object_name="vigilance_pillar",
+                title="TACTICAL VIGILANCE",
+                icon_name="fa5s.crosshairs",
+                icon_color=Styles.COLOR_BEST,
+                hero_text=(
+                    f"{cap_rate:.0f}% Capitalized" if total_opp_hanging > 0 else "N/A"
+                ),
+                hero_tooltip="Click to inspect all opponent hanging pieces punished",
+                hero_color=(
+                    bar_pct_color if total_opp_hanging > 0 else Styles.COLOR_TEXT_PRIMARY
+                ),
+                hero_category="opp_captured",
+                hero_subtitle=vig_sub,
+                section_title="FREE PIECES PUNISHED",
+                piece_counts=captured_by_piece,
+                share_total=opp_captured,
+                bar_color=Styles.COLOR_BEST,
+                row_category="opp_captured",
+                row_tooltip_template=(
+                    "Click to inspect {count} punished opponent {name} positions"
+                ),
+                hero_bar=(
+                    int(cap_rate),
+                    bar_pct_color if total_opp_hanging > 0 else "transparent",
+                ),
+            )
+        )
+
+        main_vbox.addLayout(pillars_row)
+        self.set_content(self.content_widget)
+
+    def _build_piece_pillar(
+        self,
+        *,
+        object_name: str,
+        title: str,
+        icon_name: str,
+        icon_color: str,
+        hero_text: str,
+        hero_tooltip: str,
+        hero_color: str,
+        hero_category: str,
+        hero_subtitle: str,
+        section_title: str,
+        piece_counts: dict[str, int],
+        share_total: int,
+        bar_color: str,
+        row_category: str,
+        row_tooltip_template: str,
+        hero_bar: tuple[int, str] | None = None,
+    ) -> QFrame:
+        pillar = QFrame()
+        pillar.setObjectName(object_name)
+        pillar.setStyleSheet(f"""
+            QFrame#{object_name} {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 8px;
+            }}
+        """)
+        layout = QVBoxLayout(pillar)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(8)
+
+        header = QHBoxLayout()
+        header.setSpacing(8)
+        pixmap = self._icon_pixmap(icon_name, icon_color, 14)
+        if pixmap is not None:
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(pixmap)
+            icon_lbl.setStyleSheet("border: none; background: transparent;")
+            header.addWidget(icon_lbl)
+
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_SECONDARY};
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border: none;
+            background: transparent;
+        """)
+        header.addWidget(title_lbl)
+        header.addStretch()
+        layout.addLayout(header)
+
+        hero = QLabel(hero_text)
+        hero.setCursor(Qt.CursorShape.PointingHandCursor)
+        hero.setToolTip(hero_tooltip)
+        hero.mousePressEvent = lambda _event: self.drill_down_requested.emit(
+            hero_category, "all"
+        )
+        hero.setStyleSheet(f"""
+            color: {hero_color};
+            font-size: 22px;
+            font-weight: 800;
+            border: none;
+            background: transparent;
+        """)
+        layout.addWidget(hero)
+
+        subtitle = QLabel(hero_subtitle)
+        subtitle.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 11px;
             border: none;
             background: transparent;
         """)
-        v_layout.addWidget(lbl_vig_sub)
+        layout.addWidget(subtitle)
 
-        # Integrated Vigilance Progress Bar
-        vig_pbar = QProgressBar()
-        vig_pbar.setRange(0, 100)
-        vig_pbar.setValue(int(cap_rate))
-        vig_pbar.setTextVisible(False)
-        vig_pbar.setFixedHeight(5)
-        vig_pbar.setStyleSheet(f"""
-            QProgressBar {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: none;
-                border-radius: 2px;
-            }}
-            QProgressBar::chunk {{
-                background-color: {bar_pct_color if total_opp_hanging > 0 else "transparent"};
-                border-radius: 2px;
-            }}
-        """)
-        v_layout.addWidget(vig_pbar)
+        if hero_bar is not None:
+            value, chunk_color = hero_bar
+            layout.addWidget(
+                MiniBar(value, chunk_color, height=5, radius=2)
+            )
 
-        # Divider
-        div_v = QFrame()
-        div_v.setFixedHeight(1)
-        div_v.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
-        v_layout.addWidget(div_v)
+        divider = QFrame()
+        divider.setFixedHeight(1)
+        divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
+        layout.addWidget(divider)
 
-        # Subtitle
-        lbl_cap_sub = QLabel("FREE PIECES PUNISHED")
-        lbl_cap_sub.setStyleSheet(f"""
+        section_lbl = QLabel(section_title)
+        section_lbl.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 10px;
             font-weight: 700;
@@ -384,106 +242,111 @@ class HangingPiecesCard(MetricCard):
             border: none;
             background: transparent;
         """)
-        v_layout.addWidget(lbl_cap_sub)
+        layout.addWidget(section_lbl)
 
-        # 5 piece rows sorted descending by captured count
-        sorted_caps = sorted(
+        piece_list = QVBoxLayout()
+        piece_list.setSpacing(5)
+        sorted_pieces = sorted(
             self.PIECE_CONFIG.keys(),
-            key=lambda p: captured_by_piece.get(p, 0),
+            key=lambda piece: piece_counts.get(piece, 0),
             reverse=True,
         )
-        piece_list_v = QVBoxLayout()
-        piece_list_v.setSpacing(5)
-
-        for p_key in sorted_caps:
-            icon_name, p_name = self.PIECE_CONFIG[p_key]
-            c_cnt = captured_by_piece.get(p_key, 0)
-            c_share = (c_cnt / opp_captured * 100) if opp_captured > 0 else 0.0
-
-            row_frame = QFrame()
-            row_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-            row_frame.setToolTip(f"Click to inspect {c_cnt} punished opponent {p_name} positions")
-            row_frame.setStyleSheet(f"""
-                QFrame {{
-                    background: transparent;
-                    border-radius: 4px;
-                }}
-                QFrame:hover {{
-                    background-color: {Styles.COLOR_SURFACE};
-                }}
-            """)
-            row_frame.mousePressEvent = lambda e, k=p_key: self.drill_down_requested.emit(
-                "opp_captured", k
-            )
-
-            p_row = QHBoxLayout(row_frame)
-            p_row.setContentsMargins(4, 2, 4, 2)
-            p_row.setSpacing(6)
-
-            try:
-                import qtawesome as qta
-
-                p_ic = QLabel()
-                p_ic.setPixmap(
-                    qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(12, 12)
+        for piece_key in sorted_pieces:
+            piece_icon, piece_name = self.PIECE_CONFIG[piece_key]
+            count = piece_counts.get(piece_key, 0)
+            share = (count / share_total * 100) if share_total > 0 else 0.0
+            piece_list.addWidget(
+                self._create_piece_row(
+                    icon_name=piece_icon,
+                    piece_name=piece_name,
+                    count=count,
+                    share=share,
+                    bar_color=bar_color,
+                    category=row_category,
+                    piece_key=piece_key,
+                    tooltip=row_tooltip_template.format(count=count, name=piece_name),
                 )
-                p_ic.setStyleSheet("border: none; background: transparent;")
-                p_row.addWidget(p_ic)
-            except Exception:
-                pass
+            )
+        layout.addLayout(piece_list)
+        return pillar
 
-            p_lbl = QLabel(p_name)
-            p_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 11px;
-                font-weight: 600;
-                border: none;
+    def _create_piece_row(
+        self,
+        *,
+        icon_name: str,
+        piece_name: str,
+        count: int,
+        share: float,
+        bar_color: str,
+        category: str,
+        piece_key: str,
+        tooltip: str,
+    ) -> QFrame:
+        row = QFrame()
+        row.setCursor(Qt.CursorShape.PointingHandCursor)
+        row.setToolTip(tooltip)
+        row.setStyleSheet(f"""
+            QFrame {{
                 background: transparent;
-            """)
-            p_lbl.setFixedWidth(60)
-            p_row.addWidget(p_lbl)
+                border-radius: 4px;
+            }}
+            QFrame:hover {{
+                background-color: {Styles.COLOR_SURFACE};
+            }}
+        """)
+        row.mousePressEvent = lambda _event, key=piece_key: self.drill_down_requested.emit(
+            category, key
+        )
 
-            # Mini bar
-            pbar = QProgressBar()
-            pbar.setRange(0, 100)
-            pbar.setValue(int(c_share))
-            pbar.setTextVisible(False)
-            pbar.setFixedHeight(4)
-            pbar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            pbar.setStyleSheet(f"""
-                QProgressBar {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: none;
-                    border-radius: 2px;
-                }}
-                QProgressBar::chunk {{
-                    background-color: {Styles.COLOR_BEST if c_cnt > 0 else "transparent"};
-                    border-radius: 2px;
-                }}
-            """)
-            p_row.addWidget(pbar)
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(4, 2, 4, 2)
+        row_layout.setSpacing(6)
 
-            cnt_lbl = QLabel(f"{c_cnt}")
-            cnt_lbl.setFixedWidth(24)
-            cnt_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            cnt_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY if c_cnt > 0 else Styles.COLOR_TEXT_MUTED};
-                font-size: 11px;
-                font-weight: 700;
-                border: none;
-                background: transparent;
-            """)
-            p_row.addWidget(cnt_lbl)
+        pixmap = self._icon_pixmap(icon_name, Styles.COLOR_TEXT_SECONDARY, 12)
+        if pixmap is not None:
+            icon_lbl = QLabel()
+            icon_lbl.setPixmap(pixmap)
+            icon_lbl.setStyleSheet("border: none; background: transparent;")
+            row_layout.addWidget(icon_lbl)
 
-            piece_list_v.addWidget(row_frame)
+        name_lbl = QLabel(piece_name)
+        name_lbl.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_PRIMARY};
+            font-size: 11px;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+        """)
+        name_lbl.setFixedWidth(60)
+        row_layout.addWidget(name_lbl)
 
-        v_layout.addLayout(piece_list_v)
-        pillars_row.addWidget(vig_pillar)
+        row_layout.addWidget(
+            MiniBar(
+                int(share),
+                bar_color if count > 0 else "transparent",
+                height=4,
+                radius=2,
+            )
+        )
 
-        main_vbox.addLayout(pillars_row)
-        self.set_content(self.content_widget)
+        count_lbl = QLabel(f"{count}")
+        count_lbl.setFixedWidth(24)
+        count_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+        count_lbl.setStyleSheet(f"""
+            color: {Styles.COLOR_TEXT_PRIMARY if count > 0 else Styles.COLOR_TEXT_MUTED};
+            font-size: 11px;
+            font-weight: 700;
+            border: none;
+            background: transparent;
+        """)
+        row_layout.addWidget(count_lbl)
+        return row
 
-    def refresh_styles(self):
-        super().refresh_styles()
-        if self.stats:
-            self._render_view()
+    @staticmethod
+    def _icon_pixmap(icon_name: str, color: str, size: int) -> QPixmap | None:
+        try:
+            import qtawesome as qta
+
+            return qta.icon(icon_name, color=color).pixmap(size, size)
+        except Exception:
+            return None

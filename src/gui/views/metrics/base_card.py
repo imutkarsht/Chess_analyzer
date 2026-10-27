@@ -51,6 +51,13 @@ class MetricCard(QFrame):
         self._apply_theme()
         if hasattr(self, "lbl_title"):
             self.lbl_title.setStyleSheet(Styles.get_card_title_style())
+        if getattr(self, "stats", None) and hasattr(self, "_render_view"):
+            self._render_view()
+
+    def set_stats(self, stats):
+        """Store the latest stats and render the card."""
+        self.stats = stats or {}
+        self._render_view()
 
     def set_content(self, widget):
         widget.setStyleSheet("background: transparent;")

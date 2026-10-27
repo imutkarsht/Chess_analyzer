@@ -5,11 +5,9 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
-    QVBoxLayout,
-    QWidget,
 )
 
-from src.gui.components import SegmentedControl
+from src.gui.components import LegendList, SegmentedControl
 from src.gui.metrics.charts import create_donut_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
@@ -44,10 +42,6 @@ class EndingDistributionCard(MetricCard):
             return
         self.current_mode = mode
         self.segmented_control.set_value(mode, emit=False)
-        self._render_view()
-
-    def set_stats(self, stats: dict):
-        self.stats = stats or {}
         self._render_view()
 
     def _render_view(self):
@@ -133,11 +127,7 @@ class EndingDistributionCard(MetricCard):
         chart_row.addWidget(canvas, stretch=3)
 
         # Legend Sidebar
-        legend_widget = QWidget()
-        legend_widget.setStyleSheet("background: transparent;")
-        legend_layout = QVBoxLayout(legend_widget)
-        legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        legend_layout.setSpacing(6)
+        legend = LegendList(spacing=6)
 
         if total_endings == 0:
             mode_label = (
@@ -145,20 +135,12 @@ class EndingDistributionCard(MetricCard):
                 if self.current_mode != "all"
                 else "No games recorded"
             )
-            empty_lbl = QLabel(mode_label)
-            empty_lbl.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-style: italic; border: none; background: transparent;"
-            )
-            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            legend_layout.addWidget(empty_lbl)
+            legend.add_empty(mode_label, italic=True)
         else:
             for k in keys:
                 v = counts.get(k, 0)
                 if v == 0:
                     continue
-
-                row = QHBoxLayout()
-                row.setSpacing(8)
 
                 icon_file = icon_map.get(k)
                 icon_path = resolve_asset(icon_file) if icon_file else None
@@ -183,36 +165,15 @@ class EndingDistributionCard(MetricCard):
                     except Exception:
                         pixmap = None
 
-                if pixmap and not pixmap.isNull():
-                    lbl_icon = QLabel()
-                    lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet("border: none; background: transparent;")
-                    row.addWidget(lbl_icon)
-                else:
-                    dot = QLabel("●")
-                    dot.setStyleSheet(
-                        f"color: {type_colors.get(k, '#888888')}; font-size: 14px; border: none; background: transparent;"
-                    )
-                    row.addWidget(dot)
-
-                lbl_name = QLabel(k)
-                lbl_name.setStyleSheet(
-                    f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; border: none; background: transparent;"
-                )
-                row.addWidget(lbl_name)
-
-                row.addStretch()
-
                 pct = (v / total_endings * 100) if total_endings > 0 else 0
-                lbl_val = QLabel(f"{v} ({pct:.0f}%)")
-                lbl_val.setStyleSheet(
-                    f"color: {type_colors.get(k, '#888888')}; font-size: 12px; font-weight: bold; border: none; background: transparent;"
+                legend.add_row(
+                    k,
+                    f"{v} ({pct:.0f}%)",
+                    type_colors.get(k, "#888888"),
+                    pixmap,
                 )
-                row.addWidget(lbl_val)
 
-                legend_layout.addLayout(row)
-
-        chart_row.addWidget(legend_widget, stretch=3)
+        chart_row.addWidget(legend, stretch=3)
         main_vbox.addLayout(chart_row)
 
         # Clock Alert if losses on time >= 25% and at least 3 losses (relevant for All and Lost views)
@@ -234,8 +195,3 @@ class EndingDistributionCard(MetricCard):
                 main_vbox.addWidget(alert_lbl)
 
         self.set_content(self.content_widget)
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if self.stats:
-            self._render_view()

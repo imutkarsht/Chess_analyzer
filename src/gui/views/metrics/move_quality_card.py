@@ -4,8 +4,9 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy
 
+from src.gui.components import LegendList
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
@@ -116,66 +117,35 @@ class MoveQualityCard(MetricCard):
         layout.addWidget(canvas, stretch=3)
 
         # Custom Legend Sidebar
-        legend_widget = QWidget()
-        legend_widget.setStyleSheet("background: transparent;")
-        legend_layout = QVBoxLayout(legend_widget)
-        legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        legend_layout.setSpacing(6)
+        legend = LegendList(spacing=6)
 
         for k in order:
             v = counts.get(k, 0)
             if v == 0:
                 continue
 
-            row = QHBoxLayout()
-            row.setSpacing(8)
-
             icon_file = icon_map.get(k, f"{k.lower()}.svg")
             icon_path = resolve_asset(icon_file)
+            pixmap = None
 
             if icon_path and os.path.exists(icon_path):
-                lbl_icon = QLabel()
-                pixmap = QPixmap(icon_path)
-                if not pixmap.isNull():
-                    pixmap = pixmap.scaled(
+                candidate = QPixmap(icon_path)
+                if not candidate.isNull():
+                    pixmap = candidate.scaled(
                         18,
                         18,
                         Qt.AspectRatioMode.KeepAspectRatio,
                         Qt.TransformationMode.SmoothTransformation,
                     )
-                    lbl_icon.setPixmap(pixmap)
-                    lbl_icon.setStyleSheet("border: none; background: transparent;")
-                    row.addWidget(lbl_icon)
-                else:
-                    dot = QLabel("●")
-                    dot.setStyleSheet(
-                        f"color: {color_map[k]}; font-size: 14px; border: none; background: transparent;"
-                    )
-                    row.addWidget(dot)
-            else:
-                dot = QLabel("●")
-                dot.setStyleSheet(
-                    f"color: {color_map[k]}; font-size: 14px; border: none; background: transparent;"
-                )
-                row.addWidget(dot)
-
-            lbl_name = QLabel(k)
-            lbl_name.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; border: none; background: transparent;"
-            )
-            row.addWidget(lbl_name)
-
-            row.addStretch()
 
             pct = (v / total_moves * 100) if total_moves > 0 else 0
-            lbl_val = QLabel(f"{v} ({pct:.0f}%)")
-            lbl_val.setStyleSheet(
-                f"color: {color_map[k]}; font-size: 12px; font-weight: bold; border: none; background: transparent;"
+            legend.add_row(
+                k,
+                f"{v} ({pct:.0f}%)",
+                color_map[k],
+                pixmap,
             )
-            row.addWidget(lbl_val)
 
-            legend_layout.addLayout(row)
-
-        layout.addWidget(legend_widget, stretch=3)
+        layout.addWidget(legend, stretch=3)
 
         self.set_content(self.content_widget)

@@ -14,7 +14,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components import EmptyState, PaginationBar, SegmentedControl
+from src.gui.components import (
+    EmptyState,
+    PaginationBar,
+    SegmentedBar,
+    SegmentedControl,
+)
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -349,55 +354,43 @@ class OpeningsListCard(MetricCard):
             c_layout.addWidget(var_lbl)
 
         # Line 3: Proportional Stacked Bar [ Green Wins | Gray Draws | Red Losses ]
-        bar_container = QFrame()
-        bar_container.setFixedHeight(6)
-        bar_container.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-radius: 3px;
-                border: none;
-            }}
-        """)
-        bar_layout = QHBoxLayout(bar_container)
-        bar_layout.setContentsMargins(0, 0, 0, 0)
-        bar_layout.setSpacing(1)
-
+        segments = []
         if total > 0:
             if wins > 0:
-                w_seg = QFrame()
-                w_seg.setStyleSheet(f"""
-                    background-color: {Styles.COLOR_BEST};
-                    border-radius: 2px;
-                    border: none;
-                """)
-                w_seg.setToolTip(f"Wins: {wins} ({wins / total * 100:.0f}%)")
-                bar_layout.addWidget(w_seg, stretch=max(1, int(wins * 100 / total)))
-
+                segments.append(
+                    (
+                        max(1, int(wins * 100 / total)),
+                        Styles.COLOR_BEST,
+                        f"Wins: {wins} ({wins / total * 100:.0f}%)",
+                    )
+                )
             if draws > 0:
-                d_seg = QFrame()
-                d_seg.setStyleSheet(f"""
-                    background-color: {Styles.COLOR_BORDER};
-                    border-radius: 2px;
-                    border: none;
-                """)
-                d_seg.setToolTip(f"Draws: {draws} ({draws / total * 100:.0f}%)")
-                bar_layout.addWidget(d_seg, stretch=max(1, int(draws * 100 / total)))
-
+                segments.append(
+                    (
+                        max(1, int(draws * 100 / total)),
+                        Styles.COLOR_BORDER,
+                        f"Draws: {draws} ({draws / total * 100:.0f}%)",
+                    )
+                )
             if losses > 0:
-                l_seg = QFrame()
-                l_seg.setStyleSheet(f"""
-                    background-color: {Styles.COLOR_BLUNDER};
-                    border-radius: 2px;
-                    border: none;
-                """)
-                l_seg.setToolTip(f"Losses: {losses} ({losses / total * 100:.0f}%)")
-                bar_layout.addWidget(l_seg, stretch=max(1, int(losses * 100 / total)))
-        else:
-            empty_seg = QFrame()
-            empty_seg.setStyleSheet("background: transparent; border: none;")
-            bar_layout.addWidget(empty_seg)
+                segments.append(
+                    (
+                        max(1, int(losses * 100 / total)),
+                        Styles.COLOR_BLUNDER,
+                        f"Losses: {losses} ({losses / total * 100:.0f}%)",
+                    )
+                )
 
-        c_layout.addWidget(bar_container)
+        c_layout.addWidget(
+            SegmentedBar(
+                segments,
+                height=6,
+                radius=3,
+                segment_radius=2,
+                spacing=1,
+                track_color=Styles.COLOR_SURFACE,
+            )
+        )
 
         # Line 4: Breakdown Strip: "XW • YD • ZL" and "Avg Acc: XX.X%"
         line4 = QHBoxLayout()
@@ -441,8 +434,3 @@ class OpeningsListCard(MetricCard):
         c_layout.addLayout(line4)
 
         return card
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if self.stats:
-            self._render_view()

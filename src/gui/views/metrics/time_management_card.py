@@ -17,8 +17,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components import EmptyState, SegmentedControl
+from src.gui.components import EmptyState, SegmentedBar, SegmentedControl
 from src.gui.styles import Styles
+from src.gui.utils.gui_utils import clear_layout
 from src.gui.views.metrics.base_card import MetricCard
 
 
@@ -108,20 +109,10 @@ class TimeManagementCard(MetricCard):
         super().refresh_styles()
         self._rebuild_all_views()
 
-    def _clear_layout(self, layout: QVBoxLayout):
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
-            sub_layout = item.layout()
-            if sub_layout:
-                self._clear_layout(sub_layout)
-
     def _rebuild_all_views(self):
-        self._clear_layout(self.formats_layout)
-        self._clear_layout(self.pace_layout)
-        self._clear_layout(self.trouble_layout)
+        clear_layout(self.formats_layout)
+        clear_layout(self.pace_layout)
+        clear_layout(self.trouble_layout)
 
         time_data = self.stats.get("time_stats", {})
         has_clock = time_data.get("has_clock_data", False)
@@ -351,41 +342,34 @@ class TimeManagementCard(MetricCard):
             r_layout.addLayout(top_line)
 
             # Bottom Line: Full-width stacked W/D/L bar
-            bar_container = QFrame()
-            bar_container.setFixedHeight(6)
-            bar_container.setStyleSheet(f"""
-                background-color: {Styles.COLOR_SURFACE};
-                border-radius: 3px;
-                border: none;
-            """)
-            b_layout = QHBoxLayout(bar_container)
-            b_layout.setContentsMargins(0, 0, 0, 0)
-            b_layout.setSpacing(1)
-
             w_pct = (w / tot) if tot else 0.0
             d_pct = (d / tot) if tot else 0.0
             l_pct = (losses / tot) if tot else 0.0
 
+            segments = []
             if w > 0:
-                w_seg = QFrame()
-                w_seg.setStyleSheet(
-                    f"background-color: {Styles.COLOR_RESULT_WIN}; border-radius: 3px;"
+                segments.append(
+                    (max(1, int(w_pct * 100)), Styles.COLOR_RESULT_WIN, None)
                 )
-                b_layout.addWidget(w_seg, stretch=max(1, int(w_pct * 100)))
             if d > 0:
-                d_seg = QFrame()
-                d_seg.setStyleSheet(
-                    f"background-color: {Styles.COLOR_RESULT_DRAW}; border-radius: 3px;"
+                segments.append(
+                    (max(1, int(d_pct * 100)), Styles.COLOR_RESULT_DRAW, None)
                 )
-                b_layout.addWidget(d_seg, stretch=max(1, int(d_pct * 100)))
             if losses > 0:
-                l_seg = QFrame()
-                l_seg.setStyleSheet(
-                    f"background-color: {Styles.COLOR_RESULT_LOSS}; border-radius: 3px;"
+                segments.append(
+                    (max(1, int(l_pct * 100)), Styles.COLOR_RESULT_LOSS, None)
                 )
-                b_layout.addWidget(l_seg, stretch=max(1, int(l_pct * 100)))
 
-            r_layout.addWidget(bar_container)
+            r_layout.addWidget(
+                SegmentedBar(
+                    segments,
+                    height=6,
+                    radius=3,
+                    segment_radius=3,
+                    spacing=1,
+                    track_color=Styles.COLOR_SURFACE,
+                )
+            )
             layout.addWidget(row)
 
     # ═══════════════════════════════════════════════════════════════

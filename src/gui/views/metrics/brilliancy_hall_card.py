@@ -268,8 +268,3 @@ class BrilliancyHallCard(MetricCard):
         btn_analyze.clicked.connect(on_click)
 
         return row
-
-    def refresh_styles(self):
-        super().refresh_styles()
-        if self.stats:
-            self._render_view()
