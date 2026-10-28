@@ -80,13 +80,37 @@ def parse_pgn_headers(
     return white, black, result, date_str, white_elo, black_elo, time_class, opening, move_count
 
 
+def _cache_is_fresh(games: list[GameInfo], ttl_seconds: float) -> bool:
+    """True when at least one cached row was written within ``ttl_seconds``.
+
+    Today's results change while the day is still running, so a cache hit for
+    today must be short-lived. Historical dates are immutable and can stay
+    cached indefinitely.
+    """
+    now = time.time()
+    for game in games:
+        raw = getattr(game, "cached_at", None)
+        if not raw:
+            continue
+        try:
+            written = time.mktime(time.strptime(raw, "%Y-%m-%d %H:%M:%S"))
+        except (TypeError, ValueError):
+            continue
+        if now - written <= ttl_seconds:
+            return True
+    return False
+
+
+_TODAY_CACHE_TTL_SECONDS = 5 * 60
+
+
 class ApiGameCache:
     def __init__(self, history_manager: GameHistoryManager):
         self.history_manager = history_manager
 
     def get_by_id(self, source: str, game_id: str, fetch_func: Callable) -> GameInfo | None:
         """Check cache first; miss → call fetch_func → save to cache → return"""
-        cached = self.history_manager.get_cached_game(game_id)
+        cached = self.history_manager.get_cached_game(game_id, source)
         if cached:
             return cached
 
@@ -146,7 +170,10 @@ class ApiGameCache:
         """Check cache first for (source, date, username); miss → call fetch_func → bulk-save → return"""
         date_str = date.strftime("%Y-%m-%d")
         cached_games = self.history_manager.get_cached_games_for_date(source, date_str, username)
-        if cached_games:
+        if cached_games and (
+            date < datetime.date.today()
+            or _cache_is_fresh(cached_games, _TODAY_CACHE_TTL_SECONDS)
+        ):
             return cached_games
 
         raw_games = fetch_func()

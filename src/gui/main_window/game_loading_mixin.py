@@ -294,24 +294,29 @@ class GameLoadingMixin:
 
     def open_load_dialog(self, initial_source: int = 0, initial_text: str = None):
         """Open the unified Load Game dialog."""
-        dialog = LoadGameDialog(self, initial_source=initial_source)
-        if initial_text and initial_source == 1:
-            dialog._pgn_text_panel._text_edit.setPlainText(initial_text)
-            dialog._pgn_text_panel._parse()
+        from src.constants import SRC_PGN_TEXT
 
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            if dialog._navigate_to_settings:
-                self.sidebar.set_active(4)
-                QTimer.singleShot(0, lambda: self.switch_page(4))
-            elif dialog._pending_pgn:
-                pgn = dialog._pending_pgn
-                sd = dialog._pending_source_data
-                QTimer.singleShot(
-                    0,
-                    lambda: self._parse_and_load_game(
-                        pgn, source_data=sd, status_msg="Game loaded."
-                    ),
-                )
+        dialog = LoadGameDialog(self, initial_source=initial_source)
+        try:
+            if initial_text and initial_source == SRC_PGN_TEXT:
+                dialog._pgn_text_panel._text_edit.setPlainText(initial_text)
+                dialog._pgn_text_panel._parse()
+
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                if dialog._navigate_to_settings:
+                    self.sidebar.set_active(4)
+                    QTimer.singleShot(0, lambda: self.switch_page(4))
+                elif dialog._pending_pgn:
+                    pgn = dialog._pending_pgn
+                    sd = dialog._pending_source_data
+                    QTimer.singleShot(
+                        0,
+                        lambda: self._parse_and_load_game(
+                            pgn, source_data=sd, status_msg="Game loaded."
+                        ),
+                    )
+        finally:
+            dialog.deleteLater()
 
     def _on_game_ready(self, pgn_text: str, source_data):
         """Deprecated: Kept for compatibility. Called by LoadGameDialog when the user confirms a game selection."""

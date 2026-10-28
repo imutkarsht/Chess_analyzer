@@ -226,9 +226,9 @@ class GameHistoryManager:
         """Saves multiple GameInfo objects inside a single database transaction."""
         self._api_cache_repo.save_cached_games_bulk(games)
 
-    def get_cached_game(self, game_id: str) -> Any | None:
-        """Retrieves a single GameInfo object from cache by its ID."""
-        return self._api_cache_repo.get_cached_game(game_id)
+    def get_cached_game(self, game_id: str, source: str | None = None) -> Any | None:
+        """Retrieves a single GameInfo object from cache by its ID and source."""
+        return self._api_cache_repo.get_cached_game(game_id, source)
 
     def get_cached_games_for_date(self, source: str, date: str, username: str) -> list[Any]:
         """Retrieves cached games matching source, date, and containing username."""

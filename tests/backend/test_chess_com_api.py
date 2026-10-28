@@ -177,9 +177,7 @@ def test_country_code(value, expected):
 
 def test_get_user_games_by_date_filters_to_requested_day(mock_requests):
     date = datetime.date(2024, 5, 1)
-    start = datetime.datetime.combine(
-        date, datetime.time.min, tzinfo=datetime.timezone.utc
-    ).timestamp()
+    start = datetime.datetime.combine(date, datetime.time.min).timestamp()
     mock_requests.return_value = _json_response(
         {
             "games": [

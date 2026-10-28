@@ -153,6 +153,53 @@ class TestApiGameCacheByDate:
             "lichess", "2024-01-01", "Alice"
         )
 
+    def test_today_cache_is_refreshed_when_stale(self, mocker):
+        today = datetime.date.today()
+        stale = (datetime.datetime.now() - datetime.timedelta(hours=1)).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+        history = mocker.Mock()
+        history.get_cached_games_for_date.return_value = [
+            GameInfo(
+                "g1",
+                "lichess",
+                "Alice",
+                "Bob",
+                "1-0",
+                today.isoformat(),
+                "pgn",
+                cached_at=stale,
+            )
+        ]
+        fetch = mocker.Mock(return_value=[])
+        cache = ApiGameCache(history)
+
+        assert cache.get_by_date("lichess", "Alice", today, fetch) == []
+        fetch.assert_called_once()
+
+    def test_today_cache_is_used_when_fresh(self, mocker):
+        today = datetime.date.today()
+        fresh = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cached = [
+            GameInfo(
+                "g1",
+                "lichess",
+                "Alice",
+                "Bob",
+                "1-0",
+                today.isoformat(),
+                "pgn",
+                cached_at=fresh,
+            )
+        ]
+        history = mocker.Mock()
+        history.get_cached_games_for_date.return_value = cached
+        fetch = mocker.Mock()
+        cache = ApiGameCache(history)
+
+        assert cache.get_by_date("lichess", "Alice", today, fetch) == cached
+        fetch.assert_not_called()
+
     def test_fetch_parses_and_bulk_saves(self, mocker):
         history = mocker.Mock()
         history.get_cached_games_for_date.return_value = []

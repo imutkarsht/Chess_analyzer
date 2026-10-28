@@ -80,13 +80,24 @@ class ApiCacheRepo:
         except Exception as e:
             logger.error("Failed to save cached games bulk: %s", e)
 
-    def get_cached_game(self, game_id: str) -> Any | None:
-        """Retrieves a single GameInfo object from cache by its ID."""
+    def get_cached_game(self, game_id: str, source: str | None = None) -> Any | None:
+        """Retrieves a single GameInfo object from cache by its ID.
+
+        ``source`` distinguishes platforms that could theoretically share an ID.
+        """
         try:
             with self._get_connection() as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
-                cursor.execute("SELECT * FROM api_game_cache WHERE id = ?", (game_id,))
+                if source:
+                    cursor.execute(
+                        "SELECT * FROM api_game_cache WHERE id = ? AND source = ?",
+                        (game_id, source),
+                    )
+                else:
+                    cursor.execute(
+                        "SELECT * FROM api_game_cache WHERE id = ?", (game_id,)
+                    )
                 row = cursor.fetchone()
                 if row:
                     return _row_to_game_info(dict(row))
@@ -96,7 +107,11 @@ class ApiCacheRepo:
             return None
 
     def get_cached_games_for_date(self, source: str, date: str, username: str) -> list[Any]:
-        """Retrieves cached games matching source, date, and containing username (case-insensitive)."""
+        """Retrieves cached games matching source, date, and containing username.
+
+        ``rowid`` preserves the order the API returned the games in when they
+        were cached; the table has no separate played-time column.
+        """
         try:
             with self._get_connection() as conn:
                 conn.row_factory = sqlite3.Row
@@ -106,6 +121,7 @@ class ApiCacheRepo:
                     SELECT * FROM api_game_cache
                     WHERE source = ? AND date = ?
                       AND (LOWER(white) = ? OR LOWER(black) = ?)
+                    ORDER BY rowid ASC
                     """,
                     (source, date, username.lower(), username.lower()),
                 )

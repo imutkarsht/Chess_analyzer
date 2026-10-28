@@ -326,6 +326,9 @@ class Styles(metaclass=_StylesMeta):
         accent: str | None = None,
         align: str | None = None,
         danger: bool = False,
+        text_color: str | None = None,
+        font_size: int | None = None,
+        font_weight: int | None = None,
     ) -> str:
         """Stylesheet for :class:`src.gui.components.button.Button`.
 
@@ -426,6 +429,10 @@ class Styles(metaclass=_StylesMeta):
                 checked = (p.accent_subtle, danger_color, danger_color)
 
         align_rule = f"text-align: {align};" if align else ""
+        if text_color:
+            fg = text_color
+        font_px = font_size if font_size is not None else spec['font']
+        font_pt_weight = font_weight if font_weight is not None else spec['weight']
         return f"""
             QPushButton {{
                 background-color: {bg};
@@ -433,8 +440,8 @@ class Styles(metaclass=_StylesMeta):
                 border: 1px solid {border};
                 border-radius: {spec['radius']}px;
                 padding: {spec['pad_v']}px {spec['pad_h']}px;
-                font-size: {spec['font']}px;
-                font-weight: {spec['weight']};
+                font-size: {font_px}px;
+                font-weight: {font_pt_weight};
                 {align_rule}
             }}
             QPushButton:hover {{
@@ -524,6 +531,48 @@ class Styles(metaclass=_StylesMeta):
             "info": cls.COLOR_ACCENT,
             "loading": cls.COLOR_ACCENT,
         }.get(variant, cls.COLOR_TEXT_PRIMARY)
+
+    @classmethod
+    def get_date_picker_input_qss(cls, *, font_size: int = 14) -> str:
+        """Transparent editor that sits inside the painted date-picker field."""
+        p = ThemeManager.palette()
+        return f"""
+            QLineEdit {{
+                background: transparent;
+                border: none;
+                color: {p.text_primary};
+                font-size: {font_size}px;
+                selection-background-color: {p.accent};
+                selection-color: {cls.COLOR_ON_ACCENT};
+            }}
+            QLineEdit:disabled {{
+                color: {p.text_muted};
+            }}
+        """
+
+    @classmethod
+    def get_date_picker_popup_qss(cls) -> str:
+        """Panel, weekday, and year labels for the calendar popup."""
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#DatePickerPopup {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 14px;
+            }}
+            QLabel#DatePickerWeekday {{
+                color: {p.text_muted};
+                background: transparent;
+                font-size: 11px;
+                font-weight: 600;
+            }}
+            QLabel#DatePickerYear {{
+                color: {p.text_primary};
+                background: transparent;
+                font-size: 16px;
+                font-weight: 600;
+            }}
+        """
 
     @classmethod
     def get_board_game_header_style(cls):
@@ -959,6 +1008,82 @@ class Styles(metaclass=_StylesMeta):
             font-weight: bold;
             background: transparent;
             margin-top: 2px;
+        """
+
+    @classmethod
+    def get_form_field_qss(cls) -> str:
+        """Label, helper, and error text for :class:`FormField`."""
+        p = ThemeManager.palette()
+        return f"""
+            QLabel#FormFieldLabel {{
+                color: {p.text_primary};
+                background: transparent;
+                font-size: 12px;
+                font-weight: 500;
+            }}
+            QLabel#FormFieldDescription {{
+                color: {p.text_secondary};
+                background: transparent;
+                font-size: 11px;
+            }}
+            QLabel#FormFieldError {{
+                color: {cls.COLOR_BLUNDER};
+                background: transparent;
+                font-size: 11px;
+                font-weight: 500;
+            }}
+        """
+
+    @classmethod
+    def get_field_input_qss(cls, *, height: int = 40, font_size: int = 13) -> str:
+        """Modern outlined input used inside :class:`FormField`."""
+        p = ThemeManager.palette()
+        return f"""
+            QLineEdit {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 0 12px;
+                color: {p.text_primary};
+                font-size: {font_size}px;
+                min-height: {height}px;
+                max-height: {height}px;
+            }}
+            QLineEdit:hover {{
+                border-color: {p.border_light};
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {p.accent};
+                background-color: {p.surface};
+            }}
+            QLineEdit:disabled {{
+                background-color: {p.surface_light};
+                color: {p.text_muted};
+                border-color: {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_textarea_qss(cls) -> str:
+        p = ThemeManager.palette()
+        return f"""
+            QTextEdit {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 12px;
+                color: {p.text_primary};
+                font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+                font-size: 12px;
+                selection-background-color: {p.accent};
+                selection-color: {cls.COLOR_ON_ACCENT};
+            }}
+            QTextEdit:hover {{
+                border-color: {p.border_light};
+            }}
+            QTextEdit:focus {{
+                border: 1px solid {p.accent};
+            }}
         """
 
     @classmethod

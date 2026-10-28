@@ -43,7 +43,6 @@ class InlineGameList(QWidget):
             ButtonSize.SM,
             on_click=self.cleared.emit,
         )
-        self.btn_clear.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         h_layout.addWidget(self.btn_clear)
 
         root.addWidget(header_widget)
@@ -90,7 +89,6 @@ class InlineGameList(QWidget):
             ButtonSize.SM,
             on_click=self._prev_page,
         )
-        self.btn_prev.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._pagination_layout.addWidget(self.btn_prev)
 
         self._pagination_layout.addStretch()
@@ -107,7 +105,6 @@ class InlineGameList(QWidget):
             ButtonSize.SM,
             on_click=self._next_page,
         )
-        self.btn_next.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._pagination_layout.addWidget(self.btn_next)
 
         root.addWidget(self._pagination_widget)
@@ -132,6 +129,7 @@ class InlineGameList(QWidget):
             self._cards_layout.removeWidget(card)
             card.deleteLater()
         self._cards.clear()
+        self.scroll.verticalScrollBar().setValue(0)
 
         total_games = len(self._all_rows)
         total_pages = (total_games + self._games_per_page - 1) // self._games_per_page

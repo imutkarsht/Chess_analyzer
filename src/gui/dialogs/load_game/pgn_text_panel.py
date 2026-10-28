@@ -1,14 +1,14 @@
 """
 PGN Text panel for the Load Game dialog.
 """
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QTextEdit, QVBoxLayout, QWidget
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import create_button
 
-from .helpers import classify_time_control
+from .helpers import classify_time_control, game_row
 from .inline_game_list import InlineGameList
 
 
@@ -28,37 +28,53 @@ class PgnTextPanel(QWidget):
 
     def _setup_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 20)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(12)
 
         # ── Input Area ──────────────────────────────────────────────────────
         self._input_widget = QWidget()
         input_layout = QVBoxLayout(self._input_widget)
         input_layout.setContentsMargins(0, 0, 0, 0)
-        input_layout.setSpacing(12)
+        input_layout.setSpacing(8)
+
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(8)
+        label = QLabel("PGN text")
+        label.setStyleSheet(
+            f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY};"
+            " background: transparent;"
+        )
+        self._paste_btn = Button(
+            "Paste from clipboard",
+            ButtonVariant.GHOST,
+            ButtonSize.XS,
+            icon="fa5s.paste",
+            on_click=self._paste_clipboard,
+        )
+        header.addWidget(label)
+        header.addStretch(1)
+        header.addWidget(self._paste_btn)
+        input_layout.addLayout(header)
 
         self._text_edit = QTextEdit()
-        self._text_edit.setPlaceholderText("Paste your PGN text here...")
-        self._text_edit.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 12px;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-family: monospace;
-                font-size: 13px;
-            }}
-            QTextEdit:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """)
-        input_layout.addWidget(self._text_edit)
+        self._text_edit.setPlaceholderText(
+            "Paste a game's PGN here — headers and moves are both fine."
+        )
+        self._text_edit.setStyleSheet(Styles.get_textarea_qss())
+        input_layout.addWidget(self._text_edit, 1)
 
-        parse_btn = create_button("Parse PGN", style="secondary", on_click=self._parse)
-        parse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        parse_btn.setFixedHeight(36)
-        input_layout.addWidget(parse_btn)
+        parse_btn = Button(
+            "Parse PGN",
+            ButtonVariant.PRIMARY,
+            ButtonSize.MD,
+            icon="fa5s.check",
+            on_click=self._parse,
+        )
+        parse_row = QHBoxLayout()
+        parse_row.addStretch(1)
+        parse_row.addWidget(parse_btn)
+        input_layout.addLayout(parse_row)
 
         root.addWidget(self._input_widget, stretch=1)
 
@@ -68,6 +84,11 @@ class PgnTextPanel(QWidget):
         self._game_list.game_chosen.connect(self._on_game_chosen)
         self._game_list.cleared.connect(self._clear)
         root.addWidget(self._game_list, stretch=1)
+
+    def _paste_clipboard(self) -> None:
+        text = QApplication.clipboard().text().strip()
+        if text:
+            self._text_edit.setPlainText(text)
 
     # ── Text parsing ────────────────────────────────────────────────────────
     def _parse(self):
@@ -97,19 +118,22 @@ class PgnTextPanel(QWidget):
         rows = []
         for g in games:
             md = g.metadata
-            white = md.white or "?"
-            black = md.black or "?"
-            w_elo = md.white_elo or md.headers.get("WhiteElo", "?")
-            b_elo = md.black_elo or md.headers.get("BlackElo", "?")
-            result = md.result or "?"
-            date = md.date or md.headers.get("Date", "?")
-            time_ctrl = md.headers.get("TimeControl", "")
-            tc_label = classify_time_control(time_ctrl)
-            move_count = (len(g.moves) + 1) // 2
-
-            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
-            line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
-            rows.append((line1, line2))
+            rows.append(
+                game_row(
+                    date=md.date or md.headers.get("Date"),
+                    time_class=classify_time_control(
+                        md.headers.get("TimeControl", "")
+                    ),
+                    result=md.result,
+                    moves=(len(g.moves) + 1) // 2,
+                    white=md.white,
+                    black=md.black,
+                    white_elo=md.white_elo or md.headers.get("WhiteElo"),
+                    black_elo=md.black_elo or md.headers.get("BlackElo"),
+                    opening=getattr(md, "opening", None)
+                    or md.headers.get("Opening"),
+                )
+            )
 
         header_text = "1 game ready to load:" if n == 1 else f"Select a game ({n} found):"
         self._game_list.populate(rows, header_text)
@@ -118,7 +142,7 @@ class PgnTextPanel(QWidget):
     def _on_game_chosen(self, index: int):
         if 0 <= index < len(self._parsed_games):
             game = self._parsed_games[index]
-            self.pgn_ready.emit(game.pgn_content or self._text_edit.toPlainText(), None)
+            self.pgn_ready.emit(game.pgn_content or "", None)
 
     def _clear(self):
         self._parsed_games = []
