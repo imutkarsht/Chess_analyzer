@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QVBoxLayout
 
 from ....backend.storage.cache import AnalysisCache
 from ...styles import Styles
-from .components import SettingsBinder, SettingsForm, make_combo
+from .components import SettingsBinder, SettingsForm, make_select
 from .modern_widgets import ModernSliderCounter
 from .storage_card import StorageCard
 
@@ -45,7 +45,7 @@ class RetentionSettings(StorageCard):
 
         self.explorer_ttl_combo = self.binder.add(
             "explorer_cache_ttl_hours",
-            make_combo(180),
+            make_select(180),
             choices=EXPLORER_TTL_CHOICES,
             width=180,
         )
@@ -70,7 +70,7 @@ class RetentionSettings(StorageCard):
 
         self.explain_ttl_combo = self.binder.add(
             "explain_cache_ttl_days",
-            make_combo(180),
+            make_select(180),
             choices=EXPLANATION_TTL_CHOICES,
             width=180,
         )
@@ -108,6 +108,4 @@ class RetentionSettings(StorageCard):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.explorer_ttl_combo.setStyleSheet(Styles.get_combobox_style())
-        self.explain_ttl_combo.setStyleSheet(Styles.get_combobox_style())
         self.analysis_cap_input.refresh_styles()

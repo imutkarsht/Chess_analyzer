@@ -22,6 +22,8 @@ from src.gui.components import (
     ButtonSize,
     ButtonVariant,
     PaginationBar,
+    PaginationSize,
+    PaginationState,
     StatusBadge,
 )
 from src.gui.styles import Styles
@@ -60,7 +62,7 @@ class BrilliancyHallCard(MetricCard):
 
     def __init__(self, parent=None):
         self.stats: dict = {}
-        self.current_page: int = 0
+        self.pagination_state = PaginationState(page_size=self.PAGE_SIZE)
 
         self.action_badge = StatusBadge("0 Brilliancies", tone="neutral")
 
@@ -70,6 +72,14 @@ class BrilliancyHallCard(MetricCard):
             min_height=340,
             action_widget=self.action_badge,
         )
+
+    @property
+    def current_page(self) -> int:
+        return self.pagination_state.page
+
+    @current_page.setter
+    def current_page(self, page: int) -> None:
+        self.pagination_state.set_page(page)
 
     def set_stats(self, stats: dict):
         self.stats = stats or {}
@@ -81,6 +91,7 @@ class BrilliancyHallCard(MetricCard):
         # Strictly filter for classification == 'Brilliant'
         brilliants = [b for b in raw_brilliancies if b.get("classification") == "Brilliant"]
         count = len(brilliants)
+        self.pagination_state.set_total_items(count)
 
         # Update header badge
         badge_text = f"{count} Brilliancy" if count == 1 else f"{count} Brilliancies"
@@ -94,13 +105,6 @@ class BrilliancyHallCard(MetricCard):
 
         main_vbox = self.new_content(spacing=8).layout()
 
-        total_pages = max(1, (count + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-        self.current_page = max(0, min(self.current_page, total_pages - 1))
-
-        start_idx = self.current_page * self.PAGE_SIZE
-        end_idx = min(start_idx + self.PAGE_SIZE, count)
-        page_items = brilliants[start_idx:end_idx]
-
         # List container for the current page items
         list_container = QWidget()
         list_container.setStyleSheet("background: transparent;")
@@ -108,7 +112,7 @@ class BrilliancyHallCard(MetricCard):
         list_vbox.setContentsMargins(0, 0, 0, 0)
         list_vbox.setSpacing(8)
 
-        for b in page_items:
+        for b in self.pagination_state.slice(brilliants):
             row = self._create_brilliancy_row(b)
             list_vbox.addWidget(row)
 
@@ -116,34 +120,19 @@ class BrilliancyHallCard(MetricCard):
         main_vbox.addWidget(list_container, stretch=1)
 
         # Pagination Bar
-        if total_pages > 1:
-            pagination_bar = PaginationBar(
-                page=self.current_page,
-                total_pages=total_pages,
-                prev_text="◀ Prev",
-                next_text="Next ▶",
-            )
-            pagination_bar.prev_clicked.connect(self._go_prev_page)
-            pagination_bar.next_clicked.connect(self._go_next_page)
-            self.btn_prev = pagination_bar.prev_btn
-            self.lbl_page = pagination_bar.label
-            self.btn_next = pagination_bar.next_btn
-            main_vbox.addWidget(pagination_bar)
+        pagination_bar = PaginationBar(
+            self.pagination_state,
+            size=PaginationSize.CARD,
+            hide_when_single_page=True,
+        )
+        pagination_bar.page_changed.connect(lambda _page: self._render_view())
+        self.btn_prev = pagination_bar.prev_btn
+        self.lbl_page = pagination_bar.label
+        self.btn_next = pagination_bar.next_btn
+        self.pagination_bar = pagination_bar
+        main_vbox.addWidget(pagination_bar)
 
         self.set_content(self.content_widget)
-
-    def _go_prev_page(self):
-        if self.current_page > 0:
-            self.current_page -= 1
-            self._render_view()
-
-    def _go_next_page(self):
-        raw_brilliancies = self.stats.get("brilliancies", [])
-        brilliants = [b for b in raw_brilliancies if b.get("classification") == "Brilliant"]
-        total_pages = max(1, (len(brilliants) + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-        if self.current_page < total_pages - 1:
-            self.current_page += 1
-            self._render_view()
 
     def _create_brilliancy_row(self, b: dict) -> QFrame:
         san = b.get("san", "")

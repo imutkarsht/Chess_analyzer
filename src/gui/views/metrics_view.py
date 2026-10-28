@@ -14,11 +14,18 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
 from src.backend.services.groq_service import GroqService
-from src.gui.components import Button, ButtonVariant, MasonryLayout, StatCard, StatsLayout
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    MasonryLayout,
+    Select,
+    StatCard,
+    StatsLayout,
+)
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout, create_button, create_combobox
+from src.gui.utils.gui_utils import clear_layout, create_button
 
 # Import modular cards
 from src.gui.views.metrics import (
@@ -156,7 +163,7 @@ class MetricsWidget(QWidget):
             filter_layout.addWidget(lbl)
             setattr(self, f"lbl_{key}", lbl)
 
-            combo = create_combobox(items=items, on_change=self.on_filter_changed)
+            combo = Select(items, on_change=self.on_filter_changed)
             combo.setFixedWidth(width)
             filter_layout.addWidget(combo)
             setattr(self, f"combo_{key}", combo)
@@ -231,15 +238,6 @@ class MetricsWidget(QWidget):
                 f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 12px; "
                 "padding: 4px 12px; font-weight: 600; font-size: 12px;"
             )
-
-        for combo in (
-            getattr(self, "combo_color", None),
-            getattr(self, "combo_format", None),
-            getattr(self, "combo_source", None),
-            getattr(self, "combo_period", None),
-        ):
-            if combo:
-                combo.setStyleSheet(Styles.get_combobox_style())
 
         lbl_style = (
             f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)} "

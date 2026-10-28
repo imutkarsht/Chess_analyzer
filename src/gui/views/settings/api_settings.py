@@ -6,7 +6,6 @@ import time
 from PyQt6.QtCore import QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
-    QComboBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -17,7 +16,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.services.groq_service import GroqService, explanation_tuning
 from src.constants import PROVIDERS
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Select
 from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import show_error_dialog
@@ -131,14 +130,11 @@ class ApiSettings(QGroupBox):
         api_layout.setContentsMargins(0, 12, 0, 0)
         api_layout.setSpacing(10)
 
-        _combo_style = Styles.get_combobox_style()
-
         self._profile_form = SettingsForm(self)
         api_layout.addWidget(self._profile_form)
 
         # --- Profile selector row ---
-        self.llm_profile_combo = QComboBox()
-        self.llm_profile_combo.setStyleSheet(_combo_style)
+        self.llm_profile_combo = Select(min_width=220)
         self.llm_profile_combo.setMaximumWidth(420)
         self.llm_profile_combo.currentIndexChanged.connect(self._on_profile_selected)
 
@@ -201,10 +197,9 @@ class ApiSettings(QGroupBox):
             hint="A label like Work or Local. Must be unique.",
         )
 
-        self.llm_provider_combo = QComboBox()
+        self.llm_provider_combo = Select(min_width=220)
         for pkey, pmeta in self._llm_providers.items():
             self.llm_provider_combo.addItem(pmeta["label"], userData=pkey)
-        self.llm_provider_combo.setStyleSheet(_combo_style)
         self.llm_provider_combo.currentIndexChanged.connect(self._on_provider_changed)
         self._profile_form.add_row(
             "Provider",
@@ -626,10 +621,6 @@ class ApiSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        if hasattr(self, 'llm_profile_combo'):
-            self.llm_profile_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'llm_provider_combo'):
-            self.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, 'llm_add_btn'):
             self.llm_add_btn.refresh_styles()
         if hasattr(self, 'llm_del_btn'):

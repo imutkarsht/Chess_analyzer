@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QGroupBox, QLabel, QVBoxLayout
 from src.constants import SHORTCUT_PRESET_LABELS
 
 from ...styles import Styles
-from .components import SettingsBinder, SettingsForm, make_combo
+from .components import SettingsBinder, SettingsForm, make_select
 from .helpers import create_icon_button
 
 
@@ -36,7 +36,7 @@ class ShortcutSettings(QGroupBox):
 
         self.form = SettingsForm(self)
         self.binder = SettingsBinder(self.config_manager, self.form, self)
-        self.preset_combo = make_combo(300)
+        self.preset_combo = make_select(300)
         for preset_id, label in SHORTCUT_PRESET_LABELS.items():
             self.preset_combo.addItem(label, preset_id)
         self.binder.add(
@@ -75,7 +75,6 @@ class ShortcutSettings(QGroupBox):
             + Styles.get_transparent_label_style()
         )
         self.form.refresh_styles()
-        self.preset_combo.setStyleSheet(Styles.get_combobox_style())
         self.help_btn.refresh_styles()
 
     def _open_help(self):

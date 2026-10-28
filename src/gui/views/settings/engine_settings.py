@@ -12,10 +12,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...components.select import Select, SelectOption
 from ...components.toast import ToastManager
 from ...styles import Styles
 from .components import PathField, SettingsBinder, SettingsForm
-from .modern_widgets import ModernHashComboBox, ModernSliderCounter
+from .modern_widgets import ModernSliderCounter
 
 
 class EngineSettings(QGroupBox):
@@ -77,7 +78,14 @@ class EngineSettings(QGroupBox):
         )
 
     def _add_hash_row(self):
-        self.hash_input = ModernHashComboBox(self)
+        self.hash_input = Select(
+            [
+                SelectOption(str(size), size)
+                for size in (16, 32, 64, 128, 256, 512, 1024, 2048, 4096)
+            ],
+            allow_custom=True,
+            min_width=140,
+        )
         self.binder.add(
             "engine_hash",
             self.hash_input,
@@ -165,7 +173,7 @@ class EngineSettings(QGroupBox):
         return value, True
 
     def _validated_hash(self):
-        raw = self.hash_input.text().strip()
+        raw = self.hash_input.settingValue()
         try:
             value = int(raw)
         except (TypeError, ValueError):
@@ -190,7 +198,6 @@ class EngineSettings(QGroupBox):
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.hash_input.refresh_styles()
         self.path_input.setStyleSheet(Styles.get_input_style())
         self.browse_btn.refresh_styles()
         self.threads_input.refresh_styles()

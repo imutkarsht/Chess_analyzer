@@ -3,7 +3,6 @@ import os
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
-    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -15,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import PROVIDERS
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Select
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 
@@ -205,11 +204,10 @@ def build_appearance_page(wizard) -> QWidget:
     mode_lbl.setProperty("class", "wizard-label")
     card_layout.addWidget(mode_lbl)
 
-    wizard.wizard_theme_mode_combo = QComboBox()
+    wizard.wizard_theme_mode_combo = Select()
     wizard.wizard_theme_mode_combo.addItem("System (Follow OS)", "system")
     wizard.wizard_theme_mode_combo.addItem("Dark Theme", "dark")
     wizard.wizard_theme_mode_combo.addItem("Light Theme", "light")
-    wizard.wizard_theme_mode_combo.setStyleSheet(Styles.get_combobox_style())
     wizard.wizard_theme_mode_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     wizard.wizard_theme_mode_combo.currentIndexChanged.connect(lambda: _on_theme_mode_changed(wizard))
     card_layout.addWidget(wizard.wizard_theme_mode_combo)
@@ -217,10 +215,9 @@ def build_appearance_page(wizard) -> QWidget:
     theme_lbl = QLabel("Board Theme")
     theme_lbl.setProperty("class", "wizard-label")
     card_layout.addWidget(theme_lbl)
-    wizard.wizard_theme_combo = QComboBox()
+    wizard.wizard_theme_combo = Select()
     wizard.wizard_theme_combo.addItems(list(Styles.BOARD_THEMES.keys()))
     wizard.wizard_theme_combo.setCurrentText("Green")
-    wizard.wizard_theme_combo.setStyleSheet(Styles.get_combobox_style())
     wizard.wizard_theme_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.wizard_theme_combo)
 
@@ -446,10 +443,9 @@ def build_llm_page(wizard) -> QWidget:
     lbl.setProperty("class", "wizard-label")
     prov_row.addWidget(lbl)
 
-    wizard.llm_provider_combo = QComboBox()
+    wizard.llm_provider_combo = Select()
     for prov_key, prov_info in PROVIDERS.items():
         wizard.llm_provider_combo.addItem(prov_info.get("label", prov_key.title()), prov_key)
-    wizard.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
     wizard.llm_provider_combo.currentIndexChanged.connect(lambda: _on_provider_changed(wizard))
     prov_row.addWidget(wizard.llm_provider_combo, 1)
 

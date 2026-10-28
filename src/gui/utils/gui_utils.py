@@ -6,7 +6,6 @@ from collections.abc import Callable
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QComboBox,
     QHBoxLayout,
     QLabel,
     QLayout,
@@ -121,37 +120,6 @@ def create_button(
     if not cursor:
         btn.setCursor(Qt.CursorShape.ArrowCursor)
     return btn
-
-
-def create_combobox(
-    items: list[str],
-    current: str | None = None,
-    on_change: Callable | None = None
-) -> QComboBox:
-    """
-    Factory function to create styled comboboxes.
-
-    Args:
-        items: List of items to add
-        current: Currently selected item
-        on_change: Callback for selection changes
-
-    Returns:
-        Configured QComboBox
-    """
-    from src.gui.styles import Styles
-
-    combo = QComboBox()
-    combo.addItems(items)
-    combo.setStyleSheet(Styles.get_combobox_style())
-
-    if current:
-        combo.setCurrentText(current)
-
-    if on_change:
-        combo.currentTextChanged.connect(on_change)
-
-    return combo
 
 
 def create_labeled_input(

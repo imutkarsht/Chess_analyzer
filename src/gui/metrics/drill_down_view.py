@@ -22,6 +22,8 @@ from src.gui.components import (
     Button,
     ButtonVariant,
     PaginationBar,
+    PaginationSize,
+    PaginationState,
 )
 from src.gui.metrics.drill_down_item import DrillDownItemWidget
 from src.gui.styles import Styles
@@ -49,9 +51,17 @@ class DrillDownView(QWidget):
         self.title_text: str = "Drill-Down"
         self.subtitle_text: str = ""
         self.items: list[dict[str, Any]] = []
-        self.current_page: int = 0
+        self.pagination_state = PaginationState(page_size=self.PAGE_SIZE)
 
         self._setup_ui()
+
+    @property
+    def current_page(self) -> int:
+        return self.pagination_state.page
+
+    @current_page.setter
+    def current_page(self, page: int) -> None:
+        self.pagination_state.set_page(page)
 
     def _setup_ui(self) -> None:
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -148,32 +158,18 @@ class DrillDownView(QWidget):
         layout.addWidget(self.scroll_area, 1)
 
         # 3. Pagination Bar
-        self.pagination_bar = QFrame()
-        self.pagination_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-top: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
-        pag_layout = QHBoxLayout(self.pagination_bar)
-        pag_layout.setContentsMargins(0, 0, 0, 0)
-        pag_layout.setSpacing(0)
-
-        self.pagination = PaginationBar(
-            page=0,
-            total_pages=1,
-            prev_text="Previous",
-            next_text="Next",
-            margins=(24, 10, 24, 10),
-            button_height=None,
-            label_font_size=12,
+        self.pagination_bar = PaginationBar(
+            self.pagination_state,
+            size=PaginationSize.PAGE,
+            framed=True,
+            hide_when_single_page=True,
+            show_total=True,
         )
-        self.btn_prev = self.pagination.prev_btn
-        self.lbl_page = self.pagination.label
-        self.btn_next = self.pagination.next_btn
-        self.pagination.prev_clicked.connect(self._prev_page)
-        self.pagination.next_clicked.connect(self._next_page)
-        pag_layout.addWidget(self.pagination)
+        self.pagination = self.pagination_bar
+        self.btn_prev = self.pagination_bar.prev_btn
+        self.lbl_page = self.pagination_bar.label
+        self.btn_next = self.pagination_bar.next_btn
+        self.pagination_bar.page_changed.connect(lambda _page: self._render_page())
 
         layout.addWidget(self.pagination_bar)
 
@@ -200,33 +196,19 @@ class DrillDownView(QWidget):
             if child.widget():
                 child.widget().deleteLater()
 
+        self.pagination_state.set_total_items(len(self.items))
         if not self.items:
             self._render_empty_state()
-            self.pagination_bar.setVisible(False)
+            self.pagination_bar.sync()
             return
 
-        total_pages = max(1, (len(self.items) + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-        self.current_page = max(0, min(self.current_page, total_pages - 1))
-
-        start_idx = self.current_page * self.PAGE_SIZE
-        end_idx = min(start_idx + self.PAGE_SIZE, len(self.items))
-        page_items = self.items[start_idx:end_idx]
-
-        for item in page_items:
+        for item in self.pagination_state.slice(self.items):
             widget = DrillDownItemWidget(item)
             widget.position_selected.connect(self.position_selected.emit)
             self.list_layout.addWidget(widget)
 
         self.list_layout.addStretch(1)
-
-        # Update pagination controls
-        if total_pages > 1:
-            self.pagination_bar.setVisible(True)
-            self.pagination.set_page(
-                self.current_page, total_pages, total_items=len(self.items)
-            )
-        else:
-            self.pagination_bar.setVisible(False)
+        self.pagination_bar.sync()
 
         # Reset scroll to top
         self.scroll_area.verticalScrollBar().setValue(0)
@@ -264,17 +246,6 @@ class DrillDownView(QWidget):
 
         self.list_layout.addWidget(empty_container)
 
-    def _prev_page(self) -> None:
-        if self.current_page > 0:
-            self.current_page -= 1
-            self._render_page()
-
-    def _next_page(self) -> None:
-        total_pages = max(1, (len(self.items) + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-        if self.current_page < total_pages - 1:
-            self.current_page += 1
-            self._render_page()
-
     def refresh_styles(self) -> None:
         """Re-applies styles when theme changes."""
         self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
@@ -299,10 +270,4 @@ class DrillDownView(QWidget):
             }}
         """)
         self.list_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
-        self.pagination_bar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-top: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
         self._render_page()

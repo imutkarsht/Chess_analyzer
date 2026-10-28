@@ -4,7 +4,7 @@ Modern, custom UI widgets for the settings panel.
 from importlib.util import find_spec
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QSlider, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSlider, QWidget
 
 from ...components import Button, ButtonSize, ButtonVariant
 from ...styles import Styles
@@ -168,33 +168,6 @@ class ModernSliderCounter(QWidget):
                 background: transparent;
             }}
         """)
-
-
-class ModernHashComboBox(QComboBox):
-    editingFinished = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.addItems(["16", "32", "64", "128", "256", "512", "1024", "2048", "4096"])
-        self.currentTextChanged.connect(lambda _: self.editingFinished.emit())
-        # Rows live inside wrappers that strip borders for layout reasons, so
-        # the combo needs its own style or it renders as bare text.
-        self.refresh_styles()
-
-    def text(self) -> str:
-        return self.currentText()
-
-    def setText(self, val_str: str):
-        val = val_str.strip()
-        if val and self.findText(val) == -1:
-            self.addItem(val)
-        self.setCurrentText(val)
-
-    def setMaximumWidth(self, w: int):
-        super().setMaximumWidth(w)
-
-    def refresh_styles(self):
-        self.setStyleSheet(Styles.get_combobox_style())
 
 
 class PasswordFieldWrapper(QWidget):

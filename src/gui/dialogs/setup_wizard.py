@@ -304,13 +304,6 @@ class SetupWizard(QDialog):
                 f"font-size: 13px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
             )
 
-        if hasattr(self, "wizard_theme_mode_combo"):
-            self.wizard_theme_mode_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, "wizard_theme_combo"):
-            self.wizard_theme_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, "llm_provider_combo"):
-            self.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
-
         if hasattr(self, "llm_test_btn"):
             self.llm_test_btn.refresh_styles()
 

@@ -2,7 +2,6 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QAbstractButton,
     QApplication,
-    QComboBox,
     QLineEdit,
     QPlainTextEdit,
     QTextEdit,
@@ -18,6 +17,7 @@ from src.constants import (
     PAGE_NAMES,
     REPLAY_INTERVAL_MS,
 )
+from src.gui.components.select import Select
 from src.gui.dialogs import ShortcutHelpDialog
 from src.gui.utils.shortcut_manager import ShortcutManager
 
@@ -200,7 +200,7 @@ class NavigationMixin:
             focus_widget = QApplication.focusWidget()
             if isinstance(focus_widget, QAbstractButton):
                 focus_widget.animateClick()
-            elif isinstance(focus_widget, QComboBox):
+            elif isinstance(focus_widget, Select):
                 focus_widget.showPopup()
             return
         if self._variation_active():

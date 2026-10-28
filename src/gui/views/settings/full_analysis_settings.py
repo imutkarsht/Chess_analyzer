@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 from src.utils.path_utils import get_resource_path
 
 from ...styles import Styles
-from .components import SettingsBinder, SettingsForm, make_combo
+from .components import SettingsBinder, SettingsForm, make_select
 from .modern_widgets import ModernSliderCounter
 
 # The engine also receives a depth limit, so "No cap" means depth-only.
@@ -39,7 +39,7 @@ class FullAnalysisSettings(QGroupBox):
 
         self.depth_combo = self.binder.add(
             "analysis_depth",
-            make_combo(100),
+            make_select(100),
             choices=[(depth, str(depth)) for depth in range(10, 26)],
             hint="Higher depth is more accurate but slower.",
             width=100,
@@ -47,7 +47,7 @@ class FullAnalysisSettings(QGroupBox):
 
         self.time_cap_combo = self.binder.add(
             "time_per_move",
-            make_combo(150),
+            make_select(150),
             choices=TIME_CAP_CHOICES,
             width=150,
         )
@@ -75,8 +75,6 @@ class FullAnalysisSettings(QGroupBox):
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.depth_combo.setStyleSheet(Styles.get_combobox_style())
-        self.time_cap_combo.setStyleSheet(Styles.get_combobox_style())
         self.multi_pv_input.refresh_styles()
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         self.cache_checkbox.setStyleSheet(

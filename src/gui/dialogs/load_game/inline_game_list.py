@@ -4,7 +4,14 @@ Inline game list component for the Load Game dialog.
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
-from ...components import Button, ButtonSize, ButtonVariant
+from ...components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    PaginationBar,
+    PaginationSize,
+    PaginationState,
+)
 from ...styles import Styles
 from .game_card import GameCard
 
@@ -21,6 +28,7 @@ class InlineGameList(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.pagination_state = PaginationState(page_size=10)
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(4)
@@ -78,48 +86,28 @@ class InlineGameList(QWidget):
         root.addWidget(self.scroll, stretch=1)
 
         # Pagination controls
-        self._pagination_widget = QWidget()
-        self._pagination_layout = QHBoxLayout(self._pagination_widget)
-        self._pagination_layout.setContentsMargins(2, 4, 2, 4)
-        self._pagination_layout.setSpacing(10)
-
-        self.btn_prev = Button(
-            "◀ Previous",
-            ButtonVariant.FILLED,
-            ButtonSize.SM,
-            on_click=self._prev_page,
+        self._pagination_bar = PaginationBar(
+            self.pagination_state,
+            size=PaginationSize.CARD,
+            hide_when_single_page=True,
+            margins=(2, 4, 2, 4),
         )
-        self._pagination_layout.addWidget(self.btn_prev)
+        self._pagination_bar.page_changed.connect(lambda _page: self._update_page())
+        self.btn_prev = self._pagination_bar.prev_btn
+        self.lbl_page = self._pagination_bar.label
+        self.btn_next = self._pagination_bar.next_btn
 
-        self._pagination_layout.addStretch()
-
-        self.lbl_page = QLabel("")
-        self.lbl_page.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
-        self._pagination_layout.addWidget(self.lbl_page)
-
-        self._pagination_layout.addStretch()
-
-        self.btn_next = Button(
-            "Next ▶",
-            ButtonVariant.FILLED,
-            ButtonSize.SM,
-            on_click=self._next_page,
-        )
-        self._pagination_layout.addWidget(self.btn_next)
-
-        root.addWidget(self._pagination_widget)
+        root.addWidget(self._pagination_bar)
 
         self._all_rows: list[tuple[str, str]] = []
         self._cards: list[GameCard] = []
         self._selected_index: int = -1
-        self._current_page: int = 0
-        self._games_per_page: int = 10
         self._header_template: str = ""
 
     def populate(self, rows: list[tuple[str, str]], header: str = ""):
         self._all_rows = rows
         self._header_template = header
-        self._current_page = 0
+        self.pagination_state.set_page(0)
         self._selected_index = -1
         self._update_page()
 
@@ -131,25 +119,12 @@ class InlineGameList(QWidget):
         self._cards.clear()
         self.scroll.verticalScrollBar().setValue(0)
 
-        total_games = len(self._all_rows)
-        total_pages = (total_games + self._games_per_page - 1) // self._games_per_page
+        self.pagination_state.set_total_items(len(self._all_rows))
+        start_idx = self.pagination_state.start_index
+        end_idx = self.pagination_state.end_index
 
-        start_idx = self._current_page * self._games_per_page
-        end_idx = min(start_idx + self._games_per_page, total_games)
-
-        # Update Header
-        if total_pages > 1:
-            header_text = f"{self._header_template} - Page {self._current_page + 1} of {total_pages}"
-            self._pagination_widget.setVisible(True)
-            self.btn_prev.setEnabled(self._current_page > 0)
-            self.btn_next.setEnabled(self._current_page < total_pages - 1)
-            self.lbl_page.setText(f"Page {self._current_page + 1} of {total_pages}")
-        else:
-            header_text = self._header_template
-            self._pagination_widget.setVisible(False)
-
-        self._header.setText(header_text)
-        self._header.setVisible(bool(header_text))
+        self._header.setText(self._header_template)
+        self._header.setVisible(bool(self._header_template))
 
         # Add cards for current page
         for i in range(start_idx, end_idx):
@@ -158,6 +133,8 @@ class InlineGameList(QWidget):
             card.selected.connect(self._on_card_selected)
             self._cards_layout.insertWidget(self._cards_layout.count() - 1, card)
             self._cards.append(card)
+
+        self._pagination_bar.sync()
 
         # Restore selection if it's on this page, or pre-select first card on page change
         if self._cards:
@@ -183,17 +160,6 @@ class InlineGameList(QWidget):
                 card.set_selected(True)
 
         self.game_chosen.emit(absolute_index)
-
-    def _prev_page(self):
-        if self._current_page > 0:
-            self._current_page -= 1
-            self._update_page()
-
-    def _next_page(self):
-        total_pages = (len(self._all_rows) + self._games_per_page - 1) // self._games_per_page
-        if self._current_page < total_pages - 1:
-            self._current_page += 1
-            self._update_page()
 
     def clear(self):
         self.populate([], "")
