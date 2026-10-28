@@ -84,6 +84,9 @@ class Button(QPushButton):
         align: str | None = None,
         accent: str | None = None,
         danger: bool = False,
+        text_color: str | None = None,
+        font_size: int | None = None,
+        font_weight: int | None = None,
         tooltip: str | None = None,
         on_click=None,
         parent: QWidget | None = None,
@@ -99,6 +102,9 @@ class Button(QPushButton):
         self._align = align
         self._accent = accent
         self._danger = danger
+        self._text_color = text_color
+        self._font_size = font_size
+        self._font_weight = font_weight
         self._loading = False
         self._enabled_before_loading = True
         self._spin_angle = 0
@@ -177,6 +183,12 @@ class Button(QPushButton):
         self.refresh_styles()
         self._apply_icon()
 
+    def set_text_color(self, color: str | None) -> None:
+        """Override the variant's text (and icon) colour for this instance."""
+        self._text_color = color
+        self.refresh_styles()
+        self._apply_icon()
+
     def set_icon_spec(self, icon: QIcon | str | None) -> None:
         self._icon_spec = icon
         self._apply_icon()
@@ -209,6 +221,9 @@ class Button(QPushButton):
                 accent=self._accent,
                 align=self._align,
                 danger=self._danger,
+                text_color=self._text_color,
+                font_size=self._font_size,
+                font_weight=self._font_weight,
             )
         )
         self._apply_icon()
@@ -224,6 +239,8 @@ class Button(QPushButton):
 
     def _icon_color(self) -> str:
         v = self._variant
+        if self._text_color:
+            return self._text_color
         if v is ButtonVariant.PRIMARY:
             # Destructive primaries keep the white label/icon for contrast.
             return Styles.COLOR_ON_ACCENT

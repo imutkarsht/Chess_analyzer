@@ -1,6 +1,6 @@
 import datetime
 
-from PyQt6.QtCore import QDate, QObject, Qt, pyqtSignal
+from PyQt6.QtCore import QDate, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFormLayout,
@@ -15,7 +15,7 @@ from src.backend.api.import_limits import clamp_games_limit, current_token
 from src.backend.cache.api_cache import ApiGameCache
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_history import GameHistoryManager
-from src.gui.components import Tabs, TabVariant
+from src.gui.components import DatePicker, Tabs, TabVariant
 from src.gui.components.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
@@ -24,26 +24,6 @@ from src.utils.path_utils import get_resource_path
 
 from .api_worker import ApiWorker, register_worker, remove_worker
 from .inline_game_list import InlineGameList
-
-
-class DateClickFilter(QObject):
-    def __init__(self, date_picker, parent=None):
-        super().__init__(parent)
-        self.date_picker = date_picker
-
-    def eventFilter(self, obj, event):
-        from PyQt6.QtCore import QCoreApplication, QEvent, Qt
-        from PyQt6.QtGui import QKeyEvent
-        if event.type() == QEvent.Type.MouseButtonRelease:
-            self.date_picker.setFocus()
-            press_event = QKeyEvent(
-                QEvent.Type.KeyPress,
-                Qt.Key.Key_Down,
-                Qt.KeyboardModifier.AltModifier
-            )
-            QCoreApplication.postEvent(self.date_picker, press_event)
-            return True
-        return super().eventFilter(obj, event)
 
 
 class SegmentedSelector(QWidget):
@@ -194,6 +174,8 @@ class OnlineFetchPanel(QWidget):
         # Styled Form Card Container
         self.form_card = QWidget()
         self.form_card.setObjectName("FormCard")
+        self.form_card.setMinimumWidth(560)
+        self.form_card.setMaximumWidth(680)
         self.form_card.setStyleSheet(f"""
             #FormCard {{
                 background-color: {Styles.COLOR_SURFACE};
@@ -214,7 +196,9 @@ class OnlineFetchPanel(QWidget):
 
         # Platform selector row
         lbl_platform = QLabel("Platform:")
-        lbl_platform.setStyleSheet(Styles.get_form_label_style())
+        lbl_platform.setStyleSheet(
+            Styles.get_form_label_style() + " " + Styles.get_transparent_label_style()
+        )
         self.platform_selector = SegmentedSelector([
             ("chesscom", "Chess.com", "assets/icons/chesscom.png"),
             ("lichess", "Lichess", "assets/icons/lichess.png")
@@ -225,7 +209,9 @@ class OnlineFetchPanel(QWidget):
 
         # Mode selector row
         lbl_mode = QLabel("Mode:")
-        lbl_mode.setStyleSheet(Styles.get_form_label_style())
+        lbl_mode.setStyleSheet(
+            Styles.get_form_label_style() + " " + Styles.get_transparent_label_style()
+        )
         self.mode_selector = SegmentedSelector([
             ("recent", "Recent", "fa5s.history"),
             ("date", "By Date", "fa5s.calendar-alt"),
@@ -237,7 +223,9 @@ class OnlineFetchPanel(QWidget):
 
         # Form Field 1: Username
         self.username_label = QLabel("Username:")
-        self.username_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY};")
+        self.username_label.setStyleSheet(
+            Styles.get_form_label_style() + " " + Styles.get_transparent_label_style()
+        )
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Enter username")
         self.username_input.setStyleSheet(self._input_style())
@@ -249,16 +237,20 @@ class OnlineFetchPanel(QWidget):
 
         self.form_layout.addRow(self.username_label, self.username_input)
 
-        # Form Field 2: Modern Date Picker
-        from src.gui.components.modern_date_picker import ModernDatePicker
-        self.date_label = QLabel("Date:")
-        self.date_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY};")
-        self.date_picker = ModernDatePicker(self, initial_date=QDate.currentDate())
-        self.form_layout.addRow(self.date_label, self.date_picker)
+        # Form Field 2: Date picker (floating label lives inside the field)
+        self.date_picker = DatePicker(
+            self,
+            label="Date",
+            initial_date=QDate.currentDate(),
+            maximum=QDate.currentDate(),
+        )
+        self.form_layout.addRow("", self.date_picker)
 
         # Form Field 3: URL Input
         self.url_label = QLabel("Game URL:")
-        self.url_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY};")
+        self.url_label.setStyleSheet(
+            Styles.get_form_label_style() + " " + Styles.get_transparent_label_style()
+        )
         self.url_input = QLineEdit()
         self.url_input.setPlaceholderText("Paste chess.com or lichess.org game link")
         self.url_input.setStyleSheet(self._input_style())
@@ -278,12 +270,15 @@ class OnlineFetchPanel(QWidget):
         btn_box.setContentsMargins(0, 8, 0, 0)
         btn_box.addStretch()
         btn_box.addWidget(self.fetch_btn)
-        btn_box.addStretch()
 
         self.form_layout.addRow("", btn_box)
 
         card_layout.addLayout(self.form_layout)
-        layout.addWidget(self.form_card)
+        card_row = QHBoxLayout()
+        card_row.addStretch(1)
+        card_row.addWidget(self.form_card)
+        card_row.addStretch(1)
+        layout.addLayout(card_row)
 
         layout.addStretch()
         root.addWidget(self.controls_widget, stretch=1)
@@ -340,7 +335,6 @@ class OnlineFetchPanel(QWidget):
 
         self.username_label.setVisible(show_username)
         self.username_input.setVisible(show_username)
-        self.date_label.setVisible(date_mode)
         self.date_picker.setVisible(date_mode)
         self.url_label.setVisible(url_mode)
         self.url_input.setVisible(url_mode)
@@ -357,6 +351,9 @@ class OnlineFetchPanel(QWidget):
         username = self.username_input.text().strip()
         url = self.url_input.text().strip()
         qdate = self.date_picker.date()
+        if qdate is None or not qdate.isValid():
+            ToastManager.warning(self, "Please pick a date.")
+            return
         date = datetime.date(qdate.year(), qdate.month(), qdate.day())
 
         game_id = ""

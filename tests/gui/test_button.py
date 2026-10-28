@@ -177,3 +177,22 @@ def test_accent_signal_refreshes_buttons_automatically(qtbot):
         Button(variant="banana")
     with pytest.raises(ValueError):
         Button(icon_position="middle")
+
+
+def test_font_and_text_colour_overrides(qtbot):
+    button = Button(
+        "October 2026",
+        ButtonVariant.GHOST,
+        font_size=17,
+        font_weight=600,
+        text_color="#123456",
+    )
+    qtbot.addWidget(button)
+
+    sheet = button.styleSheet()
+    assert "font-size: 17px" in sheet
+    assert "font-weight: 600" in sheet
+    assert "color: #123456" in sheet
+
+    button.set_text_color("#abcdef")
+    assert "color: #abcdef" in button.styleSheet()

@@ -3,6 +3,7 @@ Shared GUI components module.
 """
 from .button import Button, ButtonSize, ButtonVariant
 from .circular_accuracy import CircularAccuracyWidget
+from .date_picker import DatePicker
 from .empty_state import EmptyState
 from .legend_list import LegendList
 from .masonry_layout import MasonryLayout
@@ -42,6 +43,7 @@ __all__ = [
     'MasonryLayout',
     'StatsLayout',
     'CircularAccuracyWidget',
+    'DatePicker',
     'PulsingSkeleton',
     'SortableItem',
     'SortableItemList',
