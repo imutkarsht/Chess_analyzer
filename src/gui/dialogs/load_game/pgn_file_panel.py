@@ -1,14 +1,14 @@
 """
 PGN File panel for the Load Game dialog.
 """
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QFileDialog, QVBoxLayout, QWidget
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
 
+from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.components.toast import ToastManager
-from src.gui.utils.gui_utils import create_button
 
 from .drop_zone import DropZone
-from .helpers import classify_time_control
+from .helpers import classify_time_control, game_row
 from .inline_game_list import InlineGameList
 
 
@@ -28,21 +28,32 @@ class PgnFilePanel(QWidget):
 
     def _setup_ui(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 20)
+        root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(12)
 
         # ── Drop zone ───────────────────────────────────────────────────────
         self._drop_zone = DropZone()
+        self._drop_zone.setMinimumHeight(190)
+        self._drop_zone.setMaximumHeight(240)
         self._drop_zone.file_dropped.connect(self._load_file)
         self._drop_zone.clicked.connect(self._browse)
         root.addWidget(self._drop_zone)
 
         # ── Browse button ────────────────────────────────────────────────────
-        browse_btn = create_button("Browse for .pgn file…", style="secondary",
-                                   on_click=self._browse)
-        browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        browse_btn.setFixedHeight(36)
-        root.addWidget(browse_btn)
+        self._browse_btn = Button(
+            "Browse files",
+            ButtonVariant.HOLLOW,
+            ButtonSize.MD,
+            icon="fa5s.folder-open",
+            on_click=self._browse,
+        )
+        self._browse_btn.setMaximumWidth(180)
+        browse_row = QHBoxLayout()
+        browse_row.setContentsMargins(0, 0, 0, 0)
+        browse_row.addStretch(1)
+        browse_row.addWidget(self._browse_btn)
+        browse_row.addStretch(1)
+        root.addLayout(browse_row)
 
         # ── Inline game list (shown after load) ───────────────
         self._game_list = InlineGameList()
@@ -77,23 +88,27 @@ class PgnFilePanel(QWidget):
         n = len(games)
 
         self._drop_zone.setVisible(False)
+        self._browse_btn.setVisible(False)
 
         rows = []
         for g in games:
             md = g.metadata
-            white = md.white or "?"
-            black = md.black or "?"
-            w_elo = md.white_elo or md.headers.get("WhiteElo", "?")
-            b_elo = md.black_elo or md.headers.get("BlackElo", "?")
-            result = md.result or "?"
-            date = md.date or md.headers.get("Date", "?")
-            time_ctrl = md.headers.get("TimeControl", "")
-            tc_label = classify_time_control(time_ctrl)
-            move_count = (len(g.moves) + 1) // 2
-
-            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
-            line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
-            rows.append((line1, line2))
+            rows.append(
+                game_row(
+                    date=md.date or md.headers.get("Date"),
+                    time_class=classify_time_control(
+                        md.headers.get("TimeControl", "")
+                    ),
+                    result=md.result,
+                    moves=(len(g.moves) + 1) // 2,
+                    white=md.white,
+                    black=md.black,
+                    white_elo=md.white_elo or md.headers.get("WhiteElo"),
+                    black_elo=md.black_elo or md.headers.get("BlackElo"),
+                    opening=getattr(md, "opening", None)
+                    or md.headers.get("Opening"),
+                )
+            )
 
         header_text = "1 game ready to load:" if n == 1 else f"Select a game ({n} found):"
         self._game_list.populate(rows, header_text)
@@ -109,6 +124,7 @@ class PgnFilePanel(QWidget):
         self._game_list.setVisible(False)
         self._game_list.clear()
         self._drop_zone.setVisible(True)
+        self._browse_btn.setVisible(True)
         self._drop_zone._set_idle()
         self.pending_cleared.emit()
 

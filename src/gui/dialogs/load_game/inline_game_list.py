@@ -132,6 +132,7 @@ class InlineGameList(QWidget):
             self._cards_layout.removeWidget(card)
             card.deleteLater()
         self._cards.clear()
+        self.scroll.verticalScrollBar().setValue(0)
 
         total_games = len(self._all_rows)
         total_pages = (total_games + self._games_per_page - 1) // self._games_per_page

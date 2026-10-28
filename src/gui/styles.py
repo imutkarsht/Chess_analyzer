@@ -1011,6 +1011,82 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_form_field_qss(cls) -> str:
+        """Label, helper, and error text for :class:`FormField`."""
+        p = ThemeManager.palette()
+        return f"""
+            QLabel#FormFieldLabel {{
+                color: {p.text_primary};
+                background: transparent;
+                font-size: 12px;
+                font-weight: 500;
+            }}
+            QLabel#FormFieldDescription {{
+                color: {p.text_secondary};
+                background: transparent;
+                font-size: 11px;
+            }}
+            QLabel#FormFieldError {{
+                color: {cls.COLOR_BLUNDER};
+                background: transparent;
+                font-size: 11px;
+                font-weight: 500;
+            }}
+        """
+
+    @classmethod
+    def get_field_input_qss(cls, *, height: int = 40, font_size: int = 13) -> str:
+        """Modern outlined input used inside :class:`FormField`."""
+        p = ThemeManager.palette()
+        return f"""
+            QLineEdit {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 0 12px;
+                color: {p.text_primary};
+                font-size: {font_size}px;
+                min-height: {height}px;
+                max-height: {height}px;
+            }}
+            QLineEdit:hover {{
+                border-color: {p.border_light};
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {p.accent};
+                background-color: {p.surface};
+            }}
+            QLineEdit:disabled {{
+                background-color: {p.surface_light};
+                color: {p.text_muted};
+                border-color: {p.border};
+            }}
+        """
+
+    @classmethod
+    def get_textarea_qss(cls) -> str:
+        p = ThemeManager.palette()
+        return f"""
+            QTextEdit {{
+                background-color: {p.surface};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                padding: 12px;
+                color: {p.text_primary};
+                font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+                font-size: 12px;
+                selection-background-color: {p.accent};
+                selection-color: {cls.COLOR_ON_ACCENT};
+            }}
+            QTextEdit:hover {{
+                border-color: {p.border_light};
+            }}
+            QTextEdit:focus {{
+                border: 1px solid {p.accent};
+            }}
+        """
+
+    @classmethod
     def get_form_label_style(cls):
         p = ThemeManager.palette()
         return f"font-size: 13px; font-weight: 600; color: {p.text_primary};"
