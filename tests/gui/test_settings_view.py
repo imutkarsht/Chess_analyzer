@@ -24,12 +24,10 @@ def test_settings_view_clamping_without_token(qapp, qtbot, isolated_config):
         view.lichess_token_input.setText("")  # No token
         view.games_limit_input.setText("25")  # Exceeds max 20 without token
 
-        # Toast replaces QMessageBox — mock toast_from_widget
-        with patch("src.gui.main_window.MainWindow.toast_from_widget") as mock_toast:
+        # Toast replaces QMessageBox — mock the manager call
+        with patch("src.gui.components.toast.ToastManager.warning") as mock_toast:
             view.save_usernames()
             mock_toast.assert_called_once()
-            # Kind should be 'warning' (clamped)
-            assert mock_toast.call_args[0][2] == "warning"
 
         # Verify clamped value is written to config and UI input
         assert view.config_manager.get("api_games_limit") == 20
@@ -55,10 +53,9 @@ def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
         # 2. Test clamping value > 30 (e.g. 35) with token
         view.games_limit_input.setText("35")
 
-        with patch("src.gui.main_window.MainWindow.toast_from_widget") as mock_toast:
+        with patch("src.gui.components.toast.ToastManager.warning") as mock_toast:
             view.save_usernames()
             mock_toast.assert_called_once()
-            assert mock_toast.call_args[0][2] == "warning"
 
         assert view.config_manager.get("api_games_limit") == 30
         assert view.games_limit_input.text() == "30"
@@ -288,7 +285,7 @@ def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isola
         view.engine_path_changed = MagicMock()
         view.engine_settings_changed = MagicMock()
 
-        with patch("src.gui.main_window.MainWindow.toast_from_widget"):
+        with patch("src.gui.components.toast.ToastManager.success"):
             view.save_all_settings()
             view.engine_path_changed.emit.assert_called_once_with("stockfish-new")
 

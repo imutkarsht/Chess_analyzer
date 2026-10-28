@@ -73,7 +73,7 @@ def test_clear_cache_is_dispatched_to_a_worker(qapp, monkeypatch):
 
     captured = {}
 
-    def run_task(task, on_success, on_error=None):
+    def run_task(task, on_success, on_error=None, **kwargs):
         captured["task"] = task
         captured["on_success"] = on_success
 
@@ -116,7 +116,7 @@ def test_reset_wipes_data_and_refreshes_every_view(qapp, monkeypatch):
         lambda _window: events.append("refreshed"),
     )
     monkeypatch.setattr(
-        card, "run_task", lambda task, on_success, on_error=None: on_success(task())
+        card, "run_task", lambda task, on_success, on_error=None, **kwargs: on_success(task())
     )
     emitted = []
     card.data_changed.connect(lambda: emitted.append(True))
@@ -190,7 +190,7 @@ def test_restore_refreshes_views_after_a_valid_backup(qapp, monkeypatch):
         lambda _window: events.append("refreshed"),
     )
     monkeypatch.setattr(
-        card, "run_task", lambda task, on_success, on_error=None: on_success(task())
+        card, "run_task", lambda task, on_success, on_error=None, **kwargs: on_success(task())
     )
     emitted = []
     card.data_changed.connect(lambda: emitted.append(True))
