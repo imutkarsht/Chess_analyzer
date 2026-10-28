@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QDialog, QMessageBox
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, invalidate_engine_cache, resolve_engine_path
 from src.gui.analysis.analysis_worker import AnalysisWorker
+from src.gui.components.toast import ToastManager
 from src.gui.dialogs.engine_error_dialog import EngineNotFoundDialog
 from src.gui.dialogs.feedback_dialog import FeedbackDialog
 from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
@@ -96,6 +97,15 @@ class AnalysisMixin:
         self._update_analyze_button(running=True)
         self._set_engine_state("calculating", "Starting...")
         self._set_status("Starting analysis...", "progress")
+
+        previous_toast = getattr(self, "_analysis_toast", None)
+        if previous_toast is not None and previous_toast.active:
+            previous_toast.dismiss(immediate=True)
+        self._analysis_toast = ToastManager.loading(
+            self,
+            "Analyzing game…",
+            action=("Stop", self.stop_analysis),
+        )
         self.analysis_panel.set_analysis_running(True)
 
         if hasattr(self, "history_view") and self.current_game:
@@ -117,6 +127,16 @@ class AnalysisMixin:
 
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
             self.worker.cancel()
+
+    def _finish_analysis_toast(self, message: str, variant: str) -> None:
+        """Turn the running analysis toast into its final state."""
+        toast = getattr(self, "_analysis_toast", None)
+        if toast is not None and toast.active:
+            toast.set_progress(None)
+            toast.update(message, variant=variant, action=None)
+        else:
+            self.show_toast(message, variant)
+        self._analysis_toast = None
 
     def _update_analyze_button(self, running: bool):
         """Toggle the toolbar button between Analyze, Resume, Reanalyze and Stop."""
@@ -169,6 +189,16 @@ class AnalysisMixin:
             self._set_engine_state("calculating", f"{current}/{total}")
             self._set_status(f"Analyzing move {current} of {total}", "progress")
 
+        toast = getattr(self, "_analysis_toast", None)
+        if toast is not None and toast.active:
+            safe_total = max(1, total)
+            toast.update(
+                "Analyzing final position…"
+                if current > total
+                else f"Analyzing move {current} of {total}"
+            )
+            toast.set_progress(min(1.0, current / safe_total))
+
     def on_move_analyzed(self, move_index, data):
         """Called when a move's eval/classification data becomes available."""
         if not self.current_game:
@@ -213,7 +243,7 @@ class AnalysisMixin:
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis stopped", "info")
-        self.show_toast("Analysis stopped", "info")
+        self._finish_analysis_toast("Analysis stopped", "info")
         logger.info("Analysis cancelled; partial results preserved.")
         self.current_game = game
         if game and game.pgn_content:
@@ -256,7 +286,7 @@ class AnalysisMixin:
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis complete", "success")
-        self.show_toast("Analysis complete!", "success")
+        self._finish_analysis_toast("Analysis complete!", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game
         self._update_analyze_button(running=False)
@@ -297,6 +327,7 @@ class AnalysisMixin:
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status(f"Analysis failed: {error_msg}", "error")
+        self._finish_analysis_toast(f"Analysis failed: {error_msg}", "error")
         logger.error(f"Analysis error: {error_msg}")
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
             self.move_list_panel.session.resume()

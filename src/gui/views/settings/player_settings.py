@@ -231,6 +231,7 @@ class LichessCard(_ProfileCard):
             lambda: LichessAPI().get_account(token),
             self._on_account_checked,
             self._on_account_error,
+            loading_message="Checking Lichess token…",
         )
 
     def _on_account_checked(self, result: object) -> None:
@@ -242,27 +243,32 @@ class LichessCard(_ProfileCard):
             self.token_status_label.setText(
                 f"✓ Valid — signed in as {data['username']}"
             )
+            self._toast(f"Token verified as {data['username']}.")
         elif status == "unauthorized":
             self.token_status_label.setStyleSheet(
                 _status_style(Styles.COLOR_BLUNDER)
             )
             self.token_status_label.setText("✗ Token rejected by Lichess.")
+            self._toast("Lichess rejected this token.", "error")
         elif status == "offline":
             self.token_status_label.setStyleSheet(
                 _status_style(Styles.COLOR_ENGINE_BUSY)
             )
             self.token_status_label.setText("Can't reach Lichess right now.")
+            self._toast("Can't reach Lichess right now.", "warning")
         else:
             self.token_status_label.setStyleSheet(
                 _status_style(Styles.COLOR_BLUNDER)
             )
             self.token_status_label.setText("✗ Token check failed.")
+            self._toast("Token check failed.", "error")
 
     def _on_account_error(self, _message: str) -> None:
         self.token_status_label.setStyleSheet(
             _status_style(Styles.COLOR_BLUNDER)
         )
         self.token_status_label.setText("✗ Token check failed.")
+        self._toast("Token check failed.", "error")
 
     def reload_from_config(self) -> None:
         self.binder.load()

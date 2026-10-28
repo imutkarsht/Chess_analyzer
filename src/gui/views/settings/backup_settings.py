@@ -80,7 +80,11 @@ class BackupSettings(StorageCard):
         )
         if not path:
             return
-        self.run_task(lambda: create_backup(path), self._on_backup_done)
+        self.run_task(
+            lambda: create_backup(path),
+            self._on_backup_done,
+            loading_message="Saving backup…",
+        )
 
     def _on_backup_done(self, summary: BackupSummary) -> None:
         self._toast(
@@ -121,17 +125,16 @@ class BackupSettings(StorageCard):
             return
 
         close_analyzer_cache(self.window())
-        self.run_task(lambda: restore_backup(path), self._on_restored)
+        self.run_task(
+            lambda: restore_backup(path),
+            self._on_restored,
+            loading_message="Restoring backup…",
+        )
 
     def _on_restored(self, summary: BackupSummary) -> None:
         refresh_after_data_change(self.window())
         self.data_changed.emit()
         self._toast(f"Restored {summary.games:,} games from backup.")
-
-    def _toast(self, message: str) -> None:
-        from src.gui.main_window import MainWindow
-
-        MainWindow.toast_from_widget(self, message, "success")
 
     # ------------------------------------------------------------------
     # Lifecycle hooks used by SettingsView

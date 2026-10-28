@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 
 from ....utils.path_utils import get_resource_path
 from ...components import Tabs, TabVariant
+from ...components.toast import ToastManager
 from ...styles import Styles
 from ...theme.palette import BOARD_THEMES
 from .board_preview import BoardThemePreview, board_swatch, piece_theme_preview
@@ -248,8 +249,6 @@ class BoardPiecesSettings(QGroupBox):
         )
 
     def import_theme(self):
-        from src.gui.main_window import MainWindow
-
         from ...board.piece_themes import (
             import_theme_from_folder,
             validate_theme_folder,
@@ -262,19 +261,17 @@ class BoardPiecesSettings(QGroupBox):
             return
         is_valid, errors = validate_theme_folder(folder)
         if not is_valid:
-            MainWindow.toast_from_widget(
-                self, "Invalid theme: " + "; ".join(errors), "error"
-            )
+            ToastManager.error(self, "Invalid theme: " + "; ".join(errors))
             return
         theme_name = import_theme_from_folder(folder)
         if theme_name is None:
-            MainWindow.toast_from_widget(self, "Theme import failed. Check the logs.", "error")
+            ToastManager.error(self, "Theme import failed. Check the logs.")
             return
 
         self._build_piece_buttons()
         self._select_piece(theme_name)
-        MainWindow.toast_from_widget(
-            self, f"Piece theme '{theme_name}' imported and active.", "success"
+        ToastManager.success(
+            self, f"Piece theme '{theme_name}' imported and active."
         )
 
     # ------------------------------------------------------------------

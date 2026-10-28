@@ -83,15 +83,15 @@ class RetentionSettings(StorageCard):
             cap = int(value)
         except (TypeError, ValueError):
             return
-        self.run_task(lambda: AnalysisCache().prune_cache(cap), self._on_pruned)
+        self.run_task(
+            lambda: AnalysisCache().prune_cache(cap),
+            self._on_pruned,
+            loading_message="Pruning old evaluations…",
+        )
 
     def _on_pruned(self, removed) -> None:
         if removed:
-            from src.gui.main_window import MainWindow
-
-            MainWindow.toast_from_widget(
-                self, f"Pruned {int(removed):,} cached evaluations.", "success"
-            )
+            self._toast(f"Pruned {int(removed):,} cached evaluations.")
         self.data_changed.emit()
 
     # ------------------------------------------------------------------

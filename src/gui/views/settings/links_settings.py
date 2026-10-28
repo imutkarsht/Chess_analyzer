@@ -5,9 +5,7 @@ import os
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import (
-    QApplication,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QVBoxLayout,
@@ -26,18 +24,19 @@ from src.utils.path_utils import get_resource_path
 
 from ...components import Button, ButtonVariant
 from ...styles import Styles
+from .background_card import BackgroundTaskCard
 
 LINK_COLUMNS = 4
 
 
-class LinksSettings(QGroupBox):
+class LinksSettings(BackgroundTaskCard):
     """Project information, links, and update actions."""
 
     def __init__(self, parent=None):
         super().__init__("About", parent)
         self._link_icons: list[tuple[QWidget, str]] = []
-        self.setStyleSheet(Styles.get_group_box_style())
         self.setup_ui()
+        self.register_busy_widgets(self.update_btn)
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
@@ -270,36 +269,33 @@ class LinksSettings(QGroupBox):
         ReviewPromptDialog(self, games_count=0).exec()
 
     def check_for_updates(self):
-        """Manually check for updates."""
+        """Manually check for updates without blocking the UI thread."""
         from src.backend.updater.update_checker import APP_VERSION, UpdateChecker
 
-        from ...dialogs import UpdateNotificationDialog
-
-        self.update_btn.setEnabled(False)
         self.update_btn.setText("Checking...")
-        QApplication.processEvents()
+        self.run_task(
+            UpdateChecker.check_for_updates,
+            lambda info: self._on_update_checked(info, APP_VERSION),
+            self._on_update_failed,
+            loading_message="Checking for updates…",
+        )
 
-        try:
-            update_info = UpdateChecker.check_for_updates()
+    def _on_update_checked(self, update_info, app_version: str) -> None:
+        self._reset_update_button()
+        if update_info.available:
+            from ...dialogs import UpdateNotificationDialog
 
-            if update_info.available:
-                UpdateNotificationDialog(update_info, self).exec()
-            else:
-                from src.gui.main_window import MainWindow
+            UpdateNotificationDialog(update_info, self).exec()
+        else:
+            self._toast(f"You're up to date (v{app_version}).")
 
-                MainWindow.toast_from_widget(
-                    self, f"You're up to date (v{APP_VERSION}).", "success"
-                )
-        except Exception as e:
-            from src.gui.main_window import MainWindow
+    def _on_update_failed(self, message: str) -> None:
+        self._reset_update_button()
+        self._toast(f"Failed to check for updates: {message}", "error")
 
-            MainWindow.toast_from_widget(
-                self, f"Failed to check for updates: {e}", "error"
-            )
-        finally:
-            self.update_btn.setEnabled(True)
-            self.update_btn.setText("Check for Updates")
-            self.update_btn.refresh_styles()
+    def _reset_update_button(self) -> None:
+        self.update_btn.setText("Check for Updates")
+        self.update_btn.refresh_styles()
 
     def set_advanced_visible(self, visible):
         pass

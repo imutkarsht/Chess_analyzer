@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 from src.backend.services.groq_service import GroqService, explanation_tuning
 from src.constants import PROVIDERS
 from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import show_error_dialog
 
@@ -476,9 +477,7 @@ class ApiSettings(QGroupBox):
         )
 
     def _warn(self, message: str) -> None:
-        from src.gui.main_window import MainWindow
-
-        MainWindow.toast_from_widget(self, message, "warning")
+        ToastManager.warning(self, message)
 
     def _open_provider_help(self) -> None:
         if self._help_url:
@@ -564,6 +563,11 @@ class ApiSettings(QGroupBox):
             f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
         self.llm_test_result.setText("Testing…")
 
+        previous_toast = getattr(self, "_test_toast", None)
+        if previous_toast is not None:
+            previous_toast.dismiss()
+        self._test_toast = ToastManager.loading(self, f"Testing {model}…")
+
         worker = _TestWorker(profile, tuning, parent=self)
         self._test_worker = worker
 
@@ -576,6 +580,13 @@ class ApiSettings(QGroupBox):
             text = f"{msg} · {model} · {elapsed_ms:.0f} ms" if success else msg
             self.llm_test_result.setText(text)
             self.llm_test_btn.setEnabled(True)
+            if success:
+                self._test_toast.update(
+                    f"Connected · {model} · {elapsed_ms:.0f} ms", variant="success"
+                )
+            else:
+                self._test_toast.update(msg or "Connection test failed.", variant="error")
+            self._test_toast = None
             if not success and details:
                 try:
                     show_error_dialog(
