@@ -2,6 +2,7 @@
 Database initialization, schema migrations, and indexing.
 """
 
+import hashlib
 import io
 import json
 import os
@@ -12,6 +13,7 @@ import chess.pgn
 
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.models import MoveAnalysis
+from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
 from src.backend.storage.schema_constants import CURRENT_SCHEMA_VERSION
 from src.backend.storage.termination_detector import TerminationDetector
 from src.utils.logger import logger
@@ -145,6 +147,108 @@ def _backfill_termination_mode(cursor: sqlite3.Cursor) -> None:
             )
         except Exception as e:
             logger.error("Failed to backfill termination for game %s: %s", gid, e)
+
+
+def _game_richness(
+    summary_json: str | None,
+    ai_summary: str | None,
+    timestamp: float | None,
+) -> tuple[int, int, int, float]:
+    """Rank duplicate rows so the analysed copy always survives a merge."""
+    try:
+        summary = json.loads(summary_json or "{}")
+    except (TypeError, ValueError):
+        summary = {}
+
+    status = str(summary.get("analysis_status") or "")
+    status_rank = {
+        "completed": 4,
+        "paused": 3,
+        "in_progress": 2,
+        "not_started": 1,
+    }.get(status, 0)
+    try:
+        analyzed_moves = int(summary.get("analyzed_moves") or 0)
+    except (TypeError, ValueError):
+        analyzed_moves = 0
+    try:
+        saved_at = float(timestamp or 0.0)
+    except (TypeError, ValueError):
+        saved_at = 0.0
+
+    return status_rank, analyzed_moves, int(bool(ai_summary)), saved_at
+
+
+def _deduplicate_lichess_games(cursor: sqlite3.Cursor) -> None:
+    """
+    Merge history rows that differ only in the Lichess Site URL spelling.
+
+    Older rows were hashed with ``lichess.org/game/<id>`` while a later Load
+    Game change produced ``lichess.org/<id>``, creating a second primary key
+    for the same game. Re-keying to the normalized hash is idempotent.
+    """
+    try:
+        cursor.execute(
+            "SELECT id, pgn, summary_json, ai_summary, timestamp "
+            "FROM games WHERE pgn LIKE '%lichess.org/%'"
+        )
+        rows = cursor.fetchall()
+    except Exception as e:
+        logger.warning("Could not scan Lichess games for duplicate cleanup: %s", e)
+        return
+
+    groups: dict[str, list[tuple]] = {}
+    for row in rows:
+        gid, pgn = row[0], row[1] or ""
+        raw_id = hashlib.md5(pgn.encode("utf-8"), usedforsecurity=False).hexdigest()
+        canonical_id = hashlib.md5(
+            normalize_lichess_site_for_id(pgn).encode("utf-8"),
+            usedforsecurity=False,
+        ).hexdigest()
+
+        # Leave imported games with a user-supplied/custom ID untouched.
+        if gid not in (raw_id, canonical_id):
+            continue
+        groups.setdefault(canonical_id, []).append(row)
+
+    merged = 0
+    for canonical_id, group in groups.items():
+        if len(group) == 1 and group[0][0] == canonical_id:
+            continue
+
+        keeper = max(group, key=lambda r: _game_richness(r[2], r[3], r[4]))
+        keeper_id = keeper[0]
+
+        if not keeper[3]:
+            inherited_summary = next((r[3] for r in group if r[3]), None)
+            if inherited_summary:
+                cursor.execute(
+                    "UPDATE games SET ai_summary = ? WHERE id = ?",
+                    (inherited_summary, keeper_id),
+                )
+
+        for row in group:
+            if row[0] != keeper_id:
+                cursor.execute("DELETE FROM games WHERE id = ?", (row[0],))
+
+        if keeper_id != canonical_id:
+            cursor.execute(
+                "UPDATE games SET id = ? WHERE id = ?",
+                (canonical_id, keeper_id),
+            )
+
+        if len(group) > 1:
+            merged += len(group) - 1
+            logger.info(
+                "DB Migration: merged %d duplicate row(s) for Lichess game %s",
+                len(group) - 1,
+                canonical_id,
+            )
+        else:
+            logger.debug("DB Migration: re-keyed Lichess game %s", canonical_id)
+
+    if merged:
+        logger.info("DB Migration: removed %d duplicate Lichess game row(s).", merged)
 
 
 def _create_performance_indexes(cursor: sqlite3.Cursor) -> None:
@@ -352,6 +456,7 @@ def init_db(db_path: str) -> None:
                 _create_pre_migration_backup(conn, db_path)
                 _ensure_tables_and_columns(cursor)
                 _backfill_termination_mode(cursor)
+                _deduplicate_lichess_games(cursor)
                 _create_performance_indexes(cursor)
                 cursor.execute(f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}")
 

@@ -14,6 +14,19 @@ from .termination_detector import TerminationDetector
 # fraction. Examples: 0:09:56.1, 1:23:45, 0:00:03.4
 _CLK_RE = re.compile(r"\[%clk\s+(\d+):(\d{1,2}):(\d{1,2}(?:\.\d+)?)\]")
 
+# Lichess exposes the same game as both /game/<id> and /<id>. The Site header
+# is part of the PGN content, so hashing the raw text would give one game two
+# identities. Always hash the historical /game/<id> spelling instead.
+_LICHESS_SITE_RE = re.compile(
+    r'(?m)^\[Site "https?://(?:www\.)?lichess\.org/(?:game/)?'
+    r'([A-Za-z0-9]{8,12})(?:/(?:white|black))?/?(?:[?#][^"]*)?"\]$'
+)
+
+
+def normalize_lichess_site_for_id(pgn: str) -> str:
+    """Normalize the Lichess Site header before deriving a game ID."""
+    return _LICHESS_SITE_RE.sub(r'[Site "https://lichess.org/game/\1"]', pgn)
+
 
 def looks_like_pgn(text: str | None) -> bool:
     """Cheap entry-point check before invoking the full PGN parser."""
@@ -234,9 +247,13 @@ class PGNParser:
         metadata.termination_mode = term_mode
         metadata.termination_description = term_desc
 
-        # Use hash of PGN content as ID to prevent duplicates
+        # Use hash of PGN content as ID to prevent duplicates. The Site header
+        # must be normalized first so URL spelling does not split one game into
+        # two history rows.
         pgn_content = str(game)
-        game_id = hashlib.md5(pgn_content.encode("utf-8")).hexdigest()
+        game_id = hashlib.md5(
+            normalize_lichess_site_for_id(pgn_content).encode("utf-8")
+        ).hexdigest()
 
         return GameAnalysis(
             game_id=game_id,

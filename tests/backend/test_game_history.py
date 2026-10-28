@@ -254,6 +254,88 @@ def test_deterministic_md5_game_id_fallback(temp_db):
     assert saved["white"] == "PlayerW"
 
 
+def test_lichess_site_url_variants_update_one_history_row(temp_db):
+    """Both Lichess Site spellings must resolve to the same stored game."""
+    from src.backend.storage.pgn_parser import PGNParser
+
+    manager = GameHistoryManager(temp_db)
+    template = (
+        '[Event "Rated Bullet game"]\n[Site "{site}"]\n'
+        '[Date "2026.07.30"]\n[White "ImutKarsht"]\n[Black "sg-88"]\n'
+        '[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0'
+    )
+    for site in ("https://lichess.org/game/tr0UaqOe", "https://lichess.org/tr0UaqOe"):
+        game = PGNParser.parse_pgn_text(template.format(site=site))[0]
+        manager.save_game(game, game.pgn_content)
+
+    games = manager.get_all_games()
+    assert len(games) == 1
+    assert games[0]["white"] == "ImutKarsht"
+
+
+def test_schema_migration_merges_duplicate_lichess_rows(tmp_path):
+    """Existing URL-spelling duplicates collapse into the analysed row."""
+    import hashlib
+    import json
+    import sqlite3
+
+    from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
+
+    db_path = str(tmp_path / "duplicates.db")
+    GameHistoryManager(db_path).close()
+
+    old_pgn = (
+        '[Event "Rated Bullet game"]\n[Site "https://lichess.org/game/tr0UaqOe"]\n'
+        '[Date "2026.07.30"]\n[White "ImutKarsht"]\n[Black "sg-88"]\n'
+        '[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0'
+    )
+    new_pgn = old_pgn.replace("/game/tr0UaqOe", "/tr0UaqOe")
+    old_id = hashlib.md5(old_pgn.encode()).hexdigest()
+    new_id = hashlib.md5(new_pgn.encode()).hexdigest()
+    expected_id = hashlib.md5(normalize_lichess_site_for_id(new_pgn).encode()).hexdigest()
+
+    with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO games "
+            "(id, white, black, result, date, pgn, summary_json, timestamp, ai_summary) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (
+                    old_id,
+                    "ImutKarsht",
+                    "sg-88",
+                    "1-0",
+                    "2026.07.30",
+                    old_pgn,
+                    json.dumps({"analysis_status": "completed", "analyzed_moves": 42}),
+                    100.0,
+                    None,
+                ),
+                (
+                    new_id,
+                    "ImutKarsht",
+                    "sg-88",
+                    "1-0",
+                    "2026.07.30",
+                    new_pgn,
+                    json.dumps({"analysis_status": "not_started", "analyzed_moves": 0}),
+                    200.0,
+                    "Game report",
+                ),
+            ],
+        )
+        conn.execute("PRAGMA user_version = 3")
+        conn.commit()
+
+    manager = GameHistoryManager(db_path)
+
+    games = manager.get_all_games()
+    assert [game["id"] for game in games] == [expected_id]
+    saved = manager.get_game(expected_id)
+    assert json.loads(saved["summary_json"])["analyzed_moves"] == 42
+    assert saved["ai_summary"] == "Game report"
+
+
 def test_save_games_bulk_dict_and_analyses(temp_db):
     """Test save_games_bulk with both raw dict rows and GameAnalysis objects in a single transaction."""
     manager = GameHistoryManager(temp_db)

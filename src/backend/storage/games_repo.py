@@ -12,6 +12,7 @@ from typing import Any
 
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.models import GameAnalysis
+from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
 from src.backend.storage.schema_constants import (
     _LIGHT_GAME_COLS_SQL,
     INSERT_GAME_SQL,
@@ -42,7 +43,8 @@ def _to_int_or_none(val: Any) -> int | None:
 
 def _make_game_id(pgn: str | None) -> str:
     if pgn and pgn.strip():
-        return hashlib.md5(pgn.encode("utf-8"), usedforsecurity=False).hexdigest()
+        normalized = normalize_lichess_site_for_id(pgn)
+        return hashlib.md5(normalized.encode("utf-8"), usedforsecurity=False).hexdigest()
     return str(uuid.uuid4())
 
 

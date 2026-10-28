@@ -2,6 +2,8 @@
 Tests for PGN Parser - parsing, source detection, edge cases.
 """
 
+import hashlib
+
 import pytest
 
 from src.backend.storage.models import GameAnalysis
@@ -227,6 +229,37 @@ class TestSpeedCategory:
     )
     def test_time_controls_and_event_fallbacks(self, time_control, event, expected):
         assert PGNParser.detect_speed_category(time_control, event) == expected
+
+
+class TestGameIdentity:
+    @pytest.mark.parametrize(
+        "site",
+        [
+            "https://lichess.org/game/tr0UaqOe",
+            "https://lichess.org/tr0UaqOe",
+            "https://lichess.org/tr0UaqOe/white",
+            "https://lichess.org/tr0UaqOe?pov=white",
+        ],
+    )
+    def test_lichess_url_variants_share_one_identity(self, site):
+        pgn = (
+            f'[Event "Rated Bullet game"]\n[Site "{site}"]\n'
+            '[Date "2026.07.30"]\n[White "Alice"]\n[Black "Bob"]\n'
+            '[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0'
+        )
+
+        game = PGNParser.parse_pgn_text(pgn)[0]
+
+        assert game.game_id == PGNParser.parse_pgn_text(
+            pgn.replace(site, "https://lichess.org/game/tr0UaqOe")
+        )[0].game_id
+
+    def test_local_games_keep_the_deterministic_pgn_hash(self):
+        pgn = '[Event "Local"]\n[Site "?"]\n[White "Alice"]\n[Black "Bob"]\n\n1. e4 e5 *'
+
+        game = PGNParser.parse_pgn_text(pgn)[0]
+
+        assert game.game_id == hashlib.md5(game.pgn_content.encode()).hexdigest()
 
 
 class TestChess960Detection:
