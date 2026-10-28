@@ -31,20 +31,23 @@ class FormField(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
-        self._label = QLabel(label)
+        # Labels must be parented before setVisible(): a parentless QLabel is a
+        # top-level window, so setVisible(True) would show a stray native window
+        # that steals focus (and can pull macOS to another display/Space).
+        self._label = QLabel(label, self)
         self._label.setObjectName("FormFieldLabel")
         self._label.setVisible(bool(label))
         layout.addWidget(self._label)
 
         layout.addWidget(control)
 
-        self._description = QLabel(description)
+        self._description = QLabel(description, self)
         self._description.setObjectName("FormFieldDescription")
         self._description.setWordWrap(True)
         self._description.setVisible(bool(description))
         layout.addWidget(self._description)
 
-        self._error = QLabel()
+        self._error = QLabel(self)
         self._error.setObjectName("FormFieldError")
         self._error.setWordWrap(True)
         self._error.hide()

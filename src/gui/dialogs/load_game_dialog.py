@@ -48,7 +48,7 @@ class LoadGameDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Load Game")
         self.setModal(True)
-        self.resize(760, 700)
+        self.resize(640, 560)
         self.setMinimumSize(640, 560)
 
         self._already_accepted = False
