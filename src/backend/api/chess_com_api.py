@@ -79,13 +79,12 @@ class ChessComAPI(BaseChessAPI):
             games_list = data.get("games", [])
             matched_games = []
 
-            start_dt = datetime.datetime.combine(
-                date, datetime.time.min, tzinfo=datetime.timezone.utc
-            )
+            # Use the user's local calendar day, matching the date picker and
+            # the Lichess window. A UTC window drops evening games for users
+            # outside UTC.
+            start_dt = datetime.datetime.combine(date, datetime.time.min)
             start_ts = int(start_dt.timestamp())
-            end_dt = datetime.datetime.combine(
-                date, datetime.time.max, tzinfo=datetime.timezone.utc
-            )
+            end_dt = datetime.datetime.combine(date, datetime.time.max)
             end_ts = int(end_dt.timestamp())
 
             for game in games_list:
@@ -116,7 +115,7 @@ class ChessComAPI(BaseChessAPI):
 
         # Fallback scraping of HTML to find the username if it was somehow not passed
         try:
-            response = requests.get(url, headers=ChessComAPI.HEADERS)
+            response = requests.get(url, headers=ChessComAPI.HEADERS, timeout=30)
             response.raise_for_status()
             html = response.text
 
@@ -145,7 +144,7 @@ class ChessComAPI(BaseChessAPI):
         try:
             # Get list of archives
             archives_url = f"{ChessComAPI.BASE_URL}/player/{username}/games/archives"
-            response = requests.get(archives_url, headers=ChessComAPI.HEADERS)
+            response = requests.get(archives_url, headers=ChessComAPI.HEADERS, timeout=30)
             if response.status_code != 200:
                 return None
 
@@ -155,7 +154,7 @@ class ChessComAPI(BaseChessAPI):
 
             # Search backwards (latest first)
             for archive_url in reversed(archives):
-                resp = requests.get(archive_url, headers=ChessComAPI.HEADERS)
+                resp = requests.get(archive_url, headers=ChessComAPI.HEADERS, timeout=30)
                 if resp.status_code == 200:
                     games = resp.json().get("games", [])
                     for game in games:

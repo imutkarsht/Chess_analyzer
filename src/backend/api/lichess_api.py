@@ -256,7 +256,7 @@ class LichessAPI(BaseChessAPI):
                 "evals": "true",
             }
 
-            response = requests.get(url, headers=headers, params=params)
+            response = requests.get(url, headers=headers, params=params, timeout=30)
             response.raise_for_status()
 
             game_data = response.json()
