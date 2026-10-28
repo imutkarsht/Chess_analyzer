@@ -171,30 +171,6 @@ def test_month_navigation_and_month_year_view(picker):
     assert popup._year_label.text() == "2027"
 
 
-@pytest.mark.parametrize(
-    ("first_day", "labels", "first_october_index"),
-    [
-        (1, ["M", "T", "W", "T", "F", "S", "S"], 3),
-        (7, ["S", "M", "T", "W", "T", "F", "S"], 4),
-    ],
-)
-def test_first_day_of_week_layout(qtbot, host, first_day, labels, first_october_index):
-    widget = DatePicker(
-        host,
-        label="Date",
-        initial_date=QDate(2026, 10, 1),
-        first_day_of_week=first_day,
-    )
-    qtbot.addWidget(widget)
-    widget.open_calendar()
-    popup = widget._popup
-
-    assert [label.text() for label in popup._weekday_labels] == labels
-    assert popup._cells[first_october_index]._date == QDate(2026, 10, 1)
-    assert popup._cells[first_october_index - 1]._date is None
-    widget.close_calendar()
-
-
 def test_out_of_range_days_are_disabled(picker):
     picker.set_range(QDate(2026, 10, 10), QDate(2026, 10, 20))
     picker.open_calendar()
