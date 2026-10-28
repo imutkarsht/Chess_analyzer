@@ -4,7 +4,7 @@ PGN File panel for the Load Game dialog.
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QFileDialog, QVBoxLayout, QWidget
 
-from src.gui.components.toast import Toast
+from src.gui.components.toast import ToastManager
 from src.gui.utils.gui_utils import create_button
 
 from .drop_zone import DropZone
@@ -64,13 +64,13 @@ class PgnFilePanel(QWidget):
         try:
             games = PGNParser.parse_pgn_file(path)
         except Exception:
-            Toast.show_message(self.window(),
-                               "Could not read this PGN. It may be empty or corrupted.",
-                               "error")
+            ToastManager.error(
+                self, "Could not read this PGN. It may be empty or corrupted."
+            )
             return
 
         if not games:
-            Toast.show_message(self.window(), "No valid games found in this file.", "warning")
+            ToastManager.warning(self, "No valid games found in this file.")
             return
 
         self._parsed_games = games

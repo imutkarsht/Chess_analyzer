@@ -1,5 +1,5 @@
 from src.backend.analysis.engine import resolve_engine_path
-from src.gui.components.toast import Toast
+from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 
 
@@ -15,14 +15,25 @@ class StatusBarMixin:
         "progress": ("◌", "#3498db"),
     }
 
-    def show_toast(self, message: str, kind: str = "info", duration: int | None = None):
-        Toast.show_message(self, message, kind, duration)
+    def show_toast(
+        self,
+        message: str,
+        kind: str = "info",
+        duration: int | None = None,
+        **options,
+    ):
+        """Show a toast on this window; ``duration=None`` uses the variant default."""
+        return ToastManager.show(self, message, kind, duration=duration, **options)
 
     @staticmethod
-    def toast_from_widget(widget, message: str, kind: str = "info", duration: int | None = None):
-        win = widget.window()
-        if hasattr(win, "show_toast"):
-            win.show_toast(message, kind, duration)
+    def toast_from_widget(
+        widget,
+        message: str,
+        kind: str = "info",
+        duration: int | None = None,
+        **options,
+    ):
+        return ToastManager.show(widget, message, kind, duration=duration, **options)
 
     def _on_live_thinking_started(self):
         """Live engine started computing — show Calculating unless full analysis is running."""

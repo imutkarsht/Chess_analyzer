@@ -25,6 +25,7 @@ from src.constants import EXPLANATION_DEBOUNCE_MS
 from src.gui.components import Button, ButtonVariant, CircularAccuracyWidget, Tabs, TabVariant
 from src.gui.components.graph_widget import GraphWidget
 from src.gui.components.pulsing_skeleton import PulsingSkeleton
+from src.gui.components.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (
@@ -853,9 +854,7 @@ class AnalysisPanel(QWidget):
                 window.switch_page(4)
 
     def _toast(self, message: str) -> None:
-        from src.gui.main_window import MainWindow
-
-        MainWindow.toast_from_widget(self, message, "info")
+        ToastManager.info(self, message)
 
     def closeEvent(self, event):
         self._coach_debounce.stop()

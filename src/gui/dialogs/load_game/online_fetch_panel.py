@@ -16,7 +16,7 @@ from src.backend.cache.api_cache import ApiGameCache
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components import Tabs, TabVariant
-from src.gui.components.toast import Toast
+from src.gui.components.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 from src.utils.config import ConfigManager
@@ -176,6 +176,7 @@ class OnlineFetchPanel(QWidget):
         self.cache = ApiGameCache(self.history_manager)
         self._parsed_games: list[GameInfo] = []
         self._worker = None
+        self._fetch_toast: ToastHandle | None = None
         self.setup_ui()
 
     def setup_ui(self):
@@ -362,11 +363,11 @@ class OnlineFetchPanel(QWidget):
 
         username_required = (mode in ["recent", "date"]) or (mode == "url" and platform == "chesscom")
         if username_required and not username:
-            Toast.show_message(self.window(), "Please enter a username.", "warning")
+            ToastManager.warning(self, "Please enter a username.")
             return
         if mode == "url":
             if not url:
-                Toast.show_message(self.window(), "Please enter a game URL.", "warning")
+                ToastManager.warning(self, "Please enter a game URL.")
                 return
 
             # Extract game ID
@@ -378,7 +379,10 @@ class OnlineFetchPanel(QWidget):
                 game_id = ChessComAPI.extract_game_id(url)
 
             if not game_id:
-                Toast.show_message(self.window(), f"Could not extract a valid game ID from the URL for {platform}.", "error")
+                ToastManager.error(
+                    self,
+                    f"Could not extract a valid game ID from the URL for {platform}.",
+                )
                 return
 
         # Prepare UI for loading
@@ -389,6 +393,11 @@ class OnlineFetchPanel(QWidget):
         self.date_picker.setEnabled(False)
         self.platform_selector.setEnabled(False)
         self.mode_selector.setEnabled(False)
+
+        platform_label = "Lichess" if platform == "lichess" else "Chess.com"
+        self._fetch_toast = ToastManager.loading(
+            self, f"Fetching games from {platform_label}…"
+        )
 
         # Cleanup active worker
         if self._worker is not None and self._worker.isRunning():
@@ -427,13 +436,13 @@ class OnlineFetchPanel(QWidget):
 
     def _on_fetch_error(self, err_msg: str):
         self._reset_input_ui()
-        Toast.show_message(self.window(), f"Fetch failed: {err_msg}", "error")
+        self._finish_fetch_toast(f"Fetch failed: {err_msg}", "error")
 
     def _on_fetch_finished(self, game_infos: list[GameInfo]):
         self._reset_input_ui()
 
         if not game_infos:
-            Toast.show_message(self.window(), "No games found matching the query.", "warning")
+            self._finish_fetch_toast("No games found matching the query.", "warning")
             return
 
         self._parsed_games = game_infos
@@ -461,6 +470,17 @@ class OnlineFetchPanel(QWidget):
         self.controls_widget.setVisible(False)
         self.game_list.populate(rows, header_text)
         self.game_list.setVisible(True)
+        self._finish_fetch_toast(
+            "1 game ready to load." if n == 1 else f"Found {n} games.",
+            "success",
+        )
+
+    def _finish_fetch_toast(self, message: str, variant: str) -> None:
+        if self._fetch_toast is not None and self._fetch_toast.active:
+            self._fetch_toast.update(message, variant=variant)
+        else:
+            ToastManager.show(self, message, variant)
+        self._fetch_toast = None
 
     def _reset_input_ui(self):
         self.fetch_btn.setEnabled(True)

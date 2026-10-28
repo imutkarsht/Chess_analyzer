@@ -4,7 +4,7 @@ PGN Text panel for the Load Game dialog.
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
 
-from src.gui.components.toast import Toast
+from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 
@@ -73,20 +73,20 @@ class PgnTextPanel(QWidget):
     def _parse(self):
         text = self._text_edit.toPlainText().strip()
         if not text:
-            Toast.show_message(self.window(), "Please paste some PGN text first.", "warning")
+            ToastManager.warning(self, "Please paste some PGN text first.")
             return
 
         from src.backend.storage.pgn_parser import PGNParser
         try:
             games = PGNParser.parse_pgn_text(text)
         except Exception:
-            Toast.show_message(self.window(),
-                               "Could not parse this PGN. It may be empty or corrupted.",
-                               "error")
+            ToastManager.error(
+                self, "Could not parse this PGN. It may be empty or corrupted."
+            )
             return
 
         if not games:
-            Toast.show_message(self.window(), "No valid games found in this text.", "warning")
+            ToastManager.warning(self, "No valid games found in this text.")
             return
 
         self._parsed_games = games

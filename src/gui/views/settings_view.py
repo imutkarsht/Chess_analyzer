@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 from src.config.settings_schema import SETTINGS
 from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
 from src.gui.components import Button, ButtonVariant
+from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
@@ -616,8 +617,7 @@ class SettingsView(QWidget):
         """Flush every settings card, validate the engine, and notify consumers."""
         path = self.engine_settings.path_input.text().strip()
         if not path:
-            from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, "Please enter a valid engine path.", "warning")
+            ToastManager.warning(self, "Please enter a valid engine path.")
             return
 
         threads, threads_ok = self.engine_settings._validated_threads()
@@ -668,11 +668,10 @@ class SettingsView(QWidget):
         self.book_settings.validate_polyglot_path()
         self.api_settings._reload_profile_combo()
 
-        from src.gui.main_window import MainWindow
         if warning_msg:
-            MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
+            ToastManager.warning(self, f"Settings saved. Note: {warning_msg}")
         else:
-            MainWindow.toast_from_widget(self, "All settings saved successfully.", "success")
+            ToastManager.success(self, "All settings saved successfully.")
 
     def _flush_binders(self) -> None:
         """Persist widget state for every card that uses a SettingsBinder."""
@@ -710,11 +709,10 @@ class SettingsView(QWidget):
         self.config_manager.set("lichess_username", self.lichess_input.text().strip())
         self.usernames_changed.emit()
 
-        from src.gui.main_window import MainWindow
         if warning_msg:
-            MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
+            ToastManager.warning(self, f"Settings saved. Note: {warning_msg}")
         else:
-            MainWindow.toast_from_widget(self, "Settings saved successfully.", "success")
+            ToastManager.success(self, "Settings saved successfully.")
 
     def refresh_styles(self):
         """Re-applies styles to settings view components."""

@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ...components.toast import ToastManager
 from ...styles import Styles
 from .components import PathField, SettingsBinder, SettingsForm
 from .modern_widgets import ModernHashComboBox, ModernSliderCounter
@@ -157,10 +158,8 @@ class EngineSettings(QGroupBox):
         except (TypeError, ValueError):
             value = -1
         if value < 1:
-            from src.gui.main_window import MainWindow
-
-            MainWindow.toast_from_widget(
-                self, "Engine Threads must be a positive integer (1 or more).", "warning"
+            ToastManager.warning(
+                self, "Engine Threads must be a positive integer (1 or more)."
             )
             return None, False
         return value, True
@@ -172,10 +171,8 @@ class EngineSettings(QGroupBox):
         except (TypeError, ValueError):
             value = -1
         if value < 16 or value > 4096:
-            from src.gui.main_window import MainWindow
-
-            MainWindow.toast_from_widget(
-                self, "Engine Hash must be between 16 and 4096 MB.", "warning"
+            ToastManager.warning(
+                self, "Engine Hash must be between 16 and 4096 MB."
             )
             return None, False
         return value, True

@@ -6,6 +6,7 @@ cards cannot drift apart.
 
 import chess
 
+from src.gui.components.toast import ToastManager
 from src.utils.logger import logger
 
 
@@ -32,12 +33,9 @@ def ensure_idle(window) -> bool:
     """Refuse data operations while a game analysis owns the engine and cache."""
     if not analysis_is_running(window):
         return True
-    from src.gui.main_window import MainWindow
 
-    MainWindow.toast_from_widget(
-        window,
-        "Stop the current analysis before changing local data.",
-        "warning",
+    ToastManager.warning(
+        window, "Stop the current analysis before changing local data."
     )
     return False
 

@@ -143,7 +143,11 @@ class MaintenanceSettings(StorageCard):
         ):
             return
         close_analyzer_cache(self.window())
-        self.run_task(lambda: AnalysisCache().clear_cache(), self._on_analysis_cleared)
+        self.run_task(
+            lambda: AnalysisCache().clear_cache(),
+            self._on_analysis_cleared,
+            loading_message="Clearing analysis cache…",
+        )
 
     def _on_analysis_cleared(self, removed) -> None:
         self._toast(f"Removed {int(removed):,} cached evaluations.")
@@ -159,7 +163,9 @@ class MaintenanceSettings(StorageCard):
             return
         close_analyzer_cache(self.window())
         self.run_task(
-            lambda: AnalysisCache().clear_explanations(), self._on_explanations_cleared
+            lambda: AnalysisCache().clear_explanations(),
+            self._on_explanations_cleared,
+            loading_message="Clearing explanations…",
         )
 
     def _on_explanations_cleared(self, removed) -> None:
@@ -176,7 +182,9 @@ class MaintenanceSettings(StorageCard):
         ):
             return
         self.run_task(
-            lambda: GameHistoryManager().clear_api_cache(), self._on_api_cleared
+            lambda: GameHistoryManager().clear_api_cache(),
+            self._on_api_cleared,
+            loading_message="Clearing cached games…",
         )
 
     def _on_api_cleared(self, _result) -> None:
@@ -195,6 +203,7 @@ class MaintenanceSettings(StorageCard):
         self.run_task(
             lambda: GameHistoryManager().clear_explorer_cache(),
             self._on_explorer_cleared,
+            loading_message="Clearing explorer cache…",
         )
 
     def _on_explorer_cleared(self, removed) -> None:
@@ -205,7 +214,11 @@ class MaintenanceSettings(StorageCard):
         if not ensure_idle(self.window()):
             return
         close_analyzer_cache(self.window())
-        self.run_task(self._optimize_database, self._on_optimized)
+        self.run_task(
+            self._optimize_database,
+            self._on_optimized,
+            loading_message="Optimizing database…",
+        )
 
     @staticmethod
     def _optimize_database() -> None:
@@ -233,6 +246,7 @@ class MaintenanceSettings(StorageCard):
             rebuild_opening_index,
             lambda _result: self._on_index_rebuilt(explorer_db),
             lambda message: self._on_index_failed(explorer_db, message),
+            loading_message="Rebuilding opening index…",
         )
 
     def _on_index_rebuilt(self, explorer_db) -> None:
@@ -249,11 +263,6 @@ class MaintenanceSettings(StorageCard):
             except Exception as e:  # pragma: no cover - defensive
                 logger.error(f"Could not reopen opening index: {e}")
         self._report_error(message)
-
-    def _toast(self, message: str) -> None:
-        from src.gui.main_window import MainWindow
-
-        MainWindow.toast_from_widget(self, message, "success")
 
     # ------------------------------------------------------------------
     # Lifecycle hooks used by SettingsView

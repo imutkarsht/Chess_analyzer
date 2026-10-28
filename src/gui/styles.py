@@ -464,6 +464,68 @@ class Styles(metaclass=_StylesMeta):
 
 
     @classmethod
+    def get_toast_qss(
+        cls,
+        *,
+        background: str | None = None,
+        border: str | None = None,
+        text_color: str | None = None,
+        radius: int = 16,
+    ) -> str:
+        """Stylesheet for :class:`src.gui.components.toast.Toast`.
+
+        The panel stays close to the neutral notification references: an
+        elevated surface, one hairline border, and no saturated variant wash.
+        Font sizes are set on the labels so width measurements stay accurate.
+        """
+        p = ThemeManager.palette()
+        bg = background or p.surface
+        bd = border or p.border
+        fg = text_color or p.text_primary
+        return f"""
+            QFrame#ToastSurface {{
+                background-color: {bg};
+                border: 1px solid {bd};
+                border-radius: {radius}px;
+            }}
+            QLabel#ToastIcon, QWidget#ToastText, QWidget#ToastProgressArea {{
+                background: transparent;
+            }}
+            QLabel#ToastTitle, QLabel#ToastMessage {{
+                color: {fg};
+                background: transparent;
+            }}
+            QProgressBar#ToastProgress {{
+                background-color: {bd};
+                border: none;
+                border-radius: 1px;
+            }}
+            QProgressBar#ToastProgress::chunk {{
+                background-color: {p.accent};
+                border-radius: 1px;
+            }}
+        """
+
+    @classmethod
+    def get_toast_icon_color(cls, variant: str, *, semantic: bool = False) -> str:
+        """Glyph colour for a toast variant.
+
+        The default follows the notification references: monochrome glyphs with
+        red reserved for failures. ``semantic=True`` opts into the app's
+        classification palette for call sites that need stronger signalling.
+        """
+        if variant == "error":
+            return cls.COLOR_BLUNDER
+        if not semantic:
+            return cls.COLOR_TEXT_PRIMARY
+        return {
+            "success": cls.COLOR_ENGINE_READY,
+            "warning": cls.COLOR_ENGINE_BUSY,
+            "info": cls.COLOR_ACCENT,
+            "loading": cls.COLOR_ACCENT,
+        }.get(variant, cls.COLOR_TEXT_PRIMARY)
+
+    @classmethod
     def get_board_game_header_style(cls):
         p = ThemeManager.palette()
         return f"""

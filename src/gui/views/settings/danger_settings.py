@@ -60,18 +60,15 @@ class DangerSettings(StorageCard):
             return
         close_analyzer_cache(self.window())
         self.run_task(
-            lambda: GameHistoryManager().clear_all_data(), self._on_reset_done
+            lambda: GameHistoryManager().clear_all_data(),
+            self._on_reset_done,
+            loading_message="Deleting local data…",
         )
 
     def _on_reset_done(self, _result) -> None:
         refresh_after_data_change(self.window())
         self.data_changed.emit()
         self._toast("All local data cleared.")
-
-    def _toast(self, message: str) -> None:
-        from src.gui.main_window import MainWindow
-
-        MainWindow.toast_from_widget(self, message, "success")
 
     # ------------------------------------------------------------------
     # Lifecycle hooks used by SettingsView
