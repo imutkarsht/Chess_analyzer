@@ -9,7 +9,7 @@ from .components import (
     CONTROL_NARROW,
     SettingsBinder,
     SettingsForm,
-    make_combo,
+    make_select,
 )
 
 
@@ -46,7 +46,7 @@ class CoachSettings(QGroupBox):
         )
         self.reasoning_effort_combo = self.binder.add(
             "explain_reasoning_effort",
-            make_combo(180),
+            make_select(180),
             width=180,
         )
 
@@ -78,7 +78,6 @@ class CoachSettings(QGroupBox):
         self.form.refresh_styles()
         self.temperature_input.setStyleSheet(Styles.get_input_style())
         self.max_tokens_input.setStyleSheet(Styles.get_input_style())
-        self.reasoning_effort_combo.setStyleSheet(Styles.get_combobox_style())
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         self.explain_trivial_checkbox.setStyleSheet(
             Styles.get_settings_checkbox_style(tick_path)

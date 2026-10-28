@@ -125,4 +125,3 @@ class ThemeAccentSettings(QGroupBox):
         self.color_btn.refresh_styles()
         self.theme_mode_choice.refresh_styles()
         self.accent_choice.refresh_styles()
-        self.toast_position_combo.setStyleSheet(Styles.get_combobox_style())

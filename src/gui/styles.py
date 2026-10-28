@@ -798,16 +798,6 @@ class Styles(metaclass=_StylesMeta):
                 border: 2px solid {p.accent};
                 padding: 9px;
             }}
-            QComboBox {{
-                padding: 8px 12px;
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-            }}
-            QComboBox:focus {{
-                border: 2px solid {p.accent};
-            }}
             QPushButton:focus {{
                 outline: 2px solid {p.accent};
             }}
@@ -831,37 +821,42 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_combobox_style(cls):
+    def get_select_popup_style(cls):
+        """Chrome for :class:`~src.gui.components.select.Select`'s popup.
+
+        The panel background and border are painted by the component (a
+        translucent top-level window), so this only styles the scroll area.
+        """
         p = ThemeManager.palette()
         return f"""
-            QComboBox {{
-                padding: 8px 12px;
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                min-width: 150px;
-            }}
-            QComboBox:hover {{
-                border: 1px solid {p.accent};
-            }}
-            QComboBox::drop-down {{
+            QFrame#SelectPopup QScrollArea {{
+                background-color: transparent;
                 border: none;
-                padding-right: 10px;
             }}
-            QComboBox QAbstractItemView {{
-                background-color: {p.surface};
-                color: {p.text_primary};
-                selection-background-color: {p.accent};
-                selection-color: white;
-                border: none;
-                outline: 0px;
-                padding: 4px;
+            QFrame#SelectPopup QWidget#SelectPopupContent {{
+                background-color: transparent;
             }}
-            QComboBox QAbstractItemView::item {{
-                min-height: 26px;
-                padding: 4px 8px;
+            QFrame#SelectPopup QScrollBar:vertical {{
+                background-color: transparent;
+                width: 8px;
+                margin: 2px;
                 border-radius: 4px;
+            }}
+            QFrame#SelectPopup QScrollBar::handle:vertical {{
+                background-color: {p.border_light};
+                min-height: 24px;
+                border-radius: 4px;
+            }}
+            QFrame#SelectPopup QScrollBar::handle:vertical:hover {{
+                background-color: {p.text_muted};
+            }}
+            QFrame#SelectPopup QScrollBar::add-line:vertical,
+            QFrame#SelectPopup QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QFrame#SelectPopup QScrollBar::add-page:vertical,
+            QFrame#SelectPopup QScrollBar::sub-page:vertical {{
+                background-color: transparent;
             }}
         """
 

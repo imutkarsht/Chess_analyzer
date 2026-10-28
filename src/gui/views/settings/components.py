@@ -12,7 +12,6 @@ from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
-    QComboBox,
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
@@ -26,6 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SettingSpec, get_spec
+from src.gui.components.select import Select, SelectOption
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 
@@ -165,14 +165,16 @@ class SettingsForm(QWidget):
             )
 
 
-def make_combo(max_width: int = CONTROL_DEFAULT) -> QComboBox:
-    combo = QComboBox()
-    combo.setStyleSheet(Styles.get_combobox_style())
-    # A maximum alone lets the combo collapse to its shortest entry, which
-    # clips text like "30 days"; combos are deliberately sized, so pin both.
-    combo.setMinimumWidth(max_width)
-    combo.setMaximumWidth(max_width)
-    return combo
+def make_select(max_width: int = CONTROL_DEFAULT) -> Select:
+    """A settings dropdown pinned to a deliberate width.
+
+    A maximum alone lets the control collapse to its shortest entry, which
+    clips text like "30 days"; settings controls are deliberately sized, so
+    pin both bounds.
+    """
+    select = Select(min_width=max_width)
+    select.setMaximumWidth(max_width)
+    return select
 
 
 def make_checkbox(text: str, max_width: int | None = None) -> QCheckBox:
@@ -298,7 +300,6 @@ class SettingsBinder(QObject):
         self.widgets: dict[str, QWidget] = {}
         self._advanced: list[str] = []
         self._callbacks: dict[str, Callable] = {}
-        self._choices: dict[str, list[tuple[object, str]]] = {}
 
     def add(
         self,
@@ -320,13 +321,11 @@ class SettingsBinder(QObject):
 
         if choices is None and spec.choices:
             choices = [(choice.value, choice.label) for choice in spec.choices]
-        if choices is not None:
-            self._choices[key] = list(choices)
 
         if widget is None:
             widget = self._make_widget(spec, choices)
-        elif choices and isinstance(widget, QComboBox):
-            self._populate_combo(widget, choices)
+        elif choices and isinstance(widget, Select):
+            self._populate_select(widget, choices)
 
         if advanced is None:
             advanced = spec.tier == "advanced"
@@ -358,11 +357,11 @@ class SettingsBinder(QObject):
         if spec.kind == "bool":
             return make_checkbox("")
         if spec.kind == "choice":
-            combo = make_combo(CONTROL_DEFAULT)
-            self._populate_combo(
-                combo, choices or [(c.value, c.label) for c in spec.choices]
+            select = make_select(CONTROL_DEFAULT)
+            self._populate_select(
+                select, choices or [(c.value, c.label) for c in spec.choices]
             )
-            return combo
+            return select
         if spec.kind == "secret":
             from .modern_widgets import PasswordFieldWrapper
 
@@ -386,14 +385,14 @@ class SettingsBinder(QObject):
         return make_line_edit("", CONTROL_DEFAULT)
 
     @staticmethod
-    def _populate_combo(combo: QComboBox, choices) -> None:
-        combo.blockSignals(True)
+    def _populate_select(select: Select, choices) -> None:
+        select.blockSignals(True)
         try:
-            combo.clear()
-            for value, label in choices:
-                combo.addItem(label, value)
+            select.set_options(
+                [SelectOption(str(label), value) for value, label in choices]
+            )
         finally:
-            combo.blockSignals(False)
+            select.blockSignals(False)
 
     @staticmethod
     def _width_for(spec: SettingSpec, widget: QWidget) -> int | None:
@@ -418,8 +417,6 @@ class SettingsBinder(QObject):
 
         if self._has_value_signal(widget):
             widget.valueChanged.connect(lambda _value: commit())
-        elif isinstance(widget, QComboBox):
-            widget.currentIndexChanged.connect(lambda _index: commit())
         elif hasattr(widget, "editingFinished") and hasattr(widget, "text"):
             widget.editingFinished.connect(commit)
         elif spec.kind == "bool":
@@ -435,8 +432,6 @@ class SettingsBinder(QObject):
             raw = widget.settingValue()
         elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
             raw = widget.value()
-        elif isinstance(widget, QComboBox):
-            raw = self._combo_value(key, widget)
         elif spec.kind == "bool" and isinstance(widget, QCheckBox):
             raw = widget.isChecked()
         else:
@@ -456,19 +451,6 @@ class SettingsBinder(QObject):
         except (TypeError, ValueError):
             return _INVALID
         return raw
-
-    def _combo_value(self, key: str, widget: QComboBox):
-        """Resolve a combo value from the registered choices when possible.
-
-        ``currentData()`` cannot distinguish "no data" from a deliberate
-        ``None`` entry (e.g. "Never expire"), so the source choices win.
-        """
-        index = widget.currentIndex()
-        choices = self._choices.get(key)
-        if choices is not None and 0 <= index < len(choices):
-            return choices[index][0]
-        data = widget.currentData()
-        return data if data is not None else widget.currentText()
 
     def _commit_widget(self, key: str) -> None:
         widget = self.widgets.get(key)
@@ -493,19 +475,10 @@ class SettingsBinder(QObject):
             self._commit_widget(key)
 
     def set_choices(self, key: str, choices: list[tuple[object, str]]) -> None:
-        """Replace a bound combo's options (e.g. after importing a theme)."""
-        self._choices[key] = list(choices)
+        """Replace a bound select's options (e.g. after importing a theme)."""
         widget = self.widgets.get(key)
-        if isinstance(widget, QComboBox):
-            self._populate_combo(widget, choices)
-
-    def _combo_index(self, key: str, widget: QComboBox, value) -> int:
-        choices = self._choices.get(key)
-        if choices is not None:
-            for index, (candidate, _label) in enumerate(choices):
-                if candidate == value:
-                    return index
-        return widget.findData(value)
+        if isinstance(widget, Select):
+            self._populate_select(widget, choices)
 
     def _set_widget(self, key: str, value) -> None:
         widget = self.widgets[key]
@@ -518,12 +491,6 @@ class SettingsBinder(QObject):
                 widget.setSettingValue(value)
             elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
                 widget.setValue(value)
-            elif isinstance(widget, QComboBox):
-                index = self._combo_index(key, widget, value)
-                if index < 0 and hasattr(widget, "setText"):
-                    widget.setText(str(value))
-                else:
-                    widget.setCurrentIndex(max(index, 0))
             elif spec.kind == "bool":
                 widget.setChecked(bool(value))
             else:

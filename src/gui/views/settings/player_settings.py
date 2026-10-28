@@ -18,8 +18,8 @@ from .components import (
     SettingsBinder,
     SettingsForm,
     make_checkbox,
-    make_combo,
     make_line_edit,
+    make_select,
 )
 from .helpers import create_icon_button
 from .modern_widgets import ModernSliderCounter, PasswordFieldWrapper
@@ -328,7 +328,7 @@ class ImportNetworkCard(QGroupBox):
 
         self.cache_ttl_combo = self.binder.add(
             "profile_cache_ttl_hours",
-            make_combo(180),
+            make_select(180),
             width=180,
         )
         self.register_styles()
@@ -383,8 +383,6 @@ class ImportNetworkCard(QGroupBox):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.register_styles()
         self.form.refresh_styles()
-        if hasattr(self.cache_ttl_combo, "setStyleSheet"):
-            self.cache_ttl_combo.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self.games_limit_input, "refresh_styles"):
             self.games_limit_input.refresh_styles()
 

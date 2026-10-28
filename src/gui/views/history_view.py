@@ -11,11 +11,11 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
-from src.gui.components import Button, ButtonVariant
+from src.gui.components import Button, ButtonVariant, Select
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.components.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import create_button, create_combobox
+from src.gui.utils.gui_utils import create_button
 from src.utils.logger import logger
 
 
@@ -145,8 +145,8 @@ class HistoryView(QWidget):
         )
         filter_layout.addWidget(self.result_label)
 
-        self.result_filter = create_combobox(
-            items=["All", "Wins", "Losses", "Draws"], on_change=self.apply_filters
+        self.result_filter = Select(
+            ["All", "Wins", "Losses", "Draws"], on_change=self.apply_filters
         )
         self.result_filter.setFixedWidth(100)
         filter_layout.addWidget(self.result_filter)
@@ -158,8 +158,8 @@ class HistoryView(QWidget):
         )
         filter_layout.addWidget(self.type_label)
 
-        self.type_filter = create_combobox(
-            items=["All", "Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet"],
+        self.type_filter = Select(
+            ["All", "Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet"],
             on_change=self.apply_filters,
         )
         self.type_filter.setFixedWidth(110)
@@ -172,8 +172,8 @@ class HistoryView(QWidget):
         )
         filter_layout.addWidget(self.source_label)
 
-        self.source_filter = create_combobox(
-            items=["All", "Chess.com", "Lichess", "File"], on_change=self.apply_filters
+        self.source_filter = Select(
+            ["All", "Chess.com", "Lichess", "File"], on_change=self.apply_filters
         )
         self.source_filter.setFixedWidth(110)
         filter_layout.addWidget(self.source_filter)
@@ -187,8 +187,8 @@ class HistoryView(QWidget):
         )
         filter_layout.addWidget(self.sort_label)
 
-        self.sort_dropdown = create_combobox(
-            items=["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
+        self.sort_dropdown = Select(
+            ["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
             on_change=self.apply_filters,
         )
         self.sort_dropdown.setFixedWidth(135)
@@ -515,13 +515,5 @@ class HistoryView(QWidget):
             self.btn_clear.refresh_styles()
         if hasattr(self, "btn_refresh"):
             self.btn_refresh.refresh_styles()
-        if hasattr(self, "result_filter"):
-            self.result_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, "type_filter"):
-            self.type_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, "source_filter"):
-            self.source_filter.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, "sort_dropdown"):
-            self.sort_dropdown.setStyleSheet(Styles.get_combobox_style())
         if hasattr(self, "game_list"):
             self.game_list.refresh_styles()
