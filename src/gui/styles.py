@@ -1633,7 +1633,7 @@ class Styles(metaclass=_StylesMeta):
     def get_pagination_bar_style(cls):
         p = ThemeManager.palette()
         return f"""
-            QWidget {{
+            QWidget#PaginationBar {{
                 background-color: {p.surface};
                 border-top: 1px solid {p.border};
             }}

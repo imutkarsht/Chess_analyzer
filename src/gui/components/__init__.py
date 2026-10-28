@@ -9,7 +9,12 @@ from .form_field import FormField
 from .legend_list import LegendList
 from .masonry_layout import MasonryLayout
 from .mini_bar import MiniBar
-from .pagination_bar import PaginationBar
+from .pagination_bar import (
+    PaginationBar,
+    PaginationSize,
+    PaginationState,
+    PaginationStyle,
+)
 from .pulsing_skeleton import PulsingSkeleton
 from .segmented_bar import SegmentedBar
 from .segmented_control import SegmentedControl
@@ -37,6 +42,9 @@ __all__ = [
     'LegendList',
     'MiniBar',
     'PaginationBar',
+    'PaginationSize',
+    'PaginationState',
+    'PaginationStyle',
     'SegmentedBar',
     'SegmentedControl',
     'StatCard',

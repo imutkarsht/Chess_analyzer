@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
 from src.gui.components import (
     EmptyState,
     PaginationBar,
+    PaginationSize,
+    PaginationState,
     SegmentedBar,
     SegmentedControl,
 )
@@ -41,7 +43,7 @@ class OpeningsListCard(MetricCard):
     def __init__(self, parent=None):
         self.stats = {}
         self.current_sort = "played"  # 'played', 'winrate'
-        self.current_page = 0
+        self.pagination_state = PaginationState(page_size=self.PAGE_SIZE)
 
         # Header Action Widget: Sort Control [Most Played | Win Rate]
         self.sort_control = SegmentedControl(
@@ -60,6 +62,14 @@ class OpeningsListCard(MetricCard):
         # Compatibility aliases for existing callers/tests.
         self.btn_sort_played = self.sort_control.button("played")
         self.btn_sort_winrate = self.sort_control.button("winrate")
+
+    @property
+    def current_page(self) -> int:
+        return self.pagination_state.page
+
+    @current_page.setter
+    def current_page(self, page: int) -> None:
+        self.pagination_state.set_page(page)
 
     def set_sort(self, sort_by: str):
         if self.current_sort == sort_by:
@@ -123,6 +133,7 @@ class OpeningsListCard(MetricCard):
         main_vbox = self.new_content(spacing=8).layout()
 
         openings_list = self._get_openings_list()
+        self.pagination_state.set_total_items(len(openings_list))
         active_color = self.stats.get("filter_applied", {}).get("color", "All Colors")
 
         # 1. Sub-toolbar: Opening count summary
@@ -162,14 +173,6 @@ class OpeningsListCard(MetricCard):
             return
 
         # 2. Paginated List of Openings
-        total_openings = len(openings_list)
-        total_pages = max(1, (total_openings + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-        self.current_page = max(0, min(self.current_page, total_pages - 1))
-
-        start_idx = self.current_page * self.PAGE_SIZE
-        end_idx = min(start_idx + self.PAGE_SIZE, total_openings)
-        page_items = openings_list[start_idx:end_idx]
-
         items_container = QWidget()
         items_container.setStyleSheet("background: transparent;")
         items_vbox = QVBoxLayout(items_container)
@@ -178,7 +181,7 @@ class OpeningsListCard(MetricCard):
 
         show_color_tag = active_color not in ("White", "Black")
 
-        for item in page_items:
+        for item in self.pagination_state.slice(openings_list):
             row_card = self._create_opening_row(item, show_color_tag=show_color_tag)
             items_vbox.addWidget(row_card)
 
@@ -186,33 +189,19 @@ class OpeningsListCard(MetricCard):
         main_vbox.addWidget(items_container, stretch=1)
 
         # 3. Pagination Bar
-        if total_pages > 1:
-            pagination_bar = PaginationBar(
-                page=self.current_page,
-                total_pages=total_pages,
-                prev_text="◀ Prev",
-                next_text="Next ▶",
-            )
-            pagination_bar.prev_clicked.connect(self._go_prev_page)
-            pagination_bar.next_clicked.connect(self._go_next_page)
-            self.btn_prev_page = pagination_bar.prev_btn
-            self.lbl_page_info = pagination_bar.label
-            self.btn_next_page = pagination_bar.next_btn
-            main_vbox.addWidget(pagination_bar)
+        pagination_bar = PaginationBar(
+            self.pagination_state,
+            size=PaginationSize.CARD,
+            hide_when_single_page=True,
+        )
+        pagination_bar.page_changed.connect(lambda _page: self._render_view())
+        self.btn_prev_page = pagination_bar.prev_btn
+        self.lbl_page_info = pagination_bar.label
+        self.btn_next_page = pagination_bar.next_btn
+        self.pagination_bar = pagination_bar
+        main_vbox.addWidget(pagination_bar)
 
         self.set_content(self.content_widget)
-
-    def _go_prev_page(self):
-        if self.current_page > 0:
-            self.current_page -= 1
-            self._render_view()
-
-    def _go_next_page(self):
-        openings_list = self._get_openings_list()
-        total_pages = max(1, (len(openings_list) + self.PAGE_SIZE - 1) // self.PAGE_SIZE)
-        if self.current_page < total_pages - 1:
-            self.current_page += 1
-            self._render_view()
 
     def _on_opening_clicked(self, event, opening_name: str) -> None:
         if event is None or event.button() == Qt.MouseButton.LeftButton:

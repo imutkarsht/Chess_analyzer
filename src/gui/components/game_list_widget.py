@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 from ..styles import Styles
 from .button import Button, ButtonSize, ButtonVariant
 from .game_list_item_widget import GameListItemWidget
+from .pagination_bar import PaginationBar, PaginationSize, PaginationState, PaginationStyle
 
 
 class GameListWidget(QWidget):
@@ -29,7 +30,7 @@ class GameListWidget(QWidget):
     def __init__(self):
         super().__init__()
         self._all_games: list = []
-        self._current_page: int = 0
+        self.pagination_state = PaginationState(page_size=self._PAGE_SIZE)
         self.usernames: list = []
         self.view_mode: str = "compact"  # "compact" or "detailed"
         self.analyzing_game_id: str | None = None
@@ -97,12 +98,17 @@ class GameListWidget(QWidget):
         root.addWidget(self.list_widget, stretch=1)
 
         # ── Pagination bar ───────────────────────────────────────────────────
-        self._pagination_bar = QWidget()
+        self._pagination_bar = PaginationBar(
+            self.pagination_state,
+            style=PaginationStyle.NUMBERED,
+            size=PaginationSize.PAGE,
+            framed=True,
+            show_range=True,
+            empty_text="No games",
+            margins=(16, 0, 16, 0),
+        )
         self._pagination_bar.setFixedHeight(52)
-        self._pagination_bar.setStyleSheet(Styles.get_pagination_bar_style())
-        self._page_bar_layout = QHBoxLayout(self._pagination_bar)
-        self._page_bar_layout.setContentsMargins(16, 0, 16, 0)
-        self._page_bar_layout.setSpacing(6)
+        self._pagination_bar.page_changed.connect(lambda _page: self._render_page())
         root.addWidget(self._pagination_bar)
 
         self._update_view_toggle_styles()
@@ -136,7 +142,7 @@ class GameListWidget(QWidget):
         self._all_games = games or []
         if usernames is not None:
             self.usernames = usernames
-        self._current_page = 0
+        self.pagination_state.set_page(0)
         self._render_page()
 
     @property
@@ -155,28 +161,14 @@ class GameListWidget(QWidget):
 
     # ── Rendering ─────────────────────────────────────────────────────────────
 
-    def _total_pages(self) -> int:
-        if not self._all_games:
-            return 1
-        import math
-
-        return math.ceil(len(self._all_games) / self.page_size)
-
     def _render_page(self):
         """Populate the list widget with the current page's games."""
         self.list_widget.clear()
 
-        # Clamp current page when page size changes
-        max_page = max(0, self._total_pages() - 1)
-        if self._current_page > max_page:
-            self._current_page = max_page
+        self.pagination_state.set_page_size(self.page_size)
+        self.pagination_state.set_total_items(len(self._all_games))
 
-        ps = self.page_size
-        start = self._current_page * ps
-        end = start + ps
-        page_games = self._all_games[start:end]
-
-        for game in page_games:
+        for game in self.pagination_state.slice(self._all_games):
             item = QListWidgetItem(self.list_widget)
             is_analyzing = bool(
                 self.analyzing_game_id and getattr(game, "game_id", None) == self.analyzing_game_id
@@ -190,62 +182,7 @@ class GameListWidget(QWidget):
             self.list_widget.addItem(item)
             self.list_widget.setItemWidget(item, widget)
 
-        self._rebuild_pagination()
-
-    def _rebuild_pagination(self):
-        """Rebuild the pagination button bar to reflect the current state."""
-        while self._page_bar_layout.count():
-            child = self._page_bar_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-
-        total = self._total_pages()
-        current = self._current_page
-        ps = self.page_size
-
-        # ── Page counter label (left) ────────────────────────────────────────
-        start = current * ps + 1
-        end = min(start + ps - 1, len(self._all_games))
-        total_games = len(self._all_games)
-
-        counter_text = "No games" if total_games == 0 else f"{start}–{end} of {total_games}"
-
-        counter = QLabel(counter_text)
-        counter.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-        self._page_bar_layout.addWidget(counter)
-        self._page_bar_layout.addStretch()
-
-        # ── Prev button ──────────────────────────────────────────────────────
-        btn_prev = self._make_page_btn("‹ Prev", enabled=(current > 0))
-        btn_prev.clicked.connect(self._go_prev)
-        self._page_bar_layout.addWidget(btn_prev)
-
-        # ── Page number buttons (show up to 5 around current) ────────────────
-        window = 2
-        lo = max(0, current - window)
-        hi = min(total - 1, current + window)
-
-        if lo > 0:
-            self._page_bar_layout.addWidget(self._make_page_num_btn(0))
-            if lo > 1:
-                self._page_bar_layout.addWidget(self._make_ellipsis())
-
-        for p in range(lo, hi + 1):
-            self._page_bar_layout.addWidget(self._make_page_num_btn(p))
-
-        if hi < total - 1:
-            if hi < total - 2:
-                self._page_bar_layout.addWidget(self._make_ellipsis())
-            self._page_bar_layout.addWidget(self._make_page_num_btn(total - 1))
-
-        # ── Next button ──────────────────────────────────────────────────────
-        btn_next = self._make_page_btn("Next ›", enabled=(current < total - 1))
-        btn_next.clicked.connect(self._go_next)
-        self._page_bar_layout.addWidget(btn_next)
+        self._pagination_bar.sync()
 
     # ── Navigation ────────────────────────────────────────────────────────────
 
@@ -274,63 +211,16 @@ class GameListWidget(QWidget):
         self._all_games = [g for g in self._all_games if g.game_id != game_id]
 
         # Stay on the current page unless it no longer exists
-        max_page = max(0, self._total_pages() - 1)
-        if self._current_page > max_page:
-            self._current_page = max_page
+        self.pagination_state.set_total_items(len(self._all_games))
 
         self._render_page()
         self.game_deleted.emit(game_id)
 
-    def _go_prev(self):
-        if self._current_page > 0:
-            self._current_page -= 1
-            self._render_page()
-
-    def _go_next(self):
-        if self._current_page < self._total_pages() - 1:
-            self._current_page += 1
-            self._render_page()
-
-    def _go_to_page(self, page: int):
-        if 0 <= page < self._total_pages():
-            self._current_page = page
-            self._render_page()
-
     def _on_item_clicked(self, item):
         index = self.list_widget.row(item)
-        start = self._current_page * self.page_size
-        absolute_index = start + index
+        absolute_index = self.pagination_state.start_index + index
         if 0 <= absolute_index < len(self._all_games):
             self.game_selected.emit(self._all_games[absolute_index])
-
-    # ── Button factories ──────────────────────────────────────────────────────
-
-    def _make_page_btn(self, text: str, enabled: bool) -> Button:
-        btn = Button(text, ButtonVariant.FILLED, ButtonSize.SM)
-        btn.setFixedHeight(30)
-        btn.setEnabled(enabled)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)
-        return btn
-
-    def _make_page_num_btn(self, page: int) -> Button:
-        is_current = page == self._current_page
-        variant = ButtonVariant.PRIMARY if is_current else ButtonVariant.FILLED
-        btn = Button(str(page + 1), variant, ButtonSize.SM)
-        btn.setFixedSize(30, 30)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.clicked.connect(lambda _, p=page: self._go_to_page(p))
-        return btn
-
-    def _make_ellipsis(self) -> QLabel:
-        lbl = QLabel("…")
-        lbl.setFixedSize(20, 30)
-        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-        return lbl
 
     # ── Style refresh ─────────────────────────────────────────────────────────
 
@@ -351,6 +241,6 @@ class GameListWidget(QWidget):
         """Re-applies styles on theme change."""
         self._apply_title_style()
         self._apply_list_style()
-        self._pagination_bar.setStyleSheet(Styles.get_pagination_bar_style())
+        self._pagination_bar.refresh_styles()
         self._update_view_toggle_styles()
         self._render_page()
