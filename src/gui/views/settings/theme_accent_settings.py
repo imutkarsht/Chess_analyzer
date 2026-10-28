@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import QColorDialog, QGroupBox, QVBoxLayout
 
 from ....config.settings_schema import get_spec
 from ...components import Button, ButtonVariant
+from ...components.toast import ToastManager
 from ...styles import Styles
 from ...theme import ThemeManager
 from .components import RadioChoice, SettingsBinder, SettingsForm
@@ -32,6 +33,7 @@ class ThemeAccentSettings(QGroupBox):
 
         self._add_theme_mode_row()
         self._add_accent_row()
+        self._add_toast_position_row()
 
     def _add_theme_mode_row(self):
         spec = get_spec("theme_mode")
@@ -79,6 +81,17 @@ class ThemeAccentSettings(QGroupBox):
         ThemeManager.set_accent_mode(mode)
         self.theme_refreshed.emit()
 
+    def _add_toast_position_row(self):
+        self.toast_position_combo = self.binder.add(
+            "toast_position",
+            hint="",
+            width=None,
+            on_change=self._on_toast_position_changed,
+        )
+
+    def _on_toast_position_changed(self, position):
+        ToastManager.configure(position=position)
+
     def _update_accent_btn_visibility(self):
         self.color_btn.setVisible(self.accent_mode_custom.isChecked())
 
@@ -112,3 +125,4 @@ class ThemeAccentSettings(QGroupBox):
         self.color_btn.refresh_styles()
         self.theme_mode_choice.refresh_styles()
         self.accent_choice.refresh_styles()
+        self.toast_position_combo.setStyleSheet(Styles.get_combobox_style())

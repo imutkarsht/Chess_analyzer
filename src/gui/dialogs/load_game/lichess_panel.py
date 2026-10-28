@@ -4,7 +4,7 @@ Lichess API Panel for the Load Game dialog.
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 
-from src.gui.components.toast import Toast
+from src.gui.components.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 
@@ -76,6 +76,7 @@ class LichessPanel(QWidget):
         super().__init__(parent)
         self._parsed_games: list = []
         self._worker = None
+        self._fetch_toast: ToastHandle | None = None
         self._setup_ui()
 
     def _setup_ui(self):
@@ -140,6 +141,9 @@ class LichessPanel(QWidget):
         self._fetch_btn.setEnabled(False)
         self._fetch_btn.setText("...")
         self._input_edit.setEnabled(False)
+        self._fetch_toast = ToastManager.loading(
+            self, "Fetching games from Lichess…"
+        )
 
         # Disconnect any previously running worker
         if self._worker is not None and self._worker.isRunning():
@@ -169,16 +173,17 @@ class LichessPanel(QWidget):
 
     def _on_fetch_error(self, err_msg: str):
         self._reset_input_ui()
-        Toast.show_message(self.window(), f"Lichess fetch failed: {err_msg}", "error")
+        self._finish_fetch_toast(f"Lichess fetch failed: {err_msg}", "error")
 
     def _on_fetch_finished(self, parsed_games):
         self._reset_input_ui()
 
         if not parsed_games:
             username = self._input_edit.text().strip()
-            Toast.show_message(self.window(),
-                               f"No games found for '{username}'. Check the username in Settings.",
-                               "warning")
+            self._finish_fetch_toast(
+                f"No games found for '{username}'. Check the username in Settings.",
+                "warning",
+            )
             return
 
         self._parsed_games = parsed_games
@@ -202,13 +207,24 @@ class LichessPanel(QWidget):
 
         n = len(self._parsed_games)
         if n == 0:
-            Toast.show_message(self.window(), "Failed to parse fetched games.", "error")
+            self._finish_fetch_toast("Failed to parse fetched games.", "error")
             return
 
         self._input_widget.setVisible(False)
         header_text = "1 game ready to load:" if n == 1 else f"Select a game ({n} found):"
         self._game_list.populate(rows, header_text)
         self._game_list.setVisible(True)
+        self._finish_fetch_toast(
+            "1 game ready to load." if n == 1 else f"Found {n} games.",
+            "success",
+        )
+
+    def _finish_fetch_toast(self, message: str, variant: str) -> None:
+        if self._fetch_toast is not None and self._fetch_toast.active:
+            self._fetch_toast.update(message, variant=variant)
+        else:
+            ToastManager.show(self, message, variant)
+        self._fetch_toast = None
 
     def _reset_input_ui(self):
         self._fetch_btn.setEnabled(True)

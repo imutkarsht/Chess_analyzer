@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.gui.components import Button, ButtonVariant
 from src.gui.components.game_list_widget import GameListWidget
+from src.gui.components.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button, create_combobox
 from src.utils.logger import logger
@@ -404,8 +405,6 @@ class HistoryView(QWidget):
 
             from PyQt6.QtWidgets import QFileDialog
 
-            from src.gui.components.toast import Toast
-
             file_name, _ = QFileDialog.getSaveFileName(
                 self, "Export Games", "games.csv", "CSV Files (*.csv)"
             )
@@ -414,7 +413,7 @@ class HistoryView(QWidget):
 
             history_games = self.history_manager.get_all_games(limit=None)
             if not history_games:
-                Toast.show_message(self.window(), "No games to export.", "warning")
+                ToastManager.warning(self, "No games to export.")
                 return
 
             with open(file_name, mode="w", newline="", encoding="utf-8") as csvfile:
@@ -429,19 +428,16 @@ class HistoryView(QWidget):
                     writer.writerow(row)
 
             logger.info(f"Exported {len(history_games)} games to {file_name}")
-            Toast.show_message(self.window(), f"Exported {len(history_games)} games.", "success")
+            ToastManager.success(self, f"Exported {len(history_games)} games.")
 
         except Exception as e:
             logger.error(f"Export failed: {e}")
-            from src.gui.components.toast import Toast
-
-            Toast.show_message(self.window(), f"Export failed: {e}", "error")
+            ToastManager.error(self, f"Export failed: {e}")
 
     def import_games(self):
+        handle: ToastHandle | None = None
         try:
             from PyQt6.QtWidgets import QFileDialog
-
-            from src.gui.components.toast import Toast
 
             file_name, _ = QFileDialog.getOpenFileName(
                 self, "Import Games", "", "CSV Files (*.csv)"
@@ -449,7 +445,7 @@ class HistoryView(QWidget):
             if not file_name:
                 return
 
-            Toast.show_message(self.window(), "Importing games...", "info")
+            handle = ToastManager.loading(self, "Importing games…")
 
             self._import_worker = GameImportWorker(self.history_manager, file_name, parent=self)
 
@@ -460,16 +456,15 @@ class HistoryView(QWidget):
                 self.load_history()
                 if imported_count > 0:
                     self.games_imported.emit(imported_count)
-                Toast.show_message(
-                    self.window(),
+                handle.update(
                     f"Imported: {imported_count}, Skipped: {skipped_count}",
-                    "success",
+                    variant="success",
                 )
                 self._import_worker = None
 
             def _on_import_error(err: str):
                 logger.error(f"Import failed: {err}")
-                Toast.show_message(self.window(), f"Import failed: {err}", "error")
+                handle.update(f"Import failed: {err}", variant="error")
                 self._import_worker = None
 
             self._import_worker.finished.connect(_on_import_finished)
@@ -478,9 +473,9 @@ class HistoryView(QWidget):
 
         except Exception as e:
             logger.error(f"Failed to start import: {e}")
-            from src.gui.components.toast import Toast
-
-            Toast.show_message(self.window(), f"Failed to start import: {e}", "error")
+            if handle is not None:
+                handle.dismiss()
+            ToastManager.error(self, f"Failed to start import: {e}")
 
     def refresh_styles(self):
         """Re-applies styles to game history view components."""

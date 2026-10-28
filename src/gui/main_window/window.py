@@ -24,6 +24,7 @@ from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardGameHeader, BoardPanel
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.components.sidebar import Sidebar
+from src.gui.components.toast import ToastManager
 from src.gui.components.tour_manager import TourManager
 from src.gui.components.tour_overlay import TourOverlay
 from src.gui.components.transition_stack import FadedStackedWidget
@@ -91,6 +92,9 @@ class MainWindow(
         self.current_game = None
         self._drop_highlight_active = False
         self.config_manager = ConfigManager()
+        ToastManager.configure(
+            position=self.config_manager.get_choice("toast_position", "top_right")
+        )
         resolved = resolve_engine_path(self.config_manager)
         self.engine_path = resolved or self.config_manager.get("engine_path", "stockfish")
         self.analyzer = Analyzer(
