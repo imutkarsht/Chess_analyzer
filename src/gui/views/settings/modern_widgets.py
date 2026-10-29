@@ -1,15 +1,11 @@
 """
 Modern, custom UI widgets for the settings panel.
 """
-from importlib.util import find_spec
-
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSlider, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSlider, QWidget
 
 from ...components import Button, ButtonSize, ButtonVariant
 from ...styles import Styles
-
-HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 class ModernSliderCounter(QWidget):
@@ -170,105 +166,4 @@ class ModernSliderCounter(QWidget):
         """)
 
 
-class PasswordFieldWrapper(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setObjectName("PasswordWrapper")
-        self._visible = False
-        self.setup_ui()
 
-    def setup_ui(self):
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 0, 6, 0)
-        layout.setSpacing(4)
-
-        self.line_edit = QLineEdit()
-        self.line_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.line_edit.setStyleSheet("border: none; background: transparent; padding: 10px 0px;")
-        layout.addWidget(self.line_edit, stretch=1)
-
-        self.toggle_btn = Button(
-            variant=ButtonVariant.GHOST,
-            size=ButtonSize.SM,
-            icon_position="only",
-            tooltip="Show password",
-            on_click=self.toggle_visibility,
-        )
-        self.toggle_btn.setAccessibleName("Show password")
-        self.toggle_btn.setFixedSize(24, 24)
-        layout.addWidget(self.toggle_btn)
-
-        self.line_edit.focusInEvent = lambda event: self._on_focus_changed(True, event)
-        self.line_edit.focusOutEvent = lambda event: self._on_focus_changed(False, event)
-
-        self.update_style(focused=False)
-        self.update_icon()
-
-    def _on_focus_changed(self, focused, event):
-        if focused:
-            QLineEdit.focusInEvent(self.line_edit, event)
-        else:
-            QLineEdit.focusOutEvent(self.line_edit, event)
-        self.update_style(focused)
-
-    @property
-    def editingFinished(self):
-        return self.line_edit.editingFinished
-
-    def toggle_visibility(self):
-        self._visible = not self._visible
-        if self._visible:
-            self.line_edit.setEchoMode(QLineEdit.EchoMode.Normal)
-        else:
-            self.line_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.update_icon()
-
-    def update_icon(self):
-        icon_name = "fa5s.eye-slash" if self._visible else "fa5s.eye"
-        self.toggle_btn.set_icon_spec(icon_name if HAS_QTAWESOME else None)
-        label = "Hide password" if self._visible else "Show password"
-        self.toggle_btn.setToolTip(label)
-        self.toggle_btn.setAccessibleName(label)
-
-    def update_style(self, focused=False):
-        border_color = Styles.COLOR_ACCENT if focused else Styles.COLOR_BORDER
-        super().setStyleSheet(f"""
-            #PasswordWrapper {{
-                border: 1px solid {border_color};
-                border-radius: 4px;
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-        """)
-        self.line_edit.setStyleSheet(f"""
-            border: none;
-            background: transparent;
-            padding: 10px 0px;
-            color: {Styles.COLOR_TEXT_PRIMARY};
-        """)
-
-    def text(self) -> str:
-        return self.line_edit.text()
-
-    def setText(self, t: str):
-        self.line_edit.setText(t)
-
-    def setPlaceholderText(self, t: str):
-        self.line_edit.setPlaceholderText(t)
-
-    def setEchoMode(self, mode):
-        self.line_edit.setEchoMode(mode)
-
-    def setEnabled(self, b: bool):
-        self.line_edit.setEnabled(b)
-        self.toggle_btn.setEnabled(b)
-
-    def setStyleSheet(self, style: str):
-        self.update_style(focused=self.line_edit.hasFocus())
-
-    def setMaximumWidth(self, w: int):
-        super().setMaximumWidth(w)
-
-    def refresh_styles(self):
-        self.update_style(focused=self.line_edit.hasFocus())
-        self.update_icon()

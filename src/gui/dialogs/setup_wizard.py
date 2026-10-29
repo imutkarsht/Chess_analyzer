@@ -265,21 +265,6 @@ class SetupWizard(QDialog):
                 border: 1px solid {p.border};
                 border-radius: 10px;
             }}
-            QLineEdit {{
-                padding: 10px 14px;
-                min-height: 24px;
-                border: 1.5px solid {p.border};
-                border-radius: 6px;
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-                font-size: 13px;
-            }}
-            QLineEdit:focus {{
-                border: 1.5px solid {p.accent};
-            }}
-            QLineEdit::placeholder {{
-                color: {p.text_muted};
-            }}
         """
 
     def refresh_accent(self):

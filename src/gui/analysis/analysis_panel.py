@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QSizePolicy,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -22,7 +21,14 @@ from src.backend.services.groq_service import GroqService
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import EXPLANATION_DEBOUNCE_MS
-from src.gui.components import Button, ButtonVariant, CircularAccuracyWidget, Tabs, TabVariant
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    CircularAccuracyWidget,
+    Tabs,
+    TabVariant,
+    TextArea,
+)
 from src.gui.components.graph_widget import GraphWidget
 from src.gui.components.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.toast import ToastManager
@@ -232,12 +238,10 @@ class AnalysisPanel(QWidget):
         self.ai_summary_layout.setContentsMargins(0, 4, 0, 0)
         self.ai_summary_layout.setSpacing(8)
 
-        self.txt_ai_summary = QTextEdit()
-        self.txt_ai_summary.setReadOnly(True)
-        self.txt_ai_summary.setPlaceholderText(
-            "AI Coach summary & key takeaways will appear here..."
+        self.txt_ai_summary = TextArea(
+            placeholder="AI Coach summary & key takeaways will appear here...",
+            readonly=True,
         )
-        self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
         self.txt_ai_summary.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
@@ -569,7 +573,7 @@ class AnalysisPanel(QWidget):
             self.btn_generate_summary.refresh_styles()
 
         if hasattr(self, "txt_ai_summary"):
-            self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
+            self.txt_ai_summary.refresh_styles()
 
         if hasattr(self, "graph_widget"):
             self.graph_widget.refresh_styles()

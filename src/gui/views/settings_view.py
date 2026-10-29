@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QScrollArea,
@@ -19,7 +18,7 @@ from PyQt6.QtWidgets import (
 
 from src.config.settings_schema import SETTINGS
 from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
-from src.gui.components import Button, ButtonVariant
+from src.gui.components import Button, ButtonVariant, Input, InputSize, InputVariant
 from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -108,9 +107,11 @@ class SettingsView(QWidget):
         rail_layout.setContentsMargins(0, 0, 0, 0)
         rail_layout.setSpacing(10)
 
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search settings...")
-        self.search_input.setStyleSheet(Styles.get_input_style())
+        self.search_input = Input(
+            placeholder="Search settings...",
+            variant=InputVariant.SEARCH,
+            size=InputSize.MD,
+        )
         self.search_input.textChanged.connect(self._filter_categories)
         rail_layout.addWidget(self.search_input)
 
@@ -513,22 +514,6 @@ class SettingsView(QWidget):
                 return
 
     def _style_category_rail(self) -> None:
-        self.search_input.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: transparent;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 9px 12px;
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 14px;
-            }}
-            QLineEdit:hover {{
-                border-color: {Styles.COLOR_TEXT_MUTED};
-            }}
-            QLineEdit:focus {{
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
         self.category_list.setStyleSheet(f"""
             QListWidget {{
                 background: transparent;

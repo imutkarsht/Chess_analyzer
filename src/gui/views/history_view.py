@@ -5,13 +5,12 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
-from src.gui.components import Button, ButtonVariant, Select
+from src.gui.components import Button, ButtonVariant, Input, InputVariant, Select
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.components.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
@@ -129,10 +128,12 @@ class HistoryView(QWidget):
         filter_layout.setSpacing(8)
 
         # Search Bar
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search player, opening, date...")
+        self.search_input = Input(
+            placeholder="Search player, opening, date...",
+            variant=InputVariant.SEARCH,
+            clearable=True,
+        )
         self.search_input.setMinimumWidth(220)
-        self.search_input.setStyleSheet(Styles.get_filter_input_style())
         self.search_input.textChanged.connect(self.apply_filters)
         filter_layout.addWidget(self.search_input, 1)
 
@@ -490,7 +491,7 @@ class HistoryView(QWidget):
         if hasattr(self, "content_widget"):
             self.content_widget.setStyleSheet(Styles.get_background_style())
         if hasattr(self, "search_input"):
-            self.search_input.setStyleSheet(Styles.get_filter_input_style())
+            self.search_input.refresh_styles()
         if hasattr(self, "result_label"):
             self.result_label.setStyleSheet(
                 Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)

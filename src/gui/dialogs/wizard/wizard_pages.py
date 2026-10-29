@@ -7,14 +7,20 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QProgressBar,
     QVBoxLayout,
     QWidget,
 )
 
 from src.constants import PROVIDERS
-from src.gui.components import Button, ButtonSize, ButtonVariant, Select
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Input,
+    InputSize,
+    Select,
+)
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 
@@ -131,8 +137,9 @@ def build_profile_page(wizard) -> QWidget:
     lbl = QLabel("Chess.com Username")
     lbl.setProperty("class", "wizard-label")
     card_layout.addWidget(lbl)
-    wizard.chesscom_input = QLineEdit()
-    wizard.chesscom_input.setPlaceholderText("e.g. magnuscarlsen")
+    wizard.chesscom_input = Input(
+        placeholder="e.g. magnuscarlsen", size=InputSize.LG
+    )
     wizard.chesscom_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.chesscom_input)
 
@@ -140,8 +147,9 @@ def build_profile_page(wizard) -> QWidget:
     lbl = QLabel("Lichess Username")
     lbl.setProperty("class", "wizard-label")
     card_layout.addWidget(lbl)
-    wizard.lichess_input = QLineEdit()
-    wizard.lichess_input.setPlaceholderText("e.g. drnykterstein")
+    wizard.lichess_input = Input(
+        placeholder="e.g. drnykterstein", size=InputSize.LG
+    )
     wizard.lichess_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.lichess_input)
 
@@ -158,9 +166,9 @@ def build_profile_page(wizard) -> QWidget:
     tok_row.addWidget(wizard.lichess_tok_link)
     card_layout.addLayout(tok_row)
 
-    wizard.lichess_token_input = QLineEdit()
-    wizard.lichess_token_input.setPlaceholderText("lip_...")
-    wizard.lichess_token_input.setEchoMode(QLineEdit.EchoMode.Password)
+    wizard.lichess_token_input = Input(
+        placeholder="lip_...", size=InputSize.LG, password=True
+    )
     wizard.lichess_token_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.lichess_token_input)
 
@@ -459,9 +467,9 @@ def build_llm_page(wizard) -> QWidget:
     wizard.llm_key_label.setProperty("class", "wizard-label")
     card_layout.addWidget(wizard.llm_key_label)
 
-    wizard.llm_key_input = QLineEdit()
-    wizard.llm_key_input.setPlaceholderText("gsk_...")
-    wizard.llm_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+    wizard.llm_key_input = Input(
+        placeholder="gsk_...", size=InputSize.LG, password=True
+    )
     card_layout.addWidget(wizard.llm_key_input)
 
     # Model input row
@@ -469,8 +477,9 @@ def build_llm_page(wizard) -> QWidget:
     wizard.llm_model_label.setProperty("class", "wizard-label")
     card_layout.addWidget(wizard.llm_model_label)
 
-    wizard.llm_model_input = QLineEdit()
-    wizard.llm_model_input.setPlaceholderText("llama-3.3-70b-versatile")
+    wizard.llm_model_input = Input(
+        placeholder="llama-3.3-70b-versatile", size=InputSize.LG
+    )
     card_layout.addWidget(wizard.llm_model_input)
 
     # Base URL row (shown for custom / local)
@@ -478,8 +487,9 @@ def build_llm_page(wizard) -> QWidget:
     wizard.llm_base_url_label.setProperty("class", "wizard-label")
     card_layout.addWidget(wizard.llm_base_url_label)
 
-    wizard.llm_base_url_input = QLineEdit()
-    wizard.llm_base_url_input.setPlaceholderText("https://api.openai.com/v1")
+    wizard.llm_base_url_input = Input(
+        placeholder="https://api.openai.com/v1", size=InputSize.LG
+    )
     card_layout.addWidget(wizard.llm_base_url_input)
 
     # Test button & result row

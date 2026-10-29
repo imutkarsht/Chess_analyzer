@@ -198,7 +198,7 @@ class EngineSettings(QGroupBox):
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.path_input.setStyleSheet(Styles.get_input_style())
+        self.path_input.refresh_styles()
         self.browse_btn.refresh_styles()
         self.threads_input.refresh_styles()
         self.validate_engine_path()

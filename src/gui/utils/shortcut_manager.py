@@ -11,14 +11,15 @@ from dataclasses import dataclass, field
 from PyQt6 import sip
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
-from PyQt6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit, QTextEdit, QWidget
+from PyQt6.QtWidgets import QApplication, QWidget
 
 from src.constants import DEFAULT_SHORTCUT_PRESET, SHORTCUT_PRESETS
+from src.gui.components.input import TEXT_INPUT_TYPES
 from src.utils.logger import logger
 
 KeyInput = str | Iterable[str]
 
-_TEXT_INPUTS = (QLineEdit, QTextEdit, QPlainTextEdit)
+_TEXT_INPUTS = TEXT_INPUT_TYPES
 
 
 @dataclass

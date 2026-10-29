@@ -20,7 +20,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QSizePolicy,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -31,7 +30,7 @@ from src.backend.analysis.tactics.insight import (
     move_prefix,
 )
 from src.constants import LLM_WORTHY_CLASSIFICATIONS
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, TextArea
 from src.gui.styles import Styles
 
 # The body is sized to its wrapped text: the tab has room to grow downwards, so
@@ -105,20 +104,13 @@ class CoachCardWidget(QFrame):
         self.phase_label = QLabel("")
 
         # --- body: a fixed number of lines that scrolls anything longer ---
-        self.body_edit = QTextEdit()
-        self.body_edit.setReadOnly(True)
-        self.body_edit.setFrameShape(QFrame.Shape.NoFrame)
+        self.body_edit = TextArea(variant="flat", font_size=_BODY_FONT_PX, readonly=True)
         # Wrap to the widget width and never demand width of our own, so the
         # body cannot push the card sideways as the text gets longer.
-        self.body_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self.body_edit.setMinimumWidth(0)
         self.body_edit.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.body_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.body_edit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.body_edit.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextSelectableByMouse
-            | Qt.TextInteractionFlag.TextSelectableByKeyboard
-        )
         layout.addWidget(self.body_edit)
 
         # Stay visible (empty) when unused so the action row below never moves.
@@ -382,7 +374,7 @@ class CoachCardWidget(QFrame):
 
     def refresh_styles(self) -> None:
         self.setStyleSheet(Styles.get_frame_style(object_name="CoachCard", hover_accent=False))
-        self.body_edit.setStyleSheet(Styles.get_flat_text_edit_style(size=_BODY_FONT_PX))
+        self.body_edit.refresh_styles()
         self._restyle_header()
         self.caption.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)

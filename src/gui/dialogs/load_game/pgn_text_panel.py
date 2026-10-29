@@ -2,9 +2,9 @@
 PGN Text panel for the Load Game dialog.
 """
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QTextEdit, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, TextArea
 from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 
@@ -57,11 +57,10 @@ class PgnTextPanel(QWidget):
         header.addWidget(self._paste_btn)
         input_layout.addLayout(header)
 
-        self._text_edit = QTextEdit()
-        self._text_edit.setPlaceholderText(
-            "Paste a game's PGN here — headers and moves are both fine."
+        self._text_edit = TextArea(
+            placeholder="Paste a game's PGN here — headers and moves are both fine.",
+            variant="code",
         )
-        self._text_edit.setStyleSheet(Styles.get_textarea_qss())
         input_layout.addWidget(self._text_edit, 1)
 
         parse_btn = Button(

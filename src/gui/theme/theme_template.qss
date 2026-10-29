@@ -97,13 +97,16 @@ QGroupBox::title {{
     color: {TEXT_PRIMARY};
 }}
 
-/* Text Fields & Editors */
+/* Text Fields & Editors
+   Native fallback only: every app field is src/gui/components/input.py, which
+   styles itself via Styles.get_input_qss. These rules keep Qt-internal editors
+   (spin-box line edits, dialogs) visually identical to the component. */
 QLineEdit {{
-    background-color: {SURFACE_LIGHT};
+    background-color: {SURFACE};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 6px;
-    padding: 8px 12px;
+    border-radius: 8px;
+    padding: 0 10px;
     font-size: 13px;
 }}
 
@@ -112,21 +115,22 @@ QLineEdit:focus {{
 }}
 
 QTextEdit {{
-    background-color: {SURFACE_LIGHT};
+    background-color: {SURFACE};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
     border-radius: 8px;
-    padding: 10px;
+    padding: 12px;
     font-size: 13px;
 }}
 
 /* SpinBoxes */
 QSpinBox, QDoubleSpinBox {{
-    background-color: {SURFACE_LIGHT};
+    background-color: {SURFACE};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    border-radius: 6px;
-    padding: 6px 12px;
+    border-radius: 8px;
+    padding: 0 10px;
+    min-height: 34px;
     font-size: 13px;
 }}
 

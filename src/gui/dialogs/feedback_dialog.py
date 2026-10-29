@@ -8,9 +8,7 @@ from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QStackedWidget,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -20,7 +18,15 @@ from src.backend.services.feedback_service import (
     FeedbackWorker,
     get_recent_logs,
 )
-from src.gui.components import Button, ButtonSize, ButtonVariant, Tabs, TabVariant
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Input,
+    Tabs,
+    TabVariant,
+    TextArea,
+)
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -231,9 +237,10 @@ class FeedbackDialog(QDialog):
         lbl_title.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl_title)
 
-        self.bug_title_input = QLineEdit(self._initial_title)
-        self.bug_title_input.setPlaceholderText("e.g. Engine stopped responding on move 42")
-        self.bug_title_input.setStyleSheet(Styles.get_input_style())
+        self.bug_title_input = Input(
+            self._initial_title,
+            "e.g. Engine stopped responding on move 42",
+        )
         layout.addWidget(self.bug_title_input)
 
         # Description
@@ -241,12 +248,11 @@ class FeedbackDialog(QDialog):
         lbl_desc.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl_desc)
 
-        self.bug_desc_input = QTextEdit()
-        self.bug_desc_input.setFixedHeight(85)
-        self.bug_desc_input.setPlaceholderText("Please describe what you were doing when the issue occurred...")
-        if self._initial_message:
-            self.bug_desc_input.setPlainText(self._initial_message)
-        self.bug_desc_input.setStyleSheet(Styles.get_input_style())
+        self.bug_desc_input = TextArea(
+            self._initial_message,
+            "Please describe what you were doing when the issue occurred...",
+            min_height=85,
+        )
         layout.addWidget(self.bug_desc_input)
 
         # Email & Name row
@@ -258,9 +264,7 @@ class FeedbackDialog(QDialog):
         lbl_email = QLabel("Your Email:")
         lbl_email.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
         v1.addWidget(lbl_email)
-        self.bug_email_input = QLineEdit()
-        self.bug_email_input.setPlaceholderText("To get notified when resolved")
-        self.bug_email_input.setStyleSheet(Styles.get_input_style())
+        self.bug_email_input = Input(placeholder="To get notified when resolved")
         v1.addWidget(self.bug_email_input)
         meta_layout.addLayout(v1)
 
@@ -270,9 +274,7 @@ class FeedbackDialog(QDialog):
         lbl_name.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
         v2.addWidget(lbl_name)
         default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
-        self.bug_name_input = QLineEdit(default_user)
-        self.bug_name_input.setPlaceholderText("Player handle or name")
-        self.bug_name_input.setStyleSheet(Styles.get_input_style())
+        self.bug_name_input = Input(default_user, "Player handle or name")
         v2.addWidget(self.bug_name_input)
         meta_layout.addLayout(v2)
 
@@ -309,21 +311,13 @@ class FeedbackDialog(QDialog):
         layout.addLayout(log_header_layout)
 
         # Log preview text box (initially collapsed)
-        self.log_preview_box = QTextEdit()
-        self.log_preview_box.setFixedHeight(75)
-        self.log_preview_box.setReadOnly(True)
-        self.log_preview_box.setPlainText(self._initial_logs or "(No recent log entries)")
-        self.log_preview_box.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_TEXT_MUTED};
-                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                font-size: 11px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 6px;
-            }}
-        """)
+        self.log_preview_box = TextArea(
+            (self._initial_logs or "(No recent log entries)"),
+            variant="code",
+            min_height=75,
+            font_size=11,
+            readonly=True,
+        )
         self.log_preview_box.hide()
         layout.addWidget(self.log_preview_box)
 
@@ -347,9 +341,9 @@ class FeedbackDialog(QDialog):
         lbl_title.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl_title)
 
-        self.feat_title_input = QLineEdit()
-        self.feat_title_input.setPlaceholderText("e.g. Opening book explorer support for ECO codes")
-        self.feat_title_input.setStyleSheet(Styles.get_input_style())
+        self.feat_title_input = Input(
+            placeholder="e.g. Opening book explorer support for ECO codes",
+        )
         layout.addWidget(self.feat_title_input)
 
         # Description
@@ -357,10 +351,10 @@ class FeedbackDialog(QDialog):
         lbl_desc.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl_desc)
 
-        self.feat_desc_input = QTextEdit()
-        self.feat_desc_input.setFixedHeight(110)
-        self.feat_desc_input.setPlaceholderText("Explain how this feature would work and why it would be helpful...")
-        self.feat_desc_input.setStyleSheet(Styles.get_input_style())
+        self.feat_desc_input = TextArea(
+            placeholder="Explain how this feature would work and why it would be helpful...",
+            min_height=110,
+        )
         layout.addWidget(self.feat_desc_input)
 
         # Email & Name row
@@ -372,9 +366,7 @@ class FeedbackDialog(QDialog):
         lbl_email = QLabel("Your Email:")
         lbl_email.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
         v1.addWidget(lbl_email)
-        self.feat_email_input = QLineEdit()
-        self.feat_email_input.setPlaceholderText("Email address")
-        self.feat_email_input.setStyleSheet(Styles.get_input_style())
+        self.feat_email_input = Input(placeholder="Email address")
         v1.addWidget(self.feat_email_input)
         meta_layout.addLayout(v1)
 
@@ -384,9 +376,7 @@ class FeedbackDialog(QDialog):
         lbl_name.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
         v2.addWidget(lbl_name)
         default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
-        self.feat_name_input = QLineEdit(default_user)
-        self.feat_name_input.setPlaceholderText("Player handle or name")
-        self.feat_name_input.setStyleSheet(Styles.get_input_style())
+        self.feat_name_input = Input(default_user, "Player handle or name")
         v2.addWidget(self.feat_name_input)
         meta_layout.addLayout(v2)
 
@@ -408,9 +398,7 @@ class FeedbackDialog(QDialog):
         layout.addWidget(lbl_name)
 
         default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
-        self.review_name_input = QLineEdit(default_user)
-        self.review_name_input.setPlaceholderText("e.g. Grandmaster99")
-        self.review_name_input.setStyleSheet(Styles.get_input_style())
+        self.review_name_input = Input(default_user, "e.g. Grandmaster99")
         layout.addWidget(self.review_name_input)
 
         # Comment
@@ -418,10 +406,10 @@ class FeedbackDialog(QDialog):
         lbl_comment.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
         layout.addWidget(lbl_comment)
 
-        self.review_comment_input = QTextEdit()
-        self.review_comment_input.setFixedHeight(90)
-        self.review_comment_input.setPlaceholderText("Share your experience with Chess Analyzer Pro...")
-        self.review_comment_input.setStyleSheet(Styles.get_input_style())
+        self.review_comment_input = TextArea(
+            placeholder="Share your experience with Chess Analyzer Pro...",
+            min_height=90,
+        )
         layout.addWidget(self.review_comment_input)
 
         layout.addStretch()

@@ -10,6 +10,7 @@ from src.backend.api.import_limits import (
 from src.backend.api.import_limits import (
     current_token as configured_token,
 )
+from src.gui.components import Input
 from src.gui.styles import Styles
 
 from .background_card import BackgroundTaskCard
@@ -22,7 +23,7 @@ from .components import (
     make_select,
 )
 from .helpers import create_icon_button
-from .modern_widgets import ModernSliderCounter, PasswordFieldWrapper
+from .modern_widgets import ModernSliderCounter
 from .profile_preview import ProfilePreview
 
 
@@ -108,7 +109,7 @@ class ChessComCard(_ProfileCard):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.username_input.setStyleSheet(Styles.get_input_style())
+        self.username_input.refresh_styles()
         self.preview.refresh_styles()
 
 
@@ -137,7 +138,7 @@ class LichessCard(_ProfileCard):
         self.lichess_input = self.username_input
         self._install_preview(self.username_input)
 
-        self.lichess_token_input = PasswordFieldWrapper(self)
+        self.lichess_token_input = Input(password=True)
         self.lichess_token_input.setMaximumWidth(420)
         self.lichess_token_input.setPlaceholderText("lip_… (optional)")
 
@@ -179,9 +180,7 @@ class LichessCard(_ProfileCard):
             ),
         )
         self.lichess_token_input.editingFinished.connect(self._on_token_committed)
-        self.lichess_token_input.line_edit.textChanged.connect(
-            self._on_token_text_changed
-        )
+        self.lichess_token_input.textChanged.connect(self._on_token_text_changed)
 
         self.explorer_checkbox = self.binder.add(
             "lichess_explorer_enabled",
@@ -281,7 +280,7 @@ class LichessCard(_ProfileCard):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.username_input.setStyleSheet(Styles.get_input_style())
+        self.username_input.refresh_styles()
         self.lichess_token_input.refresh_styles()
         self.validate_token_btn.refresh_styles()
         self.token_status_label.setStyleSheet(
