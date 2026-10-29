@@ -24,8 +24,8 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SettingSpec, get_spec
-from src.gui.components.input import DecimalInput, Input, NumberInput
-from src.gui.components.select import Select, SelectOption
+from src.gui.components.controls.input import DecimalInput, Input, NumberInput
+from src.gui.components.controls.select import Select, SelectOption
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 

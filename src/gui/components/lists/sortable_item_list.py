@@ -22,8 +22,7 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.theme.motion import Motion
-
-from .smooth_scroll import SmoothScroll
+from src.gui.utils.smooth_scroll import SmoothScroll
 
 try:
     import qtawesome as qta

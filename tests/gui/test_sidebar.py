@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.gui.components.sidebar import COLLAPSED_WIDTH, EXPANDED_WIDTH, Sidebar
+from src.gui.components.layout.sidebar import COLLAPSED_WIDTH, EXPANDED_WIDTH, Sidebar
 
 
 class _FakeConfig:

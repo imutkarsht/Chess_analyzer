@@ -1,12 +1,11 @@
 """
 Shared GUI components module.
 """
-from .button import Button, ButtonSize, ButtonVariant
-from .circular_accuracy import CircularAccuracyWidget
-from .date_picker import DatePicker
-from .empty_state import EmptyState
-from .form_field import FormField
-from .input import (
+from ..utils.smooth_scroll import SmoothScroll, install_smooth_scrolling
+from .controls.button import Button, ButtonSize, ButtonVariant
+from .controls.date_picker import DatePicker
+from .controls.form_field import FormField
+from .controls.input import (
     TEXT_INPUT_TYPES,
     DecimalInput,
     Input,
@@ -16,26 +15,17 @@ from .input import (
     TextArea,
     TextAreaVariant,
 )
-from .legend_list import LegendList
-from .masonry_layout import MasonryLayout
-from .mini_bar import MiniBar
-from .pagination_bar import (
-    PaginationBar,
-    PaginationSize,
-    PaginationState,
-    PaginationStyle,
-)
-from .pulsing_skeleton import PulsingSkeleton
-from .segmented_bar import SegmentedBar
-from .segmented_control import SegmentedControl
-from .select import Select, SelectOption, SelectSize
-from .smooth_scroll import SmoothScroll, install_smooth_scrolling
-from .sortable_item_list import SortableItem, SortableItemList
-from .stat_card import SimpleStatCard, StatCard
-from .stats_layout import StatsLayout
-from .status_badge import StatusBadge
-from .tabs import TabAppearance, Tabs, TabVariant
-from .toast import (
+from .controls.segmented_bar import SegmentedBar
+from .controls.segmented_control import SegmentedControl
+from .controls.select import Select, SelectOption, SelectSize
+from .controls.tabs import TabAppearance, Tabs, TabVariant
+from .display.circular_accuracy import CircularAccuracyWidget
+from .display.mini_bar import MiniBar
+from .display.stat_card import SimpleStatCard, StatCard
+from .feedback.empty_state import EmptyState
+from .feedback.pulsing_skeleton import PulsingSkeleton
+from .feedback.status_badge import StatusBadge
+from .feedback.toast import (
     Toast,
     ToastHandle,
     ToastManager,
@@ -43,7 +33,17 @@ from .toast import (
     ToastPosition,
     ToastVariant,
 )
-from .welcome_panel import WelcomePanel
+from .layout.masonry_layout import MasonryLayout
+from .layout.stats_layout import StatsLayout
+from .layout.welcome_panel import WelcomePanel
+from .lists.legend_list import LegendList
+from .lists.pagination_bar import (
+    PaginationBar,
+    PaginationSize,
+    PaginationState,
+    PaginationStyle,
+)
+from .lists.sortable_item_list import SortableItem, SortableItemList
 
 __all__ = [
     'Button',

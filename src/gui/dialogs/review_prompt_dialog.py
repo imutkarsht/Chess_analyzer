@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
 from src.backend.services.feedback_service import FeedbackService, FeedbackWorker
 from src.constants import REVIEW_SNOOZE_INTERVAL
 from src.gui.components import Button, ButtonVariant, Input, TextArea
-from src.gui.components.star_rating_widget import StarRatingWidget
+from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 

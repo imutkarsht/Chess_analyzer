@@ -12,7 +12,7 @@ from src.gui.components import Button, ButtonSize, ButtonVariant
 RAW_BUTTON_ALLOWLIST = {
     "src/gui/analysis/move_cell_widget.py",
     "src/gui/analysis/variation_graph.py",
-    "src/gui/components/star_rating_widget.py",
+    "src/gui/components/controls/star_rating_widget.py",
     "src/gui/views/settings/board_pieces_settings.py",
 }
 
@@ -23,7 +23,7 @@ def test_no_raw_push_or_tool_buttons_outside_the_central_component():
     offenders = []
     for path in gui_root.rglob("*.py"):
         relative = path.relative_to(repo_root).as_posix()
-        if relative == "src/gui/components/button.py" or relative in RAW_BUTTON_ALLOWLIST:
+        if relative == "src/gui/components/controls/button.py" or relative in RAW_BUTTON_ALLOWLIST:
             continue
         text = path.read_text(encoding="utf-8")
         if "QPushButton(" in text or "QToolButton(" in text:
@@ -42,7 +42,7 @@ def test_central_buttons_are_not_restyled_or_reiconed_manually():
 
     for path in gui_root.rglob("*.py"):
         relative = path.relative_to(repo_root).as_posix()
-        if relative == "src/gui/components/button.py":
+        if relative == "src/gui/components/controls/button.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
 

@@ -10,8 +10,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components.button import Button, ButtonVariant
-from src.gui.components.tour_manager import TourManager
+from src.gui.components.controls.button import Button, ButtonVariant
+from src.gui.components.layout.tour_manager import TourManager
 from src.gui.styles import Styles
 
 

@@ -5,7 +5,7 @@ from collections.abc import Callable
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox
 
-from ...components.toast import ToastHandle, ToastManager
+from ...components.feedback.toast import ToastHandle, ToastManager
 from ...styles import Styles
 from .background_worker import BackgroundTaskWorker
 

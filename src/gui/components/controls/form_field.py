@@ -12,7 +12,7 @@ class FormField(QWidget):
     """A labelled form control with optional helper and error text.
 
     The control is supplied by the caller so inputs keep the central
-    :class:`~src.gui.components.input.Input` / ``DatePicker`` styling while the
+    :class:`~src.gui.components.controls.input.Input` / ``DatePicker`` styling while the
     label/description rhythm stays identical across forms.
     """
 

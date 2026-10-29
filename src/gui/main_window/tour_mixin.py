@@ -1,7 +1,7 @@
 from PyQt6 import sip
 from PyQt6.QtCore import QTimer
 
-from src.gui.components.tour_manager import TourStep
+from src.gui.components.layout.tour_manager import TourStep
 
 
 class TourMixin:

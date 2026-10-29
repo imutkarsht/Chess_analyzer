@@ -10,8 +10,8 @@ from src.gui.components import Input, TextArea
 # Widgets that legitimately own a raw editor: the central component itself, the
 # painted date field's inner editor, and the canvas rename overlay.
 RAW_INPUT_ALLOWLIST = {
-    "src/gui/components/input.py",
-    "src/gui/components/date_picker.py",
+    "src/gui/components/controls/input.py",
+    "src/gui/components/controls/date_picker.py",
     "src/gui/analysis/variation_graph.py",
 }
 

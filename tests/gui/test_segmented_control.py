@@ -1,6 +1,6 @@
 """Behavior tests for the shared segmented chip control."""
 
-from src.gui.components.segmented_control import SegmentedControl
+from src.gui.components.controls.segmented_control import SegmentedControl
 
 
 def _control(qtbot):

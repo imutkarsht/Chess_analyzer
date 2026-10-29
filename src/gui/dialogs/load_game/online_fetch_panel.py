@@ -29,7 +29,7 @@ from src.gui.components import (
     Tabs,
     TabVariant,
 )
-from src.gui.components.toast import ToastHandle, ToastManager
+from src.gui.components.feedback.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.config import ConfigManager

@@ -14,12 +14,12 @@ from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from ...utils.config import ConfigManager
-from ...utils.logger import logger
-from ...utils.path_utils import get_resource_path
-from ..styles import Styles
-from ..theme.palette import BOARD_THEMES
-from .button import Button, ButtonSize, ButtonVariant
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.styles import Styles
+from src.gui.theme.palette import BOARD_THEMES
+from src.utils.config import ConfigManager
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path
 
 try:
     import qtawesome as qta

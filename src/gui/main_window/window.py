@@ -22,13 +22,13 @@ from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardGameHeader, BoardPanel
-from src.gui.components.loading_widget import LoadingOverlay
-from src.gui.components.sidebar import Sidebar
-from src.gui.components.toast import ToastManager
-from src.gui.components.tour_manager import TourManager
-from src.gui.components.tour_overlay import TourOverlay
-from src.gui.components.transition_stack import FadedStackedWidget
-from src.gui.components.welcome_panel import WelcomePanel
+from src.gui.components.feedback.loading_widget import LoadingOverlay
+from src.gui.components.feedback.toast import ToastManager
+from src.gui.components.layout.sidebar import Sidebar
+from src.gui.components.layout.tour_manager import TourManager
+from src.gui.components.layout.tour_overlay import TourOverlay
+from src.gui.components.layout.transition_stack import FadedStackedWidget
+from src.gui.components.layout.welcome_panel import WelcomePanel
 from src.gui.main_window.analysis_mixin import AnalysisMixin
 from src.gui.main_window.game_loading_mixin import GameLoadingMixin
 from src.gui.main_window.navigation_mixin import NavigationMixin

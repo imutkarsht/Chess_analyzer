@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import ABOUT_URL, APP_VERSION, GITHUB_REPO_URL, WEBSITE_URL
-from src.gui.components.button import Button, ButtonVariant
+from src.gui.components.controls.button import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.path_utils import get_resource_path

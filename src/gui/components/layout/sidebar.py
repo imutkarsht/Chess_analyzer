@@ -9,7 +9,7 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QFrame, QVBoxLayout
 
-from src.gui.components.button import Button, ButtonVariant
+from src.gui.components.controls.button import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing

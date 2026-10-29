@@ -6,7 +6,7 @@ cards cannot drift apart.
 
 import chess
 
-from src.gui.components.toast import ToastManager
+from src.gui.components.feedback.toast import ToastManager
 from src.utils.logger import logger
 
 

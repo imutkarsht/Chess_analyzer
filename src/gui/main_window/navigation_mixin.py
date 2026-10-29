@@ -14,8 +14,8 @@ from src.constants import (
     PAGE_NAMES,
     REPLAY_INTERVAL_MS,
 )
-from src.gui.components.input import TEXT_INPUT_TYPES
-from src.gui.components.select import Select
+from src.gui.components.controls.input import TEXT_INPUT_TYPES
+from src.gui.components.controls.select import Select
 from src.gui.dialogs import ShortcutHelpDialog
 from src.gui.utils.shortcut_manager import ShortcutManager
 

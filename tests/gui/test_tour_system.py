@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 from PyQt6.QtWidgets import QWidget
 
-from src.gui.components.tour_manager import TourManager, TourStep
+from src.gui.components.layout.tour_manager import TourManager, TourStep
 
 
 def test_tour_manager_step_lifecycle():

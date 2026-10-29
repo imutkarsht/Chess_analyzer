@@ -27,7 +27,7 @@ from src.gui.components import (
     TabVariant,
     TextArea,
 )
-from src.gui.components.star_rating_widget import StarRatingWidget
+from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 

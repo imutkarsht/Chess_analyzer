@@ -48,7 +48,7 @@ def shared_window(qapp, tmp_path_factory):
             mp.setattr(f"{module}.get_user_data_dir", lambda: data_dir)
         mp.setattr(ConfigManager, "_shared_config", None)
         mp.setattr(
-            "src.gui.components.tour_manager.TourManager.has_seen_tour", lambda self, key: True
+            "src.gui.components.layout.tour_manager.TourManager.has_seen_tour", lambda self, key: True
         )
         # Saved before boot so startup restoration of the preset can be checked.
         ConfigManager().set("shortcut_preset", "vim")

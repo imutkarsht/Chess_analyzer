@@ -14,7 +14,7 @@ from typing import TypeVar
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
-from src.gui.components.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 

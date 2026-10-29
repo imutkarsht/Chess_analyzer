@@ -25,7 +25,7 @@ def test_settings_view_clamping_without_token(qapp, qtbot, isolated_config):
         view.games_limit_input.setText("25")  # Exceeds max 20 without token
 
         # Toast replaces QMessageBox — mock the manager call
-        with patch("src.gui.components.toast.ToastManager.warning") as mock_toast:
+        with patch("src.gui.components.feedback.toast.ToastManager.warning") as mock_toast:
             view.save_usernames()
             mock_toast.assert_called_once()
 
@@ -53,7 +53,7 @@ def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
         # 2. Test clamping value > 30 (e.g. 35) with token
         view.games_limit_input.setText("35")
 
-        with patch("src.gui.components.toast.ToastManager.warning") as mock_toast:
+        with patch("src.gui.components.feedback.toast.ToastManager.warning") as mock_toast:
             view.save_usernames()
             mock_toast.assert_called_once()
 
@@ -285,7 +285,7 @@ def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isola
         view.engine_path_changed = MagicMock()
         view.engine_settings_changed = MagicMock()
 
-        with patch("src.gui.components.toast.ToastManager.success"):
+        with patch("src.gui.components.feedback.toast.ToastManager.success"):
             view.save_all_settings()
             view.engine_path_changed.emit.assert_called_once_with("stockfish-new")
 

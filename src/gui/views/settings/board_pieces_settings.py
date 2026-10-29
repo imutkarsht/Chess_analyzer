@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
 
 from ....utils.path_utils import get_resource_path
 from ...components import Tabs, TabVariant
-from ...components.toast import ToastManager
+from ...components.feedback.toast import ToastManager
 from ...styles import Styles
 from ...theme.palette import BOARD_THEMES
 from .board_preview import BoardThemePreview, board_swatch, piece_theme_preview

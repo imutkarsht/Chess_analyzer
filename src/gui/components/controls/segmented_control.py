@@ -8,7 +8,7 @@ from typing import Any
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy, QWidget
 
-from src.gui.components.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 

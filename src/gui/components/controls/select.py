@@ -28,8 +28,7 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-
-from .smooth_scroll import SmoothScroll
+from src.gui.utils.smooth_scroll import SmoothScroll
 
 _UNSET = object()
 

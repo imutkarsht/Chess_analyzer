@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import QDialog, QMessageBox
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, invalidate_engine_cache, resolve_engine_path
 from src.gui.analysis.analysis_worker import AnalysisWorker
-from src.gui.components.toast import ToastManager
+from src.gui.components.feedback.toast import ToastManager
 from src.gui.dialogs.engine_error_dialog import EngineNotFoundDialog
 from src.gui.dialogs.feedback_dialog import FeedbackDialog
 from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog

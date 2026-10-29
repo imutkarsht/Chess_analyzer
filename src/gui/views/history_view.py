@@ -15,8 +15,8 @@ from src.backend.storage.game_query import (
     GameQuery,
 )
 from src.gui.components import Button, ButtonVariant, Input, InputVariant, Select
-from src.gui.components.game_list_widget import GameListWidget
-from src.gui.components.toast import ToastHandle, ToastManager
+from src.gui.components.feedback.toast import ToastHandle, ToastManager
+from src.gui.components.lists.game_list_widget import GameListWidget
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
 from src.gui.utils.gui_utils import create_button

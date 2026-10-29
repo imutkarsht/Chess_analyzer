@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QColorDialog, QGroupBox, QVBoxLayout
 
 from ....config.settings_schema import get_spec
 from ...components import Button, ButtonVariant
-from ...components.toast import ToastManager
+from ...components.feedback.toast import ToastManager
 from ...styles import Styles
 from ...theme import ThemeManager
 from .components import RadioChoice, SettingsBinder, SettingsForm

@@ -1,5 +1,5 @@
 from src.backend.analysis.engine import resolve_engine_path
-from src.gui.components.toast import ToastManager
+from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 
 

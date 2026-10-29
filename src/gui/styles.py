@@ -330,7 +330,7 @@ class Styles(metaclass=_StylesMeta):
         font_size: int | None = None,
         font_weight: int | None = None,
     ) -> str:
-        """Stylesheet for :class:`src.gui.components.button.Button`.
+        """Stylesheet for :class:`src.gui.components.controls.button.Button`.
 
         One generator for every button in the app, so hover/pressed/checked/
         disabled states stay identical everywhere and follow the live palette.
@@ -479,7 +479,7 @@ class Styles(metaclass=_StylesMeta):
         text_color: str | None = None,
         radius: int = 16,
     ) -> str:
-        """Stylesheet for :class:`src.gui.components.toast.Toast`.
+        """Stylesheet for :class:`src.gui.components.feedback.toast.Toast`.
 
         The panel stays close to the neutral notification references: an
         elevated surface, one hairline border, and no saturated variant wash.
@@ -733,7 +733,7 @@ class Styles(metaclass=_StylesMeta):
     ) -> str:
         """Chrome for every single-line editor in the app.
 
-        Rendering is driven by :class:`~src.gui.components.input.Input`; this
+        Rendering is driven by :class:`~src.gui.components.controls.input.Input`; this
         generator is the only place the look is defined. Variants change only
         the resting surface (``search`` is the filled filter bar); hover,
         focus, disabled and invalid states stay identical everywhere so a
@@ -857,7 +857,7 @@ class Styles(metaclass=_StylesMeta):
 
     @classmethod
     def get_select_popup_style(cls):
-        """Chrome for :class:`~src.gui.components.select.Select`'s popup.
+        """Chrome for :class:`~src.gui.components.controls.select.Select`'s popup.
 
         The panel background and border are painted by the component (a
         translucent top-level window), so this only styles the scroll area.
@@ -1199,7 +1199,7 @@ class Styles(metaclass=_StylesMeta):
         indicator_size: int = 3,
         accent: str | None = None,
     ) -> str:
-        """Stylesheet for ``src.gui.components.tabs.Tabs``.
+        """Stylesheet for ``src.gui.components.controls.tabs.Tabs``.
 
         One generator backs both looks: ``underline`` draws an accent bar under
         the active label, ``segmented`` renders button-like segments that either

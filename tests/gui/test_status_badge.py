@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.gui.components.status_badge import StatusBadge
+from src.gui.components.feedback.status_badge import StatusBadge
 
 
 def test_text_and_tone_update_independently(qtbot):

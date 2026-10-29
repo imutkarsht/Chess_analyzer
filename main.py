@@ -55,7 +55,7 @@ def main():
 
         # One wheel router for the whole app: every page, dialog and popup
         # inherits eased, pixel-precise scrolling without per-view wiring.
-        from src.gui.components.smooth_scroll import install_smooth_scrolling
+        from src.gui.utils.smooth_scroll import install_smooth_scrolling
 
         install_smooth_scrolling(app)
 

@@ -37,8 +37,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components.button import Button, ButtonSize, ButtonVariant
-from src.gui.components.toast_icons import toast_icon
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.feedback.toast_icons import toast_icon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
