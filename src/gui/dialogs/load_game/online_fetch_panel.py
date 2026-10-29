@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
@@ -23,6 +22,8 @@ from src.gui.components import (
     ButtonVariant,
     DatePicker,
     FormField,
+    Input,
+    InputSize,
     PulsingSkeleton,
     StatusBadge,
     Tabs,
@@ -246,10 +247,11 @@ class OnlineFetchPanel(QWidget):
         card.setContentsMargins(20, 20, 20, 20)
         card.setSpacing(16)
 
-        self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Username")
-        self.username_input.setStyleSheet(Styles.get_field_input_qss())
-        self.username_input.returnPressed.connect(self._fetch)
+        self.username_input = Input(
+            placeholder="Username",
+            size=InputSize.LG,
+            on_submit=self._fetch,
+        )
         self.username_field = FormField("Username", self.username_input)
         card.addWidget(self.username_field)
 
@@ -267,10 +269,11 @@ class OnlineFetchPanel(QWidget):
         )
         card.addWidget(self.date_field)
 
-        self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("https://www.chess.com/game/…")
-        self.url_input.setStyleSheet(Styles.get_field_input_qss())
-        self.url_input.returnPressed.connect(self._fetch)
+        self.url_input = Input(
+            placeholder="https://www.chess.com/game/…",
+            size=InputSize.LG,
+            on_submit=self._fetch,
+        )
         self.url_field = FormField(
             "Game URL",
             self.url_input,
@@ -483,9 +486,6 @@ class OnlineFetchPanel(QWidget):
             }}
             """
         )
-        input_style = Styles.get_field_input_qss()
-        self.username_input.setStyleSheet(input_style)
-        self.url_input.setStyleSheet(input_style)
         for page in (self._error_page, self._empty_page):
             page.setStyleSheet(self._inline_state_qss())
         self._error_title.setStyleSheet(

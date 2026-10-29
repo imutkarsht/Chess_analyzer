@@ -7,16 +7,14 @@ from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QStackedWidget,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.services.feedback_service import FeedbackService, FeedbackWorker
 from src.constants import REVIEW_SNOOZE_INTERVAL
-from src.gui.components import Button, ButtonVariant
+from src.gui.components import Button, ButtonVariant, Input, TextArea
 from src.gui.components.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -123,9 +121,7 @@ class ReviewPromptDialog(QDialog):
             or self.config_manager.get("lichess_username", "")
             or ""
         )
-        self.name_input = QLineEdit(default_user)
-        self.name_input.setPlaceholderText("e.g. Grandmaster99")
-        self.name_input.setStyleSheet(Styles.get_input_style())
+        self.name_input = Input(default_user, "e.g. Grandmaster99")
         name_group.addWidget(self.name_input)
         form_layout.addLayout(name_group)
 
@@ -136,10 +132,10 @@ class ReviewPromptDialog(QDialog):
         comment_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
         comment_group.addWidget(comment_lbl)
 
-        self.comment_input = QTextEdit()
-        self.comment_input.setFixedHeight(75)
-        self.comment_input.setPlaceholderText("What do you like best? Any suggestions?")
-        self.comment_input.setStyleSheet(Styles.get_input_style())
+        self.comment_input = TextArea(
+            placeholder="What do you like best? Any suggestions?",
+            min_height=75,
+        )
         comment_group.addWidget(self.comment_input)
         form_layout.addLayout(comment_group)
 

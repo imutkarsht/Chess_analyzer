@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QRadioButton,
     QSizePolicy,
     QSpinBox,
@@ -25,6 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SettingSpec, get_spec
+from src.gui.components.input import DecimalInput, Input, NumberInput
 from src.gui.components.select import Select, SelectOption
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
@@ -186,37 +186,21 @@ def make_checkbox(text: str, max_width: int | None = None) -> QCheckBox:
     return box
 
 
-def make_line_edit(placeholder: str = "", max_width: int = CONTROL_DEFAULT) -> QLineEdit:
-    edit = QLineEdit()
-    edit.setPlaceholderText(placeholder)
-    edit.setStyleSheet(Styles.get_input_style())
+def make_line_edit(placeholder: str = "", max_width: int = CONTROL_DEFAULT) -> Input:
+    """Settings-row text field: one central Input, no local styling."""
+    edit = Input(placeholder=placeholder)
     edit.setMaximumWidth(max_width)
     return edit
 
 
-def make_spin(maximum: int = 9999, minimum: int = 0, step: int = 1, suffix: str = "") -> QSpinBox:
-    spin = QSpinBox()
-    spin.setRange(minimum, maximum)
-    spin.setSingleStep(step)
-    if suffix:
-        spin.setSuffix(f" {suffix}")
-    spin.setMaximumWidth(140)
-    spin.setStyleSheet(Styles.get_input_style())
-    return spin
+def make_spin(maximum: int = 9999, minimum: int = 0, step: int = 1, suffix: str = "") -> NumberInput:
+    return NumberInput(minimum, maximum, step, suffix, width=140)
 
 
 def make_double_spin(
     maximum: float = 100.0, minimum: float = 0.0, step: float = 0.1, suffix: str = ""
-) -> QDoubleSpinBox:
-    spin = QDoubleSpinBox()
-    spin.setRange(minimum, maximum)
-    spin.setSingleStep(step)
-    spin.setDecimals(1)
-    if suffix:
-        spin.setSuffix(f" {suffix}")
-    spin.setMaximumWidth(140)
-    spin.setStyleSheet(Styles.get_input_style())
-    return spin
+) -> DecimalInput:
+    return DecimalInput(minimum, maximum, step, suffix, width=140)
 
 
 class RadioChoice(QWidget):
@@ -363,11 +347,9 @@ class SettingsBinder(QObject):
             )
             return select
         if spec.kind == "secret":
-            from .modern_widgets import PasswordFieldWrapper
-
-            wrapper = PasswordFieldWrapper()
-            wrapper.setMaximumWidth(420)
-            return wrapper
+            field = Input(password=True)
+            field.setMaximumWidth(420)
+            return field
         if spec.kind == "path":
             return make_line_edit(spec.description, CONTROL_WIDE)
         if spec.kind == "int":

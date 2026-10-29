@@ -119,7 +119,7 @@ class BookSettings(QGroupBox):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
         if hasattr(self, "polyglot_path_input"):
-            self.polyglot_path_input.setStyleSheet(Styles.get_input_style())
+            self.polyglot_path_input.refresh_styles()
         if hasattr(self, "polyglot_browse_btn"):
             self.polyglot_browse_btn.refresh_styles()
         if hasattr(self, "polyglot_clear_btn"):

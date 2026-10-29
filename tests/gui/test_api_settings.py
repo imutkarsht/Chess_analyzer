@@ -66,12 +66,12 @@ def test_keyless_provider_disables_the_key_field(qapp):
     widget.llm_provider_combo.setCurrentIndex(
         widget.llm_provider_combo.findData("lmstudio")
     )
-    assert widget.llm_key_input.line_edit.isEnabled() is False
+    assert widget.llm_key_input.isEnabled() is False
 
     widget.llm_provider_combo.setCurrentIndex(
         widget.llm_provider_combo.findData("custom")
     )
-    assert widget.llm_key_input.line_edit.isEnabled() is True
+    assert widget.llm_key_input.isEnabled() is True
     widget.deleteLater()
 
 

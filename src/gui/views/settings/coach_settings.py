@@ -76,8 +76,8 @@ class CoachSettings(QGroupBox):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        self.temperature_input.setStyleSheet(Styles.get_input_style())
-        self.max_tokens_input.setStyleSheet(Styles.get_input_style())
+        self.temperature_input.refresh_styles()
+        self.max_tokens_input.refresh_styles()
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
         self.explain_trivial_checkbox.setStyleSheet(
             Styles.get_settings_checkbox_style(tick_path)

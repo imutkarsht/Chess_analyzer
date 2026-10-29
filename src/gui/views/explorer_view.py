@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QScrollArea,
     QSplitter,
     QVBoxLayout,
@@ -31,7 +30,14 @@ from src.backend.storage.game_history import GameHistoryManager
 from src.gui.analysis.captured import CapturedPiecesWidget
 from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
 from src.gui.board import Board, BoardConfig
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Input,
+    InputSize,
+    InputVariant,
+)
 from src.gui.components.loading_widget import LoadingOverlay
 from src.gui.engine_lines import (
     EngineLinesConfig,
@@ -327,12 +333,14 @@ class ExplorerView(QWidget):
         self.move_list_label = QLabel("Moves")
         self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
         moves_header.addWidget(self.move_list_label)
-        self.move_input = QLineEdit()
-        self.move_input.setPlaceholderText("type SAN move...")
+        self.move_input = Input(
+            placeholder="type SAN move...",
+            variant=InputVariant.INLINE,
+            size=InputSize.SM,
+            on_submit=self._on_move_text_entered,
+        )
         self.move_input.setToolTip("Enter a move in standard algebraic notation (e.g. e4, Nf3, O-O)")
-        self.move_input.setStyleSheet(Styles.get_line_edit_style())
         self.move_input.setMinimumWidth(120)
-        self.move_input.returnPressed.connect(self._on_move_text_entered)
         moves_header.addWidget(self.move_input)
         moves_header.addStretch()
         right_layout.addLayout(moves_header)
@@ -1016,11 +1024,11 @@ class ExplorerView(QWidget):
         except Exception as e:
             if not isinstance(e, ValueError) or str(e) != f"Illegal move: {text}":
                 pass
-            self.move_input.setStyleSheet(Styles.get_line_edit_error_style())
+            self.move_input.set_invalid()
             QTimer.singleShot(1000, self._reset_move_input_style)
 
     def _reset_move_input_style(self):
-        self.move_input.setStyleSheet(Styles.get_line_edit_style())
+        self.move_input.clear_invalid()
 
     def _toggle_book(self, checked):
         self.book_scroll.setVisible(checked)
@@ -1345,7 +1353,7 @@ class ExplorerView(QWidget):
         if hasattr(self, 'move_list_label'):
             self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
         if hasattr(self, 'move_input'):
-            self.move_input.setStyleSheet(Styles.get_line_edit_style())
+            self.move_input.refresh_styles()
         if hasattr(self, 'engine_status_label'):
             self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED))
         if hasattr(self, 'lines_widget'):

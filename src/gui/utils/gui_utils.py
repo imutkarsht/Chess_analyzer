@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLayout,
-    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -120,42 +119,6 @@ def create_button(
     if not cursor:
         btn.setCursor(Qt.CursorShape.ArrowCursor)
     return btn
-
-
-def create_labeled_input(
-    label_text: str,
-    placeholder: str = "",
-    password: bool = False,
-    initial_value: str = ""
-) -> tuple:
-    """
-    Factory function to create a labeled input field.
-
-    Args:
-        label_text: Text for the label
-        placeholder: Placeholder text for input
-        password: Whether to mask input
-        initial_value: Initial value for the input
-
-    Returns:
-        Tuple of (QLabel, QLineEdit)
-    """
-    from src.gui.styles import Styles
-
-    label = QLabel(label_text)
-    label.setStyleSheet(Styles.get_secondary_label_style())
-
-    input_field = QLineEdit()
-    input_field.setStyleSheet(Styles.get_input_style())
-    input_field.setPlaceholderText(placeholder)
-
-    if password:
-        input_field.setEchoMode(QLineEdit.EchoMode.Password)
-
-    if initial_value:
-        input_field.setText(initial_value)
-
-    return label, input_field
 
 
 def create_section_header(

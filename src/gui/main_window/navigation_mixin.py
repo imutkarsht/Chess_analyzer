@@ -2,9 +2,6 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QAbstractButton,
     QApplication,
-    QLineEdit,
-    QPlainTextEdit,
-    QTextEdit,
 )
 
 from src.backend.analysis.navigation import find_critical_move
@@ -17,6 +14,7 @@ from src.constants import (
     PAGE_NAMES,
     REPLAY_INTERVAL_MS,
 )
+from src.gui.components.input import TEXT_INPUT_TYPES
 from src.gui.components.select import Select
 from src.gui.dialogs import ShortcutHelpDialog
 from src.gui.utils.shortcut_manager import ShortcutManager
@@ -232,7 +230,7 @@ class NavigationMixin:
 
     @staticmethod
     def _editing_text() -> bool:
-        return isinstance(QApplication.focusWidget(), (QLineEdit, QTextEdit, QPlainTextEdit))
+        return isinstance(QApplication.focusWidget(), TEXT_INPUT_TYPES)
 
     def _cycle_variation_branch(self, direction: int) -> None:
         if self._editing_text():
@@ -254,7 +252,7 @@ class NavigationMixin:
     def _handle_analyze_shortcut(self):
         """Handle Ctrl+A shortcut without hijacking select-all in editable fields."""
         focus_widget = QApplication.focusWidget()
-        if isinstance(focus_widget, (QLineEdit, QTextEdit, QPlainTextEdit)):
+        if isinstance(focus_widget, TEXT_INPUT_TYPES):
             focus_widget.selectAll()
             return
         self.start_analysis()
@@ -269,7 +267,7 @@ class NavigationMixin:
 
     def _handle_paste(self):
         focus_widget = QApplication.focusWidget()
-        if isinstance(focus_widget, (QLineEdit, QTextEdit, QPlainTextEdit)):
+        if isinstance(focus_widget, TEXT_INPUT_TYPES):
             focus_widget.paste()
             return
 

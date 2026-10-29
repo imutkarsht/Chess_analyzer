@@ -9,14 +9,19 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.services.groq_service import GroqService, explanation_tuning
 from src.constants import PROVIDERS
-from src.gui.components import Button, ButtonSize, ButtonVariant, Select
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Input,
+    Select,
+)
 from src.gui.components.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import show_error_dialog
@@ -27,7 +32,6 @@ from .components import (
     SettingsForm,
 )
 from .helpers import create_icon_button
-from .modern_widgets import PasswordFieldWrapper
 
 
 def test_llm_sync(profile: dict, tuning: tuple | None = None) -> tuple:
@@ -187,8 +191,7 @@ class ApiSettings(QGroupBox):
         )
 
         # --- Profile editor rows ---
-        self.llm_profile_name = QLineEdit()
-        self.llm_profile_name.setStyleSheet(Styles.get_input_style())
+        self.llm_profile_name = Input()
         self._profile_form.add_row(
             "Name",
             self.llm_profile_name,
@@ -211,7 +214,7 @@ class ApiSettings(QGroupBox):
             ),
         )
 
-        self.llm_key_input = PasswordFieldWrapper(self)
+        self.llm_key_input = Input(password=True)
         self.llm_key_input.setMaximumWidth(420)
         self.llm_help_btn = Button(
             "Get API key ↗",
@@ -237,8 +240,7 @@ class ApiSettings(QGroupBox):
             hint="Stored in the OS keychain, never in config.json.",
         )
 
-        self.llm_model_input = QLineEdit()
-        self.llm_model_input.setStyleSheet(Styles.get_input_style())
+        self.llm_model_input = Input()
         self._profile_form.add_row(
             "Model",
             self.llm_model_input,
@@ -246,9 +248,7 @@ class ApiSettings(QGroupBox):
             hint="Use the provider's exact model id.",
         )
 
-        self.llm_url_input = QLineEdit()
-        self.llm_url_input.setPlaceholderText("http://localhost:1234/v1")
-        self.llm_url_input.setStyleSheet(Styles.get_input_style())
+        self.llm_url_input = Input(placeholder="http://localhost:1234/v1")
         self._base_url_wrapper = self._profile_form.add_row(
             "Base URL",
             self.llm_url_input,
@@ -632,11 +632,11 @@ class ApiSettings(QGroupBox):
         if hasattr(self, 'llm_test_btn'):
             self.llm_test_btn.refresh_styles()
         if hasattr(self, 'llm_profile_name'):
-            self.llm_profile_name.setStyleSheet(Styles.get_input_style())
+            self.llm_profile_name.refresh_styles()
         if hasattr(self, 'llm_model_input'):
-            self.llm_model_input.setStyleSheet(Styles.get_input_style())
+            self.llm_model_input.refresh_styles()
         if hasattr(self, 'llm_url_input'):
-            self.llm_url_input.setStyleSheet(Styles.get_input_style())
+            self.llm_url_input.refresh_styles()
         if hasattr(self, '_profile_form'):
             self._profile_form.refresh_styles()
         for widget in [self.llm_key_input]:
