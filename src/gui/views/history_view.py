@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -82,6 +82,12 @@ class HistoryView(QWidget):
         self._total = 0
         self._offset = 0
         self._loading_more = False
+        # Load the second page while the reader is still looking at the first,
+        # so scrolling rarely waits on the database or on row construction.
+        self._prefetch_timer = QTimer(self)
+        self._prefetch_timer.setSingleShot(True)
+        self._prefetch_timer.setInterval(250)
+        self._prefetch_timer.timeout.connect(self._prefetch_next_page)
         # Every keystroke used to rebuild all 10 row widgets; coalesce instead.
         self._filter_debounce = Debouncer(self, interval=150)
 
@@ -312,6 +318,7 @@ class HistoryView(QWidget):
         return [self.history_manager.row_to_game_analysis(row) for row in rows]
 
     def _reload(self, preserve_position: bool):
+        self._prefetch_timer.stop()
         try:
             self._refresh_usernames()
             query = self._current_query()
@@ -343,8 +350,19 @@ class HistoryView(QWidget):
                     self.games.extend(extra)
                     self.game_list.append_rows(extra)
                     pages += 1
+            self._schedule_prefetch()
         except Exception as e:
             logger.error(f"Failed to load history: {e}")
+
+    def _schedule_prefetch(self):
+        """Warm the next page while the first one is still being read."""
+        if self.isVisible() and self._offset < self._total and self._offset <= self._page_size():
+            self._prefetch_timer.start()
+
+    def _prefetch_next_page(self):
+        if self._offset >= self._total or self._loading_more:
+            return
+        self._load_more()
 
     def _load_more(self):
         """Append the next page when the list nears its end."""

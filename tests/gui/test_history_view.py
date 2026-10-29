@@ -386,3 +386,24 @@ def test_history_row_click_hydrates_the_full_game(tmp_path, qtbot):
     assert opened.game_id == "full"
     assert len(opened.moves) == 2
     assert opened.pgn_content
+
+
+def test_history_view_prefetches_one_page_beyond_the_first(tmp_path, qtbot):
+    """The next page is warmed so scrolling does not wait on the database."""
+    manager = GameHistoryManager(str(tmp_path / "prefetch.db"))
+    _seed_games(manager, 60)
+
+    view = HistoryView()
+    qtbot.addWidget(view)
+    view.history_manager = manager
+    view.load_history()
+
+    first_page = view._page_size()
+    assert view._offset == first_page
+
+    view._prefetch_next_page()
+
+    assert view._offset == first_page * 2
+    # Prefetch stops after one page of headroom; scrolling takes over from here.
+    view._schedule_prefetch()
+    assert not view._prefetch_timer.isActive()
