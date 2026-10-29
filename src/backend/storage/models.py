@@ -126,6 +126,11 @@ class GameMetadata:
     speed_category: str | None = None
     opening: str | None = None
     source: str = "file"  # file, chesscom, lichess
+
+    # Denormalised list metadata, written at ingestion so list rows never need
+    # to parse pgn/moves_json to render a card.
+    move_count: int | None = None
+    last_fen: str | None = None
     chess960: bool = False
 
 

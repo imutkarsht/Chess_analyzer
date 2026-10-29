@@ -1,5 +1,3 @@
-import re
-
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
@@ -10,6 +8,12 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
+from src.backend.storage.game_query import (
+    RESULT_DRAW,
+    RESULT_LOSS,
+    RESULT_WIN,
+    GameQuery,
+)
 from src.gui.components import Button, ButtonVariant, Input, InputVariant, Select
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.components.toast import ToastHandle, ToastManager
@@ -74,6 +78,10 @@ class HistoryView(QWidget):
         self.games = []
         self._import_worker: GameImportWorker | None = None
         self.analyzing_game_id: str | None = None
+        self.usernames: list[str] = []
+        self._total = 0
+        self._offset = 0
+        self._loading_more = False
         # Every keystroke used to rebuild all 10 row widgets; coalesce instead.
         self._filter_debounce = Debouncer(self, interval=150)
 
@@ -136,7 +144,10 @@ class HistoryView(QWidget):
             variant=InputVariant.SEARCH,
             clearable=True,
         )
-        self.search_input.setMinimumWidth(220)
+        self.search_input.setMinimumWidth(240)
+        # A search field is a fixed column, not the flexible one: the filters
+        # need the remaining width more than the text box does.
+        self.search_input.setMaximumWidth(420)
         self.search_input.textChanged.connect(
             lambda *_: self._filter_debounce.call(self.apply_filters)
         )
@@ -205,8 +216,9 @@ class HistoryView(QWidget):
         # Game List
         self.game_list = GameListWidget()
         self.game_list.game_selected.connect(self.on_game_selected)
-        self.game_list.game_action_requested.connect(self.game_action_requested.emit)
-        self.game_list.game_deleted.connect(self.game_deleted)
+        self.game_list.game_action_requested.connect(self._on_game_action_requested)
+        self.game_list.game_deleted.connect(self._on_game_deleted)
+        self.game_list.load_more_requested.connect(self._load_more)
         content_layout.addWidget(self.game_list)
         self.apply_default_view_mode()
 
@@ -241,155 +253,162 @@ class HistoryView(QWidget):
             self.game_list.set_analyzing_game_id(game_id)
 
     def load_history(self):
-        try:
-            history_games = self.history_manager.get_all_games()
-            self.games = []
-            for g_dict in history_games:
-                self.games.append(self.history_manager.row_to_game_analysis(g_dict))
+        """Reload the current query from the first page, keeping the reader's place."""
+        self._reload(preserve_position=True)
 
+    def apply_filters(self):
+        """Re-run the query from the first page after a filter or sort change."""
+        self._reload(preserve_position=False)
+
+    # ── Query + paging ────────────────────────────────────────────────────────
+
+    _DETAILED_PAGE_SIZE = 10
+    _COMPACT_PAGE_SIZE = 15
+    _MAX_RESTORE_PAGES = 4
+
+    def _page_size(self) -> int:
+        """Cards are taller than rows, so the page size follows the view mode."""
+        if self.game_list.view_mode == "detailed":
+            return self._DETAILED_PAGE_SIZE
+        return self._COMPACT_PAGE_SIZE
+
+    def _current_query(self) -> GameQuery:
+        """Translate the filter controls into a single database query."""
+        result_map = {
+            "Wins": RESULT_WIN,
+            "Losses": RESULT_LOSS,
+            "Draws": RESULT_DRAW,
+        }
+        source_map = {"Chess.com": "chesscom", "Lichess": "lichess", "File": "file"}
+        sort_map = {
+            "Newest First": "newest",
+            "Oldest First": "oldest",
+            "Most Moves": "most_moves",
+            "Fewest Moves": "fewest_moves",
+        }
+        type_text = self.type_filter.currentText()
+        return GameQuery(
+            search=self.search_input.text().strip().lower(),
+            result=result_map.get(self.result_filter.currentText(), ""),
+            speed="" if type_text == "All" else type_text,
+            source=source_map.get(self.source_filter.currentText(), ""),
+            sort=sort_map.get(self.sort_dropdown.currentText(), "newest"),
+            usernames=tuple(self.usernames),
+            limit=self._page_size(),
+            offset=0,
+        )
+
+    def _refresh_usernames(self):
+        if not self.config_manager:
             self.usernames = []
-            if self.config_manager:
-                chesscom = self.config_manager.get("chesscom_username", "")
-                lichess = self.config_manager.get("lichess_username", "")
-                self.usernames = [u for u in [chesscom, lichess] if u]
+            return
+        chesscom = self.config_manager.get("chesscom_username", "")
+        lichess = self.config_manager.get("lichess_username", "")
+        self.usernames = [u for u in [chesscom, lichess] if u]
 
-            # Apply filters after loading
-            self.apply_filters()
+    def _fetch_page(self, query: GameQuery) -> list:
+        """Fetch one page of hydrated rows for the list."""
+        rows = self.history_manager.fetch_games_page(query)
+        return [self.history_manager.row_to_game_analysis(row) for row in rows]
+
+    def _reload(self, preserve_position: bool):
+        try:
+            self._refresh_usernames()
+            query = self._current_query()
+            top_id = self.game_list.top_game_id() if preserve_position else None
+
+            total = self.history_manager.count_games(query)
+            self._total = total
+            self._offset = 0
+            self.game_list.reset(total, self.usernames)
+
+            games = self._fetch_page(query)
+            self._offset = len(games)
+            self.games = games
+            self.game_list.append_rows(games)
+
+            if top_id:
+                # Re-create enough pages to find the row the reader was on, so
+                # returning from a game does not throw them back to the top.
+                pages = 1
+                while (
+                    not self.game_list.scroll_to_game(top_id)
+                    and self._offset < total
+                    and pages < self._MAX_RESTORE_PAGES
+                ):
+                    extra = self._fetch_page(query.with_offset(self._offset))
+                    if not extra:
+                        break
+                    self._offset += len(extra)
+                    self.games.extend(extra)
+                    self.game_list.append_rows(extra)
+                    pages += 1
         except Exception as e:
             logger.error(f"Failed to load history: {e}")
 
-    def apply_filters(self):
-        """Apply search, filter, and sort settings to the game list."""
-        search_query = self.search_input.text().strip().lower()
-        result_filter = self.result_filter.currentText()
-        type_filter = self.type_filter.currentText()
-        source_filter = self.source_filter.currentText()
-        sort_option = self.sort_dropdown.currentText()
+    def _load_more(self):
+        """Append the next page when the list nears its end."""
+        if self._loading_more or self._offset >= self._total:
+            return
+        self._loading_more = True
+        try:
+            query = self._current_query().with_offset(self._offset)
+            games = self._fetch_page(query)
+            if not games:
+                self._total = self._offset
+                self.game_list.set_total(self._total)
+                return
+            self._offset += len(games)
+            self.games.extend(games)
+            self.game_list.append_rows(games)
+        except Exception as e:
+            logger.error(f"Failed to load more history: {e}")
+        finally:
+            self._loading_more = False
 
-        filtered_games = self.games.copy()
+    def _on_game_deleted(self, game_id: str):
+        """Keep paging state in sync after an in-place delete."""
+        self._offset = max(0, self._offset - 1)
+        self._total = max(0, self._total - 1)
+        self.games = [g for g in self.games if getattr(g, "game_id", None) != game_id]
+        self.game_deleted.emit(game_id)
+        if self._offset < self._total:
+            self._load_more()
 
-        # Apply Search Filter first
-        if search_query:
-            filtered_games = self._filter_by_search(filtered_games, search_query)
+    def refresh_game(self, game_id: str | None):
+        """Refresh one rendered row after its analysis changed."""
+        if not game_id:
+            return
+        try:
+            row = self.history_manager.fetch_game_row(game_id)
+            if row:
+                self.game_list.update_row(game_id, self.history_manager.row_to_game_analysis(row))
+        except Exception as e:
+            logger.debug(f"Failed to refresh history row {game_id}: {e}")
 
-        # Apply Result Filter
-        if result_filter != "All":
-            filtered_games = self._filter_by_result(filtered_games, result_filter)
-
-        # Apply Type (Speed Category) Filter
-        if type_filter != "All":
-            filtered_games = self._filter_by_type(filtered_games, type_filter)
-
-        # Apply Source Filter
-        if source_filter != "All":
-            filtered_games = self._filter_by_source(filtered_games, source_filter)
-
-        # Apply Sorting
-        filtered_games = self._sort_games(filtered_games, sort_option)
-
-        self.game_list.set_games(filtered_games, self.usernames)
-
-    def _filter_by_type(self, games, type_filter):
-        """Filter games by speed category / game type."""
-        from src.backend.storage.pgn_parser import PGNParser
-
-        target = type_filter.lower()
-        filtered = []
-        for g in games:
-            cat = getattr(g.metadata, "speed_category", None) or PGNParser._detect_speed_category(
-                g.metadata.time_control, g.metadata.event
-            )
-            if cat.lower() == target:
-                filtered.append(g)
-        return filtered
-
-    def _filter_by_search(self, games, query):
-        """Filter games by search query matching player names, opening, event, or date."""
-        filtered = []
-
-        for game in games:
-            # Get searchable fields
-            white = (game.metadata.white or "").lower()
-            black = (game.metadata.black or "").lower()
-            opening = (game.metadata.opening or "").lower()
-            event = (game.metadata.event or "").lower()
-            date = (game.metadata.date or "").lower()
-            eco = (game.metadata.eco or "").lower()
-
-            # Check if query matches any field
-            if (
-                query in white
-                or query in black
-                or query in opening
-                or query in event
-                or query in date
-                or query in eco
-            ):
-                filtered.append(game)
-
-        return filtered
-
-    def _filter_by_result(self, games, result_filter):
-        """Filter games by result (wins/losses/draws from user perspective)."""
-        filtered = []
-        usernames_lower = [u.lower() for u in self.usernames] if self.usernames else []
-
-        for game in games:
-            result = game.metadata.result
-            white = game.metadata.white.lower() if game.metadata.white else ""
-            black = game.metadata.black.lower() if game.metadata.black else ""
-
-            # Determine user color
-            user_is_white = white in usernames_lower
-            user_is_black = black in usernames_lower
-
-            if result_filter == "Wins":
-                if (result == "1-0" and user_is_white) or (result == "0-1" and user_is_black):
-                    filtered.append(game)
-            elif result_filter == "Losses":
-                if (result == "0-1" and user_is_white) or (result == "1-0" and user_is_black):
-                    filtered.append(game)
-            elif result_filter == "Draws" and result == "1/2-1/2":
-                filtered.append(game)
-
-        return filtered
-
-    def _filter_by_source(self, games, source_filter):
-        """Filter games by source platform."""
-        source_map = {"Chess.com": "chesscom", "Lichess": "lichess", "File": "file"}
-        target_source = source_map.get(source_filter, "")
-
-        return [g for g in games if getattr(g.metadata, "source", "file") == target_source]
-
-    def _sort_games(self, games, sort_option):
-        """Sort games based on selected option."""
-        if sort_option == "Newest First":
-            # Sort by timestamp descending (default order from DB)
-            return games  # Already sorted by timestamp DESC
-        elif sort_option == "Oldest First":
-            return list(reversed(games))
-        elif sort_option == "Most Moves" or sort_option == "Fewest Moves":
-            # Calculate move count for sorting
-            def get_move_count(game):
-                if hasattr(game, "moves") and game.moves:
-                    return (len(game.moves) + 1) // 2
-                elif hasattr(game, "pgn_content") and game.pgn_content:
-                    moves = re.findall(
-                        r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]", game.pgn_content, re.MULTILINE
-                    )
-                    if moves:
-                        move_nums = [int(m) for m in moves if int(m) <= 500]
-                        if move_nums:
-                            return max(move_nums)
-                return 0
-
-            reverse = sort_option == "Most Moves"
-            return sorted(games, key=get_move_count, reverse=reverse)
-
-        return games
 
     def on_game_selected(self, game):
-        self.game_selected.emit(game)
+        self.game_selected.emit(self._full_game(game))
+
+    def _on_game_action_requested(self, game, action: str):
+        self.game_action_requested.emit(self._full_game(game), action)
+
+    def _full_game(self, game):
+        """Hydrate a list row into the complete record before handing it out.
+
+        List rows intentionally carry only metadata and summary (no moves, no
+        pgn), so anything that opens a game needs the full record loaded for
+        that one id — never for the whole page.
+        """
+        game_id = getattr(game, "game_id", None)
+        if not game_id or game.moves or game.pgn_content:
+            return game
+        try:
+            full = self.history_manager.get_game_analysis(game_id)
+        except Exception as e:
+            logger.error(f"Failed to hydrate game {game_id}: {e}")
+            return game
+        return full or game
 
     def clear_history(self):
         from src.gui.utils.gui_utils import confirm_dialog
@@ -459,7 +478,7 @@ class HistoryView(QWidget):
                 logger.info(
                     f"Imported {imported_count} games from {file_name} (skipped: {skipped_count})"
                 )
-                self.load_history()
+                self.apply_filters()
                 if imported_count > 0:
                     self.games_imported.emit(imported_count)
                 handle.update(

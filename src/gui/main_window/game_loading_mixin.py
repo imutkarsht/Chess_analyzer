@@ -159,6 +159,13 @@ class GameLoadingMixin:
         if hasattr(self, "variation"):
             self.variation.reset_session()
 
+        # History cards carry no moves/pgn by design; hydrate the one game being
+        # opened rather than the whole list.
+        if from_history and not game.moves and getattr(game, "game_id", None):
+            full = self.history_manager.get_game_analysis(game.game_id)
+            if full is not None:
+                game = full
+
         # If game has no moves but has PGN content (loaded from history), parse it
         if not game.moves and game.pgn_content:
             try:
@@ -192,7 +199,8 @@ class GameLoadingMixin:
             try:
                 self.history_manager.save_game(game, game.pgn_content)
                 if hasattr(self, "history_view"):
-                    self.history_view.load_history()
+                    # New row belongs at the top of the active result set.
+                    self.history_view.apply_filters()
             except Exception as e:
                 logger.debug(f"Failed to auto-save loaded game to history: {e}")
 

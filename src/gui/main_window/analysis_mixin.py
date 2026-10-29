@@ -273,7 +273,7 @@ class AnalysisMixin:
                 self.metrics_view.refresh(force=True)
         if hasattr(self, "history_view"):
             self.history_view.set_analyzing_game_id(None)
-            self.history_view.load_history()
+            self.history_view.refresh_game(getattr(game, "game_id", None))
 
     def on_history_changed(self, *_):
         if hasattr(self, "metrics_view"):
@@ -302,7 +302,7 @@ class AnalysisMixin:
                 self.metrics_view.refresh(force=True)
         if hasattr(self, "history_view"):
             self.history_view.set_analyzing_game_id(None)
-            self.history_view.load_history()
+            self.history_view.refresh_game(getattr(game, "game_id", None))
 
         # Track analyzed games count and check for in-app review prompt
         count = self.config_manager.get("games_analyzed_count", 0) + 1

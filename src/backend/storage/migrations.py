@@ -93,6 +93,8 @@ def _ensure_tables_and_columns(cursor: sqlite3.Cursor) -> None:
         ("black_great_count", "INTEGER DEFAULT 0"),
         ("termination_mode", "TEXT"),
         ("ai_summary", "TEXT"),
+        ("move_count", "INTEGER"),
+        ("last_fen", "TEXT"),
     ]
 
     cursor.execute("PRAGMA table_info(games)")
@@ -105,6 +107,77 @@ def _ensure_tables_and_columns(cursor: sqlite3.Cursor) -> None:
                 cursor.execute(f"ALTER TABLE games ADD COLUMN {col_name} {col_type}")
             except Exception as e:
                 logger.error("Failed to add column %s: %s", col_name, e)
+
+
+def _backfill_list_metadata(cursor: sqlite3.Cursor) -> None:
+    """Populate ``move_count``/``last_fen`` for rows saved before they existed.
+
+    List rows are rendered from light columns only, so any value that would
+    otherwise require parsing ``moves_json`` must be materialised once here.
+    """
+    cursor.execute(
+        "SELECT id, moves_json, summary_json FROM games "
+        "WHERE move_count IS NULL OR last_fen IS NULL"
+    )
+    rows = cursor.fetchall()
+    if not rows:
+        return
+
+    import json
+
+    updates: list[tuple[int | None, str | None, str]] = []
+    for game_id, moves_json, summary_json in rows:
+        move_count: int | None = None
+        last_fen: str | None = None
+
+        moves_data: list = []
+        if moves_json:
+            try:
+                parsed = json.loads(moves_json)
+                if isinstance(parsed, list):
+                    moves_data = parsed
+            except (json.JSONDecodeError, TypeError, ValueError):
+                moves_data = []
+
+        if moves_data:
+            move_count = (len(moves_data) + 1) // 2
+        elif summary_json:
+            try:
+                total_plies = int(json.loads(summary_json).get("total_moves") or 0)
+            except (json.JSONDecodeError, TypeError, ValueError, AttributeError):
+                total_plies = 0
+            if total_plies > 0:
+                move_count = (total_plies + 1) // 2
+
+        if moves_data:
+            last_fen = _fen_after_last_move(moves_data[-1])
+
+        if move_count is not None or last_fen is not None:
+            updates.append((move_count, last_fen, game_id))
+
+    if updates:
+        cursor.executemany(
+            "UPDATE games SET move_count = COALESCE(?, move_count), "
+            "last_fen = COALESCE(?, last_fen) WHERE id = ?",
+            updates,
+        )
+        logger.info("Migrating DB: backfilled list metadata for %d games", len(updates))
+
+
+def _fen_after_last_move(move: dict) -> str | None:
+    """Return the FEN after ``move`` using its pre-move FEN and UCI move."""
+    import chess
+
+    fen_before = move.get("fen_before")
+    uci = move.get("uci")
+    if not fen_before or not uci:
+        return None
+    try:
+        board = chess.Board(fen_before)
+        board.push(chess.Move.from_uci(uci))
+        return board.fen()
+    except (ValueError, AssertionError):
+        return None
 
 
 def _backfill_termination_mode(cursor: sqlite3.Cursor) -> None:
@@ -281,12 +354,75 @@ def _create_performance_indexes(cursor: sqlite3.Cursor) -> None:
             "idx_games_source",
             "CREATE INDEX IF NOT EXISTS idx_games_source ON games(source)",
         ),
+        (
+            "idx_games_move_count",
+            "CREATE INDEX IF NOT EXISTS idx_games_move_count ON games(move_count)",
+        ),
     ]
     for idx_name, idx_sql in indexes:
         try:
             cursor.execute(idx_sql)
         except Exception as e:
             logger.warning("Could not create index %s: %s", idx_name, e)
+
+
+def _backfill_analysis_status(cursor: sqlite3.Cursor) -> None:
+    """Persist analysis status into ``summary_json`` for rows saved before it.
+
+    List rows no longer load ``moves_json``, so status must come from the stored
+    summary. Runs on every startup until no row is missing it, which also heals
+    databases that were already migrated past an earlier schema version.
+    """
+    cursor.execute(
+        "SELECT id, moves_json, summary_json FROM games "
+        "WHERE summary_json IS NULL OR summary_json NOT LIKE '%analysis_status%'"
+    )
+    rows = cursor.fetchall()
+    if not rows:
+        return
+
+    import json
+
+    updates: list[tuple[str, str]] = []
+    for game_id, moves_json, summary_json in rows:
+        try:
+            summary = json.loads(summary_json) if summary_json else {}
+        except (json.JSONDecodeError, TypeError, ValueError):
+            summary = {}
+        if not isinstance(summary, dict):
+            summary = {}
+        if summary.get("analysis_status"):
+            continue
+
+        moves_data: list = []
+        if moves_json:
+            try:
+                parsed = json.loads(moves_json)
+                if isinstance(parsed, list):
+                    moves_data = parsed
+            except (json.JSONDecodeError, TypeError, ValueError):
+                moves_data = []
+
+        total = len(moves_data)
+        analyzed = sum(1 for move in moves_data if move.get("classification"))
+
+        if total == 0 or analyzed == 0:
+            status = "not_started"
+        elif analyzed < total:
+            status = "paused"
+        else:
+            # Mirrors GameAnalysis.status: a fully analysed game is complete
+            # even when the stored summary predates accuracy tracking.
+            status = "completed"
+
+        summary["analysis_status"] = status
+        summary["analyzed_moves"] = analyzed
+        summary.setdefault("total_moves", total)
+        updates.append((json.dumps(summary), game_id))
+
+    if updates:
+        cursor.executemany("UPDATE games SET summary_json = ? WHERE id = ?", updates)
+        logger.info("Migrating DB: backfilled analysis status for %d games", len(updates))
 
 
 def _backfill_legacy_tactics(cursor: sqlite3.Cursor) -> None:
@@ -456,11 +592,13 @@ def init_db(db_path: str) -> None:
                 _create_pre_migration_backup(conn, db_path)
                 _ensure_tables_and_columns(cursor)
                 _backfill_termination_mode(cursor)
+                _backfill_list_metadata(cursor)
                 _deduplicate_lichess_games(cursor)
                 _create_performance_indexes(cursor)
                 cursor.execute(f"PRAGMA user_version = {CURRENT_SCHEMA_VERSION}")
 
             _backfill_legacy_tactics(cursor)
+            _backfill_analysis_status(cursor)
 
             # Check database integrity on launch
             try:

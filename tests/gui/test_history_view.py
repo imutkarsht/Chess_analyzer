@@ -280,3 +280,109 @@ def test_history_view_analyzing_status_and_action(tmp_path, qtbot):
     emitted_game, action = blocker.args
     assert emitted_game.game_id == "g_analyzing"
     assert action == "view_analysis"
+
+
+def _seed_games(manager, count: int):
+    manager.save_games_bulk(
+        [
+            {
+                "id": f"page_g{i}",
+                "white": "PlayerA",
+                "black": f"Rival{i}",
+                "result": "1-0",
+                "date": "2026.10.01",
+                "event": "Ranked",
+                "time_control": "300+3",
+                "speed_category": "Blitz",
+                "source": "chesscom",
+                "pgn": "1. e4 e5 2. Nf3 Nc6 1-0",
+                "timestamp": 1_700_000_000 + i,
+            }
+            for i in range(count)
+        ]
+    )
+
+
+def test_history_view_pages_rows_instead_of_loading_everything(tmp_path, qtbot):
+    """The list renders one page, grows on demand, and export still sees the table."""
+    manager = GameHistoryManager(str(tmp_path / "paged.db"))
+    _seed_games(manager, 60)
+
+    view = HistoryView()
+    qtbot.addWidget(view)
+    view.history_manager = manager
+    view.load_history()
+
+    assert view.game_list.total_count == 60
+    # A single page is rendered, not the whole archive.
+    assert 0 < len(view.game_list.games) <= view._page_size()
+    assert view.game_list.title_lbl.text() == "60 games"
+    assert view._page_size() == view._COMPACT_PAGE_SIZE
+
+    view.game_list.set_view_mode("detailed")
+    assert view._page_size() == view._DETAILED_PAGE_SIZE
+
+    loaded = len(view.game_list.games)
+    view.game_list.load_more_requested.emit()
+
+    assert len(view.game_list.games) > loaded
+    # Export is independent of paging and filtering.
+    assert len(manager.get_all_games(limit=None)) == 60
+
+
+def test_history_view_filter_resets_to_the_first_page(tmp_path, qtbot):
+    manager = GameHistoryManager(str(tmp_path / "filtered.db"))
+    _seed_games(manager, 12)
+
+    view = HistoryView()
+    qtbot.addWidget(view)
+    view.history_manager = manager
+    view.load_history()
+
+    view.result_filter.set_current_index(3)  # Draws — no seeded game is a draw
+
+    assert view.game_list.total_count == 0
+    assert view.game_list.games == []
+
+
+def test_history_row_click_hydrates_the_full_game(tmp_path, qtbot):
+    """List rows are light; opening one must fetch moves and pgn for that id."""
+    manager = GameHistoryManager(str(tmp_path / "hydrate.db"))
+    start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    moves = [
+        MoveAnalysis(move_number=1, ply=0, san="e4", uci="e2e4", fen_before=start),
+        MoveAnalysis(
+            move_number=1,
+            ply=1,
+            san="e5",
+            uci="e7e5",
+            fen_before="rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+        ),
+    ]
+    manager.save_game(
+        GameAnalysis(
+            game_id="full",
+            metadata=GameMetadata(white="A", black="B", result="1-0"),
+            moves=moves,
+            summary={"analysis_status": "completed"},
+            pgn_content="1. e4 e5 1-0",
+        ),
+        "1. e4 e5 1-0",
+        force_overwrite=True,
+    )
+
+    view = HistoryView()
+    qtbot.addWidget(view)
+    view.history_manager = manager
+    view.load_history()
+
+    row = view.game_list.games[0]
+    assert row.moves == [] and not row.pgn_content  # light list projection
+
+    with qtbot.waitSignal(view.game_selected, timeout=1000) as blocker:
+        view.on_game_selected(row)
+
+    opened = blocker.args[0]
+    assert opened.game_id == "full"
+    assert len(opened.moves) == 2
+    assert opened.pgn_content
