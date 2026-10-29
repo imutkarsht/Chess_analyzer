@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QSequentialAnimationGroup, Qt
+from PyQt6.QtCore import QPropertyAnimation, QSequentialAnimationGroup, Qt
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.styles import Styles
+from src.gui.theme.motion import MotionDuration, MotionEasing
 
 # (header bar width, body row width ratios) — a header pill plus prose lines.
 Section = tuple[int, Sequence[float]]
@@ -115,16 +116,16 @@ class PulsingSkeleton(QWidget):
         self.setGraphicsEffect(self._effect)
 
         fade_in = QPropertyAnimation(self._effect, b"opacity")
-        fade_in.setDuration(900)
+        fade_in.setDuration(MotionDuration.PULSE)
         fade_in.setStartValue(0.28)
         fade_in.setEndValue(0.85)
-        fade_in.setEasingCurve(QEasingCurve.Type.InOutSine)
+        fade_in.setEasingCurve(MotionEasing.LOOP)
 
         fade_out = QPropertyAnimation(self._effect, b"opacity")
-        fade_out.setDuration(900)
+        fade_out.setDuration(MotionDuration.PULSE)
         fade_out.setStartValue(0.85)
         fade_out.setEndValue(0.28)
-        fade_out.setEasingCurve(QEasingCurve.Type.InOutSine)
+        fade_out.setEasingCurve(MotionEasing.LOOP)
 
         self._animation = QSequentialAnimationGroup(self)
         self._animation.addAnimation(fade_in)

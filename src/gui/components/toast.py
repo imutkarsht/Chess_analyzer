@@ -25,7 +25,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
 from enum import StrEnum
 
-from PyQt6.QtCore import QEasingCurve, QSize, Qt, QTimer, QVariantAnimation, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QTimer, QVariantAnimation, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor, QFont, QIcon, QPainter
 from PyQt6.QtWidgets import (
     QFrame,
@@ -41,6 +41,7 @@ from src.gui.components.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.toast_icons import toast_icon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.motion import MotionDuration, MotionEasing
 
 try:
     import qtawesome as qta
@@ -230,7 +231,7 @@ class Toast(QWidget):
         self._apply_options()
         self._start_timer()
         self._fade_animation = QVariantAnimation(self)
-        self._fade_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._fade_animation.setEasingCurve(MotionEasing.ENTER)
         self._fade_animation.valueChanged.connect(self._set_fade)
 
         ThemeManager.instance().theme_changed.connect(self._on_theme_changed)
@@ -546,7 +547,7 @@ class Toast(QWidget):
 
     def _fade_in(self) -> None:
         self._fade_animation.stop()
-        self._fade_animation.setDuration(170)
+        self._fade_animation.setDuration(MotionDuration.FAST)
         self._fade_animation.setStartValue(self._fade)
         self._fade_animation.setEndValue(1.0)
         self._fade_animation.start()
@@ -600,8 +601,8 @@ class Toast(QWidget):
             return
 
         animation = QVariantAnimation(self)
-        animation.setDuration(180)
-        animation.setEasingCurve(QEasingCurve.Type.OutQuad)
+        animation.setDuration(MotionDuration.FAST)
+        animation.setEasingCurve(MotionEasing.EXIT)
         animation.setStartValue(self._fade)
         animation.setEndValue(0.0)
         animation.valueChanged.connect(self._set_fade)

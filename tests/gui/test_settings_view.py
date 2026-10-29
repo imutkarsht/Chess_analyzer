@@ -293,3 +293,26 @@ def test_save_emits_engine_signals_once_after_binder_autosave(qapp, qtbot, isola
             view.save_all_settings()
             view.engine_path_changed.emit.assert_not_called()
 
+
+
+def test_short_page_does_not_scroll_past_its_content(qapp, qtbot):
+    """A short settings page must not inherit the tallest page's scroll range."""
+    from src.gui.views.settings_view import SettingsView
+
+    view = SettingsView()
+    qtbot.addWidget(view)
+    view.resize(1200, 700)
+    view.show()
+    qtbot.waitUntil(lambda: view.scroll_area.viewport().height() > 100, timeout=1000)
+
+    labels = [view.category_list.item(i).text() for i in range(view.category_list.count())]
+    tall_row = labels.index("Appearance")
+    short_row = labels.index("Keyboard")
+
+    view.category_list.setCurrentRow(tall_row)
+    view._sync_page_height()
+    assert view.scroll_area.verticalScrollBar().maximum() > 0
+
+    view.category_list.setCurrentRow(short_row)
+    view._sync_page_height()
+    assert view.scroll_area.verticalScrollBar().maximum() == 0

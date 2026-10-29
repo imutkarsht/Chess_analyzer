@@ -1,7 +1,6 @@
 import os
 
 from PyQt6.QtCore import (
-    QEasingCurve,
     QPropertyAnimation,
     Qt,
     pyqtProperty,
@@ -13,6 +12,7 @@ from PyQt6.QtWidgets import QApplication, QFrame, QVBoxLayout
 from src.gui.components.button import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.motion import MotionDuration, MotionEasing
 from src.utils.config import ConfigManager
 from src.utils.path_utils import get_resource_path
 
@@ -217,10 +217,10 @@ class Sidebar(QFrame):
 
         self._animating = True
         self._anim = QPropertyAnimation(self, b"sidebar_width")
-        self._anim.setDuration(200)
+        self._anim.setDuration(MotionDuration.BASE)
         self._anim.setStartValue(float(self.width()))
         self._anim.setEndValue(float(target))
-        self._anim.setEasingCurve(QEasingCurve.Type.OutQuad)
+        self._anim.setEasingCurve(MotionEasing.STATE)
         self._anim.finished.connect(self._on_anim_finished)
         self._anim.start()
 

@@ -29,6 +29,8 @@ from PyQt6.QtWidgets import (
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
+from .smooth_scroll import SmoothScroll
+
 _UNSET = object()
 
 
@@ -365,6 +367,9 @@ class Select(QWidget):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        # The closed field cycles options on a focused wheel; keep that intent
+        # instead of letting the app-wide router scroll the page under it.
+        SmoothScroll.disable(self)
         self._size = SelectSize(size)
         self._options: list[SelectOption] = [
             self._coerce_option(option) for option in (options or [])

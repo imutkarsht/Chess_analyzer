@@ -15,6 +15,7 @@ from src.backend.storage.api_cache_repo import (
 )
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.explorer_cache_repo import ExplorerCacheRepo
+from src.backend.storage.game_query import GameQuery
 from src.backend.storage.games_repo import (
     GamesRepo,
     _enrich_summary_with_tactics,
@@ -143,6 +144,18 @@ class GameHistoryManager:
     def get_game_summaries(self, limit: int | None = None) -> list[dict[str, Any]]:
         """Returns lightweight game projections (excluding heavy pgn and moves_json)."""
         return self._games_repo.get_game_summaries(limit=limit)
+
+    def count_games(self, query: GameQuery) -> int:
+        """Returns how many games match ``query`` (filters only, no paging)."""
+        return self._games_repo.count_games(query)
+
+    def fetch_games_page(self, query: GameQuery) -> list[dict[str, Any]]:
+        """Returns one page of light game rows for the history list."""
+        return self._games_repo.fetch_games_page(query)
+
+    def fetch_game_row(self, game_id: str) -> dict[str, Any] | None:
+        """Returns the light row for a single game, for in-place list updates."""
+        return self._games_repo.fetch_game_row(game_id)
 
     def get_games_for_users(
         self,

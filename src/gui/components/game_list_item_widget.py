@@ -496,6 +496,15 @@ class GameListItemWidget(QWidget):
                 last_move_obj = move_obj
             except Exception:
                 pass
+        else:
+            # List rows are loaded without pgn/moves; the ingestion-time FEN keeps
+            # the thumbnail meaningful instead of showing the start position.
+            stored_fen = getattr(game.metadata, "last_fen", None)
+            if stored_fen:
+                try:
+                    board.set_fen(stored_fen)
+                except Exception:
+                    pass
 
         theme_name = ConfigManager().get("board_theme", "Green")
         board_theme = BOARD_THEMES.get(theme_name, BOARD_THEMES["Green"])
@@ -770,6 +779,10 @@ class GameListItemWidget(QWidget):
         return "fa5s.circle"
 
     def _get_move_count(self, game):
+        # List rows carry a denormalised count so pgn is never parsed here.
+        stored = getattr(game.metadata, "move_count", None)
+        if stored:
+            return int(stored)
         if hasattr(game, "moves") and game.moves:
             num_ply = len(game.moves)
             return (num_ply + 1) // 2

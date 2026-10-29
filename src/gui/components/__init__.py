@@ -29,6 +29,7 @@ from .pulsing_skeleton import PulsingSkeleton
 from .segmented_bar import SegmentedBar
 from .segmented_control import SegmentedControl
 from .select import Select, SelectOption, SelectSize
+from .smooth_scroll import SmoothScroll, install_smooth_scrolling
 from .sortable_item_list import SortableItem, SortableItemList
 from .stat_card import SimpleStatCard, StatCard
 from .stats_layout import StatsLayout
@@ -69,6 +70,8 @@ __all__ = [
     'Select',
     'SelectOption',
     'SelectSize',
+    'SmoothScroll',
+    'install_smooth_scrolling',
     'StatCard',
     'SimpleStatCard',
     'StatusBadge',

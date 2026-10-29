@@ -4,6 +4,7 @@ Repository for chess game analysis persistence, querying, and hydration.
 
 import hashlib
 import json
+import re
 import sqlite3
 import time
 import uuid
@@ -11,6 +12,7 @@ from collections import Counter
 from typing import Any
 
 from src.backend.storage.db_connection import get_db_connection
+from src.backend.storage.game_query import GameQuery, build_filters, build_order_by
 from src.backend.storage.models import GameAnalysis
 from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
 from src.backend.storage.schema_constants import (
@@ -46,6 +48,39 @@ def _make_game_id(pgn: str | None) -> str:
         normalized = normalize_lichess_site_for_id(pgn)
         return hashlib.md5(normalized.encode("utf-8"), usedforsecurity=False).hexdigest()
     return str(uuid.uuid4())
+
+
+_MOVE_NUMBER_RE = re.compile(r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]")
+
+
+def _move_count_from_pgn(pgn: str | None) -> int | None:
+    """Full-move count parsed from PGN move numbers.
+
+    Used for imported games that arrive as PGN text without a move list, so the
+    list can show and sort by move count without a full PGN parse.
+    """
+    if not pgn:
+        return None
+    numbers = [int(n) for n in _MOVE_NUMBER_RE.findall(pgn) if int(n) <= 500]
+    return max(numbers) if numbers else None
+
+
+def _fen_after_move(fen_before: str | None, uci: str | None, chess960: bool = False) -> str | None:
+    """Return the FEN after ``uci`` played from ``fen_before``.
+
+    Stored at ingestion so list rows can render a board thumbnail without
+    loading the full move list.
+    """
+    if not fen_before or not uci:
+        return None
+    import chess
+
+    try:
+        board = chess.Board(fen_before, chess960=chess960)
+        board.push(chess.Move.from_uci(uci))
+        return board.fen()
+    except (ValueError, AssertionError):
+        return None
 
 
 def _enrich_summary_with_tactics(
@@ -123,6 +158,8 @@ class GamesRepo:
             row["white_great_count"],
             row["black_great_count"],
             row.get("ai_summary"),
+            row.get("move_count"),
+            row.get("last_fen"),
         )
 
     def _prepare_game_analysis_row(
@@ -214,6 +251,20 @@ class GamesRepo:
             "black_brilliant_count": b_counts.get("Brilliant", 0),
             "white_great_count": w_counts.get("Great", 0),
             "black_great_count": b_counts.get("Great", 0),
+            "move_count": (
+                (len(game_analysis.moves) + 1) // 2
+                if game_analysis.moves
+                else _move_count_from_pgn(pgn_content)
+            ),
+            "last_fen": (
+                _fen_after_move(
+                    game_analysis.moves[-1].fen_before,
+                    game_analysis.moves[-1].uci,
+                    chess960=bool(game_analysis.metadata.chess960),
+                )
+                if game_analysis.moves
+                else None
+            ),
             "pgn": pgn_content,
             "summary_json": summary_json,
             "moves_json": moves_json,
@@ -280,6 +331,24 @@ class GamesRepo:
                     summary_json = json.dumps(summary_dict)
             except Exception as e:
                 logger.debug("Failed computing tactics for dict row %s: %s", gid, e)
+
+        move_count = _to_int_or_none(d.get("move_count"))
+        last_fen = d.get("last_fen") or None
+        if moves_json and (move_count is None or last_fen is None):
+            try:
+                parsed_moves = json.loads(moves_json)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                parsed_moves = []
+            if isinstance(parsed_moves, list) and parsed_moves:
+                if move_count is None:
+                    move_count = (len(parsed_moves) + 1) // 2
+                if not last_fen and isinstance(parsed_moves[-1], dict):
+                    last_fen = _fen_after_move(
+                        parsed_moves[-1].get("fen_before"),
+                        parsed_moves[-1].get("uci"),
+                    )
+        if move_count is None:
+            move_count = _move_count_from_pgn(pgn)
 
         phase_accs: dict[str, dict[str, float | None]] = {
             "white": {"opening": None, "middlegame": None, "endgame": None},
@@ -352,6 +421,8 @@ class GamesRepo:
             "black_brilliant_count": _to_int(d.get("black_brilliant_count")),
             "white_great_count": _to_int(d.get("white_great_count")),
             "black_great_count": _to_int(d.get("black_great_count")),
+            "move_count": move_count,
+            "last_fen": last_fen,
             "pgn": pgn,
             "summary_json": summary_json,
             "moves_json": moves_json,
@@ -524,6 +595,45 @@ class GamesRepo:
 
         return games
 
+    def count_games(self, query: GameQuery) -> int:
+        """Total rows matching ``query`` (filters only; paging ignored)."""
+        where, params = build_filters(query)
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT COUNT(*) FROM games{where}", params)
+            row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    def fetch_games_page(self, query: GameQuery) -> list[dict[str, Any]]:
+        """One page of light game rows (metadata + summary, never pgn/moves)."""
+        where, params = build_filters(query)
+        payload = dict(params)
+        payload["limit"] = max(1, int(query.limit))
+        payload["offset"] = max(0, int(query.offset))
+        sql = (
+            f"SELECT {_LIGHT_GAME_COLS_SQL} FROM games{where} "
+            f"ORDER BY {build_order_by(query)} LIMIT :limit OFFSET :offset"
+        )
+        games: list[dict[str, Any]] = []
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(sql, payload)
+            games = [dict(row) for row in cursor.fetchall()]
+        return games
+
+    def fetch_game_row(self, game_id: str) -> dict[str, Any] | None:
+        """Light row for one game, used to refresh a single list row in place."""
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT {_LIGHT_GAME_COLS_SQL} FROM games WHERE id = ?",
+                (game_id,),
+            )
+            row = cursor.fetchone()
+        return dict(row) if row else None
+
     def get_games_for_users(
         self,
         usernames: list[str],
@@ -636,6 +746,8 @@ class GamesRepo:
             speed_category=stored_speed,
             source=g_dict.get("source", "file"),
             chess960=bool(g_dict.get("chess960", 0)),
+            move_count=_to_int_or_none(g_dict.get("move_count")),
+            last_fen=g_dict.get("last_fen") or None,
         )
         if not metadata.speed_category:
             metadata.speed_category = PGNParser.detect_speed_category(

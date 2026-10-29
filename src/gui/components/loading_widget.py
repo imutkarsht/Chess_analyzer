@@ -1,9 +1,10 @@
 
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer, pyqtProperty
+from PyQt6.QtCore import QPropertyAnimation, Qt, QTimer, pyqtProperty
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPen
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from src.gui.styles import Styles
+from src.gui.theme.motion import MotionDuration, MotionEasing
 
 
 class LoadingOverlay(QWidget):
@@ -21,10 +22,10 @@ class LoadingOverlay(QWidget):
         # Shimmer state
         self._shimmer_pos = 0.0
         self._shimmer_animation = QPropertyAnimation(self, b"shimmer_pos")
-        self._shimmer_animation.setDuration(2000)
+        self._shimmer_animation.setDuration(MotionDuration.LOOP_SLOW)
         self._shimmer_animation.setStartValue(0.0)
         self._shimmer_animation.setEndValue(1.0)
-        self._shimmer_animation.setEasingCurve(QEasingCurve.Type.InOutSine)
+        self._shimmer_animation.setEasingCurve(MotionEasing.LOOP)
         self._shimmer_animation.setLoopCount(-1)
 
         # Layout for text
