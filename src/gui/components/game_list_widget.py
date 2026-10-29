@@ -17,6 +17,7 @@ from ..styles import Styles
 from .button import Button, ButtonSize, ButtonVariant
 from .game_list_item_widget import GameListItemWidget
 from .pagination_bar import PaginationBar, PaginationSize, PaginationState, PaginationStyle
+from .smooth_scroll import SmoothScroll
 
 
 class GameListWidget(QWidget):
@@ -94,6 +95,10 @@ class GameListWidget(QWidget):
         self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
         self.list_widget.setSpacing(0)
         self.list_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Paginated rows all share one height, so let the view skip per-item
+        # size lookups while scrolling.
+        self.list_widget.setUniformItemSizes(True)
+        SmoothScroll(self.list_widget)
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         root.addWidget(self.list_widget, stretch=1)
 

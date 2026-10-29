@@ -1,7 +1,9 @@
 """Skeleton loading placeholders for improved perceived performance."""
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, pyqtProperty
+from PyQt6.QtCore import QPropertyAnimation, Qt, pyqtProperty
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
+
+from src.gui.theme.motion import MotionDuration, MotionEasing
 
 
 class SkeletonWidget(QFrame):
@@ -24,10 +26,10 @@ class SkeletonWidget(QFrame):
 
         # Shimmer animation
         self._animation = QPropertyAnimation(self, b"shimmer_pos")
-        self._animation.setDuration(1200)
+        self._animation.setDuration(MotionDuration.LOOP)
         self._animation.setStartValue(0.0)
         self._animation.setEndValue(1.0)
-        self._animation.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self._animation.setEasingCurve(MotionEasing.LOOP)
         self._animation.setLoopCount(-1)  # Infinite
 
     def start_animation(self):

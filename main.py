@@ -53,6 +53,12 @@ def main():
 
         ThemeManager.apply_app_stylesheet()
 
+        # One wheel router for the whole app: every page, dialog and popup
+        # inherits eased, pixel-precise scrolling without per-view wiring.
+        from src.gui.components.smooth_scroll import install_smooth_scrolling
+
+        install_smooth_scrolling(app)
+
         # Resource paths
         resource_path = get_resource_path("assets")
         logo_path = os.path.join(resource_path, "images", "logo.png")

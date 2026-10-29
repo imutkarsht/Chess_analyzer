@@ -3,9 +3,7 @@
 from dataclasses import dataclass
 
 from PyQt6.QtCore import (
-    QEasingCurve,
     QMimeData,
-    QPropertyAnimation,
     QSize,
     Qt,
     QTimer,
@@ -23,6 +21,9 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.styles import Styles
+from src.gui.theme.motion import Motion
+
+from .smooth_scroll import SmoothScroll
 
 try:
     import qtawesome as qta
@@ -163,11 +164,6 @@ class SortableItemList(QListWidget):
         self._autoscroll_timer = QTimer(self)
         self._autoscroll_timer.setInterval(30)
         self._autoscroll_timer.timeout.connect(self._autoscroll_step)
-        self._scroll_animation = QPropertyAnimation(
-            self.verticalScrollBar(), b"value", self
-        )
-        self._scroll_animation.setDuration(170)
-        self._scroll_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setItemDelegate(_SortableItemDelegate(self))
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
@@ -177,11 +173,12 @@ class SortableItemList(QListWidget):
         self.setDropIndicatorShown(False)
         self.setDragDropOverwriteMode(False)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.setUniformItemSizes(True)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setSpacing(0)
+        # Shared behaviour: ScrollPerPixel plus eased wheel notches.
+        SmoothScroll(self)
         self.setStyleSheet(
             "QListWidget { background: transparent; border: none; }"
             " QListWidget::item { background: transparent; border: none; }"
@@ -189,7 +186,6 @@ class SortableItemList(QListWidget):
 
     def set_items(self, items: list[SortableItem]) -> None:
         self._drag_source_row = None
-        self._scroll_animation.stop()
         self.clear()
         for item in items:
             row = QListWidgetItem()
@@ -246,34 +242,6 @@ class SortableItemList(QListWidget):
         else:
             self.fit_to_contents()
 
-    def wheelEvent(self, event) -> None:
-        bar = self.verticalScrollBar()
-        pixel_delta = event.pixelDelta().y()
-        if pixel_delta:
-            # Trackpads already provide pixel-precise deltas; don't add lag.
-            self._scroll_animation.stop()
-            bar.setValue(bar.value() - pixel_delta)
-            event.accept()
-            return
-
-        delta = event.angleDelta().y()
-        if not delta:
-            super().wheelEvent(event)
-            return
-        step = 88 if abs(delta) >= 120 else 44
-        target = bar.value() + (-step if delta > 0 else step)
-        target = max(bar.minimum(), min(bar.maximum(), target))
-        if target == bar.value():
-            # Let the page scroll when the list is already at an edge.
-            event.ignore()
-            return
-
-        self._scroll_animation.stop()
-        self._scroll_animation.setStartValue(bar.value())
-        self._scroll_animation.setEndValue(target)
-        self._scroll_animation.start()
-        event.accept()
-
     # ------------------------------------------------------------------
     # Drag and drop
     # ------------------------------------------------------------------
@@ -282,7 +250,7 @@ class SortableItemList(QListWidget):
         if not index.isValid():
             return
         self._drag_source_row = index.row()
-        self._scroll_animation.stop()
+        Motion.stop(self.verticalScrollBar(), b"value")
 
         drag = QDrag(self)
         mime = QMimeData()

@@ -14,6 +14,7 @@ from src.gui.components import Button, ButtonVariant, Input, InputVariant, Selec
 from src.gui.components.game_list_widget import GameListWidget
 from src.gui.components.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
+from src.gui.utils.debounce import Debouncer
 from src.gui.utils.gui_utils import create_button
 from src.utils.logger import logger
 
@@ -73,6 +74,8 @@ class HistoryView(QWidget):
         self.games = []
         self._import_worker: GameImportWorker | None = None
         self.analyzing_game_id: str | None = None
+        # Every keystroke used to rebuild all 10 row widgets; coalesce instead.
+        self._filter_debounce = Debouncer(self, interval=150)
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.layout = QVBoxLayout(self)
@@ -134,7 +137,9 @@ class HistoryView(QWidget):
             clearable=True,
         )
         self.search_input.setMinimumWidth(220)
-        self.search_input.textChanged.connect(self.apply_filters)
+        self.search_input.textChanged.connect(
+            lambda *_: self._filter_debounce.call(self.apply_filters)
+        )
         filter_layout.addWidget(self.search_input, 1)
 
         filter_layout.addSpacing(10)
