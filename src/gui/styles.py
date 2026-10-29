@@ -717,107 +717,142 @@ class Styles(metaclass=_StylesMeta):
     # ═══════════════════════════════════════════════════════════════
     #  INPUTS / TEXT FIELDS
     # ═══════════════════════════════════════════════════════════════
+    MONO_FONT_FAMILY = "'SF Mono', 'JetBrains Mono', 'Consolas', monospace"
+
     @classmethod
-    def get_line_edit_style(cls):
+    def get_input_qss(
+        cls,
+        *,
+        selector: str = "QLineEdit",
+        variant: str = "default",
+        height: int = 34,
+        font_size: int = 13,
+        padding_h: int = 10,
+        radius: int = 8,
+        monospace: bool = False,
+    ) -> str:
+        """Chrome for every single-line editor in the app.
+
+        Rendering is driven by :class:`~src.gui.components.input.Input`; this
+        generator is the only place the look is defined. Variants change only
+        the resting surface (``search`` is the filled filter bar); hover,
+        focus, disabled and invalid states stay identical everywhere so a
+        field never behaves differently depending on which panel hosts it.
+
+        ``selector`` lets the numeric editors reuse the exact same rules.
+        """
         p = ThemeManager.palette()
+        background = p.surface_light if variant == "search" else p.surface
+        family = f"font-family: {cls.MONO_FONT_FAMILY};" if monospace else ""
         return f"""
-            QLineEdit {{
-                background-color: {p.surface};
-                color: {p.text_primary};
+            {selector} {{
+                background-color: {background};
                 border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 2px 8px;
-                font-size: 12px;
+                border-radius: {radius}px;
+                padding: 0 {padding_h}px;
+                color: {p.text_primary};
+                font-size: {font_size}px;
+                {family}
+                selection-background-color: {p.accent};
+                selection-color: {cls.COLOR_ON_ACCENT};
+                min-height: {height}px;
+                max-height: {height}px;
             }}
-            QLineEdit:focus {{
+            {selector}:hover {{
+                border-color: {p.border_light};
+            }}
+            {selector}:focus {{
                 border-color: {p.accent};
             }}
-        """
-
-    @classmethod
-    def get_filter_input_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QLineEdit {{
-                padding: 6px 10px;
-                border: 1px solid {p.border};
-                border-radius: 6px;
+            {selector}:disabled {{
                 background-color: {p.surface_light};
-                color: {p.text_primary};
-                font-size: 13px;
+                color: {p.text_muted};
+                border-color: {p.border};
             }}
-            QLineEdit:focus {{
-                border: 1px solid {p.accent};
-            }}
-        """
-
-    @classmethod
-    def get_line_edit_error_style(cls):
-        return f"""
-            QLineEdit {{
-                background-color: #3d1a1a;
-                color: #FFFFFF;
-                border: 1px solid {cls.COLOR_BLUNDER};
-                border-radius: 6px;
-                padding: 2px 8px;
-                font-size: 12px;
-                font-weight: 600;
+            {selector}[invalid="true"],
+            {selector}[invalid="true"]:hover,
+            {selector}[invalid="true"]:focus {{
+                border-color: {cls.COLOR_BLUNDER};
             }}
         """
 
     @classmethod
-    def get_panel_input_style(cls):
+    def get_textarea_qss(
+        cls,
+        *,
+        variant: str = "default",
+        font_size: int = 13,
+        padding: int = 12,
+        radius: int = 8,
+    ) -> str:
+        """Chrome for every multi-line editor.
+
+        ``code`` is the monospace variant (PGN, logs); ``flat`` is the
+        borderless read-only prose surface used inside existing cards.
+        """
         p = ThemeManager.palette()
-        return f"""
-            QLineEdit {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 6px;
-                padding: 0 12px;
-                color: {p.text_primary};
-                font-size: 13px;
-                height: 36px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {p.accent};
-            }}
-        """
-
-    @classmethod
-    def get_focus_ring_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QLineEdit {{
-                padding: 10px;
-                border: 1px solid {p.border};
-                border-radius: 4px;
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-            }}
-            QLineEdit:focus {{
-                border: 2px solid {p.accent};
-                padding: 9px;
-            }}
-            QPushButton:focus {{
-                outline: 2px solid {p.accent};
+        if variant == "flat":
+            background, border = "transparent", "none"
+            padding_value, color = 0, p.text_secondary
+        else:
+            background, border = p.surface, f"1px solid {p.border}"
+            padding_value, color = padding, p.text_primary
+        family = (
+            f"font-family: {cls.MONO_FONT_FAMILY};"
+            if variant == "code"
+            else ""
+        )
+        interaction = ""
+        if variant != "flat":
+            interaction = f"""
+            QTextEdit:hover {{
+                border-color: {p.border_light};
             }}
             QTextEdit:focus {{
-                border: 2px solid {p.accent};
+                border-color: {p.accent};
             }}
-            QListWidget:focus {{
-                border: 2px solid {p.accent};
+            QTextEdit[invalid="true"],
+            QTextEdit[invalid="true"]:hover,
+            QTextEdit[invalid="true"]:focus {{
+                border-color: {cls.COLOR_BLUNDER};
             }}
-        """
-
-    @classmethod
-    def get_input_style(cls):
-        p = ThemeManager.palette()
+            QTextEdit:disabled {{
+                color: {p.text_muted};
+            }}
+            """
         return f"""
-            padding: 10px;
-            border: 1px solid {p.border};
-            border-radius: 4px;
-            background-color: {p.surface_light};
-            color: {p.text_primary};
+            QTextEdit {{
+                background-color: {background};
+                border: {border};
+                border-radius: {radius}px;
+                padding: {padding_value}px;
+                color: {color};
+                font-size: {font_size}px;
+                {family}
+                selection-background-color: {p.accent};
+                selection-color: {cls.COLOR_ON_ACCENT};
+            }}
+            {interaction}
+            QScrollBar:vertical {{
+                background-color: transparent;
+                width: 8px;
+                margin: 0px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical {{
+                background-color: {p.border};
+                min-height: 24px;
+                border-radius: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background-color: {p.border_light};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background-color: transparent;
+            }}
         """
 
     @classmethod
@@ -860,58 +895,6 @@ class Styles(metaclass=_StylesMeta):
             }}
         """
 
-    @classmethod
-    def get_text_edit_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QTextEdit {{
-                background-color: {p.surface_light};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-                padding: 10px;
-                color: {p.text_primary};
-            }}
-        """
-
-    @classmethod
-    def get_flat_text_edit_style(cls, size=13):
-        """
-        Frameless, transparent read-only text area.
-
-        Used for prose that lives inside an existing card (the Coach body): it
-        must not draw a second surface, and it scrolls with a slim bar so the
-        card can keep a fixed height whatever the text length.
-        """
-        p = ThemeManager.palette()
-        return f"""
-            QTextEdit {{
-                background-color: transparent;
-                border: none;
-                padding: 0px;
-                color: {p.text_secondary};
-                font-size: {size}px;
-            }}
-            QScrollBar:vertical {{
-                background-color: transparent;
-                width: 8px;
-                margin: 0px;
-                border-radius: 4px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: {p.border};
-                min-height: 24px;
-                border-radius: 4px;
-            }}
-            QScrollBar::handle:vertical:hover {{
-                background-color: {p.border_light};
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
-                background-color: transparent;
-            }}
-        """
 
     # ═══════════════════════════════════════════════════════════════
     #  LABELS
@@ -1026,58 +1009,6 @@ class Styles(metaclass=_StylesMeta):
                 background: transparent;
                 font-size: 11px;
                 font-weight: 500;
-            }}
-        """
-
-    @classmethod
-    def get_field_input_qss(cls, *, height: int = 40, font_size: int = 13) -> str:
-        """Modern outlined input used inside :class:`FormField`."""
-        p = ThemeManager.palette()
-        return f"""
-            QLineEdit {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-                padding: 0 12px;
-                color: {p.text_primary};
-                font-size: {font_size}px;
-                min-height: {height}px;
-                max-height: {height}px;
-            }}
-            QLineEdit:hover {{
-                border-color: {p.border_light};
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {p.accent};
-                background-color: {p.surface};
-            }}
-            QLineEdit:disabled {{
-                background-color: {p.surface_light};
-                color: {p.text_muted};
-                border-color: {p.border};
-            }}
-        """
-
-    @classmethod
-    def get_textarea_qss(cls) -> str:
-        p = ThemeManager.palette()
-        return f"""
-            QTextEdit {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-                padding: 12px;
-                color: {p.text_primary};
-                font-family: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
-                font-size: 12px;
-                selection-background-color: {p.accent};
-                selection-color: {cls.COLOR_ON_ACCENT};
-            }}
-            QTextEdit:hover {{
-                border-color: {p.border_light};
-            }}
-            QTextEdit:focus {{
-                border: 1px solid {p.accent};
             }}
         """
 
