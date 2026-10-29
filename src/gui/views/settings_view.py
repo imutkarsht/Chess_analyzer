@@ -46,6 +46,29 @@ from .settings import (
 )
 
 
+class _CurrentPageStack(QStackedWidget):
+    """A stacked widget whose size hint follows the visible page.
+
+    ``QStackedWidget`` reports the maximum size hint across every page it holds,
+    so a short settings page still inherited the height of the tallest one and
+    the scroll area could be scrolled past the end of the visible content.
+    """
+
+    def sizeHint(self):  # noqa: N802 - Qt override
+        page = self.currentWidget()
+        return page.sizeHint() if page is not None else super().sizeHint()
+
+    def minimumSizeHint(self):  # noqa: N802 - Qt override
+        page = self.currentWidget()
+        return page.minimumSizeHint() if page is not None else super().minimumSizeHint()
+
+    def hasHeightForWidth(self):  # noqa: N802 - Qt override
+        # Settings pages scroll vertically, so height-for-width is the wrong
+        # model here: QStackedLayout would size the panel from the tallest page
+        # instead of the visible one.
+        return False
+
+
 class SettingsView(QWidget):
     engine_path_changed = pyqtSignal(str)
     engine_settings_changed = pyqtSignal()  # emitted when Threads/Hash change
@@ -131,8 +154,9 @@ class SettingsView(QWidget):
         panel_layout.setContentsMargins(28, 24, 28, 28)
         panel_layout.setSpacing(0)
 
-        self.pages = QStackedWidget()
+        self.pages = _CurrentPageStack()
         self.pages.setStyleSheet("QStackedWidget { background: transparent; }")
+        self.pages.currentChanged.connect(self._sync_page_height)
         panel_layout.addWidget(self.pages)
 
         self.scroll_area = QScrollArea()
@@ -463,6 +487,27 @@ class SettingsView(QWidget):
         page_index = item.data(Qt.ItemDataRole.UserRole)
         if isinstance(page_index, int):
             self.pages.setCurrentIndex(page_index)
+
+    def _sync_page_height(self, _index: int = -1) -> None:
+        """Re-measure the panel so the scroll range matches the visible page."""
+        if not hasattr(self, "settings_panel"):
+            return
+        self.pages.updateGeometry()
+        layout = self.settings_panel.layout()
+        if layout is not None:
+            # The panel's cached hint still reflects the previous page until the
+            # layout is invalidated and re-activated.
+            layout.invalidate()
+            layout.activate()
+        viewport_height = self.scroll_area.viewport().height()
+        target = max(viewport_height, self.settings_panel.sizeHint().height())
+        if self.settings_panel.height() != target:
+            self.settings_panel.resize(self.settings_panel.width(), target)
+
+    def resizeEvent(self, event):  # noqa: N802 - Qt override
+        super().resizeEvent(event)
+        # Let the scroll area lay itself out before re-measuring the panel.
+        QTimer.singleShot(0, self._sync_page_height)
 
     def _filter_categories(self, text: str) -> None:
         self._populate_categories(text)
