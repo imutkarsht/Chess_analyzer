@@ -348,12 +348,19 @@ class Board(QWidget):
             self.draw_interactive_overlays()
             self.move_made.emit(self.board.fen())
 
-    def draw_interactive_overlays(self):
-        """Draw selection highlight, legal-move dots and the live classification badge."""
+    def _clear_overlays(self) -> None:
+        """Remove overlay widgets immediately, not on a later event-loop turn."""
         while self.overlay_layout.count():
             child = self.overlay_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            widget = child.widget()
+            if widget is not None:
+                widget.hide()
+                widget.setParent(None)
+                widget.deleteLater()
+
+    def draw_interactive_overlays(self):
+        """Draw selection highlight, legal-move dots and the live classification badge."""
+        self._clear_overlays()
 
         for r in range(8):
             self.overlay_layout.setRowStretch(r, 1)
@@ -574,10 +581,7 @@ class Board(QWidget):
 
     def draw_overlays(self, move_index):
         # Clear existing overlays
-        while self.overlay_layout.count():
-            child = self.overlay_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        self._clear_overlays()
 
         if not self._show_classification:
             return

@@ -19,6 +19,7 @@ class StatsLayout(QLayout):
 
     def addItem(self, item):
         self._items.append(item)
+        self.invalidate()
 
     def count(self):
         return len(self._items)
@@ -30,7 +31,9 @@ class StatsLayout(QLayout):
 
     def takeAt(self, index):
         if 0 <= index < len(self._items):
-            return self._items.pop(index)
+            item = self._items.pop(index)
+            self.invalidate()
+            return item
         return None
 
     def expandingDirections(self):
