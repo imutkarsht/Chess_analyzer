@@ -372,6 +372,7 @@ class AnalysisMixin:
                 moves,
                 chess960=self.current_game.metadata.chess960,
                 starting_fen=self.current_game.metadata.starting_fen,
+                move_index=self.board_widget.current_move_index,
             )
 
     def on_cache_toggled(self, checked):
