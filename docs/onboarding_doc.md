@@ -1,149 +1,215 @@
-# Chess Analyzer Pro - Onboarding Documentation
+# Chess Analyzer Pro - Onboarding Guide
 
-Welcome to the **Chess Analyzer Pro** codebase! This document is designed to guide you through the technical details of the project, explaining the structure, key components, and how to make common changes. Whether you are a beginner or an experienced developer, this guide will help you understand the "anatomy" of the application.
+Welcome to the **Chess Analyzer Pro** codebase. This guide gets you from clone to
+your first meaningful change. It is a tutorial, not the full reference — the
+canonical file-by-file map, runtime flows, patterns and invariants live in
+[architecture.md](architecture.md).
 
 ---
 
 ## 1. Project Overview
 
-**Chess Analyzer Pro** is a desktop application built with **Python** and **PyQt6** that allows users to analyze chess games using the **Stockfish** engine. It provides detailed insights, including move classifications (Brilliant, Mistake, Blunder, etc.), win probability graphs, and AI-powered game summaries using Groq.
+**Chess Analyzer Pro** is a local-first desktop application built with **Python**
+and **PyQt6**. It analyses chess games with **Stockfish** (UCI), classifies
+moves, aggregates performance metrics, explores openings, and optionally adds
+grounded AI coaching through any OpenAI-compatible endpoint.
 
-### Key Technologies
+### Key technologies
 
 - **Language:** Python 3.10+
-- **GUI Framework:** PyQt6 (Qt for Python)
-- **Chess Logic:** `python-chess` library
-- **Engine:** Stockfish (via UCI protocol)
-- **AI:** Groq API (for natural language summaries)
-- **Plotting:** Matplotlib (for evaluation graphs)
+- **GUI:** PyQt6 (plus QtAwesome icons and Matplotlib charts)
+- **Chess logic:** `python-chess`
+- **Engine:** Stockfish over UCI
+- **Persistence:** SQLite (`analysis_cache.db`, WAL mode) and JSON (`config.json`)
+- **Credentials:** `keyring` (OS credential store)
+- **AI:** `openai` SDK against Groq, LM Studio, MiniMax, or a custom endpoint
+- **Networking:** `requests` with bundled `certifi` CAs
+- **Tooling:** Ruff, pytest, pytest-qt, PyInstaller
 
 ---
 
 ## 2. Directory Structure
 
-Here is the high-level structure of the project:
-
 ```text
 Chess_analyzer/
-├── assets/                 # Static resources (images, icons, sounds)
-├── src/                    # Source code
-│   ├── backend/            # Core logic, analysis, and data handling
-│   │   ├── analysis/       # Engine, move analysis, move classification, math helpers
-│   │   ├── api/            # Chess.com & Lichess API integrations
-│   │   ├── storage/        # Game history, caching, parsing, data models
-│   │   ├── services/       # External services (Groq AI Coach)
-│   │   └── updater/        # In-app desktop updater
-│   ├── gui/                # User Interface components (PyQt6)
-│   │   ├── views/          # Main page views (Analyze, History, Stats, Settings)
-│   │   ├── components/     # Reusable layout widgets, tours (tour_manager, tour_overlay)
-│   │   ├── analysis/       # Background analysis threads and workers
-│   │   ├── dialogs/        # Modal windows (Setup Wizard, Load Game, Error UX Dialogs)
-│   │   └── utils/          # GUI-specific layout and widget factories
-│   └── utils/              # Helper functions (logging, config, paths)
-├── tests/                  # Unit and integration tests
-├── main.py                 # Application entry point
-├── requirements.txt        # Python dependencies
-├── config.json             # User configuration (saved settings)
-└── .env                    # Environment variables (API keys)
+├── main.py                     # Entry point: high-DPI, splash, MainWindow
+├── assets/                     # Images, icons, sounds, piece SVGs
+├── src/
+│   ├── constants.py            # Version, URLs, provider presets, DEFAULT_BOARD_THEME
+│   ├── config/
+│   │   └── settings_schema.py  # Single source of settings defaults/validation
+│   ├── backend/                # Pure Python, zero Qt imports
+│   │   ├── analysis/           # Analyzer, engine, classification, books, variations
+│   │   │   ├── metrics/        # Stats aggregation + coach dossier
+│   │   │   └── tactics/        # Motifs, phases, SEE, hanging pieces, insight
+│   │   ├── api/                # Chess.com & Lichess clients
+│   │   ├── cache/              # API response cache facade
+│   │   ├── engine/             # Stockfish downloader/validator
+│   │   ├── models/             # Cross-layer models (GameInfo)
+│   │   ├── services/           # LLM + feedback services
+│   │   ├── storage/            # Repos, migrations, PGN, backup, caches
+│   │   └── updater/            # Release checks and installers
+│   ├── gui/                    # PyQt6 presentation layer
+│   │   ├── main_window/        # MainWindow + focused mixins
+│   │   ├── views/              # Pages (+ metrics/ and settings/ subpackages)
+│   │   ├── analysis/           # Board analysis, move list, coach, variations
+│   │   ├── board/              # The single configurable Board
+│   │   ├── components/         # controls/ display/ feedback/ layout/ lists/
+│   │   ├── dialogs/            # load_game/, wizard/, feedback, errors, updates
+│   │   ├── engine_lines/       # Shared live session + engine-lines widget
+│   │   ├── metrics/            # Drill-down and chart helpers
+│   │   ├── theme/              # Palettes, tokens, motion, OS detection
+│   │   ├── utils/              # Debounce, shortcuts, smooth scroll, factories
+│   │   └── styles.py           # QSS generators driven by the live palette
+│   └── utils/                  # logger, config, paths, resources, secrets
+├── tests/                      # backend/, gui/, storage/ suites
+├── docs/                       # architecture.md, this guide, user guide
+├── planning/                   # 2.5.0 progress and feature plans
+├── installers/                 # Platform packaging
+├── build.spec                  # PyInstaller definition
+├── requirements.txt
+└── requirements-dev.txt
 ```
+
+> Runtime files (`config.json`, `analysis_cache.db`, logs, backups) live in the
+> OS user-data directory, never in the repo. See
+> [How_to_use.md](How_to_use.md#3-configuration--data-files).
 
 ---
 
 ## 3. Architecture & Data Flow
 
-The application follows a **Model-View-Controller (MVC)** inspired pattern:
+The app is layered:
 
-1.  **Model (Backend):** Handles data logic.
-    - `GameAnalysis` object holds the game state, moves, and analysis results.
-    - `Analyzer` runs the heavy computation (Stockfish analysis).
-2.  **View (GUI):** Displays the data.
-    - `MainWindow` is the main container.
-    - `Board` draws the chess board.
-    - `AnalysisPanel` shows stats and graphs.
-3.  **Controller (Logic):**
-    - `main.py` initializes the app.
-    - Signals and Slots (PyQt6 mechanism) connect UI events (clicks) to backend functions.
+```text
+main.py → src/gui (presentation) → src/backend (domain) → SQLite / Stockfish
+```
 
-### Data Flow Example: Analyzing a Game
+1. **Model/domain (`src/backend/`)** — `Analyzer`, `EngineManager`,
+   `MoveClassifier`, metrics/tactics, repositories, PGN parsing. No Qt.
+2. **View (`src/gui/`)** — `MainWindow` composes pages; widgets render state and
+   dispatch actions. Shared widgets come from `src.gui.components`.
+3. **Controller/glue** — Qt signals connect UI events to workers, which call
+   domain services and emit results back.
 
-| File | Purpose |
-| :-- | :-- |
-| **[`analyzer.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/analysis/analyzer.py)** | **Core Logic.** Manages the analysis loop, calculates win probabilities, determines move accuracy (0-100%), and classifies moves. |
-| **[`engine.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/analysis/engine.py)** | **Stockfish Wrapper.** Manages the Stockfish process. Handles starting/stopping the engine, auto-detecting/resolving paths, downloading fallback binaries, and sending UCI commands. |
-| **[`models.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/models.py)** | **Data Structures.** Defines `GameAnalysis`, `MoveAnalysis`, and `GameMetadata` dataclasses. |
-| **[`pgn_parser.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/pgn_parser.py)** | **PGN Handling.** Reads and parses `.pgn` files or text into `GameAnalysis` objects. |
-| **[`chess_com_api.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/api/chess_com_api.py)** | **Chess.com Integration.** Fetches recent games or specific games from Chess.com. |
-| **[`lichess_api.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/api/lichess_api.py)** | **Lichess Integration.** Fetches recent games from Lichess.org users. |
-| **[`groq_service.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/services/groq_service.py)** | **AI Summaries.** Connects to Groq's API to generate text summaries of the game. |
-| **[`cache.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/backend/storage/cache.py)** | **Performance.** Caches engine analysis results to avoid re-analyzing known positions. |
+### Where to look first
 
-### `src/gui/` (The Face)
+| Area | Files |
+| --- | --- |
+| Window composition | `src/gui/main_window/window.py` + mixins |
+| Analysis pipeline | `src/backend/analysis/analyzer.py`, `engine.py`, `gui/analysis/analysis_worker.py` |
+| Move classification | `src/backend/analysis/move_classifier.py` |
+| AI Coach | `src/backend/analysis/tactics/insight.py`, `services/groq_service.py`, `gui/analysis/coach_worker.py` |
+| Variations | `src/backend/analysis/variation_tree.py`, `gui/analysis/variation_mode.py` |
+| Settings | `src/config/settings_schema.py`, `gui/views/settings/` |
+| History | `src/gui/views/history_view.py`, `backend/storage/games_repo.py` |
+| Metrics | `src/backend/analysis/metrics/`, `gui/views/metrics/` |
+| Shared components | `src/gui/components/` (import via the facade) |
+| Styling/theming | `src/gui/theme/`, `src/gui/styles.py` |
 
-| File | Purpose |
-| :-- | :-- |
-| **[`main_window.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/main_window.py)** | **Main Application.** Sets up the window, sidebar, and orchestrates the interaction between different views. |
-| **[`analysis_view.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/views/analysis_view.py)** | **Analysis Dashboard.** Re-exports the `AnalysisPanel` and `MoveListPanel` views. |
-| **[`board.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/board/board.py)** | **Chess Board.** The single configurable board used by every page; renders pieces, handles flipping and interaction. |
-| **[`graph_widget.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/graph_widget.py)** | **Evaluation Graph.** Draws the visual evaluation chart using Matplotlib. |
-| **[`metrics_view.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/views/metrics_view.py)** | **Statistics Dashboard.** Coordinates the decomposed metrics dashboard card widgets under `src/gui/views/metrics/`. |
-| **[`styles.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/styles.py)** | **Theming.** Contains CSS-like stylesheets (QSS) and theme color settings. |
-| **[`setup_wizard.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/setup_wizard.py)** | **Setup Wizard.** Guides users through the first-run configuration (Engine, APIs, Accounts, Appearance). |
-| **[`tour_manager.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/tour_manager.py)** | **Tour Controller.** Manages steps, state, and seen-markers for interactive tutorials. |
-| **[`tour_overlay.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/components/tour_overlay.py)** | **Tour Visuals.** Draws the pulsing target highlights, tooltips, and interactive buttons for tutorials. |
-| **[`engine_error_dialog.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/engine_error_dialog.py)** | **Engine Error handling.** Friendly dialog guiding the user when the Stockfish path is incorrect or missing. |
-| **[`llm_error_dialog.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/llm_error_dialog.py)** | **LLM Error handling.** Prompts configuration steps when AI credentials/endpoints are unconfigured. |
-| **[`splash_screen.py`](file:///Users/utkarsh/Developer/Projects/Chess_analyzer/src/gui/dialogs/splash_screen.py)** | **Startup Screen.** Displays a branded splash screen. |
-| **`themes.py`** | **Board & Piece Themes.** Manages board color themes and piece set options for user customization. |
+For every module's purpose and the allowed dependency edges, see
+[architecture.md](architecture.md#2-system-overview).
 
-### `src/utils/` (The Helpers)
+---
 
-| File | Purpose |
-| :-- | :-- |
-| **`config.py`** | Manages `config.json` for saving user settings (theme, engine path, API keys, board/piece themes). |
-| **`logger.py`** | Sets up the application logging (writes to `chess_analyzer.log`). |
-| **`resources.py`** | Helper for loading images, icons, and sounds. |
-| **`utils.py`** | Reusable utility functions shared across the codebase to reduce code duplication. |
+## 4. The patterns you must follow
+
+### Components
+
+Import shared widgets from the facade only:
+
+```python
+from src.gui.components import Button, ButtonVariant, Input, Select, Tabs
+```
+
+Never construct raw `QPushButton`, `QLineEdit`, or `QComboBox`, and never write
+widget-local QSS. Use:
+
+| Need | Component |
+| --- | --- |
+| Action | `Button` / `create_button` / `create_icon_button` |
+| Text entry | `Input`, `TextArea` |
+| Dropdown | `Select` |
+| Tabs | `Tabs` |
+| Date | `DatePicker` |
+| Notification | `ToastManager` |
+| Paging | `PaginationBar` |
+| Empty state | `EmptyState` |
+| Status pill | `StatusBadge` |
+| Chips | `SegmentedControl` |
+| Bars/legends | `MiniBar`, `SegmentedBar`, `LegendList` |
+
+### Theming
+
+- Colours come from `Styles.COLOR_*` and `gui/theme/palette.py`.
+- Each control's look comes from a `Styles.get_*_qss()` generator.
+- Per-widget styles must be rebuilt on theme/accent change. Capture palette
+  values inside a `_refresh_*_styles()` method, not in `__init__`.
+
+### Settings
+
+Add settings to `src/config/settings_schema.py` (default, type, validation,
+`apply="live"` if it should take effect immediately). Build the control in
+`src/gui/views/settings/` with `SettingsForm`/`SettingsBinder`. Credentials go
+through `SecretStore`, never plaintext JSON.
+
+### Background work
+
+Engine analysis, API calls, and LLM requests run in `QThread` subclasses and
+communicate with signals. Never block the Qt event loop, and always cancel and
+clean up workers on close.
 
 ---
 
 ## 5. How-To Guides (Making Changes)
 
-### Scenario A: I want to change how "Blunders" are defined.
+### Scenario A: Change how “Blunders” are defined
 
-**File to modify:** `src/backend/analysis/move_classifier.py`
+**File:** `src/backend/analysis/move_classifier.py`
 
-1.  Open `move_classifier.py`.
-2.  Locate the classification logic and threshold constants.
-3.  Adjust the thresholds to make them stricter or more lenient.
+1. Locate the classification thresholds.
+2. Adjust them and update the classifier tests.
+3. Keep the White-perspective score contract intact.
 
-### Scenario B: I want to add a new column to the Move List.
+### Scenario B: Add a column to the Move List
 
-**Files to modify:** `src/gui/analysis/move_list_panel.py`
+**Files:** `src/gui/analysis/move_list_panel.py`,
+`src/gui/analysis/move_cell_widget.py`
 
-1.  Open `move_list_panel.py`.
-2.  In `__init__`, update the table columns configuration and headers.
-3.  Update the populate logic to draw the new column item.
+1. Update the table columns/headers in `move_list_panel.py`.
+2. Render the new value in the cell widget.
+3. Add a GUI test.
 
-### Scenario C: I want to change the app's color theme.
+### Scenario C: Change the app's colour theme
 
-**File to modify:** `src/gui/styles.py`
+**Files:** `src/gui/theme/palette.py`, `src/gui/styles.py`
 
-1.  Open `styles.py`.
-2.  Locate the `Styles` class.
-3.  Update the color constants at the top (e.g., `COLOR_BACKGROUND`, `COLOR_ACCENT`).
-4.  The app uses these constants to generate the QSS strings.
+1. Edit the `LIGHT`/`DARK` palettes (or `BOARD_THEMES`).
+2. QSS generators read the palette automatically.
+3. Verify per-widget refresh methods still run on theme change.
 
-### Scenario D: I want to add a new game loading source.
+### Scenario D: Add a setting end-to-end
 
-**Files to create/modify:**
+1. Add a `SettingSpec` to `src/config/settings_schema.py`.
+2. Add the control to the matching card in `src/gui/views/settings/`.
+3. Wire the live-apply slot in `SettingsView`/`MainWindow` if needed.
+4. Test persistence and the live branch.
 
-1.  **Create** your API class in `src/backend/` if it requires fetching online games (e.g., see `src/backend/lichess_api.py`).
-2.  **Modify** `src/gui/dialogs/load_game_dialog.py`:
-    - Create a new right-panel tab class representing the UI layout for your source (e.g., see `_ChessComPanel` or `_PgnTextPanel`).
-    - Add your new source ID and details to the `_SOURCES` tuple.
-    - Instantiate the panel inside `LoadGameDialog._build_panels()` and add it to `self.stack`.
-    - Wire the panel's signals (`pgn_ready`, `pending_cleared`) to trigger `self._set_pending` in the parent dialog.
-    - Update `LoadGameDialog._switch_source` to handle resetting your new panel.
+### Scenario E: Add a game-loading source
+
+1. Create a client in `src/backend/api/` extending `BaseChessAPI`.
+2. Add a panel in `src/gui/dialogs/load_game/` and wire it into
+   `LoadGameDialog`.
+3. Run requests through `ApiWorker`, respect `import_limits.py`, and normalise to
+   `GameInfo`/`GameAnalysis`.
+4. Mock the HTTP client in tests.
+
+### Scenario F: Add a shared component
+
+1. Add it under the right `src/gui/components/<group>/` subpackage.
+2. Export it from `src/gui/components/__init__.py`.
+3. Generate its style from `Styles`; restyle on theme change.
+4. Add a `pytest-qt` test.
 
 ---
 
@@ -151,112 +217,84 @@ The application follows a **Model-View-Controller (MVC)** inspired pattern:
 
 ### Prerequisites
 
-1.  Install Python 3.10+.
-2.  Download **Stockfish** and note its path.
+1. Python 3.10+.
+2. Stockfish (or use the in-app downloader).
 
 ### Setup
 
-1.  Create a virtual environment:
-    ```bash
-    python -m venv venv
-    .\venv\Scripts\activate  # Windows
-    ```
-2.  Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-### Running
-
 ```bash
+python3 -m venv venv
+source venv/bin/activate        # macOS/Linux
+venv\Scripts\activate           # Windows
+
+pip install -r requirements-dev.txt
 python main.py
 ```
 
-_Note: On first run, go to **Settings** and select your Stockfish executable path._
+On first run, the Setup Wizard configures the engine, theme, and optional
+integrations.
 
 ---
 
 ## 7. Testing
 
-We use **pytest** for unit and integration testing. It is crucial to run tests before pushing any changes to ensure stability.
-
-### Running Tests
-
-To run all tests, execute the following command in your terminal:
-
 ```bash
-PYTHONPATH=. pytest tests/ -v
-```
+# Full suite (should finish in under 20 seconds)
+pytest tests/
 
-> Note: For headless Linux environments or CI, export `QT_QPA_PLATFORM=offscreen` first.
+# Headless Linux/CI
+QT_QPA_PLATFORM=offscreen pytest tests/
 
-To run a specific test file:
+# One file
+pytest tests/backend/test_analyzer.py
 
-```bash
-PYTHONPATH=. pytest tests/backend/test_analyzer.py -v
-```
-
-### Coverage and Test Quality
-
-Backend and utility modules are measured with branch coverage (GUI modules are
-excluded). The report fails below the `fail_under` threshold in
-`pyproject.toml`:
-
-```bash
-PYTHONPATH=. pytest tests/ --cov=src --cov-branch --cov-report=term-missing
+# Branch coverage (85% floor, GUI excluded)
+pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 ```
 
 When adding tests:
 
-- Cover meaningful behavior and failure paths, not line counts; do not lower the
-  coverage floor to make a build pass.
-- Avoid test bloat. Extend or parameterize existing tests and delete tests that
-  only smoke-check construction or duplicate another module's coverage.
-- Keep the suite fast: the full run should finish in under 20 seconds. Use
-  `pytest tests/ --durations=10` to find slow tests.
-- Never make a test pass by letting a timer expire, and never use
-  `time.sleep()`, `QTest.qWait()`, or real request timeouts to wait for work to
-  finish. Run workers synchronously or inject fake clocks instead.
-  `qtbot.waitUntil`/`waitSignal` are only for unavoidable Qt layout or debounce
-  events, with a tight timeout and an immediately-true condition.
-- Mock all HTTP and LLM calls so tests pass offline.
-- Never write to real persistence. Use pytest's `tmp_path`/`tmp_path_factory`
-  and pass explicit temporary paths; never touch the user's real database,
-  config, secrets, logs, or backups.
-- Keep every test cross-platform: it must pass on Windows, macOS, and Linux. Use
-  `pathlib.Path` rather than hardcoded separators, and guard POSIX-only
-  assertions (permission or exec bits, `chmod` results) behind
-  `sys.platform`/`os.name` instead of assuming a Unix host.
+- Cover meaningful behaviour, calculations, state changes, and failure paths —
+  not line counts.
+- Do not lower `fail_under` or exclude modules to make the gate pass.
+- Extend or parameterize existing tests; delete smoke-only duplicates.
+- Never use `time.sleep()`, `QTest.qWait()`, or real timeouts. Run workers
+  synchronously or inject fake clocks.
+- Mock every HTTP and LLM call; tests must pass offline.
+- Use `tmp_path`/`tmp_path_factory`; never touch real user data.
+- Keep tests cross-platform (`pathlib.Path`, no POSIX-only assertions).
 
-> [!IMPORTANT] **Always run tests after adding a new feature!** Ensuring that new code doesn't break existing functionality is key to maintaining a healthy codebase.
+Full rules: [CONTRIBUTING.md](../CONTRIBUTING.md#8-test-quality-expectations).
 
 ---
 
 ## 8. Troubleshooting
 
-- **"Engine not found":** Ensure the path in Settings is correct and points to the Stockfish **executable** (not the folder).
-- **"API Key Error":** If using AI Summary, ensure your LLM configuration profile is active and the API key is valid.
-- **Logs:** Check `chess_analyzer.log` in the platform-specific user data directory (e.g., `~/Library/Application Support/ChessAnalyzerPro` on macOS) for detailed error messages.
+- **“Engine not found”**: point Settings → Chess Engine at the Stockfish
+  **executable**, not the folder.
+- **“API key error”**: activate a valid LLM profile in Settings → AI Coach.
+- **Logs**: `chess_analyzer.log` in the OS user-data directory
+  (`~/Library/Application Support/ChessAnalyzerPro` on macOS,
+  `%APPDATA%\ChessAnalyzerPro` on Windows,
+  `~/.local/share/chessanalyzerpro` on Linux).
 
 ---
 
 ## 9. Building from Source
 
-To create a standalone executable (`.exe`) for distribution, we use **PyInstaller**. The build configuration is defined in `build.spec`.
+```bash
+pip install pyinstaller
+pyinstaller build.spec
+```
 
-### Steps
+The bundle is written to `dist/`. `build.spec` includes assets and hidden imports
+for PyQt6 and python-chess. Platform installers live in `installers/`.
 
-1.  Ensure you have the development dependencies installed:
-    ```bash
-    pip install pyinstaller
-    ```
-2.  Run the build command:
-    ```bash
-    pyinstaller build.spec
-    ```
-3.  The output executable will be located in the `dist/` directory:
-    ```text
-    dist/ChessAnalyzerPro.exe
-    ```
+---
 
-> [!NOTE] The `build.spec` file is configured to include necessary assets (images, icons) and handle hidden imports for libraries like `python-chess` and `PyQt6`.
+## 10. Next Steps
+
+- Read [architecture.md](architecture.md) for the file map and extension recipes.
+- Read [CONTRIBUTING.md](../CONTRIBUTING.md) before opening a PR (issue-first).
+- Check [planning/2.5.0_progress.md](../planning/2.5.0_progress.md) for release
+  scope.

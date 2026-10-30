@@ -1,6 +1,102 @@
 # Changelog
 
-## v2.4.0 - Performance Analytics, Interactive Landing Hub & Engine Polish (Latest)
+## v2.5.0 - AI Coach, Variations, Settings & Component Platform (Unreleased)
+
+### Features
+
+- **AI Coach & Grounded Move Explanations**: Per-move explanations are built from a deterministic fact sheet (classification, evaluation swing, tactics, candidate lines), validated against those facts, and rendered in a dedicated Coach tab. The same pipeline powers persistent full-game summaries and falls back to offline deterministic text when no provider is configured or the network is unavailable. Explanation temperature, max tokens and reasoning effort are configurable, and explanations are cached with a configurable TTL.
+- **Playable Variations & Branch Explorer**: Branch from the best move, a refutation, or any engine line without leaving the game. Variation trees are FEN-keyed and persistent for the session, rendered as a scrollable graph with lanes and nodes, with saved-tree badges in the move list and sibling cycling. The tree evicts branches at a configurable cap.
+- **Settings Page Overhaul**: Schema-driven settings registry with a searchable category rail, Basic/Advanced split, single-source defaults and validation, and one card per settings area. Data Management now includes validated backup/restore, a local usage report, an open-data-folder action, cache retention policies, maintenance, and a separated danger zone.
+- **History Page Optimisation**: Paged loading (10 detailed / 15 compact per page) with idle prefetch of the next page, debounced search/filters, shared pagination, and a persisted default layout. Game cards and compact rows render from one shared item widget.
+- **Keyboard Shortcuts & Presets**: Central shortcut manager with Standard and Vim presets, move stepping, critical-move jumps, auto-replay, page switching, and a Settings cheat sheet/help dialog.
+- **Board Display Toggles**: Coordinates and move-quality badges are real appearance settings, applied live to both Analysis and Explorer boards.
+- **Configurable Cache Retention**: Explorer and explanation cache TTLs plus analysis-cache capacity are real settings, with amortised pruning applied as values are saved.
+- **Integrations & Player Profiles**: Rebuilt Chess.com/Lichess/import cards with cached public profile previews, avatars, country normalisation, stale offline fallback, and token-aware import caps shared by the UI and fetch workers.
+- **Lichess Explorer Authentication**: Explorer requests send the configured Lichess token, throttle to the account budget, gate live lookups on token presence, and keep cached/book data available offline.
+- **LLM Profile Management**: Explicit Set Active action, per-field persistence, provider-default resets, and Custom base URLs kept visible in Basic mode.
+- **Dashboard Layout**: Reorderable chart cards with pinned summary cards, stable-key persisted order, and a reusable drag/drop sortable list with auto-scroll and insertion guides.
+- **Shared Date Picker**: Outlined editable field with a floating label, accent selection ring, painted border notch, month/year navigation, locale-aware weekdays, keyboard grid navigation, and scoped “no future dates” caps.
+- **Central Toast System**: Five variants, per-window stacking, loading-to-result morphing, action buttons, progress, hover pause, dedupe, painted outline icons, and configurable placement.
+- **Modernized Load Game**: Single dialog shell with a source toolbar, stacked field-style inputs, fetch action, query summary, skeleton loading, structured empty/error states with retry, and a PGN File/Text switch with a dropzone and paste action.
+
+### Improvements
+
+- **UI Refactor & Component Centralisation**: The GUI component library is grouped into `controls/`, `display/`, `feedback/`, `layout/`, and `lists/` behind one public facade. `MainWindow` is split into focused mixins, and every shared control now comes from one implementation: `Button`, `Input`/`TextArea`, `Select`, `Tabs`, `DatePicker`, `Toast`, `PaginationBar`, `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, and `SegmentedBar`. Styles are generated from the live palette in `styles.py` instead of per-widget QSS.
+- **Landing Page UX**: Single-primary hierarchy (Load Game is the only filled action; GitHub is outlined, review is hollow, utilities are one row of text links), top-aligned CTA, neutral puzzle prompt with a turn badge, ghost Reveal, shortcut hints, and drag-over feedback.
+- **Theme-Aware Controls & POV Results**: Theme switches re-render control icons, restyle the landing puzzle chrome (prompt, turn badge, revealed blurb), and keep result colours on the saved player's perspective.
+- **Status Bar Idle State**: Idle shows a single `● Engine ready` pill; the separator and status label appear only for real messages such as progress, warnings, or errors.
+- **Board & Pieces Overhaul**: Redesigned theme/piece settings with live previews; new installs default to the warmer Brown board theme.
+- **Move List Polish**: Rounded card, side-dot headers, classification badges for all classified moves, widget-painted selection/hover, and responsive think-time labels.
+- **Board Chrome**: Matchup header hugs the board width, captured-piece/clock rows stay attached to the board, and navigation uses a compact icon footer.
+- **Engine Lines Redesign**: Pure `EngineLine` model, shared live session, dedicated widget, fixed-height rows, elided PVs, and throttled 10 Hz updates.
+- **Board Stepping Performance**: Jump directly from cached `fen_before` instead of replaying from move 0.
+- **Sidebar Start State**: Configurable Expanded/Collapsed default; collapsed mode no longer auto-expands on tab changes, icon-only buttons carry tooltips, and the active page gets a left accent bar.
+- **Adaptive Workspace Layout**: First-launch size follows the available screen; workspace panes use actual width with 25/45/30 proportions.
+- **Settings UX**: Logical category ordering, clearer Basic/Advanced split, capped control widths, tighter rows, structured Data Management actions, and a proper About page.
+- **Secure Credentials**: LLM API keys and the Lichess token live in the OS credential store, with automatic migration from legacy `secrets.json`.
+- **Settings Navigation**: Fixed category rail while only the options panel scrolls; search scrolls to the matching card.
+- **Metric Dashboard Consistency**: Shared empty states, status badges, segmented controls, pagination, legends, and bars; one card lifecycle; lazily rendered Time Management subpages.
+- **Toast-Driven Long-Running Work**: Backup/restore, cache maintenance, CSV import, online fetches, token checks, LLM tests, update checks, and full analysis now show a loading toast that resolves into success or error.
+- **Load Game State & Recovery**: Inline skeletons, result summaries, change-filter/retry controls, and preserved PGN text/file state when switching tabs.
+- **Update Dialog UX**: Rich Markdown release notes, clickable links, scrollable view, and streaming download progress.
+- **Shared Loading Skeletons**: Coach and Metrics AI wait states use the same pulsing skeleton.
+- **Shared Pagination Bar**: Page-size, index, and prev/next behaviour live in one component used by history, metrics cards, and drill-down.
+
+### Bug Fixes
+
+- **In-App Updater SSL Error**: Fixed `[SSL: CERTIFICATE_VERIFY_FAILED]` on macOS by switching the download worker to `requests` with bundled `certifi` CAs.
+- **Accent Color Persistence**: Fixed custom accents reverting to the system default on restart.
+- **Landing Tour Loop**: Fixed the empty landing tour repeating on every launch.
+- **Evaluation Lines**: Continuations start from the selected position; checkmate shows only the mating line; live analysis is bounded by time/depth; Explorer search starts only when visible.
+- **Engine Lines Lifecycle**: Fixed stale line resurrection, sequence/race mismatches, duplicate Stockfish spawns, and hang/timeout cases.
+- **Board Stability**: Explorer no longer unflips on reload; captured pieces stay on their sides; orientation resets when loading a game.
+- **Evaluation Graph Callback Leak**: Hover/click listeners attach once instead of on every render.
+- **Lichess Result Mapping**: Resignation and timeout are preserved instead of becoming agreed draws.
+- **PGN Think Time**: Time-control increments are included; zero-think moves are no longer discarded.
+- **F Shortcut Guard**: `F` no longer flips the board while typing in a text field.
+- **Missing Config Defaults**: Persisted defaults now cover theme mode, accent mode, shortcut preset, settings mode, tour state and update-check state.
+- **Lichess Token Placement**: Moved Lichess credentials from AI Coach to Integrations.
+- **Move List Crash After Data Restore**: Clearing a game now resets embedded cell widgets and prunes dead wrappers before variation badges refresh.
+- **Lichess NDJSON Nulls**: Null opening objects and player entries no longer raise during import.
+- **Clear Analysis Cache Scope**: Clearing the analysis cache no longer deletes AI Coach explanations.
+- **Reset All Data Completeness**: Reset empties every cache table and raises on failure.
+- **LLM Profile Persistence**: Profile edits save when a field is committed.
+- **Tab Style Bleed**: Removed the global `QTabBar` QSS that leaked into unrelated tabs.
+- **Toast Overlap and Dialog Clipping**: Toasts stack per window and stay anchored to the dialog that raised them.
+- **Import Progress Expiry**: CSV import uses a persistent loading toast instead of a short info toast.
+- **Update Check UI Freeze**: Manual update checks run in a background worker.
+- **Toast Theme Refresh**: Toasts restyle on theme and accent changes.
+- **Load Game Fetch Worker Lifetime**: Workers are parentless, cancel-aware, and deleted when their thread finishes.
+- **Load Game Tab State**: Switching tabs no longer wipes pasted PGN text or the selected game.
+- **Today's Game Cache**: Today's date results refresh after five minutes; historical dates stay cacheable.
+- **Chess.com Date Boundaries**: Both platforms use the same local calendar day.
+- **Unbounded API Requests**: All API calls now use a 30-second timeout.
+- **Illegal-Move Error Style**: The Explorer SAN box uses a palette-driven invalid state instead of a hardcoded dark red.
+
+### Chores
+
+- Grouped `src/gui/components` into responsibility subpackages behind the existing public facade.
+- Unified the Analysis and Explorer boards into one configurable `Board`.
+- Removed the duplicate `ExplorerBoardWidget` and promotion dialog.
+- Replaced deprecated `locale.getdefaultlocale()` with `locale.getlocale()`.
+- Added `keyring` for OS credential storage, including the PyInstaller hidden import.
+- Added a typed, validated settings schema with generated defaults and a persisted schema version.
+- Cut the test suite to under 20 seconds by reusing a bare window, stubbing global QSS compilation, and removing timing-sensitive smoke tests; added an 85% branch-coverage floor with GUI modules excluded.
+- Expanded backend coverage for caches, analyzer lifecycle/cancellation, engine start/stop and Chess960, updater dispatch, API handling, feedback failures, metrics filters, config migrations, and secret storage.
+- Isolated tests from provider environment variables, the real config/history database, the OS keychain, and the network.
+- Added a shared `BackgroundTaskCard`/`BackgroundTaskWorker` runner so storage, network, and update tasks cannot block the UI thread or overlap.
+- Deleted legacy button/input/combobox style getters and factories; added test guards against raw widget styling and construction.
+- Collapsed duplicated pagination logic into the shared `PaginationBar`.
+- Removed duplicated metric chart helpers and rebuilt the metrics filter toolbar from a spec loop.
+- Removed `Toast.show_message` and per-card toast helpers; all notifications go through one manager.
+- Removed the unused `ChessComPanel`, `LichessPanel`, and `SourceBtn` along with their duplicate fetch paths.
+- Added shared `FormField` and date/game-row formatting helpers.
+- Replaced the old `ModernDatePicker` with the shared `DatePicker`.
+- Removed the unused `config.example.json`.
+
+---
+
+## v2.4.0 - Performance Analytics, Interactive Landing Hub & Engine Polish
 
 ### Features
 

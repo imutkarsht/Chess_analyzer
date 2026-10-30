@@ -466,13 +466,23 @@ class ExplorerView(QWidget):
         self._classify_before_eval = None
         self._refresh_engine(self.board.fen())
 
-    def load_board_state(self, source_board, source_moves=None, *, chess960=None, starting_fen=None):
+    def load_board_state(
+        self,
+        source_board,
+        source_moves=None,
+        *,
+        chess960=None,
+        starting_fen=None,
+        move_index=None,
+    ):
         """Loads a full board state including its move stack history and optional existing classifications.
 
         Parameters
         ----------
         source_board : chess.Board
-            Board at the displayed position (move_stack is replayed from scratch).
+            Board at the displayed position. After navigation the main board
+            only carries the current ply on its move stack, so ``move_index``
+            (with ``source_moves``) is the authoritative replay length.
         source_moves : list[MoveAnalysis] | None
             Move-level metadata with classifications.
         chess960 : bool | None
@@ -482,6 +492,10 @@ class ExplorerView(QWidget):
             are correct regardless of what mode the main widget used.
         starting_fen : str | None
             Authoritative starting FEN from game metadata.
+        move_index : int | None
+            Zero-based ply currently displayed by the main board. Pass it
+            whenever ``source_moves`` is available so the replay is built from
+            the full game instead of the single move left on the board stack.
         """
         # Phase 1: detect Chess960 mode — trust metadata (passed via kwargs)
         # over source_board, since the main widget may have lost the flag.
@@ -498,15 +512,22 @@ class ExplorerView(QWidget):
             self.starting_fen = source_board.starting_fen
 
         # Phase 2: determine which move list to replay from.
-        # source_board.move_stack may have been generated on a standard board
-        # even for Chess960 games.  When Chess960 IS detected and source_moves
-        # has enough entries, use the authoritative UCI strings from game
-        # metadata so board states are correct.
-        num_moves = len(source_board.move_stack)
-        if self.is_chess960 and source_moves and len(source_moves) >= num_moves:
-            replay_moves = [chess.Move.from_uci(source_moves[i].uci) for i in range(num_moves)]
+        # Board.set_position() rebuilds the main board from the current move's
+        # fen_before, so source_board.move_stack holds only that one ply. Use
+        # the authoritative MoveAnalysis list plus the displayed ply instead.
+        if source_moves and move_index is not None:
+            target = max(-1, min(move_index, len(source_moves) - 1))
+            replay_moves = [
+                chess.Move.from_uci(source_moves[i].uci) for i in range(target + 1)
+            ]
         else:
-            replay_moves = list(source_board.move_stack)
+            num_moves = len(source_board.move_stack)
+            if self.is_chess960 and source_moves and len(source_moves) >= num_moves:
+                replay_moves = [
+                    chess.Move.from_uci(source_moves[i].uci) for i in range(num_moves)
+                ]
+            else:
+                replay_moves = list(source_board.move_stack)
 
         self.board = chess.Board(self.starting_fen, chess960=self.is_chess960)
         self.move_history = []
@@ -522,8 +543,28 @@ class ExplorerView(QWidget):
             pass
         self.board_widget.load_fen(fen=self.starting_fen, chess960=self.is_chess960)
 
-        # Play out the move stack
+        # Play out the move stack. A corrupted or mismatched start position must
+        # never crash the app: resync from the recorded fen_before, then stop.
         for i, move in enumerate(replay_moves):
+            if not self.board.is_pseudo_legal(move):
+                expected = (
+                    source_moves[i].fen_before
+                    if source_moves and i < len(source_moves)
+                    else None
+                )
+                if expected:
+                    self.board = chess.Board(expected, chess960=self.is_chess960)
+                    self.board_widget.board = chess.Board(
+                        expected, chess960=self.is_chess960
+                    )
+                if not self.board.is_pseudo_legal(move):
+                    logger.warning(
+                        "Explorer replay stopped at ply %s: illegal move %s",
+                        i + 1,
+                        move.uci(),
+                    )
+                    break
+
             fen_before = self.board.fen()
             try:
                 san = self.board.san(move)
@@ -545,6 +586,7 @@ class ExplorerView(QWidget):
         self.board_widget.set_best_move(None)
         self.board_widget.set_last_move_classification(None)
         self.board_widget.move_made.connect(self.on_move_made)
+        self.board_widget.update_board()
 
         fen = self.board.fen()
         self.update_opening_db(fen)

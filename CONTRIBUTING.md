@@ -167,7 +167,7 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 | Bug fix          | `fix/<short-description>`   | `fix/eval-bar-teardown`     |
 | Documentation    | `docs/<short-description>`  | `docs/update-readme-badges` |
 | Refactor / chore | `chore/<short-description>` | `chore/split-requirements`  |
-| Release          | `release/v<version>`        | `release/v2.4.0`            |
+| Release          | `release/v<version>`        | `release/v2.5.0`            |
 
 ---
 
@@ -184,13 +184,74 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
   - `chore:` for maintenance / CI / tooling
   - `test:` for test additions or changes
 
+### UI components
+
+- Import shared widgets from the **facade only**:
+  `from src.gui.components import Button, Input, Select, Tabs, Toast`.
+  Never import from `src.gui.components.controls.*` and friends at a call site.
+- Use the shared control instead of the raw Qt one:
+
+  | Use | Instead of |
+  | --- | --- |
+  | `Button` / `create_button` | `QPushButton`, `QToolButton`, local button QSS |
+  | `Input` / `TextArea` | `QLineEdit`, `QTextEdit` |
+  | `Select` | `QComboBox`, `create_combobox` |
+  | `Tabs` | ad-hoc `QTabBar` styling |
+  | `DatePicker` | platform date widgets |
+  | `ToastManager` | `QMessageBox` for transient feedback |
+  | `PaginationBar` | hand-rolled prev/next rows |
+  | `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `LegendList` | per-card reimplementations |
+
+- Control looks come from a **`Styles.get_*_qss()` generator**. Do not add
+  widget-local QSS or hex colors.
+- **Theme contract:** per-widget stylesheets must be rebuilt on theme/accent
+  change. Capture palette tokens inside a refresh method, not at construction.
+- Dashboard cards must use `MetricCard`'s
+  `new_content()` / `clear_content()` / `show_empty()` lifecycle.
+
+### Settings
+
+- Add every setting to `src/config/settings_schema.py` (default, type,
+  validation, `apply="live"` when it should take effect immediately). Do not
+  scatter `config.get("key", default)` fallbacks through widgets.
+- Settings cards live in `src/gui/views/settings/` and use the shared
+  `SettingsForm` / `SettingsBinder` components.
+- Credentials go through `SecretStore` (OS credential store), never plaintext
+  JSON.
+
 ---
 
 ## 🏗️ Architecture Notes
 
-- **No Qt in backend**: `src/backend/` must have zero PyQt6 imports.
-- **Long-running tasks** must run in `QThread` subclasses, communicating via `pyqtSignal`.
-- **ConfigManager** is a singleton — do not instantiate in tight loops.
-- **Score convention**: evaluation scores are stored relative to White (positive = White better).
+The canonical, file-by-file reference is
+**[docs/architecture.md](docs/architecture.md)**. The rules contributors must
+not break:
 
-See the full architecture and agent guidelines in [`AGENTS.md`](AGENTS.md).
+- **No Qt in backend**: `src/backend/`, `src/utils/`, and `src/config/` must have
+  zero PyQt6 imports.
+- **Long-running tasks** must run in `QThread` subclasses, communicating via
+  `pyqtSignal`; cancel and clean them up on close.
+- **Domain logic before storage**: repositories persist; domain services compute
+  (tactics, classification, termination). No SQL that implements game rules.
+- **ConfigManager** is a singleton — do not instantiate in tight loops.
+- **Score convention**: evaluation scores are stored relative to White
+  (positive = White better). Convert once, during ingestion.
+- **Invariants**: 10.0% per-move accuracy floor, deterministic `md5(pgn)` game
+  IDs, engine stop in `finally`, thermal-safe defaults (`multi_pv=2`,
+  `threads=1`, `hash=128MB`), and Chess960 castling handling.
+- **DRY**: one column spec per table, model `to_dict`/`from_dict`, one shared
+  component per control, symmetric White/Black logic.
+
+---
+
+## 📚 Documentation Expectations
+
+| Change | Update |
+| --- | --- |
+| New module/package | `docs/architecture.md` file table |
+| New shared component or setting | `docs/architecture.md` + `docs/onboarding_doc.md` |
+| User-visible feature/fix | `CHANGELOG.md` and `planning/2.5.0_progress.md` |
+| Workflow or standards | `CONTRIBUTING.md` / `AGENTS.md` |
+
+Refinements to work introduced during the unreleased 2.5.0 cycle belong in the
+feature bullet they extend, not as new “Bug Fixes” or “Improvements” entries.
