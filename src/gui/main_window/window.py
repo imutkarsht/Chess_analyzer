@@ -620,15 +620,6 @@ class MainWindow(
         self.historic_info_bar = QFrame()
         self.historic_info_bar.setObjectName("HistoricInfoBar")
         self.historic_info_bar.setVisible(False)
-        self.historic_info_bar.setStyleSheet(f"""
-            QFrame#HistoricInfoBar {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: none;
-                border-top: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 0px;
-            }}
-            QLabel {{ background: transparent; border: none; }}
-        """)
         hib_outer = QVBoxLayout(self.historic_info_bar)
         hib_outer.setContentsMargins(16, 12, 16, 12)
         hib_outer.setSpacing(6)
@@ -637,14 +628,10 @@ class MainWindow(
         hib_top = QHBoxLayout()
         hib_top.setSpacing(8)
         self._hib_title = QLabel()
-        self._hib_title.setStyleSheet(
-            f"font-size: 15px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
-        )
         self._hib_title.setWordWrap(False)
         hib_top.addWidget(self._hib_title)
 
         self._hib_turn = QLabel()
-        self._hib_turn.setStyleSheet(Styles.get_badge_style(11))
         hib_top.insertWidget(1, self._hib_turn)
 
         hib_top.addStretch()
@@ -682,14 +669,10 @@ class MainWindow(
 
         # Row 2: players / year / event
         self._hib_meta = QLabel()
-        self._hib_meta.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};")
         hib_outer.addWidget(self._hib_meta)
 
         # Row 3: puzzle prompt (turn_desc)
         self._hib_hint = QLabel()
-        self._hib_hint.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY};"
-        )
         self._hib_hint.setWordWrap(True)
         hib_outer.addWidget(self._hib_hint)
 
@@ -697,25 +680,19 @@ class MainWindow(
         self._hib_celebration = QFrame()
         self._hib_celebration.setObjectName("HistoricCelebration")
         self._hib_celebration.setVisible(False)
-        self._hib_celebration.setStyleSheet(f"""
-            QFrame#HistoricCelebration {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-            }}
-            QLabel {{ background: transparent; border: none; }}
-        """)
         cel_layout = QHBoxLayout(self._hib_celebration)
         cel_layout.setContentsMargins(10, 8, 10, 8)
         cel_layout.setSpacing(8)
         self._hib_cel_icon = QLabel("✨")
-        self._hib_cel_icon.setStyleSheet("font-size: 20px;")
         cel_layout.addWidget(self._hib_cel_icon)
         self._hib_cel_text = QLabel()
         self._hib_cel_text.setWordWrap(True)
-        self._hib_cel_text.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};")
         cel_layout.addWidget(self._hib_cel_text, 1)
         hib_outer.addWidget(self._hib_celebration)
+
+        # Per-widget styles live outside the global QSS, so build them from the
+        # live palette here and rebuild them on every theme change.
+        self._refresh_historic_bar_styles()
 
         center_layout.addWidget(self.historic_info_bar)
 
@@ -775,6 +752,58 @@ class MainWindow(
             QTimer.singleShot(0, self._load_random_historic_position)
 
     # ── Historic landing board helpers ────────────────────────────────────
+
+    def _refresh_historic_bar_styles(self):
+        """Rebuild the landing puzzle chrome from the live palette.
+
+        These labels use per-widget styles instead of the global QSS, so a
+        theme or accent switch must re-apply them or the text keeps the old
+        palette's ink and can vanish against the new surface.
+        """
+        if hasattr(self, "historic_info_bar"):
+            self.historic_info_bar.setStyleSheet(f"""
+                QFrame#HistoricInfoBar {{
+                    background-color: {Styles.COLOR_SURFACE};
+                    border: none;
+                    border-top: 1px solid {Styles.COLOR_BORDER};
+                    border-radius: 0px;
+                }}
+                QLabel {{ background: transparent; border: none; }}
+            """)
+        if hasattr(self, "_hib_title"):
+            self._hib_title.setStyleSheet(
+                f"font-size: 15px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
+            )
+        if hasattr(self, "_hib_turn"):
+            self._hib_turn.setStyleSheet(Styles.get_badge_style(11))
+        if hasattr(self, "_hib_meta"):
+            self._hib_meta.setStyleSheet(
+                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
+            )
+        if hasattr(self, "_hib_hint"):
+            self._hib_hint.setStyleSheet(
+                f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY};"
+            )
+        if hasattr(self, "_hib_cel_icon"):
+            self._hib_cel_icon.setStyleSheet("font-size: 20px;")
+        if hasattr(self, "_hib_cel_text"):
+            self._hib_cel_text.setStyleSheet(
+                f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};"
+            )
+        if hasattr(self, "_hib_celebration"):
+            border = (
+                Styles.COLOR_ACCENT
+                if getattr(self, "_historic_move_found", False)
+                else Styles.COLOR_BORDER
+            )
+            self._hib_celebration.setStyleSheet(f"""
+                QFrame#HistoricCelebration {{
+                    background-color: {Styles.COLOR_SURFACE_LIGHT};
+                    border: 1px solid {border};
+                    border-radius: 6px;
+                }}
+                QLabel {{ background: transparent; border: none; }}
+            """)
 
     def _load_random_historic_position(self):
         """Pick a random position from the curated historic collection and load it onto the board."""
@@ -868,14 +897,7 @@ class MainWindow(
             self.btn_hib_reveal.hide()
         if hasattr(self, "btn_hib_explore"):
             self.btn_hib_explore.show()
-        self._hib_celebration.setStyleSheet(f"""
-            QFrame#HistoricCelebration {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_ACCENT};
-                border-radius: 6px;
-            }}
-            QLabel {{ background: transparent; border: none; }}
-        """)
+        self._refresh_historic_bar_styles()
         self._hib_celebration.setVisible(True)
 
     def resizeEvent(self, event):
