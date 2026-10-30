@@ -1,7 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from src.gui.components.empty_state import EmptyState
+from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.styles import Styles
 
 

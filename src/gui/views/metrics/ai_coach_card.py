@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
 from src.gui.components import Button, ButtonSize, ButtonVariant
-from src.gui.components.pulsing_skeleton import PulsingSkeleton
+from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout, create_button, show_error_dialog

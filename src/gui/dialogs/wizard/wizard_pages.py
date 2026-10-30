@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.constants import PROVIDERS
+from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
 from src.gui.components import (
     Button,
     ButtonSize,
@@ -225,7 +225,7 @@ def build_appearance_page(wizard) -> QWidget:
     card_layout.addWidget(theme_lbl)
     wizard.wizard_theme_combo = Select()
     wizard.wizard_theme_combo.addItems(list(Styles.BOARD_THEMES.keys()))
-    wizard.wizard_theme_combo.setCurrentText("Green")
+    wizard.wizard_theme_combo.setCurrentText(DEFAULT_BOARD_THEME)
     wizard.wizard_theme_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.wizard_theme_combo)
 

@@ -16,9 +16,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ....constants import DEFAULT_BOARD_THEME
 from ....utils.path_utils import get_resource_path
 from ...components import Tabs, TabVariant
-from ...components.toast import ToastManager
+from ...components.feedback.toast import ToastManager
 from ...styles import Styles
 from ...theme.palette import BOARD_THEMES
 from .board_preview import BoardThemePreview, board_swatch, piece_theme_preview
@@ -130,7 +131,7 @@ class BoardPiecesSettings(QGroupBox):
         self.piece_group = QButtonGroup(self)
         self.piece_group.setExclusive(True)
         self.piece_buttons = {}
-        board_theme = self.config_manager.get("board_theme", "Green")
+        board_theme = self.config_manager.get("board_theme", DEFAULT_BOARD_THEME)
         for name in get_piece_theme_names():
             button = QToolButton()
             button.setCheckable(True)
@@ -209,9 +210,9 @@ class BoardPiecesSettings(QGroupBox):
         self.theme_refreshed.emit()
 
     def _sync_theme_selection(self) -> None:
-        board_theme = self.config_manager.get("board_theme", "Green")
+        board_theme = self.config_manager.get("board_theme", DEFAULT_BOARD_THEME)
         if board_theme not in self.board_buttons:
-            board_theme = "Green"
+            board_theme = DEFAULT_BOARD_THEME
         for name, button in self.board_buttons.items():
             button.setChecked(name == board_theme)
 

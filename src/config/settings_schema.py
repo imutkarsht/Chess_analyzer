@@ -12,6 +12,7 @@ from typing import Any, Literal
 from src.constants import (
     DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
     DEFAULT_ANALYSIS_DEPTH,
+    DEFAULT_BOARD_THEME,
     DEFAULT_ENGINE_HASH_MB,
     DEFAULT_ENGINE_THREADS,
     DEFAULT_EXPLORER_CACHE_TTL_HOURS,
@@ -260,7 +261,7 @@ def _specs() -> tuple[SettingSpec, ...]:
             "Board theme",
             "Colour theme for both analysis and explorer boards.",
             "choice",
-            "Green",
+            DEFAULT_BOARD_THEME,
             apply="live",
         ),
         SettingSpec(

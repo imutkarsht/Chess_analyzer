@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.constants import DEFAULT_BOARD_THEME
 from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
@@ -284,8 +285,8 @@ class DrillDownItemWidget(QFrame):
         except Exception:
             pass
 
-        theme_name = ConfigManager().get("board_theme", "Green")
-        board_theme = BOARD_THEMES.get(theme_name, BOARD_THEMES["Green"])
+        theme_name = ConfigManager().get("board_theme", DEFAULT_BOARD_THEME)
+        board_theme = BOARD_THEMES.get(theme_name, BOARD_THEMES[DEFAULT_BOARD_THEME])
         dark_color = board_theme["dark"] if board_theme["dark"] != "dynamic" else "#769656"
         light_color = board_theme["light"]
 

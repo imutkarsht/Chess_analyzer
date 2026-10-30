@@ -22,7 +22,7 @@ from src.gui.components import (
     Input,
     Select,
 )
-from src.gui.components.toast import ToastManager
+from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import show_error_dialog
 

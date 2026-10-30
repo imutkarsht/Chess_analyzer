@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import QLabel, QPushButton
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
-from src.gui.components.game_list_item_widget import GameListItemWidget
+from src.gui.components.lists.game_list_item_widget import GameListItemWidget
 from src.gui.views.history_view import GameImportWorker, HistoryView
 
 

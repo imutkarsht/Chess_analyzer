@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
-from src.gui.components.pulsing_skeleton import PulsingSkeleton
+from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.views.metrics.card_registry import (
     DEFAULT_CARD_ORDER,
     normalise_card_order,

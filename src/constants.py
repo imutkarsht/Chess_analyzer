@@ -46,6 +46,10 @@ REVIEW_SNOOZE_INTERVAL = 5
 # Matplotlib defaults
 MATPLOTLIB_DPI = 100
 
+# Default board theme for new installs. A warm wood tone sits better next to
+# the app's neutral surfaces than the flat grey/green defaults.
+DEFAULT_BOARD_THEME = "Brown"
+
 # Platform Rules for Updater
 PLATFORM_RULES = {
     "win32": {

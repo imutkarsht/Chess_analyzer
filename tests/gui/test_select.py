@@ -3,7 +3,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtTest import QTest
 
-from src.gui.components.select import Select, SelectOption
+from src.gui.components.controls.select import Select, SelectOption
 
 
 def test_placeholder_state_and_programmatic_selection(qtbot):

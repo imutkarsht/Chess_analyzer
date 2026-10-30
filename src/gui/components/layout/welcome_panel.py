@@ -8,7 +8,6 @@ from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QSizePolicy,
@@ -17,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import ABOUT_URL, APP_VERSION, GITHUB_REPO_URL, WEBSITE_URL
-from src.gui.components.button import Button, ButtonVariant
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.path_utils import get_resource_path
@@ -28,22 +27,31 @@ class WelcomePanel(QFrame):
     Centered empty-state panel shown on the right half of the split UI when no
     chess game is loaded. Introduces the app, shows the version, appeals for
     open-source support, and links to community pages and feedback dialogs.
+
+    Visual hierarchy:
+      1. App identity  — logo + title + neutral badges
+      2. Description   — short, readable paragraph
+      3. One outlined CTA — Star on GitHub
+      4. One hollow CTA — Rate & Review
+      5. Four text links — quiet utility actions in a single row
+    No element uses a solid accent fill, so the panel never competes with the
+    board's Load Game button for attention.
     """
 
-    CARD_WIDTH = 440
-    BUTTON_HEIGHT = 40
-    GRID_H_GAP = 12
-    GRID_V_GAP = 12
+    CARD_WIDTH = 420
+    CTA_HEIGHT = 42       # Apple minimum touch target
+    TONAL_HEIGHT = 38
+    UTIL_HEIGHT = 28
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("WelcomePanel")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self._buttons: list[tuple[Button, str, bool]] = []
+        self._all_buttons: list[Button] = []
         self._setup_ui()
 
-        ThemeManager.instance().theme_changed.connect(lambda mode: self.refresh_styles())
-        ThemeManager.instance().accent_changed.connect(lambda acc: self.refresh_styles())
+        ThemeManager.instance().theme_changed.connect(lambda _: self.refresh_styles())
+        ThemeManager.instance().accent_changed.connect(lambda _: self.refresh_styles())
         self.refresh_styles()
 
     def _setup_ui(self) -> None:
@@ -51,9 +59,6 @@ class WelcomePanel(QFrame):
         root_layout.setContentsMargins(24, 24, 24, 24)
         root_layout.setSpacing(0)
 
-        # Card with a FIXED width. A stable width lets the word-wrapped labels
-        # report a correct height, which prevents the button rows from being
-        # squeezed together or clipped at the bottom.
         self.card = QWidget()
         self.card.setObjectName("WelcomeCard")
         self.card.setFixedWidth(self.CARD_WIDTH)
@@ -61,7 +66,7 @@ class WelcomePanel(QFrame):
 
         card_layout = QVBoxLayout(self.card)
         card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(10)
+        card_layout.setSpacing(0)
 
         # ── Logo ──────────────────────────────────────────────────────────
         self.logo_label = QLabel()
@@ -77,15 +82,17 @@ class WelcomePanel(QFrame):
             )
             self.logo_label.setPixmap(pixmap)
         card_layout.addWidget(self.logo_label)
+        card_layout.addSpacing(12)
 
         # ── Title ─────────────────────────────────────────────────────────
         self.title_label = QLabel("Chess Analyzer Pro")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.title_label)
+        card_layout.addSpacing(6)
 
-        # ── Badges ────────────────────────────────────────────────────────
+        # ── Badges (both neutral — no accent on badges) ────────────────────
         badges_layout = QHBoxLayout()
-        badges_layout.setSpacing(8)
+        badges_layout.setSpacing(6)
         badges_layout.addStretch(1)
 
         self.version_badge = QLabel(f"v{APP_VERSION}")
@@ -98,19 +105,17 @@ class WelcomePanel(QFrame):
 
         badges_layout.addStretch(1)
         card_layout.addLayout(badges_layout)
-        card_layout.addSpacing(6)
+        card_layout.addSpacing(16)
 
         # ── Description ───────────────────────────────────────────────────
         self.desc_label = QLabel(
-            "A free, local-first chess analysis app. Get unlimited game reviews at any "
-            "engine depth, import games from multiple sources, explore your game history, "
-            "and track detailed statistics, all analyzed privately on your own machine "
-            "and fully offline."
+            "Free, local-first chess analysis. Unlimited reviews at any depth, "
+            "fully offline and private."
         )
         self.desc_label.setWordWrap(True)
         self.desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.desc_label)
-        card_layout.addSpacing(8)
+        card_layout.addSpacing(24)
 
         # ── Divider ───────────────────────────────────────────────────────
         self.divider = QFrame()
@@ -118,59 +123,65 @@ class WelcomePanel(QFrame):
         self.divider.setFrameShadow(QFrame.Shadow.Plain)
         self.divider.setFixedHeight(1)
         card_layout.addWidget(self.divider)
+        card_layout.addSpacing(20)
+
+        # ── Outlined CTA: Star on GitHub ───────────────────────────────────
+        self.btn_github = Button(
+            "Star on GitHub",
+            ButtonVariant.OUTLINED,
+            icon="fa5b.github",
+            full_width=True,
+            on_click=self._open_github,
+        )
+        self.btn_github.setFixedHeight(self.CTA_HEIGHT)
+        self._all_buttons.append(self.btn_github)
+        card_layout.addWidget(self.btn_github)
         card_layout.addSpacing(8)
 
-        # ── Support appeal ────────────────────────────────────────────────
-        self.appeal_title = QLabel("Support the Project")
-        self.appeal_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        card_layout.addWidget(self.appeal_title)
+        # ── Hollow CTA: Rate & Review (neutral, readable) ─────────────────
+        self.btn_review = Button(
+            "Rate && Review",
+            ButtonVariant.HOLLOW,
+            icon="fa5s.star",
+            full_width=True,
+            on_click=self._open_review,
+        )
+        self.btn_review.setFixedHeight(self.TONAL_HEIGHT)
+        self._all_buttons.append(self.btn_review)
+        card_layout.addWidget(self.btn_review)
+        card_layout.addSpacing(20)
 
-        self.appeal_text = QLabel(
-            "Chess Analyzer Pro is open-source and maintained with passion. "
-            "If you find it helpful, supporting the project takes just a few seconds!"
-        )
-        self.appeal_text.setWordWrap(True)
-        self.appeal_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        card_layout.addWidget(self.appeal_text)
-        card_layout.addSpacing(10)
+        # ── Utility links (text-only, one row) ─────────────────────────────
+        links = QHBoxLayout()
+        links.setSpacing(4)
+        links.addStretch(1)
 
-        # ── Action buttons (2 equal columns, clear gaps) ──────────────────
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(self.GRID_H_GAP)
-        grid.setVerticalSpacing(self.GRID_V_GAP)
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
+        util_specs = [
+            ("Report Issue", "fa5s.bug", self._open_report_issue),
+            ("Suggest Feature", "fa5s.lightbulb", self._open_suggest_feature),
+            ("About", "fa5s.info-circle", self._open_about),
+            ("Website", "fa5s.globe", self._open_website),
+        ]
+        util_buttons = []
+        for label, icon, cb in util_specs:
+            btn = Button(
+                label,
+                ButtonVariant.LINK,
+                icon=icon,
+                size=ButtonSize.SM,
+                on_click=cb,
+            )
+            btn.setFixedHeight(self.UTIL_HEIGHT)
+            self._all_buttons.append(btn)
+            util_buttons.append(btn)
+            links.addWidget(btn)
 
-        self.btn_github = self._create_action_button(
-            "Star on GitHub", "fa5b.github", self._open_github, highlight=True
-        )
-        self.btn_review = self._create_action_button(
-            "Rate && Review", "fa5s.star", self._open_review, highlight=True
-        )
-        self.btn_issue = self._create_action_button(
-            "Report Issue", "fa5s.bug", self._open_report_issue
-        )
-        self.btn_feature = self._create_action_button(
-            "Suggest Feature", "fa5s.lightbulb", self._open_suggest_feature
-        )
-        self.btn_about = self._create_action_button(
-            "About Project", "fa5s.info-circle", self._open_about
-        )
-        self.btn_website = self._create_action_button(
-            "Visit Website", "fa5s.globe", self._open_website
-        )
+        links.addStretch(1)
+        card_layout.addLayout(links)
 
-        grid.addWidget(self.btn_github, 0, 0)
-        grid.addWidget(self.btn_review, 0, 1)
-        grid.addWidget(self.btn_issue, 1, 0)
-        grid.addWidget(self.btn_feature, 1, 1)
-        grid.addWidget(self.btn_about, 2, 0)
-        grid.addWidget(self.btn_website, 2, 1)
-        card_layout.addLayout(grid)
+        self.btn_issue, self.btn_feature, self.btn_about, self.btn_website = util_buttons
 
-        # Center the card horizontally AND vertically. No alignment flags are
-        # used on the card itself; stretches do the centering so the layout can
-        # still compute the correct height for wrapped text.
+        # Center the card using stretches — preserves correct word-wrap heights.
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.addStretch(1)
@@ -181,20 +192,6 @@ class WelcomePanel(QFrame):
         root_layout.addLayout(row)
         root_layout.addStretch(1)
 
-    def _create_action_button(
-        self,
-        text: str,
-        icon_name: str,
-        callback,
-        highlight: bool = False,
-    ) -> Button:
-        """Create a quick-action button with centered icon and text."""
-        variant = ButtonVariant.TONAL if highlight else ButtonVariant.FILLED
-        btn = Button(text, variant, icon=icon_name, full_width=True, on_click=callback)
-        btn.setFixedHeight(self.BUTTON_HEIGHT)
-        self._buttons.append((btn, icon_name, highlight))
-        return btn
-
     def refresh_styles(self) -> None:
         """Re-apply theme tokens when the active theme or accent changes."""
         bg = Styles.COLOR_BACKGROUND
@@ -202,34 +199,27 @@ class WelcomePanel(QFrame):
         self.card.setStyleSheet(f"QWidget#WelcomeCard {{ background-color: {bg}; }}")
 
         self.title_label.setStyleSheet(
-            f"font-size: 24px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            "background: transparent;"
+            f"font-size: 24px; font-weight: 700; "
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
         )
 
+        # Both badges use the same neutral surface — no accent tinting.
         badge_style = (
             f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; "
+            f"color: {Styles.COLOR_TEXT_MUTED}; "
             f"border: 1px solid {Styles.COLOR_BORDER}; "
-            "border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 600;"
+            "border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 500;"
         )
         self.version_badge.setStyleSheet(badge_style)
         self.oss_badge.setStyleSheet(badge_style)
 
         self.desc_label.setStyleSheet(
-            f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
+            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
         )
 
         self.divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
 
-        self.appeal_title.setStyleSheet(
-            f"font-size: 15px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            "background: transparent;"
-        )
-        self.appeal_text.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
-        )
-
-        for btn, _icon_name, _is_highlight in self._buttons:
+        for btn in self._all_buttons:
             btn.refresh_styles()
 
     # ── Action callbacks ──────────────────────────────────────────────────

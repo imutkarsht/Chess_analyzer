@@ -3,7 +3,7 @@
 import pytest
 from PyQt6.QtWidgets import QWidget
 
-from src.gui.components.toast import (
+from src.gui.components.feedback.toast import (
     ToastManager,
     ToastPosition,
     ToastVariant,

@@ -29,9 +29,9 @@ from src.gui.components import (
     TabVariant,
     TextArea,
 )
-from src.gui.components.graph_widget import GraphWidget
-from src.gui.components.pulsing_skeleton import PulsingSkeleton
-from src.gui.components.toast import ToastManager
+from src.gui.components.display.graph_widget import GraphWidget
+from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
+from src.gui.components.feedback.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (

@@ -12,8 +12,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ...components.select import Select, SelectOption
-from ...components.toast import ToastManager
+from ...components.controls.select import Select, SelectOption
+from ...components.feedback.toast import ToastManager
 from ...styles import Styles
 from .components import PathField, SettingsBinder, SettingsForm
 from .modern_widgets import ModernSliderCounter

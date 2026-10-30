@@ -4,7 +4,7 @@ import pytest
 from PyQt6.QtCore import QDate, QRect, QSize
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-from src.gui.components.date_picker import DatePicker, _CalendarPopup
+from src.gui.components.controls.date_picker import DatePicker, _CalendarPopup
 from src.gui.theme import ThemeManager
 from src.gui.theme.palette import LIGHT
 

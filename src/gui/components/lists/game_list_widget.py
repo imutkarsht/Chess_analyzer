@@ -18,10 +18,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..styles import Styles
-from .button import Button, ButtonSize, ButtonVariant
-from .game_list_item_widget import GameListItemWidget
-from .smooth_scroll import SmoothScroll
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.lists.game_list_item_widget import GameListItemWidget
+from src.gui.styles import Styles
+from src.gui.utils.smooth_scroll import SmoothScroll
 
 
 class GameListWidget(QWidget):
@@ -326,7 +326,7 @@ class GameListWidget(QWidget):
         try:
             GameHistoryManager().delete_game(game_id)
         except Exception as e:
-            from ...utils.logger import logger
+            from src.utils.logger import logger
 
             logger.error(f"Failed to delete game {game_id}: {e}")
             return

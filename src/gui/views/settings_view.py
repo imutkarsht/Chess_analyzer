@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 from src.config.settings_schema import SETTINGS
 from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
 from src.gui.components import Button, ButtonVariant, Input, InputSize, InputVariant
-from src.gui.components.toast import ToastManager
+from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 

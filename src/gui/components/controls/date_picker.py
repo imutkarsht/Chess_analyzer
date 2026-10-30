@@ -48,10 +48,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-
-from .button import Button, ButtonSize, ButtonVariant
 
 _FIELD_HEIGHT = 44
 _COMPACT_FIELD_HEIGHT = 38

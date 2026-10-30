@@ -38,7 +38,7 @@ from src.gui.components import (
     InputSize,
     InputVariant,
 )
-from src.gui.components.loading_widget import LoadingOverlay
+from src.gui.components.feedback.loading_widget import LoadingOverlay
 from src.gui.engine_lines import (
     EngineLinesConfig,
     EngineLinesWidget,

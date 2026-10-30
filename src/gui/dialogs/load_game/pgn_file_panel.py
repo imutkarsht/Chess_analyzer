@@ -5,7 +5,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
 
 from src.gui.components import Button, ButtonSize, ButtonVariant
-from src.gui.components.toast import ToastManager
+from src.gui.components.feedback.toast import ToastManager
 
 from .drop_zone import DropZone
 from .helpers import classify_time_control, game_row

@@ -42,6 +42,7 @@ src/
 ├── gui/                    # PyQt6 presentation layer. Threaded; zero business logic computation.
 │   ├── board/              # BoardWidget (SVG pieces, arrows), EvalBar
 │   ├── analysis/           # MoveListPanel, AnalysisPanel, LiveAnalysisWorker
+│   ├── components/         # controls/ lists/ feedback/ layout/ display/ (+ one public facade)
 │   ├── views/              # Full pages: Analyze, History, Metrics, Settings
 │   ├── dialogs/            # LoadGameDialog, SetupWizard, UpdateDialog
 │   ├── theme/ & styles.py  # Centralized CSS generators and color constants (Styles.COLOR_*)
@@ -52,6 +53,7 @@ src/
 - UI components render state and dispatch user actions; domain logic remains strictly independent of Qt.
 - Shared utilities (`src/utils/`) must never import GUI modules.
 - External network clients must be accessed through explicit backend service interfaces.
+- GUI components are imported from the `src.gui.components` facade, never from a subpackage path, so grouping can change without touching call sites.
 
 ---
 
@@ -59,7 +61,7 @@ src/
 - **Typing**: Python 3.10+ modern syntax required: use `X | None` (never `Optional[X]`), `list[T]`, `dict[K, V]`.
 - **Logging**: Use `from src.utils.logger import logger`. **Never use `print()`**. Sensitive tokens (`sk-...`, `gsk_...`, Bearer) are automatically redacted.
 - **Styling**: **Never hardcode hex colors** in widget files. Use `Styles.COLOR_*` and generator helpers from `src/gui/styles.py`.
-- **Buttons**: Use `src/gui/components/button.py::Button` for every button. Pick a `ButtonVariant`/`ButtonSize` (or `create_button` / `create_icon_button`) instead of constructing `QPushButton`/`QToolButton` or writing button QSS. The only exceptions are the documented specials (board swatches, theme cards, star rating, variation graph nodes).
+- **Buttons**: Use `src/gui/components/controls/button.py::Button` for every button. Pick a `ButtonVariant`/`ButtonSize` (or `create_button` / `create_icon_button`) instead of constructing `QPushButton`/`QToolButton` or writing button QSS. The only exceptions are the documented specials (board swatches, theme cards, star rating, variation graph nodes).
 - **Dashboard Cards**: Cards in `src/gui/views/metrics/` must use `MetricCard`'s `new_content()` / `clear_content()` / `show_empty()` lifecycle and the shared `EmptyState`, `StatusBadge`, `SegmentedControl`, `PaginationBar`, `LegendList`, `MiniBar`, and `SegmentedBar` components. Never reimplement empty-state QSS, header pills, segmented chips, chart legends, mini bars, or prev/next bars inside a card.
 - **Paths**: Use `src/utils/path_utils.py` (`get_resource_path`, `get_user_data_dir`). Never hardcode `/` or `\\`. Never propose `cd` in terminal commands.
 - **Config**: `ConfigManager` uses class-level `_shared_config`. Do not instantiate in tight loops; call `config_manager.reload_config()` after external file changes.

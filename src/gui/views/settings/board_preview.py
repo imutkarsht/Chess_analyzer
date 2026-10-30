@@ -8,6 +8,7 @@ from PyQt6.QtGui import QColor, QImage, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtSvgWidgets import QSvgWidget
 
+from ....constants import DEFAULT_BOARD_THEME
 from ...board.piece_themes import get_piece_defs
 from ...styles import Styles
 
@@ -92,7 +93,7 @@ def board_swatch(theme_name: str, size: int = 64) -> QPixmap:
 
 def piece_theme_preview(
     piece_theme: str,
-    board_theme: str = "Green",
+    board_theme: str = DEFAULT_BOARD_THEME,
     size: int = 96,
 ) -> QPixmap:
     """A 2x2 board preview showing four pieces from a theme."""
@@ -124,7 +125,7 @@ class BoardThemePreview(QSvgWidget):
         super().__init__(parent)
         self.setMinimumSize(QSize(220, 220))
         self.setMaximumSize(QSize(220, 220))
-        self._board_theme = "Green"
+        self._board_theme = DEFAULT_BOARD_THEME
         self._piece_theme = "Standard"
         self.refresh()
 
