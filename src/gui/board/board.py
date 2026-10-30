@@ -548,6 +548,10 @@ class Board(QWidget):
             return
         self.dimmed = dimmed
         self.update_board()
+        if dimmed:
+            # The game-move classification badges belong to the replayed game,
+            # not to the free-analysis position; drop them when entering it.
+            self.draw_interactive_overlays()
 
     def undo_move(self) -> bool:
         """Pop the last move from the board (used by variation exploration)."""
@@ -576,6 +580,9 @@ class Board(QWidget):
                 child.widget().deleteLater()
 
         if not self._show_classification:
+            return
+        if self.dimmed:
+            # Variation/free-analysis positions have no game move at this index.
             return
         if self.config.classification_overlay != "game_move":
             return
