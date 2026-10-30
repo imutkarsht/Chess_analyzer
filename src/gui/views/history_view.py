@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -161,11 +162,21 @@ class HistoryView(QWidget):
 
         filter_layout.addSpacing(10)
 
-        # Result Filter
-        self.result_label = QLabel("Result:")
-        self.result_label.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
+        lbl_style = (
+            f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)}"
+            " border: none; background: transparent;"
         )
+
+        def _filter_label(text: str) -> QLabel:
+            # A Preferred label policy lets the row's spare width stretch the
+            # label and push its dropdown away, so pin it to the text width.
+            lbl = QLabel(text)
+            lbl.setStyleSheet(lbl_style)
+            lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+            return lbl
+
+        # Result Filter
+        self.result_label = _filter_label("Result:")
         filter_layout.addWidget(self.result_label)
 
         self.result_filter = Select(
@@ -175,10 +186,7 @@ class HistoryView(QWidget):
         filter_layout.addWidget(self.result_filter)
 
         # Type / Speed Category Filter
-        self.type_label = QLabel("Type:")
-        self.type_label.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-        )
+        self.type_label = _filter_label("Type:")
         filter_layout.addWidget(self.type_label)
 
         self.type_filter = Select(
@@ -189,10 +197,7 @@ class HistoryView(QWidget):
         filter_layout.addWidget(self.type_filter)
 
         # Source Filter
-        self.source_label = QLabel("Source:")
-        self.source_label.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-        )
+        self.source_label = _filter_label("Source:")
         filter_layout.addWidget(self.source_label)
 
         self.source_filter = Select(
@@ -201,13 +206,10 @@ class HistoryView(QWidget):
         self.source_filter.setFixedWidth(110)
         filter_layout.addWidget(self.source_filter)
 
-        filter_layout.addSpacing(10)
+        filter_layout.addStretch()
 
         # Sort Dropdown
-        self.sort_label = QLabel("Sort:")
-        self.sort_label.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-        )
+        self.sort_label = _filter_label("Sort:")
         filter_layout.addWidget(self.sort_label)
 
         self.sort_dropdown = Select(
