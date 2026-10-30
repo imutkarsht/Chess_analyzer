@@ -18,6 +18,7 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QDialog, QGridLayout, QLabel, QSizePolicy, QWidget
 
+from src.constants import DEFAULT_BOARD_THEME
 from src.utils.logger import logger
 
 from ..styles import Styles
@@ -663,7 +664,9 @@ class Board(QWidget):
         self._resolve_display_preferences()
         self._apply_eval_bar_visibility()
         config = ConfigManager()
-        board_theme_name = self.config.board_theme or config.get("board_theme", "Green")
+        board_theme_name = self.config.board_theme or config.get(
+            "board_theme", DEFAULT_BOARD_THEME
+        )
         piece_theme_name = self.config.piece_theme or config.get("piece_theme", "Standard")
         colors = Styles.get_board_colors(board_theme_name)
 

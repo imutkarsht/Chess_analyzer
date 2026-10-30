@@ -160,15 +160,19 @@ class MainWindow(
         )
         self.statusBar().addWidget(self._engine_pill)
 
-        # Thin separator
-        sep = QLabel("│")
-        sep.setStyleSheet(f"color: {Styles.COLOR_BORDER}; padding: 0 4px; background: transparent;")
-        self.statusBar().addWidget(sep)
+        # Thin separator — only shown when there is a real status message.
+        self._status_sep = QLabel("│")
+        self._status_sep.setStyleSheet(
+            f"color: {Styles.COLOR_BORDER}; padding: 0 4px; background: transparent;"
+        )
+        self._status_sep.hide()
+        self.statusBar().addWidget(self._status_sep)
 
         self._status_lbl = QLabel("Ready")
         self._status_lbl.setStyleSheet(
             f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
         )
+        self._status_lbl.hide()
         self.statusBar().addWidget(self._status_lbl)
 
         # Spinner timer for Calculating animation
@@ -541,7 +545,7 @@ class MainWindow(
         self.empty_state_cta.setObjectName("EmptyStateCTA")
         self.empty_state_cta.setStyleSheet(Styles.get_empty_state_cta_style())
         cta_layout = QVBoxLayout(self.empty_state_cta)
-        cta_layout.setContentsMargins(14, 10, 14, 10)
+        cta_layout.setContentsMargins(14, 6, 14, 6)
         cta_layout.setSpacing(8)
 
         hero_actions = QHBoxLayout()
@@ -597,7 +601,7 @@ class MainWindow(
             self.board_game_header, 0, Qt.AlignmentFlag.AlignHCenter
         )
 
-        center_layout.addWidget(self.empty_state_cta, 0, Qt.AlignmentFlag.AlignCenter)
+        center_layout.addWidget(self.empty_state_cta, 0, Qt.AlignmentFlag.AlignHCenter)
         center_layout.addWidget(self.board_panel, 1)
 
         self.variation_graph = VariationGraph()
@@ -619,8 +623,9 @@ class MainWindow(
         self.historic_info_bar.setStyleSheet(f"""
             QFrame#HistoricInfoBar {{
                 background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 10px;
+                border: none;
+                border-top: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 0px;
             }}
             QLabel {{ background: transparent; border: none; }}
         """)
@@ -637,10 +642,15 @@ class MainWindow(
         )
         self._hib_title.setWordWrap(False)
         hib_top.addWidget(self._hib_title)
+
+        self._hib_turn = QLabel()
+        self._hib_turn.setStyleSheet(Styles.get_badge_style(11))
+        hib_top.insertWidget(1, self._hib_turn)
+
         hib_top.addStretch()
         self.btn_hib_reveal = create_button(
-            "Reveal Move",
-            style="secondary",
+            "Reveal",
+            style="ghost",
             on_click=self._reveal_historic_move,
             icon_name="fa5s.eye",
         )
@@ -678,7 +688,7 @@ class MainWindow(
         # Row 3: puzzle prompt (turn_desc)
         self._hib_hint = QLabel()
         self._hib_hint.setStyleSheet(
-            f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_ACCENT};"
+            f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY};"
         )
         self._hib_hint.setWordWrap(True)
         hib_outer.addWidget(self._hib_hint)
@@ -786,11 +796,14 @@ class MainWindow(
             self._hib_meta.setText(f"{pos.white}  vs  {pos.black}   \u00b7   {pos.event}")
         if hasattr(self, "_hib_hint"):
             self._hib_hint.setText(pos.turn_desc)
+        if hasattr(self, "_hib_turn"):
+            turn = "White" if chess.Board(pos.fen).turn else "Black"
+            self._hib_turn.setText(f"● {turn} to move")
         if hasattr(self, "_hib_celebration"):
             self._hib_celebration.setVisible(False)
         if hasattr(self, "btn_hib_reveal"):
             self.btn_hib_reveal.setEnabled(True)
-            self.btn_hib_reveal.setText("Reveal Move")
+            self.btn_hib_reveal.setText("Reveal")
             self.btn_hib_reveal.show()
         if hasattr(self, "btn_hib_explore"):
             self.btn_hib_explore.hide()
@@ -804,13 +817,17 @@ class MainWindow(
             return
 
         try:
-            board = chess.Board(pos.fen)
-            board.push(board.parse_san(pos.famous_move))
+            move = chess.Board(pos.fen).parse_san(pos.famous_move)
         except (ValueError, AssertionError) as e:
             logger.debug(f"Could not reveal historic move: {e}")
             return
 
-        self.board_widget.load_fen(board.fen(), pos.flipped)
+        # Load the pre-move FEN so the board has an empty move stack, then push
+        # the move onto the widget's internal board.  This lets update_board()
+        # read move_stack[-1] and render the from/to highlight automatically.
+        self.board_widget.load_fen(pos.fen, pos.flipped)
+        self.board_widget.board.push(move)
+        self.board_widget.update_board()
         self._celebrate_historic_move(pos)
 
     def _explore_historic_position(self):

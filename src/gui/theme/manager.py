@@ -4,6 +4,8 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 
+from src.constants import DEFAULT_BOARD_THEME
+
 from .palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
 from .system import OSThemeWatcher, get_system_accent
 
@@ -84,8 +86,8 @@ class ThemeManager(QObject):
         return CLASSIFICATION_COLORS.get(classification, cls._palette.text_primary)
 
     @classmethod
-    def get_board_colors(cls, theme_name: str = "Green") -> dict:
-        theme = BOARD_THEMES.get(theme_name, BOARD_THEMES["Green"])
+    def get_board_colors(cls, theme_name: str = DEFAULT_BOARD_THEME) -> dict:
+        theme = BOARD_THEMES.get(theme_name, BOARD_THEMES[DEFAULT_BOARD_THEME])
         dark = theme["dark"]
         light = theme["light"]
         if dark == "dynamic":

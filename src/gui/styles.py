@@ -1,3 +1,4 @@
+from src.constants import DEFAULT_BOARD_THEME
 from src.gui.theme import ThemeManager
 from src.gui.theme.palette import BOARD_THEMES
 
@@ -364,11 +365,13 @@ class Styles(metaclass=_StylesMeta):
             disabled_bg = "transparent"
         elif variant == "tonal":
             # Soft accent action: reads as AI/feature-level without competing
-            # with a solid primary button on the same screen.
-            bg, fg, border = p.accent_subtle, acc, p.accent_subtle
-            hover = (p.surface_light, acc, acc)
-            pressed = (p.accent_subtle, acc, acc)
-            checked = (p.accent_subtle, acc, acc)
+            # with a solid primary button on the same screen. The label uses
+            # primary ink because accent-on-accent-subtle fails contrast for
+            # red/orange accents (the tint already carries the accent cue).
+            bg, fg, border = p.accent_subtle, p.text_primary, p.accent_subtle
+            hover = (p.surface_light, p.text_primary, acc)
+            pressed = (p.accent_subtle, p.text_primary, acc)
+            checked = (p.accent_subtle, p.text_primary, acc)
             disabled_bg = p.surface_light
         elif variant == "hollow":
             bg, fg, border = "transparent", p.text_primary, p.border
@@ -1648,13 +1651,16 @@ class Styles(metaclass=_StylesMeta):
 
     @classmethod
     def get_empty_state_cta_style(cls, drag_active: bool = False):
-        """Landing hero card; the accent border doubles as the drop-target cue."""
+        """Landing hero CTA bar; borderless by default, accent border appears on drag-over."""
         p = ThemeManager.palette()
-        border = p.accent if drag_active else p.border
+        # Transparent background so the CTA buttons float above the board without
+        # a card-like box.  A 1-px accent outline appears only when a file is
+        # being dragged over the window (drop-target cue).
+        border = f"1px solid {p.accent}" if drag_active else "none"
         return f"""
             QFrame#EmptyStateCTA {{
-                background-color: {p.surface_light};
-                border: 1px solid {border};
+                background-color: transparent;
+                border: {border};
                 border-radius: 8px;
             }}
         """
@@ -1701,8 +1707,11 @@ class Styles(metaclass=_StylesMeta):
                 color: {p.text_primary};
             }}
             QPushButton:checked {{
-                background-color: {p.accent};
-                color: white;
+                background-color: {p.accent_subtle};
+                color: {p.text_primary};
+                border-left: 3px solid {p.accent};
+                border-radius: 0px 10px 10px 0px;
+                padding-left: 13px;
                 font-weight: 600;
             }}
         """
@@ -1987,5 +1996,5 @@ class Styles(metaclass=_StylesMeta):
         return ThemeManager.get_class_color(classification)
 
     @classmethod
-    def get_board_colors(cls, theme_name="Green"):
+    def get_board_colors(cls, theme_name=DEFAULT_BOARD_THEME):
         return ThemeManager.get_board_colors(theme_name)

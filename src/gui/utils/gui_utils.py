@@ -107,6 +107,7 @@ def create_button(
         "secondary": ButtonVariant.FILLED,
         "export": ButtonVariant.FILLED,
         "import": ButtonVariant.FILLED,
+        "ghost": ButtonVariant.GHOST,
         "danger": ButtonVariant.PRIMARY,
     }
     btn = Button(

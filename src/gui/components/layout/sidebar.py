@@ -129,6 +129,8 @@ class Sidebar(QFrame):
             on_click=on_click,
         )
         btn.setFixedHeight(48)
+        # Tooltips keep the icon-only (collapsed) sidebar discoverable.
+        btn.setToolTip(text)
 
         self._apply_icon(btn, icon_name)
 

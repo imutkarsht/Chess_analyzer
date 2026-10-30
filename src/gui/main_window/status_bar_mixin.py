@@ -70,7 +70,7 @@ class StatusBarMixin:
         else:
             self._spinner_timer.stop()
             if state == "ready":
-                self._engine_pill.setText("⬤  Engine Ready")
+                self._engine_pill.setText("●  Engine ready")
                 self._engine_pill.setStyleSheet(
                     f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};"
                 )
@@ -87,7 +87,21 @@ class StatusBarMixin:
         self._engine_pill.setText(f"{frame}  Calculating")
 
     def _set_status(self, message: str, kind: str = "info"):
-        """Update the status label with an icon prefix and matching colour."""
+        """Update the status label with an icon prefix and matching colour.
+
+        Idle has no separate status: the engine pill alone is the indicator, so
+        the separator and label stay hidden until there is something real to
+        report (loading, analysing, warnings, errors).
+        """
+        idle = not message or message == "Ready"
+        for widget in (
+            getattr(self, "_status_sep", None),
+            getattr(self, "_status_lbl", None),
+        ):
+            if widget is not None:
+                widget.setVisible(not idle)
+        if idle:
+            return
         icon, color = self._STATUS_STYLES.get(kind, ("◎", "#3498db"))
         self._status_lbl.setText(f"{icon}  {message}")
         self._status_lbl.setStyleSheet(f"font-size: 12px; color: {color}; background: transparent;")

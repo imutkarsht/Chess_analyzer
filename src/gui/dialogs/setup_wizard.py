@@ -16,7 +16,7 @@ from src.backend.engine.downloader import (
     probe_engine_binary,
     try_package_manager_install,
 )
-from src.constants import PROVIDERS
+from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
 from src.gui.dialogs.wizard.wizard_pages import (
     build_appearance_page,
@@ -436,7 +436,7 @@ class SetupWizard(QDialog):
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
 
         # Pre-populate appearance preferences
-        saved_board_theme = self.config_manager.get("board_theme", "Green")
+        saved_board_theme = self.config_manager.get("board_theme", DEFAULT_BOARD_THEME)
         if hasattr(self, "wizard_theme_combo"):
             self.wizard_theme_combo.setCurrentText(saved_board_theme)
 
