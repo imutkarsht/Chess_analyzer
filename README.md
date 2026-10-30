@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/showcasevideo.mp4" target="_blank">
-    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_dark.png" alt="Chess Analyzer Pro showcase" width="90%">
+    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/analysis_loaded.png" alt="Chess Analyzer Pro showcase" width="90%">
     <br>
     <sub>▶ Click to watch the showcase video</sub>
   </a>
@@ -33,41 +33,19 @@ See the [CHANGELOG](CHANGELOG.md) for the full release and [docs/architecture.md
 
 | Deep Analysis & Live Lines | Opening Explorer |
 | :-: | :-: |
-| ![Analysis View](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_dark.png) | ![Opening Explorer](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/explorer_dark.png) |
+| ![Analysis View](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/analysis_loaded.png) | ![Opening Explorer](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/explorer_engine.png) |
 
-| Game History & Cards | Performance Metrics Dashboard |
+| Performance Dashboard | AI Coach Summary |
 | :-: | :-: |
-| ![Game History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/history_v2_dark.png) | ![Performance Metrics](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/stats_v3_dark.png) |
+| ![Performance Metrics](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/metrics_dashboard.png) | ![AI Coach Summary](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/analysis_coach_summary.png) |
 
-| Interactive Stats Drill-Down | AI Coach Game Summary |
+| Playable Variations | Game History |
 | :-: | :-: |
-| ![Stats Drill-Down](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/stats_drill_down_dark.png) | ![AI Coach Summary](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/ai_report_dark.png) |
+| ![Variations](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/variation_tree.png) | ![Game History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/history_detailed.png) |
 
-<details>
-<summary><b>🔍 View More Screens (Light Mode, Settings & Game Import)</b></summary>
-<br>
-
-| Settings (Dark Mode) | Settings (Light Mode) |
+| Interactive Landing Hub | Load Game |
 | :-: | :-: |
-| ![Settings Basic](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/settings_basic_dark.png) | ![Settings Basic Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/settings_basic_light.png) |
-
-| Advanced Settings (Dark Mode) | Advanced Settings (Light Mode) |
-| :-: | :-: |
-| ![Advanced Settings Dark](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/setting_adv_dark.png) | ![Advanced Settings Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/settings_adv_light.png) |
-
-| Deep Analysis (Light Mode) | Opening Explorer (Light Mode) |
-| :-: | :-: |
-| ![Analysis Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_light.png) | ![Explorer Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/explorer_light.png) |
-
-| Game History (Light Mode) | Performance Metrics (Light Mode) |
-| :-: | :-: |
-| ![History Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/history_v2_light.png) | ![Stats Light](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/stats_v3_light.png) |
-
-| Online Game Fetcher | Online Games List |
-| :-: | :-: |
-| ![Online Game Fetcher](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/load_game_v1_dark.png) | ![Online Games List](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/load_game_list_dark.png) |
-
-</details>
+| ![Landing](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/landing.png) | ![Load Game](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/load_game_initial.png) |
 
 ## 🚀 Features
 
