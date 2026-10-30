@@ -1,6 +1,6 @@
 # Chess Analyzer Pro
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg) [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml) ![Version](https://img.shields.io/badge/version-2.4.0-green.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg) ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg) [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml) ![Version](https://img.shields.io/badge/version-2.5.0-green.svg)
 
 ![Chess Analyzer Pro Logo](assets/images/logo.png)
 
@@ -11,13 +11,23 @@
 
 <p align="center">
   <a href="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/showcasevideo.mp4" target="_blank">
-    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_dark.png" alt="Chess Analyzer Pro v2.4 Showcase" width="90%">
+    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/2p4p0/analysis_v1_dark.png" alt="Chess Analyzer Pro showcase" width="90%">
     <br>
     <sub>▶ Click to watch the showcase video</sub>
   </a>
 </p>
 
 **Chess Analyzer Pro** is a powerful, full-stack Python desktop application designed to bring professional-grade chess analysis to your local machine. Inspired by platforms like Chess.com, it combines the robust analysis capabilities of Stockfish with a sleek, responsive PyQt6 interface.
+
+## ✨ What's New in 2.5.0
+
+- **AI Coach with grounded move explanations** — every explanation is built from deterministic engine facts, validated before display, and falls back to an offline explanation when no provider is available.
+- **Playable variations and a branch explorer** — branch from the best move, a refutation, or any engine line, with persistent trees, a branch graph, and saved-tree badges in the move list.
+- **Settings page overhaul** — a schema-driven registry, searchable category rail, Basic/Advanced split, and a complete Data & Storage suite with backup, restore, retention, and maintenance.
+- **History page optimisation** — paged loading, idle prefetch of the next page, debounced filters, and a persisted default card/compact layout.
+- **UI refactor and component platform** — one shared component library (`Button`, `Input`, `Select`, `Tabs`, `Toast`, `DatePicker`, `PaginationBar`, and more) behind a single facade, `MainWindow` split into focused mixins, and one style generator per control.
+
+See the [CHANGELOG](CHANGELOG.md) for the full release and [docs/architecture.md](docs/architecture.md) for how the codebase is organised.
 
 ## 📸 Screenshots
 
@@ -65,7 +75,8 @@
 
 - **Stockfish Integration**: Leverages the world's strongest chess engine for deep analysis with **live move-by-move progressive updates** and pause/resume support.
 - **Move Classification**: Automatically classifies every move (Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss) with sacrifice detection for brilliancies.
-- **AI Coach Summaries**: Generates natural language post-game explanations using any OpenAI-compatible endpoint. Out-of-the-box support for **Groq** (Cloud), **LM Studio** (Local), **MiniMax** (Cloud), and **Custom endpoints**.
+- **AI Coach & Move Explanations**: Grounded, per-move explanations built from deterministic engine facts, plus persistent full-game summaries. Uses any OpenAI-compatible endpoint — **Groq** (Cloud), **LM Studio** (Local), **MiniMax** (Cloud), or a Custom server — with an offline deterministic fallback.
+- **Playable Variations & Branch Explorer**: Branch from the best move, a refutation, or any engine line. Variation trees are persistent for the session, shown as a branch graph with saved-tree badges and sibling cycling.
 - **Win Probability**: Calculates and displays win probability swings for every move.
 - **Opening Explorer**: Deep opening analysis using a built-in local SQLite openings database, custom Polyglot opening books (`*.bin` files), and live **Lichess game database integration** (a Lichess token is required for live data) with Win/Draw/Loss ratio bars.
 - **Ending & Termination Analysis**: Detects and charts game outcomes by exact termination reason (Checkmate, Time, Resignation, Stalemate, Abandonment, Insufficient Material).
@@ -79,11 +90,13 @@
 ### User Interface
 
 - **Interactive Landing & Historic Games Hub**: Launches into an engaging 60-40 split hero hub featuring 25 curated legendary games from history to explore on an interactive board, paired with a project welcome center.
-- **Interactive Board**: Fully functional chessboard with drag-and-drop support, visual move indicators, and legal move dots.
+- **Interactive Board**: Fully functional chessboard with drag-and-drop support, visual move indicators, legal move dots, and a warm Brown default theme.
 - **Evaluation Graph**: Dynamic graph visualizing the game's evaluation flow with an interactive active move cursor pin.
-- **Game List & History**: Modern desktop game cards with time control badges, rating tags, and view mode toggle (Detailed Cards vs. Compact Table).
-- **Move List**: Detailed move history with classification icons, evaluation scores, and live engine lines.
-- **Highly Configurable Settings**: Card-based settings page where engine parameters, API keys, online accounts, and themes are easily managed and saved.
+- **Game List & History**: Modern desktop game cards or compact rows, time control badges, rating tags, paged loading with idle prefetch, and a persisted default layout.
+- **Move List**: Detailed move history with classification icons, evaluation scores, live engine lines, and saved variation badges.
+- **Keyboard Shortcuts**: Standard and Vim presets, move stepping, critical-move jumps, auto-replay, page switching, and an in-app cheat sheet.
+- **Highly Configurable Settings**: Schema-driven settings with a searchable category rail, Basic/Advanced split, theme and board customization, AI Coach tuning, cache retention, backup/restore, and maintenance tools.
+- **Customizable Dashboard**: Reorder chart cards while pinned summary cards stay fixed; the order persists across sessions.
 
 ### Import & Export
 
@@ -108,10 +121,19 @@
 - **GUI**: PyQt6 (Modern, responsive desktop interface)
 - **Engine**: Stockfish (Via UCI protocol for world-class analysis)
 - **Database**: **SQLite** references locally (`analysis_cache.db`) to cache analysis results, ensuring instant loading for previously analyzed games.
-- **Config**: Local `config.json` for persistent user settings.
+- **Config**: Local `config.json` for persistent user settings, with `src/config/settings_schema.py` as the single source of defaults and validation. Credentials are stored through `keyring` in the OS credential store.
+- **Networking**: `requests` with bundled `certifi` CAs for imports, updates, and LLM calls.
 - **Integrations**:
-  - **LLM Providers**: AI-powered natural language game summaries. Natively supports **Groq**, **LM Studio**, **MiniMax**, and **Custom OpenAI-compatible** servers.
+  - **LLM Providers**: Grounded AI Coach explanations and game summaries. Natively supports **Groq**, **LM Studio**, **MiniMax**, and **Custom OpenAI-compatible** servers.
   - **Lichess & Chess.com**: Direct game import APIs and Lichess Opening Explorer.
+
+## 🏗️ Architecture
+
+The codebase is split into a Qt-free backend (`src/backend/`) and a PyQt6 presentation layer (`src/gui/`). GUI code imports shared widgets only from the `src.gui.components` facade, and `MainWindow` is composed from focused mixins. Full file-by-file reference, runtime flows, patterns, and extension recipes live in **[docs/architecture.md](docs/architecture.md)**.
+
+```text
+main.py → src/gui (views, components, dialogs) → src/backend (analysis, storage, APIs) → SQLite / Stockfish
+```
 
 ## 🔒 Data Privacy & Local Storage
 
@@ -171,10 +193,11 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
     python main.py
     ```
 
-2.  **Configure Engine & Opening Book**
+2.  **Configure Engine & Appearance**
     - Go to the **Settings** tab in the sidebar.
     - Under **Chess Engine**, enter or browse to your Stockfish executable path (or click Download Stockfish).
     - Under **Opening Book**, you can optionally specify a Polyglot opening book (`*.bin` file) to supplement opening line evaluations.
+    - Under **Board & Pieces**, pick a board theme and piece set; new installs start on the warm Brown theme.
 
 3.  **Load a Game**
     - Click **Load Game** at the top of the Analyze tab (or press `Ctrl+O`).
@@ -185,9 +208,9 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
     - Double-click or select a game and click **Load Game**.
 
 4.  **Analyze**
-    - Click **Analyze Game** in the left sidebar controls.
+    - Click **Analyze Game** in the analysis header.
     - Watch real-time evaluations and move classifications stream live onto the board and move list.
-    - Once complete, explore the evaluation graph, accuracy summary, and AI coach report!
+    - Once complete, explore the evaluation graph, accuracy summary, variations, and the AI Coach tab.
 
 ## 🧪 Testing
 
@@ -197,11 +220,11 @@ Run the test suite to ensure everything is working correctly:
 # Install dev dependencies first
 pip install -r requirements-dev.txt
 
-# Run all tests (the suite should finish in under 20 seconds)
-PYTHONPATH=. pytest tests/ -v
+# Run all tests (1,100+ tests; the suite should finish in under 20 seconds)
+pytest tests/
 
-# Check backend/utility branch coverage (85% floor)
-PYTHONPATH=. pytest tests/ --cov=src --cov-branch --cov-report=term-missing
+# Check backend/utility branch coverage (85% floor; GUI modules excluded)
+pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 ```
 
 > On Linux servers or CI without a display, set `QT_QPA_PLATFORM=offscreen` before running pytest.

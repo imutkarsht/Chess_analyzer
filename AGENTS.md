@@ -1,7 +1,7 @@
 # Chess Analyzer Pro — Agent Guidelines
 
 ## 1. Project Overview
-Chess Analyzer Pro is a local-first desktop application for in-depth chess game analysis. Built for desktop chess players, coaches, and enthusiasts, it provides unlimited offline game analysis using Stockfish (UCI), SQLite persistence, full Chess960 (Fischer Random) support, and optional AI-powered game coaching via OpenAI-compatible LLM endpoints. See [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+Chess Analyzer Pro is a local-first desktop application for in-depth chess game analysis. Built for desktop chess players, coaches, and enthusiasts, it provides unlimited offline game analysis using Stockfish (UCI), SQLite persistence, full Chess960 (Fischer Random) support, and optional AI-powered game coaching via OpenAI-compatible LLM endpoints. See [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the canonical [docs/architecture.md](docs/architecture.md).
 
 ---
 
@@ -14,6 +14,10 @@ Chess Analyzer Pro is a local-first desktop application for in-depth chess game 
 - **Deterministic Game Identity**: `game_id = hashlib.md5(pgn_content.encode()).hexdigest()`. Never use random UUIDs; content hashing prevents duplicate history records.
 - **Accuracy Floor (10.0%)**: Accuracy uses Lichess volatility-weighted + harmonic mean. A strict 10.0% accuracy floor per move is required to prevent a single blunder from collapsing game accuracy to zero.
 - **Chess960 Compatibility**: Detect non-standard castling tags. Set `engine.configure({"UCI_Chess960": "true"})` and instantiate boards with `chess.Board(fen, chess960=True)`.
+- **Theme Refresh Contract**: Per-widget stylesheets must be rebuilt from the live palette on theme/accent change (`_refresh_*_styles()` methods). Never capture palette colours once at construction; text can become invisible after a mode switch.
+- **Default Board Theme**: New installs use `DEFAULT_BOARD_THEME` (currently `"Brown"`) from `src/constants.py`; keep every fallback wired to that constant, never a literal theme name.
+- **Status Bar Idle Contract**: Idle shows only `● Engine ready`. The separator and status label appear only for real messages (progress, warnings, errors).
+- **AI Explanation Grounding**: Coach explanations must be built from deterministic facts (`tactics/insight.py`, `game_report.py`), validated against them, and have an offline fallback. Never send raw game data to an LLM without the fact sheet, and never render an unvalidated reply.
 
 ---
 
@@ -21,8 +25,9 @@ Chess Analyzer Pro is a local-first desktop application for in-depth chess game 
 - **Language**: Python 3.10+
 - **GUI**: PyQt6 (≥6.4.0), QtAwesome (icons), Matplotlib (embedded charts)
 - **Chess Engine & Logic**: python-chess (≥1.9.0), Stockfish (UCI protocol)
-- **Persistence**: SQLite 3 (`analysis_cache.db`, WAL mode enabled), JSON (`config.json`)
+- **Persistence**: SQLite 3 (`analysis_cache.db`, WAL mode enabled), JSON (`config.json`), OS credential store (`keyring`)
 - **LLM Integration**: `openai` Python SDK (≥1.0.0; compatible with Groq, OpenAI, LM Studio, MiniMax)
+- **Networking**: `requests` with bundled `certifi` CAs (imports, updates, LLM calls)
 - **Tooling & Packaging**: Ruff (lint & format), pytest & pytest-qt (tests), PyInstaller (builds)
 - **Package Manager**: `pip` or `uv`
 
@@ -31,22 +36,33 @@ Chess Analyzer Pro is a local-first desktop application for in-depth chess game 
 ## 4. Architecture & Boundaries
 ```
 src/
-├── constants.py            # App version (2.4.0), URLs, provider presets (Single source of truth)
+├── constants.py            # App version, URLs, provider presets, DEFAULT_BOARD_THEME
+├── config/
+│   └── settings_schema.py  # Single-source settings metadata, defaults, validation (Qt-free)
 ├── backend/                # Pure Python. Zero Qt imports. Headless & independently testable.
-│   ├── analysis/           # EngineManager, Analyzer, MoveClassifier, MathUtils, Opening Books
+│   ├── analysis/           # Analyzer, EngineManager, MoveClassifier, MathUtils, books
+│   │   ├── metrics/        # Stats aggregation and coach dossier
+│   │   ├── tactics/        # Motifs, phases, SEE, hanging pieces, move insight
+│   │   └── variation_tree.py
 │   ├── api/                # Chess.com & Lichess REST clients (rate-limited, timeout-protected)
-│   ├── engine/             # Stockfish multi-platform downloader & binary validator
-│   ├── services/           # GroqService (OpenAI SDK client for LLMs; provider-agnostic via base_url)
-│   ├── storage/            # Models (dataclasses), AnalysisCache, GameHistoryManager, PGNParser
+│   ├── cache/              # API response cache facade
+│   ├── engine/             # Stockfish downloader & binary validator
+│   ├── models/             # Lightweight cross-layer models (GameInfo)
+│   ├── services/           # GroqService (OpenAI-compatible), feedback service
+│   ├── storage/            # Repos, migrations, models, PGN parser, backup, caches
 │   └── updater/            # GitHub release checker & platform installers
-├── gui/                    # PyQt6 presentation layer. Threaded; zero business logic computation.
-│   ├── board/              # BoardWidget (SVG pieces, arrows), EvalBar
-│   ├── analysis/           # MoveListPanel, AnalysisPanel, LiveAnalysisWorker
-│   ├── components/         # controls/ lists/ feedback/ layout/ display/ (+ one public facade)
-│   ├── views/              # Full pages: Analyze, History, Metrics, Settings
-│   ├── dialogs/            # LoadGameDialog, SetupWizard, UpdateDialog
-│   ├── theme/ & styles.py  # Centralized CSS generators and color constants (Styles.COLOR_*)
-└── utils/                  # Singletons: logger.py, config.py (ConfigManager), path_utils.py (Zero Qt)
+├── gui/                    # PyQt6 presentation layer. Zero business logic computation.
+│   ├── main_window/        # MainWindow + navigation/analysis/loading/theme/tour/update/variation/status mixins
+│   ├── views/              # Pages: analysis, explorer, history, metrics/, settings/
+│   ├── analysis/           # AnalysisPanel, MoveListPanel, coach, variations, live engine
+│   ├── board/              # Board (SVG pieces, arrows), BoardPanel, EvalBar
+│   ├── components/         # controls/ display/ feedback/ layout/ lists/ (+ one public facade)
+│   ├── dialogs/            # load_game/, wizard/, feedback, errors, updates
+│   ├── engine_lines/       # Shared live session + engine-lines widget
+│   ├── metrics/            # Drill-down view and chart helpers
+│   ├── theme/ & styles.py  # Palettes, tokens, motion, and QSS generators (Styles.COLOR_*)
+│   └── utils/              # Debounce, shortcuts, smooth scroll, widget factories
+└── utils/                  # logger, config, paths, resources, secrets (Zero Qt)
 ```
 
 **Boundaries**:
@@ -54,6 +70,8 @@ src/
 - Shared utilities (`src/utils/`) must never import GUI modules.
 - External network clients must be accessed through explicit backend service interfaces.
 - GUI components are imported from the `src.gui.components` facade, never from a subpackage path, so grouping can change without touching call sites.
+- Settings are added through `src/config/settings_schema.py`; widgets do not invent defaults.
+- Per-widget styles are rebuilt on theme/accent change; no palette colour is captured at construction.
 
 ---
 
@@ -61,7 +79,9 @@ src/
 - **Typing**: Python 3.10+ modern syntax required: use `X | None` (never `Optional[X]`), `list[T]`, `dict[K, V]`.
 - **Logging**: Use `from src.utils.logger import logger`. **Never use `print()`**. Sensitive tokens (`sk-...`, `gsk_...`, Bearer) are automatically redacted.
 - **Styling**: **Never hardcode hex colors** in widget files. Use `Styles.COLOR_*` and generator helpers from `src/gui/styles.py`.
-- **Buttons**: Use `src/gui/components/controls/button.py::Button` for every button. Pick a `ButtonVariant`/`ButtonSize` (or `create_button` / `create_icon_button`) instead of constructing `QPushButton`/`QToolButton` or writing button QSS. The only exceptions are the documented specials (board swatches, theme cards, star rating, variation graph nodes).
+- **Components**: Use the shared components from `src.gui.components` for every control: `Button`, `Input`/`TextArea`, `Select`, `Tabs`, `DatePicker`, `Toast`, `PaginationBar`, `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `SegmentedBar`. Pick a variant/size (or `create_button` / `create_icon_button`) instead of constructing `QPushButton`/`QToolButton`/`QLineEdit`/`QComboBox` or writing widget QSS. The only exceptions are the documented specials (board swatches, theme cards, star rating, variation graph nodes).
+- **Theming**: Every per-widget stylesheet must be regenerated on theme/accent change. Use `Styles.COLOR_*` and generator helpers; never capture palette values at construction.
+- **Settings**: Add fields to `src/config/settings_schema.py` with a default, type, validation, and `apply="live"` when appropriate. Do not scatter `config.get("key", default)` fallbacks through widgets; credentials go through `SecretStore`.
 - **Dashboard Cards**: Cards in `src/gui/views/metrics/` must use `MetricCard`'s `new_content()` / `clear_content()` / `show_empty()` lifecycle and the shared `EmptyState`, `StatusBadge`, `SegmentedControl`, `PaginationBar`, `LegendList`, `MiniBar`, and `SegmentedBar` components. Never reimplement empty-state QSS, header pills, segmented chips, chart legends, mini bars, or prev/next bars inside a card.
 - **Paths**: Use `src/utils/path_utils.py` (`get_resource_path`, `get_user_data_dir`). Never hardcode `/` or `\\`. Never propose `cd` in terminal commands.
 - **Config**: `ConfigManager` uses class-level `_shared_config`. Do not instantiate in tight loops; call `config_manager.reload_config()` after external file changes.
@@ -88,7 +108,7 @@ src/
 ---
 
 ## 7. Testing & Verification
-- All pull requests must maintain a 100% pass rate: `pytest tests/` (990+ unit and GUI tests). The full suite must stay under 20 seconds, and the coverage gate must pass.
+- All pull requests must maintain a 100% pass rate: `pytest tests/` (1,100+ unit and GUI tests). The full suite must stay under 20 seconds, and the coverage gate must pass.
 - Backend logic changes require headless unit tests in `tests/backend/`.
 - GUI widget changes require tests using `pytest-qt` in `tests/gui/`.
 - Linting must report 0 errors: `ruff check .`
@@ -135,3 +155,14 @@ src/
 4. **Verify**: Always run `ruff check .` and `pytest tests/` before considering work complete.
 5. **Git Hygiene**: Never run destructive Git commands (`git reset --hard`, force pushes). Write meaningful Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`).
 6. **Issue-First**: Every PR must close or target an existing issue. If no issue exists for the requested feature or fix, open one and get maintainer verification before implementing. Unlinked PRs are not approved.
+7. **Docs**: User-visible changes update `CHANGELOG.md` and `planning/2.5.0_progress.md`. New modules/packages update `docs/architecture.md`. Refinements to unreleased 2.5.0 work belong in the feature bullet they extend, not as new “Bug Fixes” or “Improvements” entries.
+
+---
+
+## 10. Documentation Map
+- **[docs/architecture.md](docs/architecture.md)** — canonical layers, runtime flows, file-by-file reference, patterns, invariants, extension recipes.
+- **[docs/onboarding_doc.md](docs/onboarding_doc.md)** — setup and first-change tutorial.
+- **[docs/How_to_use.md](docs/How_to_use.md)** — user-facing feature guide.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — process, component/settings rules, test quality.
+- **[planning/2.5.0_progress.md](planning/2.5.0_progress.md)** — release tracking.
+- Never duplicate the architecture file tree in another doc; link to it instead.
