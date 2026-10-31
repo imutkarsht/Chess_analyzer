@@ -54,7 +54,7 @@ def _view(source_board):
         board=source_board.copy(),
         board_widget=_BoardWidget(source_board.copy()),
         move_history=[],
-        move_list_widget=MagicMock(),
+        move_list_view=MagicMock(),
         pending_classification_index=-1,
         last_eval=None,
         classify_enabled=False,

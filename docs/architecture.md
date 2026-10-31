@@ -423,12 +423,12 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
 | `coach_worker.py` | Off-thread explanation request and rate limiting | `ExplainMoveWorker`, `RequestLimiter` |
 | `captured.py` | Captured pieces and material advantage | `CapturedPiecesWidget` |
-| `controls.py` | First/prev/next/last/flip controls | `GameControlsWidget` |
-| `explorer_move_list.py` | Lightweight explorer move list | `ExplorerMoveListWidget` |
+| `move_controls.py` | Shared first/prev/next/last controls (analysis and explorer variants) | `MoveControls` |
+| `move_list_view.py` | Shared move table, row mapping, selection and both render modes | `MoveListView`, `MoveListEntry` |
 | `line_utils.py` | Engine-line presentation helpers | — |
 | `live_analysis.py` | Live position analysis worker | `LiveAnalysisWorker` |
 | `move_cell_widget.py` | One move cell with badge and think time | `MoveCellWidget` |
-| `move_list_panel.py` | Move table, selection, variation badges | `MoveListPanel` |
+| `move_list_panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
 | `variation_graph.py` | Git-style branch strip | `VariationGraph` |
 | `variation_mode.py` | Board state machine for variation trees | `VariationMode` |
 

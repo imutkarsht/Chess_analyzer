@@ -225,8 +225,6 @@ class ThemeMixin:
             ev = self.explorer_view
             if hasattr(ev, "refresh_styles"):
                 ev.refresh_styles()
-            if hasattr(ev, "move_list_widget") and hasattr(ev.move_list_widget, "refresh_styles"):
-                ev.move_list_widget.refresh_styles()
         # Update sidebar
         if hasattr(self, "sidebar"):
             self.sidebar.apply_style()

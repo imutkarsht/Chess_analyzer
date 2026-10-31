@@ -176,7 +176,6 @@ The Analysis Explorer is a dedicated interactive view for analyzing positions ou
 
 - **Independent Board**: The explorer has its own chessboard with click-to-move and drag-and-drop support. Legal-move dots and selection highlights make move entry easy.
 - **Move List**: A move list tracks all moves played within the explorer session. Click any move to navigate back; use the navigation buttons (first, prev, next, last) for quick movement.
-- **Inline Move Input**: Type moves in standard algebraic notation (e.g. "e4", "Nf3", "O-O") directly into the "type SAN move..." field in the Moves header. Press Enter to play the move. Case-insensitive: "bxf2" works the same as "Bxf2".
 - **Opening Book**: The explorer has a built-in Lichess ECO opening database. As you navigate, the "Book Moves" panel shows known opening moves from the database with statistics. Click a book move to navigate to it.
 - **Engine Analysis**: Enable "Engine Lines" to see live Stockfish evaluation in the current position. Each line shows the eval score, depth, and principal variation. Click any engine line to play its first move on the board.
 - **Move Classification**: Toggle "Classify Moves" to automatically classify moves as Brilliant, Great, Best, Excellent, Good, Inaccuracy, Mistake, Blunder, Miss, or Book. When enabled, all unclassified moves are processed sequentially (backlog classification).

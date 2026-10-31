@@ -280,16 +280,6 @@ class TourMixin:
                         page_index=1,
                     )
                 )
-            if hasattr(ev, "move_input") and ev.move_input.isVisible():
-                steps.append(
-                    TourStep(
-                        target=ev.move_input,
-                        title="Move Input",
-                        text="Type SAN moves directly (e.g. 'e4', 'Nf3', 'O-O') to quickly jump to any variation or opening branch.",
-                        position="left",
-                        page_index=1,
-                    )
-                )
             if hasattr(ev, "btn_flip") and ev.btn_flip.isVisible():
                 steps.append(
                     TourStep(

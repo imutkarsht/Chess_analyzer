@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import QApplication, QWidget
 from src.backend.analysis.engine import resolve_engine_path
 from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
 from src.backend.analysis.polyglot_book import PolyglotBookManager
+from src.gui.analysis.move_list_view import MoveListEntry
 from src.gui.engine_lines import LiveEngineSession
 from src.gui.styles import Styles
 from src.gui.views.explorer.book_mixin import ExplorerBookMixin
@@ -156,7 +157,7 @@ class ExplorerView(
 
         self.board = test_board
         self.move_history = []
-        self.move_list_widget.clear()
+        self.move_list_view.clear_entries()
         self.pending_classification_index = -1
         self.last_eval = None
         self.pending_before_eval = None
@@ -224,7 +225,7 @@ class ExplorerView(
 
         self.board = chess.Board(self.starting_fen, chess960=self.is_chess960)
         self.move_history = []
-        self.move_list_widget.clear()
+        self.move_list_view.clear_entries()
         self.pending_classification_index = -1
         self.last_eval = None
 
@@ -267,14 +268,14 @@ class ExplorerView(
 
             self.board_widget.board.push(move)
             self.move_history.append((move, fen_before, fen_after, san))
-            self.move_list_widget.add_move(san)
+            self.move_list_view.append_entry(MoveListEntry(san=san))
 
             if (
                 source_moves
                 and i < len(source_moves)
                 and source_moves[i].classification
             ):
-                self.move_list_widget.update_classification(
+                self.move_list_view.set_classification(
                     i, source_moves[i].classification
                 )
 
@@ -310,26 +311,26 @@ class ExplorerView(
         self.board.push(move)
         fen_after = self.board.fen()
 
-        if self.move_list_widget.current_index < len(self.move_history) - 1:
+        if self.move_list_view.current_index < len(self.move_history) - 1:
             self.move_history = self.move_history[
-                : self.move_list_widget.current_index + 1
+                : self.move_list_view.current_index + 1
             ]
 
         self.move_history.append((move, fen_before, fen_after, san))
-        self.move_list_widget.add_move(san)
+        self.move_list_view.append_entry(MoveListEntry(san=san))
 
         self.pending_classification_index = len(self.move_history) - 1
         self.pending_before_eval = dict(self.last_eval) if self.last_eval else None
 
         if self.classify_enabled:
-            self.move_list_widget.set_pending_classification(
+            self.move_list_view.set_pending(
                 self.pending_classification_index, True
             )
 
         # Instant book check by UCI to avoid SAN ambiguity.
         node_id = self.opening_db.get_node_by_fen(_normalize_fen(fen_before))
         if self._is_book_move(node_id, move.uci(), fen_before) and self.classify_enabled:
-            self.move_list_widget.update_classification(
+            self.move_list_view.set_classification(
                 self.pending_classification_index, "Book"
             )
             self.pending_classification_index = -1
@@ -342,7 +343,7 @@ class ExplorerView(
         if index < -1 or index >= len(self.move_history):
             return
 
-        current_idx = self.move_list_widget.current_index
+        current_idx = self.move_list_view.current_index
         is_step_forward = index == current_idx + 1
         is_step_back = index == current_idx - 1
 
@@ -357,14 +358,14 @@ class ExplorerView(
                 self.board.push(self.move_history[i][0])
 
         self.board_widget.set_board(self.board.copy())
-        self.move_list_widget.set_index(index)
+        self.move_list_view.set_current_index(index)
 
         fen = self.board.fen()
         self._refresh_engine(fen)
         self.update_opening_db(fen)
 
         if is_step_forward:
-            if not self.move_list_widget.moves[index].get("classification"):
+            if not self.move_list_view.entries[index].classification:
                 self.pending_classification_index = index
                 self.pending_before_eval = (
                     dict(self.last_eval) if self.last_eval else None
@@ -415,36 +416,6 @@ class ExplorerView(
             logger.warning(f"Failed to play engine line move {uci_move}: {e}")
             return
         self._play_move(move, f"engine line move {uci_move}")
-
-    def _normalize_san(self, text):
-        """Uppercase a lowercase piece letter for standard SAN parsing."""
-        if not text:
-            return text
-        if text[0] in "kqrbn" and text[0].islower():
-            text = text[0].upper() + text[1:]
-        return text
-
-    def _on_move_text_entered(self):
-        """Play a move typed as SAN text (e.g. 'e4', 'Nf3', 'O-O')."""
-        text = self.move_input.text().strip()
-        if not text:
-            return
-        fen_before = self.board_widget.board.fen()
-        try:
-            text = self._normalize_san(text)
-            move = self.board_widget.board.parse_san(text)
-            self.board_widget.attempt_move(
-                move.from_square, move.to_square, promotion=move.promotion
-            )
-            if self.board_widget.board.fen() == fen_before:
-                raise ValueError(f"Illegal move: {text}")
-            self.move_input.clear()
-        except Exception:
-            self.move_input.set_invalid()
-            QTimer.singleShot(1000, self._reset_move_input_style)
-
-    def _reset_move_input_style(self):
-        self.move_input.clear_invalid()
 
     def _flip_board(self):
         self.board_widget.flip_board()

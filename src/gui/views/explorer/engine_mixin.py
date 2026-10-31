@@ -114,7 +114,7 @@ class ExplorerEngineMixin:
         """
         self._classify_queue = []
         for i, _move in enumerate(self.move_history):
-            if not self.move_list_widget.moves[i].get("classification"):
+            if not self.move_list_view.entries[i].classification:
                 self._classify_queue.append(i)
         if not self._classify_queue:
             return
@@ -139,7 +139,7 @@ class ExplorerEngineMixin:
         self.classify_enabled = checked
         if not checked:
             if self.pending_classification_index >= 0:
-                self.move_list_widget.set_pending_classification(
+                self.move_list_view.set_pending(
                     self.pending_classification_index, False
                 )
             self.pending_classification_index = -1
@@ -198,7 +198,7 @@ class ExplorerEngineMixin:
             self.board_widget.board.push(move)
             self.board_widget.update_board()
             self.board_widget.draw_interactive_overlays()
-            self.move_list_widget.set_index(idx)
+            self.move_list_view.set_current_index(idx)
             self.pending_classification_index = idx
             self.pending_before_eval = before_eval
             self._refresh_engine(self.board.fen())
@@ -226,7 +226,7 @@ class ExplorerEngineMixin:
         norm_fen = _normalize_fen(fen_before)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
         if self._is_book_move(node_id, move_obj.uci(), fen_before):
-            self.move_list_widget.update_classification(
+            self.move_list_view.set_classification(
                 self.pending_classification_index, "Book"
             )
             self.board_widget.set_last_move_classification("Book")
@@ -259,7 +259,7 @@ class ExplorerEngineMixin:
         classify_move(ctx, wpl, side_str)
 
         if ctx.classification:
-            self.move_list_widget.update_classification(
+            self.move_list_view.set_classification(
                 self.pending_classification_index, ctx.classification
             )
             self.board_widget.set_last_move_classification(ctx.classification)

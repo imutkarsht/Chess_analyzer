@@ -85,6 +85,7 @@ class MoveCellWidget(QWidget):
         self._last_time_spent: float | None = None
         self._last_max_seconds: float = 30.0
         self._variation_count: int = 0
+        self._show_time: bool = True
 
         # Visual state (the embedded widget, not the QTableWidgetItem, paints the
         # row background so selection/hover stay visible above the cell widget).
@@ -98,43 +99,45 @@ class MoveCellWidget(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     # ----- public API -------------------------------------------------
-    def set_move(
+    def set_entry(
         self,
-        move,
+        entry,
         move_index: int,
         icon: QIcon = None,
         max_seconds: float = 30.0,
         variation_count: int | None = None,
     ) -> None:
         self._move_index = move_index
-        self._san_text = move.san
-        self._san_label.setText(move.san)
-        self._classification_name = move.classification or ""
+        self._san_text = entry.san
+        pending = entry.classification == "Pending"
+        self._san_label.setText(f"~ {entry.san} ~" if pending else entry.san)
+        self._classification_name = entry.classification or ""
         if variation_count is not None:
             self.set_variation_count(variation_count)
 
         # Badge stays for every classified move; only emphasis classes keep a colour.
         self._san_label.setStyleSheet(self._san_style())
 
-        if icon is not None and not icon.isNull():
+        if icon is not None and not icon.isNull() and not pending:
             self._icon_label.setPixmap(icon.pixmap(16, 16))
         else:
             self._icon_label.clear()
 
         # Think-time text + bar
         time_spent_val = None
-        if move.time_spent is not None:
+        if entry.time_spent is not None:
             try:
-                time_spent_val = float(move.time_spent)
+                time_spent_val = float(entry.time_spent)
             except (TypeError, ValueError):
                 time_spent_val = None
 
         self._last_time_spent = time_spent_val
         self._last_max_seconds = float(max_seconds) if max_seconds is not None else 30.0
 
-        if time_spent_val is not None and time_spent_val > 0:
+        if self._show_time and time_spent_val is not None and time_spent_val > 0:
             time_str = self._format_time(time_spent_val)
             self._time_label.setText(time_str)
+            self._time_label.setVisible(not self._compact)
 
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, time_spent_val / safe_max)
@@ -143,15 +146,29 @@ class MoveCellWidget(QWidget):
             self._bar.setStyleSheet(Styles.get_think_time_bar_style(colour, track, ratio))
             self._bar.show()
             self.setToolTip(
-                f"{move.classification + ': ' if move.classification else ''}"
-                f"{move.san}  —  Think time: {time_str}"
+                f"{self._tooltip_prefix()}{entry.san}  —  Think time: {time_str}"
             )
         else:
             self._time_label.setText("")
+            self._time_label.hide()
             self._bar.hide()
-            self.setToolTip(
-                f"{move.classification + ': ' if move.classification else ''}{move.san}"
-            )
+            self.setToolTip(f"{self._tooltip_prefix()}{entry.san}")
+
+    def set_show_time(self, show_time: bool) -> None:
+        """Hide the clock and think-time bar for the Explorer's plain list."""
+        self._show_time = bool(show_time)
+        if not self._show_time:
+            self._time_label.hide()
+            self._bar.hide()
+            return
+        self._time_label.setVisible(not self._compact)
+        if self._last_time_spent is not None and self._last_time_spent > 0:
+            self._bar.show()
+
+    def _tooltip_prefix(self) -> str:
+        if not self._classification_name or self._classification_name == "Pending":
+            return ""
+        return f"{self._classification_name}: "
 
     def set_state(self, selected: bool, row_active: bool) -> None:
         """Paint the active half-move and the faint tint of its partner."""
@@ -166,7 +183,7 @@ class MoveCellWidget(QWidget):
         if self._compact == compact:
             return
         self._compact = compact
-        self._time_label.setVisible(not compact)
+        self._time_label.setVisible(self._show_time and not compact)
 
     def set_variation_count(self, count: int) -> None:
         """Show a branch badge when this position owns saved variations."""
@@ -183,7 +200,10 @@ class MoveCellWidget(QWidget):
         self._variation_btn.setStyleSheet(Styles.get_variation_badge_style())
 
     def _san_style(self) -> str:
-        if self._classification_name in EMPHASIS_CLASSES:
+        if self._classification_name == "Pending":
+            color = Styles.COLOR_TEXT_MUTED
+            weight = "500"
+        elif self._classification_name in EMPHASIS_CLASSES:
             color = Styles.get_class_color(self._classification_name) or Styles.COLOR_TEXT_PRIMARY
             weight = "600"
         else:
@@ -214,7 +234,11 @@ class MoveCellWidget(QWidget):
             + Styles.get_transparent_label_style()
         )
 
-        if self._last_time_spent is not None and self._last_time_spent > 0:
+        if (
+            self._show_time
+            and self._last_time_spent is not None
+            and self._last_time_spent > 0
+        ):
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, self._last_time_spent / safe_max)
             colour = self._bar_colour(ratio)

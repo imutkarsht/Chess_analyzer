@@ -26,7 +26,7 @@
 - **Theme-Aware Controls & POV Results**: Theme switches re-render control icons, restyle the landing puzzle chrome (prompt, turn badge, revealed blurb), and keep result colours on the saved player's perspective.
 - **Status Bar Idle State**: Idle shows a single `● Engine ready` pill; the separator and status label appear only for real messages such as progress, warnings, or errors.
 - **Board & Pieces Overhaul**: Redesigned theme/piece settings with live previews; new installs default to the warmer Brown board theme.
-- **Move List Polish**: Rounded card, side-dot headers, classification badges for all classified moves, widget-painted selection/hover, and responsive think-time labels.
+- **Move List Polish**: Rounded card, side-dot headers, classification badges for all classified moves, widget-painted selection/hover, and responsive think-time labels. The Explorer's Moves header now relies on board clicks and the move list instead of a redundant SAN text field, and both pages share one move table (`MoveListView`) and one navigation toolbar (`MoveControls`) with page-specific rendering variants.
 - **Board Chrome**: Matchup header hugs the board width, captured-piece/clock rows stay attached to the board, and navigation uses a compact icon footer.
 - **Engine Lines Redesign**: Pure `EngineLine` model, shared live session, dedicated widget, fixed-height rows, elided PVs, and throttled 10 Hz updates.
 - **Board Stepping Performance**: Jump directly from cached `fen_before` instead of replaying from move 0.

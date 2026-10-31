@@ -13,15 +13,13 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.analysis.captured import CapturedPiecesWidget
-from src.gui.analysis.explorer_move_list import ExplorerMoveListWidget
+from src.gui.analysis.move_controls import MoveControls
+from src.gui.analysis.move_list_view import MoveListView
 from src.gui.board import Board, BoardConfig
 from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
-    Input,
-    InputSize,
-    InputVariant,
 )
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.styles import Styles
@@ -249,41 +247,33 @@ class ExplorerUiMixin:
         self._refresh_attribution_text()
 
     def _build_moves_section(self, right_layout: QVBoxLayout) -> None:
-        moves_header = QHBoxLayout()
-        moves_header.setContentsMargins(0, 0, 0, 0)
-        moves_header.setSpacing(8)
-
         self.move_list_label = QLabel("Moves")
         self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
-        moves_header.addWidget(self.move_list_label)
+        right_layout.addWidget(self.move_list_label)
 
-        self.move_input = Input(
-            placeholder="type SAN move...",
-            variant=InputVariant.INLINE,
-            size=InputSize.SM,
-            on_submit=self._on_move_text_entered,
-        )
-        self.move_input.setToolTip(
-            "Enter a move in standard algebraic notation (e.g. e4, Nf3, O-O)"
-        )
-        self.move_input.setMinimumWidth(120)
-        moves_header.addWidget(self.move_input)
-        moves_header.addStretch()
-        right_layout.addLayout(moves_header)
+        self.move_list_view = MoveListView(variant="explorer")
+        self.move_list_view.move_selected.connect(self.on_move_list_clicked)
 
-        self.move_list_widget = ExplorerMoveListWidget()
-        self.move_list_widget.move_selected.connect(self.on_move_list_clicked)
-        self.move_list_widget.nav_first.connect(lambda: self.on_move_list_clicked(-1))
-        self.move_list_widget.nav_prev.connect(
-            lambda: self.on_move_list_clicked(self.move_list_widget.current_index - 1)
+        self.move_controls = MoveControls(variant="explorer")
+        self.move_list_view.state_changed.connect(
+            self.move_controls.set_navigation_state
         )
-        self.move_list_widget.nav_next.connect(
-            lambda: self.on_move_list_clicked(self.move_list_widget.current_index + 1)
+        self.move_controls.first_clicked.connect(
+            lambda: self.on_move_list_clicked(-1)
         )
-        self.move_list_widget.nav_last.connect(
+        self.move_controls.prev_clicked.connect(
+            lambda: self.on_move_list_clicked(self.move_list_view.current_index - 1)
+        )
+        self.move_controls.next_clicked.connect(
+            lambda: self.on_move_list_clicked(self.move_list_view.current_index + 1)
+        )
+        self.move_controls.last_clicked.connect(
             lambda: self.on_move_list_clicked(len(self.move_history) - 1)
         )
-        right_layout.addWidget(self.move_list_widget, stretch=1)
+        self.move_controls.set_navigation_state(-1, 0)
+
+        right_layout.addWidget(self.move_list_view, stretch=1)
+        right_layout.addWidget(self.move_controls)
 
     def _refresh_attribution_text(self) -> None:
         self.lichess_attribution.setText(
@@ -358,7 +348,8 @@ class ExplorerUiMixin:
         self.move_list_label.setStyleSheet(
             Styles.get_label_style(size=14, bold=True)
         )
-        self.move_input.refresh_styles()
+        self.move_list_view.refresh_styles()
+        self.move_controls.refresh_styles()
         self.engine_status_label.setStyleSheet(
             Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED)
         )
