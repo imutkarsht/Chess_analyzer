@@ -80,22 +80,46 @@ class ExplorerCacheRepo:
             return 0
         try:
             cutoff = time.time() - ttl_seconds
-            cutoff_iso = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(cutoff))
-            prune_sql = (
-                "DELETE FROM explorer_cache WHERE "
-                "(typeof(cached_at) IN ('integer', 'real') AND cached_at < ?) "
-                "OR (typeof(cached_at) = 'text' AND cached_at < ?)"
-            )
+
+            def _prune(cur: sqlite3.Cursor) -> int:
+                # REAL/INTEGER timestamps are safe to compare in SQL.
+                cur.execute(
+                    "DELETE FROM explorer_cache WHERE "
+                    "typeof(cached_at) IN ('integer', 'real') AND cached_at < ?",
+                    (cutoff,),
+                )
+                pruned = cur.rowcount
+                # Legacy databases declared cached_at as TEXT, so a numeric
+                # epoch can be persisted as a string. Parsing it avoids the
+                # lexicographic trap where every fresh "1793…" sorts before
+                # an ISO cutoff like "2026…".
+                rows = cur.execute(
+                    "SELECT fen, cached_at FROM explorer_cache "
+                    "WHERE typeof(cached_at) = 'text'"
+                ).fetchall()
+                expired = [
+                    fen
+                    for fen, cached_at in rows
+                    if self._parse_cached_at_to_epoch(cached_at) < cutoff
+                ]
+                if expired:
+                    cur.executemany(
+                        "DELETE FROM explorer_cache WHERE fen = ?",
+                        [(fen,) for fen in expired],
+                    )
+                return pruned + len(expired)
+
             if cursor is not None:
-                cursor.execute(prune_sql, (cutoff, cutoff_iso))
-                return cursor.rowcount
+                return _prune(cursor)
+
             with self._get_connection() as conn:
                 cur = conn.cursor()
-                cur.execute(prune_sql, (cutoff, cutoff_iso))
-                pruned = cur.rowcount
+                pruned = _prune(cur)
                 conn.commit()
-                if pruned > 0:
-                    logger.debug("Pruned %d expired explorer cache entries.", pruned)
+                if pruned:
+                    logger.debug(
+                        "Pruned %d expired explorer cache entries.", pruned
+                    )
                 return pruned
         except Exception as e:
             logger.debug("Failed to prune explorer cache: %s", e)

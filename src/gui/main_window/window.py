@@ -18,7 +18,7 @@ from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
-from src.gui.analysis import CapturedPiecesWidget, GameControlsWidget
+from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardGameHeader, BoardPanel
@@ -42,7 +42,7 @@ from src.gui.theme import ThemeManager
 from src.gui.utils.gui_utils import create_button
 from src.gui.views import HistoryView, SettingsView
 from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
-from src.gui.views.explorer_view import ExplorerView
+from src.gui.views.explorer import ExplorerView
 from src.gui.views.metrics_view import MetricsWidget
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
@@ -607,7 +607,7 @@ class MainWindow(
         self.variation_graph = VariationGraph()
         center_layout.addWidget(self.variation_graph)
 
-        self.controls = GameControlsWidget()
+        self.controls = MoveControls()
         self.controls.first_clicked.connect(self.go_first)
         self.controls.prev_clicked.connect(self.go_prev)
         self.controls.next_clicked.connect(self.go_next)

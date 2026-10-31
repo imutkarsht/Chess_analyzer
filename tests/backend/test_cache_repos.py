@@ -54,6 +54,47 @@ class TestExplorerCache:
             assert repo.prune_explorer_cache(cursor=cursor) == 1
             conn.commit()
 
+    def test_prune_keeps_fresh_numeric_text_timestamps(self, tmp_path):
+        """Legacy TEXT-affinity tables must not lose fresh epoch values.
+
+        SQLite stores ``time.time()`` as a numeric string in a TEXT column, and
+        comparing that string against an ISO cutoff sorts every fresh entry
+        before the cutoff. Pruning now parses the timestamp instead.
+        """
+        db_path = str(tmp_path / "legacy-explorer.db")
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                """
+                CREATE TABLE explorer_cache (
+                    fen TEXT PRIMARY KEY,
+                    response_json TEXT NOT NULL,
+                    cached_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.commit()
+
+        manager = GameHistoryManager(db_path)
+        manager.save_explorer_cache("fen", "{}")
+        with sqlite3.connect(db_path) as conn:
+            stored = conn.execute(
+                "SELECT cached_at FROM explorer_cache WHERE fen = 'fen'"
+            ).fetchone()[0]
+        assert isinstance(stored, str)
+
+        # A fresh manager runs the startup prune; the entry must survive.
+        assert GameHistoryManager(db_path).get_explorer_cache("fen") == "{}"
+
+        # An old numeric string is still expired normally.
+        with sqlite3.connect(db_path) as conn:
+            conn.execute(
+                "UPDATE explorer_cache SET cached_at = ? WHERE fen = ?",
+                (str(time.time() - 200_000.0), "fen"),
+            )
+            conn.commit()
+        repo = ExplorerCacheRepo(db_path, ttl_seconds=3600)
+        assert repo.prune_explorer_cache() == 1
+
     def test_configured_ttl_none_never_expires(self, manager, mocker):
         manager.save_explorer_cache("fen", "{}")
         with sqlite3.connect(manager.db_path) as conn:

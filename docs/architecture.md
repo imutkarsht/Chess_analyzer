@@ -331,11 +331,16 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `analysis_view.py` | Facade re-exporting the analysis page widgets | — |
-| `explorer_view.py` | Opening Explorer page | `ExplorerView` |
-| `explorer_book_row.py` | One opening-book row | `BookRowWidget` |
-| `explorer_ratio_bar.py` | Win/draw/loss ratio bar | `RatioBar` |
-| `explorer_lichess_worker.py` | Off-thread Lichess explorer lookup | `LichessExplorerWorker` |
-| `explorer_types.py` | Shared explorer typing | `ClassificationContext` |
+| `explorer/view.py` | Opening Explorer composition, board/navigation state | `ExplorerView` |
+| `explorer/ui_mixin.py` | Page layout, controls and theme refresh | `ExplorerUiMixin` |
+| `explorer/book_mixin.py` | Local/Polyglot/Lichess rows and loading skeleton | `ExplorerBookMixin` |
+| `explorer/online_mixin.py` | Token gate, cache, debounce and worker lifecycle | `ExplorerOnlineMixin` |
+| `explorer/engine_mixin.py` | Live engine lines, eval status and classification | `ExplorerEngineMixin` |
+| `explorer/book_skeleton.py` | Pulsing placeholder rows while Lichess loads | `ExplorerBookSkeleton` |
+| `explorer/book_row.py` | One opening-book row | `BookRowWidget` |
+| `explorer/ratio_bar.py` | Win/draw/loss ratio bar | `RatioBar` |
+| `explorer/lichess_worker.py` | Off-thread Lichess explorer lookup | `LichessExplorerWorker` |
+| `explorer/types.py` | Shared explorer typing | `ClassificationContext` |
 | `history_view.py` | Game history page: filters, paging, import | `HistoryView`, `GameImportWorker` |
 | `metrics_view.py` | Stats dashboard shell | `MetricsWidget` |
 | `settings_view.py` | Settings shell: category rail, search, cards | `SettingsView` |
@@ -418,12 +423,12 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
 | `coach_worker.py` | Off-thread explanation request and rate limiting | `ExplainMoveWorker`, `RequestLimiter` |
 | `captured.py` | Captured pieces and material advantage | `CapturedPiecesWidget` |
-| `controls.py` | First/prev/next/last/flip controls | `GameControlsWidget` |
-| `explorer_move_list.py` | Lightweight explorer move list | `ExplorerMoveListWidget` |
+| `move_controls.py` | Shared first/prev/next/last controls (analysis and explorer variants) | `MoveControls` |
+| `move_list_view.py` | Shared move table, row mapping, selection and both render modes | `MoveListView`, `MoveListEntry` |
 | `line_utils.py` | Engine-line presentation helpers | — |
 | `live_analysis.py` | Live position analysis worker | `LiveAnalysisWorker` |
 | `move_cell_widget.py` | One move cell with badge and think time | `MoveCellWidget` |
-| `move_list_panel.py` | Move table, selection, variation badges | `MoveListPanel` |
+| `move_list_panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
 | `variation_graph.py` | Git-style branch strip | `VariationGraph` |
 | `variation_mode.py` | Board state machine for variation trees | `VariationMode` |
 

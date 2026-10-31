@@ -2,9 +2,11 @@
 Analysis package - Analysis view components.
 """
 from .captured import CapturedPiecesWidget
-from .controls import GameControlsWidget
+from .move_controls import MoveControls
+from .move_list_view import MoveListView
 
 __all__ = [
     'CapturedPiecesWidget',
-    'GameControlsWidget',
+    'MoveControls',
+    'MoveListView',
 ]

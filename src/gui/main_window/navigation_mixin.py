@@ -282,7 +282,7 @@ class NavigationMixin:
             return
 
         if self.stack.currentIndex() == 1:
-            self.explorer_view.move_list_widget.nav_prev.emit()
+            self.explorer_view.move_controls.prev_clicked.emit()
             return
 
         if not self.current_game:
@@ -298,7 +298,7 @@ class NavigationMixin:
             return
 
         if self.stack.currentIndex() == 1:
-            self.explorer_view.move_list_widget.nav_next.emit()
+            self.explorer_view.move_controls.next_clicked.emit()
             return
 
         if not self.current_game:
@@ -314,7 +314,7 @@ class NavigationMixin:
             return
 
         if self.stack.currentIndex() == 1:
-            self.explorer_view.move_list_widget.nav_last.emit()
+            self.explorer_view.move_controls.last_clicked.emit()
             return
 
         if not self.current_game:
@@ -330,7 +330,7 @@ class NavigationMixin:
             return
 
         if self.stack.currentIndex() == 1:
-            self.explorer_view.move_list_widget.nav_first.emit()
+            self.explorer_view.move_controls.first_clicked.emit()
             return
 
         if not self.current_game:

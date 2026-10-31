@@ -12,7 +12,7 @@
 - **Board Display Toggles**: Coordinates and move-quality badges are real appearance settings, applied live to both Analysis and Explorer boards.
 - **Configurable Cache Retention**: Explorer and explanation cache TTLs plus analysis-cache capacity are real settings, with amortised pruning applied as values are saved.
 - **Integrations & Player Profiles**: Rebuilt Chess.com/Lichess/import cards with cached public profile previews, avatars, country normalisation, stale offline fallback, and token-aware import caps shared by the UI and fetch workers.
-- **Lichess Explorer Authentication**: Explorer requests send the configured Lichess token, throttle to the account budget, gate live lookups on token presence, and keep cached/book data available offline.
+- **Lichess Explorer Authentication**: Explorer requests send the configured Lichess token, throttle to the account budget, gate live lookups on token presence, keep cached/book data available offline, reuse cached positions across app launches, and show pulsing skeleton rows while the first online lookup is in flight instead of briefly painting the local book.
 - **LLM Profile Management**: Explicit Set Active action, per-field persistence, provider-default resets, and Custom base URLs kept visible in Basic mode.
 - **Dashboard Layout**: Reorderable chart cards with pinned summary cards, stable-key persisted order, and a reusable drag/drop sortable list with auto-scroll and insertion guides.
 - **Shared Date Picker**: Outlined editable field with a floating label, accent selection ring, painted border notch, month/year navigation, locale-aware weekdays, keyboard grid navigation, and scoped “no future dates” caps.
@@ -26,7 +26,7 @@
 - **Theme-Aware Controls & POV Results**: Theme switches re-render control icons, restyle the landing puzzle chrome (prompt, turn badge, revealed blurb), and keep result colours on the saved player's perspective.
 - **Status Bar Idle State**: Idle shows a single `● Engine ready` pill; the separator and status label appear only for real messages such as progress, warnings, or errors.
 - **Board & Pieces Overhaul**: Redesigned theme/piece settings with live previews; new installs default to the warmer Brown board theme.
-- **Move List Polish**: Rounded card, side-dot headers, classification badges for all classified moves, widget-painted selection/hover, and responsive think-time labels.
+- **Move List Polish**: Rounded card, side-dot headers, classification badges for all classified moves, widget-painted selection/hover, and responsive think-time labels. The Explorer's Moves header now relies on board clicks and the move list instead of a redundant SAN text field, and both pages share one move table (`MoveListView`) and one navigation toolbar (`MoveControls`) with page-specific rendering variants.
 - **Board Chrome**: Matchup header hugs the board width, captured-piece/clock rows stay attached to the board, and navigation uses a compact icon footer.
 - **Engine Lines Redesign**: Pure `EngineLine` model, shared live session, dedicated widget, fixed-height rows, elided PVs, and throttled 10 Hz updates.
 - **Board Stepping Performance**: Jump directly from cached `fen_before` instead of replaying from move 0.
