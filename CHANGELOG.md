@@ -12,7 +12,7 @@
 - **Board Display Toggles**: Coordinates and move-quality badges are real appearance settings, applied live to both Analysis and Explorer boards.
 - **Configurable Cache Retention**: Explorer and explanation cache TTLs plus analysis-cache capacity are real settings, with amortised pruning applied as values are saved.
 - **Integrations & Player Profiles**: Rebuilt Chess.com/Lichess/import cards with cached public profile previews, avatars, country normalisation, stale offline fallback, and token-aware import caps shared by the UI and fetch workers.
-- **Lichess Explorer Authentication**: Explorer requests send the configured Lichess token, throttle to the account budget, gate live lookups on token presence, and keep cached/book data available offline.
+- **Lichess Explorer Authentication**: Explorer requests send the configured Lichess token, throttle to the account budget, gate live lookups on token presence, keep cached/book data available offline, reuse cached positions across app launches, and show pulsing skeleton rows while the first online lookup is in flight instead of briefly painting the local book.
 - **LLM Profile Management**: Explicit Set Active action, per-field persistence, provider-default resets, and Custom base URLs kept visible in Basic mode.
 - **Dashboard Layout**: Reorderable chart cards with pinned summary cards, stable-key persisted order, and a reusable drag/drop sortable list with auto-scroll and insertion guides.
 - **Shared Date Picker**: Outlined editable field with a floating label, accent selection ring, painted border notch, month/year navigation, locale-aware weekdays, keyboard grid navigation, and scoped “no future dates” caps.

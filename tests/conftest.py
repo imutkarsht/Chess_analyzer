@@ -46,7 +46,7 @@ def _no_update_check():
 @pytest.fixture(autouse=True)
 def _no_lichess_explorer_worker(monkeypatch):
     """Keep ExplorerView's book worker offline; no test exercises its network path."""
-    from src.gui.views.explorer_lichess_worker import LichessExplorerWorker
+    from src.gui.views.explorer import LichessExplorerWorker
     monkeypatch.setattr(LichessExplorerWorker, "start", lambda self: None)
 
 
@@ -80,7 +80,7 @@ def _isolated_user_data(tmp_path_factory):
         "src.backend.storage.game_history.get_user_data_dir",
         "src.backend.storage.cache.get_user_data_dir",
         "src.backend.analysis.analyzer.get_user_data_dir",
-        "src.gui.views.explorer_view.get_user_data_dir",
+        "src.gui.views.explorer.view.get_user_data_dir",
         "src.gui.board.piece_themes.get_user_data_dir",
         "src.backend.services.feedback_service.get_user_data_dir",
     )

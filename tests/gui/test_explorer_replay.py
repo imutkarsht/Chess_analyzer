@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import chess
 
 from src.backend.storage.models import MoveAnalysis
-from src.gui.views.explorer_view import ExplorerView
+from src.gui.views.explorer import ExplorerView
 
 
 class _BoardWidget:

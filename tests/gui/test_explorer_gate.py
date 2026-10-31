@@ -7,8 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.constants import LICHESS_EXPLORER_URL
-from src.gui.views.explorer_lichess_worker import LichessExplorerWorker
-from src.gui.views.explorer_view import ExplorerView
+from src.gui.views.explorer import ExplorerView, LichessExplorerWorker
 
 
 @pytest.fixture(autouse=True)

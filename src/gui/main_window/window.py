@@ -42,7 +42,7 @@ from src.gui.theme import ThemeManager
 from src.gui.utils.gui_utils import create_button
 from src.gui.views import HistoryView, SettingsView
 from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
-from src.gui.views.explorer_view import ExplorerView
+from src.gui.views.explorer import ExplorerView
 from src.gui.views.metrics_view import MetricsWidget
 from src.utils.config import ConfigManager
 from src.utils.logger import logger

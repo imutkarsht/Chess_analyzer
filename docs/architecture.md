@@ -331,11 +331,16 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `analysis_view.py` | Facade re-exporting the analysis page widgets | — |
-| `explorer_view.py` | Opening Explorer page | `ExplorerView` |
-| `explorer_book_row.py` | One opening-book row | `BookRowWidget` |
-| `explorer_ratio_bar.py` | Win/draw/loss ratio bar | `RatioBar` |
-| `explorer_lichess_worker.py` | Off-thread Lichess explorer lookup | `LichessExplorerWorker` |
-| `explorer_types.py` | Shared explorer typing | `ClassificationContext` |
+| `explorer/view.py` | Opening Explorer composition, board/navigation state | `ExplorerView` |
+| `explorer/ui_mixin.py` | Page layout, controls and theme refresh | `ExplorerUiMixin` |
+| `explorer/book_mixin.py` | Local/Polyglot/Lichess rows and loading skeleton | `ExplorerBookMixin` |
+| `explorer/online_mixin.py` | Token gate, cache, debounce and worker lifecycle | `ExplorerOnlineMixin` |
+| `explorer/engine_mixin.py` | Live engine lines, eval status and classification | `ExplorerEngineMixin` |
+| `explorer/book_skeleton.py` | Pulsing placeholder rows while Lichess loads | `ExplorerBookSkeleton` |
+| `explorer/book_row.py` | One opening-book row | `BookRowWidget` |
+| `explorer/ratio_bar.py` | Win/draw/loss ratio bar | `RatioBar` |
+| `explorer/lichess_worker.py` | Off-thread Lichess explorer lookup | `LichessExplorerWorker` |
+| `explorer/types.py` | Shared explorer typing | `ClassificationContext` |
 | `history_view.py` | Game history page: filters, paging, import | `HistoryView`, `GameImportWorker` |
 | `metrics_view.py` | Stats dashboard shell | `MetricsWidget` |
 | `settings_view.py` | Settings shell: category rail, search, cards | `SettingsView` |
