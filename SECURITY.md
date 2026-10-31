@@ -10,8 +10,8 @@ Only the latest major/minor release receives active security patches.
 
 | Version | Supported |
 | :--- | :--- |
-| **2.4.x** | :white_check_mark: Yes |
-| < 2.4.0 | :x: No |
+| **2.5.x** | :white_check_mark: Yes |
+| < 2.5.0 | :x: No |
 
 We recommend always running the latest version available from the [Official Releases](https://github.com/imutkarsht/Chess_analyzer/releases) page or official website at [chessanalyzer.xyz](https://chessanalyzer.xyz/).
 

@@ -11,7 +11,7 @@
 #   ./installers/linux/build_appimage.sh
 #
 # Output:
-#   installers/linux/Output/ChessAnalyzerPro-2.4.0-x86_64.AppImage
+#   installers/linux/Output/ChessAnalyzerPro-2.5.0-x86_64.AppImage
 # ==============================================================================
 
 set -euo pipefail

@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.5.0 - AI Coach, Variations, Settings & Component Platform (Unreleased)
+## v2.5.0 - AI Coach, Variations, Settings & Component Platform
 
 ### Features
 
@@ -93,6 +93,7 @@
 - Added shared `FormField` and date/game-row formatting helpers.
 - Replaced the old `ModernDatePicker` with the shared `DatePicker`.
 - Removed the unused `config.example.json`.
+- Rewrote `README.md` as a standard open-source landing page: install and quick start before the feature list, eight capability bullets instead of thirty feature entries, and links to `docs/`, `CHANGELOG.md`, and `CREDITS.md` instead of duplicating them.
 
 ---
 
