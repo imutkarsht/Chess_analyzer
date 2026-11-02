@@ -4,6 +4,7 @@ import pytest
 
 from src.backend.analysis.math_utils import (
     MIN_MOVE_ACCURACY,
+    aggregate_accuracy,
     apply_accuracy_floor,
     calculate_move_accuracy,
     calculate_volatility_weights,
@@ -65,6 +66,38 @@ def test_volatility_weights_emphasise_swings():
     assert all(weight == 0.5 for weight in flat)
     assert max(volatile) > max(flat)
     assert all(0.5 <= weight <= 12.0 for weight in volatile)
+
+
+def test_volatility_weights_stay_aligned_with_moves():
+    for length in (0, 1, 7, 20):
+        win_percents = [0.5 + 0.01 * (i % 7) for i in range(length)]
+        assert len(calculate_volatility_weights(win_percents, window_size=8)) == length
+
+
+def test_volatility_weights_ignore_which_side_is_ahead():
+    """Weights describe position sharpness, not who is winning."""
+    sequence = [0.2, 0.5, 0.3, 0.8, 0.6, 0.9, 0.4, 0.7, 0.55, 0.65, 0.45, 0.75]
+    mirrored = [1.0 - value for value in sequence]
+
+    weights = calculate_volatility_weights(sequence, window_size=4)
+    mirror_weights = calculate_volatility_weights(mirrored, window_size=4)
+
+    assert weights == pytest.approx(mirror_weights)
+
+
+def test_move_accuracy_never_improves_as_more_win_probability_is_lost():
+    scores = [calculate_move_accuracy(0.8, after) for after in (0.8, 0.75, 0.7, 0.5, 0.3, 0.0)]
+    assert scores == sorted(scores, reverse=True)
+    assert scores[0] == 100.0
+
+
+def test_aggregate_accuracy_blends_weighted_and_harmonic_means():
+    accuracies = [100.0, 90.0, 55.0, 30.0, 85.0, 95.0, 70.0, 60.0, 99.0, 80.0]
+    win_percents = [0.5, 0.55, 0.6, 0.45, 0.5, 0.7, 0.65, 0.4, 0.8, 0.75]
+
+    # Pins the blended score; drift here means game and phase accuracy moved.
+    assert aggregate_accuracy(accuracies, win_percents) == pytest.approx(71.579339, abs=1e-5)
+    assert aggregate_accuracy([], []) == 0.0
 
 
 def test_weighted_mean_averages_by_weight():

@@ -18,13 +18,11 @@ from src.utils.path_utils import get_resource_path, get_user_data_dir
 from .engine import EngineManager
 from .local_book import BookResult, LocalBookManager
 from .math_utils import (
+    aggregate_accuracy,
     apply_accuracy_floor,
     calculate_move_accuracy,
-    calculate_volatility_weights,
     get_cp,
     get_win_probability,
-    harmonic_mean,
-    weighted_mean,
 )
 from .move_classifier import classify_move
 from .opening_db import OpeningDB
@@ -1010,41 +1008,19 @@ class Analyzer:
         return is_book
 
     def _calculate_final_accuracy(self, summary_counts):
+        """Final game accuracy per colour, plus ACPL normalisation.
+
+        Delegates the aggregation to :func:`aggregate_accuracy` so the game and
+        phase metrics share one implementation. Mutates ``summary_counts`` in
+        place, which callers rely on.
         """
-        Calculates final game accuracy using Lichess algorithm:
-        Average of volatility-weighted mean and harmonic mean.
+        for side in ("white", "black"):
+            counts = summary_counts[side]
+            move_count = counts["move_count"]
 
-        Source: https://github.com/lichess-org/lila/blob/master/modules/analyse/src/main/AccuracyPercent.scala
-        """
-        for side in ["white", "black"]:
-            accuracies = summary_counts[side]["accuracies"]
-            win_percents = summary_counts[side]["win_percents"]
-            mc = summary_counts[side]["move_count"]
-
-            if mc > 0:
-                # Calculate ACPL for stats display
-                summary_counts[side]["acpl"] /= mc
-
-                if len(accuracies) >= 2:
-                    # Apply the shared accuracy floor so outliers can't collapse the harmonic mean
-                    capped_accs = [apply_accuracy_floor(a) for a in accuracies]
-
-                    # Calculate sliding window volatility weights
-                    window_size = max(2, min(8, len(accuracies) // 10))
-                    weights = calculate_volatility_weights(win_percents, window_size)
-                    # Volatility-weighted mean
-                    weighted_mean_val = weighted_mean(capped_accs, weights)
-
-                    # Harmonic mean
-                    harmonic_mean_val = harmonic_mean(capped_accs)
-
-                    # Final accuracy = average of both
-                    accuracy = (weighted_mean_val + harmonic_mean_val) / 2
-                elif len(accuracies) == 1:
-                    accuracy = accuracies[0]
-                else:
-                    accuracy = 0
-
-                summary_counts[side]["accuracy"] = max(0, min(100, accuracy))
+            if move_count > 0:
+                counts["acpl"] /= move_count
+                score = aggregate_accuracy(counts["accuracies"], counts["win_percents"])
+                counts["accuracy"] = max(0.0, min(100.0, score))
             else:
-                summary_counts[side]["accuracy"] = 0
+                counts["accuracy"] = 0

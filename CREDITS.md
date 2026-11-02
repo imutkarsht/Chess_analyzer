@@ -141,11 +141,14 @@ each game ended:
 
 ## Algorithms & Code References
 
-### Accuracy Percent Formula
-The game-accuracy calculation in `src/backend/analyzer.py` is based on the
-formula used by Lichess:
+### Accuracy Metric
+The accuracy metric follows the win-probability-loss approach described by
+Lichess, including its volatility-weighted and harmonic-mean aggregation:
 
-- Source: [lichess-org/lila -- AccuracyPercent.scala](https://github.com/lichess-org/lila/blob/master/modules/analyse/src/main/AccuracyPercent.scala)
+- Reference: [lichess-org/lila -- AccuracyPercent.scala](https://github.com/lichess-org/lila/blob/master/modules/analyse/src/main/AccuracyPercent.scala)
+
+The implementation in `src/backend/analysis/math_utils.py` was rewritten
+independently and copies no lila source.
 
 ### Chess.com PGN Format
 Time-control parsing for chess.com-style `[%clk H:MM:SS.s]` clock comments

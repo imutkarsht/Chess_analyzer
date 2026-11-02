@@ -12,11 +12,9 @@ from typing import Any
 import chess
 
 from src.backend.analysis.math_utils import (
+    aggregate_accuracy,
     apply_accuracy_floor,
     calculate_move_accuracy,
-    calculate_volatility_weights,
-    harmonic_mean,
-    weighted_mean,
 )
 from src.backend.analysis.tactics.board_utils import to_user_cp, to_user_wp
 from src.backend.analysis.tactics.constants import (
@@ -242,16 +240,10 @@ class TacticsState:
 
 
 def _phase_accuracy(accuracies: list[float], win_percents: list[float]) -> float | None:
-    """Computes harmonic volatility-weighted phase accuracy."""
+    """Computes volatility-weighted harmonic accuracy for one game phase."""
     if not accuracies:
         return None
-    if len(accuracies) == 1:
-        return accuracies[0]
-    window_size = max(2, min(8, len(accuracies) // 10))
-    weights = calculate_volatility_weights(win_percents, window_size)
-    wm = weighted_mean(accuracies, weights)
-    hm = harmonic_mean(accuracies)
-    return (wm + hm) / 2.0
+    return aggregate_accuracy(accuracies, win_percents)
 
 
 def _record_accuracy(ctx: MoveCtx, state: TacticsState) -> None:
