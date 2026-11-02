@@ -18,6 +18,8 @@ from src.constants import (
     AUTHOR_LINKEDIN_URL,
     AUTHOR_NAME,
     GITHUB_REPO_URL,
+    LICENSE_URL,
+    NOTICES_URL,
     WEBSITE_URL,
 )
 from src.utils.path_utils import get_resource_path
@@ -180,10 +182,22 @@ class LinksSettings(BackgroundTaskCard):
         layout.addLayout(creator_row)
 
         self.license_note = QLabel(
-            "MIT License  ·  Stockfish is licensed under GPLv3"
+            "GPL-3.0-only  ·  © 2025-2026 Utkarsh Tiwari and Chess Analyzer Pro contributors"
         )
         self.license_note.setWordWrap(True)
-        layout.addWidget(self.license_note)
+
+        license_row = QHBoxLayout()
+        license_row.setContentsMargins(0, 0, 0, 0)
+        license_row.setSpacing(10)
+        license_row.addWidget(self.license_note)
+        self.license_btn = self._make_link("Licence", "fa5s.file-alt", self.open_license)
+        self.notices_btn = self._make_link(
+            "Third-party notices", "fa5s.list", self.open_notices
+        )
+        license_row.addWidget(self.license_btn)
+        license_row.addWidget(self.notices_btn)
+        license_row.addStretch(1)
+        layout.addLayout(license_row)
         return footer
 
     def _make_link(self, text: str, icon_name: str, callback) -> QWidget:
@@ -243,6 +257,12 @@ class LinksSettings(BackgroundTaskCard):
 
     def open_github(self):
         self._open(GITHUB_REPO_URL)
+
+    def open_license(self):
+        self._open(LICENSE_URL)
+
+    def open_notices(self):
+        self._open(NOTICES_URL)
 
     def open_releases(self):
         self._open(f"{WEBSITE_URL}/releases")

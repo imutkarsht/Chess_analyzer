@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,11 +8,17 @@ version = "2.5.0"
 description = "A local-first Python desktop application for analyzing chess games."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "GPL-3.0-only"
+license-files = [
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md",
+]
 authors = [
     { name = "Utkarsh Tiwari" }
 ]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: End Users/Desktop",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -20,6 +26,7 @@ classifiers = [
     "Topic :: Games/Entertainment :: Board Games",
     "Operating System :: OS Independent",
 ]
+
 dependencies = [
     "python-chess>=1.9.0",
     "PyQt6>=6.4.0",
@@ -44,6 +51,12 @@ dev = [
     "types-requests>=2.31.0",
     "pre-commit>=3.5.0",
 ]
+
+[project.urls]
+Homepage = "https://chessanalyzer.xyz"
+Source = "https://github.com/imutkarsht/Chess_analyzer"
+Issues = "https://github.com/imutkarsht/Chess_analyzer/issues"
+Changelog = "https://github.com/imutkarsht/Chess_analyzer/blob/master/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["."]

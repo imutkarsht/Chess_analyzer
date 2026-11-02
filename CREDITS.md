@@ -1,7 +1,7 @@
 # Credits & Third-Party Notices
 
 This document lists third-party assets, libraries, and code used in
-**Chess Analyzer Pro** that are not covered by the project's MIT license.
+**Chess Analyzer Pro** that are not covered by the project's GPL-3.0 license.
 All items below retain their original licenses.
 
 ---
@@ -53,13 +53,13 @@ SVG (e.g. `white-king.svg`, `black-pawn.svg`) loaded at runtime by
   [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)
 
 The SVGs are kept in a dedicated subdirectory so that the piece graphics and
-the MIT-licensed source code remain separable works. See the
+the GPL-3.0-licensed project source remain separable works. This project uses
+the **GPLv2+** option, which combines with GPLv3; see the
 [per-directory notice](assets/pieces/THIRD-PARTY-README.md) for the full
-attribution and `LICENSE` for the project-level third-party component
-notice.
+attribution and [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) for the project-level statement.
 
-When distributing binaries of this application, the CC BY-SA 3.0 attribution
-must be preserved with the SVGs.
+When distributing binaries of this application, the attribution above must be
+preserved with the SVGs.
 
 ---
 
@@ -77,7 +77,7 @@ The TSV files in `assets/openings/` (`a.tsv`, `b.tsv`, `c.tsv`, `d.tsv`, `e.tsv`
 
 The images and SVG icons in [`assets/images/`](assets/images/) are **original works** created for
 this project by the project maintainer using generative AI tools. They are licensed under the
-same **MIT License** as the rest of this repository and are not derived from any third-party
+same **GPL-3.0** terms as the rest of this repository and are not derived from any third-party
 icon pack.
 
 ### Move Classification Icons
@@ -182,7 +182,7 @@ service. Brand names are used nominatively to identify the data source.
 ### Platform Logos
 
 The following platform logos in [`assets/icons/`](assets/icons/) are used nominatively to identify
-the game data source. They are **not** covered by this project's MIT license.
+the game data source. They are **not** covered by this project's GPL-3.0 license.
 
 | File | Mark | Usage |
 |------|------|-------|
@@ -198,7 +198,7 @@ platform is implied or claimed.
 
 The following icons in [`assets/icons/`](assets/icons/) are **original works** created for this
 project by the project maintainer using generative AI tools. They are licensed under the same
-**MIT License** as the rest of this repository.
+**GPL-3.0** terms as the rest of this repository.
 
 | File | Purpose |
 |------|---------|
@@ -222,9 +222,9 @@ third-party icon pack. No third-party copyrighted icon packs were used.
 
 ## Libraries
 
-The full list of Python dependencies and their licenses is available in
-[`requirements.txt`](requirements.txt) and in the license notices shipped
-with each package on PyPI.
+Python dependencies, their versions and licenses are listed in
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md). Full licence texts for the
+packaged versions are collected into the application bundle at build time.
 
 ---
 

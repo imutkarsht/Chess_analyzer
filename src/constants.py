@@ -8,6 +8,8 @@ APP_VERSION = "2.5.0"
 # GitHub & Project URLs
 GITHUB_REPO_URL = "https://github.com/imutkarsht/Chess_analyzer"
 GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"
+LICENSE_URL = f"{GITHUB_REPO_URL}/blob/master/LICENSE"
+NOTICES_URL = f"{GITHUB_REPO_URL}/blob/master/THIRD-PARTY-NOTICES.md"
 WEBSITE_URL = "https://chessanalyzer.xyz"
 ABOUT_URL = "https://chessanalyzer.xyz/about"
 

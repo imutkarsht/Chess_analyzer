@@ -47,6 +47,25 @@ project's direction and avoids wasted effort on features that won't be merged.
 
 ---
 
+## ⚖️ Licensing of Contributions
+
+Chess Analyzer Pro is licensed under **GPL-3.0-only**, including the section 7
+additional terms recorded in [`LICENSE`](LICENSE).
+
+- By opening a pull request you agree that your contribution is licensed under
+  the same terms (inbound = outbound). There is no CLA and no copyright
+  assignment.
+- Only submit code you have the right to license this way. Do not paste code
+  from projects whose licence is incompatible with GPLv3 — for example
+  AGPL-3.0-only code, or code with no licence at all. If you adapted an
+  algorithm or a snippet, say where it came from in the PR description.
+- New dependencies must be GPL-3.0-compatible. Raise it in the issue before
+  adding one.
+- New Python files start with `# SPDX-License-Identifier: GPL-3.0-only`. Do not
+  add headers to existing files.
+
+---
+
 ## 💻 Development Setup
 
 ### 1. Clone the repo

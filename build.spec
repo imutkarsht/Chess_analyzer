@@ -3,6 +3,7 @@
 import sys
 import os
 import glob
+import sysconfig
 
 # Dynamically locate the DLLs directory from the Python installation
 dll_source_dir = os.path.join(sys.base_prefix, 'DLLs')
@@ -15,14 +16,29 @@ crypto_dlls = glob.glob(os.path.join(dll_source_dir, 'libcrypto*.dll'))
 my_binaries = []
 for dll in ssl_dlls + crypto_dlls:
     my_binaries.append((dll, '.'))
-    
+
+# Ship the licence texts of the bundled Python packages. They live in each
+# distribution's metadata, so collecting them at build time keeps the notices
+# in sync with the versions actually packaged instead of vendoring copies in
+# the repository.
+_site_packages = sysconfig.get_paths()['purelib']
+_package_licenses = [
+    (path, os.path.join('licenses', os.path.basename(os.path.dirname(path))))
+    for path in glob.glob(os.path.join(_site_packages, '*.dist-info', 'licenses'))
+]
+
 block_cipher = None
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=my_binaries,
-    datas=[('assets', 'assets'), ('.env.sample', '.')],
+    datas=[
+        ('assets', 'assets'),
+        ('.env.sample', '.'),
+        ('LICENSE', '.'),
+        ('THIRD-PARTY-NOTICES.md', '.'),
+    ] + _package_licenses,
     hiddenimports=['chess', 'PyQt6', 'groq', 'dotenv', 'PyQt6.QtSvg', 'qtawesome', 'packaging', 'packaging.version', 'keyring'],
     hookspath=[],
     hooksconfig={},
