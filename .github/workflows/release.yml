@@ -219,6 +219,13 @@ jobs:
           if not notes:
               notes = f"Release {tag} of Chess Analyzer Pro.\n\nSee CHANGELOG.md for full details."
 
+          # GPLv3 section 6 source offer, stated explicitly in the release body.
+          notes += (
+              "\n\n---\n\n"
+              "Source code for this release: "
+              f"https://github.com/imutkarsht/Chess_analyzer/tree/{tag}\n"
+          )
+
           with open("RELEASE_NOTES.md", "w", encoding="utf-8") as f:
               f.write(notes + "\n")
           EOF

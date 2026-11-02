@@ -18,6 +18,7 @@ Chess Analyzer Pro is a local-first desktop application for in-depth chess game 
 - **Default Board Theme**: New installs use `DEFAULT_BOARD_THEME` (currently `"Brown"`) from `src/constants.py`; keep every fallback wired to that constant, never a literal theme name.
 - **Status Bar Idle Contract**: Idle shows only `● Engine ready`. The separator and status label appear only for real messages (progress, warnings, errors).
 - **AI Explanation Grounding**: Coach explanations must be built from deterministic facts (`tactics/insight.py`, `game_report.py`), validated against them, and have an offline fallback. Never send raw game data to an LLM without the fact sheet, and never render an unvalidated reply.
+- **Licensing**: The project is `GPL-3.0-only`. Dependencies and any vendored code must be GPL-3.0-compatible (no AGPL-only or unlicensed sources). New Python files start with `# SPDX-License-Identifier: GPL-3.0-only`; existing files are not retrofitted. `LICENSE` and `THIRD-PARTY-NOTICES.md` must ship with every distributable artifact.
 
 ---
 

@@ -3,18 +3,19 @@ Chess piece theme loader for custom board rendering.
 
 This module is a thin loader that reads SVG piece graphics from the
 ``assets/pieces/`` directory at runtime. The graphics themselves live in
-external SVG files so the MIT-licensed project source and the
+external SVG files so the GPL-3.0 project source and the
 third-party CC BY-SA / GPLv2+ graphics remain physically separate.
 
 The piece graphics are the **Cburnett** set, originally by
 Colin M.L. Burnett, distributed via Wikimedia Commons:
     https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces
-They are dual-licensed under GPLv2+ and CC BY-SA 3.0 (Unported).
+They are dual-licensed under GPLv2+ and CC BY-SA 3.0 (Unported); this project
+uses the GPLv2+ option.
 
-They are NOT covered by the MIT License that applies to the rest
+They are NOT covered by the GPL-3.0 licence that applies to the rest
 of this project. See ``assets/pieces/THIRD-PARTY-README.md`` and the
-``THIRD-PARTY COMPONENT NOTICE`` section in the project root
-``LICENSE`` file for the full attribution and license terms.
+project root ``THIRD-PARTY-NOTICES.md`` file for the full attribution and
+license terms.
 """
 
 import os

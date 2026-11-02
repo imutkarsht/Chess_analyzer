@@ -7,7 +7,7 @@
 > Professional-grade, local-first chess analysis for your desktop — Stockfish, PyQt6, SQLite.
 
 [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg?style=flat)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml)
-![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)
+![License](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg?style=flat)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg?style=flat)
 ![Version](https://img.shields.io/badge/version-2.5.0-green.svg?style=flat)
 
@@ -156,11 +156,18 @@ The full workflow — linting, coverage, and test-quality requirements — is in
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [GNU General Public License, version 3](LICENSE), including
+the section 7 attribution terms recorded in that file. Corresponding
+source for every release is available at
+[github.com/imutkarsht/Chess_analyzer](https://github.com/imutkarsht/Chess_analyzer).
 
-The chess piece graphics in [`assets/pieces/`](assets/pieces/) are third-party work by Colin
-M.L. Burnett, used under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Full
-attribution and all other third-party notices are in [CREDITS.md](CREDITS.md).
+Games, analyses, PGNs and reports you produce with the app are yours — the
+licence covers the program, not its output.
+
+The chess piece graphics in [`assets/pieces/`](assets/pieces/) are third-party
+work by Colin M.L. Burnett, used under their GPLv2+ option. Full attribution
+and all other third-party notices are in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and [CREDITS.md](CREDITS.md).
 
 ## Acknowledgements
 

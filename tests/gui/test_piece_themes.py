@@ -3,7 +3,7 @@ Tests for the piece theme loader.
 
 The piece graphics used to be embedded as inline SVG strings inside
 ``src/gui/board/piece_themes.py``. This caused license-separation issues
-because copyleft third-party graphics lived in the same MIT-licensed
+because copyleft third-party graphics lived in the same GPL-3.0-licensed
 source file. The refactor moved the graphics into individual
 ``assets/pieces/*.svg`` files and turned the Python module into a
 thin loader.

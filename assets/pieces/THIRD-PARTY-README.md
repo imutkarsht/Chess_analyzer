@@ -29,9 +29,10 @@ in this directory.
 ## Scope / Separation
 
 These SVGs are **kept physically separate** from the project source code
-(which is licensed under the MIT License) so that the two works can be
-licensed independently. See the project-root `LICENSE` file for the full
-"THIRD-PARTY COMPONENT NOTICE" section that documents this separation.
+(which is licensed under the GNU GPL version 3) so that the two works can be
+licensed independently. This project uses the **GPLv2+** option of the piece
+licence, which combines with GPLv3. See the project-root
+[`THIRD-PARTY-NOTICES.md`](../../THIRD-PARTY-NOTICES.md) for the project-level statement.
 
 If you replace this theme with a different set, simply remove the
 corresponding `white-*.svg` and `black-*.svg` files in this directory;
