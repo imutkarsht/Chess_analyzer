@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -27,6 +26,7 @@ from src.gui.components import (
     CircularAccuracyWidget,
     IconLabel,
     Label,
+    RichTextLabel,
     Tabs,
     TabVariant,
     TextArea,
@@ -174,8 +174,7 @@ class AnalysisPanel(QWidget):
         hero_layout.setContentsMargins(0, 0, 0, 0)
         hero_layout.setSpacing(2)
 
-        self.result_banner_lbl = QLabel("-")
-        self.result_banner_lbl.setStyleSheet(Styles.get_transparent_style())
+        self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
         hero_layout.addWidget(self.result_banner_lbl)
 
         self.opening_label = Label("-", role=TextRole.CAPTION, weight=600, wrap=True)

@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
-from src.gui.styles import Styles
+from src.gui.components.display.rich_text import RichTextLabel
 from src.gui.theme.typography import TextRole, TextTone
 
 
@@ -66,10 +66,11 @@ class LegendList(QWidget):
 
     def add_empty(self, text: str, italic: bool = False) -> None:
         if italic:
-            label = QLabel(text)
-            label.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
-                "font-style: italic; border: none; background: transparent;"
+            label = RichTextLabel(
+                f"<i>{text}</i>",
+                role=TextRole.CAPTION,
+                tone=TextTone.SECONDARY,
+                wrap=True,
             )
         else:
             label = Label(

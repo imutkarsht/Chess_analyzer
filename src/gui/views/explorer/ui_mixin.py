@@ -21,6 +21,7 @@ from src.gui.components import (
     ButtonSize,
     ButtonVariant,
     Label,
+    RichTextLabel,
     TextRole,
     TextTone,
 )
@@ -227,10 +228,10 @@ class ExplorerUiMixin:
 
         right_layout.addWidget(self.book_scroll, stretch=1)
 
-        self.lichess_attribution = QLabel()
-        self.lichess_attribution.setStyleSheet(
-            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 4px 14px; "
-            "background: transparent; border: none;"
+        self.lichess_attribution = RichTextLabel(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.MUTED,
         )
         self.lichess_attribution.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -308,10 +309,6 @@ class ExplorerUiMixin:
         self.book_toggle.refresh_styles()
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
         Styles.apply_background(self.book_container, "surface")
-        self.lichess_attribution.setStyleSheet(
-            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 4px 14px; "
-            "background: transparent; border: none;"
-        )
         self._refresh_attribution_text()
         skeleton = getattr(self, "_book_skeleton", None)
         if skeleton is not None:

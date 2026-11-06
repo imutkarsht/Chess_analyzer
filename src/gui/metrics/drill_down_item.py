@@ -15,7 +15,6 @@ from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -26,6 +25,7 @@ from src.gui.components import (
     ButtonSize,
     ButtonVariant,
     Label,
+    RichTextLabel,
     StatusBadge,
     TextRole,
     TextTone,
@@ -101,13 +101,10 @@ class DrillDownItemWidget(QFrame):
         )
         user_color = self.item.get("user_color", "white").capitalize()
 
-        match_lbl = QLabel(
+        match_lbl = RichTextLabel(
             f"<b>vs {opp_name}</b>{elo_str} &nbsp;•&nbsp; "
-            f"<span style='color: {Styles.COLOR_TEXT_SECONDARY}'>as {user_color}</span>"
-        )
-        match_lbl.setStyleSheet(
-            f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            "background: transparent; border: none;"
+            f"<span style='color: {Styles.COLOR_TEXT_SECONDARY}'>as {user_color}</span>",
+            role=TextRole.BODY,
         )
         row1.addWidget(match_lbl)
 
