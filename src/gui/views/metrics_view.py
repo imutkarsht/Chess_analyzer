@@ -17,10 +17,12 @@ from src.backend.services.groq_service import GroqService
 from src.gui.components import (
     Button,
     ButtonVariant,
+    Label,
     MasonryLayout,
     Select,
     StatCard,
     StatsLayout,
+    TextRole,
 )
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
@@ -101,12 +103,7 @@ class MetricsWidget(QWidget):
         header_layout.setContentsMargins(24, 12, 24, 12)
 
         # Title
-        self.title_lbl = QLabel("Performance Dashboard")
-        self.title_lbl.setStyleSheet(
-            Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self.title_lbl = Label("Performance Dashboard", role=TextRole.PAGE_TITLE)
         header_layout.addWidget(self.title_lbl)
 
         header_layout.addStretch()
@@ -130,8 +127,6 @@ class MetricsWidget(QWidget):
         filter_layout = QHBoxLayout(self.filter_bar)
         filter_layout.setContentsMargins(24, 8, 24, 8)
         filter_layout.setSpacing(10)
-
-        lbl_style = f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)} border: none; background: transparent;"
 
         # 1-4. Color / Format / Source / Period filters
         filter_specs = (
@@ -158,8 +153,7 @@ class MetricsWidget(QWidget):
             ),
         )
         for label_text, key, items, width in filter_specs:
-            lbl = QLabel(label_text)
-            lbl.setStyleSheet(lbl_style)
+            lbl = Label(label_text, role=TextRole.CAPTION, weight=600)
             filter_layout.addWidget(lbl)
             setattr(self, f"lbl_{key}", lbl)
 
@@ -216,13 +210,6 @@ class MetricsWidget(QWidget):
                 f"QFrame#filter_bar {{ background-color: {Styles.COLOR_BACKGROUND}; border-bottom: 1px solid {Styles.COLOR_BORDER}; }}"
             )
 
-        if hasattr(self, "title_lbl") and self.title_lbl:
-            self.title_lbl.setStyleSheet(
-                Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
-
         if hasattr(self, "btn_refresh") and self.btn_refresh:
             self.btn_refresh.refresh_styles()
 
@@ -238,19 +225,6 @@ class MetricsWidget(QWidget):
                 f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 12px; "
                 "padding: 4px 12px; font-weight: 600; font-size: 12px;"
             )
-
-        lbl_style = (
-            f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)} "
-            "border: none; background: transparent;"
-        )
-        for lbl in (
-            getattr(self, "lbl_color", None),
-            getattr(self, "lbl_format", None),
-            getattr(self, "lbl_source", None),
-            getattr(self, "lbl_period", None),
-        ):
-            if lbl:
-                lbl.setStyleSheet(lbl_style)
 
         if hasattr(self, "scroll_area") and self.scroll_area:
             self.scroll_area.setStyleSheet(Styles.get_transparent_scroll_area_style())

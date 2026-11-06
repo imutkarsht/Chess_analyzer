@@ -21,9 +21,12 @@ from PyQt6.QtWidgets import (
 from src.gui.components import (
     Button,
     ButtonVariant,
+    Label,
     PaginationBar,
     PaginationSize,
     PaginationState,
+    TextRole,
+    TextTone,
 )
 from src.gui.metrics.drill_down_item import DrillDownItemWidget
 from src.gui.styles import Styles
@@ -106,19 +109,17 @@ class DrillDownView(QWidget):
         title_vbox.setSpacing(2)
         title_vbox.setContentsMargins(0, 0, 0, 0)
 
-        self.lbl_title = QLabel(self.title_text)
-        self.lbl_title.setStyleSheet(
-            Styles.get_label_style(size=20, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.lbl_title = Label(
+            self.title_text,
+            role=TextRole.DIALOG_TITLE,
+            weight=700,
         )
         title_vbox.addWidget(self.lbl_title)
 
-        self.lbl_subtitle = QLabel(self.subtitle_text)
-        self.lbl_subtitle.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.lbl_subtitle = Label(
+            self.subtitle_text,
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
         )
         title_vbox.addWidget(self.lbl_subtitle)
 

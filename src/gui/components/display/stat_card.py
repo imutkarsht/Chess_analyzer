@@ -10,7 +10,10 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.gui_utils import resolve_asset  # Use shared utility
+
+from .label import Label
 
 
 class StatCard(QFrame):
@@ -64,8 +67,7 @@ class StatCard(QFrame):
         # Header (Title + Icon)
         header_layout = QHBoxLayout()
 
-        self.lbl_title = QLabel(title)
-        self.lbl_title.setStyleSheet(Styles.get_card_title_style())
+        self.lbl_title = Label(title, role=TextRole.CARD_TITLE)
         header_layout.addWidget(self.lbl_title)
 
         if icon:
@@ -92,15 +94,13 @@ class StatCard(QFrame):
         # Subtitle - Subtle, informative
         self.lbl_sub = None
         if subtitle:
-            self.lbl_sub = QLabel(subtitle)
-            self.lbl_sub.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 13px;
-                font-weight: 500;
-                border: none;
-                background: transparent;
-            """)
-            self.lbl_sub.setWordWrap(True)
+            self.lbl_sub = Label(
+                subtitle,
+                role=TextRole.BODY,
+                weight=500,
+                tone=TextTone.SECONDARY,
+                wrap=True,
+            )
             layout.addWidget(self.lbl_sub)
 
         ThemeManager.apply_elevation(self, elevation=1)
@@ -123,8 +123,6 @@ class StatCard(QFrame):
             }}
         """)
 
-        self.lbl_title.setStyleSheet(Styles.get_card_title_style())
-
         value_color = (
             Styles.COLOR_ACCENT
             if self._use_accent_color
@@ -138,15 +136,6 @@ class StatCard(QFrame):
             border: none;
             background: transparent;
         """)
-
-        if self.lbl_sub:
-            self.lbl_sub.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 13px;
-                font-weight: 500;
-                border: none;
-                background: transparent;
-            """)
 
     def _add_icon(self, layout, icon):
         """Add icon to the header layout."""
