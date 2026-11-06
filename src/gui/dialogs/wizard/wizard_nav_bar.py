@@ -1,7 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
-from src.gui.components import Button, ButtonVariant
+from src.gui.components import Button, ButtonVariant, Label, TextRole
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
@@ -30,7 +30,6 @@ class WizardNavBar(QWidget):
 
         # Step indicator container
         self.steps_widget = QWidget()
-        self.steps_widget.setStyleSheet(Styles.get_transparent_label_style())
         self.steps_layout = QHBoxLayout(self.steps_widget)
         self.steps_layout.setContentsMargins(0, 0, 0, 0)
         self.steps_layout.setSpacing(6)
@@ -43,7 +42,8 @@ class WizardNavBar(QWidget):
             self.step_pills.append(pill)
             self.steps_layout.addWidget(pill)
 
-        self.step_name_label = QLabel("")
+        self.step_name_label = Label("", role=TextRole.BODY, weight=600)
+        self.steps_layout.addSpacing(6)
         self.steps_layout.addWidget(self.step_name_label)
 
         layout.addWidget(self.steps_widget)
@@ -70,9 +70,6 @@ class WizardNavBar(QWidget):
                 border-top: 1px solid {p.border};
             }}
         """)
-        self.step_name_label.setStyleSheet(
-            f"color: {p.text_primary}; font-size: 13px; font-weight: 600; margin-left: 6px; {Styles.get_transparent_label_style()}"
-        )
         self.skip_btn.refresh_styles()
         self.refresh_accent()
 
