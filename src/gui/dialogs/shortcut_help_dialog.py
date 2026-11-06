@@ -82,7 +82,7 @@ class ShortcutHelpDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND}; border: none;")
+        Styles.apply_background(scroll)
 
         content = QWidget()
         content_layout = QHBoxLayout(content)

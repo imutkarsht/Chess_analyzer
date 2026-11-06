@@ -185,10 +185,10 @@ class MetricsWidget(QWidget):
 
         # Content Area Stack (Index 0 = Dashboard Container, Index 1 = DrillDownView)
         self.stacked_widget = QStackedWidget()
-        self.stacked_widget.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.stacked_widget)
 
         self.content_widget = QWidget()
-        self.content_widget.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.content_widget)
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(0)
@@ -218,7 +218,7 @@ class MetricsWidget(QWidget):
             self.btn_reset_filters.refresh_styles()
 
         if hasattr(self, "content_widget") and self.content_widget:
-            self.content_widget.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.content_widget)
 
         if hasattr(self, "lbl_games_badge") and self.lbl_games_badge:
             self.lbl_games_badge.setStyleSheet(
@@ -442,7 +442,7 @@ class MetricsWidget(QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         dashboard = QWidget()
-        dashboard.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(dashboard)
 
         dashboard_layout = QVBoxLayout(dashboard)
         dashboard_layout.setSpacing(16)

@@ -976,7 +976,10 @@ class Styles(metaclass=_StylesMeta):
             TextTone.ENGINE_BUSY: cls.COLOR_ENGINE_BUSY,
         }
         for tone, color in tone_colors.items():
-            rules.append(f'QLabel[tone="{tone.value}"] {{ color: {color}; }}')
+            rules.append(
+                f'QLabel[tone="{tone.value}"] {{ color: {color}; '
+                "background: transparent; border: none; }"
+            )
 
         qss = "\n".join(rules)
         _TYPOGRAPHY_CACHE = (revision, qss)
@@ -1639,14 +1642,18 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_background_style(cls):
-        p = ThemeManager.palette()
-        return f"background-color: {p.background};"
+    def apply_background(cls, widget, kind: str = "background") -> None:
+        """Apply a page background without cascading into child labels.
 
-    @classmethod
-    def get_surface_style(cls):
-        p = ThemeManager.palette()
-        return f"background-color: {p.surface};"
+        A bare ``background-color`` set on a container also styles every child
+        widget and overrides the global transparent-label rule. The property
+        selector in the theme template targets only the container itself.
+        """
+        widget.setProperty("appBackground", kind)
+        style = widget.style()
+        style.unpolish(widget)
+        style.polish(widget)
+        widget.update()
 
     @classmethod
     def get_empty_state_cta_style(cls, drag_active: bool = False):

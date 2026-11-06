@@ -133,9 +133,9 @@ class ThemeMixin:
                 + " QFrame QLabel { background: transparent; }"
             )
         if hasattr(self, "left_widget"):
-            self.left_widget.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.left_widget)
         if hasattr(self, "center_widget"):
-            self.center_widget.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.center_widget)
         if hasattr(self, "empty_state_cta"):
             self.empty_state_cta.setStyleSheet(
                 Styles.get_empty_state_cta_style(

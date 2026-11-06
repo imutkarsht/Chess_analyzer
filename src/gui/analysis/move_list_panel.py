@@ -178,7 +178,7 @@ class MoveListPanel(QWidget):
 
     def refresh_styles(self):
         """Refresh styles for dynamic theme updates."""
-        self.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self)
         self.move_list.refresh_styles()
 
     def select_move(self, index):

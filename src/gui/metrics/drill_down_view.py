@@ -68,7 +68,7 @@ class DrillDownView(QWidget):
 
     def _setup_ui(self) -> None:
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -150,7 +150,7 @@ class DrillDownView(QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.list_container = QWidget()
-        self.list_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.list_container)
         self.list_layout = QVBoxLayout(self.list_container)
         self.list_layout.setContentsMargins(24, 16, 24, 24)
         self.list_layout.setSpacing(12)
@@ -254,7 +254,7 @@ class DrillDownView(QWidget):
 
     def refresh_styles(self) -> None:
         """Re-applies styles when theme changes."""
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self)
         self.header_bar.setStyleSheet(f"""
             QFrame {{
                 background-color: {Styles.COLOR_BACKGROUND};
@@ -275,5 +275,5 @@ class DrillDownView(QWidget):
                 padding: 5px 14px;
             }}
         """)
-        self.list_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.list_container)
         self._render_page()

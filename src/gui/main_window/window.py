@@ -507,7 +507,7 @@ class MainWindow(
         self.left_widget.setMinimumWidth(240)
         # Cap the pane so a wide drag does not leave the move columns mostly empty.
         self.left_widget.setMaximumWidth(420)
-        self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.left_widget)
         left_layout = QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -522,7 +522,7 @@ class MainWindow(
         # Center: Board
         self.center_widget = QWidget()
         self.center_widget.setMinimumWidth(420)
-        self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.center_widget)
         center_layout = QVBoxLayout(self.center_widget)
         self.center_layout = center_layout
         center_layout.setContentsMargins(6, 6, 6, 6)

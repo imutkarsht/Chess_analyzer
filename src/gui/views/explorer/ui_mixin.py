@@ -96,7 +96,7 @@ class ExplorerUiMixin:
 
     def _build_left_panel(self) -> None:
         self.left_panel = QWidget()
-        self.left_panel.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.left_panel)
         self.left_layout = QVBoxLayout(self.left_panel)
         self.left_layout.setContentsMargins(8, 8, 8, 8)
         self.left_layout.setSpacing(6)
@@ -137,7 +137,7 @@ class ExplorerUiMixin:
 
     def _build_right_panel(self) -> None:
         self.right_panel = QWidget()
-        self.right_panel.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.right_panel)
         right_layout = QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(8, 8, 12, 8)
         right_layout.setSpacing(6)
@@ -219,7 +219,7 @@ class ExplorerUiMixin:
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
 
         self.book_container = QWidget()
-        self.book_container.setStyleSheet(Styles.get_surface_style())
+        Styles.apply_background(self.book_container, "surface")
         self.book_layout = QVBoxLayout(self.book_container)
         self.book_layout.setContentsMargins(0, 0, 0, 0)
         self.book_layout.setSpacing(0)
@@ -299,8 +299,8 @@ class ExplorerUiMixin:
 
     def _refresh_panel_styles(self) -> None:
         self.splitter.setStyleSheet(Styles.get_splitter_style())
-        self.left_panel.setStyleSheet(Styles.get_background_style())
-        self.right_panel.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.left_panel)
+        Styles.apply_background(self.right_panel)
         self.captured_white.refresh_styles()
         self.captured_black.refresh_styles()
         self.lines_widget.refresh_styles()
@@ -312,7 +312,7 @@ class ExplorerUiMixin:
             "background: transparent; border: none;"
         )
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
-        self.book_container.setStyleSheet(Styles.get_surface_style())
+        Styles.apply_background(self.book_container, "surface")
         self.lichess_attribution.setStyleSheet(
             f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 4px 14px; "
             "background: transparent; border: none;"

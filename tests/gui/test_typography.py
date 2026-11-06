@@ -67,8 +67,14 @@ def test_typography_qss_follows_the_live_palette(monkeypatch):
 
     qss = Styles.get_typography_qss()
 
-    assert f'QLabel[tone="{TextTone.ACCENT.value}"] {{ color: {palette.accent}; }}' in qss
-    assert f'QLabel[tone="{TextTone.PRIMARY.value}"] {{ color: {palette.text_primary}; }}' in qss
+    assert (
+        f'QLabel[tone="{TextTone.ACCENT.value}"] {{ color: {palette.accent}; '
+        "background: transparent; border: none; }"
+    ) in qss
+    assert (
+        f'QLabel[tone="{TextTone.PRIMARY.value}"] {{ color: {palette.text_primary}; '
+        "background: transparent; border: none; }"
+    ) in qss
 
 
 @pytest.mark.parametrize("size", [0, 7, 19, 100])

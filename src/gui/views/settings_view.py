@@ -123,7 +123,7 @@ class SettingsView(QWidget):
         # Body: the category rail stays fixed while only the options panel
         # scrolls, so navigation remains visible on long pages.
         self.content_container = QWidget()
-        self.content_container.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.content_container)
 
         content_layout = QHBoxLayout(self.content_container)
         content_layout.setContentsMargins(24, 20, 24, 24)
@@ -169,7 +169,7 @@ class SettingsView(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
+        Styles.apply_background(self.scroll_area)
         self.scroll_area.setWidget(self.settings_panel)
         content_layout.addWidget(self.scroll_area, 1)
         main_layout.addWidget(self.content_container, 1)
@@ -756,9 +756,9 @@ class SettingsView(QWidget):
         if hasattr(self, 'header_bar'):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         if hasattr(self, 'scroll_area'):
-            self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
+            Styles.apply_background(self.scroll_area)
         if hasattr(self, 'content_container'):
-            self.content_container.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.content_container)
         if hasattr(self, 'category_list'):
             self._style_category_rail()
         if hasattr(self, 'settings_panel'):

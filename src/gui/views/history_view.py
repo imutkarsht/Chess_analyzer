@@ -138,7 +138,7 @@ class HistoryView(QWidget):
 
         # Content Container Widget
         self.content_widget = QWidget()
-        self.content_widget.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.content_widget)
         content_layout = QVBoxLayout(self.content_widget)
         content_layout.setContentsMargins(24, 16, 24, 16)
         content_layout.setSpacing(16)
@@ -523,7 +523,7 @@ class HistoryView(QWidget):
         if hasattr(self, "header_bar"):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         if hasattr(self, "content_widget"):
-            self.content_widget.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.content_widget)
         if hasattr(self, "search_input"):
             self.search_input.refresh_styles()
         if hasattr(self, "btn_import"):
