@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
+from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
@@ -36,10 +37,7 @@ class LegendList(QWidget):
         row.setSpacing(8)
 
         if pixmap is not None and not pixmap.isNull():
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            row.addWidget(icon_lbl)
+            row.addWidget(IconLabel(pixmap, size=16))
         else:
             dot = QLabel("●")
             dot.setStyleSheet(

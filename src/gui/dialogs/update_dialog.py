@@ -20,7 +20,6 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QStackedWidget,
     QTextBrowser,
@@ -36,15 +35,17 @@ from src.backend.updater.updater import (
 )
 
 from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
-from ..components import Button, ButtonVariant, Label, StatusBadge, TextRole, TextTone
+from ..components import (
+    Button,
+    ButtonVariant,
+    IconLabel,
+    Label,
+    RichTextLabel,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from ..styles import Styles
-
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
-
 
 # ---------------------------------------------------------------------------
 # Footer page indices inside QStackedWidget
@@ -102,10 +103,8 @@ class UpdateNotificationDialog(QDialog):
         title_row = QHBoxLayout()
         title_row.setSpacing(10)
 
-        if HAS_QTAWESOME:
-            ic = QLabel()
-            ic.setPixmap(qta.icon('fa5s.arrow-circle-up', color=Styles.COLOR_ACCENT).pixmap(24, 24))
-            title_row.addWidget(ic)
+        ic = IconLabel("fa5s.arrow-circle-up", size=24, tone=TextTone.ACCENT)
+        title_row.addWidget(ic)
 
         title = Label("Update Available", role=TextRole.DIALOG_TITLE, weight=700)
         title_row.addWidget(title)
@@ -285,9 +284,13 @@ class UpdateNotificationDialog(QDialog):
         dl_col.addWidget(self._btn_download)
 
         if self.update_info.install_hint:
-            hint = QLabel(self.update_info.install_hint)
+            hint = RichTextLabel(
+                f"<i>{self.update_info.install_hint}</i>",
+                role=TextRole.MICRO,
+                size=10,
+                tone=TextTone.MUTED,
+            )
             hint.setAlignment(Qt.AlignmentFlag.AlignRight)
-            hint.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; font-style: italic;")
             dl_col.addWidget(hint)
 
         layout.addLayout(dl_col)
@@ -346,10 +349,8 @@ class UpdateNotificationDialog(QDialog):
         row = QHBoxLayout()
         row.setSpacing(10)
 
-        if HAS_QTAWESOME:
-            ic = QLabel()
-            ic.setPixmap(qta.icon('fa5s.check-circle', color="#4caf50").pixmap(22, 22))
-            row.addWidget(ic)
+        ic = IconLabel("fa5s.check-circle", size=22, tone=TextTone.BEST)
+        row.addWidget(ic)
 
         self._lbl_done_title = Label("", role=TextRole.BODY, weight=600)
         row.addWidget(self._lbl_done_title)
@@ -383,10 +384,6 @@ class UpdateNotificationDialog(QDialog):
 
         err_col = QVBoxLayout()
         err_col.setSpacing(4)
-
-        if HAS_QTAWESOME:
-            ic = QLabel()
-            ic.setPixmap(qta.icon('fa5s.exclamation-circle', color="#f44336").pixmap(18, 18))
 
         self._lbl_error = Label("Download failed.", role=TextRole.BODY, weight=600)
         err_col.addWidget(self._lbl_error)

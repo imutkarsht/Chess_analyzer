@@ -5,7 +5,6 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
@@ -22,6 +21,7 @@ from src.gui.components import (
     ButtonVariant,
     DatePicker,
     FormField,
+    IconLabel,
     Input,
     InputSize,
     Label,
@@ -348,8 +348,11 @@ class OnlineFetchPanel(QWidget):
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(8)
 
-        self._error_icon = QLabel()
-        self._error_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._error_icon = IconLabel(
+            size=28,
+            tone=TextTone.BLUNDER,
+            fallback="!",
+        )
         layout.addWidget(self._error_icon, 0, Qt.AlignmentFlag.AlignHCenter)
 
         self._error_title = Label(
@@ -389,8 +392,11 @@ class OnlineFetchPanel(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(8)
 
-        self._empty_icon = QLabel()
-        self._empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_icon = IconLabel(
+            size=28,
+            tone=TextTone.MUTED,
+            fallback="?",
+        )
 
         title = Label("No games found", role=TextRole.SUBHEADING)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -506,17 +512,8 @@ class OnlineFetchPanel(QWidget):
             f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_SECONDARY};"
             " background: transparent;"
         )
-        if qta is not None:
-            self._error_icon.setPixmap(
-                qta.icon(
-                    "fa5s.exclamation-circle", color=Styles.COLOR_BLUNDER
-                ).pixmap(28, 28)
-            )
-            self._empty_icon.setPixmap(
-                qta.icon(
-                    "fa5s.search", color=Styles.COLOR_TEXT_MUTED
-                ).pixmap(28, 28)
-            )
+        self._error_icon.set_icon("fa5s.exclamation-circle")
+        self._empty_icon.set_icon("fa5s.search")
         self.platform_selector.refresh_styles()
         self.mode_selector.refresh_styles()
 

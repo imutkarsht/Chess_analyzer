@@ -11,12 +11,19 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
 
-from src.gui.components import Label, MiniBar, SegmentedBar, StatusBadge, TextRole, TextTone
+from src.gui.components import (
+    IconLabel,
+    Label,
+    MiniBar,
+    SegmentedBar,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -170,15 +177,7 @@ class TacticalThemesCard(MetricCard):
         tp_layout.setContentsMargins(8, 4, 8, 4)
         tp_layout.setSpacing(6)
 
-        try:
-            import qtawesome as qta
-
-            ic = QLabel()
-            ic.setPixmap(qta.icon(top_icon, color=Styles.COLOR_BEST).pixmap(13, 13))
-            ic.setStyleSheet("border: none; background: transparent;")
-            tp_layout.addWidget(ic)
-        except Exception:
-            pass
+        tp_layout.addWidget(IconLabel(top_icon, size=13, tone=TextTone.BEST))
 
         lbl_weapon = Label(
             f"Top Weapon: {top_name} ({top_share:.0f}%)",
@@ -273,16 +272,7 @@ class TacticalThemesCard(MetricCard):
             row_l.addWidget(lbl_rank)
 
             # Icon
-            try:
-                import qtawesome as qta
-
-                m_ic = QLabel()
-                m_ic.setPixmap(qta.icon(icon_name, color=theme_color).pixmap(14, 14))
-                m_ic.setFixedSize(16, 16)
-                m_ic.setStyleSheet("border: none; background: transparent;")
-                row_l.addWidget(m_ic)
-            except Exception:
-                pass
+            row_l.addWidget(IconLabel(icon_name, size=16, color=theme_color))
 
             # Name
             lbl_name = Label(name, role=TextRole.CAPTION, weight=600)

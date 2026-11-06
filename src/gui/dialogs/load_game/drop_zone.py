@@ -3,9 +3,9 @@ Drop zone component for the Load Game dialog.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
-from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QVBoxLayout
 
-from ...components import Label, TextRole, TextTone
+from ...components import IconLabel, Label, TextRole, TextTone
 from ...styles import Styles
 from ...theme import ThemeManager
 
@@ -35,8 +35,7 @@ class DropZone(QFrame):
         layout.setSpacing(8)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self._icon = QLabel()
-        self._icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._icon = IconLabel(size=28, tone=TextTone.ACCENT, fallback="PGN")
         self._icon.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self._title = Label(
             "Drop a PGN file here",
@@ -96,12 +95,7 @@ class DropZone(QFrame):
             }}
             """
         )
-        if qta is not None:
-            self._icon.setPixmap(
-                qta.icon("fa5s.file-upload", color=accent).pixmap(28, 28)
-            )
-        else:  # pragma: no cover - QtAwesome ships with the app
-            self._icon.setText("PGN")
+        self._icon.set_icon("fa5s.file-upload" if qta is not None else None)
 
     def _on_theme_changed(self, *_args) -> None:
         self.refresh_styles()

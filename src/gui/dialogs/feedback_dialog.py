@@ -22,6 +22,7 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    IconLabel,
     Input,
     Label,
     Tabs,
@@ -33,12 +34,6 @@ from src.gui.components import (
 from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
-
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class FeedbackDialog(QDialog):
@@ -100,12 +95,12 @@ class FeedbackDialog(QDialog):
         header_layout.setContentsMargins(24, 0, 24, 0)
         header_layout.setSpacing(12)
 
-        icon_lbl = QLabel()
-        if HAS_QTAWESOME:
-            icon_lbl.setPixmap(qta.icon("fa5s.comment-dots", color=Styles.COLOR_ACCENT).pixmap(22, 22))
-        else:
-            icon_lbl.setText("💬")
-            icon_lbl.setStyleSheet(f"font-size: 18px; color: {Styles.COLOR_ACCENT};")
+        icon_lbl = IconLabel(
+            "fa5s.comment-dots",
+            size=22,
+            tone=TextTone.ACCENT,
+            fallback="💬",
+        )
         header_layout.addWidget(icon_lbl)
 
         title_lbl = Label("Feedback & Support", role=TextRole.DIALOG_TITLE, weight=700)
@@ -218,8 +213,7 @@ class FeedbackDialog(QDialog):
             self.btn_submit.setText("Submit Review")
             submit_icon = "fa5s.star"
 
-        if HAS_QTAWESOME:
-            self.btn_submit.set_icon_spec(submit_icon)
+        self.btn_submit.set_icon_spec(submit_icon)
 
         self.bottom_bar.show()
 

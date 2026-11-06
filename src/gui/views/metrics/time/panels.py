@@ -3,21 +3,10 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
-from src.gui.components import Label, TextRole, TextTone
+from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
-
-
-def make_icon_pixmap(icon_name: str, color: str, size: int) -> QPixmap | None:
-    """Return a qtawesome pixmap, or ``None`` when the icon pack is absent."""
-    try:
-        import qtawesome as qta
-
-        return qta.icon(icon_name, color=color).pixmap(size, size)
-    except Exception:
-        return None
 
 
 class IconTile(QFrame):
@@ -43,12 +32,8 @@ class IconTile(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        pixmap = make_icon_pixmap(icon_name, color, icon_size)
-        if pixmap is not None:
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            layout.addWidget(icon_lbl)
+        pixmap = IconLabel(icon_name, size=icon_size, color=color)
+        layout.addWidget(pixmap)
 
 
 class StatPanel(QFrame):
@@ -98,12 +83,9 @@ class StatPanel(QFrame):
             top = QHBoxLayout()
             top.setSpacing(6)
             if icon_name is not None:
-                pixmap = make_icon_pixmap(icon_name, icon_color, 14)
-                if pixmap is not None:
-                    icon_lbl = QLabel()
-                    icon_lbl.setPixmap(pixmap)
-                    icon_lbl.setStyleSheet("border: none; background: transparent;")
-                    top.addWidget(icon_lbl)
+                top.addWidget(
+                    IconLabel(icon_name, size=14, color=icon_color)
+                )
             title_lbl = self._title_label(title, title_tone, title_size, title_weight)
             top.addWidget(title_lbl)
             top.addStretch()

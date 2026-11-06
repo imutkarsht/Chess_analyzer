@@ -1,4 +1,5 @@
 import os
+from importlib.util import find_spec
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap
@@ -6,7 +7,6 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QVBoxLayout,
     QWidget,
@@ -17,9 +17,11 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    IconLabel,
     Input,
     InputSize,
     Label,
+    LinkLabel,
     Select,
     TextRole,
     TextTone,
@@ -27,11 +29,7 @@ from src.gui.components import (
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
+HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 def build_gatekeeper_page(wizard) -> QWidget:
@@ -69,14 +67,7 @@ def build_welcome_page(wizard) -> QWidget:
 
     logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
     if os.path.exists(logo_path):
-        logo_label = QLabel()
-        pixmap = QPixmap(logo_path).scaled(
-            110, 110,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        logo_label.setPixmap(pixmap)
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_label = IconLabel(QPixmap(logo_path), size=110)
         layout.addWidget(logo_label)
 
     title = Label("Chess Analyzer Pro", role=TextRole.PAGE_TITLE)
@@ -160,8 +151,7 @@ def build_profile_page(wizard) -> QWidget:
     tok_row.addWidget(lbl)
     tok_row.addStretch()
 
-    wizard.lichess_tok_link = QLabel()
-    wizard.lichess_tok_link.setOpenExternalLinks(True)
+    wizard.lichess_tok_link = LinkLabel()
     wizard._update_lichess_tok_link()
     tok_row.addWidget(wizard.lichess_tok_link)
     card_layout.addLayout(tok_row)
@@ -341,10 +331,7 @@ def build_stockfish_page(wizard) -> QWidget:
 
     status_row = QHBoxLayout()
     status_row.setSpacing(10)
-    wizard.sf_icon_label = QLabel()
-    wizard.sf_icon_label.setFixedSize(24, 24)
-    if HAS_QTAWESOME:
-        wizard.sf_icon_label.setPixmap(qta.icon("fa5s.cog", color=Styles.COLOR_TEXT_MUTED).pixmap(24, 24))
+    wizard.sf_icon_label = IconLabel(size=24, tone=TextTone.MUTED, fallback="⚙")
     status_row.addWidget(wizard.sf_icon_label)
 
     status_text_col = QVBoxLayout()
@@ -459,8 +446,7 @@ def build_llm_page(wizard) -> QWidget:
     wizard.llm_provider_combo.currentIndexChanged.connect(lambda: _on_provider_changed(wizard))
     prov_row.addWidget(wizard.llm_provider_combo, 1)
 
-    wizard.llm_portal_link = QLabel()
-    wizard.llm_portal_link.setOpenExternalLinks(True)
+    wizard.llm_portal_link = LinkLabel()
     prov_row.addWidget(wizard.llm_portal_link)
     card_layout.addLayout(prov_row)
 
@@ -532,9 +518,7 @@ def _update_llm_ui_hints(wizard):
     wizard.llm_base_url_input.setVisible(is_custom)
 
     if help_url:
-        wizard.llm_portal_link.setText(
-            f'<a href="{help_url}" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">Get Key ↗</a>'
-        )
+        wizard.llm_portal_link.set_link(help_url, "Get Key ↗")
         wizard.llm_portal_link.setVisible(True)
     else:
         wizard.llm_portal_link.setVisible(False)
@@ -573,7 +557,11 @@ def build_done_page(wizard) -> QWidget:
     layout.addStretch(1)
 
     # Success Icon
-    wizard.done_icon_label = QLabel()
+    wizard.done_icon_label = IconLabel(
+        size=72,
+        tone=TextTone.ACCENT,
+        fallback="✓",
+    )
     wizard.done_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     wizard._update_done_icon()
     layout.addWidget(wizard.done_icon_label)
@@ -642,15 +630,12 @@ def build_done_page(wizard) -> QWidget:
 
             if is_warning:
                 icon_name = "fa5s.exclamation-triangle"
-                icon_color = Styles.COLOR_MISTAKE
                 text = item[1:].strip()
             elif is_check:
                 icon_name = "fa5s.check-circle"
-                icon_color = Styles.COLOR_BEST
                 text = item[1:].strip()
             else:
                 icon_name = "fa5s.info-circle"
-                icon_color = Styles.COLOR_TEXT_MUTED
                 text = item.strip()
 
             row = QWidget()
@@ -659,14 +644,18 @@ def build_done_page(wizard) -> QWidget:
             row_layout.setContentsMargins(0, 8, 0, 8)
             row_layout.setSpacing(12)
 
-            icon_lbl = QLabel()
-            icon_lbl.setFixedSize(20, 20)
-            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            if HAS_QTAWESOME:
-                icon_lbl.setPixmap(qta.icon(icon_name, color=icon_color).pixmap(18, 18))
+            if is_warning:
+                tone = TextTone.MISTAKE
+            elif is_check:
+                tone = TextTone.BEST
             else:
-                icon_lbl.setText("✓" if is_check else ("⚠" if is_warning else "•"))
-                icon_lbl.setStyleSheet(f"color: {icon_color}; font-weight: bold; background: transparent;")
+                tone = TextTone.MUTED
+            icon_lbl = IconLabel(
+                icon_name if HAS_QTAWESOME else None,
+                size=20,
+                tone=tone,
+                fallback="✓" if is_check else ("⚠" if is_warning else "•"),
+            )
             row_layout.addWidget(icon_lbl)
 
             text_lbl = Label(text, role=TextRole.BODY, wrap=True)

@@ -62,7 +62,8 @@ class IconLabel(QLabel):
 
     def set_fallback(self, text: str) -> None:
         self._fallback = text
-        self._show_fallback()
+        if self._icon is None:
+            self._show_fallback()
 
     def refresh_styles(self) -> None:
         self._apply_icon()

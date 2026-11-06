@@ -9,7 +9,6 @@ from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -17,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from src.constants import ABOUT_URL, APP_VERSION, GITHUB_REPO_URL, WEBSITE_URL
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
@@ -72,18 +72,10 @@ class WelcomePanel(QFrame):
         card_layout.setSpacing(0)
 
         # ── Logo ──────────────────────────────────────────────────────────
-        self.logo_label = QLabel()
-        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.logo_label.setStyleSheet("background: transparent;")
+        self.logo_label = IconLabel(size=72)
         logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
         if os.path.exists(logo_path):
-            pixmap = QPixmap(logo_path).scaled(
-                72,
-                72,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.logo_label.setPixmap(pixmap)
+            self.logo_label.set_icon(QPixmap(logo_path))
         card_layout.addWidget(self.logo_label)
         card_layout.addSpacing(12)
 

@@ -7,7 +7,6 @@ from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -24,7 +23,15 @@ from src.constants import (
 )
 from src.utils.path_utils import get_resource_path
 
-from ...components import Button, ButtonVariant, Label, StatusBadge, TextRole, TextTone
+from ...components import (
+    Button,
+    ButtonVariant,
+    IconLabel,
+    Label,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from ...styles import Styles
 from .background_card import BackgroundTaskCard
 
@@ -64,19 +71,10 @@ class LinksSettings(BackgroundTaskCard):
         brand_layout.setContentsMargins(0, 0, 0, 0)
         brand_layout.setSpacing(16)
 
-        self.logo_label = QLabel()
-        self.logo_label.setFixedSize(64, 64)
-        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.logo_label = IconLabel(size=64)
         logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
         if os.path.exists(logo_path):
-            self.logo_label.setPixmap(
-                QPixmap(logo_path).scaled(
-                    64,
-                    64,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-            )
+            self.logo_label.set_icon(QPixmap(logo_path))
         brand_layout.addWidget(self.logo_label, 0, Qt.AlignmentFlag.AlignTop)
 
         text_col = QVBoxLayout()

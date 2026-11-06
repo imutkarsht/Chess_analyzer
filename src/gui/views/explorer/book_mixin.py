@@ -3,10 +3,10 @@
 from PyQt6.QtCore import QByteArray, Qt
 from PyQt6.QtGui import QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLayout
+from PyQt6.QtWidgets import QHBoxLayout, QLayout
 
 from src.backend.analysis.opening_db import _normalize_fen
-from src.gui.components import Label, TextRole, TextTone
+from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.explorer.book_row import BookRowWidget
 from src.gui.views.explorer.book_skeleton import ExplorerBookSkeleton
@@ -61,11 +61,7 @@ class ExplorerBookMixin:
         if piece_symbol:
             pixmap = self._get_piece_pixmap(piece_symbol)
             if pixmap:
-                icon_label = QLabel()
-                icon_label.setPixmap(pixmap)
-                icon_label.setFixedSize(18, 18)
-                icon_label.setStyleSheet(Styles.get_transparent_style())
-                left_layout.addWidget(icon_label)
+                left_layout.addWidget(IconLabel(pixmap, size=18))
 
         lbl_san = Label(san, role=TextRole.SUBHEADING, size=15, weight=700)
         left_layout.addWidget(lbl_san)

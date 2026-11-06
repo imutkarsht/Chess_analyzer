@@ -6,7 +6,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
 
-from ..components import Label, TextRole, TextTone
+from ..components import IconLabel, Label, TextRole, TextTone
 from ..styles import Styles
 
 # Every classified move keeps its badge. Only decisive/problem moves get colour
@@ -39,10 +39,7 @@ class MoveCellWidget(QWidget):
         top_row.setContentsMargins(0, 0, 0, 0)
         top_row.setSpacing(4)
 
-        self._icon_label = QLabel(self)
-        self._icon_label.setFixedSize(16, 16)
-        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._icon_label.setStyleSheet(Styles.get_transparent_style())
+        self._icon_label = IconLabel(size=16, parent=self)
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._san_label = Label(
@@ -123,9 +120,9 @@ class MoveCellWidget(QWidget):
         self._apply_san_style()
 
         if icon is not None and not icon.isNull() and not pending:
-            self._icon_label.setPixmap(icon.pixmap(16, 16))
+            self._icon_label.set_icon(icon)
         else:
-            self._icon_label.clear()
+            self._icon_label.set_icon(None)
 
         # Think-time text + bar
         time_spent_val = None

@@ -2,11 +2,10 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
 )
 
-from src.gui.components import Label, MiniBar, StatusBadge, TextRole, TextTone
+from src.gui.components import IconLabel, Label, MiniBar, StatusBadge, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -100,17 +99,9 @@ class PhasePerformanceCard(MetricCard):
             t_layout.setContentsMargins(0, 0, 0, 0)
             t_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            try:
-                import qtawesome as qta
-
-                ic_lbl = QLabel()
-                ic_lbl.setPixmap(
-                    qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(16, 16)
-                )
-                ic_lbl.setStyleSheet("border: none; background: transparent;")
-                t_layout.addWidget(ic_lbl)
-            except Exception:
-                pass
+            t_layout.addWidget(
+                IconLabel(icon_name, size=16, tone=TextTone.SECONDARY)
+            )
 
             top_line.addWidget(tile)
             top_line.addStretch()

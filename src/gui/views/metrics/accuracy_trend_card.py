@@ -1,10 +1,9 @@
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
 )
 
-from src.gui.components import Label, SegmentedControl, TextRole, TextTone
+from src.gui.components import IconLabel, Label, SegmentedControl, TextRole, TextTone
 from src.gui.metrics.charts import create_accuracy_trend_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
@@ -144,15 +143,8 @@ class AccuracyTrendCard(MetricCard):
         mom_layout.setContentsMargins(6, 2, 6, 2)
         mom_layout.setSpacing(4)
 
-        try:
-            import qtawesome as qta
-
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(qta.icon(mom_icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(10, 10))
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            mom_layout.addWidget(icon_lbl)
-        except Exception:
-            pass
+        icon_lbl = IconLabel(mom_icon_name, size=10, tone=TextTone.SECONDARY)
+        mom_layout.addWidget(icon_lbl)
 
         mom_val = Label(
             mom_text,

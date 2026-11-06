@@ -7,7 +7,6 @@ falls back to the cached row so the page still works offline.
 
 from __future__ import annotations
 
-import html
 import re
 import time
 from dataclasses import dataclass
@@ -33,6 +32,7 @@ from src.gui.components import (
     ButtonSize,
     ButtonVariant,
     Label,
+    LinkLabel,
     StatusBadge,
     TextRole,
     TextTone,
@@ -254,7 +254,7 @@ class ProfilePreview(QFrame):
         self._worker_username = ""
         self._pending: tuple[str, bool] | None = None
         self._last_load: ProfileLoad | None = None
-        self._chips: list[QLabel] = []
+        self._chips: list[StatusBadge] = []
 
         self.setObjectName("ProfilePreview")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -346,11 +346,7 @@ class ProfilePreview(QFrame):
         )
         name_row.addWidget(self.refresh_btn)
 
-        self.link_label = QLabel()
-        self.link_label.setOpenExternalLinks(True)
-        self.link_label.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextBrowserInteraction
-        )
+        self.link_label = LinkLabel()
         name_row.addWidget(self.link_label)
         data_layout.addLayout(name_row)
 
@@ -594,14 +590,7 @@ class ProfilePreview(QFrame):
         if not url:
             self.link_label.clear()
             return
-        safe_url = html.escape(str(url), quote=True)
-        self.link_label.setText(
-            f'<a href="{safe_url}" style="color: {Styles.COLOR_ACCENT}; '
-            'text-decoration: none;">View profile ↗</a>'
-        )
-        self.link_label.setStyleSheet(
-            "font-size: 11px; background: transparent; border: none;"
-        )
+        self.link_label.set_link(str(url), "View profile ↗")
 
     def _render_avatar(self, load: ProfileLoad, display: str) -> None:
         pixmap = _circular_avatar(load.avatar_bytes) if load.avatar_bytes else None

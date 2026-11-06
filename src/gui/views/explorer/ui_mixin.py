@@ -204,12 +204,11 @@ class ExplorerUiMixin:
         self.book_toggle.toggled.connect(self._toggle_book)
         right_layout.addWidget(self.book_toggle)
 
-        self.explorer_hint = QLabel()
-        self.explorer_hint.setWordWrap(True)
-        self.explorer_hint.setOpenExternalLinks(False)
-        self.explorer_hint.setStyleSheet(
-            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 14px; "
-            "background: transparent; border: none;"
+        self.explorer_hint = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.MUTED,
+            wrap=True,
         )
         self.explorer_hint.hide()
         right_layout.addWidget(self.explorer_hint)
@@ -307,10 +306,6 @@ class ExplorerUiMixin:
 
     def _refresh_book_styles(self) -> None:
         self.book_toggle.refresh_styles()
-        self.explorer_hint.setStyleSheet(
-            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 14px; "
-            "background: transparent; border: none;"
-        )
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
         Styles.apply_background(self.book_container, "surface")
         self.lichess_attribution.setStyleSheet(

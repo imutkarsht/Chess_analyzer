@@ -7,21 +7,21 @@ from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
-from ..components import Button, ButtonVariant, Label, StatusBadge, TextRole, TextTone
+from ..components import (
+    Button,
+    ButtonVariant,
+    IconLabel,
+    Label,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from ..styles import Styles
-
-try:
-    import qtawesome as qta
-
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class ShortcutHelpDialog(QDialog):
@@ -58,12 +58,13 @@ class ShortcutHelpDialog(QDialog):
         header_layout = QHBoxLayout()
         header_layout.setSpacing(12)
 
-        if HAS_QTAWESOME:
-            icon_label = QLabel()
-            icon_label.setPixmap(
-                qta.icon("fa5s.keyboard", color=Styles.COLOR_ACCENT).pixmap(26, 26)
-            )
-            header_layout.addWidget(icon_label)
+        icon_label = IconLabel(
+            "fa5s.keyboard",
+            size=26,
+            tone=TextTone.ACCENT,
+            fallback="⌨",
+        )
+        header_layout.addWidget(icon_label)
 
         title = Label("Keyboard Shortcuts", role=TextRole.DIALOG_TITLE, weight=700)
         header_layout.addWidget(title)
@@ -115,24 +116,22 @@ class ShortcutHelpDialog(QDialog):
             hdr_layout = QHBoxLayout()
             hdr_layout.setSpacing(8)
 
-            if HAS_QTAWESOME:
-                cat_icons = {
-                    "File": "fa5s.folder-open",
-                    "Analysis": "fa5s.bolt",
-                    "Navigation": "fa5s.arrows-alt",
-                    "Board": "fa5s.chess-board",
-                    "Variations": "fa5s.code-branch",
-                    "Pages": "fa5s.columns",
-                    "Help": "fa5s.question-circle",
-                    "General": "fa5s.cog",
-                }
-                cat_icon = QLabel()
-                cat_icon.setPixmap(
-                    qta.icon(
-                        cat_icons.get(category, "fa5s.circle"), color=Styles.COLOR_ACCENT
-                    ).pixmap(14, 14)
-                )
-                hdr_layout.addWidget(cat_icon)
+            cat_icons = {
+                "File": "fa5s.folder-open",
+                "Analysis": "fa5s.bolt",
+                "Navigation": "fa5s.arrows-alt",
+                "Board": "fa5s.chess-board",
+                "Variations": "fa5s.code-branch",
+                "Pages": "fa5s.columns",
+                "Help": "fa5s.question-circle",
+                "General": "fa5s.cog",
+            }
+            cat_icon = IconLabel(
+                cat_icons.get(category, "fa5s.circle"),
+                size=14,
+                tone=TextTone.ACCENT,
+            )
+            hdr_layout.addWidget(cat_icon)
 
             category_label = Label(
                 category,

@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from importlib.util import find_spec
 
 from PyQt6.QtCore import QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -33,11 +34,7 @@ from src.gui.theme import ThemeManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
 
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
+HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 class StockfishDownloadWorker(QThread):
@@ -282,20 +279,17 @@ class SetupWizard(QDialog):
 
     def _update_lichess_tok_link(self):
         if hasattr(self, "lichess_tok_link"):
-            self.lichess_tok_link.setText(
-                f'<a href="https://lichess.org/account/oauth/token" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">Create Token ↗</a>'
+            self.lichess_tok_link.set_link(
+                "https://lichess.org/account/oauth/token",
+                "Create Token ↗",
             )
 
     def _update_done_icon(self):
         if not hasattr(self, 'done_icon_label'):
             return
-        if HAS_QTAWESOME:
-            icon = qta.icon("fa5s.check-circle", color=Styles.COLOR_ACCENT)
-            pixmap = icon.pixmap(72, 72)
-            self.done_icon_label.setPixmap(pixmap)
-        else:
-            self.done_icon_label.setText("✓")
-            self.done_icon_label.setStyleSheet(f"font-size: 64px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;")
+        self.done_icon_label.set_icon(
+            "fa5s.check-circle" if HAS_QTAWESOME else None
+        )
 
     def _show_page(self, index):
         self.current_page = index
@@ -491,7 +485,8 @@ class SetupWizard(QDialog):
             self.sf_progress_desc.setVisible(False)
             self.settings["engine_path"] = path
             if HAS_QTAWESOME:
-                self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
+                self.sf_icon_label.set_tone(TextTone.BEST)
+                self.sf_icon_label.set_icon("fa5s.check-circle")
         else:
             self.sf_status.setText("Stockfish Not Detected")
             self.sf_status.set_tone(TextTone.MISTAKE)
@@ -503,7 +498,8 @@ class SetupWizard(QDialog):
             self.sf_progress.setVisible(False)
             self.sf_progress_desc.setVisible(False)
             if HAS_QTAWESOME:
-                self.sf_icon_label.setPixmap(qta.icon("fa5s.exclamation-circle", color=Styles.COLOR_MISTAKE).pixmap(24, 24))
+                self.sf_icon_label.set_tone(TextTone.MISTAKE)
+                self.sf_icon_label.set_icon("fa5s.exclamation-circle")
 
     def _set_custom_stockfish_path(self, path: str):
         if not path or not os.path.exists(path):
@@ -526,7 +522,8 @@ class SetupWizard(QDialog):
         self.sf_progress.setVisible(False)
         self.sf_progress_desc.setVisible(False)
         if HAS_QTAWESOME:
-            self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
+            self.sf_icon_label.set_tone(TextTone.BEST)
+            self.sf_icon_label.set_icon("fa5s.check-circle")
 
     def _download_stockfish(self):
         self.sf_download_btn.setVisible(False)
@@ -579,7 +576,8 @@ class SetupWizard(QDialog):
         self.sf_progress.setVisible(False)
         self.sf_progress_desc.setVisible(False)
         if HAS_QTAWESOME:
-            self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
+            self.sf_icon_label.set_tone(TextTone.BEST)
+            self.sf_icon_label.set_icon("fa5s.check-circle")
         logger.info("SetupWizard: Stockfish downloaded to %s", binary_path)
 
     def _on_download_error(self, err_msg):

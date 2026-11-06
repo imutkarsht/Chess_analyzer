@@ -19,7 +19,15 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.variation_tree import VariationBranch, VariationNode, VariationTree
-from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole, TextTone
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    IconLabel,
+    Label,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 
 try:
@@ -285,9 +293,7 @@ class VariationGraph(QFrame):
         header.setContentsMargins(2, 0, 2, 0)
         header.setSpacing(4)
 
-        self.lbl_icon = QLabel()
-        self.lbl_icon.setFixedSize(16, 16)
-        self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_icon = IconLabel(size=16, fallback="⑂", tone=TextTone.ACCENT)
         header.addWidget(self.lbl_icon)
 
         self.lbl_title = Label("Variations", role=TextRole.BODY, size=12, weight=700)
@@ -444,11 +450,7 @@ class VariationGraph(QFrame):
 
     def refresh_styles(self) -> None:
         self.setStyleSheet(Styles.get_variation_graph_style())
-        self.lbl_icon.setText("⑂" if not HAS_QTAWESOME else "")
-        if HAS_QTAWESOME:
-            self.lbl_icon.setPixmap(
-                qta.icon("fa5s.code-branch", color=Styles.COLOR_ACCENT).pixmap(14, 14)
-            )
+        self.lbl_icon.set_icon("fa5s.code-branch" if HAS_QTAWESOME else None)
         for btn in (self.btn_best, self.btn_undo, self.btn_reset, self.btn_exit):
             btn.refresh_styles()
         self._apply_action_icons()

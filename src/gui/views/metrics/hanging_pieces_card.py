@@ -8,7 +8,6 @@ Structured dual-pillar layout with zero duplication and zero cryptic fractions.
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -16,7 +15,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.gui.components import Label, MiniBar, StatusBadge, TextRole, TextTone
+from src.gui.components import IconLabel, Label, MiniBar, StatusBadge, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -178,12 +177,7 @@ class HangingPiecesCard(MetricCard):
 
         header = QHBoxLayout()
         header.setSpacing(8)
-        pixmap = self._icon_pixmap(icon_name, icon_color, 14)
-        if pixmap is not None:
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            header.addWidget(icon_lbl)
+        header.addWidget(IconLabel(icon_name, size=14, color=icon_color))
 
         title_lbl = Label(
             title,
@@ -295,12 +289,7 @@ class HangingPiecesCard(MetricCard):
         row_layout.setContentsMargins(4, 2, 4, 2)
         row_layout.setSpacing(6)
 
-        pixmap = self._icon_pixmap(icon_name, Styles.COLOR_TEXT_SECONDARY, 12)
-        if pixmap is not None:
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            row_layout.addWidget(icon_lbl)
+        row_layout.addWidget(IconLabel(icon_name, size=12, tone=TextTone.SECONDARY))
 
         name_lbl = Label(piece_name, role=TextRole.MICRO, weight=600)
         name_lbl.setFixedWidth(60)
@@ -325,12 +314,3 @@ class HangingPiecesCard(MetricCard):
         count_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
         row_layout.addWidget(count_lbl)
         return row
-
-    @staticmethod
-    def _icon_pixmap(icon_name: str, color: str, size: int) -> QPixmap | None:
-        try:
-            import qtawesome as qta
-
-            return qta.icon(icon_name, color=color).pixmap(size, size)
-        except Exception:
-            return None

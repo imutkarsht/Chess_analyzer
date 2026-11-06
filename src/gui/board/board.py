@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import QDialog, QGridLayout, QLabel, QSizePolicy, QWidget
 from src.constants import DEFAULT_BOARD_THEME
 from src.utils.logger import logger
 
+from ..components import IconLabel
 from ..styles import Styles
 from .eval_bar import EvalBarWidget
 from .promotion_dialog import PromotionDialog
@@ -393,11 +394,8 @@ class Board(QWidget):
         if icon.isNull():
             return
 
-        badge = QLabel()
+        badge = IconLabel(icon, size=32)
         badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        badge.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-        badge.setPixmap(icon.pixmap(32, 32))
-        badge.setStyleSheet(Styles.get_transparent_style())
 
         row, col = self._sq_to_grid(self.board.peek().to_square)
         self.overlay_layout.addWidget(
@@ -604,10 +602,8 @@ class Board(QWidget):
             to_sq = chess.parse_square(move.uci[2:4])
             row, col = self._sq_to_grid(to_sq)
 
-            lbl = QLabel()
-            lbl.setPixmap(icon.pixmap(32, 32))
-            lbl.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-            lbl.setStyleSheet(Styles.get_transparent_style())
+            lbl = IconLabel(icon, size=32)
+            lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
             # Ensure grid is 8x8
             for r in range(8):

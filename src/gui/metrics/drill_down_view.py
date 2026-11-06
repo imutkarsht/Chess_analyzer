@@ -12,7 +12,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -21,6 +20,7 @@ from PyQt6.QtWidgets import (
 from src.gui.components import (
     Button,
     ButtonVariant,
+    IconLabel,
     Label,
     PaginationBar,
     PaginationSize,
@@ -31,13 +31,6 @@ from src.gui.components import (
 )
 from src.gui.metrics.drill_down_item import DrillDownItemWidget
 from src.gui.styles import Styles
-
-try:
-    import qtawesome as qta
-
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class DrillDownView(QWidget):
@@ -219,16 +212,14 @@ class DrillDownView(QWidget):
         empty_layout.setSpacing(12)
         empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = QLabel()
-        if HAS_QTAWESOME:
-            icon_lbl.setPixmap(
-                qta.icon("fa5s.search", color=Styles.COLOR_TEXT_MUTED).pixmap(48, 48)
+        empty_layout.addWidget(
+            IconLabel(
+                "fa5s.search",
+                size=48,
+                tone=TextTone.MUTED,
+                fallback="🔍",
             )
-        else:
-            icon_lbl.setText("🔍")
-            icon_lbl.setStyleSheet("font-size: 36px;")
-        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        empty_layout.addWidget(icon_lbl)
+        )
 
         title_lbl = Label(
             "No Occurrences Found",

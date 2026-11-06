@@ -25,6 +25,7 @@ from src.gui.components import (
     Button,
     ButtonVariant,
     CircularAccuracyWidget,
+    IconLabel,
     Label,
     Tabs,
     TabVariant,
@@ -477,14 +478,11 @@ class AnalysisPanel(QWidget):
             lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.stats_layout.addWidget(lbl_val_w, i + 1, 1)
 
-            icon_label = QLabel()
-            icon = self.resource_manager.get_icon(type_name)
-            if not icon.isNull():
-                icon_label.setPixmap(icon.pixmap(20, 20))
-                icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            else:
-                icon_label.setText("-")
-            icon_label.setStyleSheet(Styles.get_transparent_style())
+            icon_label = IconLabel(
+                self.resource_manager.get_icon(type_name),
+                size=20,
+                fallback="-",
+            )
             self.stats_layout.addWidget(icon_label, i + 1, 2)
 
             val_b = summary["black"].get(type_name, 0)
