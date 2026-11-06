@@ -915,6 +915,34 @@ class Styles(metaclass=_StylesMeta):
     #  LABELS
     # ═══════════════════════════════════════════════════════════════
     @classmethod
+    def get_tone_color(cls, tone: TextTone | str) -> str:
+        """Resolve a semantic text tone to its live palette colour."""
+        tone = TextTone(tone)
+        p = ThemeManager.palette()
+        colors = {
+            TextTone.PRIMARY: p.text_primary,
+            TextTone.SECONDARY: p.text_secondary,
+            TextTone.MUTED: p.text_muted,
+            TextTone.ACCENT: p.accent,
+            TextTone.BRILLIANT: cls.COLOR_BRILLIANT,
+            TextTone.GREAT: cls.COLOR_GREAT,
+            TextTone.BEST: cls.COLOR_BEST,
+            TextTone.EXCELLENT: cls.COLOR_EXCELLENT,
+            TextTone.GOOD: cls.COLOR_GOOD,
+            TextTone.INACCURACY: cls.COLOR_INACCURACY,
+            TextTone.MISTAKE: cls.COLOR_MISTAKE,
+            TextTone.BLUNDER: cls.COLOR_BLUNDER,
+            TextTone.MISS: cls.COLOR_MISS,
+            TextTone.BOOK: cls.COLOR_BOOK,
+            TextTone.RESULT_WIN: cls.COLOR_RESULT_WIN,
+            TextTone.RESULT_DRAW: cls.COLOR_RESULT_DRAW,
+            TextTone.RESULT_LOSS: cls.COLOR_RESULT_LOSS,
+            TextTone.ENGINE_READY: cls.COLOR_ENGINE_READY,
+            TextTone.ENGINE_BUSY: cls.COLOR_ENGINE_BUSY,
+        }
+        return colors[tone]
+
+    @classmethod
     def get_typography_qss(cls) -> str:
         """Generated rules for :class:`src.gui.components.display.label.Label`.
 
@@ -953,31 +981,9 @@ class Styles(metaclass=_StylesMeta):
                 f'QLabel[textWeight="{weight}"] {{ font-weight: {weight}; }}'
             )
 
-        p = ThemeManager.palette()
-        tone_colors = {
-            TextTone.PRIMARY: p.text_primary,
-            TextTone.SECONDARY: p.text_secondary,
-            TextTone.MUTED: p.text_muted,
-            TextTone.ACCENT: p.accent,
-            TextTone.BRILLIANT: cls.COLOR_BRILLIANT,
-            TextTone.GREAT: cls.COLOR_GREAT,
-            TextTone.BEST: cls.COLOR_BEST,
-            TextTone.EXCELLENT: cls.COLOR_EXCELLENT,
-            TextTone.GOOD: cls.COLOR_GOOD,
-            TextTone.INACCURACY: cls.COLOR_INACCURACY,
-            TextTone.MISTAKE: cls.COLOR_MISTAKE,
-            TextTone.BLUNDER: cls.COLOR_BLUNDER,
-            TextTone.MISS: cls.COLOR_MISS,
-            TextTone.BOOK: cls.COLOR_BOOK,
-            TextTone.RESULT_WIN: cls.COLOR_RESULT_WIN,
-            TextTone.RESULT_DRAW: cls.COLOR_RESULT_DRAW,
-            TextTone.RESULT_LOSS: cls.COLOR_RESULT_LOSS,
-            TextTone.ENGINE_READY: cls.COLOR_ENGINE_READY,
-            TextTone.ENGINE_BUSY: cls.COLOR_ENGINE_BUSY,
-        }
-        for tone, color in tone_colors.items():
+        for tone in TextTone:
             rules.append(
-                f'QLabel[tone="{tone.value}"] {{ color: {color}; '
+                f'QLabel[tone="{tone.value}"] {{ color: {cls.get_tone_color(tone)}; '
                 "background: transparent; border: none; }"
             )
 

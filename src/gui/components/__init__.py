@@ -22,12 +22,14 @@ from .controls.segmented_control import SegmentedControl
 from .controls.select import Select, SelectOption, SelectSize
 from .controls.tabs import TabAppearance, Tabs, TabVariant
 from .display.circular_accuracy import CircularAccuracyWidget
+from .display.icon_label import IconLabel
 from .display.label import Label
 from .display.mini_bar import MiniBar
+from .display.rich_text import LinkLabel, RichTextLabel
 from .display.stat_card import SimpleStatCard, StatCard
 from .feedback.empty_state import EmptyState
 from .feedback.pulsing_skeleton import PulsingSkeleton
-from .feedback.status_badge import StatusBadge
+from .feedback.status_badge import BadgeVariant, StatusBadge
 from .feedback.toast import (
     Toast,
     ToastHandle,
@@ -52,10 +54,14 @@ __all__ = [
     'Button',
     'ButtonSize',
     'ButtonVariant',
+    'BadgeVariant',
     'EmptyState',
     'FormField',
+    'IconLabel',
     'Input',
     'Label',
+    'LinkLabel',
+    'RichTextLabel',
     'TextRole',
     'TextTone',
     'InputSize',

@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.label import Label
+from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
 from src.gui.theme.typography import TextRole, TextTone
@@ -150,9 +151,14 @@ class GameListItemWidget(QWidget):
         card_layout.addWidget(op_lbl, stretch=1)
 
         # 4. Result Badge
-        result_color = self._get_result_color(result_text, game.metadata, usernames)
-        result_label = QLabel(result_text)
-        result_label.setStyleSheet(Styles.get_result_badge_style(result_color, 12, "2px 8px", 4))
+        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_label = StatusBadge(
+            result_text,
+            result_tone,
+            font_size=12,
+            padding="2px 8px",
+            radius=4,
+        )
         card_layout.addWidget(result_label)
 
         # 5. Accuracy (if analyzed)
@@ -264,9 +270,14 @@ class GameListItemWidget(QWidget):
         header_layout.addStretch()
 
         # Result badge
-        result_color = self._get_result_color(result_text, game.metadata, usernames)
-        result_label = QLabel(result_text)
-        result_label.setStyleSheet(Styles.get_result_badge_style(result_color, 13, "3px 10px", 6))
+        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_label = StatusBadge(
+            result_text,
+            result_tone,
+            font_size=13,
+            padding="3px 10px",
+            radius=6,
+        )
         header_layout.addWidget(result_label)
 
         # Status Badge & Action Button
@@ -405,11 +416,12 @@ class GameListItemWidget(QWidget):
         action_btn.setFixedSize(btn_size, btn_size)
 
         if getattr(self, "_is_analyzing", False):
-            status_lbl = QLabel("Analyzing...")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                "Analyzing...",
+                TextTone.ENGINE_BUSY,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip("View ongoing analysis")
             self._set_icon(action_btn, "fa5s.arrow-right", Styles.COLOR_ENGINE_BUSY)
@@ -419,11 +431,12 @@ class GameListItemWidget(QWidget):
             return status_lbl, action_btn
 
         if status == "completed":
-            status_lbl = QLabel("Analyzed")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_ENGINE_READY, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                "Analyzed",
+                TextTone.ENGINE_READY,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip("Reanalyze game")
             self._set_icon(action_btn, "fa5s.sync-alt", Styles.COLOR_TEXT_SECONDARY)
@@ -433,21 +446,23 @@ class GameListItemWidget(QWidget):
             total = getattr(self._game, "total_moves_count", 0) or len(
                 getattr(self._game, "moves", [])
             )
-            status_lbl = QLabel(f"Paused ({analyzed}/{total})")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                f"Paused ({analyzed}/{total})",
+                TextTone.ENGINE_BUSY,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip(f"Resume analysis ({analyzed}/{total})")
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_ENGINE_BUSY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "resume"))
         else:
-            status_lbl = QLabel("Unanalyzed")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_TEXT_MUTED, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                "Unanalyzed",
+                TextTone.MUTED,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip("Analyze game")
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_TEXT_SECONDARY)
@@ -612,22 +627,22 @@ class GameListItemWidget(QWidget):
 
         return container
 
-    def _get_result_color(self, result_text, metadata, usernames):
+    def _get_result_tone(self, result_text, metadata, usernames) -> TextTone:
         if not usernames:
             if result_text == "1-0":
-                return Styles.COLOR_BEST
+                return TextTone.RESULT_WIN
             elif result_text == "0-1":
-                return Styles.COLOR_BLUNDER
-            return Styles.COLOR_TEXT_SECONDARY
+                return TextTone.RESULT_LOSS
+            return TextTone.RESULT_DRAW
 
         user_is_white = metadata.white.lower() in [u.lower() for u in usernames]
         user_is_black = metadata.black.lower() in [u.lower() for u in usernames]
 
         if result_text == "1-0":
-            return Styles.COLOR_BEST if user_is_white else Styles.COLOR_BLUNDER
+            return TextTone.RESULT_WIN if user_is_white else TextTone.RESULT_LOSS
         if result_text == "0-1":
-            return Styles.COLOR_BEST if user_is_black else Styles.COLOR_BLUNDER
-        return Styles.COLOR_TEXT_SECONDARY
+            return TextTone.RESULT_WIN if user_is_black else TextTone.RESULT_LOSS
+        return TextTone.RESULT_DRAW
 
     def _format_time_control(self, time_control):
         if not time_control or time_control in ("-", "?"):
