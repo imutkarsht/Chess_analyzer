@@ -36,7 +36,7 @@ from src.backend.updater.updater import (
 )
 
 from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
-from ..components import Button, ButtonVariant
+from ..components import Button, ButtonVariant, Label, TextRole, TextTone
 from ..styles import Styles
 
 try:
@@ -107,10 +107,7 @@ class UpdateNotificationDialog(QDialog):
             ic.setPixmap(qta.icon('fa5s.arrow-circle-up', color=Styles.COLOR_ACCENT).pixmap(24, 24))
             title_row.addWidget(ic)
 
-        title = QLabel("Update Available")
-        title.setStyleSheet(
-            f"font-size: 17px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};"
-        )
+        title = Label("Update Available", role=TextRole.DIALOG_TITLE, weight=700)
         title_row.addWidget(title)
         title_row.addStretch()
 
@@ -121,17 +118,22 @@ class UpdateNotificationDialog(QDialog):
         ver_lay.setContentsMargins(0, 0, 0, 0)
         ver_lay.setSpacing(4)
 
-        lbl_cur = QLabel(f"v{self.update_info.current}")
-        lbl_cur.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 500;")
+        lbl_cur = Label(
+            f"v{self.update_info.current}",
+            role=TextRole.BODY,
+            weight=500,
+            tone=TextTone.MUTED,
+        )
         ver_lay.addWidget(lbl_cur)
 
-        arr = QLabel("→")
-        arr.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 13px;")
+        arr = Label("→", role=TextRole.BODY, tone=TextTone.MUTED)
         ver_lay.addWidget(arr)
 
-        lbl_new = QLabel(f"v{self.update_info.latest}")
-        lbl_new.setStyleSheet(
-            f"color: {Styles.COLOR_ACCENT}; font-size: 13px; font-weight: 700;"
+        lbl_new = Label(
+            f"v{self.update_info.latest}",
+            role=TextRole.BODY,
+            weight=700,
+            tone=TextTone.ACCENT,
         )
         ver_lay.addWidget(lbl_new)
         title_row.addWidget(ver_widget)
@@ -175,8 +177,7 @@ class UpdateNotificationDialog(QDialog):
 
         if self.update_info.changelog:
             top_row = QHBoxLayout()
-            lbl = QLabel("What's New")
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
+            lbl = Label("What's New", role=TextRole.BODY, weight=600)
             top_row.addWidget(lbl)
             top_row.addStretch()
 
@@ -307,12 +308,10 @@ class UpdateNotificationDialog(QDialog):
 
         # Status label + percentage
         top_row = QHBoxLayout()
-        self._lbl_status = QLabel("Downloading…")
-        self._lbl_status.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
+        self._lbl_status = Label("Downloading…", role=TextRole.BODY, weight=600)
         top_row.addWidget(self._lbl_status)
         top_row.addStretch()
-        self._lbl_pct = QLabel("0 %")
-        self._lbl_pct.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px;")
+        self._lbl_pct = Label("0 %", role=TextRole.CAPTION, tone=TextTone.MUTED)
         top_row.addWidget(self._lbl_pct)
         layout.addLayout(top_row)
 
@@ -358,10 +357,7 @@ class UpdateNotificationDialog(QDialog):
             ic.setPixmap(qta.icon('fa5s.check-circle', color="#4caf50").pixmap(22, 22))
             row.addWidget(ic)
 
-        self._lbl_done_title = QLabel()
-        self._lbl_done_title.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;"
-        )
+        self._lbl_done_title = Label("", role=TextRole.BODY, weight=600)
         row.addWidget(self._lbl_done_title)
         row.addStretch()
 
@@ -377,11 +373,9 @@ class UpdateNotificationDialog(QDialog):
 
         layout.addLayout(row)
 
-        self._lbl_done_sub = QLabel()
-        self._lbl_done_sub.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px;"
+        self._lbl_done_sub = Label(
+            "", role=TextRole.MICRO, tone=TextTone.MUTED, wrap=True
         )
-        self._lbl_done_sub.setWordWrap(True)
         layout.addWidget(self._lbl_done_sub)
 
         return w
@@ -400,17 +394,12 @@ class UpdateNotificationDialog(QDialog):
             ic = QLabel()
             ic.setPixmap(qta.icon('fa5s.exclamation-circle', color="#f44336").pixmap(18, 18))
 
-        self._lbl_error = QLabel("Download failed.")
-        self._lbl_error.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;"
-        )
+        self._lbl_error = Label("Download failed.", role=TextRole.BODY, weight=600)
         err_col.addWidget(self._lbl_error)
 
-        self._lbl_error_detail = QLabel()
-        self._lbl_error_detail.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px;"
+        self._lbl_error_detail = Label(
+            "", role=TextRole.MICRO, tone=TextTone.MUTED, wrap=True
         )
-        self._lbl_error_detail.setWordWrap(True)
         err_col.addWidget(self._lbl_error_detail)
 
         layout.addLayout(err_col)
@@ -663,19 +652,6 @@ class UpdateNotificationDialog(QDialog):
 
         text = re.sub(r'(?<!href=["\'])(?<![">])(https?://[^\s<"]+)', _replace_url, text)
         return text
-
-    def _version_badge(self, version_str: str, label_str: str, color: str) -> QWidget:
-        w = QWidget()
-        layout = QVBoxLayout(w)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)
-        lbl = QLabel(label_str)
-        lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px;")
-        layout.addWidget(lbl)
-        ver = QLabel(version_str)
-        ver.setStyleSheet(f"color: {color}; font-size: 16px; font-weight: bold;")
-        layout.addWidget(ver)
-        return w
 
     @staticmethod
     def _clean_markdown(text: str) -> str:

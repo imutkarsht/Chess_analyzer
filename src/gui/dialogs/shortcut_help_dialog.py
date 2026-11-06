@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..components import Button, ButtonVariant
+from ..components import Button, ButtonVariant, Label, TextRole, TextTone
 from ..styles import Styles
 
 try:
@@ -65,24 +65,17 @@ class ShortcutHelpDialog(QDialog):
             )
             header_layout.addWidget(icon_label)
 
-        title = QLabel("Keyboard Shortcuts")
-        title.setStyleSheet(f"""
-            font-size: 20px;
-            font-weight: bold;
-            color: {Styles.COLOR_TEXT_PRIMARY};
-        """)
+        title = Label("Keyboard Shortcuts", role=TextRole.DIALOG_TITLE, weight=700)
         header_layout.addWidget(title)
         header_layout.addStretch()
         layout.addLayout(header_layout)
 
         # Subtitle
-        subtitle = QLabel("Master these shortcuts to navigate and analyze games faster")
-        subtitle.setStyleSheet(f"""
-            font-size: 12px;
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            background: transparent;
-            margin-bottom: 4px;
-        """)
+        subtitle = Label(
+            "Master these shortcuts to navigate and analyze games faster",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+        )
         layout.addWidget(subtitle)
 
         # Scroll Area for shortcuts
@@ -141,12 +134,12 @@ class ShortcutHelpDialog(QDialog):
                 )
                 hdr_layout.addWidget(cat_icon)
 
-            category_label = QLabel(category)
-            category_label.setStyleSheet(f"""
-                font-size: 13px;
-                font-weight: 600;
-                color: {Styles.COLOR_ACCENT};
-            """)
+            category_label = Label(
+                category,
+                role=TextRole.BODY,
+                weight=600,
+                tone=TextTone.ACCENT,
+            )
             hdr_layout.addWidget(category_label)
             hdr_layout.addStretch()
             cat_layout.addLayout(hdr_layout)
@@ -250,12 +243,7 @@ class ShortcutHelpDialog(QDialog):
         row_layout.addWidget(key_label)
 
         # Description
-        desc_label = QLabel(description)
-        desc_label.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 12px;
-            font-weight: 500;
-        """)
+        desc_label = Label(description, role=TextRole.CAPTION, weight=500)
         row_layout.addWidget(desc_label)
         row_layout.addStretch()
 

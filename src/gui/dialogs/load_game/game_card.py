@@ -2,8 +2,9 @@
 Game card component for the Load Game dialog.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QFrame, QLabel, QSizePolicy, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QSizePolicy, QVBoxLayout
 
+from ...components import Label, TextRole, TextTone
 from ...styles import Styles
 
 
@@ -23,18 +24,10 @@ class GameCard(QFrame):
         layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(3)
 
-        self._lbl1 = QLabel(line1)
-        self._lbl1.setStyleSheet(
-            f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent; border: none;"
-        )
+        self._lbl1 = Label(line1, role=TextRole.CAPTION, weight=600)
         layout.addWidget(self._lbl1)
 
-        self._lbl2 = QLabel(line2)
-        self._lbl2.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent; border: none;"
-        )
+        self._lbl2 = Label(line2, role=TextRole.CAPTION, tone=TextTone.SECONDARY)
         layout.addWidget(self._lbl2)
 
         self._apply_style(False)

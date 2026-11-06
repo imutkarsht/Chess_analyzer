@@ -23,9 +23,12 @@ from src.gui.components import (
     ButtonSize,
     ButtonVariant,
     Input,
+    Label,
     Tabs,
     TabVariant,
     TextArea,
+    TextRole,
+    TextTone,
 )
 from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
@@ -105,13 +108,7 @@ class FeedbackDialog(QDialog):
             icon_lbl.setStyleSheet(f"font-size: 18px; color: {Styles.COLOR_ACCENT};")
         header_layout.addWidget(icon_lbl)
 
-        title_lbl = QLabel("Feedback & Support")
-        title_lbl.setStyleSheet(f"""
-            font-size: 17px;
-            font-weight: 700;
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            border: none;
-        """)
+        title_lbl = Label("Feedback & Support", role=TextRole.DIALOG_TITLE, weight=700)
         header_layout.addWidget(title_lbl)
         header_layout.addStretch()
 
@@ -164,9 +161,8 @@ class FeedbackDialog(QDialog):
         body_layout.addWidget(self.stacked_widget, 1)
 
         # Status / Error Label
-        self.status_lbl = QLabel("")
+        self.status_lbl = Label("", role=TextRole.CAPTION, tone=TextTone.BLUNDER)
         self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
         self.status_lbl.hide()
         body_layout.addWidget(self.status_lbl)
 
@@ -233,8 +229,7 @@ class FeedbackDialog(QDialog):
         layout.setSpacing(10)
 
         # Title
-        lbl_title = QLabel("Bug Summary:")
-        lbl_title.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_title = Label("Bug Summary:", role=TextRole.BODY, weight=600)
         layout.addWidget(lbl_title)
 
         self.bug_title_input = Input(
@@ -244,8 +239,7 @@ class FeedbackDialog(QDialog):
         layout.addWidget(self.bug_title_input)
 
         # Description
-        lbl_desc = QLabel("What happened?")
-        lbl_desc.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_desc = Label("What happened?", role=TextRole.BODY, weight=600)
         layout.addWidget(lbl_desc)
 
         self.bug_desc_input = TextArea(
@@ -261,8 +255,12 @@ class FeedbackDialog(QDialog):
 
         v1 = QVBoxLayout()
         v1.setSpacing(4)
-        lbl_email = QLabel("Your Email:")
-        lbl_email.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_email = Label(
+            "Your Email:",
+            role=TextRole.CAPTION,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         v1.addWidget(lbl_email)
         self.bug_email_input = Input(placeholder="To get notified when resolved")
         v1.addWidget(self.bug_email_input)
@@ -270,8 +268,12 @@ class FeedbackDialog(QDialog):
 
         v2 = QVBoxLayout()
         v2.setSpacing(4)
-        lbl_name = QLabel("Your Name:")
-        lbl_name.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_name = Label(
+            "Your Name:",
+            role=TextRole.CAPTION,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         v2.addWidget(lbl_name)
         default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
         self.bug_name_input = Input(default_user, "Player handle or name")
@@ -337,8 +339,7 @@ class FeedbackDialog(QDialog):
         layout.setSpacing(12)
 
         # Feature Title
-        lbl_title = QLabel("Feature Title:")
-        lbl_title.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_title = Label("Feature Title:", role=TextRole.BODY, weight=600)
         layout.addWidget(lbl_title)
 
         self.feat_title_input = Input(
@@ -347,8 +348,7 @@ class FeedbackDialog(QDialog):
         layout.addWidget(self.feat_title_input)
 
         # Description
-        lbl_desc = QLabel("Describe your idea:")
-        lbl_desc.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_desc = Label("Describe your idea:", role=TextRole.BODY, weight=600)
         layout.addWidget(lbl_desc)
 
         self.feat_desc_input = TextArea(
@@ -363,8 +363,12 @@ class FeedbackDialog(QDialog):
 
         v1 = QVBoxLayout()
         v1.setSpacing(4)
-        lbl_email = QLabel("Your Email:")
-        lbl_email.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_email = Label(
+            "Your Email:",
+            role=TextRole.CAPTION,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         v1.addWidget(lbl_email)
         self.feat_email_input = Input(placeholder="Email address")
         v1.addWidget(self.feat_email_input)
@@ -372,8 +376,12 @@ class FeedbackDialog(QDialog):
 
         v2 = QVBoxLayout()
         v2.setSpacing(4)
-        lbl_name = QLabel("Your Name:")
-        lbl_name.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_name = Label(
+            "Your Name:",
+            role=TextRole.CAPTION,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         v2.addWidget(lbl_name)
         default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
         self.feat_name_input = Input(default_user, "Player handle or name")
@@ -393,8 +401,7 @@ class FeedbackDialog(QDialog):
         layout.addWidget(self.review_star_widget)
 
         # Name
-        lbl_name = QLabel("Your Name:")
-        lbl_name.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_name = Label("Your Name:", role=TextRole.BODY, weight=600)
         layout.addWidget(lbl_name)
 
         default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
@@ -402,8 +409,7 @@ class FeedbackDialog(QDialog):
         layout.addWidget(self.review_name_input)
 
         # Comment
-        lbl_comment = QLabel("Your Review:")
-        lbl_comment.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_comment = Label("Your Review:", role=TextRole.BODY, weight=600)
         layout.addWidget(lbl_comment)
 
         self.review_comment_input = TextArea(
@@ -425,26 +431,21 @@ class FeedbackDialog(QDialog):
         icon_lbl.setStyleSheet("font-size: 48px; background: transparent;")
         layout.addWidget(icon_lbl)
 
-        self.success_title = QLabel("Submission Received!")
+        self.success_title = Label(
+            "Submission Received!",
+            role=TextRole.DIALOG_TITLE,
+            weight=700,
+        )
         self.success_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.success_title.setStyleSheet(f"""
-            font-size: 20px;
-            font-weight: 700;
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            background: transparent;
-        """)
         layout.addWidget(self.success_title)
 
-        self.success_desc = QLabel(
-            "Thank you for helping us improve Chess Analyzer Pro!"
+        self.success_desc = Label(
+            "Thank you for helping us improve Chess Analyzer Pro!",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
-        self.success_desc.setWordWrap(True)
         self.success_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.success_desc.setStyleSheet(f"""
-            font-size: 13px;
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            background: transparent;
-        """)
         layout.addWidget(self.success_desc)
 
         layout.addSpacing(16)
@@ -532,7 +533,7 @@ class FeedbackDialog(QDialog):
 
     def _show_error(self, message: str):
         self.status_lbl.setText(message)
-        self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
+        self.status_lbl.set_tone(TextTone.BLUNDER)
         self.status_lbl.show()
 
     def _on_submission_finished(self, success: bool, message: str, data: dict, custom_success_title: str):

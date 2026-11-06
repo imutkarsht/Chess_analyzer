@@ -3,12 +3,12 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QDialog,
     QHBoxLayout,
-    QLabel,
     QListWidget,
     QListWidgetItem,
     QVBoxLayout,
 )
 
+from src.gui.components import Label, TextRole
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 
@@ -35,13 +35,10 @@ class GameSelectionDialog(QDialog):
         layout.setSpacing(16)
 
         # Header
-        lbl_header = QLabel(f"Found {len(self.games_data)} recent games. Select one to load:")
-        lbl_header.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 15px;
-            font-weight: 600;
-            padding-bottom: 8px;
-        """)
+        lbl_header = Label(
+            f"Found {len(self.games_data)} recent games. Select one to load:",
+            role=TextRole.SUBHEADING,
+        )
         layout.addWidget(lbl_header)
 
         # List

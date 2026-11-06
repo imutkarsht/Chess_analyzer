@@ -2,15 +2,18 @@
 Inline game list component for the Load Game dialog.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
 from ...components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    Label,
     PaginationBar,
     PaginationSize,
     PaginationState,
+    TextRole,
+    TextTone,
 )
 from ...styles import Styles
 from .game_card import GameCard
@@ -37,10 +40,11 @@ class InlineGameList(QWidget):
         h_layout = QHBoxLayout(header_widget)
         h_layout.setContentsMargins(2, 0, 2, 0)
 
-        self._header = QLabel("")
-        self._header.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " padding: 4px 0px;"
+        self._header = Label(
+            "",
+            role=TextRole.BODY,
+            weight=600,
+            tone=TextTone.SECONDARY,
         )
         h_layout.addWidget(self._header)
         h_layout.addStretch()
