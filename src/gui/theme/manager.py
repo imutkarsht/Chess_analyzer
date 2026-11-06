@@ -37,6 +37,7 @@ class ThemeManager(QObject):
     _palette: ThemePalette = DARK
     _accent: str = "#FF9500"
     _accent_mode: str = "system"  # "system" | "manual"
+    _style_revision: int = 0
     _os_watcher: OSThemeWatcher | None = None
 
     def __init__(self, parent=None):
@@ -80,6 +81,15 @@ class ThemeManager(QObject):
     @classmethod
     def accent_mode(cls) -> str:
         return cls._accent_mode
+
+    @classmethod
+    def style_revision(cls) -> int:
+        """Monotonic counter bumped whenever generated styles can change."""
+        return cls._style_revision
+
+    @classmethod
+    def _bump_style_revision(cls) -> None:
+        cls._style_revision += 1
 
     @classmethod
     def get_class_color(cls, classification: str) -> str:
@@ -142,7 +152,11 @@ class ThemeManager(QObject):
             )
             app = QApplication.instance()
             if app:
-                app.setStyleSheet(qss)
+                # Typography rules are generated from the live palette, so they
+                # must be appended after the template has been formatted.
+                from src.gui.styles import Styles
+
+                app.setStyleSheet(qss + "\n" + Styles.get_typography_qss())
         except Exception as e:
             from src.utils.logger import logger
 
@@ -155,6 +169,7 @@ class ThemeManager(QObject):
         cls._current_mode = mode
         cls._palette = DARK if mode == "dark" else LIGHT
         cls._palette = cls._palette.with_accent(cls._accent)
+        cls._bump_style_revision()
         cls.apply_app_stylesheet()
         instance = cls.instance()
         instance.theme_changed.emit(mode)
@@ -180,6 +195,7 @@ class ThemeManager(QObject):
             )
         cls._accent = hex_color
         cls._palette = cls._palette.with_accent(hex_color)
+        cls._bump_style_revision()
         cls.apply_app_stylesheet()
         instance = cls.instance()
         instance.accent_changed.emit(hex_color)

@@ -4,7 +4,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QScrollArea,
     QStackedWidget,
@@ -17,10 +16,14 @@ from src.backend.services.groq_service import GroqService
 from src.gui.components import (
     Button,
     ButtonVariant,
+    Label,
     MasonryLayout,
     Select,
     StatCard,
     StatsLayout,
+    StatusBadge,
+    TextRole,
+    TextTone,
 )
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
@@ -101,12 +104,7 @@ class MetricsWidget(QWidget):
         header_layout.setContentsMargins(24, 12, 24, 12)
 
         # Title
-        self.title_lbl = QLabel("Performance Dashboard")
-        self.title_lbl.setStyleSheet(
-            Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self.title_lbl = Label("Performance Dashboard", role=TextRole.PAGE_TITLE)
         header_layout.addWidget(self.title_lbl)
 
         header_layout.addStretch()
@@ -130,8 +128,6 @@ class MetricsWidget(QWidget):
         filter_layout = QHBoxLayout(self.filter_bar)
         filter_layout.setContentsMargins(24, 8, 24, 8)
         filter_layout.setSpacing(10)
-
-        lbl_style = f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)} border: none; background: transparent;"
 
         # 1-4. Color / Format / Source / Period filters
         filter_specs = (
@@ -158,8 +154,7 @@ class MetricsWidget(QWidget):
             ),
         )
         for label_text, key, items, width in filter_specs:
-            lbl = QLabel(label_text)
-            lbl.setStyleSheet(lbl_style)
+            lbl = Label(label_text, role=TextRole.CAPTION, weight=600)
             filter_layout.addWidget(lbl)
             setattr(self, f"lbl_{key}", lbl)
 
@@ -178,11 +173,13 @@ class MetricsWidget(QWidget):
         filter_layout.addStretch()
 
         # Games count badge
-        self.lbl_games_badge = QLabel("0 Games")
-        self.lbl_games_badge.setStyleSheet(
-            f"background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_ACCENT}; "
-            f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 12px; "
-            "padding: 4px 12px; font-weight: 600; font-size: 12px;"
+        self.lbl_games_badge = StatusBadge(
+            "0 Games",
+            TextTone.ACCENT,
+            font_size=12,
+            weight=600,
+            padding="4px 12px",
+            radius=12,
         )
         filter_layout.addWidget(self.lbl_games_badge)
 
@@ -190,10 +187,10 @@ class MetricsWidget(QWidget):
 
         # Content Area Stack (Index 0 = Dashboard Container, Index 1 = DrillDownView)
         self.stacked_widget = QStackedWidget()
-        self.stacked_widget.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.stacked_widget)
 
         self.content_widget = QWidget()
-        self.content_widget.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.content_widget)
         self.content_layout = QVBoxLayout(self.content_widget)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(0)
@@ -216,13 +213,6 @@ class MetricsWidget(QWidget):
                 f"QFrame#filter_bar {{ background-color: {Styles.COLOR_BACKGROUND}; border-bottom: 1px solid {Styles.COLOR_BORDER}; }}"
             )
 
-        if hasattr(self, "title_lbl") and self.title_lbl:
-            self.title_lbl.setStyleSheet(
-                Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
-
         if hasattr(self, "btn_refresh") and self.btn_refresh:
             self.btn_refresh.refresh_styles()
 
@@ -230,27 +220,7 @@ class MetricsWidget(QWidget):
             self.btn_reset_filters.refresh_styles()
 
         if hasattr(self, "content_widget") and self.content_widget:
-            self.content_widget.setStyleSheet(Styles.get_background_style())
-
-        if hasattr(self, "lbl_games_badge") and self.lbl_games_badge:
-            self.lbl_games_badge.setStyleSheet(
-                f"background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_ACCENT}; "
-                f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 12px; "
-                "padding: 4px 12px; font-weight: 600; font-size: 12px;"
-            )
-
-        lbl_style = (
-            f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)} "
-            "border: none; background: transparent;"
-        )
-        for lbl in (
-            getattr(self, "lbl_color", None),
-            getattr(self, "lbl_format", None),
-            getattr(self, "lbl_source", None),
-            getattr(self, "lbl_period", None),
-        ):
-            if lbl:
-                lbl.setStyleSheet(lbl_style)
+            Styles.apply_background(self.content_widget)
 
         if hasattr(self, "scroll_area") and self.scroll_area:
             self.scroll_area.setStyleSheet(Styles.get_transparent_scroll_area_style())
@@ -325,10 +295,7 @@ class MetricsWidget(QWidget):
         spinner.setStyleSheet(Styles.get_progress_bar_style())
         l_layout.addWidget(spinner)
 
-        lbl = QLabel("Filtering Statistics...")
-        lbl.setStyleSheet(
-            Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY) + "; margin-top: 10px;"
-        )
+        lbl = Label("Filtering Statistics...", role=TextRole.SUBHEADING)
         l_layout.addWidget(lbl)
 
         # Stop existing worker safely
@@ -435,15 +402,16 @@ class MetricsWidget(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(20)
 
-        lbl = QLabel(title_text)
-        lbl.setStyleSheet(
-            Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-        )
+        lbl = Label(title_text, role=TextRole.PAGE_TITLE)
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl)
 
-        msg = QLabel(msg_text)
-        msg.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_SECONDARY))
+        msg = Label(
+            msg_text,
+            role=TextRole.SUBHEADING,
+            tone=TextTone.SECONDARY,
+            wrap=True,
+        )
         msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(msg)
 
@@ -469,7 +437,7 @@ class MetricsWidget(QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         dashboard = QWidget()
-        dashboard.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(dashboard)
 
         dashboard_layout = QVBoxLayout(dashboard)
         dashboard_layout.setSpacing(16)

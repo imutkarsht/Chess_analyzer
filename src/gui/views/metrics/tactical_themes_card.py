@@ -11,12 +11,19 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
 
-from src.gui.components import MiniBar, SegmentedBar, StatusBadge
+from src.gui.components import (
+    IconLabel,
+    Label,
+    MiniBar,
+    SegmentedBar,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -128,37 +135,28 @@ class TacticalThemesCard(MetricCard):
         l_stat_row.setSpacing(6)
         l_stat_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        lbl_tot_val = QLabel(str(total_tactics))
+        lbl_tot_val = Label(
+            str(total_tactics),
+            role=TextRole.STAT,
+            size=24,
+            weight=800,
+        )
         lbl_tot_val.setCursor(Qt.CursorShape.PointingHandCursor)
         lbl_tot_val.setToolTip("Click to inspect all executed tactics positions")
         lbl_tot_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
             "tactical_themes", "all"
         )
-        lbl_tot_val.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 24px;
-            font-weight: 800;
-            background: transparent;
-        """)
         l_stat_row.addWidget(lbl_tot_val)
 
-        lbl_tot_title = QLabel("Tactics Executed")
-        lbl_tot_title.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 13px;
-            font-weight: 600;
-            background: transparent;
-            padding-top: 4px;
-        """)
+        lbl_tot_title = Label("Tactics Executed", role=TextRole.BODY, weight=600)
         l_stat_row.addWidget(lbl_tot_title)
         left_box.addLayout(l_stat_row)
 
-        lbl_tot_sub = QLabel(f"{tpg:.1f} per game across {total_games} analyzed games")
-        lbl_tot_sub.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            background: transparent;
-        """)
+        lbl_tot_sub = Label(
+            f"{tpg:.1f} per game across {total_games} analyzed games",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         left_box.addWidget(lbl_tot_sub)
         h_layout.addLayout(left_box)
 
@@ -179,33 +177,21 @@ class TacticalThemesCard(MetricCard):
         tp_layout.setContentsMargins(8, 4, 8, 4)
         tp_layout.setSpacing(6)
 
-        try:
-            import qtawesome as qta
+        tp_layout.addWidget(IconLabel(top_icon, size=13, tone=TextTone.BEST))
 
-            ic = QLabel()
-            ic.setPixmap(qta.icon(top_icon, color=Styles.COLOR_BEST).pixmap(13, 13))
-            ic.setStyleSheet("border: none; background: transparent;")
-            tp_layout.addWidget(ic)
-        except Exception:
-            pass
-
-        lbl_weapon = QLabel(f"Top Weapon: {top_name} ({top_share:.0f}%)")
-        lbl_weapon.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 12px;
-            font-weight: 600;
-            border: none;
-            background: transparent;
-        """)
+        lbl_weapon = Label(
+            f"Top Weapon: {top_name} ({top_share:.0f}%)",
+            role=TextRole.CAPTION,
+            weight=600,
+        )
         tp_layout.addWidget(lbl_weapon)
         right_box.addWidget(top_pill, alignment=Qt.AlignmentFlag.AlignRight)
 
-        lbl_weapon_sub = QLabel(f"{top_count} of {total_tactics} total tactical strikes")
-        lbl_weapon_sub.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            background: transparent;
-        """)
+        lbl_weapon_sub = Label(
+            f"{top_count} of {total_tactics} total tactical strikes",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         right_box.addWidget(lbl_weapon_sub, alignment=Qt.AlignmentFlag.AlignRight)
 
         h_layout.addLayout(right_box)
@@ -276,37 +262,21 @@ class TacticalThemesCard(MetricCard):
             row_l.setSpacing(10)
 
             # Rank
-            lbl_rank = QLabel(f"{rank_idx}.")
+            lbl_rank = Label(
+                f"{rank_idx}.",
+                role=TextRole.MICRO,
+                weight=600,
+                tone=TextTone.MUTED,
+            )
             lbl_rank.setFixedWidth(16)
-            lbl_rank.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_MUTED};
-                font-size: 11px;
-                font-weight: 600;
-                background: transparent;
-            """)
             row_l.addWidget(lbl_rank)
 
             # Icon
-            try:
-                import qtawesome as qta
-
-                m_ic = QLabel()
-                m_ic.setPixmap(qta.icon(icon_name, color=theme_color).pixmap(14, 14))
-                m_ic.setFixedSize(16, 16)
-                m_ic.setStyleSheet("border: none; background: transparent;")
-                row_l.addWidget(m_ic)
-            except Exception:
-                pass
+            row_l.addWidget(IconLabel(icon_name, size=16, color=theme_color))
 
             # Name
-            lbl_name = QLabel(name)
+            lbl_name = Label(name, role=TextRole.CAPTION, weight=600)
             lbl_name.setFixedWidth(130)
-            lbl_name.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 12px;
-                font-weight: 600;
-                background: transparent;
-            """)
             row_l.addWidget(lbl_name)
 
             # Proportional bar
@@ -321,27 +291,24 @@ class TacticalThemesCard(MetricCard):
             )
 
             # Strikes count
-            lbl_cnt = QLabel(f"{cnt} strikes" if cnt != 1 else "1 strike")
+            lbl_cnt = Label(
+                f"{cnt} strikes" if cnt != 1 else "1 strike",
+                role=TextRole.CAPTION,
+                weight=700,
+            )
             lbl_cnt.setFixedWidth(70)
             lbl_cnt.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            lbl_cnt.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 12px;
-                font-weight: 700;
-                background: transparent;
-            """)
             row_l.addWidget(lbl_cnt)
 
             # Percentage
-            lbl_pct = QLabel(f"{pct:.1f}%")
+            lbl_pct = Label(
+                f"{pct:.1f}%",
+                role=TextRole.MICRO,
+                weight=500,
+                tone=TextTone.SECONDARY,
+            )
             lbl_pct.setFixedWidth(46)
             lbl_pct.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            lbl_pct.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 500;
-                background: transparent;
-            """)
             row_l.addWidget(lbl_pct)
 
             list_layout.addWidget(row)

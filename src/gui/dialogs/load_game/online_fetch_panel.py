@@ -5,7 +5,6 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
@@ -22,12 +21,16 @@ from src.gui.components import (
     ButtonVariant,
     DatePicker,
     FormField,
+    IconLabel,
     Input,
     InputSize,
+    Label,
     PulsingSkeleton,
     StatusBadge,
     Tabs,
     TabVariant,
+    TextRole,
+    TextTone,
 )
 from src.gui.components.feedback.toast import ToastHandle, ToastManager
 from src.gui.styles import Styles
@@ -345,23 +348,26 @@ class OnlineFetchPanel(QWidget):
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(8)
 
-        self._error_icon = QLabel()
-        self._error_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._error_icon = IconLabel(
+            size=28,
+            tone=TextTone.BLUNDER,
+            fallback="!",
+        )
         layout.addWidget(self._error_icon, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        self._error_title = QLabel("Couldn't fetch games")
+        self._error_title = Label(
+            "Couldn't fetch games",
+            role=TextRole.BODY_LARGE,
+            weight=600,
+        )
         self._error_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._error_title.setStyleSheet(
-            f"font-size: 14px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent;"
+        self._error_message = Label(
+            "",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
-        self._error_message = QLabel("")
-        self._error_message.setWordWrap(True)
         self._error_message.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._error_message.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent;"
-        )
         retry = Button(
             "Try again",
             ButtonVariant.TONAL,
@@ -386,26 +392,23 @@ class OnlineFetchPanel(QWidget):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(8)
 
-        self._empty_icon = QLabel()
-        self._empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_icon = IconLabel(
+            size=28,
+            tone=TextTone.MUTED,
+            fallback="?",
+        )
 
-        title = QLabel("No games found")
+        title = Label("No games found", role=TextRole.SUBHEADING)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_title = title
-        title.setStyleSheet(
-            f"font-size: 15px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent;"
-        )
-        description = QLabel(
-            "Try another username, date, or check that the profile is public."
+        description = Label(
+            "Try another username, date, or check that the profile is public.",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         description.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        description.setWordWrap(True)
         self._empty_description = description
-        description.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent;"
-        )
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
@@ -444,10 +447,11 @@ class OnlineFetchPanel(QWidget):
         bar = QHBoxLayout()
         bar.setContentsMargins(2, 0, 2, 0)
         bar.setSpacing(10)
-        self._summary_label = QLabel("")
-        self._summary_label.setStyleSheet(
-            f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent;"
+        self._summary_label = Label(
+            "",
+            role=TextRole.CAPTION,
+            weight=500,
+            tone=TextTone.SECONDARY,
         )
         self._count_badge = StatusBadge("", "neutral", font_size=10)
         change = Button(
@@ -508,17 +512,8 @@ class OnlineFetchPanel(QWidget):
             f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_SECONDARY};"
             " background: transparent;"
         )
-        if qta is not None:
-            self._error_icon.setPixmap(
-                qta.icon(
-                    "fa5s.exclamation-circle", color=Styles.COLOR_BLUNDER
-                ).pixmap(28, 28)
-            )
-            self._empty_icon.setPixmap(
-                qta.icon(
-                    "fa5s.search", color=Styles.COLOR_TEXT_MUTED
-                ).pixmap(28, 28)
-            )
+        self._error_icon.set_icon("fa5s.exclamation-circle")
+        self._empty_icon.set_icon("fa5s.search")
         self.platform_selector.refresh_styles()
         self.mode_selector.refresh_styles()
 

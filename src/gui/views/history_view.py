@@ -2,7 +2,6 @@ from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -15,7 +14,15 @@ from src.backend.storage.game_query import (
     RESULT_WIN,
     GameQuery,
 )
-from src.gui.components import Button, ButtonVariant, Input, InputVariant, Select
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Input,
+    InputVariant,
+    Label,
+    Select,
+    TextRole,
+)
 from src.gui.components.feedback.toast import ToastHandle, ToastManager
 from src.gui.components.lists.game_list_widget import GameListWidget
 from src.gui.styles import Styles
@@ -105,12 +112,7 @@ class HistoryView(QWidget):
         header_layout.setSpacing(8)
 
         # Title
-        self.header_lbl = QLabel("Game History")
-        self.header_lbl.setStyleSheet(
-            Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self.header_lbl = Label("Game History", role=TextRole.PAGE_TITLE)
         header_layout.addWidget(self.header_lbl)
 
         header_layout.addStretch()
@@ -136,7 +138,7 @@ class HistoryView(QWidget):
 
         # Content Container Widget
         self.content_widget = QWidget()
-        self.content_widget.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.content_widget)
         content_layout = QVBoxLayout(self.content_widget)
         content_layout.setContentsMargins(24, 16, 24, 16)
         content_layout.setSpacing(16)
@@ -162,16 +164,10 @@ class HistoryView(QWidget):
 
         filter_layout.addSpacing(10)
 
-        lbl_style = (
-            f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)}"
-            " border: none; background: transparent;"
-        )
-
-        def _filter_label(text: str) -> QLabel:
+        def _filter_label(text: str) -> Label:
             # A Preferred label policy lets the row's spare width stretch the
             # label and push its dropdown away, so pin it to the text width.
-            lbl = QLabel(text)
-            lbl.setStyleSheet(lbl_style)
+            lbl = Label(text, role=TextRole.CAPTION, weight=600)
             lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
             return lbl
 
@@ -526,32 +522,10 @@ class HistoryView(QWidget):
         """Re-applies styles to game history view components."""
         if hasattr(self, "header_bar"):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-        if hasattr(self, "header_lbl"):
-            self.header_lbl.setStyleSheet(
-                Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
         if hasattr(self, "content_widget"):
-            self.content_widget.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.content_widget)
         if hasattr(self, "search_input"):
             self.search_input.refresh_styles()
-        if hasattr(self, "result_label"):
-            self.result_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
-        if hasattr(self, "type_label"):
-            self.type_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
-        if hasattr(self, "source_label"):
-            self.source_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
-        if hasattr(self, "sort_label"):
-            self.sort_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
         if hasattr(self, "btn_import"):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):

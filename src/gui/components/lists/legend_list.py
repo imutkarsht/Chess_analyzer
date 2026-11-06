@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
-from src.gui.styles import Styles
+from src.gui.components.display.color_label import ColorLabel
+from src.gui.components.display.icon_label import IconLabel
+from src.gui.components.display.label import Label
+from src.gui.components.display.rich_text import RichTextLabel
+from src.gui.theme.typography import TextRole, TextTone
 
 
 class LegendList(QWidget):
@@ -34,46 +38,53 @@ class LegendList(QWidget):
         row.setSpacing(8)
 
         if pixmap is not None and not pixmap.isNull():
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            row.addWidget(icon_lbl)
+            row.addWidget(IconLabel(pixmap, size=16))
         else:
-            dot = QLabel("●")
-            dot.setStyleSheet(
-                f"color: {color}; font-size: 14px; border: none; background: transparent;"
+            row.addWidget(
+                ColorLabel(
+                    "●",
+                    color,
+                    role=TextRole.BODY,
+                    size=14,
+                )
             )
-            row.addWidget(dot)
 
-        name_lbl = QLabel(label)
-        name_lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
-            "font-weight: 500; border: none; background: transparent;"
+        name_lbl = Label(
+            label,
+            role=TextRole.CAPTION,
+            weight=500,
+            tone=TextTone.SECONDARY,
         )
         row.addWidget(name_lbl)
 
         row.addStretch()
 
-        value_lbl = QLabel(value)
-        value_lbl.setStyleSheet(
-            f"color: {color}; font-size: 12px; font-weight: bold; "
-            "border: none; background: transparent;"
+        row.addWidget(
+            ColorLabel(
+                value,
+                color,
+                role=TextRole.BODY,
+                size=12,
+                weight=700,
+            )
         )
-        row.addWidget(value_lbl)
 
         self._layout.addLayout(row)
 
     def add_empty(self, text: str, italic: bool = False) -> None:
-        label = QLabel(text)
-        style = (
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
-            "border: none; background: transparent;"
-        )
         if italic:
-            style = (
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
-                "font-style: italic; border: none; background: transparent;"
+            label = RichTextLabel(
+                f"<i>{text}</i>",
+                role=TextRole.CAPTION,
+                tone=TextTone.SECONDARY,
+                wrap=True,
             )
-        label.setStyleSheet(style)
+        else:
+            label = Label(
+                text,
+                role=TextRole.CAPTION,
+                tone=TextTone.SECONDARY,
+                wrap=True,
+            )
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._layout.addWidget(label)

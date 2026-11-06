@@ -2,11 +2,10 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
 )
 
-from src.gui.components import MiniBar, StatusBadge
+from src.gui.components import IconLabel, Label, MiniBar, StatusBadge, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -100,54 +99,34 @@ class PhasePerformanceCard(MetricCard):
             t_layout.setContentsMargins(0, 0, 0, 0)
             t_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            try:
-                import qtawesome as qta
-
-                ic_lbl = QLabel()
-                ic_lbl.setPixmap(
-                    qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(16, 16)
-                )
-                ic_lbl.setStyleSheet("border: none; background: transparent;")
-                t_layout.addWidget(ic_lbl)
-            except Exception:
-                pass
+            t_layout.addWidget(
+                IconLabel(icon_name, size=16, tone=TextTone.SECONDARY)
+            )
 
             top_line.addWidget(tile)
             top_line.addStretch()
             p_layout.addLayout(top_line)
 
             # Name and Move Range
-            name_lbl = QLabel(name)
-            name_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-weight: 700;
-                font-size: 14px;
-                border: none;
-                background: transparent;
-                margin-top: 2px;
-            """)
+            name_lbl = Label(name, role=TextRole.BODY, weight=700)
             p_layout.addWidget(name_lbl)
 
-            moves_lbl = QLabel(move_range)
-            moves_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_MUTED};
-                font-size: 11px;
-                border: none;
-                background: transparent;
-            """)
+            moves_lbl = Label(
+                move_range,
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
+            )
             p_layout.addWidget(moves_lbl)
 
             p_layout.addSpacing(2)
 
             # Big Hero Accuracy Number (Consistent white text)
-            acc_lbl = QLabel(f"{acc:.1f}%" if acc > 0 else "N/A")
-            acc_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 22px;
-                font-weight: 800;
-                border: none;
-                background: transparent;
-            """)
+            acc_lbl = Label(
+                f"{acc:.1f}%" if acc > 0 else "N/A",
+                role=TextRole.STAT,
+                size=22,
+                weight=800,
+            )
             p_layout.addWidget(acc_lbl)
 
             # Native Progress Bar
@@ -163,14 +142,12 @@ class PhasePerformanceCard(MetricCard):
                 if total_games > 1 and b_cnt > 0
                 else (f"{b_cnt} blunders" if b_cnt != 1 else "1 blunder")
             )
-            b_lbl = QLabel(b_text)
-            b_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 500;
-                border: none;
-                background: transparent;
-            """)
+            b_lbl = Label(
+                b_text,
+                role=TextRole.MICRO,
+                weight=500,
+                tone=TextTone.SECONDARY,
+            )
             p_layout.addWidget(b_lbl)
 
             col_row.addWidget(pillar)

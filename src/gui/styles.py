@@ -1,10 +1,22 @@
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.theme import ThemeManager
 from src.gui.theme.palette import BOARD_THEMES
+from src.gui.theme.typography import (
+    ALLOWED_SIZES,
+    ALLOWED_WEIGHTS,
+    MONO_FAMILIES,
+    ROLE_SPECS,
+    TextTone,
+)
 
 # Text/icons drawn on top of a filled accent surface. White reads on every
 # accent the app allows, in both light and dark mode.
 ON_ACCENT = "#FFFFFF"
+
+# Generated typography rules are pure functions of the active palette. Keep the
+# last block keyed by ThemeManager.style_revision() so repeated calls during a
+# repaint do not rebuild the same strings.
+_TYPOGRAPHY_CACHE: tuple[int, str] | None = None
 
 
 class _StylesMeta(type):
@@ -903,26 +915,81 @@ class Styles(metaclass=_StylesMeta):
     #  LABELS
     # ═══════════════════════════════════════════════════════════════
     @classmethod
-    def get_label_style(cls, size=14, color=None, bold=False, weight=None):
+    def get_tone_color(cls, tone: TextTone | str) -> str:
+        """Resolve a semantic text tone to its live palette colour."""
+        tone = TextTone(tone)
         p = ThemeManager.palette()
-        if color is None:
-            color = p.text_primary
-        if weight is not None:
-            w = str(weight)
-        else:
-            w = "bold" if bold else "normal"
-        return f"font-size: {size}px; color: {color}; font-weight: {w};"
+        colors = {
+            TextTone.PRIMARY: p.text_primary,
+            TextTone.SECONDARY: p.text_secondary,
+            TextTone.MUTED: p.text_muted,
+            TextTone.ACCENT: p.accent,
+            TextTone.BRILLIANT: cls.COLOR_BRILLIANT,
+            TextTone.GREAT: cls.COLOR_GREAT,
+            TextTone.BEST: cls.COLOR_BEST,
+            TextTone.EXCELLENT: cls.COLOR_EXCELLENT,
+            TextTone.GOOD: cls.COLOR_GOOD,
+            TextTone.INACCURACY: cls.COLOR_INACCURACY,
+            TextTone.MISTAKE: cls.COLOR_MISTAKE,
+            TextTone.BLUNDER: cls.COLOR_BLUNDER,
+            TextTone.MISS: cls.COLOR_MISS,
+            TextTone.BOOK: cls.COLOR_BOOK,
+            TextTone.RESULT_WIN: cls.COLOR_RESULT_WIN,
+            TextTone.RESULT_DRAW: cls.COLOR_RESULT_DRAW,
+            TextTone.RESULT_LOSS: cls.COLOR_BLUNDER,
+            TextTone.ENGINE_READY: cls.COLOR_ENGINE_READY,
+            TextTone.ENGINE_BUSY: cls.COLOR_ENGINE_BUSY,
+        }
+        return colors[tone]
 
     @classmethod
-    def get_secondary_label_style(cls, size=13):
-        p = ThemeManager.palette()
-        return f"""
-            font-size: {size}px;
-            color: {p.text_secondary};
-            background-color: transparent;
-            border: none;
-            padding: 4px 0px;
+    def get_typography_qss(cls) -> str:
+        """Generated rules for :class:`src.gui.components.display.label.Label`.
+
+        Roles provide size/weight/case/family. Size and weight override blocks
+        follow so a label can preserve a one-off value during migration. Tones
+        come last and only set colour, keeping semantic colour independent from
+        typography.
         """
+        global _TYPOGRAPHY_CACHE
+        revision = ThemeManager.style_revision()
+        if _TYPOGRAPHY_CACHE is not None and _TYPOGRAPHY_CACHE[0] == revision:
+            return _TYPOGRAPHY_CACHE[1]
+
+        rules: list[str] = []
+
+        for role, spec in ROLE_SPECS.items():
+            declarations = [
+                f"font-size: {spec.size}px;",
+                f"font-weight: {spec.weight};",
+            ]
+            if spec.letter_spacing:
+                declarations.append(f"letter-spacing: {spec.letter_spacing}px;")
+            if spec.uppercase:
+                declarations.append("text-transform: uppercase;")
+            if spec.mono:
+                declarations.append(f"font-family: {MONO_FAMILIES};")
+            rules.append(
+                f'QLabel[role="{role.value}"] {{ {" ".join(declarations)} }}'
+            )
+
+        for size in sorted(ALLOWED_SIZES):
+            rules.append(f'QLabel[textSize="{size}"] {{ font-size: {size}px; }}')
+
+        for weight in sorted(ALLOWED_WEIGHTS):
+            rules.append(
+                f'QLabel[textWeight="{weight}"] {{ font-weight: {weight}; }}'
+            )
+
+        for tone in TextTone:
+            rules.append(
+                f'QLabel[tone="{tone.value}"] {{ color: {cls.get_tone_color(tone)}; '
+                "background: transparent; border: none; }"
+            )
+
+        qss = "\n".join(rules)
+        _TYPOGRAPHY_CACHE = (revision, qss)
+        return qss
 
     @classmethod
     def get_badge_style(cls, size=11):
@@ -970,58 +1037,7 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_card_title_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            color: {p.text_secondary};
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            background: transparent;
-            border: none;
-        """
-
-    @classmethod
-    def get_validation_label_style(cls):
-        return """
-            font-size: 12px;
-            font-weight: bold;
-            background: transparent;
-            margin-top: 2px;
-        """
-
-    @classmethod
-    def get_form_field_qss(cls) -> str:
-        """Label, helper, and error text for :class:`FormField`."""
-        p = ThemeManager.palette()
-        return f"""
-            QLabel#FormFieldLabel {{
-                color: {p.text_primary};
-                background: transparent;
-                font-size: 12px;
-                font-weight: 500;
-            }}
-            QLabel#FormFieldDescription {{
-                color: {p.text_secondary};
-                background: transparent;
-                font-size: 11px;
-            }}
-            QLabel#FormFieldError {{
-                color: {cls.COLOR_BLUNDER};
-                background: transparent;
-                font-size: 11px;
-                font-weight: 500;
-            }}
-        """
-
-    @classmethod
-    def get_form_label_style(cls):
-        p = ThemeManager.palette()
-        return f"font-size: 13px; font-weight: 600; color: {p.text_primary};"
-
-    @classmethod
-    def get_transparent_label_style(cls):
+    def get_transparent_style(cls):
         return "border: none; background: transparent;"
 
     # ═══════════════════════════════════════════════════════════════
@@ -1035,6 +1051,10 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface};
                 border: 1px solid {p.border};
                 border-radius: {border_radius}px;
+            }}
+            QFrame QLabel {{
+                background: transparent;
+                border: none;
             }}
             QFrame:hover {{
                 border: 1px solid {p.accent};
@@ -1061,6 +1081,10 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface};
                 border: 1px solid {p.border};
                 border-radius: {border_radius}px;
+            }}
+            {selector} QLabel {{
+                background: transparent;
+                border: none;
             }}
             {hover_style}
         """
@@ -1485,14 +1509,6 @@ class Styles(metaclass=_StylesMeta):
                 padding: 0 0 6px 0;
                 color: {p.text_primary};
             }}
-            QGroupBox QLabel {{
-                color: {p.text_primary};
-                background: transparent;
-                border: none;
-            }}
-            QGroupBox QLabel#hint_label {{
-                color: {p.text_secondary};
-            }}
         """
 
     # ═══════════════════════════════════════════════════════════════
@@ -1545,6 +1561,10 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface};
                 border-bottom: 1px solid {p.border};
             }}
+            QWidget QLabel {{
+                background: transparent;
+                border: none;
+            }}
         """
 
     @classmethod
@@ -1555,6 +1575,10 @@ class Styles(metaclass=_StylesMeta):
             QFrame {{
                 background-color: {bg};
                 border-bottom: 1px solid {p.border};
+            }}
+            QFrame QLabel {{
+                background: transparent;
+                border: none;
             }}
         """
 
@@ -1640,14 +1664,18 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_background_style(cls):
-        p = ThemeManager.palette()
-        return f"background-color: {p.background};"
+    def apply_background(cls, widget, kind: str = "background") -> None:
+        """Apply a page background without cascading into child labels.
 
-    @classmethod
-    def get_surface_style(cls):
-        p = ThemeManager.palette()
-        return f"background-color: {p.surface};"
+        A bare ``background-color`` set on a container also styles every child
+        widget and overrides the global transparent-label rule. The property
+        selector in the theme template targets only the container itself.
+        """
+        widget.setProperty("appBackground", kind)
+        style = widget.style()
+        style.unpolish(widget)
+        style.polish(widget)
+        widget.update()
 
     @classmethod
     def get_empty_state_cta_style(cls, drag_active: bool = False):
@@ -1664,25 +1692,6 @@ class Styles(metaclass=_StylesMeta):
                 border-radius: 8px;
             }}
         """
-
-    @classmethod
-    def get_hero_hint_style(cls, drag_active: bool = False):
-        p = ThemeManager.palette()
-        color = p.accent if drag_active else p.text_secondary
-        weight = "600" if drag_active else "500"
-        return (
-            f"font-size: 12px; font-weight: {weight}; color: {color}; "
-            "background: transparent;"
-        )
-
-    @classmethod
-    def get_keycap_style(cls):
-        p = ThemeManager.palette()
-        return (
-            f"font-size: 11px; font-weight: 600; color: {p.text_muted}; "
-            f"background-color: {p.surface}; border: 1px solid {p.border}; "
-            "border-radius: 9px; padding: 2px 8px;"
-        )
 
     @classmethod
     def get_sidebar_style(cls):
@@ -1761,10 +1770,14 @@ class Styles(metaclass=_StylesMeta):
     def get_book_row_style(cls):
         p = ThemeManager.palette()
         return f"""
-            QWidget {{
+            QWidget#BookRow {{
                 border-bottom: 1px solid {p.border};
             }}
-            QWidget:hover {{
+            QWidget#BookRow QLabel {{
+                background: transparent;
+                border: none;
+            }}
+            QWidget#BookRow:hover {{
                 background-color: {p.surface_light};
             }}
         """
@@ -1789,27 +1802,6 @@ class Styles(metaclass=_StylesMeta):
                 padding: 0px;
             }}
             {cls.CAPTURED_PIECES_STYLE}
-        """
-
-    @classmethod
-    def get_piece_chip_style(cls, fg, bg, compact=True):
-        font_size = 22 if compact else 26
-        padding = "1px 5px" if compact else "1px 6px"
-        return f"""
-            color: {fg}; background-color: {bg};
-            font-size: {font_size}px; padding: {padding}; border-radius: 4px;
-        """
-
-    @classmethod
-    def get_advantage_chip_style(cls, compact=True):
-        p = ThemeManager.palette()
-        font_size = 14 if compact else 15
-        return f"""
-            color: {p.text_primary};
-            background-color: {p.surface_light};
-            font-weight: bold; font-size: {font_size}px;
-            padding: 3px 7px; border-radius: 4px;
-            margin-right: 4px;
         """
 
     @classmethod
@@ -1900,14 +1892,6 @@ class Styles(metaclass=_StylesMeta):
             background = cls._blend_hex(p.surface_light, p.piece_black, 0.12 + 0.60 * intensity)
         return cls.get_eval_badge_style(background, cls._contrast_text(background))
 
-    @classmethod
-    def get_engine_status_style(cls, color):
-        return f"""
-            font-size: 11px;
-            color: {color};
-            padding: 2px 0px;
-        """
-
     # ═══════════════════════════════════════════════════════════════
     #  HISTORY / GAME LIST PAGE
     # ═══════════════════════════════════════════════════════════════
@@ -1936,28 +1920,6 @@ class Styles(metaclass=_StylesMeta):
     # ═══════════════════════════════════════════════════════════════
     #  STATS / METRICS PAGE
     # ═══════════════════════════════════════════════════════════════
-    @classmethod
-    def get_ratio_bar_segment_style(
-        cls, color, top_left=False, top_right=False, bottom_left=False, bottom_right=False
-    ):
-        radii = [
-            "4px" if top_left else "0px",
-            "4px" if top_right else "0px",
-            "4px" if bottom_right else "0px",
-            "4px" if bottom_left else "0px",
-        ]
-        radius = " ".join(radii)
-        return f"""
-            QLabel {{
-                background-color: {color};
-                color: #FFFFFF;
-                font-size: 9px;
-                font-weight: bold;
-                border: none;
-                border-radius: {radius};
-            }}
-        """
-
     @classmethod
     def get_accuracy_color(cls, accuracy: float) -> str:
         acc = max(0.0, min(100.0, float(accuracy)))

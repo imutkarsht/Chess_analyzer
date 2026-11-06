@@ -12,12 +12,17 @@ import chess.svg
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtSvgWidgets import QSvgWidget
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.icon_label import IconLabel
+from src.gui.components.display.label import Label
+from src.gui.components.display.rich_text import RichTextLabel
+from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
+from src.gui.theme.typography import TextRole, TextTone
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
@@ -93,7 +98,7 @@ class GameListItemWidget(QWidget):
 
         players_widget = QWidget()
         players_widget.setFixedWidth(220)
-        players_widget.setStyleSheet(Styles.get_transparent_label_style())
+        players_widget.setStyleSheet(Styles.get_transparent_style())
         players_layout = QVBoxLayout(players_widget)
         players_layout.setContentsMargins(0, 0, 0, 0)
         players_layout.setSpacing(2)
@@ -102,11 +107,10 @@ class GameListItemWidget(QWidget):
         w_row = QHBoxLayout()
         w_row.setContentsMargins(0, 0, 0, 0)
         w_row.setSpacing(4)
-        w_lbl = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        w_lbl.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        w_lbl = RichTextLabel(
+            f"<b>{game.metadata.white}</b>{w_elo}",
+            role=TextRole.CAPTION,
+            size=12,
         )
         w_row.addWidget(w_lbl)
         if result_text == "1-0":
@@ -119,11 +123,10 @@ class GameListItemWidget(QWidget):
         b_row = QHBoxLayout()
         b_row.setContentsMargins(0, 0, 0, 0)
         b_row.setSpacing(4)
-        b_lbl = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        b_lbl.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        b_lbl = RichTextLabel(
+            f"<b>{game.metadata.black}</b>{b_elo}",
+            role=TextRole.CAPTION,
+            size=12,
         )
         b_row.addWidget(b_lbl)
         if result_text == "0-1":
@@ -140,20 +143,24 @@ class GameListItemWidget(QWidget):
         opening = game.metadata.opening or ""
         eco = game.metadata.eco or ""
         opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
-        op_lbl = QLabel(opening_text if opening_text else "-")
-        op_lbl.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        op_lbl = Label(
+            opening_text if opening_text else "-",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
         )
         op_lbl.setToolTip(opening_text)
         op_lbl.setMinimumWidth(50)
         card_layout.addWidget(op_lbl, stretch=1)
 
         # 4. Result Badge
-        result_color = self._get_result_color(result_text, game.metadata, usernames)
-        result_label = QLabel(result_text)
-        result_label.setStyleSheet(Styles.get_result_badge_style(result_color, 12, "2px 8px", 4))
+        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_label = StatusBadge(
+            result_text,
+            result_tone,
+            font_size=12,
+            padding="2px 8px",
+            radius=4,
+        )
         card_layout.addWidget(result_label)
 
         # 5. Accuracy (if analyzed)
@@ -176,21 +183,19 @@ class GameListItemWidget(QWidget):
 
         # 6. Date & Move Count
         if game.metadata.date:
-            date_lbl = QLabel(game.metadata.date)
-            date_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            date_lbl = Label(
+                game.metadata.date,
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
             card_layout.addWidget(date_lbl)
 
         move_count = self._get_move_count(game)
         if move_count:
-            moves_lbl = QLabel(f"{move_count}m")
-            moves_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            moves_lbl = Label(
+                f"{move_count}m",
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
             card_layout.addWidget(moves_lbl)
 
@@ -235,11 +240,9 @@ class GameListItemWidget(QWidget):
         result_text = game.metadata.result
 
         # White player
-        white_label = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        white_label.setStyleSheet(
-            Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        white_label = RichTextLabel(
+            f"<b>{game.metadata.white}</b>{w_elo}",
+            role=TextRole.BODY_LARGE,
         )
         header_layout.addWidget(white_label)
 
@@ -248,20 +251,14 @@ class GameListItemWidget(QWidget):
             if crown_label:
                 header_layout.addWidget(crown_label)
 
-        vs_label = QLabel("vs")
-        vs_label.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
-            + "; margin: 0 4px; "
-            + Styles.get_transparent_label_style()
-        )
+        vs_label = Label("vs", role=TextRole.CAPTION, tone=TextTone.MUTED)
+        vs_label.setContentsMargins(4, 0, 4, 0)
         header_layout.addWidget(vs_label)
 
         # Black player
-        black_label = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        black_label.setStyleSheet(
-            Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        black_label = RichTextLabel(
+            f"<b>{game.metadata.black}</b>{b_elo}",
+            role=TextRole.BODY_LARGE,
         )
         header_layout.addWidget(black_label)
 
@@ -273,9 +270,14 @@ class GameListItemWidget(QWidget):
         header_layout.addStretch()
 
         # Result badge
-        result_color = self._get_result_color(result_text, game.metadata, usernames)
-        result_label = QLabel(result_text)
-        result_label.setStyleSheet(Styles.get_result_badge_style(result_color, 13, "3px 10px", 6))
+        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_label = StatusBadge(
+            result_text,
+            result_tone,
+            font_size=13,
+            padding="3px 10px",
+            radius=6,
+        )
         header_layout.addWidget(result_label)
 
         # Status Badge & Action Button
@@ -296,24 +298,20 @@ class GameListItemWidget(QWidget):
             opening_layout = QHBoxLayout()
             opening_layout.setSpacing(6)
 
-            book_icon = QLabel()
+            book_icon = IconLabel(size=14)
             icon_path = get_resource_path("assets/images/book.svg")
             if os.path.exists(icon_path):
-                book_icon.setPixmap(QIcon(icon_path).pixmap(14, 14))
+                book_icon.set_icon(QIcon(icon_path))
             elif HAS_QTAWESOME:
-                book_icon.setPixmap(
-                    qta.icon("fa5s.book-open", color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14)
-                )
-            book_icon.setFixedWidth(14)
-            book_icon.setStyleSheet(Styles.get_transparent_label_style())
+                book_icon.set_icon("fa5s.book-open")
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
-            opening_label = QLabel(opening_text)
-            opening_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500)
-                + " "
-                + Styles.get_transparent_label_style()
+            opening_label = Label(
+                opening_text,
+                role=TextRole.CAPTION,
+                weight=500,
+                tone=TextTone.SECONDARY,
             )
             opening_label.setToolTip(opening_text)
             opening_layout.addWidget(opening_label, 1)
@@ -414,11 +412,12 @@ class GameListItemWidget(QWidget):
         action_btn.setFixedSize(btn_size, btn_size)
 
         if getattr(self, "_is_analyzing", False):
-            status_lbl = QLabel("Analyzing...")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                "Analyzing...",
+                TextTone.ENGINE_BUSY,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip("View ongoing analysis")
             self._set_icon(action_btn, "fa5s.arrow-right", Styles.COLOR_ENGINE_BUSY)
@@ -428,11 +427,12 @@ class GameListItemWidget(QWidget):
             return status_lbl, action_btn
 
         if status == "completed":
-            status_lbl = QLabel("Analyzed")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_ENGINE_READY, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                "Analyzed",
+                TextTone.ENGINE_READY,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip("Reanalyze game")
             self._set_icon(action_btn, "fa5s.sync-alt", Styles.COLOR_TEXT_SECONDARY)
@@ -442,21 +442,23 @@ class GameListItemWidget(QWidget):
             total = getattr(self._game, "total_moves_count", 0) or len(
                 getattr(self._game, "moves", [])
             )
-            status_lbl = QLabel(f"Paused ({analyzed}/{total})")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                f"Paused ({analyzed}/{total})",
+                TextTone.ENGINE_BUSY,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip(f"Resume analysis ({analyzed}/{total})")
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_ENGINE_BUSY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "resume"))
         else:
-            status_lbl = QLabel("Unanalyzed")
-            status_lbl.setStyleSheet(
-                Styles.get_result_badge_style(
-                    Styles.COLOR_TEXT_MUTED, badge_font_size, badge_padding, 4
-                )
+            status_lbl = StatusBadge(
+                "Unanalyzed",
+                TextTone.MUTED,
+                font_size=badge_font_size,
+                padding=badge_padding,
+                radius=4,
             )
             action_btn.setToolTip("Analyze game")
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_TEXT_SECONDARY)
@@ -534,10 +536,7 @@ class GameListItemWidget(QWidget):
         return svg_widget
 
     def _create_source_icon(self, source):
-        lbl = QLabel()
-        lbl.setFixedSize(18, 18)
-        lbl.setScaledContents(True)
-        lbl.setStyleSheet(Styles.get_transparent_label_style())
+        lbl = IconLabel(size=18)
 
         src_lower = str(source).lower().strip()
         if "lichess" in src_lower:
@@ -551,7 +550,7 @@ class GameListItemWidget(QWidget):
         icon_path = get_resource_path(os.path.join("assets", "icons", filename))
 
         if os.path.exists(icon_path):
-            lbl.setPixmap(QPixmap(icon_path))
+            lbl.set_icon(QPixmap(icon_path))
             return lbl
 
         if HAS_QTAWESOME:
@@ -560,88 +559,70 @@ class GameListItemWidget(QWidget):
                 icon_name = "fa5s.chess-pawn"
             elif src_name == "lichess":
                 icon_name = "fa5s.chess-knight"
-            lbl.setPixmap(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(18, 18))
+            lbl.set_icon(icon_name)
             return lbl
 
         return None
 
     def _create_winner_crown(self):
-        lbl = QLabel()
-        lbl.setFixedSize(16, 16)
-        lbl.setScaledContents(True)
-        lbl.setStyleSheet(Styles.get_transparent_label_style())
+        lbl = IconLabel(size=16)
 
         icon_path = get_resource_path(os.path.join("assets", "images", "winner_crown.svg"))
         if os.path.exists(icon_path):
-            lbl.setPixmap(QPixmap(icon_path))
+            lbl.set_icon(QPixmap(icon_path))
             return lbl
 
         if HAS_QTAWESOME:
-            lbl.setPixmap(qta.icon("fa5s.crown", color="#EAB308").pixmap(16, 16))
+            lbl.set_icon("fa5s.crown")
+            lbl.set_color("#EAB308")
             return lbl
 
-        lbl.setText("👑")
+        lbl.set_icon(None)
+        lbl.set_fallback("👑")
         return lbl
 
     def _create_meta_item(self, icon, text):
         container = QWidget()
-        container.setStyleSheet(Styles.get_transparent_label_style())
+        container.setStyleSheet(Styles.get_transparent_style())
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
-        icon_lbl = QLabel()
-        icon_lbl.setFixedSize(14, 14)
-        icon_lbl.setStyleSheet(Styles.get_transparent_label_style())
-
+        icon_lbl = IconLabel(size=14)
         if isinstance(icon, str) and icon.endswith(".svg"):
             icon_path = get_resource_path(icon)
             if os.path.exists(icon_path):
-                icon_lbl.setPixmap(
-                    QPixmap(icon_path).scaled(
-                        14,
-                        14,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
-                )
+                icon_lbl.set_icon(QPixmap(icon_path))
             elif HAS_QTAWESOME:
-                icon_lbl.setPixmap(
-                    qta.icon("fa5s.clock", color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14)
-                )
+                icon_lbl.set_icon("fa5s.clock")
         elif isinstance(icon, str) and HAS_QTAWESOME:
-            icon_lbl.setPixmap(qta.icon(icon, color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14))
+            icon_lbl.set_icon(icon)
         else:
-            icon_lbl.setText("•")
+            icon_lbl.set_fallback("•")
 
         layout.addWidget(icon_lbl)
 
-        text_lbl = QLabel(str(text))
-        text_lbl.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        text_lbl = Label(str(text), role=TextRole.CAPTION, tone=TextTone.MUTED)
         layout.addWidget(text_lbl)
 
         return container
 
-    def _get_result_color(self, result_text, metadata, usernames):
+    def _get_result_tone(self, result_text, metadata, usernames) -> TextTone:
         if not usernames:
             if result_text == "1-0":
-                return Styles.COLOR_BEST
+                return TextTone.RESULT_WIN
             elif result_text == "0-1":
-                return Styles.COLOR_BLUNDER
-            return Styles.COLOR_TEXT_SECONDARY
+                return TextTone.RESULT_LOSS
+            return TextTone.RESULT_DRAW
 
         user_is_white = metadata.white.lower() in [u.lower() for u in usernames]
         user_is_black = metadata.black.lower() in [u.lower() for u in usernames]
 
         if result_text == "1-0":
-            return Styles.COLOR_BEST if user_is_white else Styles.COLOR_BLUNDER
+            return TextTone.RESULT_WIN if user_is_white else TextTone.RESULT_LOSS
         if result_text == "0-1":
-            return Styles.COLOR_BEST if user_is_black else Styles.COLOR_BLUNDER
-        return Styles.COLOR_TEXT_SECONDARY
+            return TextTone.RESULT_WIN if user_is_black else TextTone.RESULT_LOSS
+        return TextTone.RESULT_DRAW
 
     def _format_time_control(self, time_control):
         if not time_control or time_control in ("-", "?"):

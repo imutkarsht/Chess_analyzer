@@ -3,9 +3,11 @@ Interactive 5-star rating widget for reviews and feedback.
 """
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
+from src.gui.theme.typography import TextRole, TextTone
 
 try:
     import qtawesome as qta
@@ -80,14 +82,13 @@ class StarRatingWidget(QWidget):
 
         # Descriptive text label
         if self._show_label:
-            self._desc_label = QLabel(STAR_LABELS.get(self._rating, "Select a rating"))
+            self._desc_label = Label(
+                STAR_LABELS.get(self._rating, "Select a rating"),
+                role=TextRole.BODY,
+                weight=600,
+                tone=TextTone.SECONDARY,
+            )
             self._desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._desc_label.setStyleSheet(f"""
-                font-size: 13px;
-                font-weight: 600;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                background: transparent;
-            """)
             main_layout.addWidget(self._desc_label)
 
         self.leaveEvent = self._on_leave

@@ -2,12 +2,9 @@ import os
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-)
+from PyQt6.QtWidgets import QHBoxLayout
 
-from src.gui.components import LegendList, SegmentedControl
+from src.gui.components import LegendList, SegmentedControl, StatusBadge, TextTone
 from src.gui.metrics.charts import create_donut_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
@@ -181,17 +178,15 @@ class EndingDistributionCard(MetricCard):
             time_loss_pct = self.stats.get("time_loss_pct", 0.0)
             losses = self.stats.get("losses", 0)
             if time_loss_pct >= 25.0 and losses >= 3:
-                alert_lbl = QLabel(f"Clock Alert: {time_loss_pct:.0f}% of losses on time")
+                alert_lbl = StatusBadge(
+                    f"Clock Alert: {time_loss_pct:.0f}% of losses on time",
+                    TextTone.MISTAKE,
+                    font_size=11,
+                    weight=600,
+                    padding="3px 8px",
+                    radius=4,
+                )
                 alert_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                alert_lbl.setStyleSheet("""
-                    background-color: rgba(230, 126, 34, 0.15);
-                    color: #e67e22;
-                    border-radius: 4px;
-                    padding: 3px 8px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    border: none;
-                """)
                 main_vbox.addWidget(alert_lbl)
 
         self.set_content(self.content_widget)

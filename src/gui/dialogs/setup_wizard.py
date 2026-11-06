@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from importlib.util import find_spec
 
 from PyQt6.QtCore import QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -17,6 +18,7 @@ from src.backend.engine.downloader import (
     try_package_manager_install,
 )
 from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
+from src.gui.components import TextTone
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
 from src.gui.dialogs.wizard.wizard_pages import (
     build_appearance_page,
@@ -32,11 +34,7 @@ from src.gui.theme import ThemeManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
 
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
+HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 class StockfishDownloadWorker(QThread):
@@ -224,38 +222,6 @@ class SetupWizard(QDialog):
             SetupWizard, QWidget#wizardPage, QStackedWidget#wizardStack {{
                 background-color: {p.background};
             }}
-            QLabel {{
-                color: {p.text_primary};
-                background: transparent;
-            }}
-            QLabel[class="wizard-title"] {{
-                color: {p.text_primary};
-                font-size: 22px;
-                font-weight: bold;
-                background: transparent;
-            }}
-            QLabel[class="wizard-heading"] {{
-                color: {p.text_primary};
-                font-size: 17px;
-                font-weight: bold;
-                background: transparent;
-            }}
-            QLabel[class="wizard-label"] {{
-                color: {p.text_primary};
-                font-size: 13px;
-                font-weight: 600;
-                background: transparent;
-            }}
-            QLabel[class="wizard-helper"] {{
-                color: {p.text_secondary};
-                font-size: 13px;
-                background: transparent;
-            }}
-            QLabel[class="wizard-hint"] {{
-                color: {p.text_muted};
-                font-size: 11px;
-                background: transparent;
-            }}
             QFrame#profileCard,
             QFrame#appearanceCard,
             QFrame#stockfishCard,
@@ -283,11 +249,6 @@ class SetupWizard(QDialog):
 
         if hasattr(self, "done_btn"):
             self.done_btn.refresh_styles()
-
-        if hasattr(self, "ready_label"):
-            self.ready_label.setStyleSheet(
-                f"font-size: 13px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
-            )
 
         if hasattr(self, "llm_test_btn"):
             self.llm_test_btn.refresh_styles()
@@ -318,20 +279,17 @@ class SetupWizard(QDialog):
 
     def _update_lichess_tok_link(self):
         if hasattr(self, "lichess_tok_link"):
-            self.lichess_tok_link.setText(
-                f'<a href="https://lichess.org/account/oauth/token" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">Create Token ↗</a>'
+            self.lichess_tok_link.set_link(
+                "https://lichess.org/account/oauth/token",
+                "Create Token ↗",
             )
 
     def _update_done_icon(self):
         if not hasattr(self, 'done_icon_label'):
             return
-        if HAS_QTAWESOME:
-            icon = qta.icon("fa5s.check-circle", color=Styles.COLOR_ACCENT)
-            pixmap = icon.pixmap(72, 72)
-            self.done_icon_label.setPixmap(pixmap)
-        else:
-            self.done_icon_label.setText("✓")
-            self.done_icon_label.setStyleSheet(f"font-size: 64px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;")
+        self.done_icon_label.set_icon(
+            "fa5s.check-circle" if HAS_QTAWESOME else None
+        )
 
     def _show_page(self, index):
         self.current_page = index
@@ -518,9 +476,7 @@ class SetupWizard(QDialog):
         path = resolve_engine_path(self.config_manager)
         if path:
             self.sf_status.setText("Stockfish Engine Ready")
-            self.sf_status.setStyleSheet(
-                f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
-            )
+            self.sf_status.set_tone(TextTone.BEST)
             self.sf_detail.setText(f"Found binary: {path}")
             self.sf_detail.setVisible(True)
             self.sf_download_btn.setVisible(False)
@@ -529,12 +485,11 @@ class SetupWizard(QDialog):
             self.sf_progress_desc.setVisible(False)
             self.settings["engine_path"] = path
             if HAS_QTAWESOME:
-                self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
+                self.sf_icon_label.set_tone(TextTone.BEST)
+                self.sf_icon_label.set_icon("fa5s.check-circle")
         else:
             self.sf_status.setText("Stockfish Not Detected")
-            self.sf_status.setStyleSheet(
-                f"font-size: 14px; color: {Styles.COLOR_MISTAKE}; font-weight: bold; background: transparent;"
-            )
+            self.sf_status.set_tone(TextTone.MISTAKE)
             self.sf_detail.setText("Download Stockfish automatically or select an existing binary on your drive.")
             self.sf_detail.setVisible(True)
             self.sf_download_btn.setText("Download Stockfish")
@@ -543,7 +498,8 @@ class SetupWizard(QDialog):
             self.sf_progress.setVisible(False)
             self.sf_progress_desc.setVisible(False)
             if HAS_QTAWESOME:
-                self.sf_icon_label.setPixmap(qta.icon("fa5s.exclamation-circle", color=Styles.COLOR_MISTAKE).pixmap(24, 24))
+                self.sf_icon_label.set_tone(TextTone.MISTAKE)
+                self.sf_icon_label.set_icon("fa5s.exclamation-circle")
 
     def _set_custom_stockfish_path(self, path: str):
         if not path or not os.path.exists(path):
@@ -551,16 +507,14 @@ class SetupWizard(QDialog):
 
         if not probe_engine_binary(path):
             self.sf_status.setText("Invalid Engine Selected")
-            self.sf_status.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_BLUNDER}; font-weight: bold; background: transparent;")
+            self.sf_status.set_tone(TextTone.BLUNDER)
             self.sf_detail.setText("The selected file failed the UCI handshake test. Please choose a valid Stockfish binary.")
             return
 
         invalidate_engine_cache()
         self.settings["engine_path"] = path
         self.sf_status.setText("Stockfish Ready (Custom Binary)")
-        self.sf_status.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
-        )
+        self.sf_status.set_tone(TextTone.BEST)
         self.sf_detail.setText(f"Found binary: {path}")
         self.sf_detail.setVisible(True)
         self.sf_download_btn.setVisible(False)
@@ -568,7 +522,8 @@ class SetupWizard(QDialog):
         self.sf_progress.setVisible(False)
         self.sf_progress_desc.setVisible(False)
         if HAS_QTAWESOME:
-            self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
+            self.sf_icon_label.set_tone(TextTone.BEST)
+            self.sf_icon_label.set_icon("fa5s.check-circle")
 
     def _download_stockfish(self):
         self.sf_download_btn.setVisible(False)
@@ -578,7 +533,7 @@ class SetupWizard(QDialog):
         self.sf_progress_desc.setVisible(True)
         self.sf_progress_desc.setText("Initializing Stockfish download...")
         self.sf_status.setText("Downloading Stockfish...")
-        self.sf_status.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;")
+        self.sf_status.set_tone(TextTone.PRIMARY)
 
         dest_dir = get_engine_data_dir()
         self._download_worker = StockfishDownloadWorker(dest_dir, self)
@@ -595,7 +550,7 @@ class SetupWizard(QDialog):
             self._download_worker = None
 
         self.sf_status.setText("Download Cancelled")
-        self.sf_status.setStyleSheet(f"font-size: 14px; color: {Styles.COLOR_MISTAKE}; font-weight: bold; background: transparent;")
+        self.sf_status.set_tone(TextTone.MISTAKE)
         self.sf_progress.setVisible(False)
         self.sf_progress_desc.setVisible(False)
         self.sf_download_btn.setText("Download Stockfish")
@@ -612,9 +567,7 @@ class SetupWizard(QDialog):
         self.sf_progress.setValue(100)
         invalidate_engine_cache()
         self.sf_status.setText("Stockfish Ready")
-        self.sf_status.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
-        )
+        self.sf_status.set_tone(TextTone.BEST)
         self.settings["engine_path"] = binary_path
         self.sf_detail.setText(f"Engine installed at: {binary_path}")
         self.sf_detail.setVisible(True)
@@ -623,15 +576,14 @@ class SetupWizard(QDialog):
         self.sf_progress.setVisible(False)
         self.sf_progress_desc.setVisible(False)
         if HAS_QTAWESOME:
-            self.sf_icon_label.setPixmap(qta.icon("fa5s.check-circle", color=Styles.COLOR_BEST).pixmap(24, 24))
+            self.sf_icon_label.set_tone(TextTone.BEST)
+            self.sf_icon_label.set_icon("fa5s.check-circle")
         logger.info("SetupWizard: Stockfish downloaded to %s", binary_path)
 
     def _on_download_error(self, err_msg):
         logger.error("SetupWizard: Stockfish download failed: %s", err_msg)
         self.sf_status.setText("Download Failed")
-        self.sf_status.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_BLUNDER}; font-weight: bold; background: transparent;"
-        )
+        self.sf_status.set_tone(TextTone.BLUNDER)
         self.sf_detail.setText(f"Error: {err_msg}")
         self.sf_progress.setVisible(False)
         self.sf_progress_desc.setVisible(False)
@@ -650,23 +602,23 @@ class SetupWizard(QDialog):
 
         if prov_preset.get("requires_key", True) and not key:
             self.llm_test_result.setText("Please enter an API key first")
-            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_MISTAKE}; background: transparent;")
+            self.llm_test_result.set_tone(TextTone.MISTAKE)
             return
 
         if not base_url:
             self.llm_test_result.setText("Base URL is required")
-            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_MISTAKE}; background: transparent;")
+            self.llm_test_result.set_tone(TextTone.MISTAKE)
             return
 
         if not model:
             self.llm_test_result.setText("Model identifier is required")
-            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_MISTAKE}; background: transparent;")
+            self.llm_test_result.set_tone(TextTone.MISTAKE)
             return
 
         self.llm_test_btn.setEnabled(False)
         self.llm_test_btn.setText("Testing Connection...")
         self.llm_test_result.setText("Connecting to API endpoint...")
-        self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;")
+        self.llm_test_result.set_tone(TextTone.MUTED)
 
         self._llm_worker = LLMTestWorker(key, base_url, model, self)
         self._llm_worker.finished.connect(self._on_llm_test_finished)
@@ -678,10 +630,10 @@ class SetupWizard(QDialog):
 
         if success:
             self.llm_test_result.setText(f"✓ {message}")
-            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;")
+            self.llm_test_result.set_tone(TextTone.BEST)
         else:
             self.llm_test_result.setText(f"✗ Failed: {message}")
-            self.llm_test_result.setStyleSheet(f"font-size: 12px; color: {Styles.COLOR_BLUNDER}; background: transparent;")
+            self.llm_test_result.set_tone(TextTone.BLUNDER)
 
     def _persist_settings(self):
         cfg = self.config_manager

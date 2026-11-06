@@ -15,7 +15,6 @@ from PyQt6.QtGui import QFontMetrics
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
@@ -23,6 +22,13 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.engine_line import EngineLine
+from src.gui.components import (
+    EngineScoreBadge,
+    Label,
+    RichTextLabel,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 
 from .config import EngineLinesConfig
@@ -81,14 +87,17 @@ class EngineLineRow(QWidget):
         meta.setContentsMargins(0, 0, 0, 0)
         meta.setSpacing(8)
 
-        self._lbl_eval = QLabel()
-        self._lbl_eval.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._lbl_eval = EngineScoreBadge()
         self._lbl_eval.setFixedHeight(22)
         self._lbl_eval.setMinimumWidth(58)
-        self._lbl_eval.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         meta.addWidget(self._lbl_eval)
 
-        self._lbl_depth = QLabel()
+        self._lbl_depth = Label(
+            "",
+            role=TextRole.MICRO,
+            size=10,
+            tone=TextTone.MUTED,
+        )
         self._lbl_depth.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self._lbl_depth.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         meta.addWidget(self._lbl_depth)
@@ -96,7 +105,7 @@ class EngineLineRow(QWidget):
         meta.addStretch()
         root.addLayout(meta)
 
-        self._lbl_pv = QLabel()
+        self._lbl_pv = RichTextLabel("", role=TextRole.BODY, size=12)
         self._lbl_pv.setFixedHeight(18)
         self._lbl_pv.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._lbl_pv.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -106,13 +115,7 @@ class EngineLineRow(QWidget):
 
     # ------------------------------------------------------------------
     def _apply_styles(self) -> None:
-        self._lbl_depth.setStyleSheet(
-            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED)
-        )
-        self._lbl_pv.setStyleSheet(Styles.get_label_style(size=12))
-        self._lbl_eval.setStyleSheet(
-            Styles.get_eval_badge_style(Styles.COLOR_SURFACE_LIGHT, Styles.COLOR_TEXT_PRIMARY)
-        )
+        self._lbl_eval.refresh_styles()
 
     def refresh_styles(self) -> None:
         self._apply_styles()
@@ -141,8 +144,7 @@ class EngineLineRow(QWidget):
             self._lbl_depth.hide()
 
         if self.config.show_eval:
-            self._lbl_eval.setText(line.score_text)
-            self._lbl_eval.setStyleSheet(Styles.get_engine_score_badge_style(line))
+            self._lbl_eval.set_line(line)
             self._lbl_eval.show()
         else:
             self._lbl_eval.hide()
@@ -232,7 +234,11 @@ class EngineLinesWidget(QFrame):
         self._rows_layout.setSpacing(self.config.row_spacing)
         self._rows_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        self._empty = QLabel(self._empty_text)
+        self._empty = Label(
+            self._empty_text,
+            role=TextRole.CAPTION,
+            tone=TextTone.MUTED,
+        )
         self._empty.setObjectName("EngineLinesEmpty")
         self._empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty.setFixedHeight(self.config.row_height)
@@ -252,9 +258,6 @@ class EngineLinesWidget(QFrame):
     def _apply_styles(self) -> None:
         self.setStyleSheet(Styles.get_engine_lines_style())
         self._scroll.setStyleSheet(Styles.get_transparent_scroll_area_style())
-        self._empty.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
-        )
         for row in self._rows:
             row.refresh_styles()
 

@@ -1,10 +1,9 @@
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
 )
 
-from src.gui.components import SegmentedControl
+from src.gui.components import IconLabel, Label, SegmentedControl, TextRole, TextTone
 from src.gui.metrics.charts import create_accuracy_trend_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
@@ -82,77 +81,86 @@ class AccuracyTrendCard(MetricCard):
             momentum = avg_acc - baseline
 
         # Badges
-        def make_badge(label_text: str, value_text: str, val_color: str) -> QFrame:
+        def make_badge(label_text: str, value_text: str, tone: TextTone) -> QFrame:
             frame = QFrame()
+            frame.setObjectName("AccuracyBadge")
             frame.setStyleSheet(f"""
-                QFrame {{
+                QFrame#AccuracyBadge {{
                     background-color: {Styles.COLOR_SURFACE_LIGHT};
                     border: 1px solid {Styles.COLOR_BORDER};
                     border-radius: 6px;
                     padding: 2px 6px;
+                }}
+                QFrame#AccuracyBadge QLabel {{
+                    background: transparent;
+                    border: none;
                 }}
             """)
             layout = QHBoxLayout(frame)
             layout.setContentsMargins(6, 2, 6, 2)
             layout.setSpacing(4)
 
-            lbl = QLabel(label_text)
-            lbl.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; font-weight: 500; border: none; background: transparent;"
+            lbl = Label(
+                label_text,
+                role=TextRole.MICRO,
+                weight=500,
+                tone=TextTone.SECONDARY,
             )
             layout.addWidget(lbl)
 
-            val = QLabel(value_text)
-            val.setStyleSheet(
-                f"color: {val_color}; font-size: 11px; font-weight: 700; border: none; background: transparent;"
+            val = Label(
+                value_text,
+                role=TextRole.MICRO,
+                weight=700,
+                tone=tone,
             )
             layout.addWidget(val)
             return frame
 
-        stats_strip.addWidget(make_badge("Avg", f"{avg_acc:.1f}%", Styles.COLOR_TEXT_PRIMARY))
-        stats_strip.addWidget(make_badge("Peak", f"{peak_acc:.1f}%", Styles.COLOR_BEST))
-        stats_strip.addWidget(make_badge("Low", f"{low_acc:.1f}%", Styles.COLOR_TEXT_SECONDARY))
+        stats_strip.addWidget(make_badge("Avg", f"{avg_acc:.1f}%", TextTone.PRIMARY))
+        stats_strip.addWidget(make_badge("Peak", f"{peak_acc:.1f}%", TextTone.BEST))
+        stats_strip.addWidget(make_badge("Low", f"{low_acc:.1f}%", TextTone.SECONDARY))
 
         # Momentum badge
         if momentum >= 0.5:
             mom_text = f"+{momentum:.1f}%"
-            mom_color = Styles.COLOR_BEST
+            mom_tone = TextTone.BEST
             mom_icon_name = "fa5s.arrow-up"
         elif momentum <= -0.5:
             mom_text = f"{momentum:.1f}%"
-            mom_color = Styles.COLOR_BLUNDER
+            mom_tone = TextTone.BLUNDER
             mom_icon_name = "fa5s.arrow-down"
         else:
             mom_text = "Stable"
-            mom_color = Styles.COLOR_TEXT_SECONDARY
+            mom_tone = TextTone.SECONDARY
             mom_icon_name = "fa5s.minus"
 
         mom_frame = QFrame()
+        mom_frame.setObjectName("MomentumBadge")
         mom_frame.setStyleSheet(f"""
-            QFrame {{
+            QFrame#MomentumBadge {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
                 padding: 2px 6px;
+            }}
+            QFrame#MomentumBadge QLabel {{
+                background: transparent;
+                border: none;
             }}
         """)
         mom_layout = QHBoxLayout(mom_frame)
         mom_layout.setContentsMargins(6, 2, 6, 2)
         mom_layout.setSpacing(4)
 
-        try:
-            import qtawesome as qta
+        icon_lbl = IconLabel(mom_icon_name, size=10, tone=TextTone.SECONDARY)
+        mom_layout.addWidget(icon_lbl)
 
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(qta.icon(mom_icon_name, color=mom_color).pixmap(10, 10))
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            mom_layout.addWidget(icon_lbl)
-        except Exception:
-            pass
-
-        mom_val = QLabel(mom_text)
-        mom_val.setStyleSheet(
-            f"color: {mom_color}; font-size: 11px; font-weight: 700; border: none; background: transparent;"
+        mom_val = Label(
+            mom_text,
+            role=TextRole.MICRO,
+            weight=700,
+            tone=mom_tone,
         )
         mom_layout.addWidget(mom_val)
 

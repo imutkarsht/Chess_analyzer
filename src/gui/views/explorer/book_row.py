@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QWidget
 class BookRowWidget(QWidget):
     def __init__(self, san, on_click=None, parent=None):
         super().__init__(parent)
+        self.setObjectName("BookRow")
         self.san = san
         self.on_click = on_click
         self.setCursor(Qt.CursorShape.PointingHandCursor)

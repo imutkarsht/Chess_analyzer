@@ -8,15 +8,13 @@ Structured dual-pillar layout with zero duplication and zero cryptic fractions.
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
 )
 
-from src.gui.components import MiniBar, StatusBadge
+from src.gui.components import IconLabel, Label, MiniBar, StatusBadge, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -143,6 +141,16 @@ class HangingPiecesCard(MetricCard):
         main_vbox.addLayout(pillars_row)
         self.set_content(self.content_widget)
 
+    @staticmethod
+    def _tone_for_color(color: str) -> TextTone:
+        mapping = {
+            Styles.COLOR_TEXT_PRIMARY: TextTone.PRIMARY,
+            Styles.COLOR_BEST: TextTone.BEST,
+            Styles.COLOR_BLUNDER: TextTone.BLUNDER,
+            Styles.COLOR_MISTAKE: TextTone.MISTAKE,
+        }
+        return mapping.get(color, TextTone.PRIMARY)
+
     def _build_piece_pillar(
         self,
         *,
@@ -178,48 +186,37 @@ class HangingPiecesCard(MetricCard):
 
         header = QHBoxLayout()
         header.setSpacing(8)
-        pixmap = self._icon_pixmap(icon_name, icon_color, 14)
-        if pixmap is not None:
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            header.addWidget(icon_lbl)
+        header.addWidget(IconLabel(icon_name, size=14, color=icon_color))
 
-        title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            border: none;
-            background: transparent;
-        """)
+        title_lbl = Label(
+            title,
+            role=TextRole.MICRO,
+            weight=700,
+            tone=TextTone.SECONDARY,
+        )
         header.addWidget(title_lbl)
         header.addStretch()
         layout.addLayout(header)
 
-        hero = QLabel(hero_text)
+        hero = Label(
+            hero_text,
+            role=TextRole.STAT,
+            size=22,
+            weight=800,
+            tone=self._tone_for_color(hero_color),
+        )
         hero.setCursor(Qt.CursorShape.PointingHandCursor)
         hero.setToolTip(hero_tooltip)
         hero.mousePressEvent = lambda _event: self.drill_down_requested.emit(
             hero_category, "all"
         )
-        hero.setStyleSheet(f"""
-            color: {hero_color};
-            font-size: 22px;
-            font-weight: 800;
-            border: none;
-            background: transparent;
-        """)
         layout.addWidget(hero)
 
-        subtitle = QLabel(hero_subtitle)
-        subtitle.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            border: none;
-            background: transparent;
-        """)
+        subtitle = Label(
+            hero_subtitle,
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         layout.addWidget(subtitle)
 
         if hero_bar is not None:
@@ -233,15 +230,13 @@ class HangingPiecesCard(MetricCard):
         divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
         layout.addWidget(divider)
 
-        section_lbl = QLabel(section_title)
-        section_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_MUTED};
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            border: none;
-            background: transparent;
-        """)
+        section_lbl = Label(
+            section_title,
+            role=TextRole.MICRO,
+            size=10,
+            weight=700,
+            tone=TextTone.MUTED,
+        )
         layout.addWidget(section_lbl)
 
         piece_list = QVBoxLayout()
@@ -283,14 +278,19 @@ class HangingPiecesCard(MetricCard):
         tooltip: str,
     ) -> QFrame:
         row = QFrame()
+        row.setObjectName("HangingPieceRow")
         row.setCursor(Qt.CursorShape.PointingHandCursor)
         row.setToolTip(tooltip)
         row.setStyleSheet(f"""
-            QFrame {{
+            QFrame#HangingPieceRow {{
                 background: transparent;
                 border-radius: 4px;
             }}
-            QFrame:hover {{
+            QFrame#HangingPieceRow QLabel {{
+                background: transparent;
+                border: none;
+            }}
+            QFrame#HangingPieceRow:hover {{
                 background-color: {Styles.COLOR_SURFACE};
             }}
         """)
@@ -302,21 +302,9 @@ class HangingPiecesCard(MetricCard):
         row_layout.setContentsMargins(4, 2, 4, 2)
         row_layout.setSpacing(6)
 
-        pixmap = self._icon_pixmap(icon_name, Styles.COLOR_TEXT_SECONDARY, 12)
-        if pixmap is not None:
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            row_layout.addWidget(icon_lbl)
+        row_layout.addWidget(IconLabel(icon_name, size=12, tone=TextTone.SECONDARY))
 
-        name_lbl = QLabel(piece_name)
-        name_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: none;
-            background: transparent;
-        """)
+        name_lbl = Label(piece_name, role=TextRole.MICRO, weight=600)
         name_lbl.setFixedWidth(60)
         row_layout.addWidget(name_lbl)
 
@@ -329,24 +317,13 @@ class HangingPiecesCard(MetricCard):
             )
         )
 
-        count_lbl = QLabel(f"{count}")
+        count_lbl = Label(
+            f"{count}",
+            role=TextRole.MICRO,
+            weight=700,
+            tone=TextTone.PRIMARY if count > 0 else TextTone.MUTED,
+        )
         count_lbl.setFixedWidth(24)
         count_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-        count_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY if count > 0 else Styles.COLOR_TEXT_MUTED};
-            font-size: 11px;
-            font-weight: 700;
-            border: none;
-            background: transparent;
-        """)
         row_layout.addWidget(count_lbl)
         return row
-
-    @staticmethod
-    def _icon_pixmap(icon_name: str, color: str, size: int) -> QPixmap | None:
-        try:
-            import qtawesome as qta
-
-            return qta.icon(icon_name, color=color).pixmap(size, size)
-        except Exception:
-            return None

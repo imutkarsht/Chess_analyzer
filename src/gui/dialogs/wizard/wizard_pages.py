@@ -1,4 +1,5 @@
 import os
+from importlib.util import find_spec
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap
@@ -6,7 +7,6 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QVBoxLayout,
     QWidget,
@@ -17,18 +17,19 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    IconLabel,
     Input,
     InputSize,
+    Label,
+    LinkLabel,
     Select,
+    TextRole,
+    TextTone,
 )
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
 
-try:
-    import qtawesome as qta
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
+HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 def build_gatekeeper_page(wizard) -> QWidget:
@@ -38,14 +39,14 @@ def build_gatekeeper_page(wizard) -> QWidget:
     layout.setContentsMargins(60, 60, 60, 40)
     layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-    wizard.gatekeeper_label = QLabel()
+    wizard.gatekeeper_label = Label("", role=TextRole.SECTION_TITLE)
     wizard.gatekeeper_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    wizard.gatekeeper_label.setProperty("class", "wizard-heading")
     layout.addWidget(wizard.gatekeeper_label)
 
-    wizard.gatekeeper_detail = QLabel()
+    wizard.gatekeeper_detail = Label(
+        "", role=TextRole.BODY, tone=TextTone.SECONDARY, wrap=True
+    )
     wizard.gatekeeper_detail.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    wizard.gatekeeper_detail.setProperty("class", "wizard-helper")
     layout.addWidget(wizard.gatekeeper_detail)
 
     wizard.gatekeeper_timer = QTimer(wizard)
@@ -66,28 +67,21 @@ def build_welcome_page(wizard) -> QWidget:
 
     logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
     if os.path.exists(logo_path):
-        logo_label = QLabel()
-        pixmap = QPixmap(logo_path).scaled(
-            110, 110,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        logo_label.setPixmap(pixmap)
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(logo_label)
+        logo_label = IconLabel(QPixmap(logo_path), size=110)
+        layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignCenter)
 
-    title = QLabel("Chess Analyzer Pro")
+    title = Label("Chess Analyzer Pro", role=TextRole.PAGE_TITLE)
     title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    title.setProperty("class", "wizard-title")
     layout.addWidget(title)
 
-    subtitle = QLabel(
+    subtitle = Label(
         "Analyze your games, uncover your blind spots, and track your performance.\n"
-        "Let's get your workspace customized in just a couple minutes."
+        "Let's get your workspace customized in just a couple minutes.",
+        role=TextRole.BODY,
+        tone=TextTone.SECONDARY,
+        wrap=True,
     )
     subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    subtitle.setWordWrap(True)
-    subtitle.setProperty("class", "wizard-helper")
     layout.addWidget(subtitle)
 
     btn_space = QWidget()
@@ -114,16 +108,16 @@ def build_profile_page(wizard) -> QWidget:
     layout.setContentsMargins(50, 30, 50, 30)
     layout.setSpacing(10)
 
-    heading = QLabel("Link Chess Accounts")
-    heading.setProperty("class", "wizard-heading")
+    heading = Label("Link Chess Accounts", role=TextRole.SECTION_TITLE)
     layout.addWidget(heading)
 
-    helper = QLabel(
+    helper = Label(
         "Optional: Enter your handles so Chess Analyzer Pro can pre-fill game fetch dialogues "
-        "and aggregate your stats across games. Your credentials are never stored."
+        "and aggregate your stats across games. Your credentials are never stored.",
+        role=TextRole.BODY,
+        tone=TextTone.SECONDARY,
+        wrap=True,
     )
-    helper.setWordWrap(True)
-    helper.setProperty("class", "wizard-helper")
     layout.addWidget(helper)
 
     # Card container
@@ -134,8 +128,7 @@ def build_profile_page(wizard) -> QWidget:
     card_layout.setSpacing(10)
 
     # Chess.com
-    lbl = QLabel("Chess.com Username")
-    lbl.setProperty("class", "wizard-label")
+    lbl = Label("Chess.com Username", role=TextRole.BODY, weight=600)
     card_layout.addWidget(lbl)
     wizard.chesscom_input = Input(
         placeholder="e.g. magnuscarlsen", size=InputSize.LG
@@ -144,8 +137,7 @@ def build_profile_page(wizard) -> QWidget:
     card_layout.addWidget(wizard.chesscom_input)
 
     # Lichess
-    lbl = QLabel("Lichess Username")
-    lbl.setProperty("class", "wizard-label")
+    lbl = Label("Lichess Username", role=TextRole.BODY, weight=600)
     card_layout.addWidget(lbl)
     wizard.lichess_input = Input(
         placeholder="e.g. drnykterstein", size=InputSize.LG
@@ -155,13 +147,11 @@ def build_profile_page(wizard) -> QWidget:
 
     # Lichess Token
     tok_row = QHBoxLayout()
-    lbl = QLabel("Lichess Personal API Token")
-    lbl.setProperty("class", "wizard-label")
+    lbl = Label("Lichess Personal API Token", role=TextRole.BODY, weight=600)
     tok_row.addWidget(lbl)
     tok_row.addStretch()
 
-    wizard.lichess_tok_link = QLabel()
-    wizard.lichess_tok_link.setOpenExternalLinks(True)
+    wizard.lichess_tok_link = LinkLabel()
     wizard._update_lichess_tok_link()
     tok_row.addWidget(wizard.lichess_tok_link)
     card_layout.addLayout(tok_row)
@@ -172,11 +162,13 @@ def build_profile_page(wizard) -> QWidget:
     wizard.lichess_token_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.lichess_token_input)
 
-    hint = QLabel(
+    hint = Label(
         "Optional. Raises the import limit from 20 to 30 games, unlocks "
-        "private archive downloads, and enables the online opening explorer."
+        "private archive downloads, and enables the online opening explorer.",
+        role=TextRole.MICRO,
+        tone=TextTone.MUTED,
+        wrap=True,
     )
-    hint.setProperty("class", "wizard-hint")
     card_layout.addWidget(hint)
 
     layout.addWidget(card)
@@ -192,13 +184,15 @@ def build_appearance_page(wizard) -> QWidget:
     layout.setContentsMargins(50, 30, 50, 30)
     layout.setSpacing(10)
 
-    heading = QLabel("Appearance & Themes")
-    heading.setProperty("class", "wizard-heading")
+    heading = Label("Appearance & Themes", role=TextRole.SECTION_TITLE)
     layout.addWidget(heading)
 
-    helper = QLabel("Customize the board aesthetic and application accent colors to match your taste.")
-    helper.setWordWrap(True)
-    helper.setProperty("class", "wizard-helper")
+    helper = Label(
+        "Customize the board aesthetic and application accent colors to match your taste.",
+        role=TextRole.BODY,
+        tone=TextTone.SECONDARY,
+        wrap=True,
+    )
     layout.addWidget(helper)
 
     card = QFrame()
@@ -208,8 +202,7 @@ def build_appearance_page(wizard) -> QWidget:
     card_layout.setSpacing(12)
 
     # App theme mode (Dark / Light / System)
-    mode_lbl = QLabel("App Theme")
-    mode_lbl.setProperty("class", "wizard-label")
+    mode_lbl = Label("App Theme", role=TextRole.BODY, weight=600)
     card_layout.addWidget(mode_lbl)
 
     wizard.wizard_theme_mode_combo = Select()
@@ -220,8 +213,7 @@ def build_appearance_page(wizard) -> QWidget:
     wizard.wizard_theme_mode_combo.currentIndexChanged.connect(lambda: _on_theme_mode_changed(wizard))
     card_layout.addWidget(wizard.wizard_theme_mode_combo)
 
-    theme_lbl = QLabel("Board Theme")
-    theme_lbl.setProperty("class", "wizard-label")
+    theme_lbl = Label("Board Theme", role=TextRole.BODY, weight=600)
     card_layout.addWidget(theme_lbl)
     wizard.wizard_theme_combo = Select()
     wizard.wizard_theme_combo.addItems(list(Styles.BOARD_THEMES.keys()))
@@ -229,8 +221,7 @@ def build_appearance_page(wizard) -> QWidget:
     wizard.wizard_theme_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     card_layout.addWidget(wizard.wizard_theme_combo)
 
-    accent_lbl = QLabel("Accent Color")
-    accent_lbl.setProperty("class", "wizard-label")
+    accent_lbl = Label("Accent Color", role=TextRole.BODY, weight=600)
     card_layout.addWidget(accent_lbl)
 
     accent_row = QHBoxLayout()
@@ -320,16 +311,16 @@ def build_stockfish_page(wizard) -> QWidget:
     layout.setContentsMargins(50, 30, 50, 30)
     layout.setSpacing(10)
 
-    heading = QLabel("Stockfish Chess Engine")
-    heading.setProperty("class", "wizard-heading")
+    heading = Label("Stockfish Chess Engine", role=TextRole.SECTION_TITLE)
     layout.addWidget(heading)
 
-    helper = QLabel(
+    helper = Label(
         "Stockfish runs 100% locally on your machine for grandmaster-level evaluation, "
-        "tactical discovery, and move classification without any internet connection."
+        "tactical discovery, and move classification without any internet connection.",
+        role=TextRole.BODY,
+        tone=TextTone.SECONDARY,
+        wrap=True,
     )
-    helper.setWordWrap(True)
-    helper.setProperty("class", "wizard-helper")
     layout.addWidget(helper)
 
     card = QFrame()
@@ -340,28 +331,27 @@ def build_stockfish_page(wizard) -> QWidget:
 
     status_row = QHBoxLayout()
     status_row.setSpacing(10)
-    wizard.sf_icon_label = QLabel()
-    wizard.sf_icon_label.setFixedSize(24, 24)
-    if HAS_QTAWESOME:
-        wizard.sf_icon_label.setPixmap(qta.icon("fa5s.cog", color=Styles.COLOR_TEXT_MUTED).pixmap(24, 24))
+    wizard.sf_icon_label = IconLabel(size=24, tone=TextTone.MUTED, fallback="⚙")
     status_row.addWidget(wizard.sf_icon_label)
 
     status_text_col = QVBoxLayout()
     status_text_col.setSpacing(3)
-    wizard.sf_status = QLabel("Checking engine configuration...")
-    wizard.sf_status.setStyleSheet(f"font-size: 14px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;")
+    wizard.sf_status = Label(
+        "Checking engine configuration...",
+        role=TextRole.BODY_LARGE,
+        weight=700,
+    )
     status_text_col.addWidget(wizard.sf_status)
 
-    wizard.sf_detail = QLabel("")
-    wizard.sf_detail.setWordWrap(True)
-    wizard.sf_detail.setProperty("class", "wizard-helper")
+    wizard.sf_detail = Label(
+        "", role=TextRole.BODY, tone=TextTone.SECONDARY, wrap=True
+    )
     status_text_col.addWidget(wizard.sf_detail)
     status_row.addLayout(status_text_col, 1)
     card_layout.addLayout(status_row)
 
     # Progress bar with stage description
-    wizard.sf_progress_desc = QLabel("")
-    wizard.sf_progress_desc.setProperty("class", "wizard-hint")
+    wizard.sf_progress_desc = Label("", role=TextRole.MICRO, tone=TextTone.MUTED)
     wizard.sf_progress_desc.setVisible(False)
     card_layout.addWidget(wizard.sf_progress_desc)
 
@@ -427,16 +417,16 @@ def build_llm_page(wizard) -> QWidget:
     layout.setContentsMargins(50, 24, 50, 24)
     layout.setSpacing(8)
 
-    heading = QLabel("AI Game Coach (Optional)")
-    heading.setProperty("class", "wizard-heading")
+    heading = Label("AI Game Coach (Optional)", role=TextRole.SECTION_TITLE)
     layout.addWidget(heading)
 
-    helper = QLabel(
+    helper = Label(
         "Connect an AI provider for grandmaster-style narrative summaries, tactical feedback, "
-        "and customized improvement tips. Skip anytime and configure later in Settings."
+        "and customized improvement tips. Skip anytime and configure later in Settings.",
+        role=TextRole.BODY,
+        tone=TextTone.SECONDARY,
+        wrap=True,
     )
-    helper.setWordWrap(True)
-    helper.setProperty("class", "wizard-helper")
     layout.addWidget(helper)
 
     card = QFrame()
@@ -447,8 +437,7 @@ def build_llm_page(wizard) -> QWidget:
 
     # Provider dropdown row
     prov_row = QHBoxLayout()
-    lbl = QLabel("Provider:")
-    lbl.setProperty("class", "wizard-label")
+    lbl = Label("Provider:", role=TextRole.BODY, weight=600)
     prov_row.addWidget(lbl)
 
     wizard.llm_provider_combo = Select()
@@ -457,14 +446,12 @@ def build_llm_page(wizard) -> QWidget:
     wizard.llm_provider_combo.currentIndexChanged.connect(lambda: _on_provider_changed(wizard))
     prov_row.addWidget(wizard.llm_provider_combo, 1)
 
-    wizard.llm_portal_link = QLabel()
-    wizard.llm_portal_link.setOpenExternalLinks(True)
+    wizard.llm_portal_link = LinkLabel()
     prov_row.addWidget(wizard.llm_portal_link)
     card_layout.addLayout(prov_row)
 
     # API Key row
-    wizard.llm_key_label = QLabel("API Key")
-    wizard.llm_key_label.setProperty("class", "wizard-label")
+    wizard.llm_key_label = Label("API Key", role=TextRole.BODY, weight=600)
     card_layout.addWidget(wizard.llm_key_label)
 
     wizard.llm_key_input = Input(
@@ -473,8 +460,7 @@ def build_llm_page(wizard) -> QWidget:
     card_layout.addWidget(wizard.llm_key_input)
 
     # Model input row
-    wizard.llm_model_label = QLabel("Model")
-    wizard.llm_model_label.setProperty("class", "wizard-label")
+    wizard.llm_model_label = Label("Model", role=TextRole.BODY, weight=600)
     card_layout.addWidget(wizard.llm_model_label)
 
     wizard.llm_model_input = Input(
@@ -483,8 +469,7 @@ def build_llm_page(wizard) -> QWidget:
     card_layout.addWidget(wizard.llm_model_input)
 
     # Base URL row (shown for custom / local)
-    wizard.llm_base_url_label = QLabel("Base URL")
-    wizard.llm_base_url_label.setProperty("class", "wizard-label")
+    wizard.llm_base_url_label = Label("Base URL", role=TextRole.BODY, weight=600)
     card_layout.addWidget(wizard.llm_base_url_label)
 
     wizard.llm_base_url_input = Input(
@@ -502,8 +487,9 @@ def build_llm_page(wizard) -> QWidget:
     wizard.llm_test_btn.setFixedHeight(36)
     test_row.addWidget(wizard.llm_test_btn)
 
-    wizard.llm_test_result = QLabel("")
-    wizard.llm_test_result.setWordWrap(True)
+    wizard.llm_test_result = Label(
+        "", role=TextRole.CAPTION, tone=TextTone.SECONDARY, wrap=True
+    )
     test_row.addWidget(wizard.llm_test_result, 1)
     card_layout.addLayout(test_row)
 
@@ -532,9 +518,7 @@ def _update_llm_ui_hints(wizard):
     wizard.llm_base_url_input.setVisible(is_custom)
 
     if help_url:
-        wizard.llm_portal_link.setText(
-            f'<a href="{help_url}" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">Get Key ↗</a>'
-        )
+        wizard.llm_portal_link.set_link(help_url, "Get Key ↗")
         wizard.llm_portal_link.setVisible(True)
     else:
         wizard.llm_portal_link.setVisible(False)
@@ -573,25 +557,30 @@ def build_done_page(wizard) -> QWidget:
     layout.addStretch(1)
 
     # Success Icon
-    wizard.done_icon_label = QLabel()
+    wizard.done_icon_label = IconLabel(
+        size=72,
+        tone=TextTone.ACCENT,
+        fallback="✓",
+    )
     wizard.done_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     wizard._update_done_icon()
     layout.addWidget(wizard.done_icon_label)
 
     layout.addSpacing(14)
 
-    heading = QLabel("You're all set!")
+    heading = Label("You're all set!", role=TextRole.PAGE_TITLE)
     heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    heading.setProperty("class", "wizard-title")
     layout.addWidget(heading)
 
     layout.addSpacing(4)
 
-    wizard.ready_label = QLabel("Ready to analyze your games!")
-    wizard.ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    wizard.ready_label.setStyleSheet(
-        f"font-size: 13px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
+    wizard.ready_label = Label(
+        "Ready to analyze your games!",
+        role=TextRole.BODY,
+        weight=600,
+        tone=TextTone.ACCENT,
     )
+    wizard.ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     layout.addWidget(wizard.ready_label)
 
     layout.addSpacing(16)
@@ -620,7 +609,7 @@ def build_done_page(wizard) -> QWidget:
 
     layout.addStretch(1)
 
-    wizard.summary_label = QLabel("")
+    wizard.summary_label = Label("", role=TextRole.BODY)
     wizard.summary_label.setVisible(False)
     layout.addWidget(wizard.summary_label)
 
@@ -641,15 +630,12 @@ def build_done_page(wizard) -> QWidget:
 
             if is_warning:
                 icon_name = "fa5s.exclamation-triangle"
-                icon_color = Styles.COLOR_MISTAKE
                 text = item[1:].strip()
             elif is_check:
                 icon_name = "fa5s.check-circle"
-                icon_color = Styles.COLOR_BEST
                 text = item[1:].strip()
             else:
                 icon_name = "fa5s.info-circle"
-                icon_color = Styles.COLOR_TEXT_MUTED
                 text = item.strip()
 
             row = QWidget()
@@ -658,21 +644,21 @@ def build_done_page(wizard) -> QWidget:
             row_layout.setContentsMargins(0, 8, 0, 8)
             row_layout.setSpacing(12)
 
-            icon_lbl = QLabel()
-            icon_lbl.setFixedSize(20, 20)
-            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            if HAS_QTAWESOME:
-                icon_lbl.setPixmap(qta.icon(icon_name, color=icon_color).pixmap(18, 18))
+            if is_warning:
+                tone = TextTone.MISTAKE
+            elif is_check:
+                tone = TextTone.BEST
             else:
-                icon_lbl.setText("✓" if is_check else ("⚠" if is_warning else "•"))
-                icon_lbl.setStyleSheet(f"color: {icon_color}; font-weight: bold; background: transparent;")
+                tone = TextTone.MUTED
+            icon_lbl = IconLabel(
+                icon_name if HAS_QTAWESOME else None,
+                size=20,
+                tone=tone,
+                fallback="✓" if is_check else ("⚠" if is_warning else "•"),
+            )
             row_layout.addWidget(icon_lbl)
 
-            text_lbl = QLabel(text)
-            text_lbl.setWordWrap(True)
-            text_lbl.setStyleSheet(
-                f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
-            )
+            text_lbl = Label(text, role=TextRole.BODY, wrap=True)
             row_layout.addWidget(text_lbl, 1)
 
             wizard._done_card_layout.addWidget(row)

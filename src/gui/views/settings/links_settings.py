@@ -7,7 +7,6 @@ from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -24,7 +23,15 @@ from src.constants import (
 )
 from src.utils.path_utils import get_resource_path
 
-from ...components import Button, ButtonVariant
+from ...components import (
+    Button,
+    ButtonVariant,
+    IconLabel,
+    Label,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from ...styles import Styles
 from .background_card import BackgroundTaskCard
 
@@ -54,34 +61,20 @@ class LinksSettings(BackgroundTaskCard):
     # ------------------------------------------------------------------
     # Layout sections
     # ------------------------------------------------------------------
-    def _section_title(self, text: str) -> QLabel:
-        label = QLabel(text)
-        label.setStyleSheet(
-            f"font-size: 14px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            + Styles.get_transparent_label_style()
-        )
-        return label
+    def _section_title(self, text: str) -> Label:
+        return Label(text, role=TextRole.BODY_LARGE, weight=600)
 
     def _build_brand_header(self) -> QWidget:
         brand = QWidget()
-        brand.setStyleSheet(Styles.get_transparent_label_style())
+        brand.setStyleSheet(Styles.get_transparent_style())
         brand_layout = QHBoxLayout(brand)
         brand_layout.setContentsMargins(0, 0, 0, 0)
         brand_layout.setSpacing(16)
 
-        self.logo_label = QLabel()
-        self.logo_label.setFixedSize(64, 64)
-        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.logo_label = IconLabel(size=64)
         logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
         if os.path.exists(logo_path):
-            self.logo_label.setPixmap(
-                QPixmap(logo_path).scaled(
-                    64,
-                    64,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-            )
+            self.logo_label.set_icon(QPixmap(logo_path))
         brand_layout.addWidget(self.logo_label, 0, Qt.AlignmentFlag.AlignTop)
 
         text_col = QVBoxLayout()
@@ -90,19 +83,27 @@ class LinksSettings(BackgroundTaskCard):
 
         title_row = QHBoxLayout()
         title_row.setSpacing(8)
-        self.title_label = QLabel("Chess Analyzer Pro")
+        self.title_label = Label("Chess Analyzer Pro", role=TextRole.DIALOG_TITLE, weight=700)
         title_row.addWidget(self.title_label)
 
-        self.version_badge = QLabel(f"v{APP_VERSION}")
+        self.version_badge = StatusBadge(
+            f"v{APP_VERSION}",
+            "neutral",
+            font_size=11,
+            padding="2px 8px",
+            radius=9,
+        )
         title_row.addWidget(self.version_badge)
 
         title_row.addStretch(1)
         text_col.addLayout(title_row)
 
-        self.tagline_label = QLabel(
-            "Offline Stockfish analysis with local history and an optional AI Coach."
+        self.tagline_label = Label(
+            "Offline Stockfish analysis with local history and an optional AI Coach.",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
-        self.tagline_label.setWordWrap(True)
         text_col.addWidget(self.tagline_label)
 
         brand_layout.addLayout(text_col, 1)
@@ -110,7 +111,7 @@ class LinksSettings(BackgroundTaskCard):
 
     def _build_links_section(self) -> QWidget:
         section = QWidget()
-        section.setStyleSheet(Styles.get_transparent_label_style())
+        section.setStyleSheet(Styles.get_transparent_style())
         layout = QVBoxLayout(section)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
@@ -160,7 +161,7 @@ class LinksSettings(BackgroundTaskCard):
 
     def _build_footer(self) -> QWidget:
         footer = QWidget()
-        footer.setStyleSheet(Styles.get_transparent_label_style())
+        footer.setStyleSheet(Styles.get_transparent_style())
         layout = QVBoxLayout(footer)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
@@ -168,7 +169,11 @@ class LinksSettings(BackgroundTaskCard):
         creator_row = QHBoxLayout()
         creator_row.setContentsMargins(0, 0, 0, 0)
         creator_row.setSpacing(10)
-        self.creator_label = QLabel(f"Created by {AUTHOR_NAME}")
+        self.creator_label = Label(
+            f"Created by {AUTHOR_NAME}",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+        )
         creator_row.addWidget(self.creator_label)
         self.author_linkedin_btn = self._make_link(
             "LinkedIn", "fa5b.linkedin", self.open_author_linkedin
@@ -181,10 +186,12 @@ class LinksSettings(BackgroundTaskCard):
         creator_row.addStretch(1)
         layout.addLayout(creator_row)
 
-        self.license_note = QLabel(
-            "GPL-3.0-only  ·  © 2025-2026 Utkarsh Tiwari and Chess Analyzer Pro contributors"
+        self.license_note = Label(
+            "GPL-3.0-only  ·  © 2025-2026 Utkarsh Tiwari and Chess Analyzer Pro contributors",
+            role=TextRole.MICRO,
+            tone=TextTone.MUTED,
+            wrap=True,
         )
-        self.license_note.setWordWrap(True)
 
         license_row = QHBoxLayout()
         license_row.setContentsMargins(0, 0, 0, 0)
@@ -217,29 +224,6 @@ class LinksSettings(BackgroundTaskCard):
     # ------------------------------------------------------------------
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        self.title_label.setStyleSheet(
-            f"font-size: 20px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            + Styles.get_transparent_label_style()
-        )
-        badge_style = (
-            f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; "
-            f"border: 1px solid {Styles.COLOR_BORDER}; "
-            "border-radius: 9px; padding: 2px 8px; font-size: 11px; font-weight: 600;"
-        )
-        self.version_badge.setStyleSheet(badge_style)
-        self.tagline_label.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            + Styles.get_transparent_label_style()
-        )
-        self.creator_label.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            + Styles.get_transparent_label_style()
-        )
-        self.license_note.setStyleSheet(
-            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; "
-            + Styles.get_transparent_label_style()
-        )
         for button, _icon_name in self._link_icons:
             button.refresh_styles()
 

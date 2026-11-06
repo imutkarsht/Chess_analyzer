@@ -40,7 +40,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QSizePolicy,
     QStackedWidget,
@@ -49,8 +48,10 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.typography import TextRole
 
 _FIELD_HEIGHT = 44
 _COMPACT_FIELD_HEIGHT = 38
@@ -297,9 +298,9 @@ class _CalendarPopup(QFrame):
         weekdays = QHBoxLayout()
         weekdays.setContentsMargins(0, 0, 0, 0)
         weekdays.setSpacing(0)
-        self._weekday_labels: list[QLabel] = []
+        self._weekday_labels: list[Label] = []
         for _ in range(7):
-            label = QLabel()
+            label = Label("", role=TextRole.MICRO, weight=600)
             label.setObjectName("DatePickerWeekday")
             label.setFixedSize(_CELL, 24)
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -382,7 +383,7 @@ class _CalendarPopup(QFrame):
             tooltip="Next year",
             on_click=lambda: self._change_year(1),
         )
-        self._year_label = QLabel()
+        self._year_label = Label("", role=TextRole.SUBHEADING)
         self._year_label.setObjectName("DatePickerYear")
         self._year_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._year_label.setFixedWidth(64)
@@ -735,9 +736,14 @@ class DatePicker(QWidget):
         self.setFocusProxy(self._edit)
         self.setAccessibleName(label or "Date")
 
-        self._label_widget: QLabel | None = None
+        self._label_widget: Label | None = None
         if label:
-            self._label_widget = QLabel(label, self)
+            self._label_widget = Label(
+                label,
+                role=TextRole.MICRO,
+                weight=500,
+                parent=self,
+            )
             self._label_widget.setObjectName("DatePickerFieldLabel")
             self._label_widget.setAttribute(
                 Qt.WidgetAttribute.WA_TransparentForMouseEvents, True

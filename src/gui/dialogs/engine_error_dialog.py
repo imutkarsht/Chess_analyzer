@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QDialog,
     QFileDialog,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QVBoxLayout,
 )
@@ -23,7 +22,7 @@ from ...backend.engine.downloader import (
 )
 from ...utils.logger import logger
 from ...utils.path_utils import get_engine_data_dir
-from ..components import Button, ButtonVariant
+from ..components import Button, ButtonVariant, Label, TextRole, TextTone
 from ..styles import Styles
 
 
@@ -46,27 +45,20 @@ class EngineNotFoundDialog(QDialog):
         layout.setContentsMargins(28, 28, 28, 20)
         layout.setSpacing(16)
 
-        icon_lbl = QLabel("\u26CF")
-        icon_lbl.setStyleSheet("font-size: 36px; background: transparent;")
+        icon_lbl = Label("\u26CF", role=TextRole.STAT, size=36)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_lbl)
 
-        title = QLabel("Stockfish Engine Not Found")
-        title.setStyleSheet(
-            f"font-size: 18px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            f"background: transparent;"
-        )
+        title = Label("Stockfish Engine Not Found", role=TextRole.SECTION_TITLE)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        desc = QLabel(
+        desc = Label(
             "No working Stockfish engine was found. Analysis requires a Stockfish "
-            "chess engine binary on your system."
-        )
-        desc.setWordWrap(True)
-        desc.setStyleSheet(
-            f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            f"background: transparent;"
+            "chess engine binary on your system.",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)
@@ -76,11 +68,7 @@ class EngineNotFoundDialog(QDialog):
         self._progress.setStyleSheet(Styles.get_progress_bar_style())
         layout.addWidget(self._progress)
 
-        self._status = QLabel("")
-        self._status.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            f"background: transparent;"
-        )
+        self._status = Label("", role=TextRole.CAPTION, tone=TextTone.SECONDARY)
         self._status.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._status.setVisible(False)
         layout.addWidget(self._status)
@@ -142,18 +130,12 @@ class EngineNotFoundDialog(QDialog):
 
         if path and os.path.isfile(path):
             self._status.setText(f"Found: {path}")
-            self._status.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_BEST}; "
-                f"background: transparent;"
-            )
+            self._status.set_tone(TextTone.BEST)
             self._engine_path = path
             QTimer.singleShot(800, self.accept)
         else:
             self._status.setText("No Stockfish found on your system.")
-            self._status.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_BLUNDER}; "
-                f"background: transparent;"
-            )
+            self._status.set_tone(TextTone.BLUNDER)
             self._set_buttons_enabled(True)
 
     def _search_common_paths(self):
@@ -175,10 +157,7 @@ class EngineNotFoundDialog(QDialog):
         self._progress.setValue(0)
         self._status.setText("Checking for Stockfish releases...")
         self._status.setVisible(True)
-        self._status.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            f"background: transparent;"
-        )
+        self._status.set_tone(TextTone.SECONDARY)
         QApplication.processEvents()
 
         try:
@@ -222,18 +201,12 @@ class EngineNotFoundDialog(QDialog):
             invalidate_engine_cache()
             self._engine_path = binary_path
             self._status.setText(f"Downloaded: {os.path.basename(binary_path)}")
-            self._status.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_BEST}; "
-                f"background: transparent;"
-            )
+            self._status.set_tone(TextTone.BEST)
             QTimer.singleShot(600, self.accept)
         except Exception as e:
             logger.exception("EngineNotFoundDialog: download failed")
             self._status.setText(f"Download failed: {e}")
-            self._status.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_BLUNDER}; "
-                f"background: transparent;"
-            )
+            self._status.set_tone(TextTone.BLUNDER)
             self._progress.setVisible(False)
             self._set_buttons_enabled(True)
 

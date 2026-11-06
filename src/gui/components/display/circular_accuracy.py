@@ -4,9 +4,11 @@ Matches reference UI design with centered number inside gauge, side label, and A
 """
 from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
+from src.gui.theme.typography import TextRole, TextTone
 
 
 class CircularArcGauge(QWidget):
@@ -75,20 +77,14 @@ class CircularAccuracyWidget(QWidget):
         layout.addWidget(self.gauge, 0, Qt.AlignmentFlag.AlignCenter)
 
         # Side Title ("White" / "Black")
-        self.side_label = QLabel(self.side)
+        self.side_label = Label(self.side, role=TextRole.BODY_STRONG)
         self.side_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.side_label.setStyleSheet(
-            Styles.get_label_style(size=13, bold=True) + " " + Styles.get_transparent_label_style()
-        )
         layout.addWidget(self.side_label)
 
         # ACPL Label ("ACPL 18")
         acpl_str = f"ACPL {self.acpl:.0f}" if self.acpl is not None else "ACPL -"
-        self.acpl_label = QLabel(acpl_str)
+        self.acpl_label = Label(acpl_str, role=TextRole.MICRO, tone=TextTone.MUTED)
         self.acpl_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.acpl_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
-        )
         layout.addWidget(self.acpl_label)
 
     def set_data(self, accuracy: float, acpl=None):
@@ -99,11 +95,5 @@ class CircularAccuracyWidget(QWidget):
         self.acpl_label.setText(acpl_str)
 
     def refresh_styles(self):
-        self.side_label.setStyleSheet(
-            Styles.get_label_style(size=13, bold=True) + " " + Styles.get_transparent_label_style()
-        )
-        self.acpl_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
-        )
         if hasattr(self, 'gauge'):
             self.gauge.update()

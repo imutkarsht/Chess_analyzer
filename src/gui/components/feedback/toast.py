@@ -25,23 +25,25 @@ from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
 from enum import StrEnum
 
-from PyQt6.QtCore import QSize, Qt, QTimer, QVariantAnimation, pyqtSignal
-from PyQt6.QtGui import QColor, QCursor, QFont, QIcon, QPainter
+from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, pyqtSignal
+from PyQt6.QtGui import QColor, QCursor, QIcon, QPainter
 from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QVBoxLayout,
     QWidget,
 )
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.icon_label import IconLabel
+from src.gui.components.display.label import Label
 from src.gui.components.feedback.toast_icons import toast_icon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
+from src.gui.theme.typography import ALLOWED_SIZES, TextRole
 
 try:
     import qtawesome as qta
@@ -262,9 +264,8 @@ class Toast(QWidget):
         body.setContentsMargins(16, 12, 12, 12)
         body.setSpacing(12)
 
-        self._icon_label = QLabel(self._body)
+        self._icon_label = IconLabel(size=20, parent=self._body)
         self._icon_label.setObjectName("ToastIcon")
-        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         body.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._text_box = QWidget(self._body)
@@ -273,15 +274,24 @@ class Toast(QWidget):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(2)
 
-        self._title_label = QLabel(self._text_box)
+        self._title_label = Label(
+            "",
+            role=TextRole.BODY,
+            weight=600,
+            wrap=True,
+            parent=self._text_box,
+        )
         self._title_label.setObjectName("ToastTitle")
-        self._title_label.setWordWrap(True)
         self._title_label.hide()
         text_layout.addWidget(self._title_label)
 
-        self._message_label = QLabel(self._text_box)
+        self._message_label = Label(
+            "",
+            role=TextRole.BODY,
+            wrap=True,
+            parent=self._text_box,
+        )
         self._message_label.setObjectName("ToastMessage")
-        self._message_label.setWordWrap(True)
         text_layout.addWidget(self._message_label)
         body.addWidget(self._text_box, 1)
 
@@ -362,6 +372,11 @@ class Toast(QWidget):
             return _VARIANT_DURATIONS[self._variant]
         return max(0, int(duration))
 
+    @staticmethod
+    def _nearest_font_size(size: int) -> int:
+        """Map a toast font size onto the shared finite typography scale."""
+        return min(ALLOWED_SIZES, key=lambda allowed: abs(allowed - size))
+
     def _apply_options(self) -> None:
         options = self._options
         self._font_size = options.font_size or 13
@@ -380,17 +395,11 @@ class Toast(QWidget):
             )
         )
 
-        title_font = QFont(self._title_label.font())
-        title_font.setPixelSize(self._font_size)
-        title_font.setWeight(QFont.Weight.DemiBold)
-        self._title_label.setFont(title_font)
+        title_size = self._nearest_font_size(self._font_size)
+        self._title_label.set_size(title_size)
+        self._message_label.set_size(title_size)
 
-        message_font = QFont(self._message_label.font())
-        message_font.setPixelSize(self._font_size)
-        message_font.setWeight(QFont.Weight.Normal)
-        self._message_label.setFont(message_font)
-
-        self._icon_label.setFixedSize(self._icon_size, self._icon_size)
+        self._icon_label.set_icon_size(self._icon_size)
         self._title_label.setText(options.title or "")
         self._title_label.setVisible(bool(options.title))
         self._message_label.setText(self._message_text)
@@ -435,9 +444,7 @@ class Toast(QWidget):
             rendered = toast_icon(
                 self._variant.value, color, self._icon_size, self._angle
             )
-        self._icon_label.setPixmap(
-            rendered.pixmap(QSize(self._icon_size, self._icon_size))
-        )
+        self._icon_label.set_icon(rendered)
 
     def _apply_width(self) -> None:
         options = self._options

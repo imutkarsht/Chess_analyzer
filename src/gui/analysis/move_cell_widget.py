@@ -4,8 +4,9 @@ Custom widget representing a compact move cell that packs the classification ico
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 
+from ..components import IconLabel, Label, TextRole, TextTone
 from ..styles import Styles
 
 # Every classified move keeps its badge. Only decisive/problem moves get colour
@@ -38,16 +39,17 @@ class MoveCellWidget(QWidget):
         top_row.setContentsMargins(0, 0, 0, 0)
         top_row.setSpacing(4)
 
-        self._icon_label = QLabel(self)
-        self._icon_label.setFixedSize(16, 16)
-        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._icon_label.setStyleSheet(Styles.get_transparent_label_style())
+        self._icon_label = IconLabel(size=16, parent=self)
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._san_label = QLabel(self)
+        self._san_label = Label(
+            "",
+            role=TextRole.BODY,
+            weight=500,
+            parent=self,
+        )
         self._san_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         self._san_label.setMinimumWidth(0)
-        self._san_label.setStyleSheet(Styles.get_transparent_label_style())
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self._variation_btn = QToolButton(self)
@@ -60,22 +62,21 @@ class MoveCellWidget(QWidget):
         )
         top_row.addWidget(self._variation_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._time_label = QLabel(self)
+        self._time_label = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         self._time_label.setFixedWidth(30)
         self._time_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
-        self._time_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         outer.addLayout(top_row, 1)
 
         # Bottom row: a 2-pixel-tall think-time bar (shown only if time_spent is present)
-        self._bar = QLabel(self)
+        self._bar = QFrame(self)
         self._bar.setFixedHeight(2)
-        self._bar.setStyleSheet(Styles.get_transparent_label_style())
+        self._bar.setStyleSheet(Styles.get_transparent_style())
         self._bar.hide()
         outer.addWidget(self._bar)
 
@@ -116,12 +117,12 @@ class MoveCellWidget(QWidget):
             self.set_variation_count(variation_count)
 
         # Badge stays for every classified move; only emphasis classes keep a colour.
-        self._san_label.setStyleSheet(self._san_style())
+        self._apply_san_style()
 
         if icon is not None and not icon.isNull() and not pending:
-            self._icon_label.setPixmap(icon.pixmap(16, 16))
+            self._icon_label.set_icon(icon)
         else:
-            self._icon_label.clear()
+            self._icon_label.set_icon(None)
 
         # Think-time text + bar
         time_spent_val = None
@@ -199,21 +200,20 @@ class MoveCellWidget(QWidget):
         )
         self._variation_btn.setStyleSheet(Styles.get_variation_badge_style())
 
-    def _san_style(self) -> str:
+    def _apply_san_style(self) -> None:
         if self._classification_name == "Pending":
-            color = Styles.COLOR_TEXT_MUTED
-            weight = "500"
+            self._san_label.set_tone(TextTone.MUTED)
+            self._san_label.set_weight(500)
         elif self._classification_name in EMPHASIS_CLASSES:
-            color = Styles.get_class_color(self._classification_name) or Styles.COLOR_TEXT_PRIMARY
-            weight = "600"
+            try:
+                tone = TextTone(self._classification_name.lower())
+            except ValueError:
+                tone = TextTone.PRIMARY
+            self._san_label.set_tone(tone)
+            self._san_label.set_weight(600)
         else:
-            color = Styles.COLOR_TEXT_PRIMARY
-            weight = "500"
-        return (
-            Styles.get_label_style(size=13, color=color, weight=weight)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+            self._san_label.set_tone(TextTone.PRIMARY)
+            self._san_label.set_weight(500)
 
     def _variation_icon(self) -> bool:
         try:
@@ -226,13 +226,7 @@ class MoveCellWidget(QWidget):
             return False
 
     def refresh_styles(self):
-        self._san_label.setStyleSheet(self._san_style())
-
-        self._time_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self._apply_san_style()
 
         if (
             self._show_time

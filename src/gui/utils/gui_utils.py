@@ -6,11 +6,8 @@ from collections.abc import Callable
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
     QLayout,
     QVBoxLayout,
-    QWidget,
 )
 
 from src.utils.path_utils import get_resource_path
@@ -122,40 +119,6 @@ def create_button(
     return btn
 
 
-def create_section_header(
-    title: str,
-    action_button: tuple | None = None
-) -> QWidget:
-    """
-    Factory function to create a section header with optional action button.
-
-    Args:
-        title: Header title text
-        action_button: Optional tuple of (button_text, callback, style)
-
-    Returns:
-        QWidget containing the header layout
-    """
-    from src.gui.styles import Styles
-
-    header = QWidget()
-    layout = QHBoxLayout(header)
-    layout.setContentsMargins(0, 0, 0, 0)
-
-    title_label = QLabel(title)
-    title_label.setStyleSheet(Styles.get_label_style(size=18, bold=True))
-    layout.addWidget(title_label)
-
-    layout.addStretch()
-
-    if action_button:
-        btn_text, callback, btn_style = action_button
-        btn = create_button(btn_text, style=btn_style or "secondary", on_click=callback)
-        layout.addWidget(btn)
-
-    return header
-
-
 def confirm_dialog(parent, title: str, message: str,
                    confirm_label: str = "Confirm",
                    cancel_label: str = "Cancel") -> bool:
@@ -164,8 +127,9 @@ def confirm_dialog(parent, title: str, message: str,
     Returns True if the user confirmed, False otherwise.
     Never uses the native QMessageBox so it respects the app theme.
     """
-    from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel
+    from PyQt6.QtWidgets import QDialog, QHBoxLayout
 
+    from src.gui.components import Label, TextRole, TextTone
     from src.gui.styles import Styles
 
     dlg = QDialog(parent)
@@ -178,25 +142,21 @@ def confirm_dialog(parent, title: str, message: str,
             border: 1px solid {Styles.COLOR_BORDER};
             border-radius: 12px;
         }}
-        QLabel {{
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 14px;
-            background: transparent;
-            border: none;
-        }}
     """)
 
     root = QVBoxLayout(dlg)
     root.setContentsMargins(24, 20, 24, 20)
     root.setSpacing(16)
 
-    title_lbl = QLabel(f"<b>{title}</b>")
-    title_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; background: transparent; border: none;")
+    title_lbl = Label(title, role=TextRole.SUBHEADING, weight=700)
     root.addWidget(title_lbl)
 
-    msg_lbl = QLabel(message)
-    msg_lbl.setWordWrap(True)
-    msg_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;")
+    msg_lbl = Label(
+        message,
+        role=TextRole.BODY,
+        tone=TextTone.SECONDARY,
+        wrap=True,
+    )
     root.addWidget(msg_lbl)
 
     btn_row = QHBoxLayout()

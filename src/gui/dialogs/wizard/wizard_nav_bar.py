@@ -1,8 +1,7 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
-from src.gui.components import Button, ButtonVariant
-from src.gui.styles import Styles
+from src.gui.components import Button, ButtonVariant, Label, StatusBadge, TextRole
 from src.gui.theme import ThemeManager
 
 
@@ -30,20 +29,28 @@ class WizardNavBar(QWidget):
 
         # Step indicator container
         self.steps_widget = QWidget()
-        self.steps_widget.setStyleSheet(Styles.get_transparent_label_style())
         self.steps_layout = QHBoxLayout(self.steps_widget)
         self.steps_layout.setContentsMargins(0, 0, 0, 0)
         self.steps_layout.setSpacing(6)
 
-        self.step_pills: list[QLabel] = []
+        self.step_pills: list[StatusBadge] = []
         for i in range(len(self.STEP_TITLES)):
-            pill = QLabel(f"{i + 1}")
+            pill = StatusBadge(
+                f"{i + 1}",
+                "neutral",
+                variant="soft",
+                font_size=11,
+                weight=700,
+                padding="0px",
+                radius=11,
+            )
             pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
             pill.setFixedSize(22, 22)
             self.step_pills.append(pill)
             self.steps_layout.addWidget(pill)
 
-        self.step_name_label = QLabel("")
+        self.step_name_label = Label("", role=TextRole.BODY, weight=600)
+        self.steps_layout.addSpacing(6)
         self.steps_layout.addWidget(self.step_name_label)
 
         layout.addWidget(self.steps_widget)
@@ -70,9 +77,6 @@ class WizardNavBar(QWidget):
                 border-top: 1px solid {p.border};
             }}
         """)
-        self.step_name_label.setStyleSheet(
-            f"color: {p.text_primary}; font-size: 13px; font-weight: 600; margin-left: 6px; {Styles.get_transparent_label_style()}"
-        )
         self.skip_btn.refresh_styles()
         self.refresh_accent()
 
@@ -84,41 +88,17 @@ class WizardNavBar(QWidget):
         # Map wizard page index to step indicator (0: Gatekeeper, 1: Welcome, 2: Profile, 3: Appearance, 4: Engine, 5: LLM, 6: Done)
         # We display steps starting from index 1 (Welcome) up to 6 (Done)
         step_idx = max(0, min(len(self.STEP_TITLES) - 1, index - 1)) if index > 0 else 0
-        p = ThemeManager.palette()
 
         for i, pill in enumerate(self.step_pills):
             if i == step_idx and index > 0:
-                pill.setStyleSheet(f"""
-                    QLabel {{
-                        background-color: {p.accent};
-                        color: white;
-                        font-size: 11px;
-                        font-weight: bold;
-                        border-radius: 11px;
-                    }}
-                """)
+                pill.set_tone("accent")
+                pill.set_variant("solid")
             elif i < step_idx:
-                pill.setStyleSheet(f"""
-                    QLabel {{
-                        background-color: {p.surface_light};
-                        color: {Styles.COLOR_BEST};
-                        font-size: 11px;
-                        font-weight: bold;
-                        border: 1px solid {Styles.COLOR_BEST};
-                        border-radius: 11px;
-                    }}
-                """)
+                pill.set_tone("best")
+                pill.set_variant("soft")
             else:
-                pill.setStyleSheet(f"""
-                    QLabel {{
-                        background-color: {p.surface_light};
-                        color: {p.text_muted};
-                        font-size: 11px;
-                        font-weight: 500;
-                        border: 1px solid {p.border};
-                        border-radius: 11px;
-                    }}
-                """)
+                pill.set_tone("neutral")
+                pill.set_variant("soft")
 
         if index > 0 and step_idx < len(self.STEP_TITLES):
             self.step_name_label.setText(self.STEP_TITLES[step_idx])

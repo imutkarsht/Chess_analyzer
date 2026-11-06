@@ -3,9 +3,9 @@ Error dialog for when the LLM is not configured,
 offering Configure Now and Skip actions.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout
 
-from ..components import Button, ButtonVariant
+from ..components import Button, ButtonVariant, Label, TextRole, TextTone
 from ..styles import Styles
 
 
@@ -27,22 +27,16 @@ class LlmNotConfiguredDialog(QDialog):
         layout.setContentsMargins(28, 28, 28, 20)
         layout.setSpacing(14)
 
-        title = QLabel("AI Features Require Configuration")
-        title.setStyleSheet(
-            f"font-size: 17px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            f"background: transparent;"
-        )
+        title = Label("AI Features Require Configuration", role=TextRole.SECTION_TITLE)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        desc = QLabel(
+        desc = Label(
             "AI-powered analysis (summaries, coach insights, and move explanations) "
-            "need an LLM provider API key. You can configure one in Settings."
-        )
-        desc.setWordWrap(True)
-        desc.setStyleSheet(
-            f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            f"background: transparent;"
+            "need an LLM provider API key. You can configure one in Settings.",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)

@@ -12,11 +12,13 @@ from math import ceil
 from typing import TypeVar
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.typography import TextRole, TextTone
 
 T = TypeVar("T")
 
@@ -167,7 +169,13 @@ class PaginationBar(QWidget):
         if margins is None:
             margins = (24, 10, 24, 10) if size is PaginationSize.PAGE else (4, 4, 4, 0)
 
-        self.label = QLabel()
+        self.label = Label(
+            "",
+            role=TextRole.CAPTION,
+            size=self._label_font_size,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.prev_btn = Button(prev_text, ButtonVariant.FILLED, ButtonSize.SM)
@@ -371,15 +379,15 @@ class PaginationBar(QWidget):
         return button
 
     @staticmethod
-    def _make_ellipsis() -> QLabel:
-        label = QLabel("…")
+    def _make_ellipsis() -> Label:
+        label = Label(
+            "…",
+            role=TextRole.CAPTION,
+            size=13,
+            tone=TextTone.MUTED,
+        )
         label.setFixedSize(20, 30)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
         return label
 
     # ------------------------------------------------------------------
@@ -391,15 +399,6 @@ class PaginationBar(QWidget):
     def refresh_styles(self) -> None:
         self.setStyleSheet(
             Styles.get_pagination_bar_style() if self._framed else "background: transparent;"
-        )
-        self.label.setStyleSheet(
-            Styles.get_label_style(
-                size=self._label_font_size,
-                color=Styles.COLOR_TEXT_SECONDARY,
-                weight=500,
-            )
-            + " "
-            + Styles.get_transparent_label_style()
         )
         self.prev_btn.refresh_styles()
         self.next_btn.refresh_styles()

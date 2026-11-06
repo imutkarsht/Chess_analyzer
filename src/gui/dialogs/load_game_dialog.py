@@ -9,7 +9,6 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
-    QLabel,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -20,9 +19,12 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    Label,
     SegmentedControl,
     Tabs,
     TabVariant,
+    TextRole,
+    TextTone,
 )
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
@@ -102,17 +104,11 @@ class LoadGameDialog(QDialog):
         layout.setContentsMargins(24, 20, 24, 12)
         layout.setSpacing(4)
 
-        title = QLabel("Import game")
-        title.setStyleSheet(
-            f"font-size: 20px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent;"
-        )
-        description = QLabel(
-            "Fetch a game from Chess.com or Lichess, or load a PGN file."
-        )
-        description.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent;"
+        title = Label("Import game", role=TextRole.DIALOG_TITLE)
+        description = Label(
+            "Fetch a game from Chess.com or Lichess, or load a PGN file.",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
         )
         layout.addWidget(title)
         layout.addWidget(description)

@@ -12,7 +12,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -21,19 +20,17 @@ from PyQt6.QtWidgets import (
 from src.gui.components import (
     Button,
     ButtonVariant,
+    IconLabel,
+    Label,
     PaginationBar,
     PaginationSize,
     PaginationState,
+    StatusBadge,
+    TextRole,
+    TextTone,
 )
 from src.gui.metrics.drill_down_item import DrillDownItemWidget
 from src.gui.styles import Styles
-
-try:
-    import qtawesome as qta
-
-    HAS_QTAWESOME = True
-except ImportError:
-    HAS_QTAWESOME = False
 
 
 class DrillDownView(QWidget):
@@ -65,7 +62,7 @@ class DrillDownView(QWidget):
 
     def _setup_ui(self) -> None:
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -73,10 +70,15 @@ class DrillDownView(QWidget):
 
         # 1. Top Navigation Header Bar
         self.header_bar = QFrame()
+        self.header_bar.setObjectName("DrillDownHeader")
         self.header_bar.setStyleSheet(f"""
-            QFrame {{
+            QFrame#DrillDownHeader {{
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+            QFrame#DrillDownHeader QLabel {{
+                background: transparent;
+                border: none;
             }}
         """)
         header_layout = QHBoxLayout(self.header_bar)
@@ -106,37 +108,31 @@ class DrillDownView(QWidget):
         title_vbox.setSpacing(2)
         title_vbox.setContentsMargins(0, 0, 0, 0)
 
-        self.lbl_title = QLabel(self.title_text)
-        self.lbl_title.setStyleSheet(
-            Styles.get_label_style(size=20, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.lbl_title = Label(
+            self.title_text,
+            role=TextRole.DIALOG_TITLE,
+            weight=700,
         )
         title_vbox.addWidget(self.lbl_title)
 
-        self.lbl_subtitle = QLabel(self.subtitle_text)
-        self.lbl_subtitle.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.lbl_subtitle = Label(
+            self.subtitle_text,
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
         )
         title_vbox.addWidget(self.lbl_subtitle)
 
         header_layout.addLayout(title_vbox, 1)
 
         # Occurrences Count Badge
-        self.badge_count = QLabel("0 Occurrences")
-        self.badge_count.setStyleSheet(f"""
-            QLabel {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_ACCENT};
-                font-size: 12px;
-                font-weight: 700;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-                padding: 5px 14px;
-            }}
-        """)
+        self.badge_count = StatusBadge(
+            "0 Occurrences",
+            TextTone.ACCENT,
+            font_size=12,
+            weight=700,
+            padding="5px 14px",
+            radius=12,
+        )
         header_layout.addWidget(self.badge_count)
 
         layout.addWidget(self.header_bar)
@@ -149,7 +145,7 @@ class DrillDownView(QWidget):
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.list_container = QWidget()
-        self.list_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.list_container)
         self.list_layout = QVBoxLayout(self.list_container)
         self.list_layout.setContentsMargins(24, 16, 24, 24)
         self.list_layout.setSpacing(12)
@@ -215,32 +211,35 @@ class DrillDownView(QWidget):
 
     def _render_empty_state(self) -> None:
         empty_container = QWidget()
-        empty_container.setStyleSheet(Styles.get_transparent_label_style())
+        empty_container.setStyleSheet(Styles.get_transparent_style())
         empty_layout = QVBoxLayout(empty_container)
         empty_layout.setContentsMargins(0, 40, 0, 40)
         empty_layout.setSpacing(12)
         empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = QLabel()
-        if HAS_QTAWESOME:
-            icon_lbl.setPixmap(
-                qta.icon("fa5s.search", color=Styles.COLOR_TEXT_MUTED).pixmap(48, 48)
+        empty_layout.addWidget(
+            IconLabel(
+                "fa5s.search",
+                size=48,
+                tone=TextTone.MUTED,
+                fallback="🔍",
             )
-        else:
-            icon_lbl.setText("🔍")
-            icon_lbl.setStyleSheet("font-size: 36px;")
-        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        empty_layout.addWidget(icon_lbl)
+        )
 
-        title_lbl = QLabel("No Occurrences Found")
-        title_lbl.setStyleSheet(
-            Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+        title_lbl = Label(
+            "No Occurrences Found",
+            role=TextRole.SUBHEADING,
+            weight=700,
         )
         title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(title_lbl)
 
-        sub_lbl = QLabel("No matching game positions recorded under the current filters.")
-        sub_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED))
+        sub_lbl = Label(
+            "No matching game positions recorded under the current filters.",
+            role=TextRole.CAPTION,
+            tone=TextTone.MUTED,
+            wrap=True,
+        )
         sub_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(sub_lbl)
 
@@ -248,26 +247,19 @@ class DrillDownView(QWidget):
 
     def refresh_styles(self) -> None:
         """Re-applies styles when theme changes."""
-        self.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self)
         self.header_bar.setStyleSheet(f"""
-            QFrame {{
+            QFrame#DrillDownHeader {{
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+            QFrame#DrillDownHeader QLabel {{
+                background: transparent;
+                border: none;
             }}
         """)
         self.sep.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
         self.btn_back.refresh_styles()
         self.pagination.refresh_styles()
-        self.badge_count.setStyleSheet(f"""
-            QLabel {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_ACCENT};
-                font-size: 12px;
-                font-weight: 700;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-                padding: 5px 14px;
-            }}
-        """)
-        self.list_container.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.list_container)
         self._render_page()

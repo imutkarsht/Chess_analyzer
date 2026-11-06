@@ -2,9 +2,9 @@
 Modern, custom UI widgets for the settings panel.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSlider, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QSlider, QWidget
 
-from ...components import Button, ButtonSize, ButtonVariant
+from ...components import Button, ButtonSize, ButtonVariant, Label, TextRole
 from ...styles import Styles
 
 
@@ -54,7 +54,7 @@ class ModernSliderCounter(QWidget):
         self.minus_btn = Button("−", ButtonVariant.FILLED, ButtonSize.SM, on_click=self.decrement)
         self.minus_btn.setFixedSize(26, 26)
 
-        self.value_label = QLabel("0")
+        self.value_label = Label("0", role=TextRole.BODY, weight=700)
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setFixedWidth(40)
 
@@ -155,15 +155,6 @@ class ModernSliderCounter(QWidget):
 
         self.minus_btn.refresh_styles()
         self.plus_btn.refresh_styles()
-
-        self.value_label.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-                font-weight: bold;
-                background: transparent;
-            }}
-        """)
 
 
 

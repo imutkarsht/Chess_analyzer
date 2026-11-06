@@ -6,7 +6,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
-    QLabel,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -14,7 +13,15 @@ from PyQt6.QtWidgets import (
 
 from src.backend.services.feedback_service import FeedbackService, FeedbackWorker
 from src.constants import REVIEW_SNOOZE_INTERVAL
-from src.gui.components import Button, ButtonVariant, Input, TextArea
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Input,
+    Label,
+    TextArea,
+    TextRole,
+    TextTone,
+)
 from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -82,22 +89,22 @@ class ReviewPromptDialog(QDialog):
         header_layout.setSpacing(6)
         header_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel("Enjoying Chess Analyzer Pro?")
+        title = Label(
+            "Enjoying Chess Analyzer Pro?",
+            role=TextRole.DIALOG_TITLE,
+            weight=700,
+        )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet(f"""
-            font-size: 20px;
-            font-weight: 700;
-            color: {Styles.COLOR_TEXT_PRIMARY};
-        """)
         header_layout.addWidget(title)
 
         games_text = f"You've analyzed {self.games_count} games!" if self.games_count > 0 else "We'd love to hear your thoughts!"
-        subtitle = QLabel(f"{games_text} Help us improve your chess training.")
+        subtitle = Label(
+            f"{games_text} Help us improve your chess training.",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
+            wrap=True,
+        )
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet(f"""
-            font-size: 13px;
-            color: {Styles.COLOR_TEXT_SECONDARY};
-        """)
         header_layout.addWidget(subtitle)
         layout.addLayout(header_layout)
 
@@ -112,8 +119,7 @@ class ReviewPromptDialog(QDialog):
         # Name label & input
         name_group = QVBoxLayout()
         name_group.setSpacing(5)
-        name_lbl = QLabel("Your Name:")
-        name_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        name_lbl = Label("Your Name:", role=TextRole.BODY, weight=600)
         name_group.addWidget(name_lbl)
 
         default_user = (
@@ -128,8 +134,7 @@ class ReviewPromptDialog(QDialog):
         # Comment label & textarea
         comment_group = QVBoxLayout()
         comment_group.setSpacing(5)
-        comment_lbl = QLabel("Your Review:")
-        comment_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        comment_lbl = Label("Your Review:", role=TextRole.BODY, weight=600)
         comment_group.addWidget(comment_lbl)
 
         self.comment_input = TextArea(
@@ -142,9 +147,8 @@ class ReviewPromptDialog(QDialog):
         layout.addLayout(form_layout)
 
         # Status / Error Label
-        self.status_lbl = QLabel("")
+        self.status_lbl = Label("", role=TextRole.CAPTION, tone=TextTone.BLUNDER)
         self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
         self.status_lbl.hide()
         layout.addWidget(self.status_lbl)
 
@@ -181,30 +185,25 @@ class ReviewPromptDialog(QDialog):
         layout.setSpacing(16)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = QLabel("🎉")
+        icon_lbl = Label("🎉", role=TextRole.STAT, size=48)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setStyleSheet("font-size: 48px; background: transparent;")
         layout.addWidget(icon_lbl)
 
-        thanks_title = QLabel("Thank You for Your Review!")
+        thanks_title = Label(
+            "Thank You for Your Review!",
+            role=TextRole.DIALOG_TITLE,
+            weight=700,
+        )
         thanks_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        thanks_title.setStyleSheet(f"""
-            font-size: 20px;
-            font-weight: 700;
-            color: {Styles.COLOR_TEXT_PRIMARY};
-        """)
         layout.addWidget(thanks_title)
 
-        thanks_desc = QLabel(
-            "Your feedback helps make Chess Analyzer Pro better for the entire chess community."
+        thanks_desc = Label(
+            "Your feedback helps make Chess Analyzer Pro better for the entire chess community.",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
-        thanks_desc.setWordWrap(True)
         thanks_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        thanks_desc.setStyleSheet(f"""
-            font-size: 13px;
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            line-height: 1.4;
-        """)
         layout.addWidget(thanks_desc)
 
         layout.addSpacing(16)
@@ -217,7 +216,7 @@ class ReviewPromptDialog(QDialog):
         rating = self.star_widget.get_rating()
         if rating < 1:
             self.status_lbl.setText("Please select a star rating (1 to 5).")
-            self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
+            self.status_lbl.set_tone(TextTone.BLUNDER)
             self.status_lbl.show()
             return
 
@@ -246,7 +245,7 @@ class ReviewPromptDialog(QDialog):
             self.stacked_widget.setCurrentIndex(1)
         else:
             self.status_lbl.setText(message)
-            self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
+            self.status_lbl.set_tone(TextTone.BLUNDER)
             self.status_lbl.show()
 
     def _on_remind_later(self):

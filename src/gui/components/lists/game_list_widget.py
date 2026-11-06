@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QListWidget,
     QListWidgetItem,
     QVBoxLayout,
@@ -19,8 +18,10 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.label import Label
 from src.gui.components.lists.game_list_item_widget import GameListItemWidget
 from src.gui.styles import Styles
+from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.smooth_scroll import SmoothScroll
 
 
@@ -63,8 +64,12 @@ class GameListWidget(QWidget):
         header_bar_layout.setContentsMargins(16, 0, 16, 0)
 
         # The result count replaces a section title that only repeated the page title.
-        self.title_lbl = QLabel("0 games")
-        self.title_lbl.setStyleSheet(self._count_style())
+        self.title_lbl = Label(
+            "0 games",
+            role=TextRole.BODY,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         header_bar_layout.addWidget(self.title_lbl)
 
         header_bar_layout.addStretch()
@@ -341,19 +346,9 @@ class GameListWidget(QWidget):
 
     # ── Style refresh ─────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _count_style() -> str:
-        return (
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY, weight=600)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-
     def _apply_title_style(self):
         if hasattr(self, "header_bar_widget") and self.header_bar_widget:
             self.header_bar_widget.setStyleSheet(Styles.get_header_bar_style())
-        if hasattr(self, "title_lbl") and self.title_lbl:
-            self.title_lbl.setStyleSheet(self._count_style())
 
     def _apply_list_style(self):
         self.list_widget.setStyleSheet(Styles.get_list_widget_style())

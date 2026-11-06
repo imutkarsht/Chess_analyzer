@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-from src.gui.styles import Styles
-from src.gui.theme import ThemeManager
+from src.gui.theme.typography import TextRole, TextTone
+
+from ..display.label import Label
 
 
 class FormField(QWidget):
@@ -34,32 +35,40 @@ class FormField(QWidget):
         # Labels must be parented before setVisible(): a parentless QLabel is a
         # top-level window, so setVisible(True) would show a stray native window
         # that steals focus (and can pull macOS to another display/Space).
-        self._label = QLabel(label, self)
-        self._label.setObjectName("FormFieldLabel")
+        self._label = Label(
+            label,
+            role=TextRole.CAPTION,
+            weight=500,
+            parent=self,
+        )
         self._label.setVisible(bool(label))
         layout.addWidget(self._label)
 
         layout.addWidget(control)
 
-        self._description = QLabel(description, self)
-        self._description.setObjectName("FormFieldDescription")
-        self._description.setWordWrap(True)
+        self._description = Label(
+            description,
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+            wrap=True,
+            parent=self,
+        )
         self._description.setVisible(bool(description))
         layout.addWidget(self._description)
 
-        self._error = QLabel(self)
-        self._error.setObjectName("FormFieldError")
-        self._error.setWordWrap(True)
+        self._error = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.BLUNDER,
+            weight=500,
+            wrap=True,
+            parent=self,
+        )
         self._error.hide()
         layout.addWidget(self._error)
 
-        manager = ThemeManager.instance()
-        manager.theme_changed.connect(self._on_theme_changed)
-        manager.accent_changed.connect(self._on_theme_changed)
-        self.refresh_styles()
-
     @property
-    def label(self) -> QLabel:
+    def label(self) -> Label:
         return self._label
 
     def set_description(self, text: str) -> None:
@@ -76,9 +85,3 @@ class FormField(QWidget):
         self._error.clear()
         self._error.hide()
         self._description.setVisible(bool(self._description_text))
-
-    def _on_theme_changed(self, *_args) -> None:
-        self.refresh_styles()
-
-    def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_form_field_qss())

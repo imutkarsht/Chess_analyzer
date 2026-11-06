@@ -15,13 +15,21 @@ from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
 
 from src.constants import DEFAULT_BOARD_THEME
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Label,
+    RichTextLabel,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
 from src.utils.config import ConfigManager
@@ -93,39 +101,35 @@ class DrillDownItemWidget(QFrame):
         )
         user_color = self.item.get("user_color", "white").capitalize()
 
-        match_lbl = QLabel(
+        match_lbl = RichTextLabel(
             f"<b>vs {opp_name}</b>{elo_str} &nbsp;•&nbsp; "
-            f"<span style='color: {Styles.COLOR_TEXT_SECONDARY}'>as {user_color}</span>"
-        )
-        match_lbl.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_label_style()
+            f"<span style='color: {Styles.COLOR_TEXT_SECONDARY}'>as {user_color}</span>",
+            role=TextRole.BODY,
         )
         row1.addWidget(match_lbl)
 
         # Result badge (Win/Loss/Draw)
         result = self.item.get("result", "*")
-        res_color = self._get_result_color(result, user_color.lower())
-        res_lbl = QLabel(result)
-        res_lbl.setStyleSheet(Styles.get_result_badge_style(res_color, 11, "2px 8px", 4))
+        res_tone = self._get_result_tone(result, user_color.lower())
+        res_lbl = StatusBadge(
+            result,
+            res_tone,
+            font_size=11,
+            padding="2px 8px",
+            radius=4,
+        )
         row1.addWidget(res_lbl)
 
         # Speed category badge
         speed = self.item.get("speed_category", "")
         if speed:
-            speed_lbl = QLabel(speed)
-            speed_lbl.setStyleSheet(f"""
-                QLabel {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_SECONDARY};
-                    font-size: 11px;
-                    font-weight: 600;
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 4px;
-                    padding: 2px 7px;
-                }}
-            """)
+            speed_lbl = StatusBadge(
+                speed,
+                "neutral",
+                font_size=11,
+                padding="2px 7px",
+                radius=4,
+            )
             row1.addWidget(speed_lbl)
 
         row1.addStretch()
@@ -145,42 +149,45 @@ class DrillDownItemWidget(QFrame):
                 f"{move_prefix} {san}".strip() if san else f"Ply {self.item.get('ply', 1)}"
             )
 
-        move_badge = QLabel(move_display)
-        move_badge.setStyleSheet(f"""
-            QLabel {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-                font-size: 13px;
-                font-weight: 700;
-                font-family: monospace, -apple-system, sans-serif;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 3px 8px;
-            }}
-        """)
+        move_badge = StatusBadge(
+            move_display,
+            "neutral",
+            mono=True,
+            font_size=13,
+            weight=700,
+            padding="3px 8px",
+            radius=6,
+        )
         row2.addWidget(move_badge)
 
         # Classification / Motif Badge
         classification = self.item.get("classification") or ""
         if classification:
             if classification in ("Clean Game", "Clean"):
-                class_color = Styles.COLOR_BEST
+                class_tone = TextTone.BEST
             elif self.item.get("is_game"):
-                class_color = Styles.COLOR_ACCENT
+                class_tone = TextTone.ACCENT
             else:
-                class_color = Styles.get_class_color(classification)
-            class_badge = QLabel(classification)
-            class_badge.setStyleSheet(Styles.get_result_badge_style(class_color, 11, "3px 8px", 4))
+                try:
+                    class_tone = TextTone(classification.lower())
+                except ValueError:
+                    class_tone = TextTone.PRIMARY
+            class_badge = StatusBadge(
+                classification,
+                class_tone,
+                font_size=11,
+                padding="3px 8px",
+                radius=4,
+            )
             row2.addWidget(class_badge)
 
         # Context detail text (Eval drop, hung piece, motif description)
         desc_text = self._build_description_text()
         if desc_text:
-            desc_lbl = QLabel(desc_text)
-            desc_lbl.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
-                + " "
-                + Styles.get_transparent_label_style()
+            desc_lbl = Label(
+                desc_text,
+                role=TextRole.CAPTION,
+                tone=TextTone.SECONDARY,
             )
             row2.addWidget(desc_lbl)
 
@@ -190,11 +197,10 @@ class DrillDownItemWidget(QFrame):
         # Row 3: Opening Name
         opening = self.item.get("opening", "")
         if opening:
-            op_lbl = QLabel(opening)
-            op_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            op_lbl = Label(
+                opening,
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
             op_lbl.setToolTip(opening)
             content_layout.addWidget(op_lbl)
@@ -209,13 +215,12 @@ class DrillDownItemWidget(QFrame):
 
         date_str = self.item.get("date", "")
         if date_str:
-            date_lbl = QLabel(date_str)
-            date_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            date_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            date_lbl = Label(
+                date_str,
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
+            date_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
             right_layout.addWidget(date_lbl)
 
         right_layout.addStretch()
@@ -263,12 +268,20 @@ class DrillDownItemWidget(QFrame):
 
         return "  •  ".join(parts)
 
-    def _get_result_color(self, result: str, user_color: str) -> str:
+    def _get_result_tone(self, result: str, user_color: str) -> TextTone:
         if result == "1-0":
-            return Styles.COLOR_RESULT_WIN if user_color == "white" else Styles.COLOR_RESULT_LOSS
+            return (
+                TextTone.RESULT_WIN
+                if user_color == "white"
+                else TextTone.RESULT_LOSS
+            )
         if result == "0-1":
-            return Styles.COLOR_RESULT_WIN if user_color == "black" else Styles.COLOR_RESULT_LOSS
-        return Styles.COLOR_RESULT_DRAW
+            return (
+                TextTone.RESULT_WIN
+                if user_color == "black"
+                else TextTone.RESULT_LOSS
+            )
+        return TextTone.RESULT_DRAW
 
     def _create_mini_board(self) -> QWidget:
         fen_before = self.item.get("fen_before", chess.STARTING_FEN)

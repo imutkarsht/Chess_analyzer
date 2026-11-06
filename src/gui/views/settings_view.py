@@ -18,7 +18,15 @@ from PyQt6.QtWidgets import (
 
 from src.config.settings_schema import SETTINGS
 from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
-from src.gui.components import Button, ButtonVariant, Input, InputSize, InputVariant
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Input,
+    InputSize,
+    InputVariant,
+    Label,
+    TextRole,
+)
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -95,8 +103,7 @@ class SettingsView(QWidget):
         header_layout.setContentsMargins(40, 12, 40, 12)
 
         # Title
-        self.header_lbl = QLabel("Settings")
-        self.header_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        self.header_lbl = Label("Settings", role=TextRole.PAGE_TITLE)
         header_layout.addWidget(self.header_lbl)
 
         header_layout.addStretch()
@@ -116,7 +123,7 @@ class SettingsView(QWidget):
         # Body: the category rail stays fixed while only the options panel
         # scrolls, so navigation remains visible on long pages.
         self.content_container = QWidget()
-        self.content_container.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.content_container)
 
         content_layout = QHBoxLayout(self.content_container)
         content_layout.setContentsMargins(24, 20, 24, 24)
@@ -162,7 +169,7 @@ class SettingsView(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
+        Styles.apply_background(self.scroll_area)
         self.scroll_area.setWidget(self.settings_panel)
         content_layout.addWidget(self.scroll_area, 1)
         main_layout.addWidget(self.content_container, 1)
@@ -748,12 +755,10 @@ class SettingsView(QWidget):
         """Re-applies styles to settings view components."""
         if hasattr(self, 'header_bar'):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-        if hasattr(self, 'header_lbl'):
-            self.header_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
         if hasattr(self, 'scroll_area'):
-            self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
+            Styles.apply_background(self.scroll_area)
         if hasattr(self, 'content_container'):
-            self.content_container.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.content_container)
         if hasattr(self, 'category_list'):
             self._style_category_rail()
         if hasattr(self, 'settings_panel'):

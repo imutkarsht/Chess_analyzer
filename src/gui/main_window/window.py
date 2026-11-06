@@ -7,7 +7,6 @@ from PyQt6.QtGui import QGuiApplication, QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
     QSplitter,
     QVBoxLayout,
@@ -22,6 +21,14 @@ from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardGameHeader, BoardPanel
+from src.gui.components import (
+    BadgeVariant,
+    Label,
+    RichTextLabel,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.components.feedback.loading_widget import LoadingOverlay
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.components.layout.sidebar import Sidebar
@@ -154,23 +161,20 @@ class MainWindow(
             }}
         """)
 
-        self._engine_pill = QLabel()
-        self._engine_pill.setStyleSheet(
-            "font-size: 12px; font-weight: 600; padding: 0 6px; background: transparent;"
-        )
+        self._engine_pill = Label("", role=TextRole.CAPTION, weight=600)
+        self._engine_pill.setContentsMargins(6, 0, 6, 0)
         self.statusBar().addWidget(self._engine_pill)
 
         # Thin separator — only shown when there is a real status message.
-        self._status_sep = QLabel("│")
-        self._status_sep.setStyleSheet(
-            f"color: {Styles.COLOR_BORDER}; padding: 0 4px; background: transparent;"
-        )
+        self._status_sep = Label("│", role=TextRole.CAPTION, tone=TextTone.MUTED)
+        self._status_sep.setContentsMargins(4, 0, 4, 0)
         self._status_sep.hide()
         self.statusBar().addWidget(self._status_sep)
 
-        self._status_lbl = QLabel("Ready")
-        self._status_lbl.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
+        self._status_lbl = Label(
+            "Ready",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
         )
         self._status_lbl.hide()
         self.statusBar().addWidget(self._status_lbl)
@@ -427,13 +431,15 @@ class MainWindow(
 
         # Header Bar Container for Chess Analysis
         self.analysis_header_bar = QFrame()
+        self.analysis_header_bar.setObjectName("AnalysisHeaderBar")
         self.analysis_header_bar.setStyleSheet(f"""
-            QFrame {{
+            QFrame#AnalysisHeaderBar {{
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
             }}
-            QFrame QLabel {{
+            QFrame#AnalysisHeaderBar QLabel {{
                 background: transparent;
+                border: none;
             }}
         """)
         header_layout = QHBoxLayout(self.analysis_header_bar)
@@ -441,21 +447,20 @@ class MainWindow(
 
         # Workspace-only title. The landing hides the whole header bar, so this
         # never appears above the empty-state hero.
-        self.title_lbl = QLabel("Analysis View")
-        self.title_lbl.setStyleSheet(
-            f"font-size: 20px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
-        )
+        self.title_lbl = Label("Analysis View", role=TextRole.PAGE_TITLE)
         header_layout.addWidget(self.title_lbl)
 
-        self.game_info_label = QLabel("No Game Loaded")
+        header_layout.addSpacing(12)
+        self.game_info_label = Label(
+            "No Game Loaded",
+            role=TextRole.BODY,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         self.game_info_label.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
         self.game_info_label.setMaximumWidth(520)
-        self.game_info_label.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " padding: 0 12px; background: transparent; border: none;"
-        )
         header_layout.addWidget(self.game_info_label)
 
         header_layout.addStretch()
@@ -510,7 +515,7 @@ class MainWindow(
         self.left_widget.setMinimumWidth(240)
         # Cap the pane so a wide drag does not leave the move columns mostly empty.
         self.left_widget.setMaximumWidth(420)
-        self.left_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.left_widget)
         left_layout = QVBoxLayout(self.left_widget)
         left_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -525,7 +530,7 @@ class MainWindow(
         # Center: Board
         self.center_widget = QWidget()
         self.center_widget.setMinimumWidth(420)
-        self.center_widget.setStyleSheet(f"background-color: {Styles.COLOR_BACKGROUND};")
+        Styles.apply_background(self.center_widget)
         center_layout = QVBoxLayout(self.center_widget)
         self.center_layout = center_layout
         center_layout.setContentsMargins(6, 6, 6, 6)
@@ -581,15 +586,26 @@ class MainWindow(
         hint_row.addStretch(1)
 
         self._hero_hint_default = "Drop a .pgn anywhere"
-        self.lbl_hero_hint = QLabel(self._hero_hint_default)
-        self.lbl_hero_hint.setStyleSheet(Styles.get_hero_hint_style())
+        self.lbl_hero_hint = Label(
+            self._hero_hint_default,
+            role=TextRole.CAPTION,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
         self.lbl_hero_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hint_row.addWidget(self.lbl_hero_hint)
 
         open_key = "⌘O" if sys.platform == "darwin" else "Ctrl+O"
         paste_key = "⌘V" if sys.platform == "darwin" else "Ctrl+V"
-        self.lbl_hero_keys = QLabel(f"{open_key} open   ·   {paste_key} paste")
-        self.lbl_hero_keys.setStyleSheet(Styles.get_keycap_style())
+        self.lbl_hero_keys = StatusBadge(
+            f"{open_key} open   ·   {paste_key} paste",
+            TextTone.MUTED,
+            variant=BadgeVariant.QUIET,
+            font_size=11,
+            weight=600,
+            padding="2px 8px",
+            radius=9,
+        )
         hint_row.addWidget(self.lbl_hero_keys)
 
         hint_row.addStretch(1)
@@ -627,11 +643,16 @@ class MainWindow(
         # Row 1: title + shuffle button
         hib_top = QHBoxLayout()
         hib_top.setSpacing(8)
-        self._hib_title = QLabel()
+        self._hib_title = Label(
+            "",
+            role=TextRole.SUBHEADING,
+            size=15,
+            weight=700,
+        )
         self._hib_title.setWordWrap(False)
         hib_top.addWidget(self._hib_title)
 
-        self._hib_turn = QLabel()
+        self._hib_turn = StatusBadge("", "neutral")
         hib_top.insertWidget(1, self._hib_turn)
 
         hib_top.addStretch()
@@ -668,12 +689,18 @@ class MainWindow(
         hib_outer.addLayout(hib_top)
 
         # Row 2: players / year / event
-        self._hib_meta = QLabel()
+        self._hib_meta = Label(
+            "", role=TextRole.CAPTION, tone=TextTone.SECONDARY
+        )
         hib_outer.addWidget(self._hib_meta)
 
         # Row 3: puzzle prompt (turn_desc)
-        self._hib_hint = QLabel()
-        self._hib_hint.setWordWrap(True)
+        self._hib_hint = Label(
+            "",
+            role=TextRole.BODY,
+            weight=500,
+            wrap=True,
+        )
         hib_outer.addWidget(self._hib_hint)
 
         # Row 4: celebration / blurb row (hidden until famous move is found)
@@ -683,10 +710,9 @@ class MainWindow(
         cel_layout = QHBoxLayout(self._hib_celebration)
         cel_layout.setContentsMargins(10, 8, 10, 8)
         cel_layout.setSpacing(8)
-        self._hib_cel_icon = QLabel("✨")
+        self._hib_cel_icon = Label("✨", role=TextRole.STAT, size=20)
         cel_layout.addWidget(self._hib_cel_icon)
-        self._hib_cel_text = QLabel()
-        self._hib_cel_text.setWordWrap(True)
+        self._hib_cel_text = RichTextLabel("", role=TextRole.BODY, wrap=True)
         cel_layout.addWidget(self._hib_cel_text, 1)
         hib_outer.addWidget(self._hib_celebration)
 
@@ -770,26 +796,6 @@ class MainWindow(
                 }}
                 QLabel {{ background: transparent; border: none; }}
             """)
-        if hasattr(self, "_hib_title"):
-            self._hib_title.setStyleSheet(
-                f"font-size: 15px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
-            )
-        if hasattr(self, "_hib_turn"):
-            self._hib_turn.setStyleSheet(Styles.get_badge_style(11))
-        if hasattr(self, "_hib_meta"):
-            self._hib_meta.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            )
-        if hasattr(self, "_hib_hint"):
-            self._hib_hint.setStyleSheet(
-                f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY};"
-            )
-        if hasattr(self, "_hib_cel_icon"):
-            self._hib_cel_icon.setStyleSheet("font-size: 20px;")
-        if hasattr(self, "_hib_cel_text"):
-            self._hib_cel_text.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};"
-            )
         if hasattr(self, "_hib_celebration"):
             border = (
                 Styles.COLOR_ACCENT

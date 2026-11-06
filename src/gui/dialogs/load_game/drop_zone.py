@@ -3,8 +3,9 @@ Drop zone component for the Load Game dialog.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
-from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QVBoxLayout
 
+from ...components import IconLabel, Label, TextRole, TextTone
 from ...styles import Styles
 from ...theme import ThemeManager
 
@@ -34,12 +35,19 @@ class DropZone(QFrame):
         layout.setSpacing(8)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self._icon = QLabel()
-        self._icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._icon = IconLabel(size=28, tone=TextTone.ACCENT, fallback="PGN")
         self._icon.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self._title = QLabel("Drop a PGN file here")
+        self._title = Label(
+            "Drop a PGN file here",
+            role=TextRole.BODY_LARGE,
+            weight=600,
+        )
         self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._subtitle = QLabel("or click to browse  ·  .pgn files")
+        self._subtitle = Label(
+            "or click to browse  ·  .pgn files",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         self._subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         for label in (self._title, self._subtitle):
             label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -68,11 +76,9 @@ class DropZone(QFrame):
         if self._hovering:
             background = p.accent_subtle
             border = accent
-            title = Styles.COLOR_TEXT_PRIMARY
         else:
             background = p.surface
             border = p.border
-            title = Styles.COLOR_TEXT_PRIMARY
 
         self.setStyleSheet(
             f"""
@@ -89,20 +95,7 @@ class DropZone(QFrame):
             }}
             """
         )
-        self._title.setStyleSheet(
-            f"font-size: 14px; font-weight: 600; color: {title};"
-            " background: transparent; border: none;"
-        )
-        self._subtitle.setStyleSheet(
-            f"font-size: 11px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent; border: none;"
-        )
-        if qta is not None:
-            self._icon.setPixmap(
-                qta.icon("fa5s.file-upload", color=accent).pixmap(28, 28)
-            )
-        else:  # pragma: no cover - QtAwesome ships with the app
-            self._icon.setText("PGN")
+        self._icon.set_icon("fa5s.file-upload" if qta is not None else None)
 
     def _on_theme_changed(self, *_args) -> None:
         self.refresh_styles()

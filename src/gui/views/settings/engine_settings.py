@@ -7,11 +7,11 @@ import subprocess
 from PyQt6.QtWidgets import (
     QFileDialog,
     QGroupBox,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
 
+from ...components import Label, TextRole, TextTone
 from ...components.controls.select import Select, SelectOption
 from ...components.feedback.toast import ToastManager
 from ...styles import Styles
@@ -51,8 +51,13 @@ class EngineSettings(QGroupBox):
         self.path_input = self.path_field.line_edit
         self.browse_btn = self.path_field.browse_btn
 
-        self.validation_label = QLabel()
-        self.validation_label.setWordWrap(True)
+        self.validation_label = Label(
+            "",
+            role=TextRole.MICRO,
+            weight=600,
+            wrap=True,
+            tone=TextTone.SECONDARY,
+        )
         self.validation_label.setVisible(False)
 
         container = QWidget()
@@ -146,9 +151,12 @@ class EngineSettings(QGroupBox):
 
     def _set_validation(self, text: str, color: str) -> None:
         self.validation_label.setText(text)
-        self.validation_label.setStyleSheet(
-            f"color: {color}; font-size: 12px; font-weight: bold; background: transparent;"
-        )
+        tone = {
+            Styles.COLOR_BEST: TextTone.BEST,
+            Styles.COLOR_MISTAKE: TextTone.MISTAKE,
+            Styles.COLOR_BLUNDER: TextTone.BLUNDER,
+        }.get(color, TextTone.SECONDARY)
+        self.validation_label.set_tone(tone)
         self.validation_label.setVisible(True)
 
     def browse_engine(self):

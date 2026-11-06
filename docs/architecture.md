@@ -474,6 +474,13 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
+| `label.py` | The only plain-text label; role/tone driven | `Label`, `TextRole`, `TextTone` |
+| `icon_label.py` | Shared icon/pixmap label with fallback and optional scaling | `IconLabel` |
+| `rich_text.py` | Shared rich-text and external-link labels | `RichTextLabel`, `LinkLabel` |
+| `color_label.py` | Label for data-driven chart/series colours | `ColorLabel` |
+| `chip_label.py` | Explicit foreground/background chips (captured pieces, material) | `ChipLabel` |
+| `clock_label.py` | Digital chess-clock pill | `ClockLabel` |
+| `avatar.py` | Circular avatar with initials fallback | `Avatar` |
 | `graph_widget.py` | Evaluation graph | `GraphWidget` |
 | `circular_accuracy.py` | Circular accuracy gauge | `CircularAccuracyWidget` |
 | `stat_card.py` | Stat tiles | `StatCard`, `SimpleStatCard` |
@@ -489,7 +496,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `toast.py` | The only notification system | `Toast`, `ToastManager`, `ToastVariant` |
 | `toast_icons.py` | Painted outline glyphs | — |
 | `empty_state.py` | Shared empty state | `EmptyState` |
-| `status_badge.py` | Header/status pill | `StatusBadge` |
+| `status_badge.py` | Header/status pill with soft, outline, solid and quiet variants | `StatusBadge`, `BadgeVariant` |
+| `engine_score_badge.py` | Engine-line score pill with evaluation-driven fill | `EngineScoreBadge` |
 | `loading_widget.py` | Full-window loading overlay | `LoadingOverlay` |
 | `pulsing_skeleton.py` | AI-writing skeleton | `PulsingSkeleton` |
 
@@ -587,7 +595,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- | --- |
 | Qt-free backend | No PyQt6 imports under `src/backend`, `src/utils`, `src/config` | `Analyzer` returns data, never widgets | Importing `pyqtSignal` in a repo |
 | Component facade | Import shared widgets from `src.gui.components` only | `from src.gui.components import Button, Select` | Importing `components.controls.button` |
-| One widget per control | Never construct raw `QPushButton`, `QLineEdit`, `QComboBox` or write button QSS | `Button`, `Input`, `Select`, `Tabs` | Local QSS strings in a view |
+| One widget per control | Never construct raw `QPushButton`, `QLineEdit`, `QComboBox`, or use `QLabel` for plain text | `Button`, `Input`, `Select`, `Tabs`, `Label` | Local QSS strings in a view |
 | One style generator | Each control's look comes from a `Styles.get_*_qss()` generator | `Styles.get_button_qss` | Hex colours or per-widget stylesheets |
 | Live theming | Per-widget styles are rebuilt on theme/accent change | `_refresh_historic_bar_styles()` | Capturing palette colours at construction |
 | Settings schema | Defaults, types and validation live in `settings_schema.py` | `SettingSpec("board_theme", …)` | Ad-hoc `config.get("x", default)` in widgets |

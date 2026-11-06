@@ -14,8 +14,9 @@ import sys
 
 from PyQt6.QtCore import QPropertyAnimation, Qt
 from PyQt6.QtGui import QGuiApplication
-from PyQt6.QtWidgets import QGraphicsOpacityEffect, QLabel, QStackedWidget
+from PyQt6.QtWidgets import QGraphicsOpacityEffect, QStackedWidget
 
+from src.gui.components.display.icon_label import IconLabel
 from src.gui.theme.motion import MotionDuration, MotionEasing
 
 
@@ -25,7 +26,7 @@ class FadedStackedWidget(QStackedWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._fade: QPropertyAnimation | None = None
-        self._overlay: QLabel | None = None
+        self._overlay: IconLabel | None = None
 
     def _should_animate(self) -> bool:
         if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
@@ -52,10 +53,15 @@ class FadedStackedWidget(QStackedWidget):
         self._crossfade(snapshot)
 
     def _crossfade(self, snapshot) -> None:
-        overlay = QLabel(self)
+        overlay = IconLabel(
+            snapshot,
+            size=1,
+            fixed_size=False,
+            scaled=True,
+            parent=self,
+        )
         overlay.setObjectName("PageTransitionOverlay")
         overlay.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        overlay.setPixmap(snapshot)
         overlay.setGeometry(self.rect())
         overlay.show()
         overlay.raise_()

@@ -7,6 +7,11 @@
 - **Relicensed to GPL-3.0-only**: From 2.6.0 the project is released under the GNU GPL version 3 (only), including the section 7 attribution terms recorded in `LICENSE`. The change reflects the GPL-3.0 components the app already links (PyQt6, python-chess) and keeps forks and attribution open. Releases up to and including 2.5.0 remain MIT and are not affected.
 - **Third-Party Notices**: Added `THIRD-PARTY-NOTICES.md`, covering committed assets (Cburnett pieces, Lichess openings, icon fonts, bundled fonts) and the bundled libraries. Packaged builds now ship the licence text for every bundled package under `licenses/`.
 
+### Improvements
+
+- **Shared Label Typography**: Plain-text labels now use one `Label` component with semantic roles and tones generated from the live palette. Theme and accent switches recolour text without per-widget refreshes, and the legacy label style getters were removed.
+- **Shared Badge, Icon, and Rich-Text Primitives**: Result, status, classification, count, version, profile, and alert badges use one `StatusBadge`; pixmap labels use `IconLabel`; rich text and external links use `RichTextLabel`/`LinkLabel`; captured pieces, clocks, avatars, legends, and engine scores use shared display primitives. Container QSS is scoped so borders no longer cascade into labels, and result-loss badges use the error colour.
+
 ## v2.5.0 - AI Coach, Variations, Settings & Component Platform
 
 ### Features

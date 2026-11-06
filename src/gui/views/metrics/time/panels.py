@@ -3,20 +3,10 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
+from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
-
-
-def make_icon_pixmap(icon_name: str, color: str, size: int) -> QPixmap | None:
-    """Return a qtawesome pixmap, or ``None`` when the icon pack is absent."""
-    try:
-        import qtawesome as qta
-
-        return qta.icon(icon_name, color=color).pixmap(size, size)
-    except Exception:
-        return None
 
 
 class IconTile(QFrame):
@@ -42,12 +32,8 @@ class IconTile(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        pixmap = make_icon_pixmap(icon_name, color, icon_size)
-        if pixmap is not None:
-            icon_lbl = QLabel()
-            icon_lbl.setPixmap(pixmap)
-            icon_lbl.setStyleSheet("border: none; background: transparent;")
-            layout.addWidget(icon_lbl)
+        pixmap = IconLabel(icon_name, size=icon_size, color=color)
+        layout.addWidget(pixmap)
 
 
 class StatPanel(QFrame):
@@ -63,12 +49,12 @@ class StatPanel(QFrame):
         icon_name: str | None = None,
         icon_color: str = Styles.COLOR_TEXT_SECONDARY,
         threshold: str | None = None,
-        title_color: str = Styles.COLOR_TEXT_PRIMARY,
+        title_tone: TextTone = TextTone.PRIMARY,
         title_size: int = 12,
         title_weight: int = 700,
-        value_color: str = Styles.COLOR_TEXT_PRIMARY,
+        value_tone: TextTone = TextTone.PRIMARY,
         value_size: int = 24,
-        description_color: str = Styles.COLOR_TEXT_SECONDARY,
+        description_tone: TextTone = TextTone.SECONDARY,
         background: str = Styles.COLOR_SURFACE_LIGHT,
         border_color: str = Styles.COLOR_BORDER,
         radius: int = 8,
@@ -97,48 +83,57 @@ class StatPanel(QFrame):
             top = QHBoxLayout()
             top.setSpacing(6)
             if icon_name is not None:
-                pixmap = make_icon_pixmap(icon_name, icon_color, 14)
-                if pixmap is not None:
-                    icon_lbl = QLabel()
-                    icon_lbl.setPixmap(pixmap)
-                    icon_lbl.setStyleSheet("border: none; background: transparent;")
-                    top.addWidget(icon_lbl)
-            title_lbl = self._title_label(title, title_color, title_size, title_weight)
+                top.addWidget(
+                    IconLabel(icon_name, size=14, color=icon_color)
+                )
+            title_lbl = self._title_label(title, title_tone, title_size, title_weight)
             top.addWidget(title_lbl)
             top.addStretch()
             if threshold is not None:
-                thresh_lbl = QLabel(threshold)
-                thresh_lbl.setStyleSheet(
-                    f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 9px; "
-                    "border: none; background: transparent;"
+                thresh_lbl = Label(
+                    threshold,
+                    role=TextRole.MICRO,
+                    size=9,
+                    tone=TextTone.MUTED,
                 )
                 top.addWidget(thresh_lbl)
             layout.addLayout(top)
         else:
-            layout.addWidget(self._title_label(title, title_color, title_size, title_weight))
+            layout.addWidget(
+                self._title_label(title, title_tone, title_size, title_weight)
+            )
 
-        value_lbl = QLabel(value)
-        value_lbl.setStyleSheet(
-            f"color: {value_color}; font-size: {value_size}px; font-weight: 800; "
-            "border: none; background: transparent; padding: 0;"
+        value_lbl = Label(
+            value,
+            role=TextRole.BODY,
+            tone=value_tone,
+            size=value_size,
+            weight=800,
         )
         layout.addWidget(value_lbl)
 
-        desc_lbl = QLabel(description)
-        desc_lbl.setStyleSheet(
-            f"color: {description_color}; font-size: 10px; "
-            "border: none; background: transparent; padding: 0;"
+        desc_lbl = Label(
+            description,
+            role=TextRole.MICRO,
+            size=10,
+            tone=description_tone,
         )
         layout.addWidget(desc_lbl)
 
     @staticmethod
-    def _title_label(text: str, color: str, size: int, weight: int) -> QLabel:
-        label = QLabel(text)
-        label.setStyleSheet(
-            f"color: {color}; font-weight: {weight}; font-size: {size}px; "
-            "border: none; background: transparent; padding: 0;"
+    def _title_label(
+        text: str,
+        tone: TextTone,
+        size: int,
+        weight: int,
+    ) -> Label:
+        return Label(
+            text,
+            role=TextRole.BODY,
+            tone=tone,
+            size=size,
+            weight=weight,
         )
-        return label
 
 
 class NoClockBanner(QFrame):
@@ -158,19 +153,20 @@ class NoClockBanner(QFrame):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(8)
 
-        title = QLabel("No Clock Timestamps Recorded")
-        title.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 14px; font-weight: 700;"
+        title = Label(
+            "No Clock Timestamps Recorded",
+            role=TextRole.BODY_LARGE,
+            weight=700,
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        desc = QLabel(
+        desc = Label(
             f"{note}\nGames imported from Chess.com or Lichess automatically include clock comments.\n"
-            "View the 'Formats' tab for win rates and accuracy by time control."
-        )
-        desc.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.4;"
+            "View the 'Formats' tab for win rates and accuracy by time control.",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)

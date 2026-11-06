@@ -11,7 +11,6 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -21,10 +20,14 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    IconLabel,
+    Label,
     PaginationBar,
     PaginationSize,
     PaginationState,
     StatusBadge,
+    TextRole,
+    TextTone,
 )
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
@@ -183,29 +186,13 @@ class BrilliancyHallCard(MetricCard):
         r_layout.setSpacing(12)
 
         # 1. Authentic Brilliant SVG Icon
-        lbl_icon = QLabel()
         icon_path = resolve_asset("brilliant.svg")
-        if icon_path and os.path.exists(icon_path):
-            pixmap = QPixmap(icon_path).scaled(
-                26,
-                26,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            lbl_icon.setPixmap(pixmap)
-        else:
-            lbl_icon.setText("!!")
-            lbl_icon.setStyleSheet(f"""
-                background-color: {Styles.COLOR_BRILLIANT};
-                color: white;
-                font-weight: 800;
-                font-size: 11px;
-                border-radius: 4px;
-                padding: 3px 6px;
-            """)
-        lbl_icon.setFixedSize(26, 26)
-        lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_icon.setStyleSheet("border: none; background: transparent;")
+        lbl_icon = IconLabel(
+            QPixmap(icon_path) if icon_path and os.path.exists(icon_path) else None,
+            size=26,
+            tone=TextTone.BRILLIANT,
+            fallback="!!",
+        )
         r_layout.addWidget(lbl_icon)
 
         # 2. Text Stack (Line 1: Move notation, Line 2: Opponent • Opening • Date)
@@ -215,24 +202,15 @@ class BrilliancyHallCard(MetricCard):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(2)
 
-        lbl_move = QLabel(move_str)
-        lbl_move.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-weight: 700;
-            font-size: 14px;
-            border: none;
-            background: transparent;
-        """)
+        lbl_move = Label(move_str, role=TextRole.BODY_LARGE, weight=700)
         text_layout.addWidget(lbl_move)
 
-        lbl_meta = QLabel(meta_str)
-        lbl_meta.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 500;
-            border: none;
-            background: transparent;
-        """)
+        lbl_meta = Label(
+            meta_str,
+            role=TextRole.MICRO,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
         lbl_meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         text_layout.addWidget(lbl_meta)
 

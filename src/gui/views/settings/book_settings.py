@@ -2,8 +2,9 @@
 
 import os
 
-from PyQt6.QtWidgets import QFileDialog, QGroupBox, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QFileDialog, QGroupBox, QVBoxLayout
 
+from ...components import Label, TextRole, TextTone
 from ...styles import Styles
 from .components import PathField, SettingsBinder, SettingsForm
 
@@ -40,9 +41,13 @@ class BookSettings(QGroupBox):
         )
         layout.addWidget(self.form)
 
-        self.polyglot_validation_label = QLabel()
-        self.polyglot_validation_label.setStyleSheet(Styles.get_validation_label_style())
-        self.polyglot_validation_label.setWordWrap(True)
+        self.polyglot_validation_label = Label(
+            "",
+            role=TextRole.MICRO,
+            weight=600,
+            wrap=True,
+            tone=TextTone.SECONDARY,
+        )
         self.polyglot_validation_label.setVisible(False)
         layout.addWidget(self.polyglot_validation_label)
         self.validate_polyglot_path()
@@ -73,9 +78,7 @@ class BookSettings(QGroupBox):
         is_file = os.path.exists(path) and os.path.isfile(path)
         if not is_file:
             self.polyglot_validation_label.setText("❌ File does not exist")
-            self.polyglot_validation_label.setStyleSheet(
-                f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;"
-            )
+            self.polyglot_validation_label.set_tone(TextTone.BLUNDER)
             self.polyglot_validation_label.setVisible(True)
             return
 
@@ -83,9 +86,7 @@ class BookSettings(QGroupBox):
             self.polyglot_validation_label.setText(
                 "❌ Invalid file format (must be a .bin Polyglot book)"
             )
-            self.polyglot_validation_label.setStyleSheet(
-                f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;"
-            )
+            self.polyglot_validation_label.set_tone(TextTone.BLUNDER)
             self.polyglot_validation_label.setVisible(True)
             return
 
@@ -95,16 +96,12 @@ class BookSettings(QGroupBox):
             with chess.polyglot.open_reader(path):
                 pass
             self.polyglot_validation_label.setText("✓ Valid Polyglot Opening Book")
-            self.polyglot_validation_label.setStyleSheet(
-                f"color: {Styles.COLOR_BEST}; font-size: 12px; font-weight: bold; background: transparent;"
-            )
+            self.polyglot_validation_label.set_tone(TextTone.BEST)
         except Exception as e:
             self.polyglot_validation_label.setText(
                 f"❌ Failed to parse Polyglot book: {e}"
             )
-            self.polyglot_validation_label.setStyleSheet(
-                f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;"
-            )
+            self.polyglot_validation_label.set_tone(TextTone.BLUNDER)
 
         self.polyglot_validation_label.setVisible(True)
 

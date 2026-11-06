@@ -1,6 +1,7 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
+from src.gui.components import Label, TextRole
 from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.styles import Styles
 
@@ -24,8 +25,7 @@ class MetricCard(QFrame):
 
         if title:
             header_layout = QHBoxLayout()
-            self.lbl_title = QLabel(title)
-            self.lbl_title.setStyleSheet(Styles.get_card_title_style())
+            self.lbl_title = Label(title, role=TextRole.CARD_TITLE)
             header_layout.addWidget(self.lbl_title)
             header_layout.addStretch()
             if action_widget:
@@ -49,8 +49,6 @@ class MetricCard(QFrame):
 
     def refresh_styles(self):
         self._apply_theme()
-        if hasattr(self, "lbl_title"):
-            self.lbl_title.setStyleSheet(Styles.get_card_title_style())
         if getattr(self, "stats", None) and hasattr(self, "_render_view"):
             self._render_view()
 

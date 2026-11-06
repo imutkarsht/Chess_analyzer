@@ -4,15 +4,16 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
 from src.gui.components.controls.button import Button, ButtonVariant
+from src.gui.components.display.label import Label
 from src.gui.components.layout.tour_manager import TourManager
 from src.gui.styles import Styles
+from src.gui.theme.typography import TextRole, TextTone
 
 
 class TourOverlay(QWidget):
@@ -69,22 +70,26 @@ class TourOverlay(QWidget):
         layout.setContentsMargins(20, 18, 20, 16)
         layout.setSpacing(10)
 
-        self.title_label = QLabel()
-        self.title_label.setWordWrap(True)
-        self.title_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.title_label.setStyleSheet(
-            f"font-size: 15px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};"
+        self.title_label = Label(
+            "",
+            role=TextRole.SUBHEADING,
+            size=15,
+            weight=700,
+            wrap=True,
         )
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(self.title_label)
 
-        self.text_label = QLabel()
-        self.text_label.setWordWrap(True)
+        self.text_label = Label(
+            "",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
+            wrap=True,
+        )
         self.text_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self.text_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY};")
         layout.addWidget(self.text_label)
 
-        self.step_label = QLabel()
-        self.step_label.setStyleSheet(f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED};")
+        self.step_label = Label("", role=TextRole.MICRO, tone=TextTone.MUTED)
         layout.addWidget(self.step_label)
 
         nav = QHBoxLayout()

@@ -2,11 +2,17 @@
 PGN Text panel for the Load Game dialog.
 """
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget
 
-from src.gui.components import Button, ButtonSize, ButtonVariant, TextArea
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Label,
+    TextArea,
+    TextRole,
+)
 from src.gui.components.feedback.toast import ToastManager
-from src.gui.styles import Styles
 
 from .helpers import classify_time_control, game_row
 from .inline_game_list import InlineGameList
@@ -40,11 +46,7 @@ class PgnTextPanel(QWidget):
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(8)
-        label = QLabel("PGN text")
-        label.setStyleSheet(
-            f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent;"
-        )
+        label = Label("PGN text", role=TextRole.CAPTION, weight=500)
         self._paste_btn = Button(
             "Paste from clipboard",
             ButtonVariant.GHOST,

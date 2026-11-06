@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
+from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
 from src.gui.views.metrics.time.panels import NoClockBanner, StatPanel
@@ -102,10 +103,10 @@ class PaceView(QWidget):
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(8)
 
-        title = QLabel("Decision Quality vs Thinking Time")
-        title.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 700; "
-            "font-size: 12px; border: none;"
+        title = Label(
+            "Decision Quality vs Thinking Time",
+            role=TextRole.BODY,
+            weight=700,
         )
         layout.addWidget(title)
 
@@ -117,11 +118,11 @@ class PaceView(QWidget):
                 title="Best & Brilliant Moves",
                 value=f"{best_t:.1f}s",
                 description=f"{best_m} precision moves • avg/move",
-                title_color=Styles.COLOR_BEST,
+                title_tone=TextTone.BEST,
                 title_size=11,
                 title_weight=600,
                 value_size=20,
-                description_color=Styles.COLOR_TEXT_MUTED,
+                description_tone=TextTone.MUTED,
                 background=Styles.COLOR_SURFACE,
                 border_color=Styles.COLOR_BORDER,
                 radius=6,
@@ -136,11 +137,11 @@ class PaceView(QWidget):
                 title="Blunders & Mistakes",
                 value=f"{blund_t:.1f}s",
                 description=f"{blund_m} tactical errors • avg/move",
-                title_color=Styles.COLOR_BLUNDER,
+                title_tone=TextTone.BLUNDER,
                 title_size=11,
                 title_weight=600,
                 value_size=20,
-                description_color=Styles.COLOR_TEXT_MUTED,
+                description_tone=TextTone.MUTED,
                 background=Styles.COLOR_SURFACE,
                 border_color=Styles.COLOR_BORDER,
                 radius=6,
@@ -169,12 +170,12 @@ class PaceView(QWidget):
                     "Your thinking time is evenly distributed between best moves and errors."
                 )
 
-            insight = QLabel(insight_text)
-            insight.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; "
-                f"border-top: 1px solid {Styles.COLOR_BORDER}; padding-top: 6px;"
+            insight = Label(
+                insight_text,
+                role=TextRole.MICRO,
+                tone=TextTone.SECONDARY,
+                wrap=True,
             )
-            insight.setWordWrap(True)
             layout.addWidget(insight)
 
         return card

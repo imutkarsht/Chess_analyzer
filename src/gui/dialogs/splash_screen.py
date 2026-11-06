@@ -1,9 +1,10 @@
 import os
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QPixmap
-from PyQt6.QtWidgets import QApplication, QLabel, QProgressBar, QSplashScreen, QVBoxLayout, QWidget
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QApplication, QProgressBar, QSplashScreen, QVBoxLayout, QWidget
 
+from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
@@ -19,8 +20,9 @@ class SplashScreen(QSplashScreen):
         # Layout container
         p = ThemeManager.palette()
         self.container = QWidget(self)
+        self.container.setObjectName("SplashContainer")
         self.container.setStyleSheet(f"""
-            QWidget {{
+            QWidget#SplashContainer {{
                 background-color: {p.surface};
                 border: 1px solid {p.border};
                 border-radius: 10px;
@@ -43,26 +45,26 @@ class SplashScreen(QSplashScreen):
 
         # Logo
         if os.path.exists(logo_path):
-            logo_label = QLabel()
-            pixmap = QPixmap(logo_path).scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            logo_label.setPixmap(pixmap)
-            logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            logo_label.setStyleSheet("background: transparent; border: none;")
-            layout.addWidget(logo_label)
+            layout.addWidget(
+                IconLabel(QPixmap(logo_path), size=100),
+                0,
+                Qt.AlignmentFlag.AlignCenter,
+            )
 
         # App Name
-        title_label = QLabel(app_name)
+        title_label = Label(app_name, role=TextRole.SUBHEADING, weight=700)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setFont(QFont("", 16, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; {Styles.get_transparent_label_style()}")
         layout.addWidget(title_label)
 
         layout.addStretch()
 
         # Loading Status
-        self.status_label = QLabel("Initializing...")
+        self.status_label = Label(
+            "Initializing...",
+            role=TextRole.CAPTION,
+            tone=TextTone.MUTED,
+        )
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; {Styles.get_transparent_label_style()}")
         layout.addWidget(self.status_label)
 
         # Progress Bar

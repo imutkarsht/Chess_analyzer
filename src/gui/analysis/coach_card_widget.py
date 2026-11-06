@@ -17,7 +17,6 @@ from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
@@ -30,7 +29,16 @@ from src.backend.analysis.tactics.insight import (
     move_prefix,
 )
 from src.constants import LLM_WORTHY_CLASSIFICATIONS
-from src.gui.components import Button, ButtonSize, ButtonVariant, TextArea
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Label,
+    StatusBadge,
+    TextArea,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 
 # The body is sized to its wrapped text: the tab has room to grow downwards, so
@@ -94,14 +102,14 @@ class CoachCardWidget(QFrame):
         # --- header: classification pill, move badge, eval swing, phase chip ---
         self._header_rows = self._add_row_containers(layout)
 
-        self.class_pill = QLabel("-")
-        self.san_label = QLabel("-")
-        self.eval_label = QLabel("")
+        self.class_pill = StatusBadge("-", "neutral")
+        self.san_label = StatusBadge("-", "neutral", mono=True)
+        self.eval_label = StatusBadge("", TextTone.ACCENT, mono=True)
         self.eval_label.setToolTip(
             "Engine evaluation from White's perspective (positive = White is better). "
             "The explanation's win chance is from your perspective."
         )
-        self.phase_label = QLabel("")
+        self.phase_label = StatusBadge("", "neutral")
 
         # --- body: a fixed number of lines that scrolls anything longer ---
         self.body_edit = TextArea(variant="flat", font_size=_BODY_FONT_PX, readonly=True)
@@ -114,8 +122,7 @@ class CoachCardWidget(QFrame):
         layout.addWidget(self.body_edit)
 
         # Stay visible (empty) when unused so the action row below never moves.
-        self.caption = QLabel("")
-        self.caption.setWordWrap(False)
+        self.caption = Label("", role=TextRole.MICRO, tone=TextTone.MUTED)
         self.caption.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(self.caption)
 
@@ -376,11 +383,6 @@ class CoachCardWidget(QFrame):
         self.setStyleSheet(Styles.get_frame_style(object_name="CoachCard", hover_accent=False))
         self.body_edit.refresh_styles()
         self._restyle_header()
-        self.caption.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
         for button in (self.btn_ask, self.btn_refute, self.btn_best):
             button.refresh_styles()
         self._layout_rows()  # the styles decide the badge/button widths
@@ -423,14 +425,10 @@ class CoachCardWidget(QFrame):
         placeholders plain would make the header jump the first time a move is
         selected. The pill's colour follows the classification.
         """
-        color = (
-            Styles.get_class_color(self.insight.classification)
-            if self.insight is not None
-            else Styles.COLOR_TEXT_MUTED
-        )
-        self.class_pill.setStyleSheet(Styles.get_result_badge_style(color))
-        self.san_label.setStyleSheet(Styles.get_badge_style())
-        self.phase_label.setStyleSheet(Styles.get_badge_style())
-        self.eval_label.setStyleSheet(
-            Styles.get_eval_badge_style(Styles.COLOR_ACCENT_SUBTLE, Styles.COLOR_TEXT_PRIMARY)
-        )
+        tone = "neutral"
+        if self.insight is not None:
+            try:
+                tone = TextTone(self.insight.classification.lower()).value
+            except ValueError:
+                tone = "neutral"
+        self.class_pill.set_tone(tone)

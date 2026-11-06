@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QSplitter,
     QVBoxLayout,
@@ -20,6 +19,10 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    Label,
+    RichTextLabel,
+    TextRole,
+    TextTone,
 )
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.styles import Styles
@@ -58,22 +61,19 @@ class ExplorerUiMixin:
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(20, 6, 20, 6)
 
-        self.title_lbl = QLabel("Opening Explorer")
-        self.title_lbl.setStyleSheet(
-            Styles.get_label_style(
-                size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True
-            )
-            + " "
-            + Styles.get_transparent_label_style()
+        self.title_lbl = Label(
+            "Opening Explorer",
+            role=TextRole.SUBHEADING,
+            weight=700,
         )
         header_layout.addWidget(self.title_lbl)
 
-        self.opening_badge = QLabel("Opening: -")
-        self.opening_badge.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
-            + "; padding: 0px 0px 0px 12px; "
-            + Styles.get_transparent_label_style()
+        self.opening_badge = Label(
+            "Opening: -",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
         )
+        header_layout.addSpacing(12)
         header_layout.addWidget(self.opening_badge)
         header_layout.addStretch()
 
@@ -96,7 +96,7 @@ class ExplorerUiMixin:
 
     def _build_left_panel(self) -> None:
         self.left_panel = QWidget()
-        self.left_panel.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.left_panel)
         self.left_layout = QVBoxLayout(self.left_panel)
         self.left_layout.setContentsMargins(8, 8, 8, 8)
         self.left_layout.setSpacing(6)
@@ -124,8 +124,7 @@ class ExplorerUiMixin:
         layout = QHBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        label = QLabel(title)
-        label.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        label = Label(title, role=TextRole.SUBHEADING, weight=700)
         captured = CapturedPiecesWidget(side=side)
 
         layout.addWidget(label)
@@ -138,7 +137,7 @@ class ExplorerUiMixin:
 
     def _build_right_panel(self) -> None:
         self.right_panel = QWidget()
-        self.right_panel.setStyleSheet(Styles.get_background_style())
+        Styles.apply_background(self.right_panel)
         right_layout = QVBoxLayout(self.right_panel)
         right_layout.setContentsMargins(8, 8, 12, 8)
         right_layout.setSpacing(6)
@@ -148,9 +147,10 @@ class ExplorerUiMixin:
         self._build_book_section(right_layout)
         self._build_moves_section(right_layout)
 
-        self.engine_status_label = QLabel("")
-        self.engine_status_label.setStyleSheet(
-            Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED)
+        self.engine_status_label = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
         )
         right_layout.addWidget(self.engine_status_label)
 
@@ -178,9 +178,7 @@ class ExplorerUiMixin:
 
         for chk in (self.chk_classify, self.chk_legal, self.chk_engine, self.chk_cache):
             chk.setStyleSheet(
-                Styles.get_label_style(
-                    size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500
-                )
+                f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_SECONDARY};"
             )
             chk.setCursor(Qt.CursorShape.PointingHandCursor)
             toggles_layout.addWidget(chk)
@@ -207,13 +205,11 @@ class ExplorerUiMixin:
         self.book_toggle.toggled.connect(self._toggle_book)
         right_layout.addWidget(self.book_toggle)
 
-        self.explorer_hint = QLabel()
-        self.explorer_hint.setWordWrap(True)
-        self.explorer_hint.setOpenExternalLinks(False)
-        self.explorer_hint.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 2px 14px; "
-            + Styles.get_transparent_label_style()
+        self.explorer_hint = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.MUTED,
+            wrap=True,
         )
         self.explorer_hint.hide()
         right_layout.addWidget(self.explorer_hint)
@@ -223,7 +219,7 @@ class ExplorerUiMixin:
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
 
         self.book_container = QWidget()
-        self.book_container.setStyleSheet(Styles.get_surface_style())
+        Styles.apply_background(self.book_container, "surface")
         self.book_layout = QVBoxLayout(self.book_container)
         self.book_layout.setContentsMargins(0, 0, 0, 0)
         self.book_layout.setSpacing(0)
@@ -232,11 +228,10 @@ class ExplorerUiMixin:
 
         right_layout.addWidget(self.book_scroll, stretch=1)
 
-        self.lichess_attribution = QLabel()
-        self.lichess_attribution.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 4px 14px; "
-            + Styles.get_transparent_label_style()
+        self.lichess_attribution = RichTextLabel(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.MUTED,
         )
         self.lichess_attribution.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -247,8 +242,7 @@ class ExplorerUiMixin:
         self._refresh_attribution_text()
 
     def _build_moves_section(self, right_layout: QVBoxLayout) -> None:
-        self.move_list_label = QLabel("Moves")
-        self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
+        self.move_list_label = Label("Moves", role=TextRole.BODY_LARGE, weight=700)
         right_layout.addWidget(self.move_list_label)
 
         self.move_list_view = MoveListView(variant="explorer")
@@ -300,56 +294,26 @@ class ExplorerUiMixin:
         self.header_bar.setStyleSheet(
             Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND)
         )
-        self.title_lbl.setStyleSheet(
-            Styles.get_label_style(
-                size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True
-            )
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-        self.opening_badge.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
-            + "; padding: 0px 0px 0px 12px; "
-            + Styles.get_transparent_label_style()
-        )
         for button in (self.btn_flip, self.btn_copy_fen, self.btn_copy_pgn):
             button.refresh_styles()
 
     def _refresh_panel_styles(self) -> None:
         self.splitter.setStyleSheet(Styles.get_splitter_style())
-        self.left_panel.setStyleSheet(Styles.get_background_style())
-        self.right_panel.setStyleSheet(Styles.get_background_style())
-        self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
-        self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        Styles.apply_background(self.left_panel)
+        Styles.apply_background(self.right_panel)
         self.captured_white.refresh_styles()
         self.captured_black.refresh_styles()
         self.lines_widget.refresh_styles()
 
     def _refresh_book_styles(self) -> None:
         self.book_toggle.refresh_styles()
-        self.explorer_hint.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 2px 14px; "
-            + Styles.get_transparent_label_style()
-        )
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
-        self.book_container.setStyleSheet(Styles.get_surface_style())
-        self.lichess_attribution.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 4px 14px; "
-            + Styles.get_transparent_label_style()
-        )
+        Styles.apply_background(self.book_container, "surface")
         self._refresh_attribution_text()
         skeleton = getattr(self, "_book_skeleton", None)
         if skeleton is not None:
             skeleton.refresh_styles()
 
     def _refresh_move_styles(self) -> None:
-        self.move_list_label.setStyleSheet(
-            Styles.get_label_style(size=14, bold=True)
-        )
         self.move_list_view.refresh_styles()
         self.move_controls.refresh_styles()
-        self.engine_status_label.setStyleSheet(
-            Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED)
-        )

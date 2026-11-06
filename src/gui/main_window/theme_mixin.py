@@ -6,6 +6,7 @@ from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.services.groq_service import GroqService
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.typography import TextTone
 from src.utils.logger import logger
 
 
@@ -132,16 +133,10 @@ class ThemeMixin:
                 Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND)
                 + " QFrame QLabel { background: transparent; }"
             )
-        if hasattr(self, "title_lbl"):
-            self.title_lbl.setStyleSheet(
-                Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
         if hasattr(self, "left_widget"):
-            self.left_widget.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.left_widget)
         if hasattr(self, "center_widget"):
-            self.center_widget.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self.center_widget)
         if hasattr(self, "empty_state_cta"):
             self.empty_state_cta.setStyleSheet(
                 Styles.get_empty_state_cta_style(
@@ -151,11 +146,11 @@ class ThemeMixin:
         if hasattr(self, "_refresh_historic_bar_styles"):
             self._refresh_historic_bar_styles()
         if hasattr(self, "lbl_hero_hint"):
-            self.lbl_hero_hint.setStyleSheet(
-                Styles.get_hero_hint_style(getattr(self, "_drop_highlight_active", False))
+            self.lbl_hero_hint.set_tone(
+                TextTone.ACCENT
+                if getattr(self, "_drop_highlight_active", False)
+                else TextTone.SECONDARY
             )
-        if hasattr(self, "lbl_hero_keys"):
-            self.lbl_hero_keys.setStyleSheet(Styles.get_keycap_style())
         if hasattr(self, "splitter"):
             self.splitter.setStyleSheet(f"""
                 QSplitter {{
@@ -188,11 +183,6 @@ class ThemeMixin:
                 self.metrics_view.refresh_styles()
             else:
                 self.metrics_view.refresh()
-        if hasattr(self, "game_info_label"):
-            self.game_info_label.setStyleSheet(
-                f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
-                " padding: 0 12px; background: transparent; border: none;"
-            )
         if hasattr(self, "board_game_header"):
             self.board_game_header.refresh_styles()
 
@@ -243,24 +233,8 @@ class ThemeMixin:
                 background: transparent;
             }}
         """)
-        if hasattr(self, "_status_lbl"):
-            self._status_lbl.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
-            )
-        if hasattr(self, "_engine_pill"):
-            state = self._engine_pill.text()
-            if "Offline" in state:
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};"
-                )
-            elif "Calculating" in state:
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};"
-                )
-            else:
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};"
-                )
+        if hasattr(self, "board_game_header"):
+            self.board_game_header.refresh_styles()
 
         # Force full style re-evaluation for all children
         self.style().unpolish(self)

@@ -489,7 +489,7 @@ class MoveListView(QWidget):
 
     def refresh_styles(self) -> None:
         if self._rich:
-            self.setStyleSheet(Styles.get_background_style())
+            Styles.apply_background(self)
             if self.card is not None:
                 self.card.setStyleSheet(Styles.get_move_list_card_style())
             self.table.setStyleSheet(Styles.get_move_list_table_style())
