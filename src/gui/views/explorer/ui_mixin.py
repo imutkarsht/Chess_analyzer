@@ -21,7 +21,6 @@ from src.gui.components import (
     ButtonVariant,
     Label,
     RichTextLabel,
-    StatusBadge,
     TextRole,
     TextTone,
 )
@@ -148,7 +147,11 @@ class ExplorerUiMixin:
         self._build_book_section(right_layout)
         self._build_moves_section(right_layout)
 
-        self.engine_status_label = StatusBadge("", "neutral")
+        self.engine_status_label = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         right_layout.addWidget(self.engine_status_label)
 
         self.splitter.addWidget(self.right_panel)

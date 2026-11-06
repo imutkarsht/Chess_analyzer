@@ -1892,14 +1892,6 @@ class Styles(metaclass=_StylesMeta):
             background = cls._blend_hex(p.surface_light, p.piece_black, 0.12 + 0.60 * intensity)
         return cls.get_eval_badge_style(background, cls._contrast_text(background))
 
-    @classmethod
-    def get_engine_status_style(cls, color):
-        return f"""
-            font-size: 11px;
-            color: {color};
-            padding: 2px 0px;
-        """
-
     # ═══════════════════════════════════════════════════════════════
     #  HISTORY / GAME LIST PAGE
     # ═══════════════════════════════════════════════════════════════
