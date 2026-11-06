@@ -66,7 +66,7 @@ class BoardPiecesSettings(QGroupBox):
         gallery_row.setSpacing(20)
 
         self.gallery_container = QWidget()
-        self.gallery_container.setStyleSheet(Styles.get_transparent_label_style())
+        self.gallery_container.setStyleSheet(Styles.get_transparent_style())
         self.gallery_layout = QGridLayout(self.gallery_container)
         self.gallery_layout.setContentsMargins(0, 0, 0, 0)
         self.gallery_layout.setSpacing(8)

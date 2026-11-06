@@ -168,13 +168,13 @@ class AnalysisPanel(QWidget):
 
         # 1. Top Section: Hero Outcome Header
         self.hero_card = QFrame()
-        self.hero_card.setStyleSheet(Styles.get_transparent_label_style())
+        self.hero_card.setStyleSheet(Styles.get_transparent_style())
         hero_layout = QVBoxLayout(self.hero_card)
         hero_layout.setContentsMargins(0, 0, 0, 0)
         hero_layout.setSpacing(2)
 
         self.result_banner_lbl = QLabel("-")
-        self.result_banner_lbl.setStyleSheet(Styles.get_transparent_label_style())
+        self.result_banner_lbl.setStyleSheet(Styles.get_transparent_style())
         hero_layout.addWidget(self.result_banner_lbl)
 
         self.opening_label = Label("-", role=TextRole.CAPTION, weight=600, wrap=True)
@@ -193,7 +193,7 @@ class AnalysisPanel(QWidget):
 
         # 2. Accuracy Gauges (Side by side White & Black)
         self.accuracy_frame = QFrame()
-        self.accuracy_frame.setStyleSheet(Styles.get_transparent_label_style())
+        self.accuracy_frame.setStyleSheet(Styles.get_transparent_style())
         self.accuracy_layout = QHBoxLayout(self.accuracy_frame)
         self.accuracy_layout.setContentsMargins(0, 4, 0, 4)
         self.accuracy_layout.setSpacing(16)
@@ -213,7 +213,7 @@ class AnalysisPanel(QWidget):
 
         # 3. Move Quality Classification Table
         self.stats_frame = QFrame()
-        self.stats_frame.setStyleSheet(Styles.get_transparent_label_style())
+        self.stats_frame.setStyleSheet(Styles.get_transparent_style())
         self.stats_layout = QGridLayout(self.stats_frame)
         self.stats_layout.setSpacing(4)
         self.stats_layout.setContentsMargins(0, 4, 0, 4)
@@ -484,7 +484,7 @@ class AnalysisPanel(QWidget):
                 icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             else:
                 icon_label.setText("-")
-            icon_label.setStyleSheet(Styles.get_transparent_label_style())
+            icon_label.setStyleSheet(Styles.get_transparent_style())
             self.stats_layout.addWidget(icon_label, i + 1, 2)
 
             val_b = summary["black"].get(type_name, 0)

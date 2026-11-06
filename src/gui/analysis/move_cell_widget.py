@@ -41,13 +41,13 @@ class MoveCellWidget(QWidget):
         self._icon_label = QLabel(self)
         self._icon_label.setFixedSize(16, 16)
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._icon_label.setStyleSheet(Styles.get_transparent_label_style())
+        self._icon_label.setStyleSheet(Styles.get_transparent_style())
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._san_label = QLabel(self)
         self._san_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         self._san_label.setMinimumWidth(0)
-        self._san_label.setStyleSheet(Styles.get_transparent_label_style())
+        self._san_label.setStyleSheet(Styles.get_transparent_style())
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self._variation_btn = QToolButton(self)
@@ -66,7 +66,7 @@ class MoveCellWidget(QWidget):
         self._time_label.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -75,7 +75,7 @@ class MoveCellWidget(QWidget):
         # Bottom row: a 2-pixel-tall think-time bar (shown only if time_spent is present)
         self._bar = QLabel(self)
         self._bar.setFixedHeight(2)
-        self._bar.setStyleSheet(Styles.get_transparent_label_style())
+        self._bar.setStyleSheet(Styles.get_transparent_style())
         self._bar.hide()
         outer.addWidget(self._bar)
 
@@ -212,7 +212,7 @@ class MoveCellWidget(QWidget):
         return (
             Styles.get_label_style(size=13, color=color, weight=weight)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
 
     def _variation_icon(self) -> bool:
@@ -231,7 +231,7 @@ class MoveCellWidget(QWidget):
         self._time_label.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
 
         if (

@@ -23,6 +23,7 @@ from src.gui.components import (
     StatCard,
     StatsLayout,
     TextRole,
+    TextTone,
 )
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
@@ -299,10 +300,7 @@ class MetricsWidget(QWidget):
         spinner.setStyleSheet(Styles.get_progress_bar_style())
         l_layout.addWidget(spinner)
 
-        lbl = QLabel("Filtering Statistics...")
-        lbl.setStyleSheet(
-            Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY) + "; margin-top: 10px;"
-        )
+        lbl = Label("Filtering Statistics...", role=TextRole.SUBHEADING)
         l_layout.addWidget(lbl)
 
         # Stop existing worker safely
@@ -409,15 +407,16 @@ class MetricsWidget(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(20)
 
-        lbl = QLabel(title_text)
-        lbl.setStyleSheet(
-            Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-        )
+        lbl = Label(title_text, role=TextRole.PAGE_TITLE)
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl)
 
-        msg = QLabel(msg_text)
-        msg.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_SECONDARY))
+        msg = Label(
+            msg_text,
+            role=TextRole.SUBHEADING,
+            tone=TextTone.SECONDARY,
+            wrap=True,
+        )
         msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(msg)
 

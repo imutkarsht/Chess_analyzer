@@ -100,7 +100,7 @@ class DrillDownItemWidget(QFrame):
         match_lbl.setStyleSheet(
             Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_PRIMARY)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         row1.addWidget(match_lbl)
 

@@ -176,7 +176,7 @@ class ApiSettings(QGroupBox):
         self.llm_set_active_btn.setAccessibleName("Set active LLM profile")
 
         selector = QWidget()
-        selector.setStyleSheet(Styles.get_transparent_label_style())
+        selector.setStyleSheet(Styles.get_transparent_style())
         selector_row = QHBoxLayout(selector)
         selector_row.setContentsMargins(0, 0, 0, 0)
         selector_row.setSpacing(8)
@@ -228,7 +228,7 @@ class ApiSettings(QGroupBox):
         self.llm_help_btn.setVisible(False)
 
         key_row = QWidget()
-        key_row.setStyleSheet(Styles.get_transparent_label_style())
+        key_row.setStyleSheet(Styles.get_transparent_style())
         key_layout = QHBoxLayout(key_row)
         key_layout.setContentsMargins(0, 0, 0, 0)
         key_layout.setSpacing(8)

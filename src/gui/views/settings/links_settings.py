@@ -59,7 +59,7 @@ class LinksSettings(BackgroundTaskCard):
 
     def _build_brand_header(self) -> QWidget:
         brand = QWidget()
-        brand.setStyleSheet(Styles.get_transparent_label_style())
+        brand.setStyleSheet(Styles.get_transparent_style())
         brand_layout = QHBoxLayout(brand)
         brand_layout.setContentsMargins(0, 0, 0, 0)
         brand_layout.setSpacing(16)
@@ -107,7 +107,7 @@ class LinksSettings(BackgroundTaskCard):
 
     def _build_links_section(self) -> QWidget:
         section = QWidget()
-        section.setStyleSheet(Styles.get_transparent_label_style())
+        section.setStyleSheet(Styles.get_transparent_style())
         layout = QVBoxLayout(section)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
@@ -157,7 +157,7 @@ class LinksSettings(BackgroundTaskCard):
 
     def _build_footer(self) -> QWidget:
         footer = QWidget()
-        footer.setStyleSheet(Styles.get_transparent_label_style())
+        footer.setStyleSheet(Styles.get_transparent_style())
         layout = QVBoxLayout(footer)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)

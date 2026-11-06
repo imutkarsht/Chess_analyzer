@@ -212,7 +212,7 @@ class ExplorerUiMixin:
         self.explorer_hint.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
             + "; padding: 2px 14px; "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         self.explorer_hint.hide()
         right_layout.addWidget(self.explorer_hint)
@@ -235,7 +235,7 @@ class ExplorerUiMixin:
         self.lichess_attribution.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
             + "; padding: 4px 14px; "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         self.lichess_attribution.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -314,14 +314,14 @@ class ExplorerUiMixin:
         self.explorer_hint.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
             + "; padding: 2px 14px; "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
         self.book_container.setStyleSheet(Styles.get_surface_style())
         self.lichess_attribution.setStyleSheet(
             Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
             + "; padding: 4px 14px; "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         self._refresh_attribution_text()
         skeleton = getattr(self, "_book_skeleton", None)

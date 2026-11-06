@@ -34,10 +34,10 @@ class LoadingOverlay(QWidget):
         self.layout.setSpacing(10)
 
         self.text_label = QLabel("")
-        self.text_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 18px; {Styles.get_transparent_label_style()}")
+        self.text_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 18px; {Styles.get_transparent_style()}")
 
         self.sub_label = QLabel("")
-        self.sub_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 14px; {Styles.get_transparent_label_style()}")
+        self.sub_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 14px; {Styles.get_transparent_style()}")
 
         self.layout.addStretch()
         self.layout.addSpacing(60)

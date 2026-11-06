@@ -85,7 +85,7 @@ class SettingsForm(QWidget):
         lbl.setFixedWidth(self._label_width)
 
         wrapper = QWidget()
-        wrapper.setStyleSheet(Styles.get_transparent_label_style())
+        wrapper.setStyleSheet(Styles.get_transparent_style())
 
         if width is not None:
             control.setMaximumWidth(width)
@@ -199,7 +199,7 @@ class RadioChoice(QWidget):
 
     def __init__(self, choices, *, trailing: QWidget | None = None, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(Styles.get_transparent_label_style())
+        self.setStyleSheet(Styles.get_transparent_style())
         self._values: dict[QRadioButton, object] = {}
 
         layout = QHBoxLayout(self)

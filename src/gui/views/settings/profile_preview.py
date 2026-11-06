@@ -266,14 +266,14 @@ class ProfilePreview(QFrame):
         root.addWidget(self.avatar, 0, Qt.AlignmentFlag.AlignTop)
 
         body = QWidget()
-        body.setStyleSheet(Styles.get_transparent_label_style())
+        body.setStyleSheet(Styles.get_transparent_style())
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(5)
         root.addWidget(body, 1)
 
         self._state_row = QWidget()
-        self._state_row.setStyleSheet(Styles.get_transparent_label_style())
+        self._state_row.setStyleSheet(Styles.get_transparent_style())
         state_layout = QHBoxLayout(self._state_row)
         state_layout.setContentsMargins(0, 0, 0, 0)
         state_layout.setSpacing(10)
@@ -298,7 +298,7 @@ class ProfilePreview(QFrame):
         body_layout.addWidget(self._state_row)
 
         self._data_widget = QWidget()
-        self._data_widget.setStyleSheet(Styles.get_transparent_label_style())
+        self._data_widget.setStyleSheet(Styles.get_transparent_style())
         data_layout = QVBoxLayout(self._data_widget)
         data_layout.setContentsMargins(0, 0, 0, 0)
         data_layout.setSpacing(5)
@@ -352,7 +352,7 @@ class ProfilePreview(QFrame):
         data_layout.addWidget(self.meta_label)
 
         self._chips_widget = QWidget()
-        self._chips_widget.setStyleSheet(Styles.get_transparent_label_style())
+        self._chips_widget.setStyleSheet(Styles.get_transparent_style())
         self._chips_layout = QHBoxLayout(self._chips_widget)
         self._chips_layout.setContentsMargins(0, 2, 0, 2)
         self._chips_layout.setSpacing(6)

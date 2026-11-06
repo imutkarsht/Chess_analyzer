@@ -133,7 +133,7 @@ class Board(QWidget):
         self.drag_piece_label = QLabel(self.board_container)
         self.drag_piece_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.drag_piece_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.drag_piece_label.setStyleSheet(Styles.get_transparent_label_style())
+        self.drag_piece_label.setStyleSheet(Styles.get_transparent_style())
         self.drag_piece_label.hide()
         self.is_dragging = False
         self.drag_start_sq = None
@@ -379,7 +379,7 @@ class Board(QWidget):
                         color=f"rgba({colour.red()},{colour.green()},{colour.blue()},0.5)",
                     )
                     + " "
-                    + Styles.get_transparent_label_style()
+                    + Styles.get_transparent_style()
                 )
                 r, col = self._sq_to_grid(sq)
                 self.overlay_layout.addWidget(dot, r, col)
@@ -401,7 +401,7 @@ class Board(QWidget):
         badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         badge.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
         badge.setPixmap(icon.pixmap(32, 32))
-        badge.setStyleSheet(Styles.get_transparent_label_style())
+        badge.setStyleSheet(Styles.get_transparent_style())
 
         row, col = self._sq_to_grid(self.board.peek().to_square)
         self.overlay_layout.addWidget(
@@ -611,7 +611,7 @@ class Board(QWidget):
             lbl = QLabel()
             lbl.setPixmap(icon.pixmap(32, 32))
             lbl.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-            lbl.setStyleSheet(Styles.get_transparent_label_style())
+            lbl.setStyleSheet(Styles.get_transparent_style())
 
             # Ensure grid is 8x8
             for r in range(8):

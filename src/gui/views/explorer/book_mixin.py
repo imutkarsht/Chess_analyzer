@@ -64,7 +64,7 @@ class ExplorerBookMixin:
                 icon_label = QLabel()
                 icon_label.setPixmap(pixmap)
                 icon_label.setFixedSize(18, 18)
-                icon_label.setStyleSheet(Styles.get_transparent_label_style())
+                icon_label.setStyleSheet(Styles.get_transparent_style())
                 left_layout.addWidget(icon_label)
 
         lbl_san = Label(san, role=TextRole.SUBHEADING, size=15, weight=700)

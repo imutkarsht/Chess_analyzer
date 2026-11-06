@@ -95,7 +95,7 @@ class GameListItemWidget(QWidget):
 
         players_widget = QWidget()
         players_widget.setFixedWidth(220)
-        players_widget.setStyleSheet(Styles.get_transparent_label_style())
+        players_widget.setStyleSheet(Styles.get_transparent_style())
         players_layout = QVBoxLayout(players_widget)
         players_layout.setContentsMargins(0, 0, 0, 0)
         players_layout.setSpacing(2)
@@ -108,7 +108,7 @@ class GameListItemWidget(QWidget):
         w_lbl.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         w_row.addWidget(w_lbl)
         if result_text == "1-0":
@@ -125,7 +125,7 @@ class GameListItemWidget(QWidget):
         b_lbl.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         b_row.addWidget(b_lbl)
         if result_text == "0-1":
@@ -238,7 +238,7 @@ class GameListItemWidget(QWidget):
         white_label.setStyleSheet(
             Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         header_layout.addWidget(white_label)
 
@@ -256,7 +256,7 @@ class GameListItemWidget(QWidget):
         black_label.setStyleSheet(
             Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
             + " "
-            + Styles.get_transparent_label_style()
+            + Styles.get_transparent_style()
         )
         header_layout.addWidget(black_label)
 
@@ -300,7 +300,7 @@ class GameListItemWidget(QWidget):
                     qta.icon("fa5s.book-open", color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14)
                 )
             book_icon.setFixedWidth(14)
-            book_icon.setStyleSheet(Styles.get_transparent_label_style())
+            book_icon.setStyleSheet(Styles.get_transparent_style())
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
@@ -532,7 +532,7 @@ class GameListItemWidget(QWidget):
         lbl = QLabel()
         lbl.setFixedSize(18, 18)
         lbl.setScaledContents(True)
-        lbl.setStyleSheet(Styles.get_transparent_label_style())
+        lbl.setStyleSheet(Styles.get_transparent_style())
 
         src_lower = str(source).lower().strip()
         if "lichess" in src_lower:
@@ -564,7 +564,7 @@ class GameListItemWidget(QWidget):
         lbl = QLabel()
         lbl.setFixedSize(16, 16)
         lbl.setScaledContents(True)
-        lbl.setStyleSheet(Styles.get_transparent_label_style())
+        lbl.setStyleSheet(Styles.get_transparent_style())
 
         icon_path = get_resource_path(os.path.join("assets", "images", "winner_crown.svg"))
         if os.path.exists(icon_path):
@@ -580,14 +580,14 @@ class GameListItemWidget(QWidget):
 
     def _create_meta_item(self, icon, text):
         container = QWidget()
-        container.setStyleSheet(Styles.get_transparent_label_style())
+        container.setStyleSheet(Styles.get_transparent_style())
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
         icon_lbl = QLabel()
         icon_lbl.setFixedSize(14, 14)
-        icon_lbl.setStyleSheet(Styles.get_transparent_label_style())
+        icon_lbl.setStyleSheet(Styles.get_transparent_style())
 
         if isinstance(icon, str) and icon.endswith(".svg"):
             icon_path = get_resource_path(icon)

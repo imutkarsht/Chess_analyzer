@@ -55,7 +55,7 @@ class StorageSettings(StorageCard):
             btn.setMaximumWidth(180)
 
         folder_row = QWidget()
-        folder_row.setStyleSheet(Styles.get_transparent_label_style())
+        folder_row.setStyleSheet(Styles.get_transparent_style())
         row = QHBoxLayout(folder_row)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(8)
@@ -107,10 +107,6 @@ class StorageSettings(StorageCard):
     def refresh_styles(self, *args, **kwargs) -> None:
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
-        for label in self.stat_labels.values():
-            label.setStyleSheet(
-                Styles.get_label_style(size=13) + Styles.get_transparent_label_style()
-            )
         self.refresh_btn.refresh_styles()
         self.open_folder_btn.refresh_styles()
 

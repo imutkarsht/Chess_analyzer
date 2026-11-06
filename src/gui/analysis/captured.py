@@ -44,7 +44,7 @@ class CapturedPiecesWidget(QFrame):
         # Add stretch widget so captured pieces stay left, and clock stays right
         self.spacer_widget = QWidget()
         self.spacer_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.spacer_widget.setStyleSheet(Styles.get_transparent_label_style())
+        self.spacer_widget.setStyleSheet(Styles.get_transparent_style())
         self.spacer_widget.hide()  # Hidden by default
         layout.addWidget(self.spacer_widget)
 
@@ -257,7 +257,7 @@ class CapturedPiecesWidget(QFrame):
         if has_pieces or has_clock:
             self.setStyleSheet(Styles.get_captured_pieces_style())
         else:
-            self.setStyleSheet(Styles.get_transparent_label_style())
+            self.setStyleSheet(Styles.get_transparent_style())
     def refresh_styles(self):
         self.update_captured(self._fen)
         if self._clock_seconds is not None:

@@ -160,14 +160,14 @@ class StatCard(QFrame):
                     Qt.TransformationMode.SmoothTransformation,
                 )
                 lbl_icon.setPixmap(pixmap)
-                lbl_icon.setStyleSheet(Styles.get_transparent_label_style())
+                lbl_icon.setStyleSheet(Styles.get_transparent_style())
                 layout.addWidget(lbl_icon)
                 return
 
         # Fallback: show icon name as text
         lbl = QLabel(icon)
         lbl.setStyleSheet(
-            f"color: {Styles.COLOR_ACCENT}; font-size: 16px; {Styles.get_transparent_label_style()}"
+            f"color: {Styles.COLOR_ACCENT}; font-size: 16px; {Styles.get_transparent_style()}"
         )
         layout.addWidget(lbl)
 

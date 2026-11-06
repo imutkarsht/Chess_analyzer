@@ -1050,7 +1050,7 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_transparent_label_style(cls):
+    def get_transparent_style(cls):
         return "border: none; background: transparent;"
 
     # ═══════════════════════════════════════════════════════════════

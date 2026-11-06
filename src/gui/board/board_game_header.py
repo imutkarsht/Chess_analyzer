@@ -1,7 +1,8 @@
 """Board-width matchup header shown above the analysis board."""
 
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel
+from PyQt6.QtWidgets import QFrame, QHBoxLayout
 
+from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
@@ -16,10 +17,15 @@ class BoardGameHeader(QFrame):
         layout.setContentsMargins(2, 2, 2, 8)
         layout.setSpacing(8)
 
-        self.white_label = QLabel()
-        self.vs_label = QLabel("vs")
-        self.black_label = QLabel()
-        self.result_label = QLabel()
+        self.white_label = Label("", role=TextRole.SUBHEADING, weight=600)
+        self.vs_label = Label(
+            "vs",
+            role=TextRole.BODY_LARGE,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
+        self.black_label = Label("", role=TextRole.SUBHEADING, weight=600)
+        self.result_label = Label("", role=TextRole.SUBHEADING, weight=700)
         layout.addWidget(self.white_label)
         layout.addWidget(self.vs_label)
         layout.addWidget(self.black_label)
@@ -69,28 +75,21 @@ class BoardGameHeader(QFrame):
             return "black"
         return None
 
-    def _result_color(self) -> str:
-        """Result colour from the saved player's POV, accent when unknown."""
+    def _result_tone(self) -> TextTone:
+        """Result tone from the saved player's POV, accent when unknown."""
         result = self._result
         side = self._user_side()
         if side is None or result in ("", "*"):
-            return Styles.COLOR_ACCENT
+            return TextTone.ACCENT
         if result in ("1/2-1/2", "½-½", "0.5-0.5"):
-            return Styles.COLOR_RESULT_DRAW
+            return TextTone.RESULT_DRAW
         if result not in ("1-0", "0-1"):
-            return Styles.COLOR_ACCENT
+            return TextTone.ACCENT
 
         white_won = result == "1-0"
         user_won = (white_won and side == "white") or (not white_won and side == "black")
-        return Styles.COLOR_RESULT_WIN if user_won else Styles.COLOR_BLUNDER
+        return TextTone.RESULT_WIN if user_won else TextTone.BLUNDER
 
     def refresh_styles(self) -> None:
         self.setStyleSheet(Styles.get_board_game_header_style())
-        name_style = Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-        muted_style = Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_SECONDARY, weight=500)
-        self.white_label.setStyleSheet(name_style)
-        self.black_label.setStyleSheet(name_style)
-        self.vs_label.setStyleSheet(muted_style)
-        self.result_label.setStyleSheet(
-            Styles.get_label_style(size=16, color=self._result_color(), weight=700)
-        )
+        self.result_label.set_tone(self._result_tone())
