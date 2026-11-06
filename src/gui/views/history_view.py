@@ -15,7 +15,15 @@ from src.backend.storage.game_query import (
     RESULT_WIN,
     GameQuery,
 )
-from src.gui.components import Button, ButtonVariant, Input, InputVariant, Select
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Input,
+    InputVariant,
+    Label,
+    Select,
+    TextRole,
+)
 from src.gui.components.feedback.toast import ToastHandle, ToastManager
 from src.gui.components.lists.game_list_widget import GameListWidget
 from src.gui.styles import Styles
@@ -105,12 +113,7 @@ class HistoryView(QWidget):
         header_layout.setSpacing(8)
 
         # Title
-        self.header_lbl = QLabel("Game History")
-        self.header_lbl.setStyleSheet(
-            Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self.header_lbl = Label("Game History", role=TextRole.PAGE_TITLE)
         header_layout.addWidget(self.header_lbl)
 
         header_layout.addStretch()
@@ -526,12 +529,6 @@ class HistoryView(QWidget):
         """Re-applies styles to game history view components."""
         if hasattr(self, "header_bar"):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-        if hasattr(self, "header_lbl"):
-            self.header_lbl.setStyleSheet(
-                Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
         if hasattr(self, "content_widget"):
             self.content_widget.setStyleSheet(Styles.get_background_style())
         if hasattr(self, "search_input"):
