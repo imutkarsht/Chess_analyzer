@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from src.backend.storage.models import GameAnalysis, GameMetadata
 from src.gui.main_window import MainWindow
+from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.palette import DARK, LIGHT
 
@@ -49,18 +50,18 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert window._hib_celebration.isVisible()
 
     # The classic puzzle chrome is still painted per-widget, while the migrated
-    # Label text follows the global stylesheet. A theme switch must restyle the
-    # painted blurb and leave the Label's tone contract intact.
+    # rich-text label follows the global tone stylesheet. A theme switch must
+    # leave the label's semantic tone intact while the resolver moves with the
+    # active palette.
     monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
     previous_mode = ThemeManager.mode()
     try:
         ThemeManager.set_mode("dark")
-        dark_ink = window._hib_cel_text.styleSheet()
-        assert DARK.text_primary in dark_ink
+        assert window._hib_cel_text.tone.value == "primary"
+        assert Styles.get_tone_color(window._hib_cel_text.tone) == DARK.text_primary
         ThemeManager.set_mode("light")
         assert ThemeManager.palette().text_primary == LIGHT.text_primary
-        assert LIGHT.text_primary in window._hib_cel_text.styleSheet()
-        assert window._hib_cel_text.styleSheet() != dark_ink
+        assert Styles.get_tone_color(window._hib_cel_text.tone) == LIGHT.text_primary
         assert window._hib_hint.styleSheet() == ""
         assert window._hib_hint.property("tone") == "primary"
     finally:

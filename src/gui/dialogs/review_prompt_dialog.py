@@ -6,7 +6,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
-    QLabel,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -186,9 +185,8 @@ class ReviewPromptDialog(QDialog):
         layout.setSpacing(16)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = QLabel("🎉")
+        icon_lbl = Label("🎉", role=TextRole.STAT, size=48)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setStyleSheet("font-size: 48px; background: transparent;")
         layout.addWidget(icon_lbl)
 
         thanks_title = Label(

@@ -7,7 +7,6 @@ from PyQt6.QtGui import QGuiApplication, QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
     QSplitter,
     QVBoxLayout,
@@ -22,7 +21,14 @@ from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardGameHeader, BoardPanel
-from src.gui.components import Label, StatusBadge, TextRole, TextTone
+from src.gui.components import (
+    BadgeVariant,
+    Label,
+    RichTextLabel,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.components.feedback.loading_widget import LoadingOverlay
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.components.layout.sidebar import Sidebar
@@ -425,13 +431,15 @@ class MainWindow(
 
         # Header Bar Container for Chess Analysis
         self.analysis_header_bar = QFrame()
+        self.analysis_header_bar.setObjectName("AnalysisHeaderBar")
         self.analysis_header_bar.setStyleSheet(f"""
-            QFrame {{
+            QFrame#AnalysisHeaderBar {{
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
             }}
-            QFrame QLabel {{
+            QFrame#AnalysisHeaderBar QLabel {{
                 background: transparent;
+                border: none;
             }}
         """)
         header_layout = QHBoxLayout(self.analysis_header_bar)
@@ -578,15 +586,26 @@ class MainWindow(
         hint_row.addStretch(1)
 
         self._hero_hint_default = "Drop a .pgn anywhere"
-        self.lbl_hero_hint = QLabel(self._hero_hint_default)
-        self.lbl_hero_hint.setStyleSheet(Styles.get_hero_hint_style())
+        self.lbl_hero_hint = Label(
+            self._hero_hint_default,
+            role=TextRole.CAPTION,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
         self.lbl_hero_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         hint_row.addWidget(self.lbl_hero_hint)
 
         open_key = "⌘O" if sys.platform == "darwin" else "Ctrl+O"
         paste_key = "⌘V" if sys.platform == "darwin" else "Ctrl+V"
-        self.lbl_hero_keys = QLabel(f"{open_key} open   ·   {paste_key} paste")
-        self.lbl_hero_keys.setStyleSheet(Styles.get_keycap_style())
+        self.lbl_hero_keys = StatusBadge(
+            f"{open_key} open   ·   {paste_key} paste",
+            TextTone.MUTED,
+            variant=BadgeVariant.QUIET,
+            font_size=11,
+            weight=600,
+            padding="2px 8px",
+            radius=9,
+        )
         hint_row.addWidget(self.lbl_hero_keys)
 
         hint_row.addStretch(1)
@@ -691,10 +710,9 @@ class MainWindow(
         cel_layout = QHBoxLayout(self._hib_celebration)
         cel_layout.setContentsMargins(10, 8, 10, 8)
         cel_layout.setSpacing(8)
-        self._hib_cel_icon = QLabel("✨")
+        self._hib_cel_icon = Label("✨", role=TextRole.STAT, size=20)
         cel_layout.addWidget(self._hib_cel_icon)
-        self._hib_cel_text = QLabel()
-        self._hib_cel_text.setWordWrap(True)
+        self._hib_cel_text = RichTextLabel("", role=TextRole.BODY, wrap=True)
         cel_layout.addWidget(self._hib_cel_text, 1)
         hib_outer.addWidget(self._hib_celebration)
 
@@ -778,12 +796,6 @@ class MainWindow(
                 }}
                 QLabel {{ background: transparent; border: none; }}
             """)
-        if hasattr(self, "_hib_cel_icon"):
-            self._hib_cel_icon.setStyleSheet("font-size: 20px;")
-        if hasattr(self, "_hib_cel_text"):
-            self._hib_cel_text.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY};"
-            )
         if hasattr(self, "_hib_celebration"):
             border = (
                 Styles.COLOR_ACCENT

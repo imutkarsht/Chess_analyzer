@@ -1,10 +1,11 @@
 
 from PyQt6.QtCore import QPropertyAnimation, Qt, QTimer, pyqtProperty
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPen
-from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
-from src.gui.styles import Styles
+from src.gui.components.display.label import Label
 from src.gui.theme.motion import MotionDuration, MotionEasing
+from src.gui.theme.typography import TextRole, TextTone
 
 
 class LoadingOverlay(QWidget):
@@ -33,11 +34,16 @@ class LoadingOverlay(QWidget):
         self.layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.layout.setSpacing(10)
 
-        self.text_label = QLabel("")
-        self.text_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 18px; {Styles.get_transparent_style()}")
-
-        self.sub_label = QLabel("")
-        self.sub_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 14px; {Styles.get_transparent_style()}")
+        self.text_label = Label(
+            "",
+            role=TextRole.SECTION_TITLE,
+            weight=700,
+        )
+        self.sub_label = Label(
+            "",
+            role=TextRole.BODY_LARGE,
+            tone=TextTone.MUTED,
+        )
 
         self.layout.addStretch()
         self.layout.addSpacing(60)

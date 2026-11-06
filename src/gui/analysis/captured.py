@@ -2,8 +2,9 @@
 Captured pieces display widget.
 """
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QSizePolicy, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy, QWidget
 
+from src.gui.components import ChipLabel, ClockLabel
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
 
@@ -48,9 +49,7 @@ class CapturedPiecesWidget(QFrame):
         self.spacer_widget.hide()  # Hidden by default
         layout.addWidget(self.spacer_widget)
 
-        self.clock_label = QLabel()
-        self.clock_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.clock_label.hide()
+        self.clock_label = ClockLabel(compact=self._compact)
         layout.addWidget(self.clock_label)
 
         self._apply_row_height()
@@ -63,6 +62,7 @@ class CapturedPiecesWidget(QFrame):
     def set_compact(self, compact: bool) -> None:
         """Use the denser Explore-mode sizing without recreating the widget."""
         self._compact = compact
+        self.clock_label.set_compact(compact)
         self._apply_row_height()
         self.update_captured(self._fen)
         if self._clock_seconds is not None:
@@ -156,8 +156,6 @@ class CapturedPiecesWidget(QFrame):
             'P': '♟', 'N': '♞', 'B': '♝', 'R': '♜', 'Q': '♛',
         }
 
-        style = Styles.get_piece_chip_style(fg, bg, compact=self._compact)
-
         symbol = piece_map.get(piece, '?')
         if piece in ('p', 'P'):
             # Pawns only: one chip with a small raised count.
@@ -179,23 +177,40 @@ class CapturedPiecesWidget(QFrame):
                 text = f"{symbol}{sup_digits}"
             else:
                 text = symbol
-            lbl = QLabel(text)
-            lbl.setStyleSheet(style)
+            lbl = ChipLabel(
+                text,
+                foreground=fg,
+                background=bg,
+                font_size=22 if self._compact else 26,
+                padding="1px 5px" if self._compact else "1px 6px",
+            )
             self.pieces_layout.addWidget(lbl)
         else:
             # Knights, bishops, rooks, queens: one chip per piece
             # (max 2 per type, so width stays bounded).
             for _ in range(count):
-                lbl = QLabel(symbol)
-                lbl.setStyleSheet(style)
+                lbl = ChipLabel(
+                    symbol,
+                    foreground=fg,
+                    background=bg,
+                    font_size=22 if self._compact else 26,
+                    padding="1px 5px" if self._compact else "1px 6px",
+                )
                 self.pieces_layout.addWidget(lbl)
 
     def _add_advantage_label(self, text):
         """Insert the material-advantage chip at the LEFT (index 0) so the
         counter stays pinned to the start of the row and does not wander
         as new pieces are captured."""
-        lbl = QLabel(text)
-        lbl.setStyleSheet(Styles.get_advantage_chip_style(compact=self._compact))
+        lbl = ChipLabel(
+            text,
+            foreground=Styles.COLOR_TEXT_PRIMARY,
+            background=Styles.COLOR_SURFACE_LIGHT,
+            font_size=14 if self._compact else 15,
+            weight=700,
+            padding="3px 7px",
+            margin_right=4,
+        )
         self.pieces_layout.insertWidget(0, lbl)
 
     def update_clock(self, seconds):
@@ -222,13 +237,10 @@ class CapturedPiecesWidget(QFrame):
     def _apply_clock_style(self, seconds):
         # Color coding: red/orange if less than 20 seconds
         if seconds <= 20.0:
-            self.clock_label.setStyleSheet(
-                Styles.get_digital_clock_style(
-                    Styles.COLOR_BLUNDER,
-                    "#FFFFFF",
-                    Styles.COLOR_BLUNDER,
-                    compact=self._compact,
-                )
+            self.clock_label.refresh_styles(
+                background=Styles.COLOR_BLUNDER,
+                foreground="#FFFFFF",
+                border=Styles.COLOR_BLUNDER,
             )
         else:
             if self.side == "black":
@@ -243,10 +255,10 @@ class CapturedPiecesWidget(QFrame):
                     Styles.COLOR_TEXT_PRIMARY,
                     Styles.COLOR_BORDER,
                 )
-            self.clock_label.setStyleSheet(
-                Styles.get_digital_clock_style(
-                    bg, fg, border, compact=self._compact
-                )
+            self.clock_label.refresh_styles(
+                background=bg,
+                foreground=fg,
+                border=border,
             )
 
     def _update_container_style(self):

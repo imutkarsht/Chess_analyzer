@@ -17,7 +17,6 @@ from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -28,6 +27,7 @@ from src.backend.api.lichess_api import LichessAPI
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.profile_cache_repo import CachedProfile
 from src.gui.components import (
+    Avatar,
     Button,
     ButtonSize,
     ButtonVariant,
@@ -267,10 +267,7 @@ class ProfilePreview(QFrame):
         root.setContentsMargins(14, 12, 14, 12)
         root.setSpacing(12)
 
-        self.avatar = QLabel()
-        self.avatar.setFixedSize(AVATAR_SIZE, AVATAR_SIZE)
-        self.avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar.hide()
+        self.avatar = Avatar(AVATAR_SIZE)
         root.addWidget(self.avatar, 0, Qt.AlignmentFlag.AlignTop)
 
         body = QWidget()
@@ -331,7 +328,7 @@ class ProfilePreview(QFrame):
         self.title_badge.hide()
         name_row.addWidget(self.title_badge)
 
-        self.country_label = QLabel()
+        self.country_label = Label("", role=TextRole.BODY)
         name_row.addWidget(self.country_label)
         name_row.addStretch(1)
 
@@ -594,26 +591,7 @@ class ProfilePreview(QFrame):
 
     def _render_avatar(self, load: ProfileLoad, display: str) -> None:
         pixmap = _circular_avatar(load.avatar_bytes) if load.avatar_bytes else None
-        if pixmap is not None:
-            self.avatar.setPixmap(pixmap)
-            self.avatar.setText("")
-            self.avatar.setStyleSheet(
-                "background: transparent; border: none; padding: 0px;"
-            )
-            return
-
-        self.avatar.setPixmap(QPixmap())
-        self.avatar.setText(initials_for(display))
-        self.avatar.setStyleSheet(f"""
-            QLabel {{
-                background-color: {Styles.COLOR_ACCENT_SUBTLE};
-                color: {Styles.COLOR_ACCENT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: {AVATAR_SIZE // 2}px;
-                font-size: 18px;
-                font-weight: 700;
-            }}
-        """)
+        self.avatar.set_content(pixmap, initials_for(display))
 
     def _refresh_button_style(self) -> None:
         self.refresh_btn.refresh_styles()

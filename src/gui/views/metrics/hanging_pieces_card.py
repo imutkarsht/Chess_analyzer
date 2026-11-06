@@ -11,7 +11,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
 )
 
@@ -142,6 +141,16 @@ class HangingPiecesCard(MetricCard):
         main_vbox.addLayout(pillars_row)
         self.set_content(self.content_widget)
 
+    @staticmethod
+    def _tone_for_color(color: str) -> TextTone:
+        mapping = {
+            Styles.COLOR_TEXT_PRIMARY: TextTone.PRIMARY,
+            Styles.COLOR_BEST: TextTone.BEST,
+            Styles.COLOR_BLUNDER: TextTone.BLUNDER,
+            Styles.COLOR_MISTAKE: TextTone.MISTAKE,
+        }
+        return mapping.get(color, TextTone.PRIMARY)
+
     def _build_piece_pillar(
         self,
         *,
@@ -189,19 +198,18 @@ class HangingPiecesCard(MetricCard):
         header.addStretch()
         layout.addLayout(header)
 
-        hero = QLabel(hero_text)
+        hero = Label(
+            hero_text,
+            role=TextRole.STAT,
+            size=22,
+            weight=800,
+            tone=self._tone_for_color(hero_color),
+        )
         hero.setCursor(Qt.CursorShape.PointingHandCursor)
         hero.setToolTip(hero_tooltip)
         hero.mousePressEvent = lambda _event: self.drill_down_requested.emit(
             hero_category, "all"
         )
-        hero.setStyleSheet(f"""
-            color: {hero_color};
-            font-size: 22px;
-            font-weight: 800;
-            border: none;
-            background: transparent;
-        """)
         layout.addWidget(hero)
 
         subtitle = Label(
@@ -270,14 +278,19 @@ class HangingPiecesCard(MetricCard):
         tooltip: str,
     ) -> QFrame:
         row = QFrame()
+        row.setObjectName("HangingPieceRow")
         row.setCursor(Qt.CursorShape.PointingHandCursor)
         row.setToolTip(tooltip)
         row.setStyleSheet(f"""
-            QFrame {{
+            QFrame#HangingPieceRow {{
                 background: transparent;
                 border-radius: 4px;
             }}
-            QFrame:hover {{
+            QFrame#HangingPieceRow QLabel {{
+                background: transparent;
+                border: none;
+            }}
+            QFrame#HangingPieceRow:hover {{
                 background-color: {Styles.COLOR_SURFACE};
             }}
         """)

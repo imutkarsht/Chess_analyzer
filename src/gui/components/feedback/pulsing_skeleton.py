@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -66,10 +65,7 @@ class PulsingSkeleton(QWidget):
         header_row.setSpacing(8)
         header_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        dot = QLabel("●")
-        dot.setStyleSheet(
-            f"color: {Styles.COLOR_ACCENT}; font-size: 10px; background: transparent;"
-        )
+        dot = Label("●", role=TextRole.BODY, size=10, tone=TextTone.ACCENT)
         header_row.addWidget(dot)
 
         self._title = Label(title, role=TextRole.BODY_STRONG)

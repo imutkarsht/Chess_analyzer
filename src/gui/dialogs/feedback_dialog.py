@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
     QHBoxLayout,
-    QLabel,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -86,10 +85,17 @@ class FeedbackDialog(QDialog):
 
         # ── Header Bar ──────────────────────────────────────────────────────
         header_bar = QWidget()
+        header_bar.setObjectName("FeedbackHeader")
         header_bar.setFixedHeight(58)
         header_bar.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE};
-            border-bottom: 1px solid {Styles.COLOR_BORDER};
+            QWidget#FeedbackHeader {{
+                background-color: {Styles.COLOR_SURFACE};
+                border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+            QWidget#FeedbackHeader QLabel {{
+                background: transparent;
+                border: none;
+            }}
         """)
         header_layout = QHBoxLayout(header_bar)
         header_layout.setContentsMargins(24, 0, 24, 0)
@@ -420,9 +426,8 @@ class FeedbackDialog(QDialog):
         layout.setSpacing(16)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = QLabel("✅")
+        icon_lbl = Label("✅", role=TextRole.STAT, size=48)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_lbl.setStyleSheet("font-size: 48px; background: transparent;")
         layout.addWidget(icon_lbl)
 
         self.success_title = Label(

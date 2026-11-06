@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QDialog,
     QFileDialog,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QVBoxLayout,
 )
@@ -46,8 +45,7 @@ class EngineNotFoundDialog(QDialog):
         layout.setContentsMargins(28, 28, 28, 20)
         layout.setSpacing(16)
 
-        icon_lbl = QLabel("\u26CF")
-        icon_lbl.setStyleSheet("font-size: 36px; background: transparent;")
+        icon_lbl = Label("\u26CF", role=TextRole.STAT, size=36)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_lbl)
 

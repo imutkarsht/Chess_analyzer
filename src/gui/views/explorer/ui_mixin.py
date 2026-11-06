@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QScrollArea,
     QSplitter,
     QVBoxLayout,
@@ -22,6 +21,7 @@ from src.gui.components import (
     ButtonVariant,
     Label,
     RichTextLabel,
+    StatusBadge,
     TextRole,
     TextTone,
 )
@@ -148,10 +148,7 @@ class ExplorerUiMixin:
         self._build_book_section(right_layout)
         self._build_moves_section(right_layout)
 
-        self.engine_status_label = QLabel("")
-        self.engine_status_label.setStyleSheet(
-            Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED)
-        )
+        self.engine_status_label = StatusBadge("", "neutral")
         right_layout.addWidget(self.engine_status_label)
 
         self.splitter.addWidget(self.right_panel)
@@ -317,6 +314,3 @@ class ExplorerUiMixin:
     def _refresh_move_styles(self) -> None:
         self.move_list_view.refresh_styles()
         self.move_controls.refresh_styles()
-        self.engine_status_label.setStyleSheet(
-            Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED)
-        )

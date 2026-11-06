@@ -6,6 +6,7 @@ from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.services.groq_service import GroqService
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.typography import TextTone
 from src.utils.logger import logger
 
 
@@ -145,11 +146,11 @@ class ThemeMixin:
         if hasattr(self, "_refresh_historic_bar_styles"):
             self._refresh_historic_bar_styles()
         if hasattr(self, "lbl_hero_hint"):
-            self.lbl_hero_hint.setStyleSheet(
-                Styles.get_hero_hint_style(getattr(self, "_drop_highlight_active", False))
+            self.lbl_hero_hint.set_tone(
+                TextTone.ACCENT
+                if getattr(self, "_drop_highlight_active", False)
+                else TextTone.SECONDARY
             )
-        if hasattr(self, "lbl_hero_keys"):
-            self.lbl_hero_keys.setStyleSheet(Styles.get_keycap_style())
         if hasattr(self, "splitter"):
             self.splitter.setStyleSheet(f"""
                 QSplitter {{

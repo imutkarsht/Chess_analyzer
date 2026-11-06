@@ -4,7 +4,7 @@ Custom widget representing a compact move cell that packs the classification ico
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 
 from ..components import IconLabel, Label, TextRole, TextTone
 from ..styles import Styles
@@ -74,7 +74,7 @@ class MoveCellWidget(QWidget):
         outer.addLayout(top_row, 1)
 
         # Bottom row: a 2-pixel-tall think-time bar (shown only if time_spent is present)
-        self._bar = QLabel(self)
+        self._bar = QFrame(self)
         self._bar.setFixedHeight(2)
         self._bar.setStyleSheet(Styles.get_transparent_style())
         self._bar.hide()

@@ -7,7 +7,6 @@ from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPe
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QMenu,
     QPushButton,
@@ -20,11 +19,13 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.variation_tree import VariationBranch, VariationNode, VariationTree
 from src.gui.components import (
+    BadgeVariant,
     Button,
     ButtonSize,
     ButtonVariant,
     IconLabel,
     Label,
+    StatusBadge,
     TextRole,
     TextTone,
 )
@@ -68,7 +69,13 @@ class _BranchChip(QFrame):
         layout.setContentsMargins(6, 0, 3, 0)
         layout.setSpacing(2)
 
-        self.lbl_name = QLabel(name, self)
+        self.lbl_name = Label(
+            name,
+            role=TextRole.MICRO,
+            size=10,
+            weight=600,
+            parent=self,
+        )
         self.lbl_name.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.lbl_name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(self.lbl_name, 1)
@@ -281,7 +288,7 @@ class VariationGraph(QFrame):
         self._ghost_eval: str | None = None
         self._node_names: dict[int, str] = {}
         self._chips: dict[int, _BranchChip] = {}
-        self._eval_labels: dict[int, QLabel] = {}
+        self._eval_labels: dict[int, StatusBadge] = {}
         self._rename_edit: _RenameEdit | None = None
         self._renaming_branch_id: int | None = None
 
@@ -536,13 +543,19 @@ class VariationGraph(QFrame):
         for branch in self.tree.branches:
             tip = branch.tip
             text = self._eval_text(tip.eval_cp, tip.eval_mate)
-            label = QLabel(text or "--", self.canvas)
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setFixedSize(EVAL_W, 18)
-            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            label.setStyleSheet(
-                Styles.get_eval_badge_style(Styles.COLOR_SURFACE, Styles.COLOR_TEXT_SECONDARY)
+            label = StatusBadge(
+                text or "--",
+                TextTone.SECONDARY,
+                variant=BadgeVariant.QUIET,
+                mono=True,
+                font_size=12,
+                padding="0px",
+                radius=6,
+                parent=self.canvas,
             )
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            label.setFixedSize(EVAL_W, 18)
             label.setVisible(bool(text))
             self._eval_labels[tip.node_id] = label
             self._position_eval_label(tip.node_id)

@@ -49,7 +49,12 @@ class ExplorerEngineMixin:
 
     def _set_engine_status(self, text: str, color: str) -> None:
         self.engine_status_label.setText(text)
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(color))
+        if color == Styles.COLOR_ENGINE_BUSY:
+            self.engine_status_label.set_tone("engine_busy")
+        elif color == Styles.COLOR_ENGINE_READY:
+            self.engine_status_label.set_tone("engine_ready")
+        else:
+            self.engine_status_label.set_tone("muted")
 
     def _restore_engine_status(self) -> None:
         """Return the status pill to the shared session's current state."""

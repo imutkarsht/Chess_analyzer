@@ -18,6 +18,7 @@ class BadgeVariant(StrEnum):
     SOFT = "soft"
     OUTLINE = "outline"
     SOLID = "solid"
+    QUIET = "quiet"
 
 
 class StatusBadge(QLabel):
@@ -27,6 +28,7 @@ class StatusBadge(QLabel):
     - ``soft``: tinted surface with a semantic border (default)
     - ``outline``: transparent surface with a semantic border
     - ``solid``: filled semantic surface with contrasting text
+    - ``quiet``: surface fill with the neutral palette border
     """
 
     def __init__(
@@ -104,6 +106,8 @@ class StatusBadge(QLabel):
             return color, color, "transparent"
         if self._variant is BadgeVariant.SOLID:
             return Styles.COLOR_ON_ACCENT, color, color
+        if self._variant is BadgeVariant.QUIET:
+            return color, Styles.COLOR_BORDER, Styles.COLOR_SURFACE
         return color, color, Styles.COLOR_SURFACE_LIGHT
 
     def refresh_styles(self) -> None:

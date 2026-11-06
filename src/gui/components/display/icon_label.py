@@ -14,11 +14,13 @@ from src.gui.utils.icons import icon_pixmap
 
 
 class IconLabel(QLabel):
-    """A transparent, fixed-size label that renders an icon or fallback glyph.
+    """A transparent label that renders an icon or fallback glyph.
 
     Use this for pixmap/icon labels instead of constructing a raw ``QLabel``
     and repeating the transparent style. Pass ``tone`` when the icon should
     follow the live palette; pass an explicit ``color`` for one-off icons.
+    ``scaled`` lets the pixmap follow the label's size instead of a fixed icon
+    size (used by the board's dragged-piece ghost).
     """
 
     def __init__(
@@ -30,10 +32,16 @@ class IconLabel(QLabel):
         color: str | None = None,
         tone: TextTone | str | None = None,
         fallback: str = "",
+        fallback_size: int | None = None,
+        fixed_size: bool = True,
+        scaled: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setFixedSize(size, size)
+        if fixed_size:
+            self.setFixedSize(size, size)
+        else:
+            self.resize(size, size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet("background: transparent; border: none;")
         self._icon = icon
@@ -41,6 +49,10 @@ class IconLabel(QLabel):
         self._color = color
         self._tone = TextTone(tone) if tone is not None else None
         self._fallback = fallback
+        self._fallback_size = fallback_size
+        self._fixed_size = fixed_size
+        self._scaled = scaled
+        self.setScaledContents(scaled)
 
         manager = ThemeManager.instance()
         manager.theme_changed.connect(self._on_theme_changed)
@@ -50,6 +62,12 @@ class IconLabel(QLabel):
 
     def set_icon(self, icon: str | QIcon | QPixmap | None) -> None:
         self._icon = icon
+        self._apply_icon()
+
+    def set_icon_size(self, size: int) -> None:
+        self._icon_size = max(1, int(size))
+        if self._fixed_size:
+            self.setFixedSize(self._icon_size, self._icon_size)
         self._apply_icon()
 
     def set_tone(self, tone: TextTone | str | None) -> None:
@@ -68,6 +86,11 @@ class IconLabel(QLabel):
     def refresh_styles(self) -> None:
         self._apply_icon()
 
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().resizeEvent(event)
+        if self._scaled:
+            self._apply_icon()
+
     def _on_theme_changed(self, *_args) -> None:
         self._apply_icon()
 
@@ -82,6 +105,9 @@ class IconLabel(QLabel):
             if icon.isNull():
                 self._show_fallback()
                 return
+            if self._scaled:
+                self.setPixmap(icon)
+                return
             self.setPixmap(
                 icon.scaled(
                     self._icon_size,
@@ -92,14 +118,16 @@ class IconLabel(QLabel):
             )
             return
         if isinstance(icon, QIcon):
-            pixmap = icon.pixmap(self._icon_size, self._icon_size)
+            target = max(1, self.width(), self.height()) if self._scaled else self._icon_size
+            pixmap = icon.pixmap(target, target)
             if pixmap.isNull():
                 self._show_fallback()
                 return
             self.setPixmap(pixmap)
             return
         if isinstance(icon, str) and icon:
-            pixmap = icon_pixmap(icon, self._resolved_color(), self._icon_size)
+            target = max(1, self.width(), self.height()) if self._scaled else self._icon_size
+            pixmap = icon_pixmap(icon, self._resolved_color(), target)
             if pixmap is not None and not pixmap.isNull():
                 self.setPixmap(pixmap)
                 return
@@ -109,3 +137,12 @@ class IconLabel(QLabel):
         self.clear()
         if self._fallback:
             self.setText(self._fallback)
+            size = (
+                f"font-size: {self._fallback_size}px;"
+                if self._fallback_size is not None
+                else ""
+            )
+            self.setStyleSheet(
+                "background: transparent; border: none; "
+                f"color: {self._resolved_color()}; {size}"
+            )

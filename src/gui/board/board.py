@@ -16,7 +16,7 @@ from PyQt6.QtCore import QByteArray, QEvent, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtSvgWidgets import QSvgWidget
-from PyQt6.QtWidgets import QDialog, QGridLayout, QLabel, QSizePolicy, QWidget
+from PyQt6.QtWidgets import QDialog, QGridLayout, QSizePolicy, QWidget
 
 from src.constants import DEFAULT_BOARD_THEME
 from src.utils.logger import logger
@@ -131,10 +131,19 @@ class Board(QWidget):
         self._eval_bar_host_visible = True
 
         # Drag and drop floating piece visual
-        self.drag_piece_label = QLabel(self.board_container)
-        self.drag_piece_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.drag_piece_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.drag_piece_label.setStyleSheet(Styles.get_transparent_style())
+        self.drag_piece_label = IconLabel(
+            None,
+            size=1,
+            fixed_size=False,
+            scaled=True,
+            parent=self.board_container,
+        )
+        self.drag_piece_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents
+        )
+        self.drag_piece_label.setAttribute(
+            Qt.WidgetAttribute.WA_TranslucentBackground
+        )
         self.drag_piece_label.hide()
         self.is_dragging = False
         self.drag_start_sq = None
@@ -282,8 +291,7 @@ class Board(QWidget):
         renderer.render(painter)
         painter.end()
 
-        self.drag_piece_label.setPixmap(pixmap)
-        self.drag_piece_label.setScaledContents(True)
+        self.drag_piece_label.set_icon(pixmap)
 
         # Hide original piece temporarily and re-render board
         self.board.remove_piece_at(self.drag_start_sq)
@@ -371,12 +379,17 @@ class Board(QWidget):
         # Legal move dots
         if self.show_legal_moves and self.legal_destinations:
             for sq in self.legal_destinations:
-                dot = QLabel("●")
-                dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 colour = QColor(Styles.COLOR_ACCENT)
-                dot.setStyleSheet(
-                    f"font-size: 24px; color: rgba({colour.red()},{colour.green()},{colour.blue()},0.5); "
-                    "background: transparent; border: none;"
+                dot = IconLabel(
+                    None,
+                    size=1,
+                    fixed_size=False,
+                    fallback="●",
+                    fallback_size=24,
+                    color=(
+                        f"rgba({colour.red()},{colour.green()},"
+                        f"{colour.blue()},0.5)"
+                    ),
                 )
                 r, col = self._sq_to_grid(sq)
                 self.overlay_layout.addWidget(dot, r, col)

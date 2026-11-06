@@ -5,6 +5,7 @@ from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
 from src.gui.dialogs.load_game_dialog import LoadGameDialog
 from src.gui.main_window.navigation_mixin import compute_clock_times
 from src.gui.styles import Styles
+from src.gui.theme.typography import TextTone
 from src.utils.logger import logger
 
 
@@ -347,7 +348,9 @@ class GameLoadingMixin:
             self.lbl_hero_hint.setText(
                 "Drop to load game" if active else self._hero_hint_default
             )
-            self.lbl_hero_hint.setStyleSheet(Styles.get_hero_hint_style(active))
+            self.lbl_hero_hint.set_tone(
+                TextTone.ACCENT if active else TextTone.SECONDARY
+            )
         if hasattr(self, "lbl_hero_keys"):
             self.lbl_hero_keys.setVisible(not active)
 
