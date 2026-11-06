@@ -6,6 +6,13 @@ QWidget {{
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }}
 
+/* Text defaults. Labels are transparent by default; semantic roles and tones
+   are appended from Styles.get_typography_qss(). */
+QLabel {{
+    background: transparent;
+    border: none;
+}}
+
 /* Main Window & Dialog Containers */
 QMainWindow, QDialog {{
     background-color: {BACKGROUND};

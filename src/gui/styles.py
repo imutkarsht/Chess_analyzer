@@ -1,10 +1,22 @@
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.theme import ThemeManager
 from src.gui.theme.palette import BOARD_THEMES
+from src.gui.theme.typography import (
+    ALLOWED_SIZES,
+    ALLOWED_WEIGHTS,
+    MONO_FAMILIES,
+    ROLE_SPECS,
+    TextTone,
+)
 
 # Text/icons drawn on top of a filled accent surface. White reads on every
 # accent the app allows, in both light and dark mode.
 ON_ACCENT = "#FFFFFF"
+
+# Generated typography rules are pure functions of the active palette. Keep the
+# last block keyed by ThemeManager.style_revision() so repeated calls during a
+# repaint do not rebuild the same strings.
+_TYPOGRAPHY_CACHE: tuple[int, str] | None = None
 
 
 class _StylesMeta(type):
@@ -902,6 +914,74 @@ class Styles(metaclass=_StylesMeta):
     # ═══════════════════════════════════════════════════════════════
     #  LABELS
     # ═══════════════════════════════════════════════════════════════
+    @classmethod
+    def get_typography_qss(cls) -> str:
+        """Generated rules for :class:`src.gui.components.display.label.Label`.
+
+        Roles provide size/weight/case/family. Size and weight override blocks
+        follow so a label can preserve a one-off value during migration. Tones
+        come last and only set colour, keeping semantic colour independent from
+        typography.
+        """
+        global _TYPOGRAPHY_CACHE
+        revision = ThemeManager.style_revision()
+        if _TYPOGRAPHY_CACHE is not None and _TYPOGRAPHY_CACHE[0] == revision:
+            return _TYPOGRAPHY_CACHE[1]
+
+        rules: list[str] = []
+
+        for role, spec in ROLE_SPECS.items():
+            declarations = [
+                f"font-size: {spec.size}px;",
+                f"font-weight: {spec.weight};",
+            ]
+            if spec.letter_spacing:
+                declarations.append(f"letter-spacing: {spec.letter_spacing}px;")
+            if spec.uppercase:
+                declarations.append("text-transform: uppercase;")
+            if spec.mono:
+                declarations.append(f"font-family: {MONO_FAMILIES};")
+            rules.append(
+                f'QLabel[role="{role.value}"] {{ {" ".join(declarations)} }}'
+            )
+
+        for size in sorted(ALLOWED_SIZES):
+            rules.append(f'QLabel[textSize="{size}"] {{ font-size: {size}px; }}')
+
+        for weight in sorted(ALLOWED_WEIGHTS):
+            rules.append(
+                f'QLabel[textWeight="{weight}"] {{ font-weight: {weight}; }}'
+            )
+
+        p = ThemeManager.palette()
+        tone_colors = {
+            TextTone.PRIMARY: p.text_primary,
+            TextTone.SECONDARY: p.text_secondary,
+            TextTone.MUTED: p.text_muted,
+            TextTone.ACCENT: p.accent,
+            TextTone.BRILLIANT: cls.COLOR_BRILLIANT,
+            TextTone.GREAT: cls.COLOR_GREAT,
+            TextTone.BEST: cls.COLOR_BEST,
+            TextTone.EXCELLENT: cls.COLOR_EXCELLENT,
+            TextTone.GOOD: cls.COLOR_GOOD,
+            TextTone.INACCURACY: cls.COLOR_INACCURACY,
+            TextTone.MISTAKE: cls.COLOR_MISTAKE,
+            TextTone.BLUNDER: cls.COLOR_BLUNDER,
+            TextTone.MISS: cls.COLOR_MISS,
+            TextTone.BOOK: cls.COLOR_BOOK,
+            TextTone.RESULT_WIN: cls.COLOR_RESULT_WIN,
+            TextTone.RESULT_DRAW: cls.COLOR_RESULT_DRAW,
+            TextTone.RESULT_LOSS: cls.COLOR_RESULT_LOSS,
+            TextTone.ENGINE_READY: cls.COLOR_ENGINE_READY,
+            TextTone.ENGINE_BUSY: cls.COLOR_ENGINE_BUSY,
+        }
+        for tone, color in tone_colors.items():
+            rules.append(f'QLabel[tone="{tone.value}"] {{ color: {color}; }}')
+
+        qss = "\n".join(rules)
+        _TYPOGRAPHY_CACHE = (revision, qss)
+        return qss
+
     @classmethod
     def get_label_style(cls, size=14, color=None, bold=False, weight=None):
         p = ThemeManager.palette()

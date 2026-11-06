@@ -1,6 +1,8 @@
 """
 Shared GUI components module.
 """
+from src.gui.theme.typography import TextRole, TextTone
+
 from ..utils.smooth_scroll import SmoothScroll, install_smooth_scrolling
 from .controls.button import Button, ButtonSize, ButtonVariant
 from .controls.date_picker import DatePicker
@@ -20,6 +22,7 @@ from .controls.segmented_control import SegmentedControl
 from .controls.select import Select, SelectOption, SelectSize
 from .controls.tabs import TabAppearance, Tabs, TabVariant
 from .display.circular_accuracy import CircularAccuracyWidget
+from .display.label import Label
 from .display.mini_bar import MiniBar
 from .display.stat_card import SimpleStatCard, StatCard
 from .feedback.empty_state import EmptyState
@@ -52,6 +55,9 @@ __all__ = [
     'EmptyState',
     'FormField',
     'Input',
+    'Label',
+    'TextRole',
+    'TextTone',
     'InputSize',
     'InputVariant',
     'NumberInput',
