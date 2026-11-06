@@ -22,8 +22,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme.motion import MotionDuration, MotionEasing
+from src.gui.theme.typography import TextRole, TextTone
 
 # (header bar width, body row width ratios) — a header pill plus prose lines.
 Section = tuple[int, Sequence[float]]
@@ -70,22 +72,19 @@ class PulsingSkeleton(QWidget):
         )
         header_row.addWidget(dot)
 
-        self._title = QLabel(title)
-        self._title.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; "
-            "background: transparent;"
-        )
+        self._title = Label(title, role=TextRole.BODY_STRONG)
         header_row.addWidget(self._title)
         header_row.addStretch()
         layout.addLayout(header_row)
 
         if subtitle:
-            self._subtitle = QLabel(subtitle)
-            self._subtitle.setWordWrap(True)
-            self._subtitle.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; "
-                "background: transparent; padding-left: 16px;"
+            self._subtitle = Label(
+                subtitle,
+                role=TextRole.MICRO,
+                tone=TextTone.SECONDARY,
+                wrap=True,
             )
+            self._subtitle.setContentsMargins(16, 0, 0, 0)
             layout.addWidget(self._subtitle)
 
         layout.addSpacing(6)

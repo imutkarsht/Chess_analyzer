@@ -38,10 +38,6 @@ class StatCard(QFrame):
         if clickable:
             self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Cache properties for dynamic style refresh
-        self._initial_color = color
-        self._use_accent_color = color == Styles.COLOR_ACCENT
-
         self.setObjectName("StatCard")
         # Modern card styling with subtle gradient
         self.setStyleSheet(f"""
@@ -79,16 +75,25 @@ class StatCard(QFrame):
         layout.addSpacing(4)
 
         # Value - Large, bold, eye-catching
-        self.lbl_value = QLabel(str(value))
-        value_color = color if color else Styles.COLOR_TEXT_PRIMARY
-        self.lbl_value.setStyleSheet(f"""
-            color: {value_color};
-            font-size: 40px;
-            font-weight: 700;
-            letter-spacing: -1px;
-            border: none;
-            background: transparent;
-        """)
+        value_tone = TextTone.PRIMARY
+        if color == Styles.COLOR_ACCENT:
+            value_tone = TextTone.ACCENT
+        elif color == Styles.COLOR_BEST:
+            value_tone = TextTone.BEST
+        elif color == Styles.COLOR_BLUNDER:
+            value_tone = TextTone.BLUNDER
+        elif color == Styles.COLOR_MISTAKE:
+            value_tone = TextTone.MISTAKE
+        elif color == Styles.COLOR_TEXT_SECONDARY:
+            value_tone = TextTone.SECONDARY
+        elif color == Styles.COLOR_TEXT_MUTED:
+            value_tone = TextTone.MUTED
+
+        self.lbl_value = Label(
+            str(value),
+            role=TextRole.STAT_LARGE,
+            tone=value_tone,
+        )
         layout.addWidget(self.lbl_value)
 
         # Subtitle - Subtle, informative
@@ -121,20 +126,6 @@ class StatCard(QFrame):
                 border: none;
                 background: transparent;
             }}
-        """)
-
-        value_color = (
-            Styles.COLOR_ACCENT
-            if self._use_accent_color
-            else (self._initial_color if self._initial_color else Styles.COLOR_TEXT_PRIMARY)
-        )
-        self.lbl_value.setStyleSheet(f"""
-            color: {value_color};
-            font-size: 40px;
-            font-weight: 700;
-            letter-spacing: -1px;
-            border: none;
-            background: transparent;
         """)
 
     def _add_icon(self, layout, icon):
@@ -190,9 +181,6 @@ class SimpleStatCard(QFrame):
     def __init__(self, title, value, color=None):
         super().__init__()
 
-        self._initial_color = color
-        self._use_accent_color = color == Styles.COLOR_ACCENT
-
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
         self.setStyleSheet(f"""
             QFrame {{
@@ -207,17 +195,26 @@ class SimpleStatCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
 
-        self.lbl_title = QLabel(title)
-        self.lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px;")
+        self.lbl_title = Label(title, role=TextRole.CAPTION, tone=TextTone.SECONDARY)
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.lbl_value = QLabel(str(value))
-        value_color = (
-            Styles.COLOR_ACCENT
-            if self._use_accent_color
-            else (color if color else Styles.COLOR_TEXT_PRIMARY)
+        value_tone = TextTone.PRIMARY
+        if color == Styles.COLOR_ACCENT:
+            value_tone = TextTone.ACCENT
+        elif color == Styles.COLOR_BEST:
+            value_tone = TextTone.BEST
+        elif color == Styles.COLOR_BLUNDER:
+            value_tone = TextTone.BLUNDER
+        elif color == Styles.COLOR_MISTAKE:
+            value_tone = TextTone.MISTAKE
+
+        self.lbl_value = Label(
+            str(value),
+            role=TextRole.BODY,
+            size=18,
+            weight=700,
+            tone=value_tone,
         )
-        self.lbl_value.setStyleSheet(f"color: {value_color}; font-size: 18px; font-weight: bold;")
         self.lbl_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addWidget(self.lbl_title)
@@ -236,10 +233,3 @@ class SimpleStatCard(QFrame):
             }}
             QLabel {{ border: none; background: transparent; }}
         """)
-        self.lbl_title.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px;")
-        value_color = (
-            Styles.COLOR_ACCENT
-            if self._use_accent_color
-            else (self._initial_color if self._initial_color else Styles.COLOR_TEXT_PRIMARY)
-        )
-        self.lbl_value.setStyleSheet(f"color: {value_color}; font-size: 18px; font-weight: bold;")

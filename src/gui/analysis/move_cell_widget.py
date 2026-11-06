@@ -45,10 +45,14 @@ class MoveCellWidget(QWidget):
         self._icon_label.setStyleSheet(Styles.get_transparent_style())
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._san_label = QLabel(self)
+        self._san_label = Label(
+            "",
+            role=TextRole.BODY,
+            weight=500,
+            parent=self,
+        )
         self._san_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         self._san_label.setMinimumWidth(0)
-        self._san_label.setStyleSheet(Styles.get_transparent_style())
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self._variation_btn = QToolButton(self)
@@ -116,7 +120,7 @@ class MoveCellWidget(QWidget):
             self.set_variation_count(variation_count)
 
         # Badge stays for every classified move; only emphasis classes keep a colour.
-        self._san_label.setStyleSheet(self._san_style())
+        self._apply_san_style()
 
         if icon is not None and not icon.isNull() and not pending:
             self._icon_label.setPixmap(icon.pixmap(16, 16))
@@ -199,20 +203,20 @@ class MoveCellWidget(QWidget):
         )
         self._variation_btn.setStyleSheet(Styles.get_variation_badge_style())
 
-    def _san_style(self) -> str:
+    def _apply_san_style(self) -> None:
         if self._classification_name == "Pending":
-            color = Styles.COLOR_TEXT_MUTED
-            weight = "500"
+            self._san_label.set_tone(TextTone.MUTED)
+            self._san_label.set_weight(500)
         elif self._classification_name in EMPHASIS_CLASSES:
-            color = Styles.get_class_color(self._classification_name) or Styles.COLOR_TEXT_PRIMARY
-            weight = "600"
+            try:
+                tone = TextTone(self._classification_name.lower())
+            except ValueError:
+                tone = TextTone.PRIMARY
+            self._san_label.set_tone(tone)
+            self._san_label.set_weight(600)
         else:
-            color = Styles.COLOR_TEXT_PRIMARY
-            weight = "500"
-        return (
-            f"font-size: 13px; color: {color}; font-weight: {weight}; "
-            "background: transparent; border: none;"
-        )
+            self._san_label.set_tone(TextTone.PRIMARY)
+            self._san_label.set_weight(500)
 
     def _variation_icon(self) -> bool:
         try:
@@ -225,7 +229,7 @@ class MoveCellWidget(QWidget):
             return False
 
     def refresh_styles(self):
-        self._san_label.setStyleSheet(self._san_style())
+        self._apply_san_style()
 
         if (
             self._show_time
