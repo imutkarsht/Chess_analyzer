@@ -9,7 +9,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -22,6 +21,7 @@ from src.gui.components import (
     PaginationState,
     SegmentedBar,
     SegmentedControl,
+    StatusBadge,
     TextRole,
     TextTone,
 )
@@ -257,18 +257,14 @@ class OpeningsListCard(MetricCard):
 
         # ECO Badge
         if eco:
-            eco_badge = QLabel(eco)
-            eco_badge.setStyleSheet(f"""
-                QLabel {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    color: {Styles.COLOR_TEXT_PRIMARY};
-                    font-size: 11px;
-                    font-weight: 700;
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 4px;
-                    padding: 1px 5px;
-                }}
-            """)
+            eco_badge = StatusBadge(
+                eco,
+                "neutral",
+                font_size=11,
+                weight=700,
+                padding="1px 5px",
+                radius=4,
+            )
             line1.addWidget(eco_badge)
 
         name_lbl = Label(name, role=TextRole.BODY, weight=700)
@@ -283,17 +279,14 @@ class OpeningsListCard(MetricCard):
                 if as_white > 0 and as_black == 0
                 else ("Black" if as_black > 0 and as_white == 0 else "Both")
             )
-            side_badge = QLabel(side_text)
-            side_badge.setStyleSheet(f"""
-                QLabel {{
-                    color: {Styles.COLOR_TEXT_MUTED};
-                    font-size: 10px;
-                    font-weight: 600;
-                    background-color: {Styles.COLOR_SURFACE};
-                    border-radius: 3px;
-                    padding: 0px 4px;
-                }}
-            """)
+            side_badge = StatusBadge(
+                side_text,
+                "neutral",
+                font_size=10,
+                weight=600,
+                padding="0px 4px",
+                radius=3,
+            )
             line1.addWidget(side_badge)
 
         line1.addStretch()

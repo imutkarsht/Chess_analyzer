@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
 from src.constants import ABOUT_URL, APP_VERSION, GITHUB_REPO_URL, WEBSITE_URL
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.label import Label
+from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
@@ -97,11 +98,25 @@ class WelcomePanel(QFrame):
         badges_layout.setSpacing(6)
         badges_layout.addStretch(1)
 
-        self.version_badge = QLabel(f"v{APP_VERSION}")
+        self.version_badge = StatusBadge(
+            f"v{APP_VERSION}",
+            "neutral",
+            font_size=11,
+            weight=500,
+            padding="2px 10px",
+            radius=10,
+        )
         self.version_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         badges_layout.addWidget(self.version_badge)
 
-        self.oss_badge = QLabel("Open Source")
+        self.oss_badge = StatusBadge(
+            "Open Source",
+            "neutral",
+            font_size=11,
+            weight=500,
+            padding="2px 10px",
+            radius=10,
+        )
         self.oss_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         badges_layout.addWidget(self.oss_badge)
 
@@ -201,16 +216,6 @@ class WelcomePanel(QFrame):
         bg = Styles.COLOR_BACKGROUND
         self.setStyleSheet(f"QFrame#WelcomePanel {{ background-color: {bg}; border: none; }}")
         self.card.setStyleSheet(f"QWidget#WelcomeCard {{ background-color: {bg}; }}")
-
-        # Both badges use the same neutral surface — no accent tinting.
-        badge_style = (
-            f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-            f"color: {Styles.COLOR_TEXT_MUTED}; "
-            f"border: 1px solid {Styles.COLOR_BORDER}; "
-            "border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 500;"
-        )
-        self.version_badge.setStyleSheet(badge_style)
-        self.oss_badge.setStyleSheet(badge_style)
 
         self.divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
 

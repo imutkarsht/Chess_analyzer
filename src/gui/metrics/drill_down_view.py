@@ -25,6 +25,7 @@ from src.gui.components import (
     PaginationBar,
     PaginationSize,
     PaginationState,
+    StatusBadge,
     TextRole,
     TextTone,
 )
@@ -126,18 +127,14 @@ class DrillDownView(QWidget):
         header_layout.addLayout(title_vbox, 1)
 
         # Occurrences Count Badge
-        self.badge_count = QLabel("0 Occurrences")
-        self.badge_count.setStyleSheet(f"""
-            QLabel {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_ACCENT};
-                font-size: 12px;
-                font-weight: 700;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-                padding: 5px 14px;
-            }}
-        """)
+        self.badge_count = StatusBadge(
+            "0 Occurrences",
+            TextTone.ACCENT,
+            font_size=12,
+            weight=700,
+            padding="5px 14px",
+            radius=12,
+        )
         header_layout.addWidget(self.badge_count)
 
         layout.addWidget(self.header_bar)
@@ -264,16 +261,5 @@ class DrillDownView(QWidget):
         self.sep.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
         self.btn_back.refresh_styles()
         self.pagination.refresh_styles()
-        self.badge_count.setStyleSheet(f"""
-            QLabel {{
-                background-color: {Styles.COLOR_SURFACE};
-                color: {Styles.COLOR_ACCENT};
-                font-size: 12px;
-                font-weight: 700;
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-                padding: 5px 14px;
-            }}
-        """)
         Styles.apply_background(self.list_container)
         self._render_page()

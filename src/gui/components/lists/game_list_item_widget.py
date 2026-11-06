@@ -12,11 +12,13 @@ import chess.svg
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtSvgWidgets import QSvgWidget
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
+from src.gui.components.display.rich_text import RichTextLabel
 from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
@@ -105,10 +107,10 @@ class GameListItemWidget(QWidget):
         w_row = QHBoxLayout()
         w_row.setContentsMargins(0, 0, 0, 0)
         w_row.setSpacing(4)
-        w_lbl = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        w_lbl.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            "background: transparent; border: none;"
+        w_lbl = RichTextLabel(
+            f"<b>{game.metadata.white}</b>{w_elo}",
+            role=TextRole.CAPTION,
+            size=12,
         )
         w_row.addWidget(w_lbl)
         if result_text == "1-0":
@@ -121,10 +123,10 @@ class GameListItemWidget(QWidget):
         b_row = QHBoxLayout()
         b_row.setContentsMargins(0, 0, 0, 0)
         b_row.setSpacing(4)
-        b_lbl = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        b_lbl.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            "background: transparent; border: none;"
+        b_lbl = RichTextLabel(
+            f"<b>{game.metadata.black}</b>{b_elo}",
+            role=TextRole.CAPTION,
+            size=12,
         )
         b_row.addWidget(b_lbl)
         if result_text == "0-1":
@@ -238,10 +240,9 @@ class GameListItemWidget(QWidget):
         result_text = game.metadata.result
 
         # White player
-        white_label = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
-        white_label.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            "background: transparent; border: none;"
+        white_label = RichTextLabel(
+            f"<b>{game.metadata.white}</b>{w_elo}",
+            role=TextRole.BODY_LARGE,
         )
         header_layout.addWidget(white_label)
 
@@ -255,10 +256,9 @@ class GameListItemWidget(QWidget):
         header_layout.addWidget(vs_label)
 
         # Black player
-        black_label = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
-        black_label.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY}; "
-            "background: transparent; border: none;"
+        black_label = RichTextLabel(
+            f"<b>{game.metadata.black}</b>{b_elo}",
+            role=TextRole.BODY_LARGE,
         )
         header_layout.addWidget(black_label)
 
@@ -298,16 +298,12 @@ class GameListItemWidget(QWidget):
             opening_layout = QHBoxLayout()
             opening_layout.setSpacing(6)
 
-            book_icon = QLabel()
+            book_icon = IconLabel(size=14)
             icon_path = get_resource_path("assets/images/book.svg")
             if os.path.exists(icon_path):
-                book_icon.setPixmap(QIcon(icon_path).pixmap(14, 14))
+                book_icon.set_icon(QIcon(icon_path))
             elif HAS_QTAWESOME:
-                book_icon.setPixmap(
-                    qta.icon("fa5s.book-open", color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14)
-                )
-            book_icon.setFixedWidth(14)
-            book_icon.setStyleSheet(Styles.get_transparent_style())
+                book_icon.set_icon("fa5s.book-open")
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
@@ -540,10 +536,7 @@ class GameListItemWidget(QWidget):
         return svg_widget
 
     def _create_source_icon(self, source):
-        lbl = QLabel()
-        lbl.setFixedSize(18, 18)
-        lbl.setScaledContents(True)
-        lbl.setStyleSheet(Styles.get_transparent_style())
+        lbl = IconLabel(size=18)
 
         src_lower = str(source).lower().strip()
         if "lichess" in src_lower:
@@ -557,7 +550,7 @@ class GameListItemWidget(QWidget):
         icon_path = get_resource_path(os.path.join("assets", "icons", filename))
 
         if os.path.exists(icon_path):
-            lbl.setPixmap(QPixmap(icon_path))
+            lbl.set_icon(QPixmap(icon_path))
             return lbl
 
         if HAS_QTAWESOME:
@@ -566,27 +559,26 @@ class GameListItemWidget(QWidget):
                 icon_name = "fa5s.chess-pawn"
             elif src_name == "lichess":
                 icon_name = "fa5s.chess-knight"
-            lbl.setPixmap(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY).pixmap(18, 18))
+            lbl.set_icon(icon_name)
             return lbl
 
         return None
 
     def _create_winner_crown(self):
-        lbl = QLabel()
-        lbl.setFixedSize(16, 16)
-        lbl.setScaledContents(True)
-        lbl.setStyleSheet(Styles.get_transparent_style())
+        lbl = IconLabel(size=16)
 
         icon_path = get_resource_path(os.path.join("assets", "images", "winner_crown.svg"))
         if os.path.exists(icon_path):
-            lbl.setPixmap(QPixmap(icon_path))
+            lbl.set_icon(QPixmap(icon_path))
             return lbl
 
         if HAS_QTAWESOME:
-            lbl.setPixmap(qta.icon("fa5s.crown", color="#EAB308").pixmap(16, 16))
+            lbl.set_icon("fa5s.crown")
+            lbl.set_color("#EAB308")
             return lbl
 
-        lbl.setText("👑")
+        lbl.set_icon(None)
+        lbl.set_fallback("👑")
         return lbl
 
     def _create_meta_item(self, icon, text):
@@ -596,29 +588,17 @@ class GameListItemWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
 
-        icon_lbl = QLabel()
-        icon_lbl.setFixedSize(14, 14)
-        icon_lbl.setStyleSheet(Styles.get_transparent_style())
-
+        icon_lbl = IconLabel(size=14)
         if isinstance(icon, str) and icon.endswith(".svg"):
             icon_path = get_resource_path(icon)
             if os.path.exists(icon_path):
-                icon_lbl.setPixmap(
-                    QPixmap(icon_path).scaled(
-                        14,
-                        14,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation,
-                    )
-                )
+                icon_lbl.set_icon(QPixmap(icon_path))
             elif HAS_QTAWESOME:
-                icon_lbl.setPixmap(
-                    qta.icon("fa5s.clock", color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14)
-                )
+                icon_lbl.set_icon("fa5s.clock")
         elif isinstance(icon, str) and HAS_QTAWESOME:
-            icon_lbl.setPixmap(qta.icon(icon, color=Styles.COLOR_TEXT_MUTED).pixmap(14, 14))
+            icon_lbl.set_icon(icon)
         else:
-            icon_lbl.setText("•")
+            icon_lbl.set_fallback("•")
 
         layout.addWidget(icon_lbl)
 

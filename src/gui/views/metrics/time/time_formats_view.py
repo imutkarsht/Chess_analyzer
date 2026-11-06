@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
-from src.gui.components import EmptyState, Label, SegmentedBar, TextRole, TextTone
+from src.gui.components import (
+    EmptyState,
+    Label,
+    SegmentedBar,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
 from src.gui.views.metrics.time.panels import IconTile
@@ -119,19 +126,18 @@ class FormatsView(QWidget):
 
         badges = QHBoxLayout()
         badges.setSpacing(6)
-        wr_color = Styles.COLOR_RESULT_WIN if wr >= 50.0 else Styles.COLOR_TEXT_PRIMARY
-        badges.addWidget(self._badge(f"{wr:.1f}% Win", wr_color, weight=700))
+        wr_tone = TextTone.RESULT_WIN if wr >= 50.0 else TextTone.PRIMARY
+        badges.addWidget(self._badge(f"{wr:.1f}% Win", wr_tone, weight=700))
         if acc > 0:
-            badges.addWidget(self._badge(f"{acc:.1f}% Acc", Styles.COLOR_TEXT_PRIMARY))
+            badges.addWidget(self._badge(f"{acc:.1f}% Acc", TextTone.PRIMARY))
         if avg_t > 0:
-            badges.addWidget(self._badge(f"{avg_t:.1f}s / mv", Styles.COLOR_TEXT_PRIMARY))
+            badges.addWidget(self._badge(f"{avg_t:.1f}s / mv", TextTone.PRIMARY))
         if tl > 0:
             badges.addWidget(
                 self._badge(
                     f"{tl} Timeouts",
-                    Styles.COLOR_BLUNDER,
+                    TextTone.BLUNDER,
                     weight=700,
-                    border_color=Styles.COLOR_BLUNDER,
                 )
             )
         top_line.addLayout(badges)
@@ -165,15 +171,15 @@ class FormatsView(QWidget):
     @staticmethod
     def _badge(
         text: str,
-        color: str,
+        tone: TextTone,
         *,
         weight: int = 600,
-        border_color: str = Styles.COLOR_BORDER,
-    ) -> QLabel:
-        label = QLabel(text)
-        label.setStyleSheet(
-            f"background-color: {Styles.COLOR_SURFACE}; color: {color}; "
-            f"font-weight: {weight}; font-size: 11px; "
-            f"border: 1px solid {border_color}; border-radius: 4px; padding: 3px 6px;"
+    ) -> StatusBadge:
+        return StatusBadge(
+            text,
+            tone,
+            font_size=11,
+            weight=weight,
+            padding="3px 6px",
+            radius=4,
         )
-        return label

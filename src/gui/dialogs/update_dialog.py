@@ -36,7 +36,7 @@ from src.backend.updater.updater import (
 )
 
 from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
-from ..components import Button, ButtonVariant, Label, TextRole, TextTone
+from ..components import Button, ButtonVariant, Label, StatusBadge, TextRole, TextTone
 from ..styles import Styles
 
 try:
@@ -145,21 +145,15 @@ class UpdateNotificationDialog(QDialog):
             "linux":  ".AppImage",
         }.get(PLATFORM, ".pkg")
 
-        _ac = Styles.COLOR_ACCENT.lstrip("#")
-        _r, _g, _b = int(_ac[0:2], 16), int(_ac[2:4], 16), int(_ac[4:6], 16)
-
-        fmt_badge = QLabel(_short)
-        fmt_badge.setStyleSheet(f"""
-            QLabel {{
-                color: {Styles.COLOR_ACCENT};
-                background-color: rgba({_r}, {_g}, {_b}, 35);
-                border: 1px solid {Styles.COLOR_ACCENT};
-                border-radius: 8px;
-                padding: 2px 8px;
-                font-size: 11px;
-                font-weight: 700;
-            }}
-        """)
+        fmt_badge = StatusBadge(
+            _short,
+            TextTone.ACCENT,
+            variant="outline",
+            font_size=11,
+            weight=700,
+            padding="2px 8px",
+            radius=8,
+        )
         title_row.addWidget(fmt_badge)
 
         layout.addLayout(title_row)

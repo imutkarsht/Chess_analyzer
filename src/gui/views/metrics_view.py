@@ -4,7 +4,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QProgressBar,
     QScrollArea,
     QStackedWidget,
@@ -22,6 +21,7 @@ from src.gui.components import (
     Select,
     StatCard,
     StatsLayout,
+    StatusBadge,
     TextRole,
     TextTone,
 )
@@ -173,11 +173,13 @@ class MetricsWidget(QWidget):
         filter_layout.addStretch()
 
         # Games count badge
-        self.lbl_games_badge = QLabel("0 Games")
-        self.lbl_games_badge.setStyleSheet(
-            f"background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_ACCENT}; "
-            f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 12px; "
-            "padding: 4px 12px; font-weight: 600; font-size: 12px;"
+        self.lbl_games_badge = StatusBadge(
+            "0 Games",
+            TextTone.ACCENT,
+            font_size=12,
+            weight=600,
+            padding="4px 12px",
+            radius=12,
         )
         filter_layout.addWidget(self.lbl_games_badge)
 
@@ -219,13 +221,6 @@ class MetricsWidget(QWidget):
 
         if hasattr(self, "content_widget") and self.content_widget:
             Styles.apply_background(self.content_widget)
-
-        if hasattr(self, "lbl_games_badge") and self.lbl_games_badge:
-            self.lbl_games_badge.setStyleSheet(
-                f"background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_ACCENT}; "
-                f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 12px; "
-                "padding: 4px 12px; font-weight: 600; font-size: 12px;"
-            )
 
         if hasattr(self, "scroll_area") and self.scroll_area:
             self.scroll_area.setStyleSheet(Styles.get_transparent_scroll_area_style())

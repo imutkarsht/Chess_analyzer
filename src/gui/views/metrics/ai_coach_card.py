@@ -23,7 +23,15 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
-from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole, TextTone
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Label,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
@@ -56,16 +64,7 @@ class AICoachCard(MetricCard):
         header_act_layout.setSpacing(8)
 
         # Provider / Model status badge
-        self.provider_badge = QLabel("AI Coach")
-        self.provider_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.provider_badge = StatusBadge("AI Coach", "neutral")
         header_act_layout.addWidget(self.provider_badge)
 
         # Refresh / Generate button

@@ -28,7 +28,15 @@ from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.profile_cache_repo import CachedProfile
-from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole, TextTone
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Label,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.utils.logger import logger
 
@@ -319,7 +327,7 @@ class ProfilePreview(QFrame):
         )
         name_row.addWidget(self.name_label)
 
-        self.title_badge = QLabel()
+        self.title_badge = StatusBadge("", TextTone.ACCENT)
         self.title_badge.hide()
         name_row.addWidget(self.title_badge)
 
@@ -494,11 +502,6 @@ class ProfilePreview(QFrame):
         title = profile.get("title")
         if title:
             self.title_badge.setText(title)
-            self.title_badge.setStyleSheet(
-                Styles.get_eval_badge_style(
-                    Styles.COLOR_ACCENT_SUBTLE, Styles.COLOR_ACCENT
-                )
-            )
             self.title_badge.show()
         else:
             self.title_badge.hide()
@@ -539,8 +542,11 @@ class ProfilePreview(QFrame):
             rating = perf.get("rating")
             if not rating:
                 continue
-            chip = QLabel(f"{labels.get(key, key.title())} {rating}")
-            chip.setStyleSheet(Styles.get_badge_style(size=11))
+            chip = StatusBadge(
+                f"{labels.get(key, key.title())} {rating}",
+                "neutral",
+                font_size=11,
+            )
             peak = perf.get("peak")
             if peak and peak != rating:
                 chip.setToolTip(f"Peak: {peak}")

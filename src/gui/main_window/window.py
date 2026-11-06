@@ -22,7 +22,7 @@ from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardGameHeader, BoardPanel
-from src.gui.components import Label, TextRole, TextTone
+from src.gui.components import Label, StatusBadge, TextRole, TextTone
 from src.gui.components.feedback.loading_widget import LoadingOverlay
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.components.layout.sidebar import Sidebar
@@ -633,7 +633,7 @@ class MainWindow(
         self._hib_title.setWordWrap(False)
         hib_top.addWidget(self._hib_title)
 
-        self._hib_turn = QLabel()
+        self._hib_turn = StatusBadge("", "neutral")
         hib_top.insertWidget(1, self._hib_turn)
 
         hib_top.addStretch()
@@ -778,8 +778,6 @@ class MainWindow(
                 }}
                 QLabel {{ background: transparent; border: none; }}
             """)
-        if hasattr(self, "_hib_turn"):
-            self._hib_turn.setStyleSheet(Styles.get_badge_style(11))
         if hasattr(self, "_hib_cel_icon"):
             self._hib_cel_icon.setStyleSheet("font-size: 20px;")
         if hasattr(self, "_hib_cel_text"):

@@ -6,13 +6,14 @@ import os
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.gui_utils import resolve_asset  # Use shared utility
 
+from .icon_label import IconLabel
 from .label import Label
 
 
@@ -141,26 +142,15 @@ class StatCard(QFrame):
         layout.addStretch()
 
         if icon_path and os.path.exists(icon_path):
-            lbl_icon = QLabel()
             pixmap = QPixmap(icon_path)
             if not pixmap.isNull():
-                pixmap = pixmap.scaled(
-                    48,
-                    48,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                lbl_icon.setPixmap(pixmap)
-                lbl_icon.setStyleSheet(Styles.get_transparent_style())
-                layout.addWidget(lbl_icon)
+                layout.addWidget(IconLabel(pixmap, size=48))
                 return
 
         # Fallback: show icon name as text
-        lbl = QLabel(icon)
-        lbl.setStyleSheet(
-            f"color: {Styles.COLOR_ACCENT}; font-size: 16px; {Styles.get_transparent_style()}"
+        layout.addWidget(
+            IconLabel(None, size=48, fallback=icon, tone=TextTone.ACCENT)
         )
-        layout.addWidget(lbl)
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:

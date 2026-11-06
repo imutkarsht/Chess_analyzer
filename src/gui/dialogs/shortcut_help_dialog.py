@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..components import Button, ButtonVariant, Label, TextRole, TextTone
+from ..components import Button, ButtonVariant, Label, StatusBadge, TextRole, TextTone
 from ..styles import Styles
 
 try:
@@ -227,17 +227,16 @@ class ShortcutHelpDialog(QDialog):
         row_layout.setSpacing(10)
 
         # Key badge
-        key_label = QLabel(key)
-        key_label.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            border: 1px solid {Styles.COLOR_BORDER};
-        """)
+        key_label = StatusBadge(
+            key,
+            "neutral",
+            variant="outline",
+            mono=True,
+            font_size=11,
+            weight=600,
+            padding="3px 8px",
+            radius=4,
+        )
         key_label.setMinimumWidth(68)
         key_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         row_layout.addWidget(key_label)

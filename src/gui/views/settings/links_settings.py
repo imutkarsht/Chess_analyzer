@@ -24,7 +24,7 @@ from src.constants import (
 )
 from src.utils.path_utils import get_resource_path
 
-from ...components import Button, ButtonVariant, Label, TextRole, TextTone
+from ...components import Button, ButtonVariant, Label, StatusBadge, TextRole, TextTone
 from ...styles import Styles
 from .background_card import BackgroundTaskCard
 
@@ -88,7 +88,13 @@ class LinksSettings(BackgroundTaskCard):
         self.title_label = Label("Chess Analyzer Pro", role=TextRole.DIALOG_TITLE, weight=700)
         title_row.addWidget(self.title_label)
 
-        self.version_badge = QLabel(f"v{APP_VERSION}")
+        self.version_badge = StatusBadge(
+            f"v{APP_VERSION}",
+            "neutral",
+            font_size=11,
+            padding="2px 8px",
+            radius=9,
+        )
         title_row.addWidget(self.version_badge)
 
         title_row.addStretch(1)
@@ -220,13 +226,6 @@ class LinksSettings(BackgroundTaskCard):
     # ------------------------------------------------------------------
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        badge_style = (
-            f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; "
-            f"border: 1px solid {Styles.COLOR_BORDER}; "
-            "border-radius: 9px; padding: 2px 8px; font-size: 11px; font-weight: 600;"
-        )
-        self.version_badge.setStyleSheet(badge_style)
         for button, _icon_name in self._link_icons:
             button.refresh_styles()
 
