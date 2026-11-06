@@ -9,7 +9,6 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QPushButton,
     QToolButton,
     QVBoxLayout,
@@ -18,7 +17,7 @@ from PyQt6.QtWidgets import (
 
 from ....constants import DEFAULT_BOARD_THEME
 from ....utils.path_utils import get_resource_path
-from ...components import Tabs, TabVariant
+from ...components import Label, Tabs, TabVariant, TextRole, TextTone
 from ...components.feedback.toast import ToastManager
 from ...styles import Styles
 from ...theme.palette import BOARD_THEMES
@@ -49,11 +48,11 @@ class BoardPiecesSettings(QGroupBox):
         outer.setContentsMargins(0, 8, 0, 0)
         outer.setSpacing(14)
 
-        self.subtitle = QLabel("Customize the look and feel of your chess set.")
-        self.subtitle.setStyleSheet(
-            Styles.get_secondary_label_style(size=12)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.subtitle = Label(
+            "Customize the look and feel of your chess set.",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         outer.addWidget(self.subtitle)
 
@@ -287,11 +286,6 @@ class BoardPiecesSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        self.subtitle.setStyleSheet(
-            Styles.get_secondary_label_style(size=12)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
         self.tabs.refresh_styles()
         self.form.refresh_styles()
         self._apply_button_styles()

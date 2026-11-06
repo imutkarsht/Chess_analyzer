@@ -8,7 +8,6 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
@@ -20,7 +19,10 @@ from src.gui.components import (
     ButtonSize,
     ButtonVariant,
     Input,
+    Label,
     Select,
+    TextRole,
+    TextTone,
 )
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
@@ -276,25 +278,24 @@ class ApiSettings(QGroupBox):
         api_layout.addLayout(act_row)
 
         status_row = QHBoxLayout()
-        self.llm_active_label = QLabel()
-        self.llm_active_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=11))
+        self.llm_active_label = Label(
+            "", role=TextRole.MICRO, tone=TextTone.SECONDARY
+        )
         status_row.addWidget(self.llm_active_label)
         status_row.addStretch()
-        self.llm_test_result = QLabel()
-        self.llm_test_result.setStyleSheet(
-            Styles.get_secondary_label_style(size=11))
+        self.llm_test_result = Label(
+            "", role=TextRole.MICRO, tone=TextTone.SECONDARY
+        )
         status_row.addWidget(self.llm_test_result)
         api_layout.addLayout(status_row)
 
-        self.llm_privacy_label = QLabel(
+        self.llm_privacy_label = Label(
             "Cloud providers receive the game data you send for explanations "
             "and reports. LM Studio runs locally. Without a working profile, "
-            "Coach uses offline summaries."
-        )
-        self.llm_privacy_label.setWordWrap(True)
-        self.llm_privacy_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=11)
+            "Coach uses offline summaries.",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         api_layout.addWidget(self.llm_privacy_label)
 
@@ -554,8 +555,7 @@ class ApiSettings(QGroupBox):
         tuning = explanation_tuning(self.config_manager)
 
         self.llm_test_btn.setEnabled(False)
-        self.llm_test_result.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
+        self.llm_test_result.set_tone(TextTone.SECONDARY)
         self.llm_test_result.setText("Testing…")
 
         previous_toast = getattr(self, "_test_toast", None)
@@ -569,9 +569,8 @@ class ApiSettings(QGroupBox):
         def _on_done(success: bool, msg: str, details: str, elapsed_ms: float):
             if self._test_worker is not worker:
                 return
-            color = Styles.COLOR_GOOD if success else Styles.COLOR_BLUNDER
-            self.llm_test_result.setStyleSheet(
-                f"color: {color}; font-size: 11px; font-weight: bold; background: transparent;")
+            color = TextTone.GOOD if success else TextTone.BLUNDER
+            self.llm_test_result.set_tone(color)
             text = f"{msg} · {model} · {elapsed_ms:.0f} ms" if success else msg
             self.llm_test_result.setText(text)
             self.llm_test_btn.setEnabled(True)
@@ -614,11 +613,6 @@ class ApiSettings(QGroupBox):
                 self._base_url_wrapper, provider == "custom"
             )
 
-    def _refresh_secondary_label(self, attr_name):
-        lbl = getattr(self, attr_name, None)
-        if lbl:
-            lbl.setStyleSheet(Styles.get_secondary_label_style(size=11))
-
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
         if hasattr(self, 'llm_add_btn'):
@@ -642,9 +636,3 @@ class ApiSettings(QGroupBox):
         for widget in [self.llm_key_input]:
             if hasattr(widget, 'refresh_styles'):
                 widget.refresh_styles()
-        self._refresh_secondary_label('llm_active_label')
-        self._refresh_secondary_label('llm_test_result')
-        if hasattr(self, 'llm_privacy_label'):
-            self.llm_privacy_label.setStyleSheet(
-                Styles.get_secondary_label_style(size=11)
-            )

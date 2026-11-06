@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
-    QLabel,
     QRadioButton,
     QSizePolicy,
     QSpinBox,
@@ -24,6 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SettingSpec, get_spec
+from src.gui.components import Label, TextRole, TextTone
 from src.gui.components.controls.input import DecimalInput, Input, NumberInput
 from src.gui.components.controls.select import Select, SelectOption
 from src.gui.styles import Styles
@@ -56,9 +56,7 @@ class SettingsForm(QWidget):
     def __init__(self, parent=None, label_width: int = LABEL_WIDTH):
         super().__init__(parent)
         self._label_width = label_width
-        self._advanced_rows: list[tuple[QLabel, QWidget]] = []
-        self._label_widgets: list[QLabel] = []
-        self._hint_widgets: list[QLabel] = []
+        self._advanced_rows: list[tuple[Label, QWidget]] = []
         self._advanced_visible = True
         self._forced_visible: set[QWidget] = set()
 
@@ -83,12 +81,8 @@ class SettingsForm(QWidget):
         ``inline_hint`` places the description beside the control (as used for
         boolean toggles) instead of stacking it underneath.
         """
-        lbl = QLabel(label)
+        lbl = Label(label, role=TextRole.BODY)
         lbl.setFixedWidth(self._label_width)
-        lbl.setStyleSheet(
-            Styles.get_label_style(size=13) + " " + Styles.get_transparent_label_style()
-        )
-        self._label_widgets.append(lbl)
 
         wrapper = QWidget()
         wrapper.setStyleSheet(Styles.get_transparent_label_style())
@@ -98,14 +92,12 @@ class SettingsForm(QWidget):
 
         hint_lbl = None
         if hint:
-            hint_lbl = QLabel(hint)
-            hint_lbl.setWordWrap(True)
-            hint_lbl.setStyleSheet(
-                Styles.get_secondary_label_style(size=11)
-                + " "
-                + Styles.get_transparent_label_style()
+            hint_lbl = Label(
+                hint,
+                role=TextRole.MICRO,
+                tone=TextTone.SECONDARY,
+                wrap=True,
             )
-            self._hint_widgets.append(hint_lbl)
 
         if inline_hint:
             box = QHBoxLayout(wrapper)
@@ -153,16 +145,7 @@ class SettingsForm(QWidget):
             wrapper.setVisible(shown)
 
     def refresh_styles(self) -> None:
-        for lbl in self._label_widgets:
-            lbl.setStyleSheet(
-                Styles.get_label_style(size=13) + " " + Styles.get_transparent_label_style()
-            )
-        for hint in self._hint_widgets:
-            hint.setStyleSheet(
-                Styles.get_secondary_label_style(size=11)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
+        """Labels follow the global stylesheet; retained for call-site compatibility."""
 
 
 def make_select(max_width: int = CONTROL_DEFAULT) -> Select:

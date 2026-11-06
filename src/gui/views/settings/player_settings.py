@@ -1,7 +1,7 @@
 """Player accounts, credentials, and import/network settings."""
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QFrame, QGroupBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QGroupBox, QHBoxLayout, QVBoxLayout, QWidget
 
 from src.backend.api.import_limits import (
     clamp_games_limit,
@@ -10,7 +10,7 @@ from src.backend.api.import_limits import (
 from src.backend.api.import_limits import (
     current_token as configured_token,
 )
-from src.gui.components import Input
+from src.gui.components import Input, Label, TextRole, TextTone
 from src.gui.styles import Styles
 
 from .background_card import BackgroundTaskCard
@@ -32,13 +32,6 @@ def _divider() -> QFrame:
     line.setFrameShape(QFrame.Shape.HLine)
     line.setStyleSheet(Styles.get_divider_style())
     return line
-
-
-def _status_style(color: str) -> str:
-    return (
-        f"font-size: 11px; color: {color}; background: transparent; "
-        "border: none; padding: 2px 0px;"
-    )
 
 
 class _ProfileCard(BackgroundTaskCard):
@@ -149,10 +142,11 @@ class LichessCard(_ProfileCard):
             "Check the token against your Lichess account."
         )
 
-        self.token_status_label = QLabel()
-        self.token_status_label.setWordWrap(True)
-        self.token_status_label.setStyleSheet(
-            _status_style(Styles.COLOR_TEXT_SECONDARY)
+        self.token_status_label = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
 
         token_row = QWidget()
@@ -211,15 +205,11 @@ class LichessCard(_ProfileCard):
     def _validate_token(self) -> None:
         token = self.current_token()
         if not token:
-            self.token_status_label.setStyleSheet(
-                _status_style(Styles.COLOR_TEXT_SECONDARY)
-            )
+            self.token_status_label.set_tone(TextTone.SECONDARY)
             self.token_status_label.setText("Enter a token first.")
             return
 
-        self.token_status_label.setStyleSheet(
-            _status_style(Styles.COLOR_TEXT_SECONDARY)
-        )
+        self.token_status_label.set_tone(TextTone.SECONDARY)
         self.token_status_label.setText("Checking token…")
 
         # Imported here so the settings package does not pull the API stack in
@@ -236,36 +226,26 @@ class LichessCard(_ProfileCard):
     def _on_account_checked(self, result: object) -> None:
         data, status = result if isinstance(result, tuple) else (None, "error")
         if status == "ok" and isinstance(data, dict) and data.get("username"):
-            self.token_status_label.setStyleSheet(
-                _status_style(Styles.COLOR_GOOD)
-            )
+            self.token_status_label.set_tone(TextTone.GOOD)
             self.token_status_label.setText(
                 f"✓ Valid — signed in as {data['username']}"
             )
             self._toast(f"Token verified as {data['username']}.")
         elif status == "unauthorized":
-            self.token_status_label.setStyleSheet(
-                _status_style(Styles.COLOR_BLUNDER)
-            )
+            self.token_status_label.set_tone(TextTone.BLUNDER)
             self.token_status_label.setText("✗ Token rejected by Lichess.")
             self._toast("Lichess rejected this token.", "error")
         elif status == "offline":
-            self.token_status_label.setStyleSheet(
-                _status_style(Styles.COLOR_ENGINE_BUSY)
-            )
+            self.token_status_label.set_tone(TextTone.ENGINE_BUSY)
             self.token_status_label.setText("Can't reach Lichess right now.")
             self._toast("Can't reach Lichess right now.", "warning")
         else:
-            self.token_status_label.setStyleSheet(
-                _status_style(Styles.COLOR_BLUNDER)
-            )
+            self.token_status_label.set_tone(TextTone.BLUNDER)
             self.token_status_label.setText("✗ Token check failed.")
             self._toast("Token check failed.", "error")
 
     def _on_account_error(self, _message: str) -> None:
-        self.token_status_label.setStyleSheet(
-            _status_style(Styles.COLOR_BLUNDER)
-        )
+        self.token_status_label.set_tone(TextTone.BLUNDER)
         self.token_status_label.setText("✗ Token check failed.")
         self._toast("Token check failed.", "error")
 
@@ -283,9 +263,7 @@ class LichessCard(_ProfileCard):
         self.username_input.refresh_styles()
         self.lichess_token_input.refresh_styles()
         self.validate_token_btn.refresh_styles()
-        self.token_status_label.setStyleSheet(
-            _status_style(Styles.COLOR_TEXT_SECONDARY)
-        )
+        self.token_status_label.set_tone(TextTone.SECONDARY)
         self.preview.refresh_styles()
 
 

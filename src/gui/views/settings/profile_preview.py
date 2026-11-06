@@ -28,7 +28,7 @@ from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.profile_cache_repo import CachedProfile
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.utils.logger import logger
 
@@ -278,12 +278,11 @@ class ProfilePreview(QFrame):
         state_layout.setContentsMargins(0, 0, 0, 0)
         state_layout.setSpacing(10)
 
-        self.state_label = QLabel()
-        self.state_label.setWordWrap(True)
-        self.state_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=12)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.state_label = Label(
+            "",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         state_layout.addWidget(self.state_label, 1)
 
@@ -309,7 +308,12 @@ class ProfilePreview(QFrame):
         name_row.setContentsMargins(0, 0, 0, 0)
         name_row.setSpacing(8)
 
-        self.name_label = QLabel()
+        self.name_label = Label(
+            "",
+            role=TextRole.SUBHEADING,
+            size=15,
+            weight=700,
+        )
         self.name_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
@@ -342,11 +346,8 @@ class ProfilePreview(QFrame):
         name_row.addWidget(self.link_label)
         data_layout.addLayout(name_row)
 
-        self.meta_label = QLabel()
-        self.meta_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=11)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.meta_label = Label(
+            "", role=TextRole.MICRO, tone=TextTone.SECONDARY
         )
         data_layout.addWidget(self.meta_label)
 
@@ -361,15 +362,14 @@ class ProfilePreview(QFrame):
         footer = QHBoxLayout()
         footer.setContentsMargins(0, 0, 0, 0)
         footer.setSpacing(8)
-        self.record_label = QLabel()
-        self.record_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=11)
-            + " "
-            + Styles.get_transparent_label_style()
+        self.record_label = Label(
+            "", role=TextRole.MICRO, tone=TextTone.SECONDARY
         )
         footer.addWidget(self.record_label)
         footer.addStretch(1)
-        self.updated_label = QLabel()
+        self.updated_label = Label(
+            "", role=TextRole.MICRO, size=10, tone=TextTone.MUTED
+        )
         footer.addWidget(self.updated_label)
         data_layout.addLayout(footer)
 
@@ -395,11 +395,7 @@ class ProfilePreview(QFrame):
         self.avatar.hide()
         self.retry_btn.hide()
         self._state_row.show()
-        self.state_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=12)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self.state_label.set_tone(TextTone.SECONDARY)
         self.state_label.setText(
             f"Enter your {platform_label(self.platform)} username to preview "
             "your public profile."
@@ -410,11 +406,7 @@ class ProfilePreview(QFrame):
         self.avatar.hide()
         self.retry_btn.hide()
         self._state_row.show()
-        self.state_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=12)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self.state_label.set_tone(TextTone.SECONDARY)
         self.state_label.setText(
             f"Loading {platform_label(self.platform)} profile for \"{username}\"…"
         )
@@ -424,10 +416,7 @@ class ProfilePreview(QFrame):
         self.avatar.hide()
         self._state_row.show()
         self.retry_btn.setVisible(bool(username))
-        self.state_label.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_ENGINE_BUSY}; "
-            "background-color: transparent; border: none; padding: 4px 0px;"
-        )
+        self.state_label.set_tone(TextTone.ENGINE_BUSY)
         self.state_label.setText(status_message(status, self.platform, username))
 
     # -- loading ----------------------------------------------------------
@@ -501,13 +490,6 @@ class ProfilePreview(QFrame):
 
         display = profile.get("username") or load.username
         self.name_label.setText(display)
-        self.name_label.setStyleSheet(
-            Styles.get_label_style(
-                size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True
-            )
-            + " "
-            + Styles.get_transparent_label_style()
-        )
 
         title = profile.get("title")
         if title:
@@ -588,16 +570,14 @@ class ProfilePreview(QFrame):
             self.updated_label.setText(
                 f"Offline · cached {age}" if age else "Offline"
             )
-            color = Styles.COLOR_ENGINE_BUSY
+            tone = TextTone.ENGINE_BUSY
         elif load.from_cache:
             self.updated_label.setText(f"Cached {age}" if age else "Cached")
-            color = Styles.COLOR_TEXT_MUTED
+            tone = TextTone.MUTED
         else:
             self.updated_label.setText("Updated just now")
-            color = Styles.COLOR_TEXT_MUTED
-        self.updated_label.setStyleSheet(
-            f"font-size: 10px; color: {color}; background: transparent; border: none;"
-        )
+            tone = TextTone.MUTED
+        self.updated_label.set_tone(tone)
 
     def _render_link(self, profile: dict, username: str) -> None:
         url = profile.get("url") or ""
@@ -645,21 +625,6 @@ class ProfilePreview(QFrame):
 
     def refresh_styles(self) -> None:
         self.setStyleSheet(self._frame_style())
-        self.state_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=12)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-        self.meta_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=11)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-        self.record_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=11)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
         self.retry_btn.refresh_styles()
         self._refresh_button_style()
         if self._last_load and self._data_widget.isVisible():

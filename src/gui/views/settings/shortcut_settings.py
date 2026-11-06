@@ -1,9 +1,10 @@
 """Keyboard shortcut preset settings."""
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QGroupBox, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.constants import SHORTCUT_PRESET_LABELS
+from src.gui.components import Label, TextRole, TextTone
 
 from ...styles import Styles
 from .components import SettingsBinder, SettingsForm, make_select
@@ -27,11 +28,13 @@ class ShortcutSettings(QGroupBox):
         layout.setContentsMargins(0, 8, 0, 0)
         layout.setSpacing(10)
 
-        self.desc_label = QLabel(
+        self.desc_label = Label(
             "Select your preferred navigation keymap preset. "
-            "Use the button below or press F1 to view all active shortcuts."
+            "Use the button below or press F1 to view all active shortcuts.",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
-        self.desc_label.setWordWrap(True)
         layout.addWidget(self.desc_label)
 
         self.form = SettingsForm(self)
@@ -70,10 +73,6 @@ class ShortcutSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        self.desc_label.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            + Styles.get_transparent_label_style()
-        )
         self.form.refresh_styles()
         self.help_btn.refresh_styles()
 

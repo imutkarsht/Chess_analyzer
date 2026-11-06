@@ -2,7 +2,9 @@
 
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
+
+from src.gui.components import Label, TextRole
 
 from ....backend.storage.stats import StorageStats, collect_storage_stats
 from ....utils.path_utils import get_user_data_dir
@@ -28,7 +30,7 @@ class StorageSettings(StorageCard):
 
     def __init__(self, parent=None):
         super().__init__("Storage", parent)
-        self.stat_labels: dict[str, QLabel] = {}
+        self.stat_labels: dict[str, Label] = {}
         self.setup_ui()
 
     def setup_ui(self) -> None:
@@ -39,10 +41,7 @@ class StorageSettings(StorageCard):
         outer.addWidget(self.form)
 
         for key, label in _STAT_ROWS:
-            value = QLabel("—")
-            value.setStyleSheet(
-                Styles.get_label_style(size=13) + Styles.get_transparent_label_style()
-            )
+            value = Label("—", role=TextRole.BODY)
             self.stat_labels[key] = value
             self.form.add_row(label, value, hint="", width=None)
 

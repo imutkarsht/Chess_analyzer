@@ -1,7 +1,8 @@
 """AI Coach move-explanation settings."""
 
-from PyQt6.QtWidgets import QGroupBox, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
+from src.gui.components import Label, TextRole, TextTone
 from src.utils.path_utils import get_resource_path
 
 from ...styles import Styles
@@ -50,14 +51,11 @@ class CoachSettings(QGroupBox):
             width=180,
         )
 
-        cache_note = QLabel(
-            "Explanation cache lifetime and clearing live in Data & Storage."
-        )
-        cache_note.setWordWrap(True)
-        cache_note.setStyleSheet(
-            Styles.get_secondary_label_style(size=11)
-            + " "
-            + Styles.get_transparent_label_style()
+        cache_note = Label(
+            "Explanation cache lifetime and clearing live in Data & Storage.",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         outer.addWidget(cache_note)
 

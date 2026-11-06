@@ -1050,15 +1050,6 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_validation_label_style(cls):
-        return """
-            font-size: 12px;
-            font-weight: bold;
-            background: transparent;
-            margin-top: 2px;
-        """
-
-    @classmethod
     def get_transparent_label_style(cls):
         return "border: none; background: transparent;"
 
@@ -1522,14 +1513,6 @@ class Styles(metaclass=_StylesMeta):
                 left: 0px;
                 padding: 0 0 6px 0;
                 color: {p.text_primary};
-            }}
-            QGroupBox QLabel {{
-                color: {p.text_primary};
-                background: transparent;
-                border: none;
-            }}
-            QGroupBox QLabel#hint_label {{
-                color: {p.text_secondary};
             }}
         """
 
