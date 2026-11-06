@@ -1072,35 +1072,6 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_form_field_qss(cls) -> str:
-        """Label, helper, and error text for :class:`FormField`."""
-        p = ThemeManager.palette()
-        return f"""
-            QLabel#FormFieldLabel {{
-                color: {p.text_primary};
-                background: transparent;
-                font-size: 12px;
-                font-weight: 500;
-            }}
-            QLabel#FormFieldDescription {{
-                color: {p.text_secondary};
-                background: transparent;
-                font-size: 11px;
-            }}
-            QLabel#FormFieldError {{
-                color: {cls.COLOR_BLUNDER};
-                background: transparent;
-                font-size: 11px;
-                font-weight: 500;
-            }}
-        """
-
-    @classmethod
-    def get_form_label_style(cls):
-        p = ThemeManager.palette()
-        return f"font-size: 13px; font-weight: 600; color: {p.text_primary};"
-
-    @classmethod
     def get_transparent_label_style(cls):
         return "border: none; background: transparent;"
 
