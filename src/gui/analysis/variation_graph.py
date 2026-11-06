@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.variation_tree import VariationBranch, VariationNode, VariationTree
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole, TextTone
 from src.gui.styles import Styles
 
 try:
@@ -290,10 +290,10 @@ class VariationGraph(QFrame):
         self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         header.addWidget(self.lbl_icon)
 
-        self.lbl_title = QLabel("Variations")
+        self.lbl_title = Label("Variations", role=TextRole.BODY, size=12, weight=700)
         header.addWidget(self.lbl_title)
 
-        self.lbl_context = QLabel("")
+        self.lbl_context = Label("", role=TextRole.MICRO, tone=TextTone.SECONDARY)
         self.lbl_context.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_context.setMinimumWidth(40)
         header.addWidget(self.lbl_context, 1)
@@ -449,12 +449,6 @@ class VariationGraph(QFrame):
             self.lbl_icon.setPixmap(
                 qta.icon("fa5s.code-branch", color=Styles.COLOR_ACCENT).pixmap(14, 14)
             )
-        self.lbl_title.setStyleSheet(
-            Styles.get_label_style(size=12, weight=700, color=Styles.COLOR_TEXT_PRIMARY)
-        )
-        self.lbl_context.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
-        )
         for btn in (self.btn_best, self.btn_undo, self.btn_reset, self.btn_exit):
             btn.refresh_styles()
         self._apply_action_icons()

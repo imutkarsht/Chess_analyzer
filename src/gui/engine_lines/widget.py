@@ -112,7 +112,7 @@ class EngineLineRow(QWidget):
 
     # ------------------------------------------------------------------
     def _apply_styles(self) -> None:
-        self._lbl_pv.setStyleSheet(Styles.get_label_style(size=12))
+        self._lbl_pv.setStyleSheet("font-size: 12px; background: transparent; border: none;")
         self._lbl_eval.setStyleSheet(
             Styles.get_eval_badge_style(Styles.COLOR_SURFACE_LIGHT, Styles.COLOR_TEXT_PRIMARY)
         )

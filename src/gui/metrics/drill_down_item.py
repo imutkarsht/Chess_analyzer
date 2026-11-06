@@ -98,9 +98,8 @@ class DrillDownItemWidget(QFrame):
             f"<span style='color: {Styles.COLOR_TEXT_SECONDARY}'>as {user_color}</span>"
         )
         match_lbl.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_style()
+            f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY}; "
+            "background: transparent; border: none;"
         )
         row1.addWidget(match_lbl)
 

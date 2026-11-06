@@ -983,28 +983,6 @@ class Styles(metaclass=_StylesMeta):
         return qss
 
     @classmethod
-    def get_label_style(cls, size=14, color=None, bold=False, weight=None):
-        p = ThemeManager.palette()
-        if color is None:
-            color = p.text_primary
-        if weight is not None:
-            w = str(weight)
-        else:
-            w = "bold" if bold else "normal"
-        return f"font-size: {size}px; color: {color}; font-weight: {w};"
-
-    @classmethod
-    def get_secondary_label_style(cls, size=13):
-        p = ThemeManager.palette()
-        return f"""
-            font-size: {size}px;
-            color: {p.text_secondary};
-            background-color: transparent;
-            border: none;
-            padding: 4px 0px;
-        """
-
-    @classmethod
     def get_badge_style(cls, size=11):
         p = ThemeManager.palette()
         return f"""

@@ -106,9 +106,8 @@ class GameListItemWidget(QWidget):
         w_row.setSpacing(4)
         w_lbl = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
         w_lbl.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_style()
+            f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY}; "
+            "background: transparent; border: none;"
         )
         w_row.addWidget(w_lbl)
         if result_text == "1-0":
@@ -123,9 +122,8 @@ class GameListItemWidget(QWidget):
         b_row.setSpacing(4)
         b_lbl = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
         b_lbl.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_style()
+            f"font-size: 12px; color: {Styles.COLOR_TEXT_PRIMARY}; "
+            "background: transparent; border: none;"
         )
         b_row.addWidget(b_lbl)
         if result_text == "0-1":
@@ -236,9 +234,8 @@ class GameListItemWidget(QWidget):
         # White player
         white_label = QLabel(f"<b>{game.metadata.white}</b>{w_elo}")
         white_label.setStyleSheet(
-            Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_style()
+            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY}; "
+            "background: transparent; border: none;"
         )
         header_layout.addWidget(white_label)
 
@@ -254,9 +251,8 @@ class GameListItemWidget(QWidget):
         # Black player
         black_label = QLabel(f"<b>{game.metadata.black}</b>{b_elo}")
         black_label.setStyleSheet(
-            Styles.get_label_style(size=14, color=Styles.COLOR_TEXT_PRIMARY)
-            + " "
-            + Styles.get_transparent_style()
+            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY}; "
+            "background: transparent; border: none;"
         )
         header_layout.addWidget(black_label)
 

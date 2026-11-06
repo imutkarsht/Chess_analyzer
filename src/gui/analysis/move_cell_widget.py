@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
 
+from ..components import Label, TextRole, TextTone
 from ..styles import Styles
 
 # Every classified move keeps its badge. Only decisive/problem moves get colour
@@ -60,14 +61,13 @@ class MoveCellWidget(QWidget):
         )
         top_row.addWidget(self._variation_btn, 0, Qt.AlignmentFlag.AlignVCenter)
 
-        self._time_label = QLabel(self)
+        self._time_label = Label(
+            "",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         self._time_label.setFixedWidth(30)
         self._time_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
-        self._time_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_style()
-        )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         outer.addLayout(top_row, 1)
@@ -210,9 +210,8 @@ class MoveCellWidget(QWidget):
             color = Styles.COLOR_TEXT_PRIMARY
             weight = "500"
         return (
-            Styles.get_label_style(size=13, color=color, weight=weight)
-            + " "
-            + Styles.get_transparent_style()
+            f"font-size: 13px; color: {color}; font-weight: {weight}; "
+            "background: transparent; border: none;"
         )
 
     def _variation_icon(self) -> bool:
@@ -227,12 +226,6 @@ class MoveCellWidget(QWidget):
 
     def refresh_styles(self):
         self._san_label.setStyleSheet(self._san_style())
-
-        self._time_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_style()
-        )
 
         if (
             self._show_time

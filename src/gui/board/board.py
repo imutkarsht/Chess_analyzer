@@ -374,12 +374,8 @@ class Board(QWidget):
                 dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 colour = QColor(Styles.COLOR_ACCENT)
                 dot.setStyleSheet(
-                    Styles.get_label_style(
-                        size=24,
-                        color=f"rgba({colour.red()},{colour.green()},{colour.blue()},0.5)",
-                    )
-                    + " "
-                    + Styles.get_transparent_style()
+                    f"font-size: 24px; color: rgba({colour.red()},{colour.green()},{colour.blue()},0.5); "
+                    "background: transparent; border: none;"
                 )
                 r, col = self._sq_to_grid(sq)
                 self.overlay_layout.addWidget(dot, r, col)

@@ -177,9 +177,7 @@ class ExplorerUiMixin:
 
         for chk in (self.chk_classify, self.chk_legal, self.chk_engine, self.chk_cache):
             chk.setStyleSheet(
-                Styles.get_label_style(
-                    size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500
-                )
+                f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_SECONDARY};"
             )
             chk.setCursor(Qt.CursorShape.PointingHandCursor)
             toggles_layout.addWidget(chk)
@@ -210,9 +208,8 @@ class ExplorerUiMixin:
         self.explorer_hint.setWordWrap(True)
         self.explorer_hint.setOpenExternalLinks(False)
         self.explorer_hint.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 2px 14px; "
-            + Styles.get_transparent_style()
+            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 14px; "
+            "background: transparent; border: none;"
         )
         self.explorer_hint.hide()
         right_layout.addWidget(self.explorer_hint)
@@ -233,9 +230,8 @@ class ExplorerUiMixin:
 
         self.lichess_attribution = QLabel()
         self.lichess_attribution.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 4px 14px; "
-            + Styles.get_transparent_style()
+            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 4px 14px; "
+            "background: transparent; border: none;"
         )
         self.lichess_attribution.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -312,16 +308,14 @@ class ExplorerUiMixin:
     def _refresh_book_styles(self) -> None:
         self.book_toggle.refresh_styles()
         self.explorer_hint.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 2px 14px; "
-            + Styles.get_transparent_style()
+            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 2px 14px; "
+            "background: transparent; border: none;"
         )
         self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
         self.book_container.setStyleSheet(Styles.get_surface_style())
         self.lichess_attribution.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + "; padding: 4px 14px; "
-            + Styles.get_transparent_style()
+            f"font-size: 11px; color: {Styles.COLOR_TEXT_MUTED}; padding: 4px 14px; "
+            "background: transparent; border: none;"
         )
         self._refresh_attribution_text()
         skeleton = getattr(self, "_book_skeleton", None)

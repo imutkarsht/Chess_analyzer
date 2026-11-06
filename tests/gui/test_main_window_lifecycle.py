@@ -48,9 +48,9 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert not window.btn_hib_explore.isHidden()
     assert window._hib_celebration.isVisible()
 
-    # The puzzle chrome is styled per-widget, so a theme switch must restyle it:
-    # the blurb previously kept its dark-theme ink and vanished on the light
-    # surface. Stub the global QSS compile; only the palette matters here.
+    # The classic puzzle chrome is still painted per-widget, while the migrated
+    # Label text follows the global stylesheet. A theme switch must restyle the
+    # painted blurb and leave the Label's tone contract intact.
     monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
     previous_mode = ThemeManager.mode()
     try:
@@ -61,7 +61,8 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
         assert ThemeManager.palette().text_primary == LIGHT.text_primary
         assert LIGHT.text_primary in window._hib_cel_text.styleSheet()
         assert window._hib_cel_text.styleSheet() != dark_ink
-        assert LIGHT.text_primary in window._hib_hint.styleSheet()
+        assert window._hib_hint.styleSheet() == ""
+        assert window._hib_hint.property("tone") == "primary"
     finally:
         ThemeManager.set_mode(previous_mode)
 
