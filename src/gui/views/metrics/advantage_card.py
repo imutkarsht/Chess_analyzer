@@ -9,12 +9,11 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QVBoxLayout,
     QWidget,
 )
 
-from src.gui.components import SegmentedBar, StatusBadge
+from src.gui.components import Label, SegmentedBar, StatusBadge, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -92,36 +91,31 @@ class AdvantageConversionCard(MetricCard):
         adv_vbox.setContentsMargins(14, 12, 14, 12)
         adv_vbox.setSpacing(8)
 
-        adv_title = QLabel("DECISIVE ADVANTAGE (>= +3.0 PAWNS)")
-        adv_title.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            background: transparent;
-        """)
+        adv_title = Label(
+            "DECISIVE ADVANTAGE (>= +3.0 PAWNS)",
+            role=TextRole.CARD_TITLE,
+            size=10,
+            weight=700,
+            tone=TextTone.SECONDARY,
+        )
         adv_vbox.addWidget(adv_title)
 
         num_sub_layout = QHBoxLayout()
         num_sub_layout.setSpacing(10)
         num_sub_layout.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignLeft)
 
-        adv_num = QLabel(f"{conv_rate:.1f}%" if hwa > 0 else "N/A")
-        adv_num.setStyleSheet(f"""
-            color: {Styles.COLOR_RESULT_WIN};
-            font-size: 28px;
-            font-weight: 700;
-            background: transparent;
-        """)
+        adv_num = Label(
+            f"{conv_rate:.1f}%" if hwa > 0 else "N/A",
+            role=TextRole.STAT,
+            tone=TextTone.RESULT_WIN,
+        )
         num_sub_layout.addWidget(adv_num)
 
-        adv_sub = QLabel(f"{converted} of {hwa} won" if hwa > 0 else "No leads >= +3.0")
-        adv_sub.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 12px;
-            margin-bottom: 4px;
-            background: transparent;
-        """)
+        adv_sub = Label(
+            f"{converted} of {hwa} won" if hwa > 0 else "No leads >= +3.0",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+        )
         num_sub_layout.addWidget(adv_sub)
         num_sub_layout.addStretch()
         adv_vbox.addLayout(num_sub_layout)
@@ -168,7 +162,7 @@ class AdvantageConversionCard(MetricCard):
             layout: QHBoxLayout,
             value: int,
             label: str,
-            color_hex: str,
+            tone: TextTone,
             subcategory: str | None = None,
         ):
             w = QWidget()
@@ -195,35 +189,40 @@ class AdvantageConversionCard(MetricCard):
             vl.setSpacing(1)
             vl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-            v_lbl = QLabel(str(value))
-            v_lbl.setStyleSheet(
-                f"color: {color_hex}; font-size: 16px; font-weight: 700; background: transparent;"
+            v_lbl = Label(
+                str(value),
+                role=TextRole.SUBHEADING,
+                weight=700,
+                tone=tone,
             )
             v_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             vl.addWidget(v_lbl)
 
-            l_lbl = QLabel(label)
-            l_lbl.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 10px; font-weight: 600; background: transparent;"
+            l_lbl = Label(
+                label,
+                role=TextRole.MICRO,
+                size=10,
+                weight=600,
+                tone=TextTone.SECONDARY,
             )
             l_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             vl.addWidget(l_lbl)
 
             layout.addWidget(w)
 
-        add_stat_col(stats_line, converted, "Wins", Styles.COLOR_RESULT_WIN)
+        add_stat_col(stats_line, converted, "Wins", TextTone.RESULT_WIN)
         add_stat_col(
             stats_line,
             squandered,
             "Draws",
-            Styles.COLOR_TEXT_PRIMARY,
+            TextTone.PRIMARY,
             subcategory="squandered_draws",
         )
         add_stat_col(
             stats_line,
             thrown,
             "Thrown",
-            Styles.COLOR_BLUNDER if thrown > 0 else Styles.COLOR_TEXT_SECONDARY,
+            TextTone.BLUNDER if thrown > 0 else TextTone.SECONDARY,
             subcategory="thrown_losses",
         )
         adv_vbox.addLayout(stats_line)
@@ -244,36 +243,31 @@ class AdvantageConversionCard(MetricCard):
         cb_vbox.setContentsMargins(14, 12, 14, 12)
         cb_vbox.setSpacing(8)
 
-        cb_title = QLabel("DECISIVE DEFICIT (<= -3.0 PAWNS)")
-        cb_title.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            background: transparent;
-        """)
+        cb_title = Label(
+            "DECISIVE DEFICIT (<= -3.0 PAWNS)",
+            role=TextRole.CARD_TITLE,
+            size=10,
+            weight=700,
+            tone=TextTone.SECONDARY,
+        )
         cb_vbox.addWidget(cb_title)
 
         cb_num_sub = QHBoxLayout()
         cb_num_sub.setSpacing(10)
         cb_num_sub.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignLeft)
 
-        cb_num = QLabel(f"{comeback_rate:.1f}%" if hlp > 0 else "N/A")
-        cb_num.setStyleSheet(f"""
-            color: {Styles.COLOR_ACCENT};
-            font-size: 28px;
-            font-weight: 700;
-            background: transparent;
-        """)
+        cb_num = Label(
+            f"{comeback_rate:.1f}%" if hlp > 0 else "N/A",
+            role=TextRole.STAT,
+            tone=TextTone.ACCENT,
+        )
         cb_num_sub.addWidget(cb_num)
 
-        cb_sub = QLabel(f"{comeback_total} of {hlp} saved" if hlp > 0 else "No deficits <= -3.0")
-        cb_sub.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 12px;
-            margin-bottom: 4px;
-            background: transparent;
-        """)
+        cb_sub = Label(
+            f"{comeback_total} of {hlp} saved" if hlp > 0 else "No deficits <= -3.0",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+        )
         cb_num_sub.addWidget(cb_sub)
         cb_num_sub.addStretch()
         cb_vbox.addLayout(cb_num_sub)
@@ -319,17 +313,17 @@ class AdvantageConversionCard(MetricCard):
             cb_stats_line,
             comeback_wins,
             "Miracle Wins",
-            Styles.COLOR_ACCENT,
+            TextTone.ACCENT,
             subcategory="comeback_wins",
         )
         add_stat_col(
             cb_stats_line,
             comeback_draws,
             "Saved Draws",
-            Styles.COLOR_TEXT_PRIMARY,
+            TextTone.PRIMARY,
             subcategory="comeback_draws",
         )
-        add_stat_col(cb_stats_line, lost_deficit, "Defeats", Styles.COLOR_TEXT_SECONDARY)
+        add_stat_col(cb_stats_line, lost_deficit, "Defeats", TextTone.SECONDARY)
         cb_vbox.addLayout(cb_stats_line)
 
         hero_row.addWidget(comeback_pillar)
@@ -355,29 +349,31 @@ class AdvantageConversionCard(MetricCard):
         # Formulate insight
         if hwa == 0 and hlp == 0:
             verdict_text = "Balanced Match Dynamics: Neither player reached extreme evaluation leads (+3.0 / -3.0 pawns) in this filter range."
-            indicator_color = Styles.COLOR_TEXT_SECONDARY
+            indicator_tone = TextTone.SECONDARY
         elif thrown == 0 and hwa > 0:
             verdict_text = "Clinical Finisher: Flawless advantage security. 100% of winning leads were guided to victory or safe draws with 0 thrown games."
-            indicator_color = Styles.COLOR_RESULT_WIN
+            indicator_tone = TextTone.RESULT_WIN
         elif thrown >= 2 or (hwa > 0 and (thrown / hwa) >= 0.20):
             verdict_text = f"High Volatility: {thrown} games were lost from winning positions (>= +3.0 pawns). Prioritize simplification and king safety when ahead."
-            indicator_color = Styles.COLOR_BLUNDER
+            indicator_tone = TextTone.BLUNDER
         elif comeback_rate >= 25.0 and hlp >= 3:
             verdict_text = f"Tenacious Defender: Rescued {comeback_rate:.0f}% of lost games ({comeback_total} saves). Excellent resilience and resourcefulness under pressure."
-            indicator_color = Styles.COLOR_ACCENT
+            indicator_tone = TextTone.ACCENT
         else:
             verdict_text = f"Solid Conversion: {conv_rate:.0f}% conversion efficiency on winning advantages with reliable endgame technique."
-            indicator_color = Styles.COLOR_TEXT_PRIMARY
+            indicator_tone = TextTone.PRIMARY
 
-        ins_lbl = QLabel(verdict_text)
-        ins_lbl.setWordWrap(True)
-        ins_lbl.setStyleSheet(f"""
-            color: {indicator_color if indicator_color == Styles.COLOR_BLUNDER else Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 500;
-            line-height: 1.35;
-            background: transparent;
-        """)
+        ins_lbl = Label(
+            verdict_text,
+            role=TextRole.MICRO,
+            weight=500,
+            tone=(
+                TextTone.BLUNDER
+                if indicator_tone is TextTone.BLUNDER
+                else TextTone.SECONDARY
+            ),
+            wrap=True,
+        )
         ins_layout.addWidget(ins_lbl, stretch=1)
 
         main_vbox.addWidget(insight_frame)

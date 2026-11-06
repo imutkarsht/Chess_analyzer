@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole, TextTone
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
@@ -163,21 +163,21 @@ class AICoachCard(MetricCard):
         vbox.setSpacing(10)
         vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel("Performance Diagnosis")
-        title.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; font-weight: 700; background: transparent;"
+        title = Label(
+            "Performance Diagnosis",
+            role=TextRole.SUBHEADING,
+            weight=700,
         )
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         vbox.addWidget(title)
 
-        desc = QLabel(
+        desc = Label(
             f"Synthesizes {total} analyzed games across tactical blindspots, conversion, and clock discipline."
             if total > 0
-            else "Analyze your games to receive tailored coaching insights and practice recommendations."
-        )
-        desc.setWordWrap(True)
-        desc.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent;"
+            else "Analyze your games to receive tailored coaching insights and practice recommendations.",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         desc.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -272,18 +272,21 @@ class AICoachCard(MetricCard):
         vbox = QVBoxLayout(err_frame)
         vbox.setSpacing(10)
 
-        lbl_title = QLabel("AI Coaching Unavailable")
-        lbl_title.setStyleSheet(
-            f"color: {Styles.COLOR_BLUNDER}; font-size: 14px; font-weight: 700; background: transparent;"
+        lbl_title = Label(
+            "AI Coaching Unavailable",
+            role=TextRole.BODY_LARGE,
+            weight=700,
+            tone=TextTone.BLUNDER,
         )
         vbox.addWidget(lbl_title)
 
-        lbl_err = QLabel(f"{err_msg}")
-        lbl_err.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+        lbl_err = Label(
+            f"{err_msg}",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
+            wrap=True,
+            selectable=True,
         )
-        lbl_err.setWordWrap(True)
-        lbl_err.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         vbox.addWidget(lbl_err)
 
         btn_row = QHBoxLayout()
@@ -335,28 +338,28 @@ class AICoachCard(MetricCard):
             fallback_widget.setStyleSheet("background: transparent;")
             fb_vbox = QVBoxLayout(fallback_widget)
             fb_vbox.setContentsMargins(6, 6, 6, 6)
-            fb_lbl = QLabel(insight_text)
-            fb_lbl.setWordWrap(True)
-            fb_lbl.setStyleSheet(
-                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 12px; background: transparent;"
+            fb_lbl = Label(
+                insight_text,
+                role=TextRole.CAPTION,
+                wrap=True,
+                selectable=True,
             )
-            fb_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             fb_vbox.addWidget(fb_lbl)
             self.insights_layout.addWidget(fallback_widget)
             return
 
         section_meta = {
-            "strengths": ("STRENGTHS & SUPERPOWERS", Styles.COLOR_RESULT_WIN),
-            "leaks": ("CRITICAL LEAKS & BLINDSPOTS", Styles.COLOR_BLUNDER),
-            "prescription": ("TRAINING PRESCRIPTION", Styles.COLOR_ACCENT),
+            "strengths": ("STRENGTHS & SUPERPOWERS", TextTone.RESULT_WIN),
+            "leaks": ("CRITICAL LEAKS & BLINDSPOTS", TextTone.BLUNDER),
+            "prescription": ("TRAINING PRESCRIPTION", TextTone.ACCENT),
         }
 
         first_section = True
         for sec_key, items in sections.items():
             if not items:
                 continue
-            title_text, color_accent = section_meta.get(
-                sec_key, ("COACHING OBSERVATIONS", Styles.COLOR_TEXT_PRIMARY)
+            title_text, section_tone = section_meta.get(
+                sec_key, ("COACHING OBSERVATIONS", TextTone.PRIMARY)
             )
 
             # Divider between sections
@@ -381,14 +384,12 @@ class AICoachCard(MetricCard):
             h_row.setSpacing(6)
             h_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-            h_lbl = QLabel(title_text)
-            h_lbl.setStyleSheet(f"""
-                color: {color_accent};
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.6px;
-                background: transparent;
-            """)
+            h_lbl = Label(
+                title_text,
+                role=TextRole.MICRO,
+                weight=700,
+                tone=section_tone,
+            )
             h_row.addWidget(h_lbl)
             h_row.addStretch()
             sec_vbox.addLayout(h_row)
@@ -401,19 +402,21 @@ class AICoachCard(MetricCard):
                 ivbox.setContentsMargins(0, 0, 0, 0)
                 ivbox.setSpacing(3)
 
-                t_lbl = QLabel(item_title)
-                t_lbl.setStyleSheet(
-                    f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent;"
+                t_lbl = Label(
+                    item_title,
+                    role=TextRole.BODY,
+                    weight=600,
+                    wrap=True,
                 )
-                t_lbl.setWordWrap(True)
                 ivbox.addWidget(t_lbl)
 
                 if item_body:
-                    b_lbl = QLabel(item_body)
-                    b_lbl.setStyleSheet(
-                        f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; background: transparent;"
+                    b_lbl = Label(
+                        item_body,
+                        role=TextRole.CAPTION,
+                        tone=TextTone.SECONDARY,
+                        wrap=True,
                     )
-                    b_lbl.setWordWrap(True)
                     ivbox.addWidget(b_lbl)
 
                 sec_vbox.addWidget(item_widget)

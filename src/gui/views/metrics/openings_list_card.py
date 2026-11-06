@@ -16,11 +16,14 @@ from PyQt6.QtWidgets import (
 
 from src.gui.components import (
     EmptyState,
+    Label,
     PaginationBar,
     PaginationSize,
     PaginationState,
     SegmentedBar,
     SegmentedControl,
+    TextRole,
+    TextTone,
 )
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
@@ -153,14 +156,12 @@ class OpeningsListCard(MetricCard):
         else:
             summary_text = f"No openings found for {active_color.lower()}"
 
-        summary_lbl = QLabel(summary_text)
-        summary_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 500;
-            border: none;
-            background: transparent;
-        """)
+        summary_lbl = Label(
+            summary_text,
+            role=TextRole.MICRO,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
         sub_bar.addWidget(summary_lbl)
         sub_bar.addStretch()
         main_vbox.addLayout(sub_bar)
@@ -223,11 +224,11 @@ class OpeningsListCard(MetricCard):
 
         # Color rating for win rate
         if win_rate >= 60.0:
-            wr_color = Styles.COLOR_BEST
+            wr_tone = TextTone.BEST
         elif win_rate >= 45.0:
-            wr_color = Styles.COLOR_TEXT_PRIMARY
+            wr_tone = TextTone.PRIMARY
         else:
-            wr_color = Styles.COLOR_BLUNDER
+            wr_tone = TextTone.BLUNDER
 
         card = QFrame()
         card.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -270,16 +271,9 @@ class OpeningsListCard(MetricCard):
             """)
             line1.addWidget(eco_badge)
 
-        name_lbl = QLabel(name)
+        name_lbl = Label(name, role=TextRole.BODY, weight=700)
         name_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
         name_lbl.setToolTip(f"Click to inspect games played in {name}")
-        name_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 13px;
-            font-weight: 700;
-            border: none;
-            background: transparent;
-        """)
         line1.addWidget(name_lbl)
 
         # Subtle Side Badge (if in All view)
@@ -305,24 +299,20 @@ class OpeningsListCard(MetricCard):
         line1.addStretch()
 
         # Win Rate text
-        wr_lbl = QLabel(f"{win_rate:.0f}% Win Rate")
-        wr_lbl.setStyleSheet(f"""
-            color: {wr_color};
-            font-size: 12px;
-            font-weight: 700;
-            border: none;
-            background: transparent;
-        """)
+        wr_lbl = Label(
+            f"{win_rate:.0f}% Win Rate",
+            role=TextRole.CAPTION,
+            weight=700,
+            tone=wr_tone,
+        )
         line1.addWidget(wr_lbl)
 
-        games_lbl = QLabel(f"({total} {'game' if total == 1 else 'games'})")
-        games_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 500;
-            border: none;
-            background: transparent;
-        """)
+        games_lbl = Label(
+            f"({total} {'game' if total == 1 else 'games'})",
+            role=TextRole.MICRO,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
         line1.addWidget(games_lbl)
 
         c_layout.addLayout(line1)
@@ -332,14 +322,8 @@ class OpeningsListCard(MetricCard):
             var_text = " • ".join(variations[:2])
             if len(variations) > 2:
                 var_text += f" +{len(variations) - 2} more"
-            var_lbl = QLabel(var_text)
+            var_lbl = Label(var_text, role=TextRole.MICRO, tone=TextTone.MUTED)
             var_lbl.setToolTip(" • ".join(variations))
-            var_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_MUTED};
-                font-size: 11px;
-                border: none;
-                background: transparent;
-            """)
             c_layout.addWidget(var_lbl)
 
         # Line 3: Proportional Stacked Bar [ Green Wins | Gray Draws | Red Losses ]
@@ -394,29 +378,29 @@ class OpeningsListCard(MetricCard):
             record_parts.append(f"{losses}L")
         record_str = " · ".join(record_parts) if record_parts else "0G"
 
-        rec_lbl = QLabel(record_str)
-        rec_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: none;
-            background: transparent;
-        """)
+        rec_lbl = Label(
+            record_str,
+            role=TextRole.MICRO,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         line4.addWidget(rec_lbl)
 
         if avg_acc > 0:
-            dot_lbl = QLabel("•")
-            dot_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px;")
+            dot_lbl = Label(
+                "•",
+                role=TextRole.MICRO,
+                size=10,
+                tone=TextTone.MUTED,
+            )
             line4.addWidget(dot_lbl)
 
-            acc_lbl = QLabel(f"{avg_acc:.1f}% avg accuracy")
-            acc_lbl.setStyleSheet(f"""
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 11px;
-                font-weight: 500;
-                border: none;
-                background: transparent;
-            """)
+            acc_lbl = Label(
+                f"{avg_acc:.1f}% avg accuracy",
+                role=TextRole.MICRO,
+                weight=500,
+                tone=TextTone.SECONDARY,
+            )
             line4.addWidget(acc_lbl)
 
         line4.addStretch()

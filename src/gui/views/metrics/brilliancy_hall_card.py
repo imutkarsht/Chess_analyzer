@@ -21,10 +21,13 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    Label,
     PaginationBar,
     PaginationSize,
     PaginationState,
     StatusBadge,
+    TextRole,
+    TextTone,
 )
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
@@ -215,24 +218,15 @@ class BrilliancyHallCard(MetricCard):
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(2)
 
-        lbl_move = QLabel(move_str)
-        lbl_move.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-weight: 700;
-            font-size: 14px;
-            border: none;
-            background: transparent;
-        """)
+        lbl_move = Label(move_str, role=TextRole.BODY_LARGE, weight=700)
         text_layout.addWidget(lbl_move)
 
-        lbl_meta = QLabel(meta_str)
-        lbl_meta.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 500;
-            border: none;
-            background: transparent;
-        """)
+        lbl_meta = Label(
+            meta_str,
+            role=TextRole.MICRO,
+            weight=500,
+            tone=TextTone.SECONDARY,
+        )
         lbl_meta.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         text_layout.addWidget(lbl_meta)
 

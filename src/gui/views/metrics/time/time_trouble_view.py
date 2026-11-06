@@ -5,8 +5,9 @@ from __future__ import annotations
 import math
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
+from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
 from src.gui.views.metrics.time.panels import NoClockBanner, StatPanel
@@ -96,8 +97,8 @@ class TroubleView(QWidget):
                 border_color=(
                     Styles.COLOR_BLUNDER if panic_mult > 1.2 else Styles.COLOR_BORDER
                 ),
-                value_color=(
-                    Styles.COLOR_BLUNDER if panic_mult > 1.2 else Styles.COLOR_BEST
+                value_tone=(
+                    TextTone.BLUNDER if panic_mult > 1.2 else TextTone.BEST
                 ),
                 radius=8,
                 padding="10px",
@@ -150,7 +151,7 @@ class TroubleView(QWidget):
                 f"({trouble_pct:.1f}% vs {normal_pct:.1f}%).\n"
                 "Focus on pace in the opening and middlegame to preserve time reserves."
             )
-            title_color = Styles.COLOR_BLUNDER
+            title_tone = TextTone.BLUNDER
         elif panic_mult > 1.2:
             banner_title = f"{panic_mult:.1f}x Blunder Rate Under Time Pressure"
             banner_desc = (
@@ -158,7 +159,7 @@ class TroubleView(QWidget):
                 f"({trouble_pct:.1f}% vs {normal_pct:.1f}%).\n"
                 "Focus on pace in the opening and middlegame to preserve time reserves."
             )
-            title_color = Styles.COLOR_BLUNDER
+            title_tone = TextTone.BLUNDER
         elif panic_mult <= 0.8 and trouble_moves > 0:
             banner_title = "Disciplined in Time Scrambles"
             banner_desc = (
@@ -166,26 +167,29 @@ class TroubleView(QWidget):
                 f"than in regular play ({normal_pct:.1f}%).\n"
                 "You rely successfully on fast tactical intuition when pressed for time."
             )
-            title_color = Styles.COLOR_RESULT_WIN
+            title_tone = TextTone.RESULT_WIN
         else:
             banner_title = "Stable Under Clock Pressure"
             banner_desc = (
                 "Your error rate remains consistent regardless of clock situation. "
                 "You maintain good stability."
             )
-            title_color = Styles.COLOR_TEXT_PRIMARY
+            title_tone = TextTone.PRIMARY
 
-        title = QLabel(banner_title)
-        title.setStyleSheet(
-            f"color: {title_color}; font-weight: 700; font-size: 12px; border: none;"
+        title = Label(
+            banner_title,
+            role=TextRole.BODY,
+            weight=700,
+            tone=title_tone,
         )
         info.addWidget(title)
 
-        desc = QLabel(banner_desc)
-        desc.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; border: none;"
+        desc = Label(
+            banner_desc,
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+            wrap=True,
         )
-        desc.setWordWrap(True)
         info.addWidget(desc)
         layout.addLayout(info, stretch=1)
 
@@ -202,20 +206,23 @@ class TroubleView(QWidget):
         pill_layout.setContentsMargins(12, 6, 12, 6)
         pill_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        count = QLabel(str(timeouts))
-        count_color = (
-            Styles.COLOR_BLUNDER if timeouts > 0 else Styles.COLOR_TEXT_PRIMARY
-        )
-        count.setStyleSheet(
-            f"color: {count_color}; font-size: 16px; font-weight: 800; border: none;"
+        count = Label(
+            str(timeouts),
+            role=TextRole.SUBHEADING,
+            weight=800,
+            tone=(
+                TextTone.BLUNDER if timeouts > 0 else TextTone.PRIMARY
+            ),
         )
         count.setAlignment(Qt.AlignmentFlag.AlignCenter)
         pill_layout.addWidget(count)
 
-        label = QLabel("Timeouts")
-        label.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 9px; "
-            "font-weight: 600; border: none;"
+        label = Label(
+            "Timeouts",
+            role=TextRole.MICRO,
+            size=9,
+            weight=600,
+            tone=TextTone.MUTED,
         )
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         pill_layout.addWidget(label)

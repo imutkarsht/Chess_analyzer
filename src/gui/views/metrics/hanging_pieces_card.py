@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.gui.components import MiniBar, StatusBadge
+from src.gui.components import Label, MiniBar, StatusBadge, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -185,15 +185,12 @@ class HangingPiecesCard(MetricCard):
             icon_lbl.setStyleSheet("border: none; background: transparent;")
             header.addWidget(icon_lbl)
 
-        title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            border: none;
-            background: transparent;
-        """)
+        title_lbl = Label(
+            title,
+            role=TextRole.MICRO,
+            weight=700,
+            tone=TextTone.SECONDARY,
+        )
         header.addWidget(title_lbl)
         header.addStretch()
         layout.addLayout(header)
@@ -213,13 +210,11 @@ class HangingPiecesCard(MetricCard):
         """)
         layout.addWidget(hero)
 
-        subtitle = QLabel(hero_subtitle)
-        subtitle.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            border: none;
-            background: transparent;
-        """)
+        subtitle = Label(
+            hero_subtitle,
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
+        )
         layout.addWidget(subtitle)
 
         if hero_bar is not None:
@@ -233,15 +228,13 @@ class HangingPiecesCard(MetricCard):
         divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
         layout.addWidget(divider)
 
-        section_lbl = QLabel(section_title)
-        section_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_MUTED};
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            border: none;
-            background: transparent;
-        """)
+        section_lbl = Label(
+            section_title,
+            role=TextRole.MICRO,
+            size=10,
+            weight=700,
+            tone=TextTone.MUTED,
+        )
         layout.addWidget(section_lbl)
 
         piece_list = QVBoxLayout()
@@ -309,14 +302,7 @@ class HangingPiecesCard(MetricCard):
             icon_lbl.setStyleSheet("border: none; background: transparent;")
             row_layout.addWidget(icon_lbl)
 
-        name_lbl = QLabel(piece_name)
-        name_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: none;
-            background: transparent;
-        """)
+        name_lbl = Label(piece_name, role=TextRole.MICRO, weight=600)
         name_lbl.setFixedWidth(60)
         row_layout.addWidget(name_lbl)
 
@@ -329,16 +315,14 @@ class HangingPiecesCard(MetricCard):
             )
         )
 
-        count_lbl = QLabel(f"{count}")
+        count_lbl = Label(
+            f"{count}",
+            role=TextRole.MICRO,
+            weight=700,
+            tone=TextTone.PRIMARY if count > 0 else TextTone.MUTED,
+        )
         count_lbl.setFixedWidth(24)
         count_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-        count_lbl.setStyleSheet(f"""
-            color: {Styles.COLOR_TEXT_PRIMARY if count > 0 else Styles.COLOR_TEXT_MUTED};
-            font-size: 11px;
-            font-weight: 700;
-            border: none;
-            background: transparent;
-        """)
         row_layout.addWidget(count_lbl)
         return row
 

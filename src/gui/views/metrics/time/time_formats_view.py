@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from src.gui.components import EmptyState, SegmentedBar
+from src.gui.components import EmptyState, Label, SegmentedBar, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
 from src.gui.views.metrics.time.panels import IconTile
@@ -105,16 +105,13 @@ class FormatsView(QWidget):
 
         info_box = QVBoxLayout()
         info_box.setSpacing(1)
-        name_lbl = QLabel(sp)
-        name_lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 700; "
-            "font-size: 13px; border: none;"
-        )
+        name_lbl = Label(sp, role=TextRole.BODY, weight=700)
         info_box.addWidget(name_lbl)
 
-        record_lbl = QLabel(f"{tot} Games • {w}W {d}D {losses}L")
-        record_lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; border: none;"
+        record_lbl = Label(
+            f"{tot} Games • {w}W {d}D {losses}L",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
         )
         info_box.addWidget(record_lbl)
         top_line.addLayout(info_box)
