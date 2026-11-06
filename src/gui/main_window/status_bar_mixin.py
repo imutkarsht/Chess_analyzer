@@ -1,18 +1,18 @@
 from src.backend.analysis.engine import resolve_engine_path
+from src.gui.components import TextTone
 from src.gui.components.feedback.toast import ToastManager
-from src.gui.styles import Styles
 
 
 class StatusBarMixin:
     """Status bar pill, status messages, spinner animation, and toasts."""
 
     _STATUS_STYLES = {
-        "idle": ("○", Styles.COLOR_TEXT_MUTED),
-        "info": ("◎", "#3498db"),
-        "success": ("✔", Styles.COLOR_ENGINE_READY),
-        "warning": ("⚠", Styles.COLOR_ENGINE_BUSY),
-        "error": ("✖", Styles.COLOR_BLUNDER),
-        "progress": ("◌", "#3498db"),
+        "idle": ("○", TextTone.MUTED),
+        "info": ("◎", TextTone.ACCENT),
+        "success": ("✔", TextTone.ENGINE_READY),
+        "warning": ("⚠", TextTone.ENGINE_BUSY),
+        "error": ("✖", TextTone.BLUNDER),
+        "progress": ("◌", TextTone.ACCENT),
     }
 
     def show_toast(
@@ -64,21 +64,15 @@ class StatusBarMixin:
             if not self._spinner_timer.isActive():
                 self._spinner_timer.start(120)
             self._engine_pill.setText("⬤  Calculating")
-            self._engine_pill.setStyleSheet(
-                f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};"
-            )
+            self._engine_pill.set_tone(TextTone.ENGINE_BUSY)
         else:
             self._spinner_timer.stop()
             if state == "ready":
                 self._engine_pill.setText("●  Engine ready")
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};"
-                )
+                self._engine_pill.set_tone(TextTone.ENGINE_READY)
             else:  # offline
                 self._engine_pill.setText("⬤  Engine Offline")
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};"
-                )
+                self._engine_pill.set_tone(TextTone.BLUNDER)
 
     def _tick_spinner(self):
         """Advance the braille spinner animation one frame."""
@@ -102,6 +96,6 @@ class StatusBarMixin:
                 widget.setVisible(not idle)
         if idle:
             return
-        icon, color = self._STATUS_STYLES.get(kind, ("◎", "#3498db"))
+        icon, tone = self._STATUS_STYLES.get(kind, ("◎", TextTone.ACCENT))
         self._status_lbl.setText(f"{icon}  {message}")
-        self._status_lbl.setStyleSheet(f"font-size: 12px; color: {color}; background: transparent;")
+        self._status_lbl.set_tone(tone)

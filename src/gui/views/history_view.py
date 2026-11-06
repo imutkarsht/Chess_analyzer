@@ -2,7 +2,6 @@ from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -165,16 +164,10 @@ class HistoryView(QWidget):
 
         filter_layout.addSpacing(10)
 
-        lbl_style = (
-            f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)}"
-            " border: none; background: transparent;"
-        )
-
-        def _filter_label(text: str) -> QLabel:
+        def _filter_label(text: str) -> Label:
             # A Preferred label policy lets the row's spare width stretch the
             # label and push its dropdown away, so pin it to the text width.
-            lbl = QLabel(text)
-            lbl.setStyleSheet(lbl_style)
+            lbl = Label(text, role=TextRole.CAPTION, weight=600)
             lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
             return lbl
 
@@ -533,22 +526,6 @@ class HistoryView(QWidget):
             self.content_widget.setStyleSheet(Styles.get_background_style())
         if hasattr(self, "search_input"):
             self.search_input.refresh_styles()
-        if hasattr(self, "result_label"):
-            self.result_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
-        if hasattr(self, "type_label"):
-            self.type_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
-        if hasattr(self, "source_label"):
-            self.source_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
-        if hasattr(self, "sort_label"):
-            self.sort_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
-            )
         if hasattr(self, "btn_import"):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):

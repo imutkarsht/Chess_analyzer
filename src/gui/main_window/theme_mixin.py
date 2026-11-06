@@ -232,24 +232,8 @@ class ThemeMixin:
                 background: transparent;
             }}
         """)
-        if hasattr(self, "_status_lbl"):
-            self._status_lbl.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
-            )
-        if hasattr(self, "_engine_pill"):
-            state = self._engine_pill.text()
-            if "Offline" in state:
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};"
-                )
-            elif "Calculating" in state:
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};"
-                )
-            else:
-                self._engine_pill.setStyleSheet(
-                    f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};"
-                )
+        if hasattr(self, "board_game_header"):
+            self.board_game_header.refresh_styles()
 
         # Force full style re-evaluation for all children
         self.style().unpolish(self)

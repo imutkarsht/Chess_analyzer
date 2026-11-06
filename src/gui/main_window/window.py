@@ -155,23 +155,20 @@ class MainWindow(
             }}
         """)
 
-        self._engine_pill = QLabel()
-        self._engine_pill.setStyleSheet(
-            "font-size: 12px; font-weight: 600; padding: 0 6px; background: transparent;"
-        )
+        self._engine_pill = Label("", role=TextRole.CAPTION, weight=600)
+        self._engine_pill.setContentsMargins(6, 0, 6, 0)
         self.statusBar().addWidget(self._engine_pill)
 
         # Thin separator — only shown when there is a real status message.
-        self._status_sep = QLabel("│")
-        self._status_sep.setStyleSheet(
-            f"color: {Styles.COLOR_BORDER}; padding: 0 4px; background: transparent;"
-        )
+        self._status_sep = Label("│", role=TextRole.CAPTION, tone=TextTone.MUTED)
+        self._status_sep.setContentsMargins(4, 0, 4, 0)
         self._status_sep.hide()
         self.statusBar().addWidget(self._status_sep)
 
-        self._status_lbl = QLabel("Ready")
-        self._status_lbl.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
+        self._status_lbl = Label(
+            "Ready",
+            role=TextRole.CAPTION,
+            tone=TextTone.SECONDARY,
         )
         self._status_lbl.hide()
         self.statusBar().addWidget(self._status_lbl)
@@ -627,7 +624,12 @@ class MainWindow(
         # Row 1: title + shuffle button
         hib_top = QHBoxLayout()
         hib_top.setSpacing(8)
-        self._hib_title = QLabel()
+        self._hib_title = Label(
+            "",
+            role=TextRole.SUBHEADING,
+            size=15,
+            weight=700,
+        )
         self._hib_title.setWordWrap(False)
         hib_top.addWidget(self._hib_title)
 
@@ -668,12 +670,18 @@ class MainWindow(
         hib_outer.addLayout(hib_top)
 
         # Row 2: players / year / event
-        self._hib_meta = QLabel()
+        self._hib_meta = Label(
+            "", role=TextRole.CAPTION, tone=TextTone.SECONDARY
+        )
         hib_outer.addWidget(self._hib_meta)
 
         # Row 3: puzzle prompt (turn_desc)
-        self._hib_hint = QLabel()
-        self._hib_hint.setWordWrap(True)
+        self._hib_hint = Label(
+            "",
+            role=TextRole.BODY,
+            weight=500,
+            wrap=True,
+        )
         hib_outer.addWidget(self._hib_hint)
 
         # Row 4: celebration / blurb row (hidden until famous move is found)
@@ -770,20 +778,8 @@ class MainWindow(
                 }}
                 QLabel {{ background: transparent; border: none; }}
             """)
-        if hasattr(self, "_hib_title"):
-            self._hib_title.setStyleSheet(
-                f"font-size: 15px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
-            )
         if hasattr(self, "_hib_turn"):
             self._hib_turn.setStyleSheet(Styles.get_badge_style(11))
-        if hasattr(self, "_hib_meta"):
-            self._hib_meta.setStyleSheet(
-                f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            )
-        if hasattr(self, "_hib_hint"):
-            self._hib_hint.setStyleSheet(
-                f"font-size: 13px; font-weight: 500; color: {Styles.COLOR_TEXT_PRIMARY};"
-            )
         if hasattr(self, "_hib_cel_icon"):
             self._hib_cel_icon.setStyleSheet("font-size: 20px;")
         if hasattr(self, "_hib_cel_text"):

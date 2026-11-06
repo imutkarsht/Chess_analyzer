@@ -124,8 +124,7 @@ class ExplorerUiMixin:
         layout = QHBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        label = QLabel(title)
-        label.setStyleSheet(Styles.get_label_style(size=16, bold=True))
+        label = Label(title, role=TextRole.SUBHEADING, weight=700)
         captured = CapturedPiecesWidget(side=side)
 
         layout.addWidget(label)
@@ -247,8 +246,7 @@ class ExplorerUiMixin:
         self._refresh_attribution_text()
 
     def _build_moves_section(self, right_layout: QVBoxLayout) -> None:
-        self.move_list_label = QLabel("Moves")
-        self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
+        self.move_list_label = Label("Moves", role=TextRole.BODY_LARGE, weight=700)
         right_layout.addWidget(self.move_list_label)
 
         self.move_list_view = MoveListView(variant="explorer")
@@ -307,8 +305,6 @@ class ExplorerUiMixin:
         self.splitter.setStyleSheet(Styles.get_splitter_style())
         self.left_panel.setStyleSheet(Styles.get_background_style())
         self.right_panel.setStyleSheet(Styles.get_background_style())
-        self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
-        self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
         self.captured_white.refresh_styles()
         self.captured_black.refresh_styles()
         self.lines_widget.refresh_styles()
@@ -333,9 +329,6 @@ class ExplorerUiMixin:
             skeleton.refresh_styles()
 
     def _refresh_move_styles(self) -> None:
-        self.move_list_label.setStyleSheet(
-            Styles.get_label_style(size=14, bold=True)
-        )
         self.move_list_view.refresh_styles()
         self.move_controls.refresh_styles()
         self.engine_status_label.setStyleSheet(

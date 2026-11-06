@@ -233,15 +233,20 @@ class DrillDownView(QWidget):
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(icon_lbl)
 
-        title_lbl = QLabel("No Occurrences Found")
-        title_lbl.setStyleSheet(
-            Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+        title_lbl = Label(
+            "No Occurrences Found",
+            role=TextRole.SUBHEADING,
+            weight=700,
         )
         title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(title_lbl)
 
-        sub_lbl = QLabel("No matching game positions recorded under the current filters.")
-        sub_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED))
+        sub_lbl = Label(
+            "No matching game positions recorded under the current filters.",
+            role=TextRole.CAPTION,
+            tone=TextTone.MUTED,
+            wrap=True,
+        )
         sub_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(sub_lbl)
 

@@ -164,8 +164,9 @@ def confirm_dialog(parent, title: str, message: str,
     Returns True if the user confirmed, False otherwise.
     Never uses the native QMessageBox so it respects the app theme.
     """
-    from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel
+    from PyQt6.QtWidgets import QDialog, QHBoxLayout
 
+    from src.gui.components import Label, TextRole, TextTone
     from src.gui.styles import Styles
 
     dlg = QDialog(parent)
@@ -178,25 +179,21 @@ def confirm_dialog(parent, title: str, message: str,
             border: 1px solid {Styles.COLOR_BORDER};
             border-radius: 12px;
         }}
-        QLabel {{
-            color: {Styles.COLOR_TEXT_PRIMARY};
-            font-size: 14px;
-            background: transparent;
-            border: none;
-        }}
     """)
 
     root = QVBoxLayout(dlg)
     root.setContentsMargins(24, 20, 24, 20)
     root.setSpacing(16)
 
-    title_lbl = QLabel(f"<b>{title}</b>")
-    title_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; background: transparent; border: none;")
+    title_lbl = Label(title, role=TextRole.SUBHEADING, weight=700)
     root.addWidget(title_lbl)
 
-    msg_lbl = QLabel(message)
-    msg_lbl.setWordWrap(True)
-    msg_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;")
+    msg_lbl = Label(
+        message,
+        role=TextRole.BODY,
+        tone=TextTone.SECONDARY,
+        wrap=True,
+    )
     root.addWidget(msg_lbl)
 
     btn_row = QHBoxLayout()

@@ -30,7 +30,15 @@ from src.backend.analysis.tactics.insight import (
     move_prefix,
 )
 from src.constants import LLM_WORTHY_CLASSIFICATIONS
-from src.gui.components import Button, ButtonSize, ButtonVariant, TextArea
+from src.gui.components import (
+    Button,
+    ButtonSize,
+    ButtonVariant,
+    Label,
+    TextArea,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 
 # The body is sized to its wrapped text: the tab has room to grow downwards, so
@@ -114,8 +122,7 @@ class CoachCardWidget(QFrame):
         layout.addWidget(self.body_edit)
 
         # Stay visible (empty) when unused so the action row below never moves.
-        self.caption = QLabel("")
-        self.caption.setWordWrap(False)
+        self.caption = Label("", role=TextRole.MICRO, tone=TextTone.MUTED)
         self.caption.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(self.caption)
 
@@ -376,11 +383,6 @@ class CoachCardWidget(QFrame):
         self.setStyleSheet(Styles.get_frame_style(object_name="CoachCard", hover_accent=False))
         self.body_edit.refresh_styles()
         self._restyle_header()
-        self.caption.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
         for button in (self.btn_ask, self.btn_refute, self.btn_best):
             button.refresh_styles()
         self._layout_rows()  # the styles decide the badge/button widths

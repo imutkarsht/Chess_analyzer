@@ -25,9 +25,12 @@ from src.gui.components import (
     Button,
     ButtonVariant,
     CircularAccuracyWidget,
+    Label,
     Tabs,
     TabVariant,
     TextArea,
+    TextRole,
+    TextTone,
 )
 from src.gui.components.display.graph_widget import GraphWidget
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
@@ -174,19 +177,10 @@ class AnalysisPanel(QWidget):
         self.result_banner_lbl.setStyleSheet(Styles.get_transparent_label_style())
         hero_layout.addWidget(self.result_banner_lbl)
 
-        self.opening_label = QLabel("-")
-        self.opening_label.setStyleSheet(
-            Styles.get_label_style(size=12, weight=600) + " " + Styles.get_transparent_label_style()
-        )
-        self.opening_label.setWordWrap(True)
+        self.opening_label = Label("-", role=TextRole.CAPTION, weight=600, wrap=True)
         hero_layout.addWidget(self.opening_label)
 
-        self.details_label = QLabel("-")
-        self.details_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        self.details_label = Label("-", role=TextRole.MICRO, tone=TextTone.MUTED)
         hero_layout.addWidget(self.details_label)
 
         self.report_layout.addWidget(self.hero_card)
@@ -391,6 +385,13 @@ class AnalysisPanel(QWidget):
 
         return Styles.COLOR_TEXT_PRIMARY
 
+    @staticmethod
+    def _classification_tone(name: str) -> TextTone:
+        try:
+            return TextTone(name.lower())
+        except ValueError:
+            return TextTone.PRIMARY
+
     def _user_side(self) -> str | None:
         """Which colour the configured Chess.com/Lichess username played."""
         if not self.current_game:
@@ -424,17 +425,15 @@ class AnalysisPanel(QWidget):
         self.b_circular_acc.set_data(b_acc, b_acpl)
 
         # Stats Grid Header
-        self.stats_layout.addWidget(QLabel(""), 0, 0)
-        lbl_w = QLabel("White")
+        self.stats_layout.addWidget(QWidget(), 0, 0)
+        lbl_w = Label("White", role=TextRole.BODY_LARGE, weight=700)
         lbl_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_w.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_w, 0, 1)
 
-        self.stats_layout.addWidget(QLabel(""), 0, 2)
+        self.stats_layout.addWidget(QWidget(), 0, 2)
 
-        lbl_b = QLabel("Black")
+        lbl_b = Label("Black", role=TextRole.BODY_LARGE, weight=700)
         lbl_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_b.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_b, 0, 3)
 
         types = [
@@ -460,22 +459,22 @@ class AnalysisPanel(QWidget):
             row_layout = QHBoxLayout(row_frame)
             row_layout.setContentsMargins(6, 2, 6, 2)
 
-            lbl_type = QLabel(type_name)
-            lbl_type.setStyleSheet(
-                Styles.get_label_style(size=12, color=color, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
+            lbl_type = Label(
+                type_name,
+                role=TextRole.CAPTION,
+                weight=700,
+                tone=self._classification_tone(type_name),
             )
             self.stats_layout.addWidget(lbl_type, i + 1, 0)
 
             val_w = summary["white"].get(type_name, 0)
-            lbl_val_w = QLabel(str(val_w))
-            lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_val_w.setStyleSheet(
-                Styles.get_label_style(color=color, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
+            lbl_val_w = Label(
+                str(val_w),
+                role=TextRole.BODY,
+                weight=700,
+                tone=self._classification_tone(type_name),
             )
+            lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.stats_layout.addWidget(lbl_val_w, i + 1, 1)
 
             icon_label = QLabel()
@@ -489,13 +488,13 @@ class AnalysisPanel(QWidget):
             self.stats_layout.addWidget(icon_label, i + 1, 2)
 
             val_b = summary["black"].get(type_name, 0)
-            lbl_val_b = QLabel(str(val_b))
-            lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_val_b.setStyleSheet(
-                Styles.get_label_style(color=color, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
+            lbl_val_b = Label(
+                str(val_b),
+                role=TextRole.BODY,
+                weight=700,
+                tone=self._classification_tone(type_name),
             )
+            lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.stats_layout.addWidget(lbl_val_b, i + 1, 3)
 
     def _clear_layout(self, layout):
@@ -544,20 +543,6 @@ class AnalysisPanel(QWidget):
         if hasattr(self, "report_card") and self.report_card:
             self.report_card.setStyleSheet(
                 Styles.get_frame_style(object_name="ReportCard", hover_accent=False)
-            )
-
-        if hasattr(self, "opening_label") and self.opening_label:
-            self.opening_label.setStyleSheet(
-                Styles.get_label_style(size=12, weight=600)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
-
-        if hasattr(self, "details_label") and self.details_label:
-            self.details_label.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
             )
 
         if hasattr(self, "w_circular_acc"):

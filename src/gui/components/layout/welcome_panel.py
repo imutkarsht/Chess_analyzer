@@ -17,8 +17,10 @@ from PyQt6.QtWidgets import (
 
 from src.constants import ABOUT_URL, APP_VERSION, GITHUB_REPO_URL, WEBSITE_URL
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.theme.typography import TextRole, TextTone
 from src.utils.path_utils import get_resource_path
 
 
@@ -85,7 +87,7 @@ class WelcomePanel(QFrame):
         card_layout.addSpacing(12)
 
         # ── Title ─────────────────────────────────────────────────────────
-        self.title_label = QLabel("Chess Analyzer Pro")
+        self.title_label = Label("Chess Analyzer Pro", role=TextRole.PAGE_TITLE)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.title_label)
         card_layout.addSpacing(6)
@@ -108,11 +110,13 @@ class WelcomePanel(QFrame):
         card_layout.addSpacing(16)
 
         # ── Description ───────────────────────────────────────────────────
-        self.desc_label = QLabel(
+        self.desc_label = Label(
             "Free, local-first chess analysis. Unlimited reviews at any depth, "
-            "fully offline and private."
+            "fully offline and private.",
+            role=TextRole.BODY_LARGE,
+            tone=TextTone.PRIMARY,
+            wrap=True,
         )
-        self.desc_label.setWordWrap(True)
         self.desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self.desc_label)
         card_layout.addSpacing(24)
@@ -198,11 +202,6 @@ class WelcomePanel(QFrame):
         self.setStyleSheet(f"QFrame#WelcomePanel {{ background-color: {bg}; border: none; }}")
         self.card.setStyleSheet(f"QWidget#WelcomeCard {{ background-color: {bg}; }}")
 
-        self.title_label.setStyleSheet(
-            f"font-size: 24px; font-weight: 700; "
-            f"color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
-        )
-
         # Both badges use the same neutral surface — no accent tinting.
         badge_style = (
             f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
@@ -212,10 +211,6 @@ class WelcomePanel(QFrame):
         )
         self.version_badge.setStyleSheet(badge_style)
         self.oss_badge.setStyleSheet(badge_style)
-
-        self.desc_label.setStyleSheet(
-            f"font-size: 14px; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent;"
-        )
 
         self.divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
 

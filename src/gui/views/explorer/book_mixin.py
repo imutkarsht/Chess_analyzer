@@ -6,6 +6,7 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLayout
 
 from src.backend.analysis.opening_db import _normalize_fen
+from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.explorer.book_row import BookRowWidget
 from src.gui.views.explorer.book_skeleton import ExplorerBookSkeleton
@@ -66,14 +67,7 @@ class ExplorerBookMixin:
                 icon_label.setStyleSheet(Styles.get_transparent_label_style())
                 left_layout.addWidget(icon_label)
 
-        lbl_san = QLabel(san)
-        lbl_san.setStyleSheet(
-            Styles.get_label_style(
-                size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True
-            )
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        lbl_san = Label(san, role=TextRole.SUBHEADING, size=15, weight=700)
         left_layout.addWidget(lbl_san)
 
         row_layout.addLayout(left_layout)
@@ -86,13 +80,11 @@ class ExplorerBookMixin:
             right_layout.setContentsMargins(0, 0, 0, 0)
             right_layout.setSpacing(12)
 
-            lbl_count = QLabel(count_str)
-            lbl_count.setStyleSheet(
-                Styles.get_label_style(
-                    size=13, color=Styles.COLOR_TEXT_MUTED, weight=500
-                )
-                + " "
-                + Styles.get_transparent_label_style()
+            lbl_count = Label(
+                count_str,
+                role=TextRole.BODY,
+                weight=500,
+                tone=TextTone.MUTED,
             )
             right_layout.addWidget(lbl_count)
 
@@ -100,11 +92,10 @@ class ExplorerBookMixin:
             right_layout.addWidget(ratio_bar)
             row_layout.addLayout(right_layout)
         elif info_text:
-            lbl_info = QLabel(info_text)
-            lbl_info.setStyleSheet(
-                Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
-                + "; font-style: italic; "
-                + Styles.get_transparent_label_style()
+            lbl_info = Label(
+                info_text,
+                role=TextRole.BODY,
+                tone=TextTone.SECONDARY,
             )
             lbl_info.setMinimumWidth(0)
             row_layout.addWidget(lbl_info)

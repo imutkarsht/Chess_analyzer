@@ -6,7 +6,9 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
+from src.gui.theme.typography import TextRole, TextTone
 
 
 class LegendList(QWidget):
@@ -45,10 +47,11 @@ class LegendList(QWidget):
             )
             row.addWidget(dot)
 
-        name_lbl = QLabel(label)
-        name_lbl.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
-            "font-weight: 500; border: none; background: transparent;"
+        name_lbl = Label(
+            label,
+            role=TextRole.CAPTION,
+            weight=500,
+            tone=TextTone.SECONDARY,
         )
         row.addWidget(name_lbl)
 
@@ -64,16 +67,18 @@ class LegendList(QWidget):
         self._layout.addLayout(row)
 
     def add_empty(self, text: str, italic: bool = False) -> None:
-        label = QLabel(text)
-        style = (
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
-            "border: none; background: transparent;"
-        )
         if italic:
-            style = (
+            label = QLabel(text)
+            label.setStyleSheet(
                 f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; "
                 "font-style: italic; border: none; background: transparent;"
             )
-        label.setStyleSheet(style)
+        else:
+            label = Label(
+                text,
+                role=TextRole.CAPTION,
+                tone=TextTone.SECONDARY,
+                wrap=True,
+            )
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._layout.addWidget(label)

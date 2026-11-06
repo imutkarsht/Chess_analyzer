@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import DEFAULT_BOARD_THEME
-from src.gui.components import Button, ButtonSize, ButtonVariant
+from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
 from src.utils.config import ConfigManager
@@ -176,11 +176,10 @@ class DrillDownItemWidget(QFrame):
         # Context detail text (Eval drop, hung piece, motif description)
         desc_text = self._build_description_text()
         if desc_text:
-            desc_lbl = QLabel(desc_text)
-            desc_lbl.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
-                + " "
-                + Styles.get_transparent_label_style()
+            desc_lbl = Label(
+                desc_text,
+                role=TextRole.CAPTION,
+                tone=TextTone.SECONDARY,
             )
             row2.addWidget(desc_lbl)
 
@@ -190,11 +189,10 @@ class DrillDownItemWidget(QFrame):
         # Row 3: Opening Name
         opening = self.item.get("opening", "")
         if opening:
-            op_lbl = QLabel(opening)
-            op_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            op_lbl = Label(
+                opening,
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
             op_lbl.setToolTip(opening)
             content_layout.addWidget(op_lbl)
@@ -209,13 +207,12 @@ class DrillDownItemWidget(QFrame):
 
         date_str = self.item.get("date", "")
         if date_str:
-            date_lbl = QLabel(date_str)
-            date_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            date_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            date_lbl = Label(
+                date_str,
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
+            date_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
             right_layout.addWidget(date_lbl)
 
         right_layout.addStretch()

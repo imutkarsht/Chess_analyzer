@@ -16,8 +16,10 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
+from src.gui.theme.typography import TextRole, TextTone
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
@@ -140,11 +142,10 @@ class GameListItemWidget(QWidget):
         opening = game.metadata.opening or ""
         eco = game.metadata.eco or ""
         opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
-        op_lbl = QLabel(opening_text if opening_text else "-")
-        op_lbl.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_SECONDARY)
-            + " "
-            + Styles.get_transparent_label_style()
+        op_lbl = Label(
+            opening_text if opening_text else "-",
+            role=TextRole.MICRO,
+            tone=TextTone.SECONDARY,
         )
         op_lbl.setToolTip(opening_text)
         op_lbl.setMinimumWidth(50)
@@ -176,21 +177,19 @@ class GameListItemWidget(QWidget):
 
         # 6. Date & Move Count
         if game.metadata.date:
-            date_lbl = QLabel(game.metadata.date)
-            date_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            date_lbl = Label(
+                game.metadata.date,
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
             card_layout.addWidget(date_lbl)
 
         move_count = self._get_move_count(game)
         if move_count:
-            moves_lbl = QLabel(f"{move_count}m")
-            moves_lbl.setStyleSheet(
-                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
-                + " "
-                + Styles.get_transparent_label_style()
+            moves_lbl = Label(
+                f"{move_count}m",
+                role=TextRole.MICRO,
+                tone=TextTone.MUTED,
             )
             card_layout.addWidget(moves_lbl)
 
@@ -248,12 +247,8 @@ class GameListItemWidget(QWidget):
             if crown_label:
                 header_layout.addWidget(crown_label)
 
-        vs_label = QLabel("vs")
-        vs_label.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
-            + "; margin: 0 4px; "
-            + Styles.get_transparent_label_style()
-        )
+        vs_label = Label("vs", role=TextRole.CAPTION, tone=TextTone.MUTED)
+        vs_label.setContentsMargins(4, 0, 4, 0)
         header_layout.addWidget(vs_label)
 
         # Black player
@@ -309,11 +304,11 @@ class GameListItemWidget(QWidget):
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
-            opening_label = QLabel(opening_text)
-            opening_label.setStyleSheet(
-                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500)
-                + " "
-                + Styles.get_transparent_label_style()
+            opening_label = Label(
+                opening_text,
+                role=TextRole.CAPTION,
+                weight=500,
+                tone=TextTone.SECONDARY,
             )
             opening_label.setToolTip(opening_text)
             opening_layout.addWidget(opening_label, 1)
@@ -616,12 +611,7 @@ class GameListItemWidget(QWidget):
 
         layout.addWidget(icon_lbl)
 
-        text_lbl = QLabel(str(text))
-        text_lbl.setStyleSheet(
-            Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
-            + " "
-            + Styles.get_transparent_label_style()
-        )
+        text_lbl = Label(str(text), role=TextRole.CAPTION, tone=TextTone.MUTED)
         layout.addWidget(text_lbl)
 
         return container
