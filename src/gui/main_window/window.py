@@ -22,6 +22,7 @@ from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardGameHeader, BoardPanel
+from src.gui.components import Label, TextRole, TextTone
 from src.gui.components.feedback.loading_widget import LoadingOverlay
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.components.layout.sidebar import Sidebar
@@ -441,21 +442,20 @@ class MainWindow(
 
         # Workspace-only title. The landing hides the whole header bar, so this
         # never appears above the empty-state hero.
-        self.title_lbl = QLabel("Analysis View")
-        self.title_lbl.setStyleSheet(
-            f"font-size: 20px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
-        )
+        self.title_lbl = Label("Analysis View", role=TextRole.PAGE_TITLE)
         header_layout.addWidget(self.title_lbl)
 
-        self.game_info_label = QLabel("No Game Loaded")
+        header_layout.addSpacing(12)
+        self.game_info_label = Label(
+            "No Game Loaded",
+            role=TextRole.BODY,
+            weight=600,
+            tone=TextTone.SECONDARY,
+        )
         self.game_info_label.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
         self.game_info_label.setMaximumWidth(520)
-        self.game_info_label.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " padding: 0 12px; background: transparent; border: none;"
-        )
         header_layout.addWidget(self.game_info_label)
 
         header_layout.addStretch()

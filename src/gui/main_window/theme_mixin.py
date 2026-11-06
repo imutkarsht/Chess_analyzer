@@ -132,12 +132,6 @@ class ThemeMixin:
                 Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND)
                 + " QFrame QLabel { background: transparent; }"
             )
-        if hasattr(self, "title_lbl"):
-            self.title_lbl.setStyleSheet(
-                Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
-                + " "
-                + Styles.get_transparent_label_style()
-            )
         if hasattr(self, "left_widget"):
             self.left_widget.setStyleSheet(Styles.get_background_style())
         if hasattr(self, "center_widget"):
@@ -188,11 +182,6 @@ class ThemeMixin:
                 self.metrics_view.refresh_styles()
             else:
                 self.metrics_view.refresh()
-        if hasattr(self, "game_info_label"):
-            self.game_info_label.setStyleSheet(
-                f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
-                " padding: 0 12px; background: transparent; border: none;"
-            )
         if hasattr(self, "board_game_header"):
             self.board_game_header.refresh_styles()
 

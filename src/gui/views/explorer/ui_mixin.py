@@ -20,6 +20,9 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    Label,
+    TextRole,
+    TextTone,
 )
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.styles import Styles
@@ -58,22 +61,19 @@ class ExplorerUiMixin:
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(20, 6, 20, 6)
 
-        self.title_lbl = QLabel("Opening Explorer")
-        self.title_lbl.setStyleSheet(
-            Styles.get_label_style(
-                size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True
-            )
-            + " "
-            + Styles.get_transparent_label_style()
+        self.title_lbl = Label(
+            "Opening Explorer",
+            role=TextRole.SUBHEADING,
+            weight=700,
         )
         header_layout.addWidget(self.title_lbl)
 
-        self.opening_badge = QLabel("Opening: -")
-        self.opening_badge.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
-            + "; padding: 0px 0px 0px 12px; "
-            + Styles.get_transparent_label_style()
+        self.opening_badge = Label(
+            "Opening: -",
+            role=TextRole.BODY,
+            tone=TextTone.SECONDARY,
         )
+        header_layout.addSpacing(12)
         header_layout.addWidget(self.opening_badge)
         header_layout.addStretch()
 
@@ -299,18 +299,6 @@ class ExplorerUiMixin:
     def _refresh_header_styles(self) -> None:
         self.header_bar.setStyleSheet(
             Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND)
-        )
-        self.title_lbl.setStyleSheet(
-            Styles.get_label_style(
-                size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True
-            )
-            + " "
-            + Styles.get_transparent_label_style()
-        )
-        self.opening_badge.setStyleSheet(
-            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
-            + "; padding: 0px 0px 0px 12px; "
-            + Styles.get_transparent_label_style()
         )
         for button in (self.btn_flip, self.btn_copy_fen, self.btn_copy_pgn):
             button.refresh_styles()
