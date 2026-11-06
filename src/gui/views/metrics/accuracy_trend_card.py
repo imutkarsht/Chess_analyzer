@@ -83,12 +83,17 @@ class AccuracyTrendCard(MetricCard):
         # Badges
         def make_badge(label_text: str, value_text: str, tone: TextTone) -> QFrame:
             frame = QFrame()
+            frame.setObjectName("AccuracyBadge")
             frame.setStyleSheet(f"""
-                QFrame {{
+                QFrame#AccuracyBadge {{
                     background-color: {Styles.COLOR_SURFACE_LIGHT};
                     border: 1px solid {Styles.COLOR_BORDER};
                     border-radius: 6px;
                     padding: 2px 6px;
+                }}
+                QFrame#AccuracyBadge QLabel {{
+                    background: transparent;
+                    border: none;
                 }}
             """)
             layout = QHBoxLayout(frame)
@@ -131,12 +136,17 @@ class AccuracyTrendCard(MetricCard):
             mom_icon_name = "fa5s.minus"
 
         mom_frame = QFrame()
+        mom_frame.setObjectName("MomentumBadge")
         mom_frame.setStyleSheet(f"""
-            QFrame {{
+            QFrame#MomentumBadge {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
                 border: 1px solid {Styles.COLOR_BORDER};
                 border-radius: 6px;
                 padding: 2px 6px;
+            }}
+            QFrame#MomentumBadge QLabel {{
+                background: transparent;
+                border: none;
             }}
         """)
         mom_layout = QHBoxLayout(mom_frame)

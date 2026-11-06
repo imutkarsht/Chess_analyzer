@@ -166,23 +166,36 @@ class AdvantageConversionCard(MetricCard):
             subcategory: str | None = None,
         ):
             w = QWidget()
+            w.setObjectName("AdvantageStat")
+            w.setStyleSheet("""
+                QWidget#AdvantageStat {
+                    background: transparent;
+                    border-radius: 4px;
+                }
+                QWidget#AdvantageStat QLabel {
+                    background: transparent;
+                    border: none;
+                }
+            """)
             if subcategory and value > 0:
                 w.setCursor(Qt.CursorShape.PointingHandCursor)
                 w.setToolTip(f"Click to inspect {value} {label.lower()} positions")
                 w.setStyleSheet(f"""
-                    QWidget {{
+                    QWidget#AdvantageStat {{
                         background: transparent;
                         border-radius: 4px;
                     }}
-                    QWidget:hover {{
+                    QWidget#AdvantageStat QLabel {{
+                        background: transparent;
+                        border: none;
+                    }}
+                    QWidget#AdvantageStat:hover {{
                         background-color: {Styles.COLOR_SURFACE};
                     }}
                 """)
                 w.mousePressEvent = lambda e, sc=subcategory: self.drill_down_requested.emit(
                     "advantage", sc
                 )
-            else:
-                w.setStyleSheet("background: transparent;")
 
             vl = QVBoxLayout(w)
             vl.setContentsMargins(4, 2, 4, 2)

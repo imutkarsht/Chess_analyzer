@@ -77,6 +77,12 @@ def test_typography_qss_follows_the_live_palette(monkeypatch):
     ) in qss
 
 
+def test_result_loss_tone_uses_the_error_colour():
+    assert Styles.get_tone_color(TextTone.RESULT_LOSS) == Styles.COLOR_BLUNDER
+    assert Styles.get_tone_color(TextTone.RESULT_WIN) == Styles.COLOR_RESULT_WIN
+    assert Styles.get_tone_color(TextTone.RESULT_DRAW) == Styles.COLOR_RESULT_DRAW
+
+
 @pytest.mark.parametrize("size", [0, 7, 19, 100])
 def test_typography_qss_rejects_unguarded_sizes_in_label(qapp, size):
     # The component validates sizes; this guards the generated override set too.

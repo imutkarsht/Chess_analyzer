@@ -16,6 +16,7 @@ class GameCard(QFrame):
         super().__init__(parent)
         self._index = index
         self._is_selected = False
+        self.setObjectName("GameCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumHeight(62)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -35,20 +36,28 @@ class GameCard(QFrame):
     def _apply_style(self, selected: bool):
         if selected:
             self.setStyleSheet(f"""
-                QFrame {{
+                QFrame#GameCard {{
                     background-color: {Styles.COLOR_ACCENT_SUBTLE};
                     border: 1px solid {Styles.COLOR_ACCENT};
                     border-radius: 8px;
                 }}
+                QFrame#GameCard QLabel {{
+                    background: transparent;
+                    border: none;
+                }}
             """)
         else:
             self.setStyleSheet(f"""
-                QFrame {{
+                QFrame#GameCard {{
                     background-color: {Styles.COLOR_SURFACE};
                     border: 1px solid {Styles.COLOR_BORDER};
                     border-radius: 8px;
                 }}
-                QFrame:hover {{
+                QFrame#GameCard QLabel {{
+                    background: transparent;
+                    border: none;
+                }}
+                QFrame#GameCard:hover {{
                     background-color: {Styles.COLOR_SURFACE_LIGHT};
                     border: 1px solid {Styles.COLOR_BORDER_LIGHT};
                 }}

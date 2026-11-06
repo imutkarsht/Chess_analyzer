@@ -68,7 +68,7 @@ def build_welcome_page(wizard) -> QWidget:
     logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
     if os.path.exists(logo_path):
         logo_label = IconLabel(QPixmap(logo_path), size=110)
-        layout.addWidget(logo_label)
+        layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignCenter)
 
     title = Label("Chess Analyzer Pro", role=TextRole.PAGE_TITLE)
     title.setAlignment(Qt.AlignmentFlag.AlignCenter)

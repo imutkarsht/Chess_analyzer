@@ -475,6 +475,12 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `label.py` | The only plain-text label; role/tone driven | `Label`, `TextRole`, `TextTone` |
+| `icon_label.py` | Shared icon/pixmap label with fallback and optional scaling | `IconLabel` |
+| `rich_text.py` | Shared rich-text and external-link labels | `RichTextLabel`, `LinkLabel` |
+| `color_label.py` | Label for data-driven chart/series colours | `ColorLabel` |
+| `chip_label.py` | Explicit foreground/background chips (captured pieces, material) | `ChipLabel` |
+| `clock_label.py` | Digital chess-clock pill | `ClockLabel` |
+| `avatar.py` | Circular avatar with initials fallback | `Avatar` |
 | `graph_widget.py` | Evaluation graph | `GraphWidget` |
 | `circular_accuracy.py` | Circular accuracy gauge | `CircularAccuracyWidget` |
 | `stat_card.py` | Stat tiles | `StatCard`, `SimpleStatCard` |
@@ -490,7 +496,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `toast.py` | The only notification system | `Toast`, `ToastManager`, `ToastVariant` |
 | `toast_icons.py` | Painted outline glyphs | — |
 | `empty_state.py` | Shared empty state | `EmptyState` |
-| `status_badge.py` | Header/status pill | `StatusBadge` |
+| `status_badge.py` | Header/status pill with soft, outline, solid and quiet variants | `StatusBadge`, `BadgeVariant` |
+| `engine_score_badge.py` | Engine-line score pill with evaluation-driven fill | `EngineScoreBadge` |
 | `loading_widget.py` | Full-window loading overlay | `LoadingOverlay` |
 | `pulsing_skeleton.py` | AI-writing skeleton | `PulsingSkeleton` |
 

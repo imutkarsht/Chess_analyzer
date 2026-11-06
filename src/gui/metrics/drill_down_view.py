@@ -70,10 +70,15 @@ class DrillDownView(QWidget):
 
         # 1. Top Navigation Header Bar
         self.header_bar = QFrame()
+        self.header_bar.setObjectName("DrillDownHeader")
         self.header_bar.setStyleSheet(f"""
-            QFrame {{
+            QFrame#DrillDownHeader {{
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+            QFrame#DrillDownHeader QLabel {{
+                background: transparent;
+                border: none;
             }}
         """)
         header_layout = QHBoxLayout(self.header_bar)
@@ -244,9 +249,13 @@ class DrillDownView(QWidget):
         """Re-applies styles when theme changes."""
         Styles.apply_background(self)
         self.header_bar.setStyleSheet(f"""
-            QFrame {{
+            QFrame#DrillDownHeader {{
                 background-color: {Styles.COLOR_BACKGROUND};
                 border-bottom: 1px solid {Styles.COLOR_BORDER};
+            }}
+            QFrame#DrillDownHeader QLabel {{
+                background: transparent;
+                border: none;
             }}
         """)
         self.sep.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")

@@ -76,7 +76,11 @@ class WelcomePanel(QFrame):
         logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
         if os.path.exists(logo_path):
             self.logo_label.set_icon(QPixmap(logo_path))
-        card_layout.addWidget(self.logo_label)
+        card_layout.addWidget(
+            self.logo_label,
+            0,
+            Qt.AlignmentFlag.AlignCenter,
+        )
         card_layout.addSpacing(12)
 
         # ── Title ─────────────────────────────────────────────────────────

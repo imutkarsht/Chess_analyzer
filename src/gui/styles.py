@@ -936,7 +936,7 @@ class Styles(metaclass=_StylesMeta):
             TextTone.BOOK: cls.COLOR_BOOK,
             TextTone.RESULT_WIN: cls.COLOR_RESULT_WIN,
             TextTone.RESULT_DRAW: cls.COLOR_RESULT_DRAW,
-            TextTone.RESULT_LOSS: cls.COLOR_RESULT_LOSS,
+            TextTone.RESULT_LOSS: cls.COLOR_BLUNDER,
             TextTone.ENGINE_READY: cls.COLOR_ENGINE_READY,
             TextTone.ENGINE_BUSY: cls.COLOR_ENGINE_BUSY,
         }
@@ -1052,6 +1052,10 @@ class Styles(metaclass=_StylesMeta):
                 border: 1px solid {p.border};
                 border-radius: {border_radius}px;
             }}
+            QFrame QLabel {{
+                background: transparent;
+                border: none;
+            }}
             QFrame:hover {{
                 border: 1px solid {p.accent};
                 background-color: {p.surface_light};
@@ -1077,6 +1081,10 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface};
                 border: 1px solid {p.border};
                 border-radius: {border_radius}px;
+            }}
+            {selector} QLabel {{
+                background: transparent;
+                border: none;
             }}
             {hover_style}
         """
@@ -1553,6 +1561,10 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface};
                 border-bottom: 1px solid {p.border};
             }}
+            QWidget QLabel {{
+                background: transparent;
+                border: none;
+            }}
         """
 
     @classmethod
@@ -1563,6 +1575,10 @@ class Styles(metaclass=_StylesMeta):
             QFrame {{
                 background-color: {bg};
                 border-bottom: 1px solid {p.border};
+            }}
+            QFrame QLabel {{
+                background: transparent;
+                border: none;
             }}
         """
 
@@ -1678,25 +1694,6 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
-    def get_hero_hint_style(cls, drag_active: bool = False):
-        p = ThemeManager.palette()
-        color = p.accent if drag_active else p.text_secondary
-        weight = "600" if drag_active else "500"
-        return (
-            f"font-size: 12px; font-weight: {weight}; color: {color}; "
-            "background: transparent;"
-        )
-
-    @classmethod
-    def get_keycap_style(cls):
-        p = ThemeManager.palette()
-        return (
-            f"font-size: 11px; font-weight: 600; color: {p.text_muted}; "
-            f"background-color: {p.surface}; border: 1px solid {p.border}; "
-            "border-radius: 9px; padding: 2px 8px;"
-        )
-
-    @classmethod
     def get_sidebar_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -1773,10 +1770,14 @@ class Styles(metaclass=_StylesMeta):
     def get_book_row_style(cls):
         p = ThemeManager.palette()
         return f"""
-            QWidget {{
+            QWidget#BookRow {{
                 border-bottom: 1px solid {p.border};
             }}
-            QWidget:hover {{
+            QWidget#BookRow QLabel {{
+                background: transparent;
+                border: none;
+            }}
+            QWidget#BookRow:hover {{
                 background-color: {p.surface_light};
             }}
         """
@@ -1801,27 +1802,6 @@ class Styles(metaclass=_StylesMeta):
                 padding: 0px;
             }}
             {cls.CAPTURED_PIECES_STYLE}
-        """
-
-    @classmethod
-    def get_piece_chip_style(cls, fg, bg, compact=True):
-        font_size = 22 if compact else 26
-        padding = "1px 5px" if compact else "1px 6px"
-        return f"""
-            color: {fg}; background-color: {bg};
-            font-size: {font_size}px; padding: {padding}; border-radius: 4px;
-        """
-
-    @classmethod
-    def get_advantage_chip_style(cls, compact=True):
-        p = ThemeManager.palette()
-        font_size = 14 if compact else 15
-        return f"""
-            color: {p.text_primary};
-            background-color: {p.surface_light};
-            font-weight: bold; font-size: {font_size}px;
-            padding: 3px 7px; border-radius: 4px;
-            margin-right: 4px;
         """
 
     @classmethod
@@ -1948,28 +1928,6 @@ class Styles(metaclass=_StylesMeta):
     # ═══════════════════════════════════════════════════════════════
     #  STATS / METRICS PAGE
     # ═══════════════════════════════════════════════════════════════
-    @classmethod
-    def get_ratio_bar_segment_style(
-        cls, color, top_left=False, top_right=False, bottom_left=False, bottom_right=False
-    ):
-        radii = [
-            "4px" if top_left else "0px",
-            "4px" if top_right else "0px",
-            "4px" if bottom_right else "0px",
-            "4px" if bottom_left else "0px",
-        ]
-        radius = " ".join(radii)
-        return f"""
-            QLabel {{
-                background-color: {color};
-                color: #FFFFFF;
-                font-size: 9px;
-                font-weight: bold;
-                border: none;
-                border-radius: {radius};
-            }}
-        """
-
     @classmethod
     def get_accuracy_color(cls, accuracy: float) -> str:
         acc = max(0.0, min(100.0, float(accuracy)))
