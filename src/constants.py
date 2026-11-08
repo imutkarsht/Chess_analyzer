@@ -77,6 +77,12 @@ PLATFORM_RULES = {
     },
 }
 
+# PGN import limits. The picker only indexes headers, so these guard against
+# pathological files rather than normal multi-game archives.
+MAX_PGN_FILE_BYTES = 25 * 1024 * 1024
+MAX_PGN_TEXT_CHARS = 2 * 1024 * 1024
+MAX_PGN_GAMES = 20_000
+
 # Engine Defaults (conservative — see issue #5)
 DEFAULT_ENGINE_THREADS = 1
 DEFAULT_ENGINE_HASH_MB = 128

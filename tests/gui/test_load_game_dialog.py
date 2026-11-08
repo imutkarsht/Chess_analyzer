@@ -3,6 +3,7 @@
 import pytest
 from PyQt6.QtCore import QDate
 
+from src.constants import MAX_PGN_TEXT_CHARS
 from src.gui.dialogs.load_game.helpers import format_display_date, game_row
 from src.gui.dialogs.load_game.online_fetch_panel import (
     _STATE_ERROR,
@@ -30,6 +31,25 @@ def test_game_row_formats_dates_and_metadata():
 
     assert line1 == "May 06, 2024  ·  BLITZ  ·  1-0  ·  42 moves"
     assert line2 == "Alice (2100)  vs  Bob (2000)  ·  Sicilian Defense"
+
+    line1, _ = game_row(
+        date="2024-05-06",
+        time_class="blitz",
+        result="1-0",
+        moves=None,
+        white="Alice",
+        black="Bob",
+        white_elo=2100,
+        black_elo=2000,
+    )
+    assert "moves" not in line1
+
+
+def test_pgn_text_panel_rejects_oversized_text(dialog):
+    panel = dialog._pgn_text_panel
+
+    assert panel.load_initial_text("x" * (MAX_PGN_TEXT_CHARS + 1)) is False
+    assert panel._text_edit.toPlainText() == ""
 
 
 @pytest.fixture

@@ -36,11 +36,14 @@ def game_row(
     opening: str | None = None,
 ) -> tuple[str, str]:
     """One consistent display row for API and PGN results."""
-    line1 = (
-        f"{format_display_date(date)}  ·  "
-        f"{(time_class or 'standard').upper()}  ·  "
-        f"{result or '?'}  ·  {moves if moves is not None else '?'} moves"
-    )
+    parts = [
+        format_display_date(date),
+        (time_class or "standard").upper(),
+        result or "?",
+    ]
+    if moves is not None:
+        parts.append(f"{moves} moves")
+    line1 = "  ·  ".join(parts)
     line2 = (
         f"{white or '?'} ({white_elo or '?'})  vs  "
         f"{black or '?'} ({black_elo or '?'})"

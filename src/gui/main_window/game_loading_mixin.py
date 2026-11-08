@@ -2,6 +2,12 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
+from src.constants import MAX_PGN_TEXT_CHARS
+from src.gui.dialogs.load_game.pgn_worker import PgnIndexWorker
+from src.gui.dialogs.load_game.worker_registry import (
+    register_worker,
+    remove_worker,
+)
 from src.gui.dialogs.load_game_dialog import LoadGameDialog
 from src.gui.main_window.navigation_mixin import compute_clock_times
 from src.gui.styles import Styles
@@ -136,23 +142,28 @@ class GameLoadingMixin:
 
     def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
         """
-        Common pattern: Parse PGN text, attach source data, load first game.
+        Parse the first valid game, attach source data, and load it.
         Returns True on success, False on failure.
         """
-        self.games = PGNParser.parse_pgn_text(pgn_text)
-        if self.games:
-            if source_data:
-                for g in self.games:
-                    g.source_data = source_data
-            self.load_game(self.games[0])
-            if status_msg:
-                self._set_status(status_msg, "success")
-            return True
-        else:
+        logger.debug("Parsing first game from %d PGN chars", len(pgn_text))
+        try:
+            game = PGNParser.parse_first_game(pgn_text)
+        except Exception as exc:
+            logger.error("Failed to parse PGN: %s", exc)
+            game = None
+        if game is None:
             QMessageBox.warning(
                 self, "Error", "Could not read this game.\nThe PGN data may be empty or corrupted."
             )
             return False
+
+        if source_data:
+            game.source_data = source_data
+        self.games = [game]
+        self.load_game(game)
+        if status_msg:
+            self._set_status(status_msg, "success")
+        return True
 
     def load_game(self, game, from_history: bool = False):
         # A new game must never inherit the previous game's open variation.
@@ -308,8 +319,9 @@ class GameLoadingMixin:
         dialog = LoadGameDialog(self, initial_source=initial_source)
         try:
             if initial_text and initial_source == SRC_PGN_TEXT:
-                dialog._pgn_text_panel._text_edit.setPlainText(initial_text)
-                dialog._pgn_text_panel._parse()
+                panel = dialog._pgn_text_panel
+                if panel.load_initial_text(initial_text):
+                    panel._parse()
 
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 if dialog._navigate_to_settings:
@@ -333,7 +345,14 @@ class GameLoadingMixin:
 
     def paste_pgn_from_clipboard(self):
         """Landing quick action: load clipboard PGN, or open the dialog on its PGN tab."""
-        text = QApplication.clipboard().text().strip()
+        text = QApplication.clipboard().text()
+        if len(text) > MAX_PGN_TEXT_CHARS:
+            self._set_status(
+                "PGN text is too large to paste. Open it as a file instead.",
+                "warning",
+            )
+            return
+        text = text.strip()
         if looks_like_pgn(text):
             self._parse_and_load_game(text, status_msg="Game loaded from clipboard.")
             return
@@ -363,7 +382,7 @@ class GameLoadingMixin:
                     return
         elif event.mimeData().hasText():
             text = event.mimeData().text()
-            if looks_like_pgn(text):
+            if len(text) <= MAX_PGN_TEXT_CHARS and looks_like_pgn(text):
                 self._set_drop_highlight(True)
                 event.acceptProposedAction()
                 return
@@ -379,17 +398,58 @@ class GameLoadingMixin:
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
                 if file_path.lower().endswith((".pgn", ".txt")):
-                    try:
-                        with open(file_path, encoding="utf-8", errors="replace") as f:
-                            content = f.read()
-                        if self._parse_and_load_game(content, status_msg="Game loaded from file"):
-                            event.acceptProposedAction()
-                            return
-                    except Exception as e:
-                        logger.error(f"Failed to load dropped PGN file: {e}")
+                    self._load_dropped_pgn(file_path)
+                    event.acceptProposedAction()
+                    return
         elif event.mimeData().hasText():
-            text = event.mimeData().text().strip()
-            if self._parse_and_load_game(text, status_msg="Game loaded from dropped text"):
+            text = event.mimeData().text()
+            if len(text) > MAX_PGN_TEXT_CHARS:
+                self._set_status(
+                    "PGN text is too large. Open it as a file instead.",
+                    "warning",
+                )
+                event.ignore()
+                return
+            if self._parse_and_load_game(
+                text.strip(), status_msg="Game loaded from dropped text"
+            ):
                 event.acceptProposedAction()
                 return
         event.ignore()
+
+    def _load_dropped_pgn(self, file_path: str) -> None:
+        """Index a dropped file off-thread and load its first game."""
+        previous = getattr(self, "_pgn_drop_worker", None)
+        if previous is not None and previous.isRunning():
+            previous.cancel()
+
+        worker = PgnIndexWorker(path=file_path)
+        self._pgn_drop_worker = worker
+        self._set_status("Loading PGN file…", "info")
+        worker.completed.connect(
+            lambda result, w=worker: self._on_dropped_pgn_indexed(result, w)
+        )
+        worker.failed.connect(lambda message: self._set_status(message, "error"))
+        worker.cancelled.connect(
+            lambda: self._set_status("PGN load cancelled", "info")
+        )
+        worker.finished.connect(
+            lambda w=worker: self._release_drop_worker(w)
+        )
+        register_worker(worker)
+        worker.start()
+
+    def _release_drop_worker(self, worker: PgnIndexWorker) -> None:
+        if getattr(self, "_pgn_drop_worker", None) is worker:
+            self._pgn_drop_worker = None
+        remove_worker(worker)
+
+    def _on_dropped_pgn_indexed(self, index, worker: PgnIndexWorker) -> None:
+        if getattr(self, "_pgn_drop_worker", None) is not worker:
+            return
+        if not index.games:
+            self._set_status("No valid games found in this file.", "warning")
+            return
+        self._parse_and_load_game(
+            index.game_text(0), status_msg="Game loaded from file"
+        )

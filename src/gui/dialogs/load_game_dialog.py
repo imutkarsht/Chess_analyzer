@@ -280,3 +280,7 @@ class LoadGameDialog(QDialog):
     def _cleanup_workers(self) -> None:
         if hasattr(self, "_online_fetch_panel"):
             self._online_fetch_panel.deactivate()
+        if hasattr(self, "_pgn_file_panel"):
+            self._pgn_file_panel.shutdown()
+        if hasattr(self, "_pgn_text_panel"):
+            self._pgn_text_panel.shutdown()

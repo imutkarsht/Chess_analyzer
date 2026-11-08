@@ -12,6 +12,10 @@
 - **Shared Label Typography**: Plain-text labels now use one `Label` component with semantic roles and tones generated from the live palette. Theme and accent switches recolour text without per-widget refreshes, and the legacy label style getters were removed.
 - **Shared Badge, Icon, and Rich-Text Primitives**: Result, status, classification, count, version, profile, and alert badges use one `StatusBadge`; pixmap labels use `IconLabel`; rich text and external links use `RichTextLabel`/`LinkLabel`; captured pieces, clocks, avatars, legends, and engine scores use shared display primitives. Container QSS is scoped so borders no longer cascade into labels, and result-loss badges use the error colour.
 
+### Bug Fixes
+
+- **Large PGN Files Froze the App**: Loading a multi-game PGN used to parse and materialise every game on the GUI thread. The import picker now indexes headers only, parses the selected game on demand, caps oversized files/text/game counts, reads PGN text with replacement characters, and runs file/drop indexing in a worker. A 17 MB file with thousands of games now opens without blocking the UI.
+
 ## v2.5.0 - AI Coach, Variations, Settings & Component Platform
 
 ### Features
