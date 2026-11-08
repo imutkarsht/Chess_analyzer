@@ -1,9 +1,12 @@
 """
 PGN File panel for the Load Game dialog.
 """
+from pathlib import Path
+
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QWidget
 
+from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.pgn_parser import PGNIndex
 from src.gui.components import (
     Button,
@@ -14,27 +17,23 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.components.feedback.toast import ToastManager
+from src.gui.import_workspace import GameBatch
 
 from .drop_zone import DropZone
-from .helpers import classify_time_control, game_row
-from .inline_game_list import InlineGameList
 from .pgn_worker import PgnIndexWorker
 from .worker_registry import register_worker, remove_worker
 
 
 class PgnFilePanel(QWidget):
-    """
-    Right-panel page for 'PGN File' source.
-    Handles drag & drop and browse. Files are indexed off the UI thread;
-    selecting a card emits only that game's raw PGN.
-    """
-    pgn_ready     = pyqtSignal(str, object)   # (pgn_text, None)
-    pending_cleared = pyqtSignal()
+    """Source page for local PGN files; indexing runs off the UI thread."""
+
+    batch_ready = pyqtSignal(object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._index: PGNIndex | None = None
         self._worker: PgnIndexWorker | None = None
+        self._source_label = ""
         self._setup_ui()
 
     def _setup_ui(self):
@@ -42,7 +41,6 @@ class PgnFilePanel(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(12)
 
-        # ── Drop zone ───────────────────────────────────────────────────────
         self._drop_zone = DropZone()
         self._drop_zone.setMinimumHeight(190)
         self._drop_zone.setMaximumHeight(240)
@@ -50,7 +48,6 @@ class PgnFilePanel(QWidget):
         self._drop_zone.clicked.connect(self._browse)
         root.addWidget(self._drop_zone)
 
-        # ── Browse button ────────────────────────────────────────────────────
         self._browse_btn = Button(
             "Browse files",
             ButtonVariant.HOLLOW,
@@ -66,7 +63,6 @@ class PgnFilePanel(QWidget):
         browse_row.addStretch(1)
         root.addLayout(browse_row)
 
-        # ── Indexing status ─────────────────────────────────────────────────
         self._loading_row = QWidget()
         loading_layout = QHBoxLayout(self._loading_row)
         loading_layout.setContentsMargins(0, 0, 0, 0)
@@ -86,13 +82,7 @@ class PgnFilePanel(QWidget):
         loading_layout.addWidget(self._cancel_btn)
         self._loading_row.setVisible(False)
         root.addWidget(self._loading_row)
-
-        # ── Inline game list (shown after load) ───────────────
-        self._game_list = InlineGameList()
-        self._game_list.setVisible(False)
-        self._game_list.game_chosen.connect(self._on_game_chosen)
-        self._game_list.cleared.connect(self._clear)
-        root.addWidget(self._game_list, stretch=1)
+        root.addStretch(1)
 
     # ── File loading ────────────────────────────────────────────────────────
     def _browse(self):
@@ -104,7 +94,7 @@ class PgnFilePanel(QWidget):
 
     def _load_file(self, path: str):
         self._cancel_index()
-        self.pending_cleared.emit()
+        self._source_label = f"PGN file: {Path(path).name}"
         self._show_loading()
 
         worker = PgnIndexWorker(path=path)
@@ -135,32 +125,13 @@ class PgnFilePanel(QWidget):
             return
 
         self._index = index
-        rows = [
-            game_row(
-                date=game.date,
-                time_class=classify_time_control(game.time_control),
-                result=game.result,
-                moves=None,
-                white=game.white,
-                black=game.black,
-                white_elo=game.white_elo,
-                black_elo=game.black_elo,
-                opening=game.opening,
-            )
-            for game in index.games
-        ]
-
-        count = len(index.games)
-        header_text = (
-            "1 game ready to load:"
-            if count == 1
-            else f"Select a game ({count} found):"
+        batch = GameBatch.from_pgn_index(
+            index,
+            GameHistoryManager().get_game_identity_keys(),
+            self._source_label,
         )
-        self._loading_row.setVisible(False)
-        self._drop_zone.setVisible(False)
-        self._browse_btn.setVisible(False)
-        self._game_list.populate(rows, header_text)
-        self._game_list.setVisible(True)
+        self._show_idle()
+        self.batch_ready.emit(batch)
 
     def _on_failed(self, message: str, worker: PgnIndexWorker) -> None:
         if worker is not self._worker:
@@ -183,27 +154,18 @@ class PgnFilePanel(QWidget):
     def _show_loading(self) -> None:
         self._drop_zone.setVisible(False)
         self._browse_btn.setVisible(False)
-        self._game_list.setVisible(False)
         self._loading_row.setVisible(True)
 
     def _show_idle(self) -> None:
         self._loading_row.setVisible(False)
-        self._game_list.setVisible(False)
         self._drop_zone.setVisible(True)
         self._browse_btn.setVisible(True)
         self._drop_zone._set_idle()
 
-    def _on_game_chosen(self, index: int):
-        if self._index is not None and 0 <= index < len(self._index.games):
-            self.pgn_ready.emit(self._index.game_text(index), None)
-
     def _clear(self):
         self._cancel_index()
         self._index = None
-        self._game_list.clear()
-        self._game_list.setVisible(False)
         self._show_idle()
-        self.pending_cleared.emit()
 
     def reset(self):
         """Called when the user switches away from this source tab."""

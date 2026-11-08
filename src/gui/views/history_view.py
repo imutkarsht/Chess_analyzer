@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -25,6 +26,7 @@ from src.gui.components import (
 )
 from src.gui.components.feedback.toast import ToastHandle, ToastManager
 from src.gui.components.lists.game_list_widget import GameListWidget
+from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
 from src.gui.utils.gui_utils import create_button
@@ -78,6 +80,7 @@ class HistoryView(QWidget):
     game_deleted = pyqtSignal(str)
     games_imported = pyqtSignal(int)
     history_cleared = pyqtSignal()
+    open_imported_game = pyqtSignal(str, object)
 
     def __init__(self, config_manager=None):
         super().__init__()
@@ -103,6 +106,16 @@ class HistoryView(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
+
+        self.page_stack = QStackedWidget()
+        self.page_stack.setStyleSheet("background: transparent;")
+        self.layout.addWidget(self.page_stack)
+
+        self.history_page = QWidget()
+        Styles.apply_background(self.history_page)
+        history_page_layout = QVBoxLayout(self.history_page)
+        history_page_layout.setContentsMargins(0, 0, 0, 0)
+        history_page_layout.setSpacing(0)
 
         # Header Bar Container
         self.header_bar = QFrame()
@@ -134,7 +147,7 @@ class HistoryView(QWidget):
         )
         header_layout.addWidget(self.btn_refresh)
 
-        self.layout.addWidget(self.header_bar)
+        history_page_layout.addWidget(self.header_bar)
 
         # Content Container Widget
         self.content_widget = QWidget()
@@ -226,10 +239,33 @@ class HistoryView(QWidget):
         content_layout.addWidget(self.game_list)
         self.apply_default_view_mode()
 
-        self.layout.addWidget(self.content_widget)
+        history_page_layout.addWidget(self.content_widget)
+
+        self.import_view = GameImportView()
+        self.import_view.back_requested.connect(self.close_import_workspace)
+        self.import_view.open_game_requested.connect(self.open_imported_game.emit)
+        self.import_view.games_added.connect(self._on_import_games_added)
+        self.page_stack.addWidget(self.history_page)
+        self.page_stack.addWidget(self.import_view)
+        self.page_stack.setCurrentWidget(self.history_page)
 
         # Load initial data
         self.load_history()
+
+    def show_import_workspace(self, batch: GameBatch) -> None:
+        """Show a fetched/indexed batch in the import workspace."""
+        self.import_view.set_batch(batch)
+        self.page_stack.setCurrentWidget(self.import_view)
+
+    def close_import_workspace(self) -> None:
+        """Return to the normal history list and release the batch."""
+        self.import_view.clear()
+        self.page_stack.setCurrentWidget(self.history_page)
+        self.load_history()
+
+    def _on_import_games_added(self, inserted: int, _skipped: int) -> None:
+        if inserted:
+            self.games_imported.emit(inserted)
 
     def _create_icon_button(self, text, icon_name, callback, danger=False):
         """Create a Button with a themed icon."""
@@ -536,3 +572,5 @@ class HistoryView(QWidget):
             self.btn_refresh.refresh_styles()
         if hasattr(self, "game_list"):
             self.game_list.refresh_styles()
+        if hasattr(self, "import_view"):
+            self.import_view.refresh_styles()

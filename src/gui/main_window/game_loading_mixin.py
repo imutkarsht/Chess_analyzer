@@ -2,7 +2,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 
 from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
-from src.constants import MAX_PGN_TEXT_CHARS
+from src.constants import MAX_PGN_TEXT_CHARS, PAGE_ANALYSIS, PAGE_HISTORY
 from src.gui.dialogs.load_game.pgn_worker import PgnIndexWorker
 from src.gui.dialogs.load_game.worker_registry import (
     register_worker,
@@ -327,21 +327,42 @@ class GameLoadingMixin:
                 if dialog._navigate_to_settings:
                     self.sidebar.set_active(4)
                     QTimer.singleShot(0, lambda: self.switch_page(4))
-                elif dialog._pending_pgn:
-                    pgn = dialog._pending_pgn
-                    sd = dialog._pending_source_data
-                    QTimer.singleShot(
-                        0,
-                        lambda: self._parse_and_load_game(
-                            pgn, source_data=sd, status_msg="Game loaded."
-                        ),
-                    )
+                elif getattr(dialog, "_pending_batch", None):
+                    self._open_import_batch(dialog._pending_batch)
         finally:
             dialog.deleteLater()
 
-    def _on_game_ready(self, pgn_text: str, source_data):
-        """Deprecated: Kept for compatibility. Called by LoadGameDialog when the user confirms a game selection."""
-        self._parse_and_load_game(pgn_text, source_data=source_data, status_msg="Game loaded.")
+    def _open_import_batch(self, batch) -> None:
+        """Single game goes to Analysis; a multi-game batch opens History import."""
+        candidates = getattr(batch, "candidates", [])
+        if not candidates:
+            return
+        if len(candidates) == 1:
+            candidate = candidates[0]
+            self.sidebar.set_active(PAGE_ANALYSIS)
+            self.switch_page(PAGE_ANALYSIS)
+            self._parse_and_load_game(
+                candidate.pgn_text(),
+                source_data=candidate.source_data,
+                status_msg="Game loaded.",
+            )
+            return
+
+        self.sidebar.set_active(PAGE_HISTORY)
+        self.history_view.show_import_workspace(batch)
+        self.switch_page(PAGE_HISTORY)
+
+    def _on_imported_game_requested(self, pgn_text: str, source_data) -> None:
+        """Open a game chosen in the History import workspace."""
+        if hasattr(self, "history_view"):
+            self.history_view.close_import_workspace()
+        self.sidebar.set_active(PAGE_ANALYSIS)
+        self.switch_page(PAGE_ANALYSIS)
+        self._parse_and_load_game(
+            pgn_text,
+            source_data=source_data,
+            status_msg="Game loaded.",
+        )
 
     def paste_pgn_from_clipboard(self):
         """Landing quick action: load clipboard PGN, or open the dialog on its PGN tab."""
