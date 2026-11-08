@@ -508,6 +508,7 @@ def test_schema_migration_creates_backup_and_sets_user_version(tmp_path):
     assert game["white"] == "Kasparov"
     assert "white_pieces_hung" in game
     assert "termination_mode" in game
+    assert game["analysis_status"] == "not_started"
 
 
 def test_legacy_tactics_populates_direct_table_columns(temp_db):

@@ -137,6 +137,39 @@ class TestPaging:
         assert manager.count_games(GameQuery(result="loss", usernames=("playera",))) == 1
         assert manager.count_games(GameQuery(result="draw")) == 1
 
+    def test_analysis_status_filter_uses_the_stored_column(self, manager):
+        manager.save_games_bulk(
+            [
+                _row(1, summary_json='{"analysis_status": "completed"}'),
+                _row(2, summary_json='{"analysis_status": "not_started"}'),
+                _row(3, summary_json='{"analysis_status": "paused"}'),
+                _row(4),
+            ]
+        )
+
+        assert manager.count_games(GameQuery(analysis_status="analyzed")) == 2
+        assert manager.count_games(GameQuery(analysis_status="unanalyzed")) == 1
+        assert manager.count_games(GameQuery(analysis_status="paused")) == 1
+
+    def test_ownership_filter_is_user_relative(self, manager):
+        manager.save_games_bulk(
+            [
+                _row(1, white="PlayerA", black="X", result="1-0"),
+                _row(2, white="X", black="PlayerA", result="1-0"),
+                _row(3, white="Rival", black="Neutral", result="1-0"),
+                _row(4, white="Neutral", black="Rival", result="0-1"),
+            ]
+        )
+
+        assert manager.count_games(
+            GameQuery(ownership="mine", usernames=("playera",))
+        ) == 2
+        assert manager.count_games(
+            GameQuery(ownership="other", usernames=("playera",))
+        ) == 2
+        assert manager.count_games(GameQuery(ownership="mine")) == 0
+        assert manager.count_games(GameQuery(ownership="other")) == 4
+
     def test_export_reads_the_whole_table_not_a_page(self, manager):
         manager.save_games_bulk([_row(i) for i in range(40)])
 

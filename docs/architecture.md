@@ -148,7 +148,10 @@ Forbidden edges:
    result becomes a `GameBatch` and opens the History-hosted
    `GameImportView` (`gui/import_workspace/`).
 5. `GameImportView` handles search, perspective/colour/result/time/history
-   filters, saved-game badges, lazy board thumbnails, and selection.
+   filters, saved-game badges, lazy board thumbnails, and selection. Table
+   thumbs come from the shared cached `render_mini_board_pixmap()`; History
+   cards and drill-down rows use the same renderer through
+   `MiniBoardWidget`.
 6. `GameImportWorker` parses selected games with `PGNParser.parse_game_stub()`
    and persists them through `GameHistoryManager.save_unanalyzed_games_bulk()`
    using `INSERT OR IGNORE`, preserving existing analyzed rows.
@@ -188,8 +191,11 @@ Forbidden edges:
 
 ### History
 
-1. `HistoryView` builds a `GameQuery` from debounced filters.
-2. `GamesRepo` returns one page (`10` detailed / `15` compact).
+1. `HistoryView` builds a `GameQuery` from debounced search, result, speed,
+   source, analysis-status, ownership, and sort controls.
+2. `GamesRepo` applies those filters in SQL and returns one page (`10` detailed
+   / `15` compact); `analysis_status` is stored as a denormalised column so
+   status filtering does not parse `summary_json` per row.
 3. After the page renders, an idle timer prefetches the next page so scrolling
    feels instant.
 4. `PaginationBar` and `GameListWidget` share the paging state.
@@ -446,6 +452,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `board/board.py` | The single configurable board used everywhere | `Board`, `BoardConfig` |
+| `board/mini_board.py` | Shared mini-board widget and cached pixmap renderer | `MiniBoardConfig`, `MiniBoardWidget`, `render_mini_board_pixmap` |
 | `board/board_panel.py` | Board with captured rows and clocks | `BoardPanel` |
 | `board/board_game_header.py` | Matchup header hugging the board width | `BoardGameHeader` |
 | `board/eval_bar.py` | Evaluation bar | `EvalBarWidget` |
@@ -583,7 +590,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `model.py` | Virtualized table and filter proxy | `GameImportTableModel`, `GameImportFilterProxy` |
 | `view.py` | Workspace orchestration and table composition | `GameImportView` |
 | `delegates.py` | Checkbox, board, and status-pill painting | `CheckboxDelegate`, `BoardDelegate`, `StatusPillDelegate` |
-| `boards.py` | Visible-row FEN enrichment | `MiniBoardFenWorker` |
+| `boards.py` | Visible-row FEN and last-move enrichment | `MiniBoardFenWorker`, `MiniBoardPosition` |
 | `worker.py` | Bulk unanalyzed game insertion | `GameImportWorker` |
 
 </details>

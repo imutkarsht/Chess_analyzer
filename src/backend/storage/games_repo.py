@@ -72,6 +72,42 @@ def _fen_after_move(fen_before: str | None, uci: str | None, chess960: bool = Fa
         return None
 
 
+def _normalize_analysis_status(
+    summary: dict[str, Any], moves_json: str
+) -> str | None:
+    """Return the filterable status for externally supplied game rows.
+
+    Missing status is left as ``None``: legacy rows without a summary are
+    treated as analyzed, matching the metrics dashboard.
+    """
+    status = str(summary.get("analysis_status") or "").strip().lower()
+    if status in ("not_started", "unanalyzed", "paused", "completed"):
+        return status
+
+    analyzed = _to_int_or_none(summary.get("analyzed_moves"))
+    total = _to_int_or_none(summary.get("total_moves"))
+    if analyzed is None and moves_json:
+        try:
+            moves_data = json.loads(moves_json)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            moves_data = []
+        if isinstance(moves_data, list) and moves_data:
+            total = len(moves_data)
+            analyzed = sum(
+                1
+                for move in moves_data
+                if isinstance(move, dict) and move.get("classification")
+            )
+
+    if analyzed is None:
+        return None
+    if analyzed <= 0:
+        return "not_started"
+    if total and analyzed < total:
+        return "paused"
+    return "completed"
+
+
 def _enrich_summary_with_tactics(
     summary_dict: dict[str, Any],
     moves_data: list[dict[str, Any]],
@@ -258,6 +294,7 @@ class GamesRepo:
                 if game_analysis.moves
                 else game_analysis.metadata.last_fen
             ),
+            "analysis_status": game_analysis.status,
             "pgn": pgn_content,
             "summary_json": summary_json,
             "moves_json": moves_json,
@@ -416,6 +453,9 @@ class GamesRepo:
             "black_great_count": _to_int(d.get("black_great_count")),
             "move_count": move_count,
             "last_fen": last_fen,
+            "analysis_status": _normalize_analysis_status(
+                summary_dict, moves_json
+            ),
             "pgn": pgn,
             "summary_json": summary_json,
             "moves_json": moves_json,

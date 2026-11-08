@@ -4,11 +4,13 @@ Tests for HistoryView, GameImportWorker, and CSV export/import fidelity.
 
 import csv
 
+import chess
 import pytest
 from PyQt6.QtWidgets import QLabel, QPushButton
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.gui.board import MiniBoardWidget
 from src.gui.components.lists.game_list_item_widget import GameListItemWidget
 from src.gui.views.history_view import GameImportWorker, HistoryView
 
@@ -186,6 +188,14 @@ def test_game_list_item_action_and_badge(qtbot, status, expected_badge, expected
         badges = [w.text() for w in widget.findChildren(QLabel) if expected_badge in w.text()]
         assert len(badges) >= 1
 
+        mini_board = widget.findChild(MiniBoardWidget)
+        if mode == "detailed":
+            # Magnus is White here, so the card board follows the user's side.
+            assert mini_board is not None
+            assert mini_board.config.orientation == chess.WHITE
+        else:
+            assert mini_board is None
+
         # Verify action button tooltip and signal emission
         action_buttons = [
             btn
@@ -343,6 +353,83 @@ def test_history_view_filter_resets_to_the_first_page(tmp_path, qtbot):
 
     assert view.game_list.total_count == 0
     assert view.game_list.games == []
+
+
+def test_history_view_filters_analysis_status_and_ownership(tmp_path, qtbot):
+    manager = GameHistoryManager(str(tmp_path / "status.db"))
+    manager.save_games_bulk(
+        [
+            {
+                "id": "completed-mine",
+                "white": "PlayerA",
+                "black": "X",
+                "result": "1-0",
+                "date": "2026.10.01",
+                "summary_json": '{"analysis_status": "completed"}',
+                "timestamp": 1_700_000_001,
+            },
+            {
+                "id": "new-mine",
+                "white": "PlayerA",
+                "black": "Y",
+                "result": "1-0",
+                "date": "2026.10.02",
+                "summary_json": '{"analysis_status": "not_started"}',
+                "timestamp": 1_700_000_002,
+            },
+            {
+                "id": "paused-rival",
+                "white": "Rival",
+                "black": "Z",
+                "result": "0-1",
+                "date": "2026.10.03",
+                "summary_json": '{"analysis_status": "paused"}',
+                "timestamp": 1_700_000_003,
+            },
+            {
+                "id": "completed-rival",
+                "white": "Neutral",
+                "black": "Rival",
+                "result": "0-1",
+                "date": "2026.10.04",
+                "summary_json": '{"analysis_status": "completed"}',
+                "timestamp": 1_700_000_004,
+            },
+        ]
+    )
+
+    class _Prefs:
+        def get(self, key, default=""):
+            return "PlayerA" if key == "chesscom_username" else default
+
+    view = HistoryView(config_manager=_Prefs())
+    qtbot.addWidget(view)
+    view.history_manager = manager
+    view.load_history()
+
+    assert view.game_list.total_count == 4
+
+    view.analysis_filter.set_current_index(1)  # Analyzed
+    assert view.game_list.total_count == 2
+
+    view.analysis_filter.set_current_index(2)  # Unanalyzed
+    assert view.game_list.total_count == 1
+    assert view.game_list.games[0].game_id == "new-mine"
+
+    view.analysis_filter.set_current_index(3)  # Paused
+    assert view.game_list.total_count == 1
+
+    view.analysis_filter.set_current_index(0)
+    view.ownership_filter.set_current_index(1)  # My games
+    assert view.game_list.total_count == 2
+
+    view.ownership_filter.set_current_index(2)  # Other games
+    assert view.game_list.total_count == 2
+
+    view.ownership_filter.set_current_index(0)
+    view.analysis_filter.set_current_index(2)
+    view.ownership_filter.set_current_index(1)
+    assert view.game_list.total_count == 1
 
 
 def test_history_row_click_hydrates_the_full_game(tmp_path, qtbot):

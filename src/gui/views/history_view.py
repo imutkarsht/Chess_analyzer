@@ -10,6 +10,11 @@ from PyQt6.QtWidgets import (
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.backend.storage.game_query import (
+    ANALYSIS_ANALYZED,
+    ANALYSIS_PAUSED,
+    ANALYSIS_UNANALYZED,
+    OWNERSHIP_MINE,
+    OWNERSHIP_OTHER,
     RESULT_DRAW,
     RESULT_LOSS,
     RESULT_WIN,
@@ -215,20 +220,45 @@ class HistoryView(QWidget):
         self.source_filter.setFixedWidth(110)
         filter_layout.addWidget(self.source_filter)
 
-        filter_layout.addStretch()
+        content_layout.addLayout(filter_layout)
 
-        # Sort Dropdown
+        # Secondary filters keep the row readable at the minimum window width.
+        secondary_filters = QHBoxLayout()
+        secondary_filters.setSpacing(8)
+
+        self.analysis_label = _filter_label("Analysis:")
+        secondary_filters.addWidget(self.analysis_label)
+
+        self.analysis_filter = Select(
+            ["All", "Analyzed", "Unanalyzed", "Paused"],
+            on_change=self.apply_filters,
+        )
+        self.analysis_filter.setFixedWidth(115)
+        secondary_filters.addWidget(self.analysis_filter)
+
+        self.ownership_label = _filter_label("Games:")
+        secondary_filters.addWidget(self.ownership_label)
+
+        self.ownership_filter = Select(
+            ["All games", "My games", "Other games"],
+            on_change=self.apply_filters,
+        )
+        self.ownership_filter.setFixedWidth(115)
+        secondary_filters.addWidget(self.ownership_filter)
+
+        secondary_filters.addStretch()
+
         self.sort_label = _filter_label("Sort:")
-        filter_layout.addWidget(self.sort_label)
+        secondary_filters.addWidget(self.sort_label)
 
         self.sort_dropdown = Select(
             ["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
             on_change=self.apply_filters,
         )
         self.sort_dropdown.setFixedWidth(135)
-        filter_layout.addWidget(self.sort_dropdown)
+        secondary_filters.addWidget(self.sort_dropdown)
 
-        content_layout.addLayout(filter_layout)
+        content_layout.addLayout(secondary_filters)
 
         # Game List
         self.game_list = GameListWidget()
@@ -320,6 +350,15 @@ class HistoryView(QWidget):
             "Draws": RESULT_DRAW,
         }
         source_map = {"Chess.com": "chesscom", "Lichess": "lichess", "File": "file"}
+        analysis_map = {
+            "Analyzed": ANALYSIS_ANALYZED,
+            "Unanalyzed": ANALYSIS_UNANALYZED,
+            "Paused": ANALYSIS_PAUSED,
+        }
+        ownership_map = {
+            "My games": OWNERSHIP_MINE,
+            "Other games": OWNERSHIP_OTHER,
+        }
         sort_map = {
             "Newest First": "newest",
             "Oldest First": "oldest",
@@ -330,6 +369,12 @@ class HistoryView(QWidget):
         return GameQuery(
             search=self.search_input.text().strip().lower(),
             result=result_map.get(self.result_filter.currentText(), ""),
+            analysis_status=analysis_map.get(
+                self.analysis_filter.currentText(), ""
+            ),
+            ownership=ownership_map.get(
+                self.ownership_filter.currentText(), ""
+            ),
             speed="" if type_text == "All" else type_text,
             source=source_map.get(self.source_filter.currentText(), ""),
             sort=sort_map.get(self.sort_dropdown.currentText(), "newest"),
@@ -562,6 +607,17 @@ class HistoryView(QWidget):
             Styles.apply_background(self.content_widget)
         if hasattr(self, "search_input"):
             self.search_input.refresh_styles()
+        for name in (
+            "result_filter",
+            "type_filter",
+            "source_filter",
+            "analysis_filter",
+            "ownership_filter",
+            "sort_dropdown",
+        ):
+            widget = getattr(self, name, None)
+            if widget is not None:
+                widget.refresh_styles()
         if hasattr(self, "btn_import"):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):
