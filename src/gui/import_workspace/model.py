@@ -24,7 +24,8 @@ COL_RESULT = 5
 COL_TIME = 6
 COL_MOVES = 7
 COL_DETAILS = 8
-COL_STATUS = 9
+COL_TERMINATION = 9
+COL_STATUS = 10
 
 
 class GameImportTableModel(QAbstractTableModel):
@@ -39,7 +40,8 @@ class GameImportTableModel(QAbstractTableModel):
         "Result",
         "Time",
         "Moves",
-        "Opening / Event",
+        "Opening / ECO",
+        "Termination",
         "Status",
     )
 
@@ -202,11 +204,35 @@ class GameImportTableModel(QAbstractTableModel):
                     else "Not in your history yet."
                 )
             if column == COL_WHITE:
-                return candidate.white
+                return self._player_tooltip(
+                    candidate.white,
+                    candidate.white_elo,
+                    candidate.white_rating_diff,
+                )
             if column == COL_BLACK:
-                return candidate.black
+                return self._player_tooltip(
+                    candidate.black,
+                    candidate.black_elo,
+                    candidate.black_rating_diff,
+                )
+            if column == COL_TIME:
+                parts = [candidate.time_control_raw or candidate.time_class]
+                if candidate.variant and candidate.variant.casefold() != "standard":
+                    parts.append(candidate.variant)
+                return " · ".join(part for part in parts if part)
             if column == COL_DETAILS:
-                return candidate.opening or candidate.event or None
+                parts = [
+                    value
+                    for value in (
+                        candidate.eco,
+                        candidate.opening,
+                        candidate.event,
+                    )
+                    if value
+                ]
+                return " · ".join(parts) or None
+            if column == COL_TERMINATION:
+                return candidate.termination or None
             return None
         if role != Qt.ItemDataRole.DisplayRole:
             return None
@@ -216,9 +242,9 @@ class GameImportTableModel(QAbstractTableModel):
         if column == COL_DATE:
             return format_display_date(candidate.date)
         if column == COL_WHITE:
-            return candidate.white or "?"
+            return self._player_text(candidate.white, candidate.white_elo)
         if column == COL_BLACK:
-            return candidate.black or "?"
+            return self._player_text(candidate.black, candidate.black_elo)
         if column == COL_RESULT:
             return candidate.result or "*"
         if column == COL_TIME:
@@ -230,10 +256,35 @@ class GameImportTableModel(QAbstractTableModel):
                 else "—"
             )
         if column == COL_DETAILS:
-            return candidate.opening or candidate.event or "—"
+            if candidate.opening:
+                return (
+                    f"{candidate.eco} · {candidate.opening}"
+                    if candidate.eco
+                    else candidate.opening
+                )
+            return candidate.eco or candidate.event or "—"
+        if column == COL_TERMINATION:
+            return candidate.termination or "—"
         if column == COL_STATUS:
             return "Saved" if candidate.in_history else "New"
         return None
+
+    @staticmethod
+    def _player_text(name: str | None, elo: str | None) -> str:
+        name = name or "?"
+        return f"{name} ({elo})" if elo else name
+
+    @classmethod
+    def _player_tooltip(
+        cls,
+        name: str | None,
+        elo: str | None,
+        rating_diff: str | None,
+    ) -> str:
+        text = cls._player_text(name, elo)
+        if rating_diff:
+            text += f" · rating {rating_diff}"
+        return text
 
     def setData(self, index, value, role=Qt.ItemDataRole.EditRole):  # noqa: N802
         if (
@@ -269,7 +320,12 @@ class GameImportTableModel(QAbstractTableModel):
         if column == COL_MOVES:
             return candidate.move_count if candidate.move_count is not None else -1
         if column == COL_DETAILS:
-            return (candidate.opening or candidate.event or "").casefold()
+            return (
+                f"{candidate.eco or ''} {candidate.opening or ''} "
+                f"{candidate.event or ''}"
+            ).casefold()
+        if column == COL_TERMINATION:
+            return (candidate.termination or "").casefold()
         if column == COL_STATUS:
             return 0 if candidate.in_history else 1
         return ""
@@ -284,6 +340,20 @@ class GameImportFilterProxy(QSortFilterProxyModel):
         self._result = "all"
         self._time_class = "all"
         self._history = "all"
+        self._usernames: set[str] = set()
+        self._perspective_mode = False
+        self._player_color = "all"
+
+    def set_player_context(
+        self, usernames: set[str], perspective_mode: bool
+    ) -> None:
+        self._usernames = usernames
+        self._perspective_mode = perspective_mode
+        self.invalidateFilter()
+
+    def set_player_color(self, color: str) -> None:
+        self._player_color = color
+        self.invalidateFilter()
 
     def set_filters(
         self,
@@ -315,6 +385,42 @@ class GameImportFilterProxy(QSortFilterProxyModel):
         self.set_filters(search=" ".join(self._tokens), result=self._result,
                          time_class=self._time_class, history=value)
 
+    def _involves_user(self, candidate: GameCandidate) -> bool:
+        if not self._usernames:
+            return False
+        white = (candidate.white or "").strip().casefold()
+        black = (candidate.black or "").strip().casefold()
+        return (white in self._usernames) ^ (black in self._usernames)
+
+    def _perspective_bucket(self, candidate: GameCandidate) -> str:
+        if not self._involves_user(candidate):
+            return "other"
+        white = (candidate.white or "").strip().casefold()
+        user_is_white = white in self._usernames
+        result = candidate.result or "*"
+        if result == "1/2-1/2":
+            return "my_draw"
+        if user_is_white:
+            if result == "1-0":
+                return "my_win"
+            if result == "0-1":
+                return "my_loss"
+            return "my_other"
+        if result == "0-1":
+            return "my_win"
+        if result == "1-0":
+            return "my_loss"
+        return "my_other"
+
+    def _matches_result(self, candidate: GameCandidate, value: str) -> bool:
+        if not self._perspective_mode:
+            return candidate.result == value
+        if value == "my_game":
+            return self._involves_user(candidate)
+        if value == "other":
+            return not self._involves_user(candidate)
+        return self._perspective_bucket(candidate) == value
+
     def filterAcceptsRow(self, source_row, source_parent):  # noqa: N802
         model = self.sourceModel()
         candidate = model.candidate_at(source_row)
@@ -324,8 +430,21 @@ class GameImportFilterProxy(QSortFilterProxyModel):
             token in candidate.search_blob for token in self._tokens
         ):
             return False
-        if self._result != "all" and candidate.result != self._result:
+        if self._result != "all" and not self._matches_result(
+            candidate, self._result
+        ):
             return False
+        if self._perspective_mode and self._player_color != "all":
+            if not self._involves_user(candidate):
+                return False
+            user_is_white = (
+                (candidate.white or "").strip().casefold()
+                in self._usernames
+            )
+            if self._player_color == "white" and not user_is_white:
+                return False
+            if self._player_color == "black" and user_is_white:
+                return False
         if (
             self._time_class != "all"
             and (candidate.time_class or "Unknown") != self._time_class

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from dataclasses import dataclass
 
 import chess.pgn
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -21,22 +22,48 @@ def remove_worker(worker: QThread) -> None:
     worker.deleteLater()
 
 
-def summarize_pgn(pgn: str) -> tuple[int | None, str | None]:
-    """Return (full-move count, final FEN) with only one mainline replay."""
+@dataclass(frozen=True)
+class PgnSummary:
+    move_count: int | None = None
+    last_fen: str | None = None
+    termination: str | None = None
+    eco: str | None = None
+    event: str = ""
+    opening: str | None = None
+    variant: str | None = None
+    white_rating_diff: str | None = None
+    black_rating_diff: str | None = None
+    time_control: str = ""
+
+
+def summarize_pgn(pgn: str) -> PgnSummary:
+    """Return metadata from a single mainline parse."""
     if not pgn:
-        return None, None
+        return PgnSummary()
     try:
         game = chess.pgn.read_game(io.StringIO(pgn))
         if game is None or game.next() is None:
-            return None, None
+            return PgnSummary()
         board = game.end().board()
-        return (len(board.move_stack) + 1) // 2, board.fen()
+        headers = game.headers
+        return PgnSummary(
+            move_count=(len(board.move_stack) + 1) // 2,
+            last_fen=board.fen(),
+            termination=headers.get("Termination"),
+            eco=headers.get("ECO"),
+            event=headers.get("Event", ""),
+            opening=headers.get("Opening"),
+            variant=headers.get("Variant"),
+            white_rating_diff=headers.get("WhiteRatingDiff"),
+            black_rating_diff=headers.get("BlackRatingDiff"),
+            time_control=headers.get("TimeControl", ""),
+        )
     except Exception:
-        return None, None
+        return PgnSummary()
 
 
 def final_fen_from_pgn(pgn: str) -> str | None:
-    return summarize_pgn(pgn)[1]
+    return summarize_pgn(pgn).last_fen
 
 
 class MiniBoardFenWorker(QThread):

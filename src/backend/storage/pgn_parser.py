@@ -26,6 +26,16 @@ _LICHESS_SITE_RE = re.compile(
     r'([A-Za-z0-9]{8,12})(?:/(?:white|black))?/?(?:[?#][^"]*)?"\]$'
 )
 
+_MOVE_NUMBER_RE = re.compile(r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]")
+
+
+def move_count_from_pgn(pgn: str | None) -> int | None:
+    """Cheap full-move count from PGN move numbers, without parsing SAN."""
+    if not pgn:
+        return None
+    numbers = [int(n) for n in _MOVE_NUMBER_RE.findall(pgn) if int(n) <= 500]
+    return max(numbers) if numbers else None
+
 
 def normalize_lichess_site_for_id(pgn: str) -> str:
     """Normalize the Lichess Site header before deriving a game ID."""
@@ -76,6 +86,12 @@ class PGNGameSummary:
     black_elo: str | None
     event: str
     opening: str | None
+    eco: str | None
+    termination: str | None
+    variant: str | None
+    white_rating_diff: str | None
+    black_rating_diff: str | None
+    move_count: int | None
 
 
 @dataclass(frozen=True)
@@ -117,7 +133,11 @@ def _skip_leading_comments(handle: io.StringIO) -> bool:
 
 
 def _summary_from_headers(
-    headers: chess.pgn.Headers, start: int, end: int, index: int
+    headers: chess.pgn.Headers,
+    start: int,
+    end: int,
+    index: int,
+    move_count: int | None,
 ) -> PGNGameSummary:
     return PGNGameSummary(
         index=index,
@@ -132,6 +152,12 @@ def _summary_from_headers(
         black_elo=headers.get("BlackElo"),
         event=headers.get("Event", "?"),
         opening=headers.get("Opening"),
+        eco=headers.get("ECO"),
+        termination=headers.get("Termination"),
+        variant=headers.get("Variant"),
+        white_rating_diff=headers.get("WhiteRatingDiff"),
+        black_rating_diff=headers.get("BlackRatingDiff"),
+        move_count=move_count,
     )
 
 
@@ -195,7 +221,15 @@ class PGNParser:
                 continue
             if len(games) >= max_games:
                 raise PGNTooManyGamesError(len(games) + 1, max_games)
-            games.append(_summary_from_headers(headers, start, end, len(games)))
+            games.append(
+                _summary_from_headers(
+                    headers,
+                    start,
+                    end,
+                    len(games),
+                    move_count_from_pgn(chunk),
+                )
+            )
         logger.debug("Indexed %d game(s) from PGN text", len(games))
         return PGNIndex(text=text, games=tuple(games))
 

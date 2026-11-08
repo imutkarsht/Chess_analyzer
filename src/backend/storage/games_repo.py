@@ -4,7 +4,6 @@ Repository for chess game analysis persistence, querying, and hydration.
 
 import hashlib
 import json
-import re
 import sqlite3
 import time
 import uuid
@@ -15,7 +14,10 @@ from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.game_identity import game_identity_key
 from src.backend.storage.game_query import GameQuery, build_filters, build_order_by
 from src.backend.storage.models import GameAnalysis
-from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
+from src.backend.storage.pgn_parser import (
+    move_count_from_pgn,
+    normalize_lichess_site_for_id,
+)
 from src.backend.storage.schema_constants import (
     _LIGHT_GAME_COLS_SQL,
     INSERT_GAME_IGNORE_SQL,
@@ -50,21 +52,6 @@ def _make_game_id(pgn: str | None) -> str:
         normalized = normalize_lichess_site_for_id(pgn)
         return hashlib.md5(normalized.encode("utf-8"), usedforsecurity=False).hexdigest()
     return str(uuid.uuid4())
-
-
-_MOVE_NUMBER_RE = re.compile(r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]")
-
-
-def _move_count_from_pgn(pgn: str | None) -> int | None:
-    """Full-move count parsed from PGN move numbers.
-
-    Used for imported games that arrive as PGN text without a move list, so the
-    list can show and sort by move count without a full PGN parse.
-    """
-    if not pgn:
-        return None
-    numbers = [int(n) for n in _MOVE_NUMBER_RE.findall(pgn) if int(n) <= 500]
-    return max(numbers) if numbers else None
 
 
 def _fen_after_move(fen_before: str | None, uci: str | None, chess960: bool = False) -> str | None:
@@ -179,7 +166,7 @@ class GamesRepo:
             if game_analysis.moves
             else (
                 game_analysis.metadata.move_count
-                or _move_count_from_pgn(pgn_content)
+                or move_count_from_pgn(pgn_content)
             )
         )
 
@@ -354,7 +341,7 @@ class GamesRepo:
                         parsed_moves[-1].get("uci"),
                     )
         if move_count is None:
-            move_count = _move_count_from_pgn(pgn)
+            move_count = move_count_from_pgn(pgn)
 
         phase_accs: dict[str, dict[str, float | None]] = {
             "white": {"opening": None, "middlegame": None, "endgame": None},
@@ -814,22 +801,27 @@ class GamesRepo:
             except Exception as e:
                 logger.error("Failed to parse pgn: %s", e)
 
-        if not metadata.termination_mode:
-            term_mode, term_desc = TerminationDetector.detect_termination(
-                headers={
-                    "Result": metadata.result,
-                    "White": metadata.white,
-                    "Black": metadata.black,
-                    "Termination": metadata.termination or "",
-                },
-                moves=moves,
-                starting_fen=metadata.starting_fen,
-                chess960=metadata.chess960,
-            )
-            metadata.termination_mode = term_mode
-            if not metadata.termination:
-                metadata.termination = term_desc
-            metadata.termination_description = term_desc
+        # The detector is the canonical History description. Keep the raw
+        # PGN/API header for export unless it is empty or generic.
+        term_mode, term_desc = TerminationDetector.detect_termination(
+            headers={
+                "Result": metadata.result,
+                "White": metadata.white,
+                "Black": metadata.black,
+                "Termination": metadata.termination or "",
+            },
+            moves=moves,
+            starting_fen=metadata.starting_fen,
+            chess960=metadata.chess960,
+        )
+        metadata.termination_mode = term_mode
+        if (
+            not metadata.termination
+            or metadata.termination.strip().lower()
+            in ("", "normal", "unknown")
+        ):
+            metadata.termination = term_desc
+        metadata.termination_description = term_desc
 
         return GameAnalysis(
             game_id=g_dict["id"],

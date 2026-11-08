@@ -48,6 +48,8 @@ from .model import (
     COL_BOARD,
     COL_DETAILS,
     COL_MOVES,
+    COL_STATUS,
+    COL_TERMINATION,
     GameImportFilterProxy,
     GameImportTableModel,
 )
@@ -185,6 +187,17 @@ class GameImportView(QWidget):
             min_width=110,
             on_change=lambda _value: self._apply_filters(),
         )
+        self.color_filter = Select(
+            [
+                ("All colors", "all"),
+                ("White", "white"),
+                ("Black", "black"),
+            ],
+            size=SelectSize.SM,
+            min_width=100,
+            on_change=lambda _value: self._apply_filters(),
+        )
+        self.color_filter.setVisible(False)
         self.time_filter = Select(
             [
                 ("All speeds", "all"),
@@ -207,6 +220,7 @@ class GameImportView(QWidget):
             lambda _value: self._apply_filters()
         )
         toolbar_layout.addWidget(self.result_filter)
+        toolbar_layout.addWidget(self.color_filter)
         toolbar_layout.addWidget(self.time_filter)
         toolbar_layout.addWidget(self.history_filter)
 
@@ -217,12 +231,13 @@ class GameImportView(QWidget):
         )
         toolbar_layout.addWidget(self.lbl_filtered)
 
-        self.btn_clear_selection = Button(
-            "Clear",
+        self.btn_clear_filters = Button(
+            "Clear filters",
             ButtonVariant.GHOST,
             ButtonSize.SM,
-            on_click=self._clear_selection,
+            on_click=self._clear_filters,
         )
+        self.btn_clear_filters.setVisible(False)
         self.btn_boards = Button(
             "Boards",
             ButtonVariant.GHOST,
@@ -232,7 +247,7 @@ class GameImportView(QWidget):
             tooltip="Show board thumbnails",
             on_click=self._on_boards_toggled,
         )
-        toolbar_layout.addWidget(self.btn_clear_selection)
+        toolbar_layout.addWidget(self.btn_clear_filters)
         toolbar_layout.addWidget(self.btn_boards)
         surface_layout.addWidget(toolbar)
 
@@ -271,7 +286,9 @@ class GameImportView(QWidget):
         self.table.setColumnWidth(5, 76)
         self.table.setColumnWidth(6, 88)
         self.table.setColumnWidth(7, 64)
-        self.table.setColumnWidth(9, 104)
+        self.table.setColumnWidth(8, 200)
+        self.table.setColumnWidth(9, 280)
+        self.table.setColumnWidth(10, 104)
         self.header.setSectionResizeMode(
             3, QHeaderView.ResizeMode.Stretch
         )
@@ -279,14 +296,19 @@ class GameImportView(QWidget):
             4, QHeaderView.ResizeMode.Stretch
         )
         self.header.setSectionResizeMode(
-            8, QHeaderView.ResizeMode.Stretch
+            8, QHeaderView.ResizeMode.Interactive
+        )
+        self.header.setSectionResizeMode(
+            9, QHeaderView.ResizeMode.Interactive
         )
         self.table.setSortingEnabled(True)
         self.table.sortByColumn(2, Qt.SortOrder.DescendingOrder)
         self.table.doubleClicked.connect(self._on_double_clicked)
         self.table.setItemDelegateForColumn(0, CheckboxDelegate(self.table))
         self.table.setItemDelegateForColumn(1, BoardDelegate(self.table))
-        self.table.setItemDelegateForColumn(9, StatusPillDelegate(self.table))
+        self.table.setItemDelegateForColumn(
+            COL_STATUS, StatusPillDelegate(self.table)
+        )
         surface_layout.addWidget(self.table, 1)
 
         self.action_bar = QFrame()
@@ -381,6 +403,7 @@ class GameImportView(QWidget):
         self.time_filter.set_current_index(0, emit=False)
         self.history_filter.set_value("all", emit=False)
         self.model.set_candidates(batch.candidates)
+        self._configure_result_filter(batch.candidates)
         self.lbl_subtitle.setText(batch.label)
         count = len(batch.candidates)
         saved = sum(1 for candidate in batch.candidates if candidate.in_history)
@@ -390,12 +413,23 @@ class GameImportView(QWidget):
         )
         self.table.setColumnHidden(
             COL_MOVES,
-            not any(c.move_count is not None for c in batch.candidates),
+            not any(
+                c.move_count is not None or c.index is not None
+                for c in batch.candidates
+            ),
         )
         self.table.setColumnHidden(
             COL_DETAILS,
-            not any((c.opening or c.event) for c in batch.candidates),
+            not any(
+                (c.opening or c.eco or c.event)
+                for c in batch.candidates
+            ),
         )
+        self.table.setColumnHidden(
+            COL_TERMINATION,
+            not any(c.termination for c in batch.candidates),
+        )
+        self._fit_dynamic_columns(batch.candidates)
         self._apply_filters()
         if count == 1:
             if not batch.candidates[0].in_history:
@@ -404,6 +438,83 @@ class GameImportView(QWidget):
                 self.table.setCurrentIndex(self.proxy.index(0, 0))
         self._on_selection_changed(self.model.checked_count())
         self._fen_timer.start()
+
+    def _fit_dynamic_columns(self, candidates: list[GameCandidate]) -> None:
+        metrics = self.table.fontMetrics()
+
+        def fitted(texts: list[str], minimum: int, maximum: int) -> int:
+            longest = max(
+                (metrics.horizontalAdvance(text) for text in texts if text),
+                default=0,
+            )
+            return max(minimum, min(maximum, longest + 28))
+
+        if not self.table.isColumnHidden(COL_DETAILS):
+            self.table.setColumnWidth(
+                COL_DETAILS,
+                fitted(
+                    [
+                        (
+                            f"{c.eco} · {c.opening}"
+                            if c.eco and c.opening
+                            else (c.opening or c.eco or c.event or "")
+                        )
+                        for c in candidates
+                    ],
+                    160,
+                    320,
+                ),
+            )
+        if not self.table.isColumnHidden(COL_TERMINATION):
+            self.table.setColumnWidth(
+                COL_TERMINATION,
+                fitted(
+                    [c.termination or "" for c in candidates],
+                    140,
+                    360,
+                ),
+            )
+
+    def _configure_result_filter(self, candidates: list[GameCandidate]) -> None:
+        usernames = {
+            str(self._config.get(key, "")).strip().casefold()
+            for key in ("chesscom_username", "lichess_username")
+        }
+        usernames.discard("")
+        perspective = bool(usernames) and any(
+            self._involves_username(candidate, usernames)
+            for candidate in candidates
+        )
+        self.proxy.set_player_context(usernames, perspective)
+        self.color_filter.set_current_index(0, emit=False)
+        self.color_filter.setVisible(perspective)
+        if perspective:
+            options = [
+                ("All results", "all"),
+                ("My wins", "my_win"),
+                ("My losses", "my_loss"),
+                ("My draws", "my_draw"),
+                ("My games", "my_game"),
+                ("Not my games", "other"),
+            ]
+        else:
+            options = [
+                ("All results", "all"),
+                ("White win", "1-0"),
+                ("Black win", "0-1"),
+                ("Draw", "1/2-1/2"),
+            ]
+        self.result_filter.set_options(
+            options, preserve_value=False, emit=False
+        )
+
+    @staticmethod
+    def _involves_username(
+        candidate: GameCandidate, usernames: set[str]
+    ) -> bool:
+        white = (candidate.white or "").strip().casefold()
+        black = (candidate.black or "").strip().casefold()
+        return (white in usernames) ^ (black in usernames)
 
     def clear(self) -> None:
         self._batch = None
@@ -431,8 +542,16 @@ class GameImportView(QWidget):
                 candidate_ids.append(candidate.candidate_id)
         self.model.set_many_checked(candidate_ids, checked)
 
-    def _clear_selection(self) -> None:
-        self.model.set_many_checked(self.model.all_candidate_ids(), False)
+    def _clear_filters(self) -> None:
+        self._search_debounce.cancel()
+        self.search_input.blockSignals(True)
+        self.search_input.clear()
+        self.search_input.blockSignals(False)
+        self.result_filter.set_current_index(0, emit=False)
+        self.color_filter.set_current_index(0, emit=False)
+        self.time_filter.set_current_index(0, emit=False)
+        self.history_filter.set_value("all", emit=False)
+        self._apply_filters()
 
     def _on_boards_toggled(self) -> None:
         enabled = self.btn_boards.isChecked()
@@ -444,12 +563,18 @@ class GameImportView(QWidget):
 
     def _apply_board_visibility(self, enabled: bool) -> None:
         self.btn_boards.setChecked(enabled)
+        self.btn_boards.set_variant(
+            ButtonVariant.FILLED if enabled else ButtonVariant.GHOST
+        )
+        self.btn_boards.refresh_styles()
         self.table.setColumnHidden(COL_BOARD, not enabled)
         self.table.verticalHeader().setDefaultSectionSize(
             _ROWS_WITH_BOARDS if enabled else _ROWS_COMPACT
         )
 
     def _apply_filters(self) -> None:
+        if not self.color_filter.isHidden():
+            self.proxy.set_player_color(self.color_filter.current_value())
         self.proxy.set_filters(
             search=self.search_input.text(),
             result=self.result_filter.current_value(),
@@ -461,6 +586,17 @@ class GameImportView(QWidget):
         self.lbl_filtered.setText(
             f"{shown} shown" if shown != total else ""
         )
+        filters_active = (
+            bool(self.search_input.text().strip())
+            or self.result_filter.current_value() != "all"
+            or (
+                not self.color_filter.isHidden()
+                and self.color_filter.current_value() != "all"
+            )
+            or self.time_filter.current_value() != "all"
+            or self.history_filter.value() != "all"
+        )
+        self.btn_clear_filters.setVisible(filters_active)
         self._on_selection_changed(self.model.checked_count())
         self._fen_timer.start()
 
@@ -531,7 +667,7 @@ class GameImportView(QWidget):
         self._import_progress.setVisible(True)
         self.btn_add.setEnabled(False)
         self.btn_open.setEnabled(False)
-        self.btn_clear_selection.setEnabled(False)
+        self.btn_clear_filters.setEnabled(False)
         self.table.setEnabled(False)
 
         worker = GameImportWorker(checked, self._history_manager)
@@ -577,7 +713,7 @@ class GameImportView(QWidget):
     def _finish_import(self) -> None:
         self._import_label.setVisible(False)
         self._import_progress.setVisible(False)
-        self.btn_clear_selection.setEnabled(True)
+        self.btn_clear_filters.setEnabled(True)
         self.table.setEnabled(True)
         self._on_selection_changed(self.model.checked_count())
 
@@ -699,10 +835,11 @@ class GameImportView(QWidget):
         self.btn_back.refresh_styles()
         self.btn_open.refresh_styles()
         self.btn_add.refresh_styles()
-        self.btn_clear_selection.refresh_styles()
+        self.btn_clear_filters.refresh_styles()
         self._import_progress.refresh_styles()
         self.btn_boards.refresh_styles()
         self.search_input.refresh_styles()
         self.result_filter.refresh_styles()
+        self.color_filter.refresh_styles()
         self.time_filter.refresh_styles()
         self.history_filter.refresh_styles()

@@ -137,7 +137,7 @@ def test_history_view_load_history_fast_path(tmp_path, qtbot, qapp):
     assert len(view.games) == 1
     assert view.games[0].metadata.speed_category == "Rapid"
     assert view.games[0].metadata.termination_mode == "resignation"
-    assert view.games[0].metadata.termination_description == "White won by resignation"
+    assert view.games[0].metadata.termination_description == "Player1 won by resignation"
 
 
 @pytest.mark.parametrize(

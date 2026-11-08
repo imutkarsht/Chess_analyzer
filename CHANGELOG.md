@@ -14,7 +14,7 @@
 
 ### Features
 
-- **Multi-Game Import Workspace**: Load Game now only collects a source. Multi-game results open a dedicated History workspace with a shadcn-style virtualized table, search and result/time/history filters, saved-game badges, per-game checkboxes, optional board thumbnails, and bulk add to history in an unanalyzed state. Single-game results still load directly into Analysis.
+- **Multi-Game Import Workspace**: Load Game now only collects a source. Multi-game results open a dedicated History workspace with a shadcn-style virtualized table, search, perspective-aware result filters (my wins/losses/draws and my colour when a saved username is available), time/history filters, saved-game badges, per-game checkboxes, optional board thumbnails, inline player Elo, move counts, ECO/opening, termination, and bulk add to history in an unanalyzed state. Missing fields show an em dash and columns with no data anywhere are hidden. Single-game results still load directly into Analysis.
 
 ### Bug Fixes
 

@@ -74,6 +74,12 @@ class GameCandidate:
     white_elo: str | None
     black_elo: str | None
     move_count: int | None
+    termination: str | None = None
+    eco: str | None = None
+    variant: str | None = None
+    white_rating_diff: str | None = None
+    black_rating_diff: str | None = None
+    time_control_raw: str = ""
     last_fen: str | None = None
     source_data: dict[str, Any] | None = None
     pgn: str | None = None
@@ -103,6 +109,12 @@ class GameCandidate:
                 self.time_class,
                 self.event,
                 self.opening or "",
+                self.eco or "",
+                self.termination or "",
+                self.variant or "",
+                self.white_rating_diff or "",
+                self.black_rating_diff or "",
+                self.time_control_raw,
             )
         ).casefold()
 
@@ -121,7 +133,7 @@ class GameBatch:
     ) -> GameBatch:
         candidates = []
         for position, info in enumerate(infos):
-            parsed_moves, last_fen = summarize_pgn(info.pgn)
+            summary = summarize_pgn(info.pgn)
             candidates.append(
                 GameCandidate(
                     candidate_id=position,
@@ -131,16 +143,22 @@ class GameBatch:
                     date=info.date,
                     result=info.result,
                     time_class=_resolve_time_class(info.time_class, info.pgn),
-                    event="",
-                    opening=info.opening,
+                    event=_meaningful_event(summary.event),
+                    opening=info.opening or summary.opening,
                     white_elo=info.white_elo,
                     black_elo=info.black_elo,
                     move_count=(
                         info.move_count
                         if info.move_count is not None
-                        else parsed_moves
+                        else summary.move_count
                     ),
-                    last_fen=last_fen,
+                    termination=summary.termination,
+                    eco=summary.eco,
+                    variant=summary.variant,
+                    white_rating_diff=summary.white_rating_diff,
+                    black_rating_diff=summary.black_rating_diff,
+                    time_control_raw=summary.time_control,
+                    last_fen=summary.last_fen,
                     source_data=info.to_dict(),
                     pgn=info.pgn,
                     in_history=game_identity_key(
@@ -177,7 +195,13 @@ class GameBatch:
                     opening=game.opening,
                     white_elo=game.white_elo,
                     black_elo=game.black_elo,
-                    move_count=None,
+                    move_count=game.move_count,
+                    termination=game.termination,
+                    eco=game.eco,
+                    variant=game.variant,
+                    white_rating_diff=game.white_rating_diff,
+                    black_rating_diff=game.black_rating_diff,
+                    time_control_raw=game.time_control,
                     index=index,
                     summary_index=position,
                     in_history=in_history,
