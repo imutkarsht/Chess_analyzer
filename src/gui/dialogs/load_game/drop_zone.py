@@ -52,9 +52,11 @@ class DropZone(QFrame):
         for label in (self._title, self._subtitle):
             label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
-        layout.addWidget(self._icon)
-        layout.addWidget(self._title)
-        layout.addWidget(self._subtitle)
+        layout.addWidget(self._icon, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self._title, 0, Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(
+            self._subtitle, 0, Qt.AlignmentFlag.AlignHCenter
+        )
 
         manager = ThemeManager.instance()
         manager.theme_changed.connect(self._on_theme_changed)

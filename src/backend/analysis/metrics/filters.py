@@ -6,6 +6,7 @@ Filters games by user color, speed/time format, data source, and date range.
 from __future__ import annotations
 
 import datetime
+import json
 import time
 from typing import Any
 
@@ -96,6 +97,47 @@ def get_user_color(
     return None
 
 
+def is_analyzed_game(game: dict[str, Any]) -> bool:
+    """Return False for rows explicitly stored as not started.
+
+    Missing/legacy summaries are treated as analyzed so older data keeps
+    contributing; rows created by the import workspace carry an explicit
+    ``analysis_status == "not_started"`` marker.
+    """
+    raw_summary = game.get("summary_json")
+    if not raw_summary:
+        return True
+    try:
+        summary = json.loads(raw_summary)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return True
+    if not isinstance(summary, dict):
+        return True
+
+    status = str(summary.get("analysis_status") or "").strip().lower()
+    if status in ("not_started", "unanalyzed"):
+        return False
+    if status in ("completed", "paused"):
+        return True
+
+    for color in ("white", "black"):
+        side = summary.get(color)
+        if isinstance(side, dict):
+            try:
+                if float(side.get("accuracy") or 0) > 0:
+                    return True
+            except (TypeError, ValueError):
+                pass
+
+    analyzed_moves = summary.get("analyzed_moves")
+    if analyzed_moves is not None:
+        try:
+            return int(analyzed_moves) > 0
+        except (TypeError, ValueError):
+            return True
+    return True
+
+
 def matches_filters(
     game: dict[str, Any],
     user_color: str | None,
@@ -168,6 +210,8 @@ def filter_games(
     matched: list[tuple[dict[str, Any], str]] = []
 
     for g in games:
+        if not is_analyzed_game(g):
+            continue
         user_color = get_user_color(g, usernames_lower)
         if user_color is None:
             continue
