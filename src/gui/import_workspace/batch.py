@@ -81,6 +81,7 @@ class GameCandidate:
     black_rating_diff: str | None = None
     time_control_raw: str = ""
     last_fen: str | None = None
+    last_move_uci: str | None = None
     source_data: dict[str, Any] | None = None
     pgn: str | None = None
     index: PGNIndex | None = None
@@ -97,6 +98,11 @@ class GameCandidate:
     @property
     def identity_key(self) -> tuple[str, str, str, str]:
         return game_identity_key(self.date, self.white, self.black, self.result)
+
+    @property
+    def is_chess960(self) -> bool:
+        variant = (self.variant or "").casefold()
+        return any(token in variant for token in ("960", "fischer", "frc"))
 
     @property
     def search_blob(self) -> str:
@@ -159,6 +165,7 @@ class GameBatch:
                     black_rating_diff=summary.black_rating_diff,
                     time_control_raw=summary.time_control,
                     last_fen=summary.last_fen,
+                    last_move_uci=summary.last_move_uci,
                     source_data=info.to_dict(),
                     pgn=info.pgn,
                     in_history=game_identity_key(

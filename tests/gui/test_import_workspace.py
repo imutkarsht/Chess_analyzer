@@ -7,7 +7,10 @@ from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_identity import game_identity_key
 from src.backend.storage.pgn_parser import PGNParser
 from src.gui.import_workspace import GameBatch, GameImportView
-from src.gui.import_workspace.boards import summarize_pgn
+from src.gui.import_workspace.boards import (
+    MiniBoardFenWorker,
+    summarize_pgn,
+)
 from src.gui.import_workspace.model import (
     COL_BOARD,
     COL_DETAILS,
@@ -41,8 +44,26 @@ def test_summarize_pgn_returns_the_final_position():
 
     assert summary.move_count == 3
     assert summary.last_fen is not None
+    assert summary.last_move_uci == "a7a6"
     board = chess.Board(summary.last_fen)
     assert board.piece_at(chess.B5) is not None
+
+
+def test_fen_worker_returns_the_final_move_for_lazy_rows(qapp):
+    pgn = (
+        '[Event "One"]\n[White "Alice"]\n[Black "Bob"]\n[Result "1-0"]\n\n'
+        "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0"
+    )
+    emitted = []
+    worker = MiniBoardFenWorker(9, [(3, pgn)])
+    worker.completed.connect(lambda token, result: emitted.append((token, result)))
+
+    worker.run()
+
+    assert emitted[0][0] == 9
+    position = emitted[0][1][3]
+    assert position.last_move_uci == "a7a6"
+    assert position.fen is not None
 
 
 def test_batch_marks_saved_games_and_builds_candidates(qapp):
@@ -187,6 +208,7 @@ def test_online_batch_falls_back_to_pgn_headers(qtbot):
     assert candidate.eco == "C50"
     assert candidate.termination == "Time forfeit"
     assert candidate.event == "Club Championship"
+    assert candidate.last_move_uci == "f1c4"
 
 
 def test_result_filter_uses_saved_username_perspective(qtbot):

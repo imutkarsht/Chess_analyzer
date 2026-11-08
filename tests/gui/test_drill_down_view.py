@@ -4,9 +4,11 @@ GUI tests for DrillDownView, DrillDownItemWidget, and MetricsWidget integration.
 
 from unittest.mock import MagicMock
 
+import chess
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QPushButton
 
+from src.gui.board import MiniBoardWidget
 from src.gui.metrics.drill_down_item import DrillDownItemWidget
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.views.metrics_view import MetricsWidget
@@ -45,6 +47,11 @@ def test_drill_down_item_widget_rendering_and_click(qapp, qtbot):
     assert widget.game_id == "game_1"
     # ply 18 -> move_index 17
     assert widget.move_index == 17
+
+    mini_board = widget.findChild(MiniBoardWidget)
+    assert mini_board is not None
+    assert mini_board.config.orientation == chess.WHITE
+    assert mini_board.width() == 104
 
     # Test clicking the action button emits position_selected
     with qtbot.waitSignal(widget.position_selected) as blocker:

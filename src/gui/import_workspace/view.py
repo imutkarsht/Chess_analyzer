@@ -22,7 +22,7 @@ from src.utils.config import ConfigManager
 
 from .action_bar import ImportActionBar
 from .batch import GameBatch, GameCandidate
-from .boards import MiniBoardFenWorker
+from .boards import MiniBoardFenWorker, MiniBoardPosition
 from .delegates import (
     BoardDelegate,
     CheckboxDelegate,
@@ -547,7 +547,9 @@ class GameImportView(QWidget):
         register_worker(worker)
         worker.start()
 
-    def _on_fens_ready(self, token: int, results: dict[int, str | None]) -> None:
+    def _on_fens_ready(
+        self, token: int, results: dict[int, MiniBoardPosition]
+    ) -> None:
         self._fen_worker = None
         if token != self._fen_token:
             if self._fen_queued:
@@ -559,11 +561,12 @@ class GameImportView(QWidget):
             for candidate in (self._batch.candidates if self._batch else [])
         }
         changed = False
-        for candidate_id, fen in results.items():
+        for candidate_id, position in results.items():
             self._fen_requested.discard(candidate_id)
             candidate = by_id.get(candidate_id)
-            if candidate is not None and fen:
-                candidate.last_fen = fen
+            if candidate is not None and position.fen:
+                candidate.last_fen = position.fen
+                candidate.last_move_uci = position.last_move_uci
                 changed = True
             else:
                 self._fen_failed.add(candidate_id)

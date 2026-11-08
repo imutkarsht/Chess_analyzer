@@ -8,22 +8,18 @@ import os
 import re
 
 import chess
-import chess.svg
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap
-from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
-from src.constants import DEFAULT_BOARD_THEME
+from src.gui.board import MiniBoardConfig, MiniBoardWidget
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.display.rich_text import RichTextLabel
 from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
-from src.gui.theme.palette import BOARD_THEMES
 from src.gui.theme.typography import TextRole, TextTone
-from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
 
@@ -219,7 +215,7 @@ class GameListItemWidget(QWidget):
         card_layout.setSpacing(14)
 
         # ===== LEFT: Mini Chessboard Thumbnail =====
-        mini_board = self._create_mini_board_widget(game)
+        mini_board = self._create_mini_board_widget(game, usernames)
         card_layout.addWidget(mini_board, 0, Qt.AlignmentFlag.AlignVCenter)
 
         # ===== RIGHT: Main Card Content (3 rows) =====
@@ -485,55 +481,42 @@ class GameListItemWidget(QWidget):
         del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
         return del_btn
 
-    def _create_mini_board_widget(self, game) -> QWidget:
-        """Create a compact 100x100 SVG mini chessboard matching the user's configured board theme."""
-        board = chess.Board(chess960=self._is_chess960(game))
-        last_move_obj = None
+    def _create_mini_board_widget(self, game, usernames=None) -> MiniBoardWidget:
+        """Create the shared 100px board, oriented to the user when known."""
+        fen = getattr(game.metadata, "last_fen", None) or chess.STARTING_FEN
+        last_move_uci = None
+        fen_before_move = False
 
         if hasattr(game, "moves") and game.moves:
             last_move = game.moves[-1]
-            try:
-                board.set_fen(last_move.fen_before)
-                move_obj = chess.Move.from_uci(last_move.uci)
-                board.push(move_obj)
-                last_move_obj = move_obj
-            except Exception:
-                pass
-        else:
-            # List rows are loaded without pgn/moves; the ingestion-time FEN keeps
-            # the thumbnail meaningful instead of showing the start position.
-            stored_fen = getattr(game.metadata, "last_fen", None)
-            if stored_fen:
-                try:
-                    board.set_fen(stored_fen)
-                except Exception:
-                    pass
+            fen = last_move.fen_before
+            last_move_uci = last_move.uci
+            fen_before_move = True
 
-        theme_name = ConfigManager().get("board_theme", DEFAULT_BOARD_THEME)
-        board_theme = BOARD_THEMES.get(theme_name, BOARD_THEMES[DEFAULT_BOARD_THEME])
-        dark_color = board_theme["dark"] if board_theme["dark"] != "dynamic" else "#769656"
-        light_color = board_theme["light"]
-
-        colors = {
-            "square light": light_color,
-            "square dark": dark_color,
-        }
-
-        svg_str = chess.svg.board(
-            board=board, size=100, coordinates=False, lastmove=last_move_obj, colors=colors
+        return MiniBoardWidget(
+            fen,
+            MiniBoardConfig(
+                size=100,
+                orientation=chess.BLACK
+                if self._user_color(game.metadata, usernames) == "black"
+                else chess.WHITE,
+                chess960=self._is_chess960(game),
+                last_move_uci=last_move_uci,
+                fen_before_move=fen_before_move,
+            ),
         )
 
-        svg_widget = QSvgWidget()
-        svg_widget.load(svg_str.encode("utf-8"))
-        svg_widget.setFixedSize(100, 100)
-        svg_widget.setStyleSheet(f"""
-            QSvgWidget {{
-                border-radius: 6px;
-                border: 1px solid {Styles.COLOR_BORDER};
-                background-color: {Styles.COLOR_SURFACE};
-            }}
-        """)
-        return svg_widget
+    @staticmethod
+    def _user_color(metadata, usernames) -> str:
+        """Resolve the user's side; default to White for neutral games."""
+        if not usernames:
+            return "white"
+        names = {str(name).strip().casefold() for name in usernames}
+        white = str(metadata.white).strip().casefold()
+        black = str(metadata.black).strip().casefold()
+        if black in names and white not in names:
+            return "black"
+        return "white"
 
     def _create_source_icon(self, source):
         lbl = IconLabel(size=18)
@@ -733,6 +716,8 @@ class GameListItemWidget(QWidget):
         return "Blitz"
 
     def _is_chess960(self, game) -> bool:
+        if getattr(game.metadata, "chess960", False):
+            return True
         headers = getattr(game.metadata, "headers", {}) or {}
         variant = headers.get("Variant", "").lower()
         if any(k in variant for k in ("960", "fischer", "random", "frc")):

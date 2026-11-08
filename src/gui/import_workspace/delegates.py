@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import chess
-import chess.svg
-from PyQt6.QtCore import QByteArray, QEvent, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QPainter, QPen, QPixmap, QPixmapCache
-from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtCore import QEvent, QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QHeaderView, QStyledItemDelegate
 
-from src.constants import DEFAULT_BOARD_THEME
+from src.gui.board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextTone
-from src.utils.config import ConfigManager
 
 from .batch import GameCandidate
 
@@ -197,7 +193,7 @@ class StatusPillDelegate(QStyledItemDelegate):
 
 
 class BoardDelegate(QStyledItemDelegate):
-    """Paints a cached 44×44 board thumb; never creates one widget per row."""
+    """Paints a cached board thumb; never creates one widget per row."""
 
     def __init__(self, parent=None, size: int = 72):
         super().__init__(parent)
@@ -218,7 +214,11 @@ class BoardDelegate(QStyledItemDelegate):
         )
         pixmap = None
         if candidate.last_fen:
-            pixmap = self._render(candidate.last_fen)
+            pixmap = self._render(
+                candidate.last_fen,
+                candidate.last_move_uci,
+                candidate.is_chess960,
+            )
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -242,36 +242,18 @@ class BoardDelegate(QStyledItemDelegate):
         painter.drawRoundedRect(rect, 5, 5)
         painter.restore()
 
-    def _render(self, fen: str) -> QPixmap | None:
-        theme_name = ConfigManager().get("board_theme", DEFAULT_BOARD_THEME)
-        colors = Styles.get_board_colors(theme_name)
-        key = f"import-board:{self._size}:{colors['dark']}:{colors['light']}:{fen}"
-        cached = QPixmapCache.find(key)
-        if cached is not None:
-            return cached
-        try:
-            parts = fen.split(" ")
-            castling = parts[2] if len(parts) > 2 else ""
-            board = chess.Board(
-                fen,
-                chess960=any(c not in "KQkq-" for c in castling),
-            )
-            svg = chess.svg.board(
-                board=board,
+    def _render(
+        self,
+        fen: str,
+        last_move_uci: str | None = None,
+        chess960: bool = False,
+    ) -> QPixmap | None:
+        pixmap = render_mini_board_pixmap(
+            fen,
+            MiniBoardConfig(
                 size=self._size,
-                coordinates=False,
-                colors={
-                    "square light": colors["light"],
-                    "square dark": colors["dark"],
-                },
-            )
-            renderer = QSvgRenderer(QByteArray(svg.encode("utf-8")))
-            pixmap = QPixmap(self._size, self._size)
-            pixmap.fill(Qt.GlobalColor.transparent)
-            painter = QPainter(pixmap)
-            renderer.render(painter)
-            painter.end()
-            QPixmapCache.insert(key, pixmap)
-            return pixmap
-        except Exception:
-            return None
+                chess960=chess960,
+                last_move_uci=last_move_uci,
+            ),
+        )
+        return None if pixmap.isNull() else pixmap

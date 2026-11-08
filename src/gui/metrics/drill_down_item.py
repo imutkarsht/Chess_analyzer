@@ -9,9 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 import chess
-import chess.svg
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -19,7 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.constants import DEFAULT_BOARD_THEME
+from src.gui.board import MiniBoardConfig, MiniBoardWidget
 from src.gui.components import (
     Button,
     ButtonSize,
@@ -31,8 +29,6 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.gui.theme.palette import BOARD_THEMES
-from src.utils.config import ConfigManager
 
 
 class DrillDownItemWidget(QFrame):
@@ -283,57 +279,24 @@ class DrillDownItemWidget(QFrame):
             )
         return TextTone.RESULT_DRAW
 
-    def _create_mini_board(self) -> QWidget:
+    def _create_mini_board(self) -> MiniBoardWidget:
         fen_before = self.item.get("fen_before", chess.STARTING_FEN)
         uci = self.item.get("uci", "")
         san = self.item.get("san", "")
-        user_color = self.item.get("user_color", "white")
+        user_color = str(self.item.get("user_color", "white")).lower()
 
-        board = chess.Board(fen_before)
-        last_move_obj = None
-        try:
-            move_obj = chess.Move.from_uci(uci) if uci else board.parse_san(san)
-            board.push(move_obj)
-            last_move_obj = move_obj
-        except Exception:
-            pass
-
-        theme_name = ConfigManager().get("board_theme", DEFAULT_BOARD_THEME)
-        board_theme = BOARD_THEMES.get(theme_name, BOARD_THEMES[DEFAULT_BOARD_THEME])
-        dark_color = board_theme["dark"] if board_theme["dark"] != "dynamic" else "#769656"
-        light_color = board_theme["light"]
-
-        colors = {
-            "square light": light_color,
-            "square dark": dark_color,
-        }
-
-        orientation = chess.WHITE if str(user_color).lower() == "white" else chess.BLACK
-
-        svg_str = chess.svg.board(
-            board=board,
-            size=100,
-            coordinates=False,
-            lastmove=last_move_obj,
-            orientation=orientation,
-            colors=colors,
+        return MiniBoardWidget(
+            fen_before,
+            MiniBoardConfig(
+                size=100,
+                orientation=(
+                    chess.WHITE if user_color == "white" else chess.BLACK
+                ),
+                last_move_uci=uci or None,
+                last_move_san=None if uci else (san or None),
+                fen_before_move=True,
+                border_width=1,
+                border_radius=8,
+                padding=1,
+            ),
         )
-
-        container = QFrame()
-        container.setFixedSize(104, 104)
-        container.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
-        c_layout = QVBoxLayout(container)
-        c_layout.setContentsMargins(1, 1, 1, 1)
-        c_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        svg_widget = QSvgWidget()
-        svg_widget.load(svg_str.encode("utf-8"))
-        svg_widget.setFixedSize(100, 100)
-        c_layout.addWidget(svg_widget)
-        return container

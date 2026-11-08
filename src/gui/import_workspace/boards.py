@@ -12,9 +12,16 @@ from src.utils.logger import logger
 
 
 @dataclass(frozen=True)
+class MiniBoardPosition:
+    fen: str | None = None
+    last_move_uci: str | None = None
+
+
+@dataclass(frozen=True)
 class PgnSummary:
     move_count: int | None = None
     last_fen: str | None = None
+    last_move_uci: str | None = None
     termination: str | None = None
     eco: str | None = None
     event: str = ""
@@ -35,9 +42,11 @@ def summarize_pgn(pgn: str) -> PgnSummary:
             return PgnSummary()
         board = game.end().board()
         headers = game.headers
+        last_move_uci = board.peek().uci() if board.move_stack else None
         return PgnSummary(
             move_count=(len(board.move_stack) + 1) // 2,
             last_fen=board.fen(),
+            last_move_uci=last_move_uci,
             termination=headers.get("Termination"),
             eco=headers.get("ECO"),
             event=headers.get("Event", ""),
@@ -51,14 +60,15 @@ def summarize_pgn(pgn: str) -> PgnSummary:
         return PgnSummary()
 
 
-def final_fen_from_pgn(pgn: str) -> str | None:
-    return summarize_pgn(pgn).last_fen
+def final_position_from_pgn(pgn: str) -> MiniBoardPosition:
+    summary = summarize_pgn(pgn)
+    return MiniBoardPosition(summary.last_fen, summary.last_move_uci)
 
 
 class MiniBoardFenWorker(QThread):
-    """Compute final FENs for the rows currently visible in the table."""
+    """Compute final positions for the rows currently visible in the table."""
 
-    completed = pyqtSignal(int, object)  # (batch token, {candidate_id: fen})
+    completed = pyqtSignal(int, object)  # (token, {candidate_id: MiniBoardPosition})
 
     def __init__(self, token: int, items: list[tuple[int, str]]):
         super().__init__(None)
@@ -68,7 +78,7 @@ class MiniBoardFenWorker(QThread):
     def run(self) -> None:
         try:
             results = {
-                candidate_id: final_fen_from_pgn(pgn)
+                candidate_id: final_position_from_pgn(pgn)
                 for candidate_id, pgn in self._items
             }
         except Exception:
