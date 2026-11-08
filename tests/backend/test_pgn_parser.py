@@ -362,3 +362,18 @@ class TestPGNIndex:
 
         assert game is not None
         assert game.metadata.white == "B"
+
+    def test_parse_game_stub_matches_full_identity_without_moves(self):
+        pgn = (
+            '[Event "One"]\n[White "A"]\n[Black "B"]\n[Result "1-0"]\n\n'
+            "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0"
+        )
+
+        full = PGNParser.parse_pgn_text(pgn)[0]
+        stub = PGNParser.parse_game_stub(pgn)
+
+        assert stub is not None
+        assert stub.game_id == full.game_id
+        assert stub.moves == []
+        assert stub.metadata.move_count == 3
+        assert stub.metadata.last_fen

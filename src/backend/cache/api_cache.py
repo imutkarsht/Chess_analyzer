@@ -7,6 +7,7 @@ import chess.pgn
 
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_history import GameHistoryManager
+from src.utils.time_control import classify_time_control
 
 
 def parse_pgn_headers(
@@ -60,9 +61,16 @@ def parse_pgn_headers(
             if h_b_elo and h_b_elo != "?":
                 black_elo = h_b_elo
 
-            h_event = h.get("Event")
-            if h_event and h_event not in ["?", "Lichess Game", "Chess.com Game"]:
-                time_class = h_event
+            h_time_control = h.get("TimeControl")
+            if h_time_control and h_time_control not in ("?", "-"):
+                classified = classify_time_control(h_time_control)
+                if classified != "Unknown":
+                    time_class = classified
+
+            if not time_class:
+                h_event = h.get("Event")
+                if h_event and h_event not in ["?", "Lichess Game", "Chess.com Game"]:
+                    time_class = h_event
 
             h_opening = h.get("Opening")
             if h_opening and h_opening != "?":

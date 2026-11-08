@@ -285,7 +285,7 @@ class PGNParser:
         return games
 
     @staticmethod
-    def _convert_to_game_analysis(game: chess.pgn.Game) -> GameAnalysis:
+    def _metadata_from_game(game: chess.pgn.Game) -> tuple[GameMetadata, dict[str, str]]:
         headers = dict(game.headers)
         metadata = GameMetadata(
             white=headers.get("White", "?"),
@@ -303,7 +303,6 @@ class PGNParser:
             starting_fen=headers.get("FEN"),  # If started from position
         )
 
-        # Infer source from Site header if present
         site = headers.get("Site", "").lower()
         if "chess.com" in site:
             metadata.source = "chesscom"
@@ -312,7 +311,6 @@ class PGNParser:
         else:
             metadata.source = "file"
 
-        moves = []
         board = game.board()
         # python-chess reads Variant/FEN headers internally and creates the
         # correct board type.  Use board.chess960 as the single source of truth.
@@ -328,6 +326,42 @@ class PGNParser:
                     castling = fen_parts[2]
                     if any(c not in "KQkq-" for c in castling):
                         metadata.chess960 = True
+        metadata.speed_category = PGNParser.detect_speed_category(
+            metadata.time_control, metadata.event
+        )
+        return metadata, headers
+
+    @staticmethod
+    def parse_game_stub(text: str) -> GameAnalysis | None:
+        """Parse metadata and canonical identity without per-move analysis."""
+        handle = io.StringIO(text)
+        while _skip_leading_comments(handle):
+            game = chess.pgn.read_game(handle)
+            if game is None:
+                break
+            if game.next() is None:
+                continue
+            metadata, _headers = PGNParser._metadata_from_game(game)
+            final_board = game.end().board()
+            metadata.move_count = (len(final_board.move_stack) + 1) // 2
+            metadata.last_fen = final_board.fen()
+            pgn_content = str(game)
+            game_id = hashlib.md5(
+                normalize_lichess_site_for_id(pgn_content).encode("utf-8")
+            ).hexdigest()
+            return GameAnalysis(
+                game_id=game_id,
+                metadata=metadata,
+                moves=[],
+                pgn_content=pgn_content,
+            )
+        return None
+
+    @staticmethod
+    def _convert_to_game_analysis(game: chess.pgn.Game) -> GameAnalysis:
+        metadata, headers = PGNParser._metadata_from_game(game)
+        moves = []
+        board = game.board()
         # Track per-side running clock so we can compute time_spent.
         # chess.com PGN: [%clk H:MM:SS.s] on every move. We compute the delta
         # between consecutive clocks of the same side to derive time_spent.
@@ -412,11 +446,6 @@ class PGNParser:
             )
             moves.append(move_analysis)
             board.push(move)
-
-        # Detect speed category (Bullet, Blitz, Rapid, Classical, UltraBullet)
-        metadata.speed_category = PGNParser._detect_speed_category(
-            metadata.time_control, metadata.event
-        )
 
         # Detect termination mode and human-readable description
         term_mode, term_desc = TerminationDetector.detect_termination(

@@ -51,6 +51,9 @@ _GAME_PLACEHOLDERS_SQL: str = ", ".join(f":{c}" for c in GAME_COLUMNS)
 INSERT_GAME_SQL: str = (
     f"INSERT OR REPLACE INTO games ({_GAME_COLS_SQL}) VALUES ({_GAME_PLACEHOLDERS_SQL})"
 )
+INSERT_GAME_IGNORE_SQL: str = (
+    f"INSERT OR IGNORE INTO games ({_GAME_COLS_SQL}) VALUES ({_GAME_PLACEHOLDERS_SQL})"
+)
 
 # Light column projection excluding heavy blobs (pgn and moves_json) for fast list views
 LIGHT_GAME_COLUMNS: tuple[str, ...] = tuple(
