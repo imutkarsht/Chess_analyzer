@@ -8,17 +8,6 @@ from src.utils.logger import logger
 
 from .batch import GameCandidate
 
-_RUNNING_WORKERS: set[QThread] = set()
-
-
-def register_worker(worker: QThread) -> None:
-    _RUNNING_WORKERS.add(worker)
-
-
-def remove_worker(worker: QThread) -> None:
-    _RUNNING_WORKERS.discard(worker)
-    worker.deleteLater()
-
 
 class GameImportWorker(QThread):
     """Parse selected games as lightweight stubs and insert them in batches."""

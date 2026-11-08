@@ -1136,6 +1136,16 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_import_action_bar_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#ImportActionBar {{
+                background-color: transparent;
+                border-top: 1px solid {p.border};
+            }}
+        """
+
+    @classmethod
     def get_import_table_style(cls):
         p = ThemeManager.palette()
         return f"""

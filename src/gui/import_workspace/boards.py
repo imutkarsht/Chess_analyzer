@@ -10,17 +10,6 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.utils.logger import logger
 
-_RUNNING_WORKERS: set[QThread] = set()
-
-
-def register_worker(worker: QThread) -> None:
-    _RUNNING_WORKERS.add(worker)
-
-
-def remove_worker(worker: QThread) -> None:
-    _RUNNING_WORKERS.discard(worker)
-    worker.deleteLater()
-
 
 @dataclass(frozen=True)
 class PgnSummary:

@@ -1,8 +1,10 @@
-"""Keep background workers alive until they finish.
+"""Keep background QThreads alive until they finish.
 
-Workers are intentionally not parented to the panel that starts them: closing
-a dialog while work is in flight must not destroy a running QThread.
+Workers are intentionally not parented to the widget that starts them: closing
+a dialog or page while work is in flight must not destroy a running QThread.
 """
+
+from __future__ import annotations
 
 from PyQt6.QtCore import QThread
 

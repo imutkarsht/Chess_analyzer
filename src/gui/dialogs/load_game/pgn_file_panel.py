@@ -18,10 +18,10 @@ from src.gui.components import (
 )
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.import_workspace import GameBatch
+from src.gui.utils.worker_registry import register_worker, remove_worker
 
 from .drop_zone import DropZone
 from .pgn_worker import PgnIndexWorker
-from .worker_registry import register_worker, remove_worker
 
 
 class PgnFilePanel(QWidget):

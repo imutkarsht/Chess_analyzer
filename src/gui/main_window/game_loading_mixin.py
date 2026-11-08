@@ -4,14 +4,14 @@ from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
 from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
 from src.constants import MAX_PGN_TEXT_CHARS, PAGE_ANALYSIS, PAGE_HISTORY
 from src.gui.dialogs.load_game.pgn_worker import PgnIndexWorker
-from src.gui.dialogs.load_game.worker_registry import (
-    register_worker,
-    remove_worker,
-)
 from src.gui.dialogs.load_game_dialog import LoadGameDialog
 from src.gui.main_window.navigation_mixin import compute_clock_times
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextTone
+from src.gui.utils.worker_registry import (
+    register_worker,
+    remove_worker,
+)
 from src.utils.logger import logger
 
 

@@ -5,45 +5,31 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QFrame,
-    QHBoxLayout,
     QHeaderView,
+    QStackedWidget,
     QTableView,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.storage.game_history import GameHistoryManager
-from src.gui.components import (
-    Button,
-    ButtonSize,
-    ButtonVariant,
-    Input,
-    InputSize,
-    InputVariant,
-    Label,
-    MiniBar,
-    SegmentedControl,
-    Select,
-    SelectSize,
-    StatusBadge,
-    TextRole,
-    TextTone,
-)
+from src.gui.components import EmptyState
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.utils.debounce import Debouncer
+from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
 
+from .action_bar import ImportActionBar
 from .batch import GameBatch, GameCandidate
-from .boards import MiniBoardFenWorker, register_worker, remove_worker
+from .boards import MiniBoardFenWorker
 from .delegates import (
     BoardDelegate,
     CheckboxDelegate,
     CheckboxHeader,
     StatusPillDelegate,
 )
+from .header import ImportHeader
 from .model import (
     COL_BOARD,
     COL_DETAILS,
@@ -53,15 +39,8 @@ from .model import (
     GameImportFilterProxy,
     GameImportTableModel,
 )
-from .worker import (
-    GameImportWorker,
-)
-from .worker import (
-    register_worker as register_import_worker,
-)
-from .worker import (
-    remove_worker as remove_import_worker,
-)
+from .toolbar import ImportToolbar
+from .worker import GameImportWorker
 
 _ROWS_WITH_BOARDS = 80
 _ROWS_COMPACT = 44
@@ -98,54 +77,10 @@ class GameImportView(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        self.header_bar = QFrame()
-        self.header_bar.setObjectName("ImportHeader")
-        header = QHBoxLayout(self.header_bar)
-        header.setContentsMargins(24, 14, 24, 14)
-        header.setSpacing(12)
-
-        self.btn_back = Button(
-            "Back to History",
-            ButtonVariant.HOLLOW,
-            ButtonSize.SM,
-            icon="fa5s.arrow-left",
-            on_click=self.back_requested.emit,
-        )
-        header.addWidget(self.btn_back)
-
-        title_box = QVBoxLayout()
-        title_box.setSpacing(2)
-        self.lbl_title = Label(
-            "Import games", role=TextRole.DIALOG_TITLE, weight=700
-        )
-        self.lbl_subtitle = Label(
-            "", role=TextRole.CAPTION, tone=TextTone.SECONDARY
-        )
-        title_box.addWidget(self.lbl_title)
-        title_box.addWidget(self.lbl_subtitle)
-        header.addLayout(title_box, 1)
-
-        self.badge_count = StatusBadge(
-            "0 games",
-            TextTone.ACCENT,
-            variant="quiet",
-            font_size=11,
-            weight=700,
-            padding="4px 10px",
-            radius=10,
-        )
-        self.badge_saved = StatusBadge(
-            "0 in history",
-            TextTone.SECONDARY,
-            variant="quiet",
-            font_size=11,
-            weight=600,
-            padding="4px 10px",
-            radius=10,
-        )
-        header.addWidget(self.badge_count)
-        header.addWidget(self.badge_saved)
-        root.addWidget(self.header_bar)
+        self.header = ImportHeader()
+        self.header.back_requested.connect(self.back_requested.emit)
+        root.addWidget(self.header)
+        self._alias_header()
 
         content = QWidget()
         content_layout = QVBoxLayout(content)
@@ -157,99 +92,11 @@ class GameImportView(QWidget):
         surface_layout.setContentsMargins(0, 0, 0, 0)
         surface_layout.setSpacing(0)
 
-        toolbar = QWidget()
-        toolbar_layout = QHBoxLayout(toolbar)
-        toolbar_layout.setContentsMargins(24, 12, 24, 12)
-        toolbar_layout.setSpacing(8)
-
-        self.search_input = Input(
-            placeholder="Filter games…",
-            variant=InputVariant.SEARCH,
-            size=InputSize.SM,
-            clearable=True,
-        )
-        self.search_input.setMinimumWidth(220)
-        self.search_input.setMaximumWidth(380)
-        self._search_debounce = Debouncer(self, interval=150)
-        self.search_input.textChanged.connect(
-            lambda *_: self._search_debounce.call(self._apply_filters)
-        )
-        toolbar_layout.addWidget(self.search_input, 1)
-
-        self.result_filter = Select(
-            [
-                ("All results", "all"),
-                ("White win", "1-0"),
-                ("Black win", "0-1"),
-                ("Draw", "1/2-1/2"),
-            ],
-            size=SelectSize.SM,
-            min_width=110,
-            on_change=lambda _value: self._apply_filters(),
-        )
-        self.color_filter = Select(
-            [
-                ("All colors", "all"),
-                ("White", "white"),
-                ("Black", "black"),
-            ],
-            size=SelectSize.SM,
-            min_width=100,
-            on_change=lambda _value: self._apply_filters(),
-        )
-        self.color_filter.setVisible(False)
-        self.time_filter = Select(
-            [
-                ("All speeds", "all"),
-                ("Bullet", "Bullet"),
-                ("Blitz", "Blitz"),
-                ("Rapid", "Rapid"),
-                ("Classical", "Classical"),
-                ("Daily", "Daily"),
-                ("Unknown", "Unknown"),
-            ],
-            size=SelectSize.SM,
-            min_width=110,
-            on_change=lambda _value: self._apply_filters(),
-        )
-        self.history_filter = SegmentedControl(
-            [("All", "all"), ("New", "new"), ("Saved", "saved")],
-            value="all",
-        )
-        self.history_filter.valueChanged.connect(
-            lambda _value: self._apply_filters()
-        )
-        toolbar_layout.addWidget(self.result_filter)
-        toolbar_layout.addWidget(self.color_filter)
-        toolbar_layout.addWidget(self.time_filter)
-        toolbar_layout.addWidget(self.history_filter)
-
-        self.lbl_filtered = Label(
-            "",
-            role=TextRole.CAPTION,
-            tone=TextTone.MUTED,
-        )
-        toolbar_layout.addWidget(self.lbl_filtered)
-
-        self.btn_clear_filters = Button(
-            "Clear filters",
-            ButtonVariant.GHOST,
-            ButtonSize.SM,
-            on_click=self._clear_filters,
-        )
-        self.btn_clear_filters.setVisible(False)
-        self.btn_boards = Button(
-            "Boards",
-            ButtonVariant.GHOST,
-            ButtonSize.SM,
-            icon="fa5s.chess-board",
-            checkable=True,
-            tooltip="Show board thumbnails",
-            on_click=self._on_boards_toggled,
-        )
-        toolbar_layout.addWidget(self.btn_clear_filters)
-        toolbar_layout.addWidget(self.btn_boards)
-        surface_layout.addWidget(toolbar)
+        self.toolbar = ImportToolbar()
+        self.toolbar.filters_changed.connect(self._apply_filters)
+        self.toolbar.boards_toggled.connect(self._on_boards_toggled)
+        surface_layout.addWidget(self.toolbar)
+        self._alias_toolbar()
 
         self.model = GameImportTableModel(self)
         self.proxy = GameImportFilterProxy(self)
@@ -259,14 +106,16 @@ class GameImportView(QWidget):
 
         self.table = QTableView()
         self.table.setModel(self.proxy)
-        self.header = CheckboxHeader(Qt.Orientation.Horizontal, self.table)
-        self.table.setHorizontalHeader(self.header)
-        self.header.setStretchLastSection(False)
-        self.header.setFixedHeight(40)
-        self.header.setDefaultAlignment(
+        self.header_view = CheckboxHeader(
+            Qt.Orientation.Horizontal, self.table
+        )
+        self.table.setHorizontalHeader(self.header_view)
+        self.header_view.setStretchLastSection(False)
+        self.header_view.setFixedHeight(40)
+        self.header_view.setDefaultAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
-        self.header.toggled.connect(self._on_header_toggled)
+        self.header_view.toggled.connect(self._on_header_toggled)
         self.table.setShowGrid(False)
         self.table.setWordWrap(False)
         self.table.setAlternatingRowColors(False)
@@ -289,16 +138,16 @@ class GameImportView(QWidget):
         self.table.setColumnWidth(8, 200)
         self.table.setColumnWidth(9, 280)
         self.table.setColumnWidth(10, 104)
-        self.header.setSectionResizeMode(
+        self.header_view.setSectionResizeMode(
             3, QHeaderView.ResizeMode.Stretch
         )
-        self.header.setSectionResizeMode(
+        self.header_view.setSectionResizeMode(
             4, QHeaderView.ResizeMode.Stretch
         )
-        self.header.setSectionResizeMode(
+        self.header_view.setSectionResizeMode(
             8, QHeaderView.ResizeMode.Interactive
         )
-        self.header.setSectionResizeMode(
+        self.header_view.setSectionResizeMode(
             9, QHeaderView.ResizeMode.Interactive
         )
         self.table.setSortingEnabled(True)
@@ -309,54 +158,19 @@ class GameImportView(QWidget):
         self.table.setItemDelegateForColumn(
             COL_STATUS, StatusPillDelegate(self.table)
         )
-        surface_layout.addWidget(self.table, 1)
 
-        self.action_bar = QFrame()
-        self.action_bar.setObjectName("ImportActionBar")
-        actions = QHBoxLayout(self.action_bar)
-        actions.setContentsMargins(24, 12, 24, 12)
-        actions.setSpacing(10)
+        self.table_stack = QStackedWidget()
+        self.table_stack.addWidget(self.table)
+        self.empty_state = EmptyState("No games match these filters.")
+        self.table_stack.addWidget(self.empty_state)
+        self.table_stack.setCurrentWidget(self.table)
+        surface_layout.addWidget(self.table_stack, 1)
 
-        self.lbl_selection = Label(
-            "0 of 0 row(s) selected.",
-            role=TextRole.CAPTION,
-            tone=TextTone.SECONDARY,
-        )
-        actions.addWidget(self.lbl_selection)
-
-        self._import_label = Label(
-            "",
-            role=TextRole.CAPTION,
-            tone=TextTone.SECONDARY,
-        )
-        self._import_progress = MiniBar(0)
-        self._import_progress.setFixedWidth(180)
-        self._import_label.setVisible(False)
-        self._import_progress.setVisible(False)
-        actions.addWidget(self._import_label)
-        actions.addWidget(self._import_progress)
-        actions.addStretch(1)
-
-        self.btn_add = Button(
-            "Add to history",
-            ButtonVariant.HOLLOW,
-            ButtonSize.MD,
-            icon="fa5s.database",
-            on_click=self._add_selected,
-        )
-        self.btn_add.setEnabled(False)
-        actions.addWidget(self.btn_add)
-
-        self.btn_open = Button(
-            "Open game",
-            ButtonVariant.PRIMARY,
-            ButtonSize.MD,
-            icon="fa5s.play",
-            on_click=self._open_checked,
-        )
-        self.btn_open.setEnabled(False)
-        actions.addWidget(self.btn_open)
+        self.action_bar = ImportActionBar()
+        self.action_bar.open_clicked.connect(self._open_checked)
+        self.action_bar.add_clicked.connect(self._add_selected)
         surface_layout.addWidget(self.action_bar)
+        self._alias_action_bar()
 
         content_layout.addWidget(self.surface)
         root.addWidget(content, 1)
@@ -379,13 +193,38 @@ class GameImportView(QWidget):
         )
         self.proxy.modelReset.connect(lambda: self._fen_timer.start())
         self.proxy.layoutChanged.connect(lambda: self._fen_timer.start())
-        self.header.sortIndicatorChanged.connect(
+        self.header_view.sortIndicatorChanged.connect(
             lambda *_args: self._fen_timer.start()
         )
         self._apply_board_visibility(
             bool(self._config.get("import_show_boards", True))
         )
         self.refresh_styles()
+
+    # ------------------------------------------------------------------
+    # Compatibility aliases used by tests and integration call sites
+    # ------------------------------------------------------------------
+    def _alias_header(self) -> None:
+        self.header_bar = self.header
+        self.btn_back = self.header.btn_back
+        self.lbl_subtitle = self.header.lbl_subtitle
+        self.badge_count = self.header.badge_count
+        self.badge_saved = self.header.badge_saved
+
+    def _alias_toolbar(self) -> None:
+        self.search_input = self.toolbar.search_input
+        self.result_filter = self.toolbar.result_filter
+        self.color_filter = self.toolbar.color_filter
+        self.time_filter = self.toolbar.time_filter
+        self.history_filter = self.toolbar.history_filter
+        self.lbl_filtered = self.toolbar.lbl_filtered
+        self.btn_clear_filters = self.toolbar.btn_clear_filters
+        self.btn_boards = self.toolbar.btn_boards
+
+    def _alias_action_bar(self) -> None:
+        self.lbl_selection = self.action_bar.lbl_selection
+        self.btn_add = self.action_bar.btn_add
+        self.btn_open = self.action_bar.btn_open
 
     # ------------------------------------------------------------------
     # Data API
@@ -396,21 +235,11 @@ class GameImportView(QWidget):
         self._fen_queued = False
         self._fen_requested.clear()
         self._fen_failed.clear()
-        self.search_input.blockSignals(True)
-        self.search_input.clear()
-        self.search_input.blockSignals(False)
-        self.result_filter.set_current_index(0, emit=False)
-        self.time_filter.set_current_index(0, emit=False)
-        self.history_filter.set_value("all", emit=False)
+        self.toolbar.reset_filters(emit=False)
         self.model.set_candidates(batch.candidates)
         self._configure_result_filter(batch.candidates)
-        self.lbl_subtitle.setText(batch.label)
-        count = len(batch.candidates)
         saved = sum(1 for candidate in batch.candidates if candidate.in_history)
-        self.badge_count.setText(f"{count} game" if count == 1 else f"{count} games")
-        self.badge_saved.setText(
-            f"{saved} in history" if saved != 1 else "1 in history"
-        )
+        self.header.set_batch_info(batch.label, len(batch.candidates), saved)
         self.table.setColumnHidden(
             COL_MOVES,
             not any(
@@ -431,7 +260,7 @@ class GameImportView(QWidget):
         )
         self._fit_dynamic_columns(batch.candidates)
         self._apply_filters()
-        if count == 1:
+        if len(batch.candidates) == 1:
             if not batch.candidates[0].in_history:
                 self.model.set_checked(batch.candidates[0].candidate_id, True)
             elif self.proxy.rowCount():
@@ -486,27 +315,7 @@ class GameImportView(QWidget):
             for candidate in candidates
         )
         self.proxy.set_player_context(usernames, perspective)
-        self.color_filter.set_current_index(0, emit=False)
-        self.color_filter.setVisible(perspective)
-        if perspective:
-            options = [
-                ("All results", "all"),
-                ("My wins", "my_win"),
-                ("My losses", "my_loss"),
-                ("My draws", "my_draw"),
-                ("My games", "my_game"),
-                ("Not my games", "other"),
-            ]
-        else:
-            options = [
-                ("All results", "all"),
-                ("White win", "1-0"),
-                ("Black win", "0-1"),
-                ("Draw", "1/2-1/2"),
-            ]
-        self.result_filter.set_options(
-            options, preserve_value=False, emit=False
-        )
+        self.toolbar.set_perspective(perspective)
 
     @staticmethod
     def _involves_username(
@@ -522,11 +331,11 @@ class GameImportView(QWidget):
         self._fen_requested.clear()
         self._fen_failed.clear()
         self.model.set_candidates([])
-        self.lbl_subtitle.setText("")
-        self.badge_count.setText("0 games")
-        self.badge_saved.setText("0 in history")
+        self.header.reset()
         self.lbl_selection.setText("0 of 0 row(s) selected.")
         self.lbl_filtered.setText("")
+        self.toolbar.btn_clear_filters.setVisible(False)
+        self.table_stack.setCurrentWidget(self.table)
 
     # ------------------------------------------------------------------
     # Actions
@@ -543,18 +352,11 @@ class GameImportView(QWidget):
         self.model.set_many_checked(candidate_ids, checked)
 
     def _clear_filters(self) -> None:
-        self._search_debounce.cancel()
-        self.search_input.blockSignals(True)
-        self.search_input.clear()
-        self.search_input.blockSignals(False)
-        self.result_filter.set_current_index(0, emit=False)
-        self.color_filter.set_current_index(0, emit=False)
-        self.time_filter.set_current_index(0, emit=False)
-        self.history_filter.set_value("all", emit=False)
-        self._apply_filters()
+        self.toolbar.reset_filters()
 
-    def _on_boards_toggled(self) -> None:
-        enabled = self.btn_boards.isChecked()
+    def _on_boards_toggled(self, enabled: bool | None = None) -> None:
+        if enabled is None:
+            enabled = self.btn_boards.isChecked()
         self._config.set("import_show_boards", enabled)
         self._config.save_config()
         self._apply_board_visibility(enabled)
@@ -562,11 +364,7 @@ class GameImportView(QWidget):
             self._request_visible_fens()
 
     def _apply_board_visibility(self, enabled: bool) -> None:
-        self.btn_boards.setChecked(enabled)
-        self.btn_boards.set_variant(
-            ButtonVariant.FILLED if enabled else ButtonVariant.GHOST
-        )
-        self.btn_boards.refresh_styles()
+        self.toolbar.set_boards_checked(enabled)
         self.table.setColumnHidden(COL_BOARD, not enabled)
         self.table.verticalHeader().setDefaultSectionSize(
             _ROWS_WITH_BOARDS if enabled else _ROWS_COMPACT
@@ -583,22 +381,16 @@ class GameImportView(QWidget):
         )
         shown = self.proxy.rowCount()
         total = self.model.rowCount()
-        self.lbl_filtered.setText(
-            f"{shown} shown" if shown != total else ""
-        )
-        filters_active = (
-            bool(self.search_input.text().strip())
-            or self.result_filter.current_value() != "all"
-            or (
-                not self.color_filter.isHidden()
-                and self.color_filter.current_value() != "all"
-            )
-            or self.time_filter.current_value() != "all"
-            or self.history_filter.value() != "all"
-        )
-        self.btn_clear_filters.setVisible(filters_active)
+        self.toolbar.update_counts(shown, total)
+        self._update_empty_state(shown, total)
         self._on_selection_changed(self.model.checked_count())
         self._fen_timer.start()
+
+    def _update_empty_state(self, shown: int, total: int) -> None:
+        if shown or not total:
+            self.table_stack.setCurrentWidget(self.table)
+        else:
+            self.table_stack.setCurrentWidget(self.empty_state)
 
     def _on_selection_changed(self, count: int) -> None:
         total = self.model.rowCount()
@@ -615,24 +407,11 @@ class GameImportView(QWidget):
             shown_selectable += 1
             if self.model.is_checked(candidate.candidate_id):
                 shown_checked += 1
-        self.lbl_selection.setText(
-            f"{count} of {total} row(s) selected."
-        )
         current = self._current_candidate()
-        self.btn_open.setEnabled(count == 1 or (count == 0 and current is not None))
-        self.btn_add.setEnabled(count >= 1)
-        self.btn_add.setText(
-            f"Add {count} to history" if count > 1 else "Add to history"
+        self.action_bar.set_selection(
+            count, total, current is not None
         )
-        if count >= 2:
-            self.btn_open.set_variant(ButtonVariant.HOLLOW)
-            self.btn_add.set_variant(ButtonVariant.PRIMARY)
-        else:
-            self.btn_open.set_variant(ButtonVariant.PRIMARY)
-            self.btn_add.set_variant(ButtonVariant.HOLLOW)
-        self.btn_open.refresh_styles()
-        self.btn_add.refresh_styles()
-        self.header.set_state(
+        self.header_view.set_state(
             shown_selectable > 0 and shown_checked == shown_selectable,
             0 < shown_checked < shown_selectable,
         )
@@ -660,30 +439,18 @@ class GameImportView(QWidget):
         checked = self.model.checked_candidates()
         if not checked:
             return
-        self._import_label.setText(f"Adding 0 / {len(checked)}…")
-        self._import_label.setVisible(True)
-        self._import_progress.setRange(0, len(checked))
-        self._import_progress.setValue(0)
-        self._import_progress.setVisible(True)
-        self.btn_add.setEnabled(False)
-        self.btn_open.setEnabled(False)
+        self.action_bar.begin_import(len(checked))
         self.btn_clear_filters.setEnabled(False)
         self.table.setEnabled(False)
 
         worker = GameImportWorker(checked, self._history_manager)
         self._import_worker = worker
-        worker.progress.connect(self._on_import_progress)
+        worker.progress.connect(self.action_bar.update_progress)
         worker.completed.connect(self._on_import_completed)
         worker.failed.connect(self._on_import_failed)
-        worker.finished.connect(
-            lambda w=worker: remove_import_worker(w)
-        )
-        register_import_worker(worker)
+        worker.finished.connect(lambda w=worker: remove_worker(w))
+        register_worker(worker)
         worker.start()
-
-    def _on_import_progress(self, done: int, total: int) -> None:
-        self._import_label.setText(f"Adding {done} / {total}…")
-        self._import_progress.setValue(done)
 
     def _on_import_completed(self, inserted: int, skipped: int) -> None:
         checked = {
@@ -711,8 +478,7 @@ class GameImportView(QWidget):
         ToastManager.error(self, f"Could not add games: {message}")
 
     def _finish_import(self) -> None:
-        self._import_label.setVisible(False)
-        self._import_progress.setVisible(False)
+        self.action_bar.finish_import()
         self.btn_clear_filters.setEnabled(True)
         self.table.setEnabled(True)
         self._on_selection_changed(self.model.checked_count())
@@ -820,26 +586,7 @@ class GameImportView(QWidget):
 
     def refresh_styles(self, *_args) -> None:
         Styles.apply_background(self)
-        self.header_bar.setStyleSheet(
-            Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND)
-        )
-        self.action_bar.setStyleSheet(
-            f"""
-            QFrame#ImportActionBar {{
-                background-color: transparent;
-                border-top: 1px solid {Styles.COLOR_BORDER};
-            }}
-            """
-        )
+        self.header.refresh_styles()
+        self.toolbar.refresh_styles()
+        self.action_bar.refresh_styles()
         self.table.setStyleSheet(Styles.get_import_table_style())
-        self.btn_back.refresh_styles()
-        self.btn_open.refresh_styles()
-        self.btn_add.refresh_styles()
-        self.btn_clear_filters.refresh_styles()
-        self._import_progress.refresh_styles()
-        self.btn_boards.refresh_styles()
-        self.search_input.refresh_styles()
-        self.result_filter.refresh_styles()
-        self.color_filter.refresh_styles()
-        self.time_filter.refresh_styles()
-        self.history_filter.refresh_styles()

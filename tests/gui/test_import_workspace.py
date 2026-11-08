@@ -233,6 +233,17 @@ def test_result_filter_uses_saved_username_perspective(qtbot):
     view._config.set("lichess_username", original_username)
 
 
+def test_no_matches_shows_the_shared_empty_state(qtbot):
+    view = GameImportView()
+    qtbot.addWidget(view)
+    view.set_batch(_batch())
+
+    view.search_input.setText("nobody")
+    view._apply_filters()
+
+    assert view.table_stack.currentWidget() is view.empty_state
+
+
 def test_clear_filters_only_appears_when_needed(qtbot):
     view = GameImportView()
     qtbot.addWidget(view)
