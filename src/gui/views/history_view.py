@@ -171,16 +171,14 @@ class HistoryView(QWidget):
             variant=InputVariant.SEARCH,
             clearable=True,
         )
-        self.search_input.setMinimumWidth(240)
-        # A search field is a fixed column, not the flexible one: the filters
-        # need the remaining width more than the text box does.
-        self.search_input.setMaximumWidth(420)
+        self.search_input.setMinimumWidth(120)
+        # A search field is the flexible column: the filters keep their compact
+        # widths and a trailing stretch pins Sort to the right edge.
+        self.search_input.setMaximumWidth(380)
         self.search_input.textChanged.connect(
             lambda *_: self._filter_debounce.call(self.apply_filters)
         )
         filter_layout.addWidget(self.search_input, 1)
-
-        filter_layout.addSpacing(10)
 
         def _filter_label(text: str) -> Label:
             # A Preferred label policy lets the row's spare width stretch the
@@ -196,7 +194,7 @@ class HistoryView(QWidget):
         self.result_filter = Select(
             ["All", "Wins", "Losses", "Draws"], on_change=self.apply_filters
         )
-        self.result_filter.setFixedWidth(100)
+        self.result_filter.setFixedWidth(95)
         filter_layout.addWidget(self.result_filter)
 
         # Type / Speed Category Filter
@@ -207,7 +205,7 @@ class HistoryView(QWidget):
             ["All", "Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet"],
             on_change=self.apply_filters,
         )
-        self.type_filter.setFixedWidth(110)
+        self.type_filter.setFixedWidth(100)
         filter_layout.addWidget(self.type_filter)
 
         # Source Filter
@@ -217,48 +215,46 @@ class HistoryView(QWidget):
         self.source_filter = Select(
             ["All", "Chess.com", "Lichess", "File"], on_change=self.apply_filters
         )
-        self.source_filter.setFixedWidth(110)
+        self.source_filter.setFixedWidth(100)
         filter_layout.addWidget(self.source_filter)
 
-        content_layout.addLayout(filter_layout)
-
-        # Secondary filters keep the row readable at the minimum window width.
-        secondary_filters = QHBoxLayout()
-        secondary_filters.setSpacing(8)
-
+        # Analysis State Filter
         self.analysis_label = _filter_label("Analysis:")
-        secondary_filters.addWidget(self.analysis_label)
+        filter_layout.addWidget(self.analysis_label)
 
         self.analysis_filter = Select(
             ["All", "Analyzed", "Unanalyzed", "Paused"],
             on_change=self.apply_filters,
         )
-        self.analysis_filter.setFixedWidth(115)
-        secondary_filters.addWidget(self.analysis_filter)
+        self.analysis_filter.setFixedWidth(110)
+        filter_layout.addWidget(self.analysis_filter)
 
+        # Ownership Filter
         self.ownership_label = _filter_label("Games:")
-        secondary_filters.addWidget(self.ownership_label)
+        filter_layout.addWidget(self.ownership_label)
 
         self.ownership_filter = Select(
             ["All games", "My games", "Other games"],
             on_change=self.apply_filters,
         )
-        self.ownership_filter.setFixedWidth(115)
-        secondary_filters.addWidget(self.ownership_filter)
+        self.ownership_filter.setFixedWidth(110)
+        filter_layout.addWidget(self.ownership_filter)
 
-        secondary_filters.addStretch()
+        # Keep the filters grouped together instead of spreading the spare
+        # width between every label and dropdown.
+        filter_layout.addStretch()
 
         self.sort_label = _filter_label("Sort:")
-        secondary_filters.addWidget(self.sort_label)
+        filter_layout.addWidget(self.sort_label)
 
         self.sort_dropdown = Select(
             ["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
             on_change=self.apply_filters,
         )
         self.sort_dropdown.setFixedWidth(135)
-        secondary_filters.addWidget(self.sort_dropdown)
+        filter_layout.addWidget(self.sort_dropdown)
 
-        content_layout.addLayout(secondary_filters)
+        content_layout.addLayout(filter_layout)
 
         # Game List
         self.game_list = GameListWidget()
