@@ -1136,6 +1136,69 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_import_table_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QTableView {{
+                background-color: {p.background};
+                color: {p.text_primary};
+                border: none;
+                gridline-color: transparent;
+                font-size: 13px;
+                selection-background-color: {p.accent_subtle};
+                selection-color: {p.text_primary};
+            }}
+            QTableView QWidget#qt_scrollarea_viewport {{
+                background-color: {p.background};
+            }}
+            QTableView::item {{
+                padding: 0 10px;
+                border-bottom: 1px solid {p.border};
+            }}
+            QTableView::item:hover {{
+                background-color: {p.surface_light};
+            }}
+            QTableView::item:selected {{
+                background-color: {p.accent_subtle};
+                color: {p.text_primary};
+            }}
+            QHeaderView::section {{
+                background-color: {p.background};
+                color: {p.text_secondary};
+                padding: 0 10px;
+                border: none;
+                border-bottom: 1px solid {p.border};
+                font-weight: 600;
+                font-size: 12px;
+            }}
+            QTableCornerButton::section {{
+                background-color: {p.background};
+                border: none;
+            }}
+            QTableView QScrollBar:vertical {{
+                background: transparent;
+                width: 10px;
+                margin: 0;
+            }}
+            QTableView QScrollBar::handle:vertical {{
+                background: {p.border};
+                border-radius: 5px;
+                min-height: 24px;
+            }}
+            QTableView QScrollBar::handle:vertical:hover {{
+                background: {p.text_muted};
+            }}
+            QTableView QScrollBar::add-line:vertical,
+            QTableView QScrollBar::sub-line:vertical {{
+                height: 0;
+            }}
+            QTableView QScrollBar::add-page:vertical,
+            QTableView QScrollBar::sub-page:vertical {{
+                background: transparent;
+            }}
+        """
+
+    @classmethod
     def get_move_list_card_style(cls):
         p = ThemeManager.palette()
         return f"""
