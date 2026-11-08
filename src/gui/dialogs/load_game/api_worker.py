@@ -2,21 +2,10 @@
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.logger import logger
 
-# Workers are intentionally not parented to the panel that starts them: closing
-# a dialog while a request is in flight must not destroy a running QThread. The
-# registry keeps them alive until the request finishes (or is cancelled).
-_RUNNING_WORKERS: set["ApiWorker"] = set()
-
-
-def register_worker(worker: "ApiWorker") -> None:
-    _RUNNING_WORKERS.add(worker)
-
-
-def remove_worker(worker: "ApiWorker") -> None:
-    _RUNNING_WORKERS.discard(worker)
-    worker.deleteLater()
+__all__ = ["ApiWorker", "register_worker", "remove_worker"]
 
 
 class ApiWorker(QThread):

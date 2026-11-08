@@ -95,6 +95,7 @@ def _ensure_tables_and_columns(cursor: sqlite3.Cursor) -> None:
         ("ai_summary", "TEXT"),
         ("move_count", "INTEGER"),
         ("last_fen", "TEXT"),
+        ("analysis_status", "TEXT"),
     ]
 
     cursor.execute("PRAGMA table_info(games)")
@@ -358,6 +359,11 @@ def _create_performance_indexes(cursor: sqlite3.Cursor) -> None:
             "idx_games_move_count",
             "CREATE INDEX IF NOT EXISTS idx_games_move_count ON games(move_count)",
         ),
+        (
+            "idx_games_analysis_status",
+            "CREATE INDEX IF NOT EXISTS idx_games_analysis_status "
+            "ON games(analysis_status)",
+        ),
     ]
     for idx_name, idx_sql in indexes:
         try:
@@ -367,15 +373,17 @@ def _create_performance_indexes(cursor: sqlite3.Cursor) -> None:
 
 
 def _backfill_analysis_status(cursor: sqlite3.Cursor) -> None:
-    """Persist analysis status into ``summary_json`` for rows saved before it.
+    """Persist analysis status into ``summary_json`` and its filter column.
 
     List rows no longer load ``moves_json``, so status must come from the stored
     summary. Runs on every startup until no row is missing it, which also heals
     databases that were already migrated past an earlier schema version.
     """
     cursor.execute(
-        "SELECT id, moves_json, summary_json FROM games "
-        "WHERE summary_json IS NULL OR summary_json NOT LIKE '%analysis_status%'"
+        "SELECT id, moves_json, summary_json, analysis_status FROM games "
+        "WHERE summary_json IS NULL "
+        "OR summary_json NOT LIKE '%analysis_status%' "
+        "OR analysis_status IS NULL"
     )
     rows = cursor.fetchall()
     if not rows:
@@ -383,45 +391,55 @@ def _backfill_analysis_status(cursor: sqlite3.Cursor) -> None:
 
     import json
 
-    updates: list[tuple[str, str]] = []
-    for game_id, moves_json, summary_json in rows:
+    updates: list[tuple[str, str, str]] = []
+    for game_id, moves_json, summary_json, stored_status in rows:
         try:
             summary = json.loads(summary_json) if summary_json else {}
         except (json.JSONDecodeError, TypeError, ValueError):
             summary = {}
         if not isinstance(summary, dict):
             summary = {}
-        if summary.get("analysis_status"):
+
+        existing_status = str(
+            summary.get("analysis_status") or ""
+        ).strip().lower()
+        status = existing_status
+        if status not in ("not_started", "unanalyzed", "paused", "completed"):
+            moves_data: list = []
+            if moves_json:
+                try:
+                    parsed = json.loads(moves_json)
+                    if isinstance(parsed, list):
+                        moves_data = parsed
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    moves_data = []
+
+            total = len(moves_data)
+            analyzed = sum(1 for move in moves_data if move.get("classification"))
+
+            if total == 0 or analyzed == 0:
+                status = "not_started"
+            elif analyzed < total:
+                status = "paused"
+            else:
+                # Mirrors GameAnalysis.status: a fully analysed game is complete
+                # even when the stored summary predates accuracy tracking.
+                status = "completed"
+
+            summary["analysis_status"] = status
+            summary["analyzed_moves"] = analyzed
+            summary.setdefault("total_moves", total)
+            summary_json = json.dumps(summary)
+
+        if status == stored_status and existing_status == status:
             continue
-
-        moves_data: list = []
-        if moves_json:
-            try:
-                parsed = json.loads(moves_json)
-                if isinstance(parsed, list):
-                    moves_data = parsed
-            except (json.JSONDecodeError, TypeError, ValueError):
-                moves_data = []
-
-        total = len(moves_data)
-        analyzed = sum(1 for move in moves_data if move.get("classification"))
-
-        if total == 0 or analyzed == 0:
-            status = "not_started"
-        elif analyzed < total:
-            status = "paused"
-        else:
-            # Mirrors GameAnalysis.status: a fully analysed game is complete
-            # even when the stored summary predates accuracy tracking.
-            status = "completed"
-
-        summary["analysis_status"] = status
-        summary["analyzed_moves"] = analyzed
-        summary.setdefault("total_moves", total)
-        updates.append((json.dumps(summary), game_id))
+        updates.append((summary_json, status, game_id))
 
     if updates:
-        cursor.executemany("UPDATE games SET summary_json = ? WHERE id = ?", updates)
+        cursor.executemany(
+            "UPDATE games SET summary_json = ?, analysis_status = ? WHERE id = ?",
+            updates,
+        )
         logger.info("Migrating DB: backfilled analysis status for %d games", len(updates))
 
 

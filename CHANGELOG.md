@@ -12,6 +12,15 @@
 - **Shared Label Typography**: Plain-text labels now use one `Label` component with semantic roles and tones generated from the live palette. Theme and accent switches recolour text without per-widget refreshes, and the legacy label style getters were removed.
 - **Shared Badge, Icon, and Rich-Text Primitives**: Result, status, classification, count, version, profile, and alert badges use one `StatusBadge`; pixmap labels use `IconLabel`; rich text and external links use `RichTextLabel`/`LinkLabel`; captured pieces, clocks, avatars, legends, and engine scores use shared display primitives. Container QSS is scoped so borders no longer cascade into labels, and result-loss badges use the error colour.
 
+### Features
+
+- **Multi-Game Import Workspace**: Load Game now only collects a source. Multi-game results open a dedicated History workspace with a shadcn-style virtualized table, search, perspective-aware result filters (my wins/losses/draws and my colour when a saved username is available), time/history filters, saved-game badges, per-game checkboxes, optional board thumbnails, inline player Elo, move counts, ECO/opening, termination, and bulk add to history in an unanalyzed state. Missing fields show an em dash and columns with no data anywhere are hidden. Single-game results still load directly into Analysis.
+- **History Analysis & Ownership Filters**: Game History can filter by analysis state (all, analyzed, unanalyzed, paused) and by ownership (all games, my games, other games). Both filters run in SQL with the stored analysis status, so counts, paging, and prefetch stay correct across large archives. History cards and drill-down rows now share one configurable mini-board renderer, and import thumbnails highlight the final move.
+
+### Bug Fixes
+
+- **Large PGN Files Froze the App**: Loading a multi-game PGN used to parse and materialise every game on the GUI thread. The import picker now indexes headers only, parses the selected game on demand, caps oversized files/text/game counts, reads PGN text with replacement characters, and runs file/drop indexing in a worker. A 17 MB file with thousands of games now opens without blocking the UI.
+
 ## v2.5.0 - AI Coach, Variations, Settings & Component Platform
 
 ### Features

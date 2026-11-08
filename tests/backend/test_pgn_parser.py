@@ -3,11 +3,17 @@ Tests for PGN Parser - parsing, source detection, edge cases.
 """
 
 import hashlib
+import threading
 
 import pytest
 
 from src.backend.storage.models import GameAnalysis
-from src.backend.storage.pgn_parser import PGNParser
+from src.backend.storage.pgn_parser import (
+    PGNFileTooLargeError,
+    PGNParser,
+    PGNParsingCancelledError,
+    PGNTooManyGamesError,
+)
 
 
 class TestPGNParsing:
@@ -290,3 +296,84 @@ class TestChess960Detection:
         pgn = '[Event "Test"]\n[Result "*"]\n\n1. e4 e5 *'
 
         assert PGNParser.parse_pgn_text(pgn)[0].metadata.chess960 is False
+
+
+class TestPGNIndex:
+    """Header-only indexing keeps the picker fast without changing game IDs."""
+
+    def test_indexed_game_text_matches_full_parse_identity(self):
+        pgn = (
+            '[Event "One"]\n[Site "https://lichess.org/aaaaaaaa"]\n'
+            '[White "A"]\n[Black "B"]\n[Result "1-0"]\n\n1. e4 e5 1-0\n\n'
+            '[Event "Two"]\n[White "C"]\n[Black "D"]\n[Result "0-1"]\n\n'
+            "1. d4 d5 0-1"
+        )
+
+        index = PGNParser.index_pgn_text(pgn)
+        sequential = PGNParser.parse_pgn_text(pgn)
+
+        assert len(index.games) == 2
+        assert [g.white for g in index.games] == ["A", "C"]
+        for position, parsed in enumerate(sequential):
+            indexed_game = PGNParser.parse_first_game(index.game_text(position))
+            assert indexed_game is not None
+            assert indexed_game.game_id == parsed.game_id
+            assert indexed_game.pgn_content == parsed.pgn_content
+
+    def test_index_handles_comments_before_headers(self):
+        pgn = (
+            "{comment before one}\n[Event \"One\"]\n[White \"A\"]\n"
+            "[Black \"B\"]\n[Result \"1-0\"]\n\n1. e4 e5 1-0\n\n"
+            "{between games}\n[Event \"Two\"]\n[White \"C\"]\n"
+            "[Black \"D\"]\n[Result \"0-1\"]\n\n1. d4 d5 0-1"
+        )
+
+        index = PGNParser.index_pgn_text(pgn)
+
+        assert [g.white for g in index.games] == ["A", "C"]
+        assert PGNParser.index_pgn_text("This is not a PGN").games == ()
+
+    def test_index_rejects_oversized_files_and_too_many_games(self, tmp_path):
+        path = tmp_path / "big.pgn"
+        path.write_text("[Event \"One\"]\n\n1. e4 e5 *", encoding="utf-8")
+
+        with pytest.raises(PGNFileTooLargeError):
+            PGNParser.index_pgn_file(str(path), max_bytes=5)
+
+        two_games = (
+            '[Event "One"]\n[White "A"]\n[Result "1-0"]\n\n1. e4 1-0\n\n'
+            '[Event "Two"]\n[White "B"]\n[Result "0-1"]\n\n1. d4 0-1'
+        )
+        with pytest.raises(PGNTooManyGamesError):
+            PGNParser.index_pgn_text(two_games, max_games=1)
+
+    def test_index_cancels_and_parse_first_game_skips_moveless_games(self):
+        cancel = threading.Event()
+        cancel.set()
+        with pytest.raises(PGNParsingCancelledError):
+            PGNParser.index_pgn_text("[Event \"One\"]\n\n1. e4 *", cancel=cancel)
+
+        pgn = (
+            '[Event "Empty"]\n[White "A"]\n[Result "*"]\n\n*\n\n'
+            '[Event "Real"]\n[White "B"]\n[Black "C"]\n[Result "1-0"]\n\n'
+            "1. e4 e5 1-0"
+        )
+        game = PGNParser.parse_first_game(pgn)
+
+        assert game is not None
+        assert game.metadata.white == "B"
+
+    def test_parse_game_stub_matches_full_identity_without_moves(self):
+        pgn = (
+            '[Event "One"]\n[White "A"]\n[Black "B"]\n[Result "1-0"]\n\n'
+            "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0"
+        )
+
+        full = PGNParser.parse_pgn_text(pgn)[0]
+        stub = PGNParser.parse_game_stub(pgn)
+
+        assert stub is not None
+        assert stub.game_id == full.game_id
+        assert stub.moves == []
+        assert stub.metadata.move_count == 3
+        assert stub.metadata.last_fen

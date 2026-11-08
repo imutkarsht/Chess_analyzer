@@ -387,6 +387,9 @@ class MainWindow(
         self.history_view.game_deleted.connect(self.on_history_changed)
         self.history_view.games_imported.connect(self.on_history_changed)
         self.history_view.history_cleared.connect(self.on_history_changed)
+        self.history_view.open_imported_game.connect(
+            self._on_imported_game_requested
+        )
         self.stack.addWidget(self.history_view)
 
         # --- Page 3: Metrics View ---

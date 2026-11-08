@@ -133,9 +133,19 @@ class GameHistoryManager:
         """Saves multiple game analyses or game dictionaries inside a single transaction."""
         return self._games_repo.save_games_bulk(items, force_overwrite=force_overwrite)
 
+    def save_unanalyzed_games_bulk(
+        self, games: list[GameAnalysis]
+    ) -> tuple[int, int]:
+        """Insert unanalyzed game stubs without overwriting existing rows."""
+        return self._games_repo.save_unanalyzed_games_bulk(games)
+
     def get_all_game_ids(self) -> set[str]:
         """Returns a set of all game IDs currently in the database."""
         return self._games_repo.get_all_game_ids()
+
+    def get_game_identity_keys(self) -> set[tuple[str, str, str, str]]:
+        """Cheap date/players/result keys used by import pickers."""
+        return self._games_repo.get_game_identity_keys()
 
     def get_all_games(self, limit: int | None = None) -> list[dict[str, Any]]:
         """Returns a list of all games (metadata + summary) sorted by timestamp desc."""

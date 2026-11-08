@@ -26,21 +26,19 @@ from src.gui.components import (
     InputSize,
     Label,
     PulsingSkeleton,
-    StatusBadge,
     Tabs,
     TabVariant,
     TextRole,
     TextTone,
 )
-from src.gui.components.feedback.toast import ToastHandle, ToastManager
+from src.gui.components.feedback.toast import ToastManager
+from src.gui.import_workspace import GameBatch
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.config import ConfigManager
 from src.utils.path_utils import get_resource_path
 
 from .api_worker import ApiWorker, register_worker, remove_worker
-from .helpers import game_row
-from .inline_game_list import InlineGameList
 
 try:
     import qtawesome as qta
@@ -166,12 +164,10 @@ _STATE_FORM = 0
 _STATE_LOADING = 1
 _STATE_ERROR = 2
 _STATE_EMPTY = 3
-_STATE_RESULTS = 4
 
 
 class OnlineFetchPanel(QWidget):
-    pgn_ready = pyqtSignal(str, object)
-    pending_cleared = pyqtSignal()
+    batch_ready = pyqtSignal(object)
     navigate_to_settings = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -179,9 +175,7 @@ class OnlineFetchPanel(QWidget):
         self.config_manager = ConfigManager()
         self.history_manager = GameHistoryManager()
         self.cache = ApiGameCache(self.history_manager)
-        self._parsed_games: list[GameInfo] = []
         self._worker: ApiWorker | None = None
-        self._fetch_toast: ToastHandle | None = None
         self._last_query: dict = {}
         self._setup_ui()
 
@@ -316,13 +310,12 @@ class OnlineFetchPanel(QWidget):
         controls.addLayout(card_row)
         controls.addStretch(1)
 
-        # One page at a time: form, loading, error, empty, or results.
+        # One page at a time: form, loading, error, or empty.
         self.state_stack = QStackedWidget()
         self.state_stack.addWidget(self.controls_widget)
         self.state_stack.addWidget(self._build_loading_state())
         self.state_stack.addWidget(self._build_error_state())
         self.state_stack.addWidget(self._build_empty_state())
-        self.state_stack.addWidget(self._build_results_state())
         self.state_stack.setCurrentIndex(_STATE_FORM)
         root.addWidget(self.state_stack, 1)
 
@@ -334,7 +327,9 @@ class OnlineFetchPanel(QWidget):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(8, 8, 8, 8)
-        self._skeleton = PulsingSkeleton("Fetching games…", " ")
+        self._skeleton = PulsingSkeleton(
+            "Fetching games…", " ", sections=()
+        )
         layout.addWidget(self._skeleton)
         layout.addStretch(1)
         return page
@@ -438,41 +433,6 @@ class OnlineFetchPanel(QWidget):
         layout.addStretch(1)
         return page
 
-    def _build_results_state(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
-
-        bar = QHBoxLayout()
-        bar.setContentsMargins(2, 0, 2, 0)
-        bar.setSpacing(10)
-        self._summary_label = Label(
-            "",
-            role=TextRole.CAPTION,
-            weight=500,
-            tone=TextTone.SECONDARY,
-        )
-        self._count_badge = StatusBadge("", "neutral", font_size=10)
-        change = Button(
-            "Change filters",
-            ButtonVariant.GHOST,
-            ButtonSize.SM,
-            on_click=self._show_filters,
-        )
-        bar.addWidget(self._summary_label)
-        bar.addWidget(self._count_badge)
-        bar.addStretch(1)
-        bar.addWidget(change)
-        layout.addLayout(bar)
-
-        self.game_list = InlineGameList()
-        self.game_list.setVisible(False)
-        self.game_list.game_chosen.connect(self._on_game_chosen)
-        self.game_list.cleared.connect(self._clear)
-        layout.addWidget(self.game_list, 1)
-        return page
-
     @staticmethod
     def _inline_state_qss() -> str:
         return "QFrame#InlineState { background: transparent; border: none; }"
@@ -506,10 +466,6 @@ class OnlineFetchPanel(QWidget):
         )
         self._empty_description.setStyleSheet(
             f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent;"
-        )
-        self._summary_label.setStyleSheet(
-            f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_SECONDARY};"
             " background: transparent;"
         )
         self._error_icon.set_icon("fa5s.exclamation-circle")
@@ -654,12 +610,6 @@ class OnlineFetchPanel(QWidget):
         self._skeleton.start()
         self._show_state(_STATE_LOADING)
 
-        platform_label = "Lichess" if platform == "lichess" else "Chess.com"
-        action = "game" if mode == "url" else "games"
-        self._fetch_toast = ToastManager.loading(
-            self, f"Fetching {action} from {platform_label}…"
-        )
-
         limit = clamp_games_limit(
             self.config_manager.get("api_games_limit", 20),
             current_token(self.config_manager),
@@ -718,27 +668,15 @@ class OnlineFetchPanel(QWidget):
 
         if not game_infos:
             self._show_state(_STATE_EMPTY)
-            self._finish_fetch_toast(
-                "No games found for that search.", "warning"
-            )
             return
 
-        self._parsed_games = game_infos
-        rows = [self._game_row(info) for info in game_infos]
-        count = len(game_infos)
-        self._summary_label.setText(self._query_summary())
-        self._count_badge.setText(f"{count} game" if count == 1 else f"{count} games")
-        self._count_badge.set_tone("accent")
-        self.game_list.populate(
-            rows,
-            "1 game ready to load:" if count == 1 else f"Select a game ({count} found):",
+        batch = GameBatch.from_game_infos(
+            game_infos,
+            self.history_manager.get_game_identity_keys(),
+            self._query_summary(),
         )
-        self.game_list.setVisible(True)
-        self._show_state(_STATE_RESULTS)
-        self._finish_fetch_toast(
-            "1 game ready to load." if count == 1 else f"Found {count} games.",
-            "success",
-        )
+        self._show_state(_STATE_FORM)
+        self.batch_ready.emit(batch)
 
     def _on_fetch_error(self, err_msg: str, worker: ApiWorker) -> None:
         if worker is not self._worker:
@@ -747,14 +685,6 @@ class OnlineFetchPanel(QWidget):
         message = str(err_msg or "The request failed.")
         self._error_message.setText(message)
         self._show_state(_STATE_ERROR)
-        self._finish_fetch_toast(f"Fetch failed: {message}", "error")
-
-    def _finish_fetch_toast(self, message: str, variant: str) -> None:
-        if self._fetch_toast is not None and self._fetch_toast.active:
-            self._fetch_toast.update(message, variant=variant)
-        else:
-            ToastManager.show(self, message, variant)
-        self._fetch_toast = None
 
     def _cancel_fetch(self, *, silent: bool = False, restore_form: bool = True) -> None:
         was_loading = self.state_stack.currentIndex() == _STATE_LOADING
@@ -763,26 +693,10 @@ class OnlineFetchPanel(QWidget):
             worker.cancel()
         self._worker = None
         self._finish_loading()
-        if self._fetch_toast is not None:
-            self._fetch_toast.dismiss()
-            self._fetch_toast = None
         if restore_form or was_loading:
             self._show_state(_STATE_FORM)
         if not silent:
             ToastManager.info(self, "Fetch cancelled.")
-
-    def _game_row(self, info: GameInfo) -> tuple[str, str]:
-        return game_row(
-            date=info.date,
-            time_class=info.time_class,
-            result=info.result,
-            moves=info.move_count,
-            white=info.white,
-            black=info.black,
-            white_elo=info.white_elo,
-            black_elo=info.black_elo,
-            opening=info.opening,
-        )
 
     def _query_summary(self) -> str:
         query = self._last_query
@@ -801,20 +715,11 @@ class OnlineFetchPanel(QWidget):
             )
         return f"{platform} · {username} · recent games"
 
-    def _on_game_chosen(self, index: int) -> None:
-        if 0 <= index < len(self._parsed_games):
-            info = self._parsed_games[index]
-            self.pgn_ready.emit(info.pgn, info.to_dict())
-
     def _clear(self) -> None:
         self._cancel_fetch(silent=True)
-        self._parsed_games = []
-        self.game_list.setVisible(False)
-        self.game_list.clear()
         self.url_input.clear()
         self._show_state(_STATE_FORM)
         self._on_platform_changed(self.platform_selector.value())
-        self.pending_cleared.emit()
 
     def deactivate(self) -> None:
         """Called when another dialog tab becomes active; keep entered values."""

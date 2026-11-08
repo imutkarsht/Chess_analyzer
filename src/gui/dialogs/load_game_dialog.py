@@ -4,7 +4,7 @@ Unified Load Game dialog.
 One modal for online fetches and local PGN files, with a shadcn-style shell:
 title + description, source tabs, content, and a sticky footer.
 """
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QDialog,
@@ -43,9 +43,6 @@ __all__ = [
 class LoadGameDialog(QDialog):
     """Load a game from Chess.com, Lichess, a PGN file, or pasted PGN text."""
 
-    # pgn_text: str, source_data: dict | None
-    game_ready = pyqtSignal(str, object)
-
     def __init__(self, parent=None, initial_source: int = SRC_PGN_FILE):
         super().__init__(parent)
         self.setWindowTitle("Load Game")
@@ -55,6 +52,7 @@ class LoadGameDialog(QDialog):
 
         self._already_accepted = False
         self._navigate_to_settings = False
+        self._pending_batch = None
         self._setup_ui()
         self._switch_source(initial_source)
 
@@ -82,10 +80,7 @@ class LoadGameDialog(QDialog):
         self.pages.setStyleSheet("background-color: transparent;")
 
         self._online_fetch_panel = OnlineFetchPanel(self)
-        self._online_fetch_panel.pgn_ready.connect(self._set_pending)
-        self._online_fetch_panel.pending_cleared.connect(
-            lambda: self._set_pending(None, None)
-        )
+        self._online_fetch_panel.batch_ready.connect(self._on_batch_ready)
         self._online_fetch_panel.navigate_to_settings.connect(
             self._on_navigate_to_settings
         )
@@ -94,9 +89,6 @@ class LoadGameDialog(QDialog):
 
         root.addWidget(self.pages, 1)
         root.addWidget(self._build_footer())
-
-        self._pending_pgn = None
-        self._pending_source_data = None
 
     def _build_header(self) -> QWidget:
         header = QWidget()
@@ -159,15 +151,9 @@ class LoadGameDialog(QDialog):
 
         self.pgn_stack = QStackedWidget()
         self._pgn_file_panel = PgnFilePanel(self)
-        self._pgn_file_panel.pgn_ready.connect(self._set_pending)
-        self._pgn_file_panel.pending_cleared.connect(
-            lambda: self._set_pending(None, None)
-        )
+        self._pgn_file_panel.batch_ready.connect(self._on_batch_ready)
         self._pgn_text_panel = PgnTextPanel(self)
-        self._pgn_text_panel.pgn_ready.connect(self._set_pending)
-        self._pgn_text_panel.pending_cleared.connect(
-            lambda: self._set_pending(None, None)
-        )
+        self._pgn_text_panel.batch_ready.connect(self._on_batch_ready)
         self.pgn_stack.addWidget(self._pgn_file_panel)
         self.pgn_stack.addWidget(self._pgn_text_panel)
         layout.addWidget(self.pgn_stack, 1)
@@ -193,16 +179,6 @@ class LoadGameDialog(QDialog):
         )
         cancel.setMinimumWidth(92)
         layout.addWidget(cancel)
-
-        self.btn_load = Button(
-            "Load game",
-            ButtonVariant.PRIMARY,
-            ButtonSize.MD,
-            on_click=self._on_load_clicked,
-        )
-        self.btn_load.setEnabled(False)
-        self.btn_load.setMinimumWidth(110)
-        layout.addWidget(self.btn_load)
         return footer
 
     # ------------------------------------------------------------------
@@ -225,7 +201,6 @@ class LoadGameDialog(QDialog):
         self.pgn_stack.setCurrentIndex(0 if mode == "file" else 1)
 
     def _switch_source(self, src_id: int) -> None:
-        self._set_pending(None, None)
         if src_id in (SRC_CHESSCOM, SRC_LICHESS):
             self.tabs.set_current_index(0)
             platform = "chesscom" if src_id == SRC_CHESSCOM else "lichess"
@@ -238,20 +213,13 @@ class LoadGameDialog(QDialog):
             self._on_pgn_mode_changed(mode)
 
     # ------------------------------------------------------------------
-    # Pending selection
+    # Batch handoff
     # ------------------------------------------------------------------
-    def _set_pending(self, pgn: str | None, source_data: dict | None) -> None:
-        self._pending_pgn = pgn
-        self._pending_source_data = source_data
-        self.btn_load.setEnabled(pgn is not None and pgn.strip() != "")
-
-    def _on_load_clicked(self) -> None:
+    def _on_batch_ready(self, batch) -> None:
         if self._already_accepted:
             return
-        if self._pending_pgn:
-            self._already_accepted = True
-            self.game_ready.emit(self._pending_pgn, self._pending_source_data)
-            self.accept()
+        self._pending_batch = batch
+        self.accept()
 
     # ------------------------------------------------------------------
     # Keyboard / lifecycle
@@ -259,8 +227,6 @@ class LoadGameDialog(QDialog):
     def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt override
         if event.key() == Qt.Key.Key_Escape:
             self.reject()
-        elif event.key() == Qt.Key.Key_Return and self.btn_load.isEnabled():
-            self._on_load_clicked()
         else:
             super().keyPressEvent(event)
 
@@ -280,3 +246,7 @@ class LoadGameDialog(QDialog):
     def _cleanup_workers(self) -> None:
         if hasattr(self, "_online_fetch_panel"):
             self._online_fetch_panel.deactivate()
+        if hasattr(self, "_pgn_file_panel"):
+            self._pgn_file_panel.shutdown()
+        if hasattr(self, "_pgn_text_panel"):
+            self._pgn_text_panel.shutdown()

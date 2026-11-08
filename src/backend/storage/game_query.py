@@ -19,6 +19,17 @@ RESULT_LOSS = "loss"
 RESULT_DRAW = "draw"
 _RESULTS = frozenset({RESULT_WIN, RESULT_LOSS, RESULT_DRAW})
 
+ANALYSIS_ANALYZED = "analyzed"
+ANALYSIS_UNANALYZED = "unanalyzed"
+ANALYSIS_PAUSED = "paused"
+ANALYSIS_FILTERS = frozenset(
+    {ANALYSIS_ANALYZED, ANALYSIS_UNANALYZED, ANALYSIS_PAUSED}
+)
+
+OWNERSHIP_MINE = "mine"
+OWNERSHIP_OTHER = "other"
+OWNERSHIP_FILTERS = frozenset({OWNERSHIP_MINE, OWNERSHIP_OTHER})
+
 SORTS: dict[str, str] = {
     "newest": "timestamp DESC, id DESC",
     "oldest": "timestamp ASC, id DESC",
@@ -34,6 +45,8 @@ class GameQuery:
 
     search: str = ""
     result: str = ""
+    analysis_status: str = ""
+    ownership: str = ""
     speed: str = ""
     source: str = ""
     sort: str = DEFAULT_SORT
@@ -95,6 +108,40 @@ def build_filters(query: GameQuery) -> tuple[str, dict[str, object]]:
                     f"OR (result = '1-0' AND LOWER(black) IN ({placeholders}))"
                 )
                 clauses.append(f"({win_sql if result == RESULT_WIN else loss_sql})")
+
+    analysis_status = (query.analysis_status or "").strip().lower()
+    if analysis_status in ANALYSIS_FILTERS:
+        if analysis_status == ANALYSIS_UNANALYZED:
+            clauses.append(
+                "COALESCE(analysis_status, '') IN ('not_started', 'unanalyzed')"
+            )
+        elif analysis_status == ANALYSIS_PAUSED:
+            clauses.append("analysis_status = 'paused'")
+        else:
+            # Missing status is legacy data and counts as analyzed; paused is
+            # deliberately excluded because it has its own filter.
+            clauses.append(
+                "COALESCE(analysis_status, '') "
+                "NOT IN ('not_started', 'unanalyzed', 'paused')"
+            )
+
+    ownership = (query.ownership or "").strip().lower()
+    if ownership in OWNERSHIP_FILTERS:
+        usernames = [u.strip().lower() for u in query.usernames if u and u.strip()]
+        if not usernames:
+            if ownership == OWNERSHIP_MINE:
+                clauses.append("0")
+        else:
+            for index, username in enumerate(usernames):
+                params[f"owner{index}"] = username
+            placeholders = ", ".join(f":owner{i}" for i in range(len(usernames)))
+            user_sql = (
+                f"(LOWER(white) IN ({placeholders}) "
+                f"OR LOWER(black) IN ({placeholders}))"
+            )
+            clauses.append(
+                user_sql if ownership == OWNERSHIP_MINE else f"NOT {user_sql}"
+            )
 
     where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
     return where, params

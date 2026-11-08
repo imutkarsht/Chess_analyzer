@@ -37,6 +37,7 @@ GAME_COLUMNS: tuple[str, ...] = (
     "black_great_count",
     "move_count",
     "last_fen",
+    "analysis_status",
     "pgn",
     "summary_json",
     "moves_json",
@@ -50,6 +51,9 @@ _GAME_COLS_SQL: str = ", ".join(GAME_COLUMNS)
 _GAME_PLACEHOLDERS_SQL: str = ", ".join(f":{c}" for c in GAME_COLUMNS)
 INSERT_GAME_SQL: str = (
     f"INSERT OR REPLACE INTO games ({_GAME_COLS_SQL}) VALUES ({_GAME_PLACEHOLDERS_SQL})"
+)
+INSERT_GAME_IGNORE_SQL: str = (
+    f"INSERT OR IGNORE INTO games ({_GAME_COLS_SQL}) VALUES ({_GAME_PLACEHOLDERS_SQL})"
 )
 
 # Light column projection excluding heavy blobs (pgn and moves_json) for fast list views
@@ -77,7 +81,7 @@ _API_CACHE_COLS_SQL: str = ", ".join(API_CACHE_COLUMNS)
 _API_CACHE_PLACEHOLDERS_SQL: str = ", ".join(["?"] * len(API_CACHE_COLUMNS))
 INSERT_API_CACHE_SQL: str = f"INSERT OR REPLACE INTO api_game_cache ({_API_CACHE_COLS_SQL}) VALUES ({_API_CACHE_PLACEHOLDERS_SQL})"
 
-CURRENT_SCHEMA_VERSION: int = 5
+CURRENT_SCHEMA_VERSION: int = 6
 EXPLORER_CACHE_TTL_SECONDS: float = DEFAULT_EXPLORER_CACHE_TTL_HOURS * 3600.0
 
 # Every table that stores user or cache data. The clear-all path and the

@@ -107,6 +107,7 @@ Forbidden edges:
 | `src/gui/analysis` | Analysis board, move list, coach, variations, live engine |
 | `src/gui/components` | Shared component library, grouped by responsibility |
 | `src/gui/dialogs` | Modal flows (load game, wizard, feedback, errors, updates) |
+| `src/gui/import_workspace` | Searchable multi-game import table hosted by History |
 | `src/gui/theme` | Palettes, tokens, motion, OS theme detection |
 | `src/gui/styles.py` | One QSS generator per control, driven by the live palette |
 | `src/utils` | Config, logging, paths, resources, secrets |
@@ -138,12 +139,23 @@ Forbidden edges:
 
 ### Import (Chess.com, Lichess, PGN, CSV)
 
-1. `LoadGameDialog` hosts the panels in `gui/dialogs/load_game/`.
-2. `ApiWorker` runs the request off the UI thread.
-3. `ChessComAPI` / `LichessAPI` normalise results into `GameInfo` and
-   `GameAnalysis`.
-4. `PGNParser` handles files and pasted text; `GameImportWorker` handles CSV.
-5. Results are persisted through `GameHistoryManager` → `GamesRepo` / caches.
+1. `LoadGameDialog` hosts the source panels in `gui/dialogs/load_game/`.
+2. `ApiWorker` fetches online games; `PgnIndexWorker` indexes PGN headers
+   and dropped files. Both run off the UI thread.
+3. `PGNParser.index_pgn_file()` / `index_pgn_text()` store header summaries
+   and offsets only; no game is fully converted just to render the picker.
+4. A source result with one game loads directly into Analysis. A multi-game
+   result becomes a `GameBatch` and opens the History-hosted
+   `GameImportView` (`gui/import_workspace/`).
+5. `GameImportView` handles search, perspective/colour/result/time/history
+   filters, saved-game badges, lazy board thumbnails, and selection. Table
+   thumbs come from the shared cached `render_mini_board_pixmap()`; History
+   cards and drill-down rows use the same renderer through
+   `MiniBoardWidget`.
+6. `GameImportWorker` parses selected games with `PGNParser.parse_game_stub()`
+   and persists them through `GameHistoryManager.save_unanalyzed_games_bulk()`
+   using `INSERT OR IGNORE`, preserving existing analyzed rows.
+7. CSV import remains in `HistoryView` via its own `GameImportWorker`.
 
 ### AI move explanation
 
@@ -179,8 +191,11 @@ Forbidden edges:
 
 ### History
 
-1. `HistoryView` builds a `GameQuery` from debounced filters.
-2. `GamesRepo` returns one page (`10` detailed / `15` compact).
+1. `HistoryView` builds a `GameQuery` from debounced search, result, speed,
+   source, analysis-status, ownership, and sort controls.
+2. `GamesRepo` applies those filters in SQL and returns one page (`10` detailed
+   / `15` compact); `analysis_status` is stored as a denormalised column so
+   status filtering does not parse `summary_json` per row.
 3. After the page renders, an idle timer prefetches the next page so scrolling
    feels instant.
 4. `PaginationBar` and `GameListWidget` share the paging state.
@@ -437,6 +452,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `board/board.py` | The single configurable board used everywhere | `Board`, `BoardConfig` |
+| `board/mini_board.py` | Shared mini-board widget and cached pixmap renderer | `MiniBoardConfig`, `MiniBoardWidget`, `render_mini_board_pixmap` |
 | `board/board_panel.py` | Board with captured rows and clocks | `BoardPanel` |
 | `board/board_game_header.py` | Matchup header hugging the board width | `BoardGameHeader` |
 | `board/eval_bar.py` | Evaluation bar | `EvalBarWidget` |
@@ -543,10 +559,9 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `load_game/pgn_file_panel.py` | PGN file panel | `PgnFilePanel` |
 | `load_game/pgn_text_panel.py` | PGN text panel | `PgnTextPanel` |
 | `load_game/api_worker.py` | Off-thread API fetch | `ApiWorker` |
-| `load_game/inline_game_list.py` | Inline results list | `InlineGameList` |
-| `load_game/game_card.py` | Result card | `GameCard` |
+| `load_game/pgn_worker.py` | Off-thread PGN header indexing | `PgnIndexWorker` |
 | `load_game/drop_zone.py` | File drop zone | `DropZone` |
-| `load_game/helpers.py` | Shared helpers | — |
+| `load_game/helpers.py` | Shared source helpers | — |
 | `setup_wizard.py` | First-run wizard and engine/LLM test workers | `SetupWizard` |
 | `wizard/wizard_pages.py` | Wizard pages | — |
 | `wizard/wizard_nav_bar.py` | Step indicator | `WizardNavBar` |
@@ -558,6 +573,25 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `game_selection_dialog.py` | Multi-game selection | `GameSelectionDialog` |
 | `update_dialog.py` | Release notes and download | `UpdateNotificationDialog` |
 | `splash_screen.py` | Branded startup splash | `SplashScreen` |
+
+</details>
+
+### `src/gui/import_workspace`
+
+<details>
+<summary>Multi-game import workspace hosted by History</summary>
+
+| File | Purpose | Key symbols |
+| --- | --- | --- |
+| `header.py` | Back navigation, source summary, counters | `ImportHeader` |
+| `toolbar.py` | Search, result/colour/time/history filters, board toggle | `ImportToolbar` |
+| `action_bar.py` | Selection summary, progress, open/add actions | `ImportActionBar` |
+| `batch.py` | Source-independent candidates and batches | `GameBatch`, `GameCandidate` |
+| `model.py` | Virtualized table and filter proxy | `GameImportTableModel`, `GameImportFilterProxy` |
+| `view.py` | Workspace orchestration and table composition | `GameImportView` |
+| `delegates.py` | Checkbox, board, and status-pill painting | `CheckboxDelegate`, `BoardDelegate`, `StatusPillDelegate` |
+| `boards.py` | Visible-row FEN and last-move enrichment | `MiniBoardFenWorker`, `MiniBoardPosition` |
+| `worker.py` | Bulk unanalyzed game insertion | `GameImportWorker` |
 
 </details>
 

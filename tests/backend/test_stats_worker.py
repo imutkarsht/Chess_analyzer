@@ -39,6 +39,37 @@ def make_dummy_game(
     }
 
 
+def test_stats_exclude_unanalyzed_games():
+    analyzed = make_dummy_game(
+        "analyzed",
+        summary=json.dumps(
+            {
+                "analysis_status": "completed",
+                "analyzed_moves": 10,
+                "white": {"accuracy": 80.0, "Blunder": 0},
+            }
+        ),
+    )
+    unanalyzed = make_dummy_game(
+        "unanalyzed",
+        summary=json.dumps(
+            {
+                "analysis_status": "not_started",
+                "analyzed_moves": 0,
+                "total_moves": 10,
+            }
+        ),
+    )
+
+    stats = MetricsAggregator.calculate_stats(
+        [analyzed, unanalyzed], ["PlayerA"]
+    )
+
+    assert stats["total"] == 1
+    assert stats["clean_games"] == 1
+    assert stats["win_rate"] == 100.0
+
+
 def test_stats_worker_color_filter():
     """Test filtering games by user color."""
     games = [

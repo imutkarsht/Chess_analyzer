@@ -3,12 +3,18 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.backend.storage.game_query import (
+    ANALYSIS_ANALYZED,
+    ANALYSIS_PAUSED,
+    ANALYSIS_UNANALYZED,
+    OWNERSHIP_MINE,
+    OWNERSHIP_OTHER,
     RESULT_DRAW,
     RESULT_LOSS,
     RESULT_WIN,
@@ -25,6 +31,7 @@ from src.gui.components import (
 )
 from src.gui.components.feedback.toast import ToastHandle, ToastManager
 from src.gui.components.lists.game_list_widget import GameListWidget
+from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
 from src.gui.utils.gui_utils import create_button
@@ -78,6 +85,7 @@ class HistoryView(QWidget):
     game_deleted = pyqtSignal(str)
     games_imported = pyqtSignal(int)
     history_cleared = pyqtSignal()
+    open_imported_game = pyqtSignal(str, object)
 
     def __init__(self, config_manager=None):
         super().__init__()
@@ -103,6 +111,16 @@ class HistoryView(QWidget):
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
+
+        self.page_stack = QStackedWidget()
+        self.page_stack.setStyleSheet("background: transparent;")
+        self.layout.addWidget(self.page_stack)
+
+        self.history_page = QWidget()
+        Styles.apply_background(self.history_page)
+        history_page_layout = QVBoxLayout(self.history_page)
+        history_page_layout.setContentsMargins(0, 0, 0, 0)
+        history_page_layout.setSpacing(0)
 
         # Header Bar Container
         self.header_bar = QFrame()
@@ -134,7 +152,7 @@ class HistoryView(QWidget):
         )
         header_layout.addWidget(self.btn_refresh)
 
-        self.layout.addWidget(self.header_bar)
+        history_page_layout.addWidget(self.header_bar)
 
         # Content Container Widget
         self.content_widget = QWidget()
@@ -153,16 +171,14 @@ class HistoryView(QWidget):
             variant=InputVariant.SEARCH,
             clearable=True,
         )
-        self.search_input.setMinimumWidth(240)
-        # A search field is a fixed column, not the flexible one: the filters
-        # need the remaining width more than the text box does.
-        self.search_input.setMaximumWidth(420)
+        self.search_input.setMinimumWidth(120)
+        # A search field is the flexible column: the filters keep their compact
+        # widths and a trailing stretch pins Sort to the right edge.
+        self.search_input.setMaximumWidth(380)
         self.search_input.textChanged.connect(
             lambda *_: self._filter_debounce.call(self.apply_filters)
         )
         filter_layout.addWidget(self.search_input, 1)
-
-        filter_layout.addSpacing(10)
 
         def _filter_label(text: str) -> Label:
             # A Preferred label policy lets the row's spare width stretch the
@@ -178,7 +194,7 @@ class HistoryView(QWidget):
         self.result_filter = Select(
             ["All", "Wins", "Losses", "Draws"], on_change=self.apply_filters
         )
-        self.result_filter.setFixedWidth(100)
+        self.result_filter.setFixedWidth(95)
         filter_layout.addWidget(self.result_filter)
 
         # Type / Speed Category Filter
@@ -189,7 +205,7 @@ class HistoryView(QWidget):
             ["All", "Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet"],
             on_change=self.apply_filters,
         )
-        self.type_filter.setFixedWidth(110)
+        self.type_filter.setFixedWidth(100)
         filter_layout.addWidget(self.type_filter)
 
         # Source Filter
@@ -199,12 +215,35 @@ class HistoryView(QWidget):
         self.source_filter = Select(
             ["All", "Chess.com", "Lichess", "File"], on_change=self.apply_filters
         )
-        self.source_filter.setFixedWidth(110)
+        self.source_filter.setFixedWidth(100)
         filter_layout.addWidget(self.source_filter)
 
+        # Analysis State Filter
+        self.analysis_label = _filter_label("Analysis:")
+        filter_layout.addWidget(self.analysis_label)
+
+        self.analysis_filter = Select(
+            ["All", "Analyzed", "Unanalyzed", "Paused"],
+            on_change=self.apply_filters,
+        )
+        self.analysis_filter.setFixedWidth(110)
+        filter_layout.addWidget(self.analysis_filter)
+
+        # Ownership Filter
+        self.ownership_label = _filter_label("Games:")
+        filter_layout.addWidget(self.ownership_label)
+
+        self.ownership_filter = Select(
+            ["All games", "My games", "Other games"],
+            on_change=self.apply_filters,
+        )
+        self.ownership_filter.setFixedWidth(110)
+        filter_layout.addWidget(self.ownership_filter)
+
+        # Keep the filters grouped together instead of spreading the spare
+        # width between every label and dropdown.
         filter_layout.addStretch()
 
-        # Sort Dropdown
         self.sort_label = _filter_label("Sort:")
         filter_layout.addWidget(self.sort_label)
 
@@ -226,10 +265,33 @@ class HistoryView(QWidget):
         content_layout.addWidget(self.game_list)
         self.apply_default_view_mode()
 
-        self.layout.addWidget(self.content_widget)
+        history_page_layout.addWidget(self.content_widget)
+
+        self.import_view = GameImportView()
+        self.import_view.back_requested.connect(self.close_import_workspace)
+        self.import_view.open_game_requested.connect(self.open_imported_game.emit)
+        self.import_view.games_added.connect(self._on_import_games_added)
+        self.page_stack.addWidget(self.history_page)
+        self.page_stack.addWidget(self.import_view)
+        self.page_stack.setCurrentWidget(self.history_page)
 
         # Load initial data
         self.load_history()
+
+    def show_import_workspace(self, batch: GameBatch) -> None:
+        """Show a fetched/indexed batch in the import workspace."""
+        self.import_view.set_batch(batch)
+        self.page_stack.setCurrentWidget(self.import_view)
+
+    def close_import_workspace(self) -> None:
+        """Return to the normal history list and release the batch."""
+        self.import_view.clear()
+        self.page_stack.setCurrentWidget(self.history_page)
+        self.load_history()
+
+    def _on_import_games_added(self, inserted: int, _skipped: int) -> None:
+        if inserted:
+            self.games_imported.emit(inserted)
 
     def _create_icon_button(self, text, icon_name, callback, danger=False):
         """Create a Button with a themed icon."""
@@ -284,6 +346,15 @@ class HistoryView(QWidget):
             "Draws": RESULT_DRAW,
         }
         source_map = {"Chess.com": "chesscom", "Lichess": "lichess", "File": "file"}
+        analysis_map = {
+            "Analyzed": ANALYSIS_ANALYZED,
+            "Unanalyzed": ANALYSIS_UNANALYZED,
+            "Paused": ANALYSIS_PAUSED,
+        }
+        ownership_map = {
+            "My games": OWNERSHIP_MINE,
+            "Other games": OWNERSHIP_OTHER,
+        }
         sort_map = {
             "Newest First": "newest",
             "Oldest First": "oldest",
@@ -294,6 +365,12 @@ class HistoryView(QWidget):
         return GameQuery(
             search=self.search_input.text().strip().lower(),
             result=result_map.get(self.result_filter.currentText(), ""),
+            analysis_status=analysis_map.get(
+                self.analysis_filter.currentText(), ""
+            ),
+            ownership=ownership_map.get(
+                self.ownership_filter.currentText(), ""
+            ),
             speed="" if type_text == "All" else type_text,
             source=source_map.get(self.source_filter.currentText(), ""),
             sort=sort_map.get(self.sort_dropdown.currentText(), "newest"),
@@ -526,6 +603,17 @@ class HistoryView(QWidget):
             Styles.apply_background(self.content_widget)
         if hasattr(self, "search_input"):
             self.search_input.refresh_styles()
+        for name in (
+            "result_filter",
+            "type_filter",
+            "source_filter",
+            "analysis_filter",
+            "ownership_filter",
+            "sort_dropdown",
+        ):
+            widget = getattr(self, name, None)
+            if widget is not None:
+                widget.refresh_styles()
         if hasattr(self, "btn_import"):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):
@@ -536,3 +624,5 @@ class HistoryView(QWidget):
             self.btn_refresh.refresh_styles()
         if hasattr(self, "game_list"):
             self.game_list.refresh_styles()
+        if hasattr(self, "import_view"):
+            self.import_view.refresh_styles()

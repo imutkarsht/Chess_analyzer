@@ -1,9 +1,13 @@
 import hashlib
 import io
+import os
 import re
+import threading
+from dataclasses import dataclass
 
 import chess.pgn
 
+from src.constants import MAX_PGN_FILE_BYTES, MAX_PGN_GAMES
 from src.utils.logger import logger
 
 from .models import GameAnalysis, GameMetadata, MoveAnalysis
@@ -22,6 +26,16 @@ _LICHESS_SITE_RE = re.compile(
     r'([A-Za-z0-9]{8,12})(?:/(?:white|black))?/?(?:[?#][^"]*)?"\]$'
 )
 
+_MOVE_NUMBER_RE = re.compile(r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]")
+
+
+def move_count_from_pgn(pgn: str | None) -> int | None:
+    """Cheap full-move count from PGN move numbers, without parsing SAN."""
+    if not pgn:
+        return None
+    numbers = [int(n) for n in _MOVE_NUMBER_RE.findall(pgn) if int(n) <= 500]
+    return max(numbers) if numbers else None
+
 
 def normalize_lichess_site_for_id(pgn: str) -> str:
     """Normalize the Lichess Site header before deriving a game ID."""
@@ -32,6 +46,119 @@ def looks_like_pgn(text: str | None) -> bool:
     """Cheap entry-point check before invoking the full PGN parser."""
     stripped = (text or "").strip()
     return bool(stripped) and ("[Event" in stripped or "1." in stripped)
+
+
+class PGNImportError(Exception):
+    """A PGN import failed for a reason that can be shown to the user."""
+
+
+class PGNFileTooLargeError(PGNImportError):
+    def __init__(self, size_bytes: int, limit_bytes: int):
+        self.size_bytes = size_bytes
+        self.limit_bytes = limit_bytes
+        super().__init__("PGN file exceeds the size limit.")
+
+
+class PGNTooManyGamesError(PGNImportError):
+    def __init__(self, game_count: int, limit: int):
+        self.game_count = game_count
+        self.limit = limit
+        super().__init__("PGN file contains too many games.")
+
+
+class PGNParsingCancelledError(PGNImportError):
+    """Raised when the caller cancels indexing."""
+
+
+@dataclass(frozen=True)
+class PGNGameSummary:
+    """Header-only game record used by the import picker."""
+
+    index: int
+    start: int
+    end: int
+    white: str
+    black: str
+    date: str
+    result: str
+    time_control: str
+    white_elo: str | None
+    black_elo: str | None
+    event: str
+    opening: str | None
+    eco: str | None
+    termination: str | None
+    variant: str | None
+    white_rating_diff: str | None
+    black_rating_diff: str | None
+    move_count: int | None
+
+
+@dataclass(frozen=True)
+class PGNIndex:
+    """The source text plus header summaries; no move data is materialised."""
+
+    text: str
+    games: tuple[PGNGameSummary, ...]
+
+    def game_text(self, index: int) -> str:
+        game = self.games[index]
+        return self.text[game.start:game.end]
+
+
+def _skip_leading_comments(handle: io.StringIO) -> bool:
+    """Position the handle at the next game, skipping file-level comments.
+
+    ``chess.pgn.read_headers()`` mishandles a braced comment that appears
+    before headers: it returns empty headers and leaves the movetext behind.
+    Skipping comments here keeps game boundaries and headers intact.
+    """
+    while True:
+        start = handle.tell()
+        line = handle.readline()
+        if not line:
+            return False
+        stripped = line.strip()
+        if not stripped or stripped.startswith((";", "%")):
+            continue
+        if stripped.startswith("{"):
+            remainder = line[line.find("{"):]
+            while "}" not in remainder:
+                remainder = handle.readline()
+                if not remainder:
+                    return False
+            continue
+        handle.seek(start)
+        return True
+
+
+def _summary_from_headers(
+    headers: chess.pgn.Headers,
+    start: int,
+    end: int,
+    index: int,
+    move_count: int | None,
+) -> PGNGameSummary:
+    return PGNGameSummary(
+        index=index,
+        start=start,
+        end=end,
+        white=headers.get("White", "?"),
+        black=headers.get("Black", "?"),
+        date=headers.get("Date", "?"),
+        result=headers.get("Result", "*"),
+        time_control=headers.get("TimeControl", ""),
+        white_elo=headers.get("WhiteElo"),
+        black_elo=headers.get("BlackElo"),
+        event=headers.get("Event", "?"),
+        opening=headers.get("Opening"),
+        eco=headers.get("ECO"),
+        termination=headers.get("Termination"),
+        variant=headers.get("Variant"),
+        white_rating_diff=headers.get("WhiteRatingDiff"),
+        black_rating_diff=headers.get("BlackRatingDiff"),
+        move_count=move_count,
+    )
 
 
 def _parse_clk(comment: str | None) -> tuple[str | None, float | None]:
@@ -66,6 +193,94 @@ def _parse_clk(comment: str | None) -> tuple[str | None, float | None]:
 
 
 class PGNParser:
+    @staticmethod
+    def index_pgn_text(
+        text: str,
+        *,
+        max_games: int = MAX_PGN_GAMES,
+        cancel: threading.Event | None = None,
+    ) -> PGNIndex:
+        """Index game headers without converting moves to MoveAnalysis."""
+        logger.debug("Indexing PGN text (%d chars)", len(text))
+        handle = io.StringIO(text)
+        games: list[PGNGameSummary] = []
+        while _skip_leading_comments(handle):
+            if cancel is not None and cancel.is_set():
+                raise PGNParsingCancelledError()
+            start = handle.tell()
+            headers = chess.pgn.read_headers(handle)
+            end = handle.tell()
+            if headers is None:
+                break
+            if end <= start:
+                # Defensive: malformed input must never spin forever.
+                handle.readline()
+                continue
+            chunk = text[start:end]
+            if not headers and not looks_like_pgn(chunk):
+                continue
+            if len(games) >= max_games:
+                raise PGNTooManyGamesError(len(games) + 1, max_games)
+            games.append(
+                _summary_from_headers(
+                    headers,
+                    start,
+                    end,
+                    len(games),
+                    move_count_from_pgn(chunk),
+                )
+            )
+        logger.debug("Indexed %d game(s) from PGN text", len(games))
+        return PGNIndex(text=text, games=tuple(games))
+
+    @staticmethod
+    def index_pgn_file(
+        file_path: str,
+        *,
+        max_bytes: int = MAX_PGN_FILE_BYTES,
+        max_games: int = MAX_PGN_GAMES,
+        cancel: threading.Event | None = None,
+    ) -> PGNIndex:
+        """Read a PGN once and index its headers in memory."""
+        try:
+            size = os.path.getsize(file_path)
+        except OSError as exc:
+            raise PGNImportError("Could not read this PGN file.") from exc
+        logger.debug(
+            "Indexing PGN file: %s (%.1f MB)", file_path, size / (1024 * 1024)
+        )
+        if size > max_bytes:
+            raise PGNFileTooLargeError(size, max_bytes)
+        try:
+            with open(file_path, encoding="utf-8", errors="replace") as handle:
+                text = handle.read()
+        except OSError as exc:
+            raise PGNImportError("Could not read this PGN file.") from exc
+        except MemoryError as exc:
+            raise PGNImportError("This PGN is too large to process.") from exc
+        if cancel is not None and cancel.is_set():
+            raise PGNParsingCancelledError()
+        index = PGNParser.index_pgn_text(
+            text, max_games=max_games, cancel=cancel
+        )
+        logger.info(
+            "Indexed %d game(s) from %s", len(index.games), file_path
+        )
+        return index
+
+    @staticmethod
+    def parse_first_game(text: str) -> GameAnalysis | None:
+        """Parse the first game that actually contains moves."""
+        handle = io.StringIO(text)
+        while _skip_leading_comments(handle):
+            game = chess.pgn.read_game(handle)
+            if game is None:
+                break
+            if game.next() is None:
+                continue
+            return PGNParser._convert_to_game_analysis(game)
+        return None
+
     @staticmethod
     def parse_pgn_file(file_path: str) -> list[GameAnalysis]:
         logger.info("Parsing PGN file: %s", file_path)
@@ -104,7 +319,7 @@ class PGNParser:
         return games
 
     @staticmethod
-    def _convert_to_game_analysis(game: chess.pgn.Game) -> GameAnalysis:
+    def _metadata_from_game(game: chess.pgn.Game) -> tuple[GameMetadata, dict[str, str]]:
         headers = dict(game.headers)
         metadata = GameMetadata(
             white=headers.get("White", "?"),
@@ -122,7 +337,6 @@ class PGNParser:
             starting_fen=headers.get("FEN"),  # If started from position
         )
 
-        # Infer source from Site header if present
         site = headers.get("Site", "").lower()
         if "chess.com" in site:
             metadata.source = "chesscom"
@@ -131,7 +345,6 @@ class PGNParser:
         else:
             metadata.source = "file"
 
-        moves = []
         board = game.board()
         # python-chess reads Variant/FEN headers internally and creates the
         # correct board type.  Use board.chess960 as the single source of truth.
@@ -147,6 +360,42 @@ class PGNParser:
                     castling = fen_parts[2]
                     if any(c not in "KQkq-" for c in castling):
                         metadata.chess960 = True
+        metadata.speed_category = PGNParser.detect_speed_category(
+            metadata.time_control, metadata.event
+        )
+        return metadata, headers
+
+    @staticmethod
+    def parse_game_stub(text: str) -> GameAnalysis | None:
+        """Parse metadata and canonical identity without per-move analysis."""
+        handle = io.StringIO(text)
+        while _skip_leading_comments(handle):
+            game = chess.pgn.read_game(handle)
+            if game is None:
+                break
+            if game.next() is None:
+                continue
+            metadata, _headers = PGNParser._metadata_from_game(game)
+            final_board = game.end().board()
+            metadata.move_count = (len(final_board.move_stack) + 1) // 2
+            metadata.last_fen = final_board.fen()
+            pgn_content = str(game)
+            game_id = hashlib.md5(
+                normalize_lichess_site_for_id(pgn_content).encode("utf-8")
+            ).hexdigest()
+            return GameAnalysis(
+                game_id=game_id,
+                metadata=metadata,
+                moves=[],
+                pgn_content=pgn_content,
+            )
+        return None
+
+    @staticmethod
+    def _convert_to_game_analysis(game: chess.pgn.Game) -> GameAnalysis:
+        metadata, headers = PGNParser._metadata_from_game(game)
+        moves = []
+        board = game.board()
         # Track per-side running clock so we can compute time_spent.
         # chess.com PGN: [%clk H:MM:SS.s] on every move. We compute the delta
         # between consecutive clocks of the same side to derive time_spent.
@@ -231,11 +480,6 @@ class PGNParser:
             )
             moves.append(move_analysis)
             board.push(move)
-
-        # Detect speed category (Bullet, Blitz, Rapid, Classical, UltraBullet)
-        metadata.speed_category = PGNParser._detect_speed_category(
-            metadata.time_control, metadata.event
-        )
 
         # Detect termination mode and human-readable description
         term_mode, term_desc = TerminationDetector.detect_termination(

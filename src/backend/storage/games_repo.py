@@ -4,7 +4,6 @@ Repository for chess game analysis persistence, querying, and hydration.
 
 import hashlib
 import json
-import re
 import sqlite3
 import time
 import uuid
@@ -12,11 +11,16 @@ from collections import Counter
 from typing import Any
 
 from src.backend.storage.db_connection import get_db_connection
+from src.backend.storage.game_identity import game_identity_key
 from src.backend.storage.game_query import GameQuery, build_filters, build_order_by
 from src.backend.storage.models import GameAnalysis
-from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
+from src.backend.storage.pgn_parser import (
+    move_count_from_pgn,
+    normalize_lichess_site_for_id,
+)
 from src.backend.storage.schema_constants import (
     _LIGHT_GAME_COLS_SQL,
+    INSERT_GAME_IGNORE_SQL,
     INSERT_GAME_SQL,
 )
 from src.utils.logger import logger
@@ -50,21 +54,6 @@ def _make_game_id(pgn: str | None) -> str:
     return str(uuid.uuid4())
 
 
-_MOVE_NUMBER_RE = re.compile(r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]")
-
-
-def _move_count_from_pgn(pgn: str | None) -> int | None:
-    """Full-move count parsed from PGN move numbers.
-
-    Used for imported games that arrive as PGN text without a move list, so the
-    list can show and sort by move count without a full PGN parse.
-    """
-    if not pgn:
-        return None
-    numbers = [int(n) for n in _MOVE_NUMBER_RE.findall(pgn) if int(n) <= 500]
-    return max(numbers) if numbers else None
-
-
 def _fen_after_move(fen_before: str | None, uci: str | None, chess960: bool = False) -> str | None:
     """Return the FEN after ``uci`` played from ``fen_before``.
 
@@ -81,6 +70,42 @@ def _fen_after_move(fen_before: str | None, uci: str | None, chess960: bool = Fa
         return board.fen()
     except (ValueError, AssertionError):
         return None
+
+
+def _normalize_analysis_status(
+    summary: dict[str, Any], moves_json: str
+) -> str | None:
+    """Return the filterable status for externally supplied game rows.
+
+    Missing status is left as ``None``: legacy rows without a summary are
+    treated as analyzed, matching the metrics dashboard.
+    """
+    status = str(summary.get("analysis_status") or "").strip().lower()
+    if status in ("not_started", "unanalyzed", "paused", "completed"):
+        return status
+
+    analyzed = _to_int_or_none(summary.get("analyzed_moves"))
+    total = _to_int_or_none(summary.get("total_moves"))
+    if analyzed is None and moves_json:
+        try:
+            moves_data = json.loads(moves_json)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            moves_data = []
+        if isinstance(moves_data, list) and moves_data:
+            total = len(moves_data)
+            analyzed = sum(
+                1
+                for move in moves_data
+                if isinstance(move, dict) and move.get("classification")
+            )
+
+    if analyzed is None:
+        return None
+    if analyzed <= 0:
+        return "not_started"
+    if total and analyzed < total:
+        return "paused"
+    return "completed"
 
 
 def _enrich_summary_with_tactics(
@@ -172,6 +197,14 @@ class GamesRepo:
 
         moves_data = [m.to_dict() for m in game_analysis.moves]
         moves_json = json.dumps(moves_data)
+        move_count = (
+            (len(game_analysis.moves) + 1) // 2
+            if game_analysis.moves
+            else (
+                game_analysis.metadata.move_count
+                or move_count_from_pgn(pgn_content)
+            )
+        )
 
         speed_category = game_analysis.metadata.speed_category or "Blitz"
         summary_dict = (
@@ -179,7 +212,7 @@ class GamesRepo:
         )
         summary_dict["analysis_status"] = game_analysis.status
         summary_dict["analyzed_moves"] = game_analysis.analyzed_moves_count
-        summary_dict["total_moves"] = game_analysis.total_moves_count
+        summary_dict["total_moves"] = move_count or 0
 
         summary_dict, tactics_white, tactics_black = _enrich_summary_with_tactics(
             summary_dict,
@@ -251,11 +284,7 @@ class GamesRepo:
             "black_brilliant_count": b_counts.get("Brilliant", 0),
             "white_great_count": w_counts.get("Great", 0),
             "black_great_count": b_counts.get("Great", 0),
-            "move_count": (
-                (len(game_analysis.moves) + 1) // 2
-                if game_analysis.moves
-                else _move_count_from_pgn(pgn_content)
-            ),
+            "move_count": move_count,
             "last_fen": (
                 _fen_after_move(
                     game_analysis.moves[-1].fen_before,
@@ -263,8 +292,9 @@ class GamesRepo:
                     chess960=bool(game_analysis.metadata.chess960),
                 )
                 if game_analysis.moves
-                else None
+                else game_analysis.metadata.last_fen
             ),
+            "analysis_status": game_analysis.status,
             "pgn": pgn_content,
             "summary_json": summary_json,
             "moves_json": moves_json,
@@ -348,7 +378,7 @@ class GamesRepo:
                         parsed_moves[-1].get("uci"),
                     )
         if move_count is None:
-            move_count = _move_count_from_pgn(pgn)
+            move_count = move_count_from_pgn(pgn)
 
         phase_accs: dict[str, dict[str, float | None]] = {
             "white": {"opening": None, "middlegame": None, "endgame": None},
@@ -423,6 +453,9 @@ class GamesRepo:
             "black_great_count": _to_int(d.get("black_great_count")),
             "move_count": move_count,
             "last_fen": last_fen,
+            "analysis_status": _normalize_analysis_status(
+                summary_dict, moves_json
+            ),
             "pgn": pgn,
             "summary_json": summary_json,
             "moves_json": moves_json,
@@ -509,6 +542,25 @@ class GamesRepo:
             logger.error("Failed to execute save_games_bulk: %s", e)
             return 0
 
+    def save_unanalyzed_games_bulk(
+        self, games: list[GameAnalysis]
+    ) -> tuple[int, int]:
+        """Insert stubs without an analysis pass; existing rows are untouched."""
+        if not games:
+            return 0, 0
+        rows = [
+            self._prepare_game_analysis_row(
+                game, game.pgn_content or ""
+            )
+            for game in games
+        ]
+        with self._get_connection() as conn:
+            before = conn.total_changes
+            conn.executemany(INSERT_GAME_IGNORE_SQL, rows)
+            conn.commit()
+            inserted = conn.total_changes - before
+        return inserted, len(rows) - inserted
+
     def save_game(
         self,
         game_analysis: GameAnalysis,
@@ -543,6 +595,18 @@ class GamesRepo:
                 return {row[0] for row in cursor.fetchall()}
         except Exception as e:
             logger.error("Failed to fetch game IDs: %s", e)
+            return set()
+
+    def get_game_identity_keys(self) -> set[tuple[str, str, str, str]]:
+        """Return cheap date/players/result keys for 'already in history'."""
+        try:
+            with self._get_connection() as conn:
+                rows = conn.execute(
+                    "SELECT date, white, black, result FROM games"
+                ).fetchall()
+            return {game_identity_key(*row) for row in rows}
+        except Exception as e:
+            logger.error("Failed to fetch game identity keys: %s", e)
             return set()
 
     def get_all_games(self, limit: int | None = None) -> list[dict[str, Any]]:
@@ -777,22 +841,27 @@ class GamesRepo:
             except Exception as e:
                 logger.error("Failed to parse pgn: %s", e)
 
-        if not metadata.termination_mode:
-            term_mode, term_desc = TerminationDetector.detect_termination(
-                headers={
-                    "Result": metadata.result,
-                    "White": metadata.white,
-                    "Black": metadata.black,
-                    "Termination": metadata.termination or "",
-                },
-                moves=moves,
-                starting_fen=metadata.starting_fen,
-                chess960=metadata.chess960,
-            )
-            metadata.termination_mode = term_mode
-            if not metadata.termination:
-                metadata.termination = term_desc
-            metadata.termination_description = term_desc
+        # The detector is the canonical History description. Keep the raw
+        # PGN/API header for export unless it is empty or generic.
+        term_mode, term_desc = TerminationDetector.detect_termination(
+            headers={
+                "Result": metadata.result,
+                "White": metadata.white,
+                "Black": metadata.black,
+                "Termination": metadata.termination or "",
+            },
+            moves=moves,
+            starting_fen=metadata.starting_fen,
+            chess960=metadata.chess960,
+        )
+        metadata.termination_mode = term_mode
+        if (
+            not metadata.termination
+            or metadata.termination.strip().lower()
+            in ("", "normal", "unknown")
+        ):
+            metadata.termination = term_desc
+        metadata.termination_description = term_desc
 
         return GameAnalysis(
             game_id=g_dict["id"],
