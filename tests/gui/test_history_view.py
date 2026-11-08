@@ -9,6 +9,13 @@ import pytest
 from PyQt6.QtWidgets import QLabel, QPushButton
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
+from src.backend.storage.game_query import (
+    ANALYSIS_ANALYZED,
+    ANALYSIS_PAUSED,
+    ANALYSIS_UNANALYZED,
+    OWNERSHIP_MINE,
+    OWNERSHIP_OTHER,
+)
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.board import MiniBoardWidget
 from src.gui.components.lists.game_list_item_widget import GameListItemWidget
@@ -323,6 +330,7 @@ def test_history_view_pages_rows_instead_of_loading_everything(tmp_path, qtbot):
     view.history_manager = manager
     view.load_history()
 
+    assert view.btn_clear.text() == "Delete all games"
     assert view.game_list.total_count == 60
     # A single page is rendered, not the whole archive.
     assert 0 < len(view.game_list.games) <= view._page_size()
@@ -353,6 +361,19 @@ def test_history_view_filter_resets_to_the_first_page(tmp_path, qtbot):
 
     assert view.game_list.total_count == 0
     assert view.game_list.games == []
+    assert (
+        view.game_list.content_stack.currentWidget()
+        is view.game_list.empty_widget
+    )
+    assert view.game_list.empty_button.text() == "Clear filters"
+
+    view.game_list.empty_button.click()
+
+    assert view.game_list.total_count == 12
+    assert (
+        view.game_list.content_stack.currentWidget()
+        is view.game_list.list_widget
+    )
 
 
 def test_history_view_filters_analysis_status_and_ownership(tmp_path, qtbot):
@@ -409,26 +430,26 @@ def test_history_view_filters_analysis_status_and_ownership(tmp_path, qtbot):
 
     assert view.game_list.total_count == 4
 
-    view.analysis_filter.set_current_index(1)  # Analyzed
+    view.analysis_filter.set_value(ANALYSIS_ANALYZED, emit=True)
     assert view.game_list.total_count == 2
 
-    view.analysis_filter.set_current_index(2)  # Unanalyzed
+    view.analysis_filter.set_value(ANALYSIS_UNANALYZED, emit=True)
     assert view.game_list.total_count == 1
     assert view.game_list.games[0].game_id == "new-mine"
 
-    view.analysis_filter.set_current_index(3)  # Paused
+    view.analysis_filter.set_value(ANALYSIS_PAUSED, emit=True)
     assert view.game_list.total_count == 1
 
-    view.analysis_filter.set_current_index(0)
-    view.ownership_filter.set_current_index(1)  # My games
+    view.analysis_filter.set_value("", emit=True)
+    view.ownership_filter.set_value(OWNERSHIP_MINE, emit=True)
     assert view.game_list.total_count == 2
 
-    view.ownership_filter.set_current_index(2)  # Other games
+    view.ownership_filter.set_value(OWNERSHIP_OTHER, emit=True)
     assert view.game_list.total_count == 2
 
-    view.ownership_filter.set_current_index(0)
-    view.analysis_filter.set_current_index(2)
-    view.ownership_filter.set_current_index(1)
+    view.ownership_filter.set_value("", emit=True)
+    view.analysis_filter.set_value(ANALYSIS_UNANALYZED, emit=True)
+    view.ownership_filter.set_value(OWNERSHIP_MINE, emit=True)
     assert view.game_list.total_count == 1
 
 

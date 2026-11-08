@@ -191,14 +191,17 @@ Forbidden edges:
 
 ### History
 
-1. `HistoryView` builds a `GameQuery` from debounced search, result, speed,
-   source, analysis-status, ownership, and sort controls.
-2. `GamesRepo` applies those filters in SQL and returns one page (`10` detailed
+1. `HistoryFilterBar` keeps the toolbar to search, Filters, and Sort; active
+   filters appear as removable tokens, while the disclosure panel holds the
+   grouped result, speed, source, analysis, and ownership controls.
+2. `HistoryView` builds a `GameQuery` from the bar state.
+3. `GamesRepo` applies those filters in SQL and returns one page (`10` detailed
    / `15` compact); `analysis_status` is stored as a denormalised column so
    status filtering does not parse `summary_json` per row.
-3. After the page renders, an idle timer prefetches the next page so scrolling
-   feels instant.
-4. `PaginationBar` and `GameListWidget` share the paging state.
+4. After the page renders, an idle timer prefetches the next page so scrolling
+   feels instant. Filtered-out results use the shared empty state with a
+   one-action recovery path.
+5. `PaginationBar` and `GameListWidget` share the paging state.
 
 ---
 
@@ -356,7 +359,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `explorer/ratio_bar.py` | Win/draw/loss ratio bar | `RatioBar` |
 | `explorer/lichess_worker.py` | Off-thread Lichess explorer lookup | `LichessExplorerWorker` |
 | `explorer/types.py` | Shared explorer typing | `ClassificationContext` |
-| `history_view.py` | Game history page: filters, paging, import | `HistoryView`, `GameImportWorker` |
+| `history_view.py` | Game history page: paging, import, empty states | `HistoryView`, `GameImportWorker` |
+| `history_filter_bar.py` | Search, active-filter tokens, disclosure panel | `HistoryFilterBar` |
 | `metrics_view.py` | Stats dashboard shell | `MetricsWidget` |
 | `settings_view.py` | Settings shell: category rail, search, cards | `SettingsView` |
 
@@ -474,6 +478,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `button.py` | The only button widget | `Button`, `ButtonVariant`, `ButtonSize` |
+| `filter_chip.py` | Removable filter token with separate open/remove actions | `FilterChip` |
 | `input.py` | Input, text area, numeric editors | `Input`, `TextArea`, `InputVariant` |
 | `select.py` | The only dropdown | `Select`, `SelectOption` |
 | `tabs.py` | Underline/segmented tabs | `Tabs`, `TabVariant` |

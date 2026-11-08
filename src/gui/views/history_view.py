@@ -2,31 +2,17 @@ from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
-from src.backend.storage.game_query import (
-    ANALYSIS_ANALYZED,
-    ANALYSIS_PAUSED,
-    ANALYSIS_UNANALYZED,
-    OWNERSHIP_MINE,
-    OWNERSHIP_OTHER,
-    RESULT_DRAW,
-    RESULT_LOSS,
-    RESULT_WIN,
-    GameQuery,
-)
+from src.backend.storage.game_query import GameQuery
 from src.gui.components import (
     Button,
     ButtonVariant,
-    Input,
-    InputVariant,
     Label,
-    Select,
     TextRole,
 )
 from src.gui.components.feedback.toast import ToastHandle, ToastManager
@@ -36,6 +22,8 @@ from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
 from src.gui.utils.gui_utils import create_button
 from src.utils.logger import logger
+
+from .history_filter_bar import HistoryFilterBar
 
 
 class GameImportWorker(QThread):
@@ -143,7 +131,10 @@ class HistoryView(QWidget):
         header_layout.addWidget(self.btn_export)
 
         self.btn_clear = self._create_icon_button(
-            "Clear", "fa5s.trash-alt", self.clear_history, danger=True
+            "Delete all games",
+            "fa5s.trash-alt",
+            self.clear_history,
+            danger=True,
         )
         header_layout.addWidget(self.btn_clear)
 
@@ -161,100 +152,13 @@ class HistoryView(QWidget):
         content_layout.setContentsMargins(24, 16, 24, 16)
         content_layout.setSpacing(16)
 
-        # Filter Row
-        filter_layout = QHBoxLayout()
-        filter_layout.setSpacing(8)
-
-        # Search Bar
-        self.search_input = Input(
-            placeholder="Search player, opening, date...",
-            variant=InputVariant.SEARCH,
-            clearable=True,
+        self.filter_bar = HistoryFilterBar()
+        self.filter_bar.search_changed.connect(
+            lambda: self._filter_debounce.call(self.apply_filters)
         )
-        self.search_input.setMinimumWidth(120)
-        # A search field is the flexible column: the filters keep their compact
-        # widths and a trailing stretch pins Sort to the right edge.
-        self.search_input.setMaximumWidth(380)
-        self.search_input.textChanged.connect(
-            lambda *_: self._filter_debounce.call(self.apply_filters)
-        )
-        filter_layout.addWidget(self.search_input, 1)
-
-        def _filter_label(text: str) -> Label:
-            # A Preferred label policy lets the row's spare width stretch the
-            # label and push its dropdown away, so pin it to the text width.
-            lbl = Label(text, role=TextRole.CAPTION, weight=600)
-            lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-            return lbl
-
-        # Result Filter
-        self.result_label = _filter_label("Result:")
-        filter_layout.addWidget(self.result_label)
-
-        self.result_filter = Select(
-            ["All", "Wins", "Losses", "Draws"], on_change=self.apply_filters
-        )
-        self.result_filter.setFixedWidth(95)
-        filter_layout.addWidget(self.result_filter)
-
-        # Type / Speed Category Filter
-        self.type_label = _filter_label("Type:")
-        filter_layout.addWidget(self.type_label)
-
-        self.type_filter = Select(
-            ["All", "Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet"],
-            on_change=self.apply_filters,
-        )
-        self.type_filter.setFixedWidth(100)
-        filter_layout.addWidget(self.type_filter)
-
-        # Source Filter
-        self.source_label = _filter_label("Source:")
-        filter_layout.addWidget(self.source_label)
-
-        self.source_filter = Select(
-            ["All", "Chess.com", "Lichess", "File"], on_change=self.apply_filters
-        )
-        self.source_filter.setFixedWidth(100)
-        filter_layout.addWidget(self.source_filter)
-
-        # Analysis State Filter
-        self.analysis_label = _filter_label("Analysis:")
-        filter_layout.addWidget(self.analysis_label)
-
-        self.analysis_filter = Select(
-            ["All", "Analyzed", "Unanalyzed", "Paused"],
-            on_change=self.apply_filters,
-        )
-        self.analysis_filter.setFixedWidth(110)
-        filter_layout.addWidget(self.analysis_filter)
-
-        # Ownership Filter
-        self.ownership_label = _filter_label("Games:")
-        filter_layout.addWidget(self.ownership_label)
-
-        self.ownership_filter = Select(
-            ["All games", "My games", "Other games"],
-            on_change=self.apply_filters,
-        )
-        self.ownership_filter.setFixedWidth(110)
-        filter_layout.addWidget(self.ownership_filter)
-
-        # Keep the filters grouped together instead of spreading the spare
-        # width between every label and dropdown.
-        filter_layout.addStretch()
-
-        self.sort_label = _filter_label("Sort:")
-        filter_layout.addWidget(self.sort_label)
-
-        self.sort_dropdown = Select(
-            ["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
-            on_change=self.apply_filters,
-        )
-        self.sort_dropdown.setFixedWidth(135)
-        filter_layout.addWidget(self.sort_dropdown)
-
-        content_layout.addLayout(filter_layout)
+        self.filter_bar.filters_changed.connect(self.apply_filters)
+        content_layout.addWidget(self.filter_bar)
+        self._alias_filter_controls()
 
         # Game List
         self.game_list = GameListWidget()
@@ -277,6 +181,18 @@ class HistoryView(QWidget):
 
         # Load initial data
         self.load_history()
+
+    def _alias_filter_controls(self) -> None:
+        """Keep the established HistoryView control names for callers/tests."""
+        self.search_input = self.filter_bar.search_input
+        self.result_filter = self.filter_bar.result_filter
+        self.type_filter = self.filter_bar.type_filter
+        self.source_filter = self.filter_bar.source_filter
+        self.analysis_filter = self.filter_bar.analysis_filter
+        self.ownership_filter = self.filter_bar.ownership_filter
+        self.sort_dropdown = self.filter_bar.sort_dropdown
+        self.btn_filters = self.filter_bar.btn_filters
+        self.filter_panel = self.filter_bar.panel
 
     def show_import_workspace(self, batch: GameBatch) -> None:
         """Show a fetched/indexed batch in the import workspace."""
@@ -340,40 +256,14 @@ class HistoryView(QWidget):
 
     def _current_query(self) -> GameQuery:
         """Translate the filter controls into a single database query."""
-        result_map = {
-            "Wins": RESULT_WIN,
-            "Losses": RESULT_LOSS,
-            "Draws": RESULT_DRAW,
-        }
-        source_map = {"Chess.com": "chesscom", "Lichess": "lichess", "File": "file"}
-        analysis_map = {
-            "Analyzed": ANALYSIS_ANALYZED,
-            "Unanalyzed": ANALYSIS_UNANALYZED,
-            "Paused": ANALYSIS_PAUSED,
-        }
-        ownership_map = {
-            "My games": OWNERSHIP_MINE,
-            "Other games": OWNERSHIP_OTHER,
-        }
-        sort_map = {
-            "Newest First": "newest",
-            "Oldest First": "oldest",
-            "Most Moves": "most_moves",
-            "Fewest Moves": "fewest_moves",
-        }
-        type_text = self.type_filter.currentText()
         return GameQuery(
-            search=self.search_input.text().strip().lower(),
-            result=result_map.get(self.result_filter.currentText(), ""),
-            analysis_status=analysis_map.get(
-                self.analysis_filter.currentText(), ""
-            ),
-            ownership=ownership_map.get(
-                self.ownership_filter.currentText(), ""
-            ),
-            speed="" if type_text == "All" else type_text,
-            source=source_map.get(self.source_filter.currentText(), ""),
-            sort=sort_map.get(self.sort_dropdown.currentText(), "newest"),
+            search=self.filter_bar.search_text(),
+            result=self.result_filter.current_value() or "",
+            analysis_status=self.analysis_filter.value() or "",
+            ownership=self.ownership_filter.value() or "",
+            speed=self.type_filter.current_value() or "",
+            source=self.source_filter.current_value() or "",
+            sort=self.sort_dropdown.current_value() or "newest",
             usernames=tuple(self.usernames),
             limit=self._page_size(),
             offset=0,
@@ -401,6 +291,7 @@ class HistoryView(QWidget):
 
             total = self.history_manager.count_games(query)
             self._total = total
+            self.filter_bar.set_result_count(total)
             self._offset = 0
             self.game_list.reset(total, self.usernames)
 
@@ -425,9 +316,25 @@ class HistoryView(QWidget):
                     self.games.extend(extra)
                     self.game_list.append_rows(extra)
                     pages += 1
+            self._update_empty_state()
             self._schedule_prefetch()
         except Exception as e:
             logger.error(f"Failed to load history: {e}")
+
+    def _update_empty_state(self) -> None:
+        if self._total > 0:
+            self.game_list.show_list()
+            return
+        if self.filter_bar.filters_active():
+            self.game_list.show_empty(
+                "No games match your search and filters.",
+                "Clear filters",
+                self.filter_bar.reset_filters,
+            )
+        else:
+            self.game_list.show_empty(
+                "No games yet. Games you analyze or import will appear here."
+            )
 
     def _schedule_prefetch(self):
         """Warm the next page while the first one is still being read."""
@@ -450,6 +357,8 @@ class HistoryView(QWidget):
             if not games:
                 self._total = self._offset
                 self.game_list.set_total(self._total)
+                self.filter_bar.set_result_count(self._total)
+                self._update_empty_state()
                 return
             self._offset += len(games)
             self.games.extend(games)
@@ -463,10 +372,13 @@ class HistoryView(QWidget):
         """Keep paging state in sync after an in-place delete."""
         self._offset = max(0, self._offset - 1)
         self._total = max(0, self._total - 1)
+        self.filter_bar.set_result_count(self._total)
         self.games = [g for g in self.games if getattr(g, "game_id", None) != game_id]
         self.game_deleted.emit(game_id)
         if self._offset < self._total:
             self._load_more()
+        else:
+            self._update_empty_state()
 
     def refresh_game(self, game_id: str | None):
         """Refresh one rendered row after its analysis changed."""
@@ -508,12 +420,12 @@ class HistoryView(QWidget):
 
         if confirm_dialog(
             self,
-            "Clear History",
-            "Are you sure you want to clear all game history? This cannot be undone.",
-            confirm_label="Clear All",
+            "Delete All Games",
+            "Delete every game from History? This cannot be undone.",
+            confirm_label="Delete All",
         ):
             self.history_manager.clear_history()
-            logger.info("Cleared all game history via UI")
+            logger.info("Deleted all games from history via UI")
             self.history_cleared.emit()
             self.load_history()
 
@@ -601,19 +513,8 @@ class HistoryView(QWidget):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
         if hasattr(self, "content_widget"):
             Styles.apply_background(self.content_widget)
-        if hasattr(self, "search_input"):
-            self.search_input.refresh_styles()
-        for name in (
-            "result_filter",
-            "type_filter",
-            "source_filter",
-            "analysis_filter",
-            "ownership_filter",
-            "sort_dropdown",
-        ):
-            widget = getattr(self, name, None)
-            if widget is not None:
-                widget.refresh_styles()
+        if hasattr(self, "filter_bar"):
+            self.filter_bar.refresh_styles()
         if hasattr(self, "btn_import"):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):

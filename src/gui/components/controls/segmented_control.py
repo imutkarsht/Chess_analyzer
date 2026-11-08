@@ -29,6 +29,9 @@ class SegmentedControl(QFrame):
         self,
         options: Iterable[tuple[str, Any]],
         value: Any = None,
+        *,
+        size: ButtonSize | str = ButtonSize.XS,
+        expand_items: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -36,6 +39,8 @@ class SegmentedControl(QFrame):
 
         self._buttons: dict[Any, Button] = {}
         self._value: Any = None
+        self._size = ButtonSize(size)
+        self._expand_items = expand_items
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -48,15 +53,24 @@ class SegmentedControl(QFrame):
             button = Button(
                 label,
                 ButtonVariant.SEGMENT,
-                ButtonSize.XS,
+                self._size,
                 checkable=True,
             )
-            button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            button.setSizePolicy(
+                QSizePolicy.Policy.Expanding
+                if expand_items
+                else QSizePolicy.Policy.Fixed,
+                QSizePolicy.Policy.Fixed,
+            )
             button.clicked.connect(
                 lambda _checked=False, v=option_value: self._on_clicked(v)
             )
             self._buttons[option_value] = button
-            layout.addWidget(button)
+            layout.addWidget(button, 1 if expand_items else 0)
+        if expand_items:
+            self.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+            )
 
         initial = first_value if value is None else value
         if initial is _UNSET or initial not in self._buttons:

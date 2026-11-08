@@ -6,6 +6,8 @@ the database is the source of truth for totals, so filtering, sorting and
 counting never run in Python over the whole table.
 """
 
+from collections.abc import Callable
+
 from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -13,12 +15,15 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
+    QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.label import Label
+from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.components.lists.game_list_item_widget import GameListItemWidget
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
@@ -111,7 +116,35 @@ class GameListWidget(QWidget):
         SmoothScroll(self.list_widget)
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         self.list_widget.verticalScrollBar().valueChanged.connect(self._maybe_request_page)
-        root.addWidget(self.list_widget, stretch=1)
+
+        # Filtered/empty results replace the rows but keep the count header and
+        # view toggles visible, so people can recover without losing context.
+        self.content_stack = QStackedWidget()
+        self.content_stack.addWidget(self.list_widget)
+        self.empty_widget = QWidget()
+        empty_layout = QVBoxLayout(self.empty_widget)
+        empty_layout.setContentsMargins(24, 24, 24, 24)
+        empty_layout.setSpacing(12)
+        empty_layout.addStretch()
+        self.empty_label = EmptyState()
+        empty_layout.addWidget(self.empty_label)
+        self._empty_action: Callable[[], None] | None = None
+        self.empty_button = Button(
+            variant=ButtonVariant.PRIMARY,
+            size=ButtonSize.MD,
+            on_click=self._run_empty_action,
+        )
+        self.empty_button.setVisible(False)
+        self.empty_button.setSizePolicy(
+            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
+        )
+        empty_layout.addWidget(
+            self.empty_button, 0, Qt.AlignmentFlag.AlignHCenter
+        )
+        empty_layout.addStretch()
+        self.content_stack.addWidget(self.empty_widget)
+        self.content_stack.setCurrentWidget(self.list_widget)
+        root.addWidget(self.content_stack, stretch=1)
 
         self._update_view_toggle_styles()
 
@@ -123,6 +156,7 @@ class GameListWidget(QWidget):
         self._rendered = 0
         self._request_pending = False
         self.list_widget.clear()
+        self.show_list()
         if total is not None:
             self._total = max(0, int(total))
         if usernames is not None:
@@ -135,6 +169,7 @@ class GameListWidget(QWidget):
         if not games:
             self._request_pending = False
             return
+        self.show_list()
         self._all_games.extend(games)
         self._render_from(self._rendered)
         self._request_pending = False
@@ -142,6 +177,26 @@ class GameListWidget(QWidget):
         # If the page does not fill the viewport there is no scrollbar event to
         # ask for more, so check once the layout has settled.
         QTimer.singleShot(0, self._fill_if_needed)
+
+    def show_empty(
+        self,
+        message: str,
+        action_text: str = "",
+        action: Callable[[], None] | None = None,
+    ) -> None:
+        """Show a contextual empty state instead of the row list."""
+        self.empty_label.setText(message)
+        self._empty_action = action
+        self.empty_button.setText(action_text)
+        self.empty_button.setVisible(bool(action_text and action is not None))
+        self.content_stack.setCurrentWidget(self.empty_widget)
+
+    def show_list(self) -> None:
+        self.content_stack.setCurrentWidget(self.list_widget)
+
+    def _run_empty_action(self) -> None:
+        if self._empty_action is not None:
+            self._empty_action()
 
     def set_games(self, games, usernames=None):
         """Replace every row at once (non-paged callers and tests)."""
@@ -358,4 +413,5 @@ class GameListWidget(QWidget):
         self._apply_title_style()
         self._apply_list_style()
         self._update_view_toggle_styles()
+        self.empty_button.refresh_styles()
         self._rebuild(preserve_scroll=True)

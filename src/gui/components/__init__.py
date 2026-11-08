@@ -6,6 +6,7 @@ from src.gui.theme.typography import TextRole, TextTone
 from ..utils.smooth_scroll import SmoothScroll, install_smooth_scrolling
 from .controls.button import Button, ButtonSize, ButtonVariant
 from .controls.date_picker import DatePicker
+from .controls.filter_chip import FilterChip
 from .controls.form_field import FormField
 from .controls.input import (
     TEXT_INPUT_TYPES,
@@ -66,6 +67,7 @@ __all__ = [
     'ColorLabel',
     'EmptyState',
     'EngineScoreBadge',
+    'FilterChip',
     'FormField',
     'IconLabel',
     'Input',
