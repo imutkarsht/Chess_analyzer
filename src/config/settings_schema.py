@@ -328,6 +328,16 @@ def _specs() -> tuple[SettingSpec, ...]:
             apply="live",
         ),
         SettingSpec(
+            "board_wheel_navigation",
+            "Appearance",
+            "Board & Pieces",
+            "Scroll over the board to navigate moves",
+            "Vertical mouse-wheel or trackpad scrolling moves one ply at a time.",
+            "bool",
+            True,
+            apply="live",
+        ),
+        SettingSpec(
             "sidebar_start_collapsed",
             "Appearance",
             "Window & Layout",

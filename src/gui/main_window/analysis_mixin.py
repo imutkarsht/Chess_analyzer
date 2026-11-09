@@ -3,12 +3,12 @@ from PyQt6.QtWidgets import QDialog, QMessageBox
 
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, invalidate_engine_cache, resolve_engine_path
+from src.constants import ANALYSIS_UI_FLUSH_MS
 from src.gui.analysis.analysis_worker import AnalysisWorker
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.dialogs.engine_error_dialog import EngineNotFoundDialog
 from src.gui.dialogs.feedback_dialog import FeedbackDialog
 from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
-from src.gui.main_window.navigation_mixin import compute_clock_times
 from src.utils.logger import logger
 
 
@@ -18,6 +18,9 @@ class AnalysisMixin:
     def start_analysis(self, resume: bool | None = None):
         if not self.current_game:
             return
+
+        # A running analysis owns the board; never leave replay running underneath it.
+        self._stop_replay()
 
         # A running analysis owns the board; never leave a variation underneath it.
         self._exit_variation()
@@ -86,6 +89,7 @@ class AnalysisMixin:
             if hasattr(self, "analysis_panel"):
                 self.analysis_panel.set_game(self.current_game)
 
+        self._reset_analysis_ui_session()
         self.worker = AnalysisWorker(self.analyzer, self.current_game, resume=resume)
         self.worker.progress.connect(self.on_analysis_progress)
         self.worker.move_analyzed.connect(self.on_move_analyzed)
@@ -181,7 +185,140 @@ class AnalysisMixin:
                 self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))
             self.btn_analyze.setEnabled(True)
 
-    def on_analysis_progress(self, current, total):
+    # ------------------------------------------------------------------
+    # Analysis UI coalescing
+    # ------------------------------------------------------------------
+    def _ensure_analysis_ui_timer(self) -> None:
+        if getattr(self, "_analysis_ui_timer", None) is not None:
+            return
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        timer.setInterval(ANALYSIS_UI_FLUSH_MS)
+        timer.timeout.connect(self._flush_analysis_updates)
+        self._analysis_ui_timer = timer
+
+    def _schedule_analysis_flush(self) -> None:
+        self._ensure_analysis_ui_timer()
+        if not self._analysis_ui_timer.isActive():
+            self._analysis_ui_timer.start()
+
+    def _last_analyzed_index(self) -> int:
+        moves = getattr(self.current_game, "moves", []) if self.current_game else []
+        analyzed = [index for index, move in enumerate(moves) if move.classification]
+        return analyzed[-1] if analyzed else -1
+
+    def _reset_analysis_ui_session(self) -> None:
+        """Start a fresh follow session for the game about to be analysed."""
+        self._ensure_analysis_ui_timer()
+        self._analysis_ui_timer.stop()
+        self._pending_analysis_updates = {}
+        self._pending_analysis_progress = None
+        self._analysis_progress_final = False
+        self._latest_analyzed_index = self._last_analyzed_index()
+        self._analysis_follow = True
+        self._sync_follow_toggle(visible=True, checked=True)
+
+    def _sync_follow_toggle(
+        self, *, visible: bool | None = None, checked: bool | None = None
+    ) -> None:
+        button = getattr(self, "btn_follow", None)
+        if button is None:
+            return
+        if visible is not None:
+            button.setVisible(visible)
+        if checked is not None:
+            button.blockSignals(True)
+            button.setChecked(checked)
+            button.blockSignals(False)
+
+    def _set_analysis_follow(self, enabled: bool, *, jump: bool = False) -> None:
+        self._analysis_follow = bool(enabled)
+        self._sync_follow_toggle(checked=self._analysis_follow)
+        if jump and self._analysis_follow:
+            self._jump_to_latest_analyzed()
+
+    def _on_follow_toggled(self, checked: bool) -> None:
+        if checked:
+            # The user wants the live position back; replay must not fight it.
+            self._stop_replay()
+            self._analysis_follow = True
+            self._jump_to_latest_analyzed()
+            return
+        self._analysis_follow = False
+
+    def _jump_to_latest_analyzed(self) -> None:
+        if self.current_game and 0 <= self._latest_analyzed_index < len(
+            self.current_game.moves
+        ):
+            self._show_followed_position(self._latest_analyzed_index)
+            if hasattr(self, "analysis_panel"):
+                self.analysis_panel.set_selected_move(self._latest_analyzed_index)
+
+    def _show_followed_position(self, move_index: int) -> None:
+        """Position the board for analysis follow without rebuilding coach facts."""
+        if not self.current_game or not 0 <= move_index < len(self.current_game.moves):
+            return
+        self.board_widget.set_position(move_index)
+        self.move_list_panel.select_move(move_index)
+        self._update_captured_and_clocks(move_index)
+        self.move_changed.emit(move_index)
+
+    def _flush_analysis_updates(self) -> None:
+        """Apply all queued analysis data in one UI pass."""
+        timer = getattr(self, "_analysis_ui_timer", None)
+        if timer is not None:
+            timer.stop()
+
+        updates = getattr(self, "_pending_analysis_updates", None) or {}
+        progress = getattr(self, "_pending_analysis_progress", None)
+        if not updates and progress is None:
+            return
+        self._pending_analysis_updates = {}
+        self._pending_analysis_progress = None
+
+        game = self.current_game
+        if game is None:
+            return
+
+        if updates:
+            valid_indices = []
+            for move_index, data in updates.items():
+                if not 0 <= move_index < len(game.moves):
+                    continue
+                move = game.moves[move_index]
+                classification = data.get("classification", move.classification)
+                if classification:
+                    move.classification = classification
+                eval_cp = data.get("eval_after_cp")
+                eval_mate = data.get("eval_after_mate")
+                if eval_cp is not None:
+                    move.eval_after_cp = eval_cp
+                if eval_mate is not None:
+                    move.eval_after_mate = eval_mate
+                valid_indices.append(move_index)
+
+            if valid_indices and hasattr(self, "move_list_panel"):
+                self.move_list_panel.update_move_cells(valid_indices)
+
+            if self._analysis_follow and self._latest_analyzed_index >= 0:
+                self._show_followed_position(self._latest_analyzed_index)
+
+            if hasattr(self, "analysis_panel") and hasattr(
+                self.analysis_panel, "graph_widget"
+            ):
+                current_index = (
+                    self._latest_analyzed_index
+                    if self._analysis_follow
+                    else self.board_widget.current_move_index
+                )
+                self.analysis_panel.graph_widget.update_progress(
+                    game.moves, self._latest_analyzed_index, current_index
+                )
+
+        if progress is not None:
+            self._apply_analysis_progress(*progress)
+
+    def _apply_analysis_progress(self, current: int, total: int) -> None:
         if current > total:
             self._set_engine_state("calculating", "Final...")
             self._set_status("Analyzing final position...", "progress")
@@ -199,73 +336,67 @@ class AnalysisMixin:
             )
             toast.set_progress(min(1.0, current / safe_total))
 
+    def on_analysis_progress(self, current, total):
+        # The final position is announced with current == total + 1; the later
+        # classification pass then replays 1..total. Keep the final label.
+        if getattr(self, "_analysis_progress_final", False) and current <= total:
+            return
+        if current > total:
+            self._analysis_progress_final = True
+        self._pending_analysis_progress = (current, total)
+        self._schedule_analysis_flush()
+
     def on_move_analyzed(self, move_index, data):
-        """Called when a move's eval/classification data becomes available."""
+        """Queue a move's eval/classification until the next coalesced flush."""
         if not self.current_game:
             return
-        if 0 <= move_index < len(self.current_game.moves):
-            move = self.current_game.moves[move_index]
-            classification = data.get("classification", move.classification)
-            if classification:
-                move.classification = classification
-            eval_cp = data.get("eval_after_cp")
-            eval_mate = data.get("eval_after_mate")
-            if eval_cp is not None:
-                move.eval_after_cp = eval_cp
-            if eval_mate is not None:
-                move.eval_after_mate = eval_mate
+        if not 0 <= move_index < len(self.current_game.moves):
+            return
+        pending = getattr(self, "_pending_analysis_updates", None)
+        if pending is None:
+            pending = self._pending_analysis_updates = {}
+        pending[move_index] = data
+        self._latest_analyzed_index = max(self._latest_analyzed_index, move_index)
+        self._schedule_analysis_flush()
 
-            self.move_list_panel.update_move_cell(move_index, classification, eval_cp, eval_mate)
-            self.move_list_panel.select_move(move_index)
-            self.board_widget.set_position(move_index)
+    def _prepare_analysis_end(self, game) -> int:
+        """Flush pending work and return the move index the board should show."""
+        self.current_game = game
+        selected_index = self.board_widget.current_move_index
+        was_following = getattr(self, "_analysis_follow", False)
+        self._analysis_follow = False
+        self._flush_analysis_updates()
+        self._sync_follow_toggle(visible=False, checked=False)
 
-            # Update clocks and captured pieces as moves stream in
-            moves = self.current_game.moves
-            fen = (
-                moves[move_index + 1].fen_before
-                if move_index + 1 < len(moves)
-                else getattr(self.board_widget.board, "fen", lambda: None)()
-            )
-            if hasattr(self, "captured_white") and hasattr(self, "captured_black"):
-                self.captured_white.update_captured(fen)
-                self.captured_black.update_captured(fen)
-                white_time, black_time = compute_clock_times(moves, move_index)
-                self.captured_white.update_clock(white_time)
-                self.captured_black.update_clock(black_time)
+        target = self._latest_analyzed_index if was_following else selected_index
+        if not game or not game.moves:
+            return -1
+        return max(-1, min(target, len(game.moves) - 1))
 
-            if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
-                self.analysis_panel.graph_widget.plot_partial(self.current_game.moves, move_index)
-                self.analysis_panel.graph_widget.set_current_move(move_index)
+    def _restore_analysis_view(self, game, target_index: int) -> None:
+        """Rebuild both analysis panes, then restore the chosen board position."""
+        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
+            self.move_list_panel.session.resume()
+        self.move_list_panel.set_game(game)
+        self.analysis_panel.set_game(game)
+        self.on_move_selected(target_index, silent=True, manual=False)
 
     def on_analysis_cancelled(self, game):
         """Handle analysis cancellation while preserving partial results."""
+        target_index = self._prepare_analysis_end(game)
         self._full_analysis_running = False
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis stopped", "info")
         self._finish_analysis_toast("Analysis stopped", "info")
         logger.info("Analysis cancelled; partial results preserved.")
-        self.current_game = game
         if game and game.pgn_content:
             try:
                 self.history_manager.save_game(game, game.pgn_content, force_overwrite=True)
             except Exception as e:
                 logger.error(f"Failed saving paused game to history: {e}")
         self._update_analyze_button(running=False)
-
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
-            self.move_list_panel.session.resume()
-        self.move_list_panel.set_game(game)
-        self.analysis_panel.set_game(game)
-
-        # Find the last analyzed move to position the board
-        analyzed_indices = [idx for idx, m in enumerate(game.moves) if bool(m.classification)]
-        if analyzed_indices:
-            last_analyzed = analyzed_indices[-1]
-            self.on_move_selected(last_analyzed)
-            if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
-                self.analysis_panel.graph_widget.plot_partial(game.moves, last_analyzed)
-                self.analysis_panel.graph_widget.set_current_move(last_analyzed)
+        self._restore_analysis_view(game, target_index)
 
         if hasattr(self, "metrics_view"):
             self.metrics_view.mark_dirty()
@@ -282,20 +413,15 @@ class AnalysisMixin:
                 self.metrics_view.refresh(force=True)
 
     def on_analysis_finished(self, game):
+        target_index = self._prepare_analysis_end(game)
         self._full_analysis_running = False
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analysis complete", "success")
         self._finish_analysis_toast("Analysis complete!", "success")
         logger.info("Analysis finished successfully.")
-        self.current_game = game
         self._update_analyze_button(running=False)
-        if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
-            self.move_list_panel.session.resume()
-        self.move_list_panel.set_game(game)
-        self.analysis_panel.set_game(game)
-        if game.moves and any(m.classification for m in game.moves):
-            self.on_move_selected(len(game.moves) - 1)
+        self._restore_analysis_view(game, target_index)
         if hasattr(self, "metrics_view"):
             self.metrics_view.mark_dirty()
             if self.stack.currentIndex() == 3:
@@ -323,6 +449,9 @@ class AnalysisMixin:
 
     def on_analysis_error(self, error_msg):
         self._full_analysis_running = False
+        self._analysis_follow = False
+        self._flush_analysis_updates()
+        self._sync_follow_toggle(visible=False, checked=False)
         self._update_analyze_button(running=False)
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")

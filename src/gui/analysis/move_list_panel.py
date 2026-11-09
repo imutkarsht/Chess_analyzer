@@ -144,11 +144,30 @@ class MoveListPanel(QWidget):
         except Exception as e:
             logger.error(f"Error refreshing move list: {e}", exc_info=True)
 
+    def update_move_cells(self, move_indices) -> None:
+        """Repaint a batch of analysed move cells in one table pass."""
+        if not self.current_game:
+            return
+        updates = {}
+        for move_index in move_indices:
+            if not 0 <= move_index < len(self.current_game.moves):
+                continue
+            move = self.current_game.moves[move_index]
+            updates[move_index] = {
+                "classification": move.classification,
+                "time_spent": move.time_spent,
+                "variation_count": self._variation_counts.get(move_index, 0),
+            }
+        if updates:
+            self.move_list.update_entries(updates)
+
     def update_move_cell(
         self, move_index: int, classification: str = None, eval_after_cp=None, eval_after_mate=None
     ):
         """Update a single move cell's classification and eval display during analysis."""
-        if move_index < 0 or move_index >= len(self.current_game.moves):
+        if not self.current_game or move_index < 0 or move_index >= len(
+            self.current_game.moves
+        ):
             return
         move = self.current_game.moves[move_index]
         if classification is not None:
@@ -157,13 +176,7 @@ class MoveListPanel(QWidget):
             move.eval_after_cp = eval_after_cp
         if eval_after_mate is not None:
             move.eval_after_mate = eval_after_mate
-
-        self.move_list.update_entry(
-            move_index,
-            classification=move.classification,
-            time_spent=move.time_spent,
-            variation_count=self._variation_counts.get(move_index, 0),
-        )
+        self.update_move_cells([move_index])
 
     def _update_compact_mode(self) -> None:
         """Compatibility delegate for earlier tests/call sites."""

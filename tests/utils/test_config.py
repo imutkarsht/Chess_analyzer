@@ -29,6 +29,7 @@ class TestConfigManager:
             assert manager.get("board_show_best_move_arrow") is True
             assert manager.get("board_show_last_move") is True
             assert manager.get("board_show_eval_bar") is True
+            assert manager.get("board_wheel_navigation") is True
             assert manager.get("remember_window_geometry") is True
             assert manager.get("sound_volume") == 50
             assert manager.get("api_games_limit") == 20

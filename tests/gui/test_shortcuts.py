@@ -75,6 +75,20 @@ def window(shared_window, qtbot):
 
     win._replay_timer.stop()
     win._replay_timer.setInterval(REPLAY_INTERVAL_MS)
+    win._replay_advancing = False
+    win._analysis_follow = False
+    win._latest_analyzed_index = -1
+    win._pending_analysis_updates = {}
+    win._pending_analysis_progress = None
+    win._analysis_progress_final = False
+    timer = getattr(win, "_analysis_ui_timer", None)
+    if timer is not None:
+        timer.stop()
+    win.btn_follow.blockSignals(True)
+    win.btn_follow.setChecked(False)
+    win.btn_follow.blockSignals(False)
+    win.btn_follow.setVisible(False)
+    win.controls.set_replay_active(False)
     sm._on_focus_changed(None, None)
     card = win.settings_view.shortcut_settings
     card.preset_combo.setCurrentIndex(card.preset_combo.findData("standard"))
@@ -217,10 +231,131 @@ def test_replay_stops_at_end_and_space_restarts(window, qtbot):
     press(window, "Space")
     qtbot.waitUntil(lambda: not window._replay_timer.isActive(), timeout=3000)
     assert index(window) == LAST
+    assert window.controls._replay_active is False
 
     with qtbot.waitSignal(window.move_changed, check_params_cb=lambda i: i == -1):
         press(window, "Space")  # at the end: rewinds before replaying
     assert window._replay_timer.isActive()
+
+
+def test_play_button_toggles_replay(window):
+    window._replay_timer.setInterval(10)
+
+    window.controls.btn_play.click()
+    assert window._replay_timer.isActive()
+    assert window.controls._replay_active is True
+
+    window.controls.btn_play.click()
+    assert not window._replay_timer.isActive()
+    assert window.controls._replay_active is False
+
+
+def test_play_button_disabled_without_moves(window):
+    window.controls.set_navigation_state(-1, 0)
+
+    assert window.controls.btn_play.isEnabled() is False
+
+
+def test_manual_navigation_stops_replay(window):
+    window._replay_timer.setInterval(10)
+    window.controls.btn_play.click()
+    assert window._replay_timer.isActive()
+
+    window.on_move_selected(0)
+
+    assert not window._replay_timer.isActive()
+    assert window.controls._replay_active is False
+
+
+def test_manual_navigation_detaches_analysis_follow(window):
+    window._set_analysis_follow(True)
+    assert window.btn_follow.isChecked() is True
+
+    window.on_move_selected(0)
+
+    assert window._analysis_follow is False
+    assert window.btn_follow.isChecked() is False
+
+
+def test_follow_toggle_reengages_and_jumps_to_latest(window):
+    window.on_move_selected(0)
+    window._set_analysis_follow(False)
+    window._latest_analyzed_index = 4
+    window.btn_follow.show()
+
+    window.btn_follow.click()
+
+    assert window._analysis_follow is True
+    assert index(window) == 4
+
+
+def test_finish_position_follows_only_while_follow_is_active(window):
+    window.on_move_selected(2)
+    window._latest_analyzed_index = 5
+    window._set_analysis_follow(False)
+    assert window._prepare_analysis_end(window.current_game) == 2
+
+    window._set_analysis_follow(True)
+    assert window._prepare_analysis_end(window.current_game) == 5
+
+
+def test_analysis_burst_coalesces_board_and_graph_updates(window, monkeypatch):
+    window._analysis_follow = True
+    window._latest_analyzed_index = -1
+    window._pending_analysis_updates = {}
+    if getattr(window, "_analysis_ui_timer", None) is not None:
+        window._analysis_ui_timer.stop()
+
+    board_updates = []
+    graph_updates = []
+    monkeypatch.setattr(
+        window.board_widget, "set_position", lambda move_index: board_updates.append(move_index)
+    )
+    monkeypatch.setattr(
+        window.analysis_panel.graph_widget,
+        "update_progress",
+        lambda *args: graph_updates.append(args),
+    )
+
+    for move_index in range(len(window.current_game.moves)):
+        window.on_move_analyzed(
+            move_index, {"classification": "Best", "eval_after_cp": 10}
+        )
+
+    assert board_updates == []
+    assert graph_updates == []
+
+    window._flush_analysis_updates()
+
+    assert board_updates == [len(window.current_game.moves) - 1]
+    assert len(graph_updates) == 1
+
+
+def test_finish_flushes_queued_move_data_first(window):
+    move = window.current_game.moves[0]
+    move.classification = None
+    window.on_move_analyzed(
+        0, {"classification": "Blunder", "eval_after_cp": 120}
+    )
+
+    window._prepare_analysis_end(window.current_game)
+
+    assert move.classification == "Blunder"
+    assert move.eval_after_cp == 120
+
+
+def test_board_wheel_navigates_only_the_analysis_page(window):
+    window.on_move_selected(3)
+
+    window.board_widget.wheel_navigate.emit(-1)
+    assert index(window) == 2
+    window.board_widget.wheel_navigate.emit(1)
+    assert index(window) == 3
+
+    window.sidebar.set_active(PAGE_EXPLORER)
+    window._do_switch_page(PAGE_EXPLORER)
+    window.board_widget.wheel_navigate.emit(-1)
+    assert index(window) == 3
 
 
 def test_space_without_game_does_not_start_replay(window):

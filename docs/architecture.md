@@ -332,8 +332,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `window.py` | Window composition, splitter layout, landing board, shutdown | `MainWindow` |
-| `navigation_mixin.py` | Page switching, move stepping, replay, shortcuts glue | `NavigationMixin` |
-| `analysis_mixin.py` | Full-analysis lifecycle and status updates | `AnalysisMixin` |
+| `navigation_mixin.py` | Page switching, move stepping, replay/follow ownership, wheel routing, shortcuts glue | `NavigationMixin` |
+| `analysis_mixin.py` | Full-analysis lifecycle, coalesced UI flushing and follow state | `AnalysisMixin` |
 | `game_loading_mixin.py` | Loading, staging and analysing games | `GameLoadingMixin` |
 | `variation_mixin.py` | Variation-mode request handling | `VariationMixin` |
 | `theme_mixin.py` | Palette application and theme refresh fan-out | `ThemeMixin` |
@@ -442,7 +442,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
 | `coach_worker.py` | Off-thread explanation request and rate limiting | `ExplainMoveWorker`, `RequestLimiter` |
 | `captured.py` | Captured pieces and material advantage | `CapturedPiecesWidget` |
-| `move_controls.py` | Shared first/prev/next/last controls (analysis and explorer variants) | `MoveControls` |
+| `move_controls.py` | Shared step controls with inline play/pause and follow icon (analysis and explorer variants) | `MoveControls` |
 | `move_list_view.py` | Shared move table, row mapping, selection and both render modes | `MoveListView`, `MoveListEntry` |
 | `line_utils.py` | Engine-line presentation helpers | — |
 | `live_analysis.py` | Live position analysis worker | `LiveAnalysisWorker` |
@@ -455,7 +455,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `board/board.py` | The single configurable board used everywhere | `Board`, `BoardConfig` |
+| `board/board.py` | The single configurable board used everywhere, including opt-in wheel navigation | `Board`, `BoardConfig` |
 | `board/mini_board.py` | Shared mini-board widget and cached pixmap renderer | `MiniBoardConfig`, `MiniBoardWidget`, `render_mini_board_pixmap` |
 | `board/board_panel.py` | Board with captured rows and clocks | `BoardPanel` |
 | `board/board_game_header.py` | Matchup header hugging the board width | `BoardGameHeader` |
@@ -647,7 +647,9 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | Model serialisation | `to_dict`/`from_dict` live on the dataclass | `MoveAnalysis.to_dict()` | Ad-hoc dict building in UI |
 | Symmetric sides | Iterate `("white", "black")` instead of copy-paste | Phase accuracy, tactics extraction | Duplicated White/Black blocks |
 | Shared sessions | One live-engine session per surface | `LiveEngineSession` | Spawning Stockfish per widget |
-| Debounce/throttle | Coalesce high-frequency UI work | `Debouncer`, 10 Hz engine-line updates | Recomputing on every signal |
+| Debounce/throttle | Coalesce high-frequency UI work | `Debouncer`, 10 Hz engine-line updates, 100 ms analysis flush | Recomputing on every signal |
+| Playback ownership | Manual navigation stops replay and detaches follow; replay ticks are exempt via `_replay_advancing` | `NavigationMixin._on_manual_navigation()` | A replay tick stopping its own timer |
+| Board input opt-in | Wheel navigation is enabled per `BoardConfig` and routed by the host page | `Board.wheel_navigate`, `MainWindow._on_board_wheel()` | Every board consuming page scroll |
 | Paged data | Page + idle prefetch instead of loading everything | `HistoryView` (10/15 per page) | Loading 1,000 games at once |
 | Offline fallback | Deterministic text/data when the network is unavailable | Coach fallback, cached explorer | Blank screen on failure |
 | Toast-driven tasks | Long work shows loading → success/error | Backup, import, analysis, updates | Silent blocking operations |

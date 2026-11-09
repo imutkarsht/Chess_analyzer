@@ -22,6 +22,7 @@ class _FakeConfig:
             "board_show_best_move_arrow": True,
             "board_show_last_move": True,
             "board_show_eval_bar": True,
+            "board_wheel_navigation": True,
             "sidebar_start_collapsed": False,
             "history_view_mode": "compact",
             "remember_window_geometry": True,
@@ -84,6 +85,20 @@ def test_board_annotation_toggles_persist_and_repaint(qapp, attribute, key):
     checkbox.setChecked(False)
 
     assert config.config[key] is False
+    assert repaints == [True]
+    widget.deleteLater()
+
+
+def test_wheel_navigation_toggle_persists_and_repaints(qapp):
+    config = _FakeConfig()
+    widget = BoardPiecesSettings(config)
+    repaints = []
+    widget.theme_refreshed.connect(lambda: repaints.append(True))
+
+    assert widget.wheel_navigation_checkbox.isChecked() is True
+    widget.wheel_navigation_checkbox.setChecked(False)
+
+    assert config.config["board_wheel_navigation"] is False
     assert repaints == [True]
     widget.deleteLater()
 

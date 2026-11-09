@@ -141,9 +141,11 @@ Once a game is loaded:
 - **Start Analysis**: Click the **Analyze Game** button in the analysis header. The engine will evaluate every move.
 - **Navigation**:
   - Use the **Arrow Keys** (Left/Right) to move through the game.
+  - Scroll vertically over the board to step one move backward or forward. This can be disabled in **Settings → Appearance → Board & Pieces**.
   - Use the shortcut preset (Standard or Vim) to jump to the next/previous critical move, start auto-replay, or switch pages. Press `F1` for the full cheat sheet.
   - Click on any move in the **Move List** to jump to that position.
   - Drag the scrollbar or click on the **Evaluation Graph** to jump to key moments.
+  - Press the centred **Play/Pause** button (or `Space`) to replay the game automatically. The follow icon beside the flip control keeps the board on the move currently being analysed; turn it off to inspect an earlier position, then click it again to jump back to the live move.
 - **Move Classification**:
   - Moves are color-coded:
     - 🔵 **Brilliant/Great**: Exceptional play.

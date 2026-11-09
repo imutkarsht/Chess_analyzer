@@ -12,10 +12,10 @@ class StatsLayout(QLayout):
         self._spacing = spacing
         self.setContentsMargins(0, 0, 0, 0)
 
-    def __del__(self):
-        item = self.takeAt(0)
-        while item:
-            item = self.takeAt(0)
+    # QLayout owns the items added through addItem(); it deletes them with the
+    # layout. A Python __del__ that calls takeAt()/invalidate() after Qt has
+    # already destroyed the C++ object raises "wrapped C/C++ object deleted"
+    # during teardown.
 
     def addItem(self, item):
         self._items.append(item)

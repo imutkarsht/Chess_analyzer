@@ -247,6 +247,10 @@ class BoardPiecesSettings(QGroupBox):
             "board_show_eval_bar",
             on_change=lambda _value: self.theme_refreshed.emit(),
         )
+        self.wheel_navigation_checkbox = self.binder.add(
+            "board_wheel_navigation",
+            on_change=lambda _value: self.theme_refreshed.emit(),
+        )
 
     def import_theme(self):
         from ...board.piece_themes import (
@@ -297,6 +301,7 @@ class BoardPiecesSettings(QGroupBox):
             self.best_move_arrow_checkbox,
             self.last_move_checkbox,
             self.eval_bar_checkbox,
+            self.wheel_navigation_checkbox,
         ):
             checkbox.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
 

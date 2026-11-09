@@ -20,7 +20,7 @@ from src.backend.storage.historic_games import get_random_historic_position
 from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
-from src.gui.board import Board, BoardGameHeader, BoardPanel
+from src.gui.board import Board, BoardConfig, BoardGameHeader, BoardPanel
 from src.gui.components import (
     BadgeVariant,
     Label,
@@ -98,6 +98,12 @@ class MainWindow(
         self.games = []
         self.current_game = None
         self._drop_highlight_active = False
+        self._analysis_follow = False
+        self._latest_analyzed_index = -1
+        self._pending_analysis_updates = {}
+        self._pending_analysis_progress = None
+        self._analysis_progress_final = False
+        self._replay_advancing = False
         self.config_manager = ConfigManager()
         ToastManager.configure(
             position=self.config_manager.get_choice("toast_position", "top_right")
@@ -268,6 +274,15 @@ class MainWindow(
             self._save_window_state()
         except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Failed to save window state: {e}")
+
+        # Apply any queued analysis payload before widgets go away.
+        try:
+            self._flush_analysis_updates()
+            timer = getattr(self, "_analysis_ui_timer", None)
+            if timer is not None:
+                timer.stop()
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug(f"Failed to flush analysis UI on close: {e}")
 
         # Stop the shared live-engine sessions cleanly
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
@@ -543,7 +558,8 @@ class MainWindow(
         self.captured_black = CapturedPiecesWidget(side="black")
         self.captured_widget = self.captured_white
 
-        self.board_widget = Board()
+        self.board_widget = Board(BoardConfig(wheel_navigation=True))
+        self.board_widget.wheel_navigate.connect(self._on_board_wheel)
         self.board_panel = BoardPanel(
             self.board_widget, self.captured_white, self.captured_black
         )
@@ -632,6 +648,15 @@ class MainWindow(
         self.controls.next_clicked.connect(self.go_next)
         self.controls.last_clicked.connect(self.go_last)
         self.controls.flip_clicked.connect(self.flip_board)
+        self.controls.replay_toggled.connect(self._toggle_replay)
+        # The follow control lives with the playback chrome; keep the historical
+        # `btn_follow` alias so analysis mixin state helpers stay page-agnostic.
+        self.btn_follow = self.controls.btn_follow
+        self.controls.follow_toggled.connect(self._on_follow_toggled)
+        self.move_list_panel.move_list.state_changed.connect(
+            self.controls.set_navigation_state
+        )
+        self.controls.set_navigation_state(-1, 0)
         center_layout.addWidget(self.controls, 0, Qt.AlignmentFlag.AlignHCenter)
         self.board_widget.board_side_changed.connect(self._sync_board_chrome_widths)
 

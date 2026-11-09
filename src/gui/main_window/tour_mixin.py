@@ -223,7 +223,7 @@ class TourMixin:
                         TourStep(
                             target=self.controls,
                             title="Playback Controls",
-                            text="Step through moves with arrow keys, jump to start/end, flip board perspective, or auto-play through the game.",
+                            text="Step through moves with the arrow keys or by scrolling over the board, use the inline play button for auto-replay, and flip the board perspective. The follow icon appears while analysis runs.",
                             position="above",
                             page_index=0,
                         )

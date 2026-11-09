@@ -65,6 +65,7 @@ class MoveListView(QWidget):
         self.resource_manager = ResourceManager()
         self.entries: list[MoveListEntry] = []
         self.current_index = -1
+        self._painted_index = -1
         self.move_widgets: dict[int, MoveCellWidget] = {}
         self.think_bars: list[MoveCellWidget] = []
         self._max_seconds = 30.0
@@ -179,13 +180,37 @@ class MoveListView(QWidget):
         if not changes:
             return
         self.entries[index] = replace(self.entries[index], **changes)
+        self._refresh_entry_cell(index)
+        self._notify_state()
+
+    def update_entries(self, updates: dict[int, dict]) -> None:
+        """Apply several move-cell changes with one widget pass.
+
+        ``updates`` maps a move index to the fields accepted by
+        :meth:`update_entry`. Analysis delivers a burst of these at the end of
+        a game, so this avoids repainting the table once per move.
+        """
+        changed: list[int] = []
+        for index, changes in updates.items():
+            if not 0 <= index < len(self.entries):
+                continue
+            entry = replace(self.entries[index], **changes)
+            if entry == self.entries[index]:
+                continue
+            self.entries[index] = entry
+            changed.append(index)
+
+        if not changed:
+            return
+        for index in changed:
+            self._refresh_entry_cell(index)
+        self._notify_state()
+
+    def _refresh_entry_cell(self, index: int) -> None:
         if self._rich:
             self._update_rich_cell(index)
-            self._apply_selection()
         else:
-            self._render_plain()
-            self._apply_selection()
-        self._notify_state()
+            self._update_plain_cell(index)
 
     def set_classification(self, index: int, classification: str | None) -> None:
         if not 0 <= index < len(self.entries):
@@ -193,12 +218,7 @@ class MoveListView(QWidget):
         self.entries[index] = replace(
             self.entries[index], classification=classification
         )
-        if self._rich:
-            self._update_rich_cell(index)
-            self._apply_selection()
-        else:
-            self._render_plain()
-            self._apply_selection()
+        self._refresh_entry_cell(index)
         self._notify_state()
 
     def set_pending(self, index: int, pending: bool = True) -> None:
@@ -249,6 +269,7 @@ class MoveListView(QWidget):
             self._clear_cell_widgets()
         self.table.clearContents()
         self.table.setRowCount(0)
+        self._painted_index = -1
 
     def _render_plain(self) -> None:
         self._reset_table()
@@ -332,6 +353,23 @@ class MoveListView(QWidget):
             variation_count=entry.variation_count,
         )
 
+    def _update_plain_cell(self, index: int) -> None:
+        """Refresh one plain table item without rebuilding the whole table."""
+        row, column = self._row_column(index)
+        entry = self.entries[index]
+        item = self.table.item(row, column)
+        if item is None:
+            item = QTableWidgetItem()
+            item.setTextAlignment(
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            )
+            self.table.setItem(row, column, item)
+        item.setText(self._plain_text(entry))
+        item.setData(Qt.ItemDataRole.UserRole, index)
+        item.setFont(self.table.font())
+        item.setIcon(QIcon())
+        self._style_plain_item(item, entry)
+
     @staticmethod
     def _plain_text(entry: MoveListEntry) -> str:
         if entry.classification == "Pending":
@@ -367,26 +405,39 @@ class MoveListView(QWidget):
     # ------------------------------------------------------------------
 
     def _apply_selection(self) -> None:
-        self.table.clearSelection()
-        if self.current_index < 0:
-            if self._rich:
-                for _index, widget in self._live_move_widgets():
-                    widget.set_state(selected=False, row_active=False)
-            return
+        previous_index = self._painted_index
+        current_index = self.current_index
 
-        row, column = self._row_column(self.current_index)
-        self.table.setCurrentCell(row, column)
-        item = self.table.item(row, column)
-        if item is not None:
-            self.table.scrollToItem(item)
+        self.table.clearSelection()
+        if current_index >= 0:
+            row, column = self._row_column(current_index)
+            self.table.setCurrentCell(row, column)
+            item = self.table.item(row, column)
+            if item is not None:
+                self.table.scrollToItem(item)
 
         if self._rich:
-            active_row = self.current_index // 2
-            for index, widget in self._live_move_widgets():
+            active_row = current_index // 2 if current_index >= 0 else None
+            for index in self._affected_row_indices(previous_index, current_index):
+                widget = self.move_widgets.get(index)
+                if widget is None or sip.isdeleted(widget):
+                    continue
                 widget.set_state(
-                    selected=index == self.current_index,
+                    selected=index == current_index,
                     row_active=index // 2 == active_row,
                 )
+        self._painted_index = current_index
+
+    @staticmethod
+    def _affected_row_indices(previous_index: int, current_index: int) -> set[int]:
+        """Cells whose selection tint can change between two positions."""
+        affected: set[int] = set()
+        for index in (previous_index, current_index):
+            if index < 0:
+                continue
+            row = index // 2
+            affected.update((row * 2, row * 2 + 1))
+        return affected
 
     def _notify_state(self) -> None:
         self.state_changed.emit(self.current_index, len(self.entries))
