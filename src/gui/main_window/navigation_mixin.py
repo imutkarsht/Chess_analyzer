@@ -186,7 +186,7 @@ class NavigationMixin:
         self.on_move_selected(idx)
 
     def _toggle_replay(self):
-        """Space: start/stop stepping through the main line every REPLAY_INTERVAL_MS."""
+        """Space/button: start or pause stepping through the main line."""
         if self._replay_timer.isActive():
             self._stop_replay()
             return
@@ -205,16 +205,28 @@ class NavigationMixin:
             self._set_status("Exit the variation (Esc) to replay the game", "info")
             return
 
+        # Replay owns the board while it runs; following the analysis would
+        # fight it for the selection every time a new move arrives.
+        self._set_analysis_follow(False)
+
         # Restart from the beginning when the game is already at its last move.
         if self.board_widget.current_move_index >= len(game.moves) - 1:
-            self.on_move_selected(-1)
+            self.on_move_selected(-1, manual=False)
         self._replay_timer.start()
+        self._set_replay_button_state(True)
         self._set_status("Auto-replay started (Space to pause)", "info")
 
     def _stop_replay(self):
-        if self._replay_timer.isActive():
+        was_active = self._replay_timer.isActive()
+        if was_active:
             self._replay_timer.stop()
             self._set_status("Auto-replay paused", "info")
+        self._set_replay_button_state(False)
+
+    def _set_replay_button_state(self, active: bool) -> None:
+        controls = getattr(self, "controls", None)
+        if controls is not None and hasattr(controls, "set_replay_active"):
+            controls.set_replay_active(active)
 
     def _replay_tick(self):
         game = self.current_game
@@ -226,7 +238,30 @@ class NavigationMixin:
         ):
             self._stop_replay()
             return
-        self._nav_next()
+        # Replay steps are programmatic: they must not count as manual
+        # navigation and stop the timer that produced them.
+        self._replay_advancing = True
+        try:
+            self._nav_next()
+        finally:
+            self._replay_advancing = False
+
+    def _on_board_wheel(self, direction: int) -> None:
+        """Navigate the analysis game from a vertical board scroll."""
+        if self.stack.currentIndex() != PAGE_ANALYSIS or not self.current_game:
+            return
+        self._stop_replay()
+        if direction < 0:
+            self._nav_prev()
+        elif direction > 0:
+            self._nav_next()
+
+    def _on_manual_navigation(self) -> None:
+        """A user-chosen move wins over replay and analysis follow."""
+        if getattr(self, "_replay_advancing", False):
+            return
+        self._stop_replay()
+        self._set_analysis_follow(False)
 
     @staticmethod
     def _editing_text() -> bool:
@@ -393,9 +428,29 @@ class NavigationMixin:
         if hasattr(self, "controls"):
             self.controls.setFixedWidth(side)
 
-    def on_move_selected(self, index, silent: bool = False):
+    def _update_captured_and_clocks(self, index: int) -> None:
+        """Refresh the material and clock rows for the displayed position."""
+        if not self.current_game:
+            return
+        moves = self.current_game.moves
+        fen = None
+        if 0 <= index < len(moves):
+            if index + 1 < len(moves):
+                fen = moves[index + 1].fen_before
+            elif hasattr(self.board_widget, "board"):
+                fen = self.board_widget.board.fen()
+
+        self.captured_white.update_captured(fen)
+        self.captured_black.update_captured(fen)
+        white_time, black_time = compute_clock_times(moves, index)
+        self.captured_white.update_clock(white_time)
+        self.captured_black.update_clock(black_time)
+
+    def on_move_selected(self, index, silent: bool = False, *, manual: bool = True):
         # Any game navigation abandons an open variation first.
         self._exit_variation()
+        if manual:
+            self._on_manual_navigation()
 
         self.board_widget.set_position(index)
         self.move_list_panel.select_move(index)
@@ -409,23 +464,8 @@ class NavigationMixin:
             self.analysis_panel.set_selected_move(index)
 
         if self.current_game:
+            self._update_captured_and_clocks(index)
             moves = self.current_game.moves
-            fen = None
-            if index == -1:
-                fen = None
-            elif 0 <= index < len(moves):
-                if index + 1 < len(moves):
-                    fen = moves[index + 1].fen_before
-                else:
-                    if hasattr(self.board_widget, "board"):
-                        fen = self.board_widget.board.fen()
-
-            self.captured_white.update_captured(fen)
-            self.captured_black.update_captured(fen)
-
-            white_time, black_time = compute_clock_times(moves, index)
-            self.captured_white.update_clock(white_time)
-            self.captured_black.update_clock(black_time)
 
             if 0 <= index < len(moves) and not silent:
                 move = moves[index]

@@ -199,6 +199,11 @@ PAGE_NAMES = ("Analyze", "Explore", "History", "Metrics", "Settings")
 # Delay between moves during Space auto-replay, in milliseconds.
 REPLAY_INTERVAL_MS = 1000
 
+# Analysis callbacks fire faster than the eye can follow (and the final
+# classification pass emits one callback per move). Coalesce UI work so a game
+# never performs a full board/graph repaint per analysed ply.
+ANALYSIS_UI_FLUSH_MS = 100
+
 # Classifications that N / Shift+Right and P / Shift+Left jump between.
 # Inaccuracies are left out on purpose: they are too frequent to be "critical".
 CRITICAL_CLASSIFICATIONS = frozenset({"Mistake", "Miss", "Blunder"})

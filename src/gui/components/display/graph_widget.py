@@ -1,3 +1,5 @@
+import time
+
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PyQt6.QtCore import pyqtSignal
@@ -18,6 +20,7 @@ class GraphWidget(QWidget):
         self.canvas = FigureCanvas(self.figure)
         self.layout.addWidget(self.canvas)
         self.ax = self.figure.add_subplot(111)
+        self._last_hover_draw = 0.0
 
         # Attach once; _render_plot() runs on every analysed move and must not
         # accumulate duplicate callbacks on the canvas.
@@ -65,13 +68,21 @@ class GraphWidget(QWidget):
         move_nums, evals = self._build_eval_data(moves, up_to_index)
         self._render_plot(move_nums, evals, moves)
 
+    def update_progress(self, moves, up_to_index, current_move):
+        """Plot partial data and its cursor with one coalesced repaint."""
+        self.ax.clear()
+        move_nums, evals = self._build_eval_data(moves, up_to_index)
+        self._render_plot(move_nums, evals, moves, draw=False)
+        self.set_current_move(current_move, draw=False)
+        self.canvas.draw_idle()
+
     def plot_game(self, game_analysis):
         """Full game plot - plots all moves."""
         self.ax.clear()
         move_nums, evals = self._build_eval_data(game_analysis.moves)
         self._render_plot(move_nums, evals, game_analysis.moves)
 
-    def _render_plot(self, move_nums, evals, all_moves):
+    def _render_plot(self, move_nums, evals, all_moves, *, draw: bool = True):
         """Render the plot with the given data arrays."""
         accent = Styles.COLOR_ACCENT
 
@@ -169,8 +180,6 @@ class GraphWidget(QWidget):
         self.current_move_line = self.ax.axvline(x=-1, color=MOVE_PIN_COLOR, linewidth=2.0, linestyle='--', alpha=0.95, zorder=5)
         self.current_move_line.set_visible(False)
 
-        self.canvas.draw()
-
         self.moves_data = move_nums
         self.evals_data = evals
 
@@ -181,7 +190,10 @@ class GraphWidget(QWidget):
                             arrowprops=dict(arrowstyle="->", color=Styles.COLOR_TEXT_SECONDARY))
         self.annot.set_visible(False)
 
-    def set_current_move(self, move_index):
+        if draw:
+            self.canvas.draw_idle()
+
+    def set_current_move(self, move_index, *, draw: bool = True):
         if not hasattr(self, 'current_move_line') or self.current_move_line is None:
             return
         if move_index < 0:
@@ -189,20 +201,36 @@ class GraphWidget(QWidget):
         else:
             self.current_move_line.set_xdata([move_index + 1, move_index + 1])
             self.current_move_line.set_visible(True)
-        self.canvas.draw_idle()
+        if draw:
+            self.canvas.draw_idle()
+
+    def _index_for_x(self, x: float) -> int | None:
+        """Map an x coordinate to a data index; data is contiguous 0..N."""
+        moves = getattr(self, "moves_data", None)
+        if not moves:
+            return None
+        return max(0, min(len(moves) - 1, int(round(x))))
 
     def on_hover(self, event):
         if event.inaxes == self.ax:
             x = event.xdata
             if x is not None and hasattr(self, 'moves_data'):
-                idx = min(range(len(self.moves_data)), key=lambda i: abs(self.moves_data[i] - x))
+                idx = self._index_for_x(x)
+                if idx is None:
+                    return
                 move_num = self.moves_data[idx]
                 val = self.evals_data[idx]
                 self.annot.xy = (move_num, val)
                 eval_display = f"{val:+.2f}" if val != 0 else "0.00"
                 self.annot.set_text(f"Move {move_num}\n{eval_display}")
                 self.annot.set_visible(True)
-                self.canvas.draw_idle()
+
+                # Motion events arrive far above 30 Hz; the annotation state is
+                # updated every time, but the expensive canvas repaint is not.
+                now = time.monotonic()
+                if now - self._last_hover_draw >= (1.0 / 30.0):
+                    self._last_hover_draw = now
+                    self.canvas.draw_idle()
         else:
             if hasattr(self, 'annot') and self.annot.get_visible():
                 self.annot.set_visible(False)
@@ -214,7 +242,9 @@ class GraphWidget(QWidget):
         x = event.xdata
         if x is None or not hasattr(self, 'moves_data'):
             return
-        idx = min(range(len(self.moves_data)), key=lambda i: abs(self.moves_data[i] - x))
+        idx = self._index_for_x(x)
+        if idx is None:
+            return
         move_index = idx - 1
         self.move_clicked.emit(move_index)
 

@@ -104,6 +104,8 @@ class GameLoadingMixin:
             self.btn_explore.setVisible(has_game)
         if hasattr(self, "btn_analyze"):
             self.btn_analyze.setVisible(has_game)
+        if hasattr(self, "btn_follow"):
+            self.btn_follow.setVisible(False)
 
         # Eval bar is only shown during game playback / analysis, and only
         # when the user has not disabled it in Appearance settings.

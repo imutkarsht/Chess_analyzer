@@ -29,6 +29,7 @@ class CapturedPiecesWidget(QFrame):
         self._compact = False
         self._fen = None
         self._clock_seconds = None
+        self._capture_signature = None
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shape.NoFrame)
         self.setStyleSheet(Styles.get_captured_pieces_style())
 
@@ -64,6 +65,7 @@ class CapturedPiecesWidget(QFrame):
         self._compact = compact
         self.clock_label.set_compact(compact)
         self._apply_row_height()
+        self._capture_signature = None
         self.update_captured(self._fen)
         if self._clock_seconds is not None:
             self._apply_clock_style(self._clock_seconds)
@@ -76,40 +78,20 @@ class CapturedPiecesWidget(QFrame):
         expected to be called with the same FEN.
         """
         self._fen = fen
-        clear_layout(self.pieces_layout)
-
         if not fen:
+            self._capture_signature = None
+            clear_layout(self.pieces_layout)
             self._update_container_style()
             return
 
-        starting_pieces = {
-            'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1,
-            'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1
-        }
+        white_caps, black_caps, diff, signature = self._capture_state(fen)
+        if signature == self._capture_signature:
+            # The position changed but no capture did; chips are still correct.
+            self._update_container_style()
+            return
 
-        current_pieces = {}
-        board_part = fen.split(' ')[0]
-        for char in board_part:
-            if char.isalpha():
-                current_pieces[char] = current_pieces.get(char, 0) + 1
-
-        piece_values = {'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9}
-
-        # Pieces taken BY white (lowercase = black pieces missing) and BY black.
-        white_caps = {}  # black pieces White has taken
-        black_caps = {}  # white pieces Black has taken
-        for p in ['p', 'n', 'b', 'r', 'q']:
-            count = starting_pieces[p] - current_pieces.get(p, 0)
-            if count > 0:
-                white_caps[p] = count
-        for p in ['P', 'N', 'B', 'R', 'Q']:
-            count = starting_pieces[p] - current_pieces.get(p, 0)
-            if count > 0:
-                black_caps[p] = count
-
-        white_score = sum(piece_values[p] * c for p, c in white_caps.items())
-        black_score = sum(piece_values[p.lower()] * c for p, c in black_caps.items())
-        diff = white_score - black_score  # positive = White is ahead in material
+        self._capture_signature = signature
+        clear_layout(self.pieces_layout)
 
         if self.side == "white":
             # Black pieces White has taken — show with INVERTED background
@@ -138,6 +120,40 @@ class CapturedPiecesWidget(QFrame):
 
         # Show border when there are pieces or a visible clock to display
         self._update_container_style()
+
+    @staticmethod
+    def _capture_state(fen):
+        """Return both sides' captures, the material diff, and a cache key."""
+        starting_pieces = {
+            'p': 8, 'n': 2, 'b': 2, 'r': 2, 'q': 1,
+            'P': 8, 'N': 2, 'B': 2, 'R': 2, 'Q': 1,
+        }
+
+        current_pieces = {}
+        board_part = fen.split(' ')[0]
+        for char in board_part:
+            if char.isalpha():
+                current_pieces[char] = current_pieces.get(char, 0) + 1
+
+        piece_values = {'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9}
+
+        # Pieces taken BY white (lowercase = black pieces missing) and BY black.
+        white_caps = {}  # black pieces White has taken
+        black_caps = {}  # white pieces Black has taken
+        for p in ['p', 'n', 'b', 'r', 'q']:
+            count = starting_pieces[p] - current_pieces.get(p, 0)
+            if count > 0:
+                white_caps[p] = count
+        for p in ['P', 'N', 'B', 'R', 'Q']:
+            count = starting_pieces[p] - current_pieces.get(p, 0)
+            if count > 0:
+                black_caps[p] = count
+
+        white_score = sum(piece_values[p] * c for p, c in white_caps.items())
+        black_score = sum(piece_values[p.lower()] * c for p, c in black_caps.items())
+        diff = white_score - black_score  # positive = White is ahead in material
+        signature = (tuple(sorted(white_caps.items())), tuple(sorted(black_caps.items())), diff)
+        return white_caps, black_caps, diff, signature
 
     def _add_pieces(self, count, piece, fg, bg):
         """Add piece chips for the given count.
@@ -271,6 +287,9 @@ class CapturedPiecesWidget(QFrame):
         else:
             self.setStyleSheet(Styles.get_transparent_style())
     def refresh_styles(self):
+        # Chip colours/fonts come from the palette, so a theme change must
+        # rebuild them even when the capture signature is unchanged.
+        self._capture_signature = None
         self.update_captured(self._fen)
         if self._clock_seconds is not None:
             self._apply_clock_style(self._clock_seconds)

@@ -6,6 +6,7 @@ signals; they never subclass it or re-implement its interaction handling.
 """
 
 import math
+import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Literal
@@ -43,6 +44,8 @@ class BoardConfig:
     drag_and_drop: bool = True
     click_to_move: bool = True
     show_legal_moves: bool = True
+    # Opt-in: only the analysis board advertises wheel navigation.
+    wheel_navigation: bool = False
 
     # Appearance. None follows the global setting; an explicit bool pins it.
     show_coordinates: bool | None = None
@@ -68,6 +71,7 @@ class Board(QWidget):
 
     move_made = pyqtSignal(str)  # Emits board FEN after any move is played
     board_side_changed = pyqtSignal(int)  # Emits the rendered square board size
+    wheel_navigate = pyqtSignal(int)  # -1 previous move, +1 next move
 
     def __init__(self, config: BoardConfig | None = None, parent=None):
         super().__init__(parent)
@@ -129,6 +133,11 @@ class Board(QWidget):
         # Hosts (analysis page, explorer) decide when the bar is meaningful;
         # the setting only controls whether it may appear at all.
         self._eval_bar_host_visible = True
+        self._wheel_navigation = False
+        self._wheel_angle_accum = 0
+        self._wheel_pixel_accum = 0
+        self._wheel_gesture_consumed = False
+        self._wheel_last_step_at: float | None = None
 
         # Drag and drop floating piece visual
         self.drag_piece_label = IconLabel(
@@ -190,24 +199,102 @@ class Board(QWidget):
 
     # ------------------------------------------------------------------ Mouse & Move Interactions
     def eventFilter(self, obj, event):
-        if obj is self.svg_widget and self.interactive:
+        if obj is self.svg_widget:
             if (
-                event.type() == QEvent.Type.MouseButtonPress
-                and event.button() == Qt.MouseButton.LeftButton
+                event.type() == QEvent.Type.Wheel
+                and self._wheel_navigation
+                and self._handle_wheel_event(event)
             ):
-                self.handle_press(event.position().x(), event.position().y())
                 return True
-            elif event.type() == QEvent.Type.MouseMove:
-                if self.is_dragging or (event.buttons() & Qt.MouseButton.LeftButton):
-                    self.handle_move(event.position().x(), event.position().y())
+            if self.interactive:
+                if (
+                    event.type() == QEvent.Type.MouseButtonPress
+                    and event.button() == Qt.MouseButton.LeftButton
+                ):
+                    self.handle_press(event.position().x(), event.position().y())
                     return True
-            elif (
-                event.type() == QEvent.Type.MouseButtonRelease
-                and event.button() == Qt.MouseButton.LeftButton
-            ):
-                self.handle_release(event.position().x(), event.position().y())
-                return True
+                elif event.type() == QEvent.Type.MouseMove:
+                    if self.is_dragging or (event.buttons() & Qt.MouseButton.LeftButton):
+                        self.handle_move(event.position().x(), event.position().y())
+                        return True
+                elif (
+                    event.type() == QEvent.Type.MouseButtonRelease
+                    and event.button() == Qt.MouseButton.LeftButton
+                ):
+                    self.handle_release(event.position().x(), event.position().y())
+                    return True
         return super().eventFilter(obj, event)
+
+    def _handle_wheel_event(self, event) -> bool:
+        """Consume vertical wheel input and emit at most one navigation step.
+
+        Trackpads send many small pixel deltas per gesture; classic wheels send
+        120-unit notches. Phased gestures get one step until the gesture ends,
+        while phase-less pixel streams use a short cooldown. Returns ``True``
+        for a consumed event so the surrounding page does not scroll.
+        """
+        modifiers = event.modifiers()
+        if modifiers & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier):
+            return False
+
+        phase = event.phase()
+        if phase == Qt.ScrollPhase.ScrollMomentum:
+            return True
+        if phase == Qt.ScrollPhase.ScrollBegin:
+            self._reset_wheel_accumulators()
+            self._wheel_gesture_consumed = False
+        elif phase == Qt.ScrollPhase.ScrollEnd:
+            self._reset_wheel_accumulators()
+            self._wheel_gesture_consumed = False
+            return True
+
+        pixel_delta = event.pixelDelta().y()
+        angle_delta = event.angleDelta().y()
+        if pixel_delta:
+            step, crossed = self._accumulate_wheel(
+                pixel_delta, threshold=50, attribute="_wheel_pixel_accum"
+            )
+        elif angle_delta:
+            step, crossed = self._accumulate_wheel(
+                angle_delta, threshold=120, attribute="_wheel_angle_accum"
+            )
+        else:
+            # Horizontal-only wheel events belong to the page/other widgets.
+            return False
+
+        if not crossed:
+            return True
+        if phase != Qt.ScrollPhase.NoScrollPhase and self._wheel_gesture_consumed:
+            return True
+        if phase == Qt.ScrollPhase.NoScrollPhase and pixel_delta:
+            now = time.monotonic()
+            if (
+                self._wheel_last_step_at is not None
+                and now - self._wheel_last_step_at < 0.15
+            ):
+                return True
+            self._wheel_last_step_at = now
+        if phase != Qt.ScrollPhase.NoScrollPhase:
+            self._wheel_gesture_consumed = True
+        self.wheel_navigate.emit(step)
+        return True
+
+    def _accumulate_wheel(
+        self, delta: int, *, threshold: int, attribute: str
+    ) -> tuple[int, bool]:
+        accumulated = getattr(self, attribute)
+        if accumulated and (accumulated > 0) != (delta > 0):
+            accumulated = 0
+        accumulated += delta
+        if abs(accumulated) < threshold:
+            setattr(self, attribute, accumulated)
+            return 0, False
+        setattr(self, attribute, 0)
+        return (-1 if accumulated > 0 else 1), True
+
+    def _reset_wheel_accumulators(self) -> None:
+        self._wheel_angle_accum = 0
+        self._wheel_pixel_accum = 0
 
     def handle_press(self, x, y):
         sq = self._get_square_from_coords(x, y)
@@ -653,6 +740,10 @@ class Board(QWidget):
         )
         self._show_eval_bar = resolve(
             self.config.show_eval_bar, "board_show_eval_bar"
+        )
+        # Page opt-in (BoardConfig) AND the live user preference.
+        self._wheel_navigation = bool(self.config.wheel_navigation) and resolve(
+            None, "board_wheel_navigation", True
         )
 
     def set_eval_bar_visible(self, visible: bool) -> None:

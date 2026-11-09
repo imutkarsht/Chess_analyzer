@@ -23,6 +23,8 @@ class MoveControls(QWidget):
     next_clicked = pyqtSignal()
     last_clicked = pyqtSignal()
     flip_clicked = pyqtSignal()
+    replay_toggled = pyqtSignal()
+    follow_toggled = pyqtSignal(bool)
 
     def __init__(self, variant: str = "analysis", parent: QWidget | None = None):
         super().__init__(parent)
@@ -34,7 +36,10 @@ class MoveControls(QWidget):
         self.btn_prev: Button
         self.btn_next: Button
         self.btn_last: Button
+        self.btn_play: Button | None = None
+        self.btn_follow: Button | None = None
         self.btn_flip: Button | None = None
+        self._replay_active = False
 
         if variant == "analysis":
             self._build_analysis_controls()
@@ -72,15 +77,34 @@ class MoveControls(QWidget):
         self.btn_last = self._make_analysis_button(
             "fa5s.angle-double-right", "⏭", "Last move (End)", self.last_clicked
         )
+        self.btn_play = self._make_analysis_button(
+            "fa5s.play", "▶", "Play / pause auto-replay (Space)", self.replay_toggled
+        )
+        self.btn_follow = self._make_follow_button()
         self.btn_flip = self._make_analysis_button(
             "fa5s.exchange-alt", "⇄", "Flip board (F)", self.flip_clicked
         )
 
-        for button in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
+        # Media controls: play/pause sits at the centre of the step group.
+        for button in (
+            self.btn_first,
+            self.btn_prev,
+            self.btn_play,
+            self.btn_next,
+            self.btn_last,
+        ):
             toolbar_layout.addWidget(button)
+
+        right_controls = QWidget()
+        right_layout = QHBoxLayout(right_controls)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(2)
+        right_layout.addWidget(self.btn_follow)
+        right_layout.addWidget(self.btn_flip)
+
         outer.addWidget(self.nav_toolbar)
         outer.addStretch()
-        outer.addWidget(self.btn_flip)
+        outer.addWidget(right_controls)
 
     def _build_explorer_controls(self) -> None:
         layout = QHBoxLayout(self)
@@ -112,6 +136,25 @@ class MoveControls(QWidget):
         button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         return button
 
+    def _make_follow_button(self) -> Button:
+        tooltip = "Keep the board on the move currently being analysed"
+        button = Button(
+            icon="fa5s.crosshairs" if HAS_QTAWESOME else None,
+            icon_position="only" if HAS_QTAWESOME else "left",
+            variant=ButtonVariant.GHOST,
+            size=ButtonSize.SM,
+            checkable=True,
+            tooltip=tooltip,
+        )
+        if not HAS_QTAWESOME:
+            button.setText("Follow")
+        button.setFixedSize(32, 30)
+        button.setAccessibleName(tooltip)
+        button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        button.setVisible(False)
+        button.toggled.connect(self.follow_toggled.emit)
+        return button
+
     def _make_explorer_button(self, text, signal):
         button = Button(
             text,
@@ -133,11 +176,41 @@ class MoveControls(QWidget):
         self.btn_prev.setEnabled(has_moves and current_index > -1)
         self.btn_next.setEnabled(has_moves and current_index < total - 1)
         self.btn_last.setEnabled(has_moves and current_index < total - 1)
+        if self.btn_play is not None:
+            self.btn_play.setEnabled(has_moves)
+
+    def set_replay_active(self, active: bool) -> None:
+        """Mirror the replay timer state on the play/pause button."""
+        if self.btn_play is None:
+            return
+        self._replay_active = bool(active)
+        icon = "fa5s.pause" if self._replay_active else "fa5s.play"
+        tooltip = (
+            "Pause auto-replay (Space)"
+            if self._replay_active
+            else "Play / pause auto-replay (Space)"
+        )
+        self.btn_play.set_icon_spec(icon)
+        self.btn_play.setToolTip(tooltip)
+        self.btn_play.setAccessibleName(tooltip)
+
+    def set_follow_visible(self, visible: bool) -> None:
+        if self.btn_follow is not None:
+            self.btn_follow.setVisible(bool(visible))
+
+    def set_follow_active(self, active: bool) -> None:
+        if self.btn_follow is None:
+            return
+        self.btn_follow.blockSignals(True)
+        self.btn_follow.setChecked(bool(active))
+        self.btn_follow.blockSignals(False)
 
     def refresh_styles(self) -> None:
         if self.variant == "analysis":
             self.setStyleSheet(Styles.get_board_controls_style())
-        for button in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
+        buttons = [self.btn_first, self.btn_prev, self.btn_next, self.btn_last]
+        for button in (self.btn_play, self.btn_follow, self.btn_flip):
+            if button is not None:
+                buttons.append(button)
+        for button in buttons:
             button.refresh_styles()
-        if self.btn_flip is not None:
-            self.btn_flip.refresh_styles()

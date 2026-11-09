@@ -5,11 +5,15 @@ These pin the interaction branches, the ``load_fen`` tri-state contract and the
 """
 
 import importlib
+import types
 
 import chess
 import pytest
+from PyQt6.QtCore import QPoint, QPointF, Qt
+from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QDialog
 
+import src.gui.board.board as board_module
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.board import Board, BoardConfig
 from src.utils.config import ConfigManager
@@ -48,6 +52,7 @@ def board_prefs(qapp):
         "board_show_best_move_arrow",
         "board_show_last_move",
         "board_show_eval_bar",
+        "board_wheel_navigation",
     )
     original = {key: config.config.get(key) for key in keys}
     yield config
@@ -386,3 +391,139 @@ def test_set_board_swaps_position_and_clears_analysis_state(qapp):
     assert board.best_move_uci is None
     assert board.last_move_classification is None
     assert board.selected_square is None
+
+
+# --------------------------------------------------------------------------- wheel navigation
+
+
+def _wheel_event(
+    *,
+    angle_y: int = 0,
+    angle_x: int = 0,
+    pixel_y: int = 0,
+    modifiers: Qt.KeyboardModifier = Qt.KeyboardModifier.NoModifier,
+    phase: Qt.ScrollPhase = Qt.ScrollPhase.NoScrollPhase,
+) -> QWheelEvent:
+    return QWheelEvent(
+        QPointF(10, 10),
+        QPointF(10, 10),
+        QPoint(0, pixel_y),
+        QPoint(angle_x, angle_y),
+        Qt.MouseButton.NoButton,
+        modifiers,
+        phase,
+        False,
+    )
+
+
+def _wheel_board() -> tuple[Board, list[int]]:
+    board = _make(lambda: Board(BoardConfig(wheel_navigation=True)))
+    emitted: list[int] = []
+    board.wheel_navigate.connect(emitted.append)
+    return board, emitted
+
+
+def test_wheel_notches_emit_previous_and_next(qapp):
+    board, emitted = _wheel_board()
+
+    board.eventFilter(board.svg_widget, _wheel_event(angle_y=120))
+    board.eventFilter(board.svg_widget, _wheel_event(angle_y=-120))
+
+    assert emitted == [-1, 1]
+
+
+def test_high_resolution_angle_events_accumulate_to_one_step(qapp):
+    board, emitted = _wheel_board()
+
+    for _ in range(3):
+        board.eventFilter(board.svg_widget, _wheel_event(angle_y=40))
+
+    assert emitted == [-1]
+
+
+def test_pixel_deltas_accumulate_to_one_step(qapp, monkeypatch):
+    board, emitted = _wheel_board()
+    monkeypatch.setattr(board_module, "time", types.SimpleNamespace(monotonic=lambda: 0.0))
+
+    board.eventFilter(board.svg_widget, _wheel_event(pixel_y=20))
+    board.eventFilter(board.svg_widget, _wheel_event(pixel_y=20))
+    board.eventFilter(board.svg_widget, _wheel_event(pixel_y=10))
+
+    assert emitted == [-1]
+
+
+def test_pixel_gesture_cooldown_blocks_extra_steps(qapp, monkeypatch):
+    board, emitted = _wheel_board()
+    clock = {"now": 0.0}
+    monkeypatch.setattr(
+        board_module, "time", types.SimpleNamespace(monotonic=lambda: clock["now"])
+    )
+
+    board.eventFilter(board.svg_widget, _wheel_event(pixel_y=50))
+    board.eventFilter(board.svg_widget, _wheel_event(pixel_y=50))
+    assert emitted == [-1]
+
+    clock["now"] = 1.0
+    board.eventFilter(board.svg_widget, _wheel_event(pixel_y=50))
+    assert emitted == [-1, -1]
+
+
+def test_scroll_momentum_is_ignored(qapp):
+    board, emitted = _wheel_board()
+
+    board.eventFilter(
+        board.svg_widget,
+        _wheel_event(angle_y=120, phase=Qt.ScrollPhase.ScrollMomentum),
+    )
+
+    assert emitted == []
+
+
+def test_modified_and_horizontal_wheels_are_ignored(qapp):
+    board, emitted = _wheel_board()
+
+    for modifiers in (
+        Qt.KeyboardModifier.ControlModifier,
+        Qt.KeyboardModifier.ShiftModifier,
+    ):
+        board.eventFilter(
+            board.svg_widget, _wheel_event(angle_y=120, modifiers=modifiers)
+        )
+    board.eventFilter(board.svg_widget, _wheel_event(angle_x=120))
+
+    assert emitted == []
+
+
+def test_one_step_per_phased_gesture(qapp):
+    board, emitted = _wheel_board()
+
+    board.eventFilter(
+        board.svg_widget, _wheel_event(phase=Qt.ScrollPhase.ScrollBegin)
+    )
+    board.eventFilter(
+        board.svg_widget, _wheel_event(angle_y=120, phase=Qt.ScrollPhase.ScrollUpdate)
+    )
+    board.eventFilter(
+        board.svg_widget, _wheel_event(angle_y=120, phase=Qt.ScrollPhase.ScrollUpdate)
+    )
+    board.eventFilter(board.svg_widget, _wheel_event(phase=Qt.ScrollPhase.ScrollEnd))
+    board.eventFilter(
+        board.svg_widget, _wheel_event(phase=Qt.ScrollPhase.ScrollBegin)
+    )
+    board.eventFilter(
+        board.svg_widget, _wheel_event(angle_y=120, phase=Qt.ScrollPhase.ScrollUpdate)
+    )
+
+    assert emitted == [-1, -1]
+
+
+def test_wheel_navigation_respects_setting_and_board_opt_in(qapp, board_prefs):
+    opted_in, emitted = _wheel_board()
+    board_prefs.config["board_wheel_navigation"] = False
+    opted_in.refresh_settings()
+    opted_in.eventFilter(opted_in.svg_widget, _wheel_event(angle_y=120))
+    assert emitted == []
+
+    default_board = _make()
+    default_board.eventFilter(default_board.svg_widget, _wheel_event(angle_y=120))
+    assert default_board._wheel_navigation is False
