@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
@@ -7,6 +9,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.backend.storage.game_query import GameQuery
 from src.gui.components import (
@@ -21,6 +24,7 @@ from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
 from src.gui.utils.gui_utils import create_button
+from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.logger import logger
 
 from .history_filter_bar import HistoryFilterBar
@@ -67,6 +71,33 @@ class GameImportWorker(QThread):
             self.error.emit(str(e))
 
 
+class AnnotatedPGNExportWorker(QThread):
+    """Export the full game archive without blocking the History view."""
+
+    exported = pyqtSignal(int)
+    error = pyqtSignal(str)
+
+    def __init__(self, history_manager: GameHistoryManager, file_path: str, parent=None):
+        super().__init__(parent)
+        self.history_manager = history_manager
+        self.file_path = file_path
+
+    def run(self) -> None:
+        try:
+            rows = self.history_manager.get_all_games(limit=None)
+            games = [self.history_manager.row_to_game_analysis(row) for row in rows]
+            if not games:
+                self.exported.emit(0)
+                return
+
+            pgn = AnnotatedPGNExporter.export_games(games)
+            Path(self.file_path).write_text(pgn, encoding="utf-8")
+            self.exported.emit(len(games))
+        except Exception as e:
+            logger.error("Annotated PGN export failed: %s", e, exc_info=True)
+            self.error.emit(str(e))
+
+
 class HistoryView(QWidget):
     game_selected = pyqtSignal(object)  # Emits GameAnalysis object
     game_action_requested = pyqtSignal(object, str)  # Emits (GameAnalysis, action)
@@ -81,6 +112,8 @@ class HistoryView(QWidget):
         self.history_manager = GameHistoryManager()
         self.games = []
         self._import_worker: GameImportWorker | None = None
+        self._export_worker: AnnotatedPGNExportWorker | None = None
+        self._export_toast: ToastHandle | None = None
         self.analyzing_game_id: str | None = None
         self.usernames: list[str] = []
         self._total = 0
@@ -129,6 +162,13 @@ class HistoryView(QWidget):
 
         self.btn_export = self._create_icon_button("Export", "fa5s.file-export", self.export_games)
         header_layout.addWidget(self.btn_export)
+
+        self.btn_export_pgn = self._create_icon_button(
+            "Export Annotated PGN",
+            "fa5s.file-export",
+            self.export_annotated_pgn,
+        )
+        header_layout.addWidget(self.btn_export_pgn)
 
         self.btn_clear = self._create_icon_button(
             "Delete all games",
@@ -463,6 +503,63 @@ class HistoryView(QWidget):
         except Exception as e:
             logger.error(f"Export failed: {e}")
             ToastManager.error(self, f"Export failed: {e}")
+
+    def export_annotated_pgn(self):
+        if self._export_worker is not None:
+            return
+
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+
+            file_name, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Annotated PGN",
+                "games.pgn",
+                "PGN Files (*.pgn)",
+            )
+            if not file_name:
+                return
+            if not Path(file_name).suffix:
+                file_name = f"{file_name}.pgn"
+
+            self.btn_export_pgn.setEnabled(False)
+            self._export_toast = ToastManager.loading(self, "Exporting annotated PGN…")
+            worker = AnnotatedPGNExportWorker(
+                self.history_manager,
+                file_name,
+            )
+            self._export_worker = worker
+            worker.exported.connect(self._on_annotated_pgn_exported)
+            worker.error.connect(self._on_annotated_pgn_export_error)
+            worker.finished.connect(lambda: remove_worker(worker))
+            worker.finished.connect(self._on_annotated_pgn_worker_finished)
+            register_worker(worker)
+            worker.start()
+        except Exception as e:
+            logger.error("Failed to start annotated PGN export: %s", e, exc_info=True)
+            self.btn_export_pgn.setEnabled(True)
+            if self._export_toast is not None:
+                self._export_toast.update(f"Export failed: {e}", variant="error")
+            else:
+                ToastManager.error(self, f"Export failed: {e}")
+            self._export_toast = None
+
+    def _on_annotated_pgn_exported(self, count: int) -> None:
+        if self._export_toast is not None:
+            if count:
+                self._export_toast.update(f"Exported {count} games.", variant="success")
+            else:
+                self._export_toast.update("No games to export.", variant="warning")
+            self._export_toast = None
+
+    def _on_annotated_pgn_export_error(self, message: str) -> None:
+        if self._export_toast is not None:
+            self._export_toast.update(f"Export failed: {message}", variant="error")
+            self._export_toast = None
+
+    def _on_annotated_pgn_worker_finished(self) -> None:
+        self._export_worker = None
+        self.btn_export_pgn.setEnabled(True)
 
     def import_games(self):
         handle: ToastHandle | None = None

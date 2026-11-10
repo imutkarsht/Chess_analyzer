@@ -2,6 +2,8 @@
 Analysis Panel - Coordinates evaluation graphs, stats summaries, and AI coach summaries.
 """
 
+from pathlib import Path
+
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
@@ -16,6 +18,7 @@ from PyQt6.QtWidgets import (
 from src.backend.analysis.game_report import build_game_report
 from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.services.groq_service import GroqService
+from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import EXPLANATION_DEBOUNCE_MS
@@ -184,6 +187,15 @@ class AnalysisPanel(QWidget):
         self.details_label = Label("-", role=TextRole.MICRO, tone=TextTone.MUTED)
         hero_layout.addWidget(self.details_label)
 
+        self.btn_export_pgn = Button(
+            "Export Annotated PGN",
+            ButtonVariant.OUTLINED,
+            icon="fa5s.file-export",
+        )
+        self.btn_export_pgn.clicked.connect(self.export_annotated_pgn)
+        self.btn_export_pgn.setEnabled(False)
+        hero_layout.addWidget(self.btn_export_pgn, alignment=Qt.AlignmentFlag.AlignRight)
+
         self.report_layout.addWidget(self.hero_card)
 
         # Subtle divider 1
@@ -306,12 +318,39 @@ class AnalysisPanel(QWidget):
         self.set_selected_move(-1)
         self.refresh()
 
+    def export_annotated_pgn(self):
+        if self.current_game is None:
+            return
+
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+
+            file_name, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Annotated PGN",
+                "game.pgn",
+                "PGN Files (*.pgn)",
+            )
+            if not file_name:
+                return
+            if not Path(file_name).suffix:
+                file_name = f"{file_name}.pgn"
+
+            pgn = AnnotatedPGNExporter.export_game(self.current_game)
+            Path(file_name).write_text(pgn, encoding="utf-8")
+            ToastManager.success(self, "Annotated PGN exported.")
+        except Exception as e:
+            logger.error("Annotated PGN export failed: %s", e, exc_info=True)
+            ToastManager.error(self, f"Export failed: {e}")
+
     def refresh(self):
         if not self.current_game:
+            self.btn_export_pgn.setEnabled(False)
             self._lines_fen = None
             self.lines_widget.clear()
             return
 
+        self.btn_export_pgn.setEnabled(True)
         try:
             self._lines_fen = None
             self.lines_widget.clear()

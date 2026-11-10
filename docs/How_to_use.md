@@ -205,7 +205,8 @@ The Analysis Explorer is a dedicated interactive view for analyzing positions ou
 
 ### Data Management
 
-- **Export History**: **Settings > Data Management > Export Games to CSV**.
+- **Export History (CSV)**: Use **Settings > Data Management > Export Games to CSV** or the **Export** button in **Game History**.
+- **Export Annotated PGN**: From an open game's **Analysis → Report** tab, export that game with classifications, clock/evaluation comments, and engine variations. In **Game History**, choose **Export Annotated PGN** to export the full archive as a multi-game PGN.
 - **Import History**: **Import Games from CSV** to restore a library on another machine.
 - **Backup & Restore**: Create and validate a full database backup, with an automatic safety copy before a restore.
 - **Storage Report**: See what the local database actually holds and open the data folder directly.

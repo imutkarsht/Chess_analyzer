@@ -3,8 +3,10 @@ Tests for HistoryView, GameImportWorker, and CSV export/import fidelity.
 """
 
 import csv
+import io
 
 import chess
+import chess.pgn
 import pytest
 from PyQt6.QtWidgets import QLabel, QPushButton
 
@@ -19,7 +21,47 @@ from src.backend.storage.game_query import (
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.board import MiniBoardWidget
 from src.gui.components.lists.game_list_item_widget import GameListItemWidget
-from src.gui.views.history_view import GameImportWorker, HistoryView
+from src.gui.views.history_view import (
+    AnnotatedPGNExportWorker,
+    GameImportWorker,
+    HistoryView,
+)
+
+
+def test_annotated_pgn_export_worker_exports_history_off_thread(tmp_path, qtbot):
+    manager = GameHistoryManager(str(tmp_path / "export.db"))
+    board = chess.Board()
+    move = board.parse_san("e4")
+    game = GameAnalysis(
+        game_id="exported-game",
+        metadata=GameMetadata(white="Alice", black="Bob", headers={}),
+        moves=[
+            MoveAnalysis(
+                move_number=1,
+                ply=0,
+                san="e4",
+                uci=move.uci(),
+                fen_before=board.fen(),
+                classification="Brilliant",
+                eval_after_cp=25,
+            )
+        ],
+        pgn_content='[Event "Export"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 *',
+    )
+    manager.save_game(game, game.pgn_content)
+    output = tmp_path / "history.pgn"
+    worker = AnnotatedPGNExportWorker(manager, str(output))
+
+    with qtbot.waitSignal(worker.finished, timeout=5000):
+        with qtbot.waitSignal(worker.exported, timeout=5000) as result:
+            worker.start()
+
+    assert result.args == [1]
+    exported = output.read_text(encoding="utf-8")
+    parsed = chess.pgn.read_game(io.StringIO(exported))
+    assert parsed is not None
+    assert parsed.variation(0).nags == {3}
+    assert "[%eval +0.25]" in parsed.variation(0).comment
 
 
 def test_game_import_worker_execution(tmp_path, qtbot):
@@ -112,6 +154,8 @@ def test_history_view_applies_configured_default_layout(qapp, qtbot):
     qtbot.addWidget(view)
 
     assert view.game_list.view_mode == "detailed"
+    assert view.btn_export.text() == "Export"
+    assert view.btn_export_pgn.text() == "Export Annotated PGN"
 
     view.game_list.set_view_mode("compact")
     view.apply_default_view_mode()
