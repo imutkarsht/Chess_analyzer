@@ -169,18 +169,23 @@ class AnalysisPanel(QWidget):
         self.report_layout.setContentsMargins(12, 12, 12, 12)
         self.report_layout.setSpacing(10)
 
-        report_actions = QHBoxLayout()
-        report_actions.addStretch()
+        result_header = QHBoxLayout()
+        result_header.setSpacing(6)
+        self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
+        result_header.addWidget(self.result_banner_lbl, stretch=1)
         self.share_report_button = Button(
-            "Share Report",
+            "",
             variant=ButtonVariant.OUTLINED,
+            size="md",
             icon="fa5s.share-alt",
+            icon_position="only",
             tooltip="Analyze this game before sharing a report.",
         )
+        self.share_report_button.setAccessibleName("Share Report")
         self.share_report_button.setEnabled(False)
         self.share_report_button.clicked.connect(self.open_share_report)
-        report_actions.addWidget(self.share_report_button)
-        self.report_layout.addLayout(report_actions)
+        result_header.addWidget(self.share_report_button)
+        self.report_layout.addLayout(result_header)
 
         # 1. Top Section: Hero Outcome Header
         self.hero_card = QFrame()
@@ -188,9 +193,6 @@ class AnalysisPanel(QWidget):
         hero_layout = QVBoxLayout(self.hero_card)
         hero_layout.setContentsMargins(0, 0, 0, 0)
         hero_layout.setSpacing(2)
-
-        self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
-        hero_layout.addWidget(self.result_banner_lbl)
 
         self.opening_label = Label("-", role=TextRole.CAPTION, weight=600, wrap=True)
         hero_layout.addWidget(self.opening_label)
@@ -404,8 +406,16 @@ class AnalysisPanel(QWidget):
     def open_share_report(self) -> None:
         if not ShareReportRenderer.can_render(self.current_game):
             return
-        dialog = ShareReportDialog(self.current_game, self)
-        dialog.exec()
+        try:
+            dialog = ShareReportDialog(self.current_game, self)
+        except Exception as error:
+            logger.error("Could not render shareable game report: %s", error, exc_info=True)
+            ToastManager.error(self, "Could not render the game report.")
+            return
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()
 
     def _get_result_color(self, meta):
         user_side = self._user_side()

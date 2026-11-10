@@ -7,8 +7,7 @@ import math
 from collections.abc import Mapping
 
 import chess
-import chess.svg
-from PyQt6.QtCore import QByteArray, QLineF, QRectF, Qt
+from PyQt6.QtCore import QLineF, QRectF, Qt
 from PyQt6.QtGui import (
     QColor,
     QFont,
@@ -17,13 +16,15 @@ from PyQt6.QtGui import (
     QPainter,
     QPainterPath,
     QPen,
+    QPixmap,
 )
-from PyQt6.QtSvg import QSvgRenderer
 
 from src.backend.storage.models import GameAnalysis
-from src.constants import DEFAULT_BOARD_THEME, WEBSITE_URL
+from src.constants import APP_VERSION, DEFAULT_BOARD_THEME, WEBSITE_URL
+from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
+from src.utils.path_utils import get_resource_path
 
 _CLASSIFICATIONS = (
     "Brilliant",
@@ -47,7 +48,7 @@ class ShareReportRenderer:
 
     @staticmethod
     def can_render(game: GameAnalysis | None) -> bool:
-        if game is None or game.analyzed_moves_count < 1:
+        if game is None or game.status != "completed":
             return False
         summary = game.summary
         return (
@@ -87,14 +88,17 @@ class ShareReportRenderer:
         metadata = game.metadata
         white = game.summary["white"]
         black = game.summary["black"]
+        opening = _opening_context(metadata.eco, metadata.opening)
+        termination = _termination_suffix(metadata.termination_mode)
         white_name = _display_value(metadata.white, "White")
         black_name = _display_value(metadata.black, "Black")
         lines = [
             f"# Game Report: {white_name} vs {black_name}",
             "",
-            f"- **Result:** {_result_text(metadata.result)}",
+            f"- **Result:** {_result_text(metadata.result)}{f' · {termination}' if termination else ''}",
             f"- **Date:** {_display_value(metadata.date, 'Unknown')}",
             f"- **Time control:** {_display_value(metadata.time_control, 'Unknown')}",
+            f"- **Opening:** {opening}",
             (
                 "- **Accuracy:** "
                 f"White {_format_percent(white.get('accuracy'))}; "
@@ -114,7 +118,7 @@ class ShareReportRenderer:
             lines.append(
                 f"- {classification}: White {white_count}, Black {black_count}"
             )
-        lines.extend(("", f"[Chess Analyzer Pro]({WEBSITE_URL})"))
+        lines.extend(("", f"[Chess Analyzer Pro v{APP_VERSION}]({WEBSITE_URL})"))
         return "\n".join(lines)
 
     @staticmethod
@@ -147,9 +151,13 @@ class ShareReportRenderer:
     @classmethod
     def _draw_matchup(cls, painter: QPainter, game: GameAnalysis) -> None:
         metadata = game.metadata
+        logo_path = get_resource_path("assets/images/logo.png")
+        logo = QPixmap(logo_path)
+        if not logo.isNull():
+            painter.drawPixmap(QRectF(48, 17, 26, 26), logo, QRectF(logo.rect()))
         cls._draw_text(
             painter,
-            QRectF(48, 16, 300, 30),
+            QRectF(82, 16, 300, 30),
             "CHESS ANALYZER PRO",
             15,
             Styles.COLOR_ACCENT,
@@ -201,7 +209,7 @@ class ShareReportRenderer:
         cls._draw_text(
             painter,
             QRectF(518, 121, 164, 22),
-            _result_text(metadata.result).upper(),
+            _result_display(metadata.result, metadata.termination_mode),
             11,
             Styles.COLOR_TEXT_SECONDARY,
             QFont.Weight.DemiBold,
@@ -232,11 +240,11 @@ class ShareReportRenderer:
             Styles.COLOR_TEXT_SECONDARY,
         )
 
-        moves = game.total_moves_count or len(game.moves)
+        moves = _full_move_count(game)
         details = [
             f"DATE  {_display_value(metadata.date, 'Unknown')}",
             f"TIME CONTROL  {_display_value(metadata.time_control, 'Unknown')}",
-            f"{moves} PLIES",
+            f"{moves} MOVES",
         ]
         cls._draw_text(
             painter,
@@ -260,7 +268,9 @@ class ShareReportRenderer:
                 Styles.COLOR_TEXT_SECONDARY,
                 QFont.Weight.Bold,
             )
-            cls._draw_accuracy_gauge(painter, x + 76, 278, data.get("accuracy"))
+            cls._draw_accuracy_gauge(
+                painter, x + 76, 278, data.get("accuracy")
+            )
             cls._draw_text(
                 painter,
                 QRectF(x + 143, 257, 112, 42),
@@ -284,7 +294,9 @@ class ShareReportRenderer:
 
         if accuracy is not None:
             accuracy = max(0.0, min(100.0, accuracy))
-            progress_pen = QPen(QColor(Styles.COLOR_ACCENT), 9)
+            progress_pen = QPen(
+                QColor(Styles.get_accuracy_color(accuracy)), 9
+            )
             progress_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             painter.setPen(progress_pen)
             painter.drawArc(rect, 90 * 16, -int(accuracy * 3.6 * 16))
@@ -311,9 +323,6 @@ class ShareReportRenderer:
         )
         plot = QRectF(640, 230, 490, 94)
         middle = plot.center().y()
-        painter.setPen(QPen(QColor(Styles.COLOR_BORDER), 1))
-        painter.drawLine(QLineF(plot.left(), middle, plot.right(), middle))
-
         values = []
         for move in game.moves:
             value = _finite_number(move.eval_after_cp)
@@ -336,6 +345,7 @@ class ShareReportRenderer:
 
         path = QPainterPath()
         points = []
+        samples = []
         for index, value in enumerate(values):
             x = plot.left() + (
                 index * plot.width() / max(1, len(values) - 1)
@@ -343,10 +353,17 @@ class ShareReportRenderer:
             y = plot.center().y() - (value / 10.0) * (plot.height() / 2)
             point = (x, y)
             points.append(point)
+            samples.append((x, y, value))
             if index == 0:
                 path.moveTo(*point)
             else:
                 path.lineTo(*point)
+
+        cls._draw_evaluation_fill(painter, samples, middle)
+        painter.setPen(
+            QPen(QColor(Styles.COLOR_BORDER), 1, Qt.PenStyle.DashLine)
+        )
+        painter.drawLine(QLineF(plot.left(), middle, plot.right(), middle))
         pen = QPen(QColor(Styles.COLOR_ACCENT), 3)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
@@ -357,6 +374,36 @@ class ShareReportRenderer:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawEllipse(QRectF(points[0][0] - 3, points[0][1] - 3, 6, 6))
 
+    @staticmethod
+    def _draw_evaluation_fill(
+        painter: QPainter, samples: list[tuple[float, float, float]], zero_y: float
+    ) -> None:
+        for first, second in zip(samples, samples[1:], strict=False):
+            x1, y1, value1 = first
+            x2, y2, value2 = second
+            if value1 * value2 < 0:
+                ratio = -value1 / (value2 - value1)
+                cross_x = x1 + (x2 - x1) * ratio
+                cross_y = zero_y
+                segments = (
+                    ((x1, y1), (cross_x, cross_y), value1),
+                    ((cross_x, cross_y), (x2, y2), value2),
+                )
+            else:
+                segments = (((x1, y1), (x2, y2), value1),)
+            for start, end, value in segments:
+                fill = QPainterPath()
+                fill.moveTo(start[0], zero_y)
+                fill.lineTo(*start)
+                fill.lineTo(*end)
+                fill.lineTo(end[0], zero_y)
+                fill.closeSubpath()
+                color = QColor(
+                    Styles.COLOR_BEST if value >= 0 else Styles.COLOR_BLUNDER
+                )
+                color.setAlpha(28)
+                painter.fillPath(fill, color)
+
     @classmethod
     def _draw_classifications(cls, painter: QPainter, game: GameAnalysis) -> None:
         cls._draw_text(
@@ -366,6 +413,13 @@ class ShareReportRenderer:
             12,
             Styles.COLOR_TEXT_SECONDARY,
             QFont.Weight.Bold,
+        )
+        cls._draw_text(
+            painter,
+            QRectF(58, 396, 460, 21),
+            _opening_context(game.metadata.eco, game.metadata.opening),
+            11,
+            Styles.COLOR_TEXT_MUTED,
         )
         cls._draw_text(
             painter,
@@ -406,7 +460,7 @@ class ShareReportRenderer:
                 QRectF(542, y, 95, 20),
                 _format_count(white.get(name, 0)),
                 12,
-                color.name(),
+                Styles.COLOR_TEXT_PRIMARY,
                 QFont.Weight.Bold,
                 Qt.AlignmentFlag.AlignCenter,
             )
@@ -415,7 +469,7 @@ class ShareReportRenderer:
                 QRectF(668, y, 95, 20),
                 _format_count(black.get(name, 0)),
                 12,
-                color.name(),
+                Styles.COLOR_TEXT_PRIMARY,
                 QFont.Weight.Bold,
                 Qt.AlignmentFlag.AlignCenter,
             )
@@ -432,28 +486,31 @@ class ShareReportRenderer:
         )
         metadata = game.metadata
         fen = _final_fen(game)
-        board = chess.Board(fen, chess960=metadata.chess960)
-        colors = Styles.get_board_colors(
-            ConfigManager().get("board_theme", DEFAULT_BOARD_THEME)
+        board_theme = ConfigManager().get("board_theme", DEFAULT_BOARD_THEME)
+        last_move = (
+            game.moves[-1].uci
+            if game.moves and isinstance(game.moves[-1].uci, str)
+            else None
         )
-        svg = chess.svg.board(
-            board=board,
+        config = MiniBoardConfig(
             size=240,
             coordinates=False,
-            colors={
-                "square light": colors["light"],
-                "square dark": colors["dark"],
-            },
+            chess960=metadata.chess960,
+            board_theme=board_theme,
+            last_move_uci=last_move,
         )
-        renderer = QSvgRenderer(QByteArray(svg.encode("utf-8")))
-        renderer.render(painter, QRectF(870, 390, 240, 240))
+        pixmap = render_mini_board_pixmap(fen, config)
+        if pixmap.isNull():
+            pixmap = render_mini_board_pixmap(chess.STARTING_FEN, config)
+        if not pixmap.isNull():
+            painter.drawPixmap(QRectF(870, 390, 240, 240), pixmap, QRectF(pixmap.rect()))
 
     @classmethod
     def _draw_footer(cls, painter: QPainter) -> None:
         cls._draw_text(
             painter,
             QRectF(48, 644, 700, 18),
-            "Chess Analyzer Pro  ·  Share your game, keep improving",
+            f"Chess Analyzer Pro v{APP_VERSION}  ·  Share your game, keep improving",
             10,
             Styles.COLOR_TEXT_MUTED,
         )
@@ -496,7 +553,7 @@ def _final_fen(game: GameAnalysis) -> str:
         try:
             chess.Board(metadata.last_fen, chess960=metadata.chess960)
             return metadata.last_fen
-        except ValueError:
+        except (ValueError, AssertionError, TypeError, AttributeError):
             pass
 
     if game.moves:
@@ -506,14 +563,51 @@ def _final_fen(game: GameAnalysis) -> str:
                 last_move.fen_before or metadata.starting_fen or chess.STARTING_FEN,
                 chess960=metadata.chess960,
             )
+            if not isinstance(last_move.uci, str) or not last_move.uci:
+                return board.fen()
             move = chess.Move.from_uci(last_move.uci)
             if move in board.legal_moves:
                 board.push(move)
             return board.fen()
-        except (ValueError, AssertionError):
+        except (ValueError, AssertionError, TypeError, AttributeError):
             pass
 
-    return metadata.starting_fen or chess.STARTING_FEN
+    if metadata.starting_fen:
+        try:
+            chess.Board(metadata.starting_fen, chess960=metadata.chess960)
+            return metadata.starting_fen
+        except (ValueError, AssertionError, TypeError, AttributeError):
+            pass
+    return chess.STARTING_FEN
+
+
+def _full_move_count(game: GameAnalysis) -> int:
+    if game.moves:
+        return (len(game.moves) + 1) // 2
+    return max(0, game.total_moves_count)
+
+
+def _opening_context(eco: str | None, opening: str | None) -> str:
+    parts = [
+        value
+        for value in (eco, opening)
+        if value and str(value).strip() and str(value).strip() != "?"
+    ]
+    return " · ".join(parts) if parts else "Opening unavailable"
+
+
+def _termination_suffix(mode: str | None) -> str:
+    if mode == "resignation":
+        return "by resignation"
+    if mode in {"timeout", "timeout_insufficient"}:
+        return "by timeout"
+    return ""
+
+
+def _result_display(result: str | None, termination_mode: str | None) -> str:
+    outcome = _result_text(result).upper()
+    suffix = _termination_suffix(termination_mode)
+    return f"{outcome} · {suffix.upper()}" if suffix else outcome
 
 
 def _display_value(value, fallback: str) -> str:

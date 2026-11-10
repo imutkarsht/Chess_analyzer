@@ -67,21 +67,25 @@ class ShareReportDialog(QDialog):
             variant=ButtonVariant.PRIMARY,
             on_click=self.copy_image,
         )
+        self.copy_image_button.setAutoDefault(False)
         self.save_png_button = Button(
             "Save PNG",
             variant=ButtonVariant.OUTLINED,
             on_click=self.save_png,
         )
+        self.save_png_button.setAutoDefault(False)
         self.copy_markdown_button = Button(
             "Copy Markdown",
             variant=ButtonVariant.OUTLINED,
             on_click=self.copy_markdown,
         )
+        self.copy_markdown_button.setAutoDefault(False)
         self.close_button = Button(
             "Close",
             variant=ButtonVariant.GHOST,
             on_click=self.accept,
         )
+        self.close_button.setDefault(True)
         for button in (
             self.copy_image_button,
             self.save_png_button,
