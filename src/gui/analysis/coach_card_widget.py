@@ -80,6 +80,7 @@ class CoachCardWidget(QFrame):
     ask_requested = pyqtSignal()
     refutation_requested = pyqtSignal()
     best_move_requested = pyqtSignal()
+    line_requested = pyqtSignal(str, list)  # FEN before the move, UCI line
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -159,8 +160,22 @@ class CoachCardWidget(QFrame):
         )
         self.btn_best.setFixedHeight(_BUTTON_HEIGHT)
 
+        self.btn_line = Button(
+            "Show main line",
+            ButtonVariant.FILLED,
+            size=ButtonSize.SM,
+            on_click=self._emit_line,
+            parent=self,
+        )
+        self.btn_line.setFixedHeight(_BUTTON_HEIGHT)
+
         self._header_badges = (self.class_pill, self.san_label, self.eval_label, self.phase_label)
-        self._action_buttons = (self.btn_ask, self.btn_refute, self.btn_best)
+        self._action_buttons = (
+            self.btn_ask,
+            self.btn_line,
+            self.btn_refute,
+            self.btn_best,
+        )
 
         self.set_insight(None)
         self.refresh_styles()
@@ -247,11 +262,20 @@ class CoachCardWidget(QFrame):
             self.insight.classification, self.allow_trivial
         ):
             offered.append(self.btn_ask)  # READY already shows the narrative
+        if len(self.insight.main_line_uci) > 1:
+            offered.append(self.btn_line)
         if self.insight.refutation_san:
             offered.append(self.btn_refute)
         if self.insight.best_move_san and self.insight.best_move_uci != self.insight.uci:
             offered.append(self.btn_best)
         return tuple(offered)
+
+    def _emit_line(self) -> None:
+        if self.insight is None or len(self.insight.main_line_uci) < 2:
+            return
+        self.line_requested.emit(
+            self.insight.fen_before, list(self.insight.main_line_uci)
+        )
 
     def begin_loading(self, seq: int, ply: int) -> None:
         self.state = CoachState.LOADING
@@ -383,7 +407,7 @@ class CoachCardWidget(QFrame):
         self.setStyleSheet(Styles.get_frame_style(object_name="CoachCard", hover_accent=False))
         self.body_edit.refresh_styles()
         self._restyle_header()
-        for button in (self.btn_ask, self.btn_refute, self.btn_best):
+        for button in (self.btn_ask, self.btn_line, self.btn_refute, self.btn_best):
             button.refresh_styles()
         self._layout_rows()  # the styles decide the badge/button widths
         self._fit_body()  # ...and the body font decides the line height

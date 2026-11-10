@@ -43,6 +43,30 @@ class VariationMixin:
             return
         self._finish_variation_ui()
 
+    def _on_coach_line_requested(self, fen: str, uci_moves: list[str]) -> None:
+        """Replay the Coach's stored main line on the board."""
+        if not self.current_game or not uci_moves:
+            return
+        if getattr(self, "_full_analysis_running", False):
+            self._set_status("Finish the running analysis before replaying a line", "warning")
+            return
+        chess960 = bool(getattr(self.current_game.metadata, "chess960", False))
+        self._exit_variation()
+        started = self.variation.enter(
+            fen,
+            uci_moves[0],
+            return_index=self.board_widget.current_move_index,
+            chess960=chess960,
+            auto_play=True,
+            root_label="Coach line",
+        )
+        if not started:
+            return
+        for uci in uci_moves[1:]:
+            if not self.variation.play_uci(uci):
+                break
+        self._finish_variation_ui()
+
     def _finish_variation_ui(self) -> None:
         if not self.variation.is_active:
             return

@@ -70,6 +70,8 @@ class AnalysisPanel(QWidget):
     cache_toggled = pyqtSignal(bool)
     # (FEN the lines belong to, first move UCI) — opens the board in variation mode.
     variation_requested = pyqtSignal(str, str)
+    # (FEN before the move, full UCI line) — replays a coach explanation line.
+    line_requested = pyqtSignal(str, list)
 
     def __init__(self):
         super().__init__()
@@ -279,6 +281,7 @@ class AnalysisPanel(QWidget):
         self.coach_card.ask_requested.connect(self._on_coach_ask_requested)
         self.coach_card.refutation_requested.connect(self.replay_refutation)
         self.coach_card.best_move_requested.connect(self.replay_best)
+        self.coach_card.line_requested.connect(self.line_requested.emit)
         coach_layout.addWidget(self.coach_card)
 
         # Full-game report: the per-move card above answers "why this move?",

@@ -90,6 +90,7 @@ class TestOfflineRendering:
     def test_actions_follow_the_available_facts(self, card):
         card.set_insight(_insight())
         assert not card.btn_ask.isHidden()  # Blunder is LLM-worthy
+        assert not card.btn_line.isHidden()  # the main line is available
         assert not card.btn_refute.isHidden()  # a refutation exists
         # the best move is the missed Nxe5-dodging line, which differs from the play
         assert card.refutation_label().startswith("5...")
@@ -106,6 +107,16 @@ class TestAskAction:
         card.btn_ask.click()
 
         assert requests == [True]
+
+    def test_main_line_action_emits_the_full_uci_line(self, card):
+        insight = _insight()
+        card.set_insight(insight)
+        requests = []
+        card.line_requested.connect(lambda fen, line: requests.append((fen, line)))
+
+        card.btn_line.click()
+
+        assert requests == [(insight.fen_before, insight.main_line_uci)]
 
     @pytest.mark.parametrize(
         ("classification", "worthy"),
@@ -219,5 +230,5 @@ class TestRowWrapping:
         qtbot.waitUntil(lambda: card.width() > 1000, timeout=2000)
 
         assert card._action_rows[1].isHidden()
-        for button in (card.btn_ask, card.btn_refute, card.btn_best):
+        for button in (card.btn_ask, card.btn_line, card.btn_refute, card.btn_best):
             assert not button.isHidden()
