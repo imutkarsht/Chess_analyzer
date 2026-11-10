@@ -36,6 +36,7 @@ from src.gui.components.display.graph_widget import GraphWidget
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
+from src.gui.share import ShareReportDialog, ShareReportRenderer
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (
     clear_layout,
@@ -167,6 +168,19 @@ class AnalysisPanel(QWidget):
         self.report_layout = QVBoxLayout(self.report_card)
         self.report_layout.setContentsMargins(12, 12, 12, 12)
         self.report_layout.setSpacing(10)
+
+        report_actions = QHBoxLayout()
+        report_actions.addStretch()
+        self.share_report_button = Button(
+            "Share Report",
+            variant=ButtonVariant.OUTLINED,
+            icon="fa5s.share-alt",
+            tooltip="Analyze this game before sharing a report.",
+        )
+        self.share_report_button.setEnabled(False)
+        self.share_report_button.clicked.connect(self.open_share_report)
+        report_actions.addWidget(self.share_report_button)
+        self.report_layout.addLayout(report_actions)
 
         # 1. Top Section: Hero Outcome Header
         self.hero_card = QFrame()
@@ -307,6 +321,7 @@ class AnalysisPanel(QWidget):
         self.refresh()
 
     def refresh(self):
+        self._update_share_report_button()
         if not self.current_game:
             self._lines_fen = None
             self.lines_widget.clear()
@@ -376,6 +391,21 @@ class AnalysisPanel(QWidget):
 
         except Exception as e:
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
+
+    def _update_share_report_button(self) -> None:
+        can_share = ShareReportRenderer.can_render(self.current_game)
+        self.share_report_button.setEnabled(can_share)
+        self.share_report_button.setToolTip(
+            "Open the shareable game report."
+            if can_share
+            else "Analyze this game before sharing a report."
+        )
+
+    def open_share_report(self) -> None:
+        if not ShareReportRenderer.can_render(self.current_game):
+            return
+        dialog = ShareReportDialog(self.current_game, self)
+        dialog.exec()
 
     def _get_result_color(self, meta):
         user_side = self._user_side()
