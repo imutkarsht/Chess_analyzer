@@ -22,7 +22,14 @@ from typing import Any
 
 import chess
 
+from src.backend.analysis.math_utils import get_win_probability
 from src.backend.analysis.tactics.board_utils import to_user_wp
+from src.backend.analysis.tactics.constants import PIECE_NAMES, PIECE_VALUES
+from src.backend.analysis.tactics.explanation import (
+    build_explanation_plan,
+    format_plan_for_llm,
+    format_plan_offline,
+)
 from src.backend.analysis.tactics.hanging import get_hanging_pieces
 from src.backend.analysis.tactics.motifs import detect_tactical_motifs
 from src.backend.analysis.tactics.phase import classify_game_phase
@@ -37,6 +44,11 @@ from src.utils.logger import logger
 # How many plies of the opponent's best line to quote (kept short so the LLM
 # cannot mis-number a long forcing sequence).
 REFUTATION_MAX_PLIES = 4
+
+# The explanation needs enough of the main line to show the idea (a sacrifice,
+# a queen entry, a knight coming to the attack), but not so much that the model
+# drowns in a 20-ply engine PV.
+LINE_MAX_PLIES = 10
 
 # Destination square of a SAN move ("exd5" -> "d5", "Nbd7" -> "d7", "O-O" -> None).
 _SAN_SQUARE_RE = re.compile(r"([a-h][1-8])")
@@ -87,6 +99,46 @@ class MoveInsight:
     material_loss_cp: int | None = None
     missed_mate: bool = False
 
+    # Move mechanics -----------------------------------------------------
+    is_capture: bool = False
+    captured_piece_name: str | None = None
+    gives_check: bool = False
+    is_double_check: bool = False
+    is_checkmate: bool = False
+    is_promotion: bool = False
+    is_castle: bool = False
+    moved_piece_name: str = ""
+    from_square: str = ""
+    to_square: str = ""
+
+    # Concrete tactics and threats ---------------------------------------
+    played_motifs: list[str] = field(default_factory=list)
+    # Only pieces that became loose because of this move. ``hung_pieces`` is
+    # retained for compatibility, but explanations must not blame a move for a
+    # piece that was already hanging before it was played.
+    new_hung_pieces: list[dict[str, Any]] = field(default_factory=list)
+    created_threats: list[dict[str, Any]] = field(default_factory=list)
+    offered_piece: dict[str, Any] | None = None
+
+    # Concrete lines ------------------------------------------------------
+    main_line_uci: list[str] = field(default_factory=list)
+    main_line_san: list[str] = field(default_factory=list)
+    main_line_text: str = ""
+    main_line_captures: list[dict[str, Any]] = field(default_factory=list)
+    line_material_delta_cp: int | None = None
+    line_ends_in_mate: bool = False
+    follow_up_san: str | None = None
+    best_line_uci: list[str] = field(default_factory=list)
+    best_line_san: list[str] = field(default_factory=list)
+    best_line_text: str = ""
+    second_best_move_san: str | None = None
+    second_best_eval: str | None = None
+    second_best_line_san: list[str] = field(default_factory=list)
+    second_best_line_text: str = ""
+    alternative_gap_wp: float | None = None
+    is_only_move: bool = False
+    already_winning: bool = False
+
     # context
     opening_name: str = ""
     eco: str = ""
@@ -102,6 +154,11 @@ class MoveInsight:
     @property
     def is_sacrificial(self) -> bool:
         return self.classification in SACRIFICIAL_CLASSIFICATIONS
+
+    @property
+    def is_actual_sacrifice(self) -> bool:
+        """True only when the move itself was detected as a sacrifice."""
+        return "sacrifice" in self.played_motifs
 
     @property
     def forced_mate(self) -> bool:
@@ -158,10 +215,6 @@ def _fmt_eval(cp: int | None, mate: int | None) -> str:
     return f"{cp / 100:+.2f}"
 
 
-def _fmt_wp(wp: float | None) -> str:
-    return "?" if wp is None else f"{wp * 100:.0f}%"
-
-
 def _side_of_ply(ply: int) -> str:
     """
     Map a ply to the side that played it.
@@ -186,13 +239,6 @@ def _san_square(san: str) -> str | None:
         return None
     found = _SAN_SQUARE_RE.findall(san)
     return found[-1] if found else None
-
-
-def _biggest_hung(insight: MoveInsight) -> dict[str, Any] | None:
-    """The hung piece the opponent profits from most (deterministic order)."""
-    if not insight.hung_pieces:
-        return None
-    return max(insight.hung_pieces, key=lambda h: h.get("enemy_see_gain", 0))
 
 
 # ---------------------------------------------------------------------------
@@ -281,15 +327,97 @@ def build_move_insight(
                     board_after, ref_after, first, board_after.turn
                 )
 
-    # --- tactics on the played move --------------------------------------
-    # Hung pieces are the *player's* own pieces left loose, so query the
-    # player's colour (the side to move before the played move).
+    # --- tactics and move mechanics on the played move --------------------
     player_color = board_before.turn
+    moved_piece = board_before.piece_at(move_obj.from_square)
+    captured_piece = _captured_piece(board_before, move_obj)
+    played_motifs = detect_tactical_motifs(
+        board_before, board_after, move_obj, player_color, move.classification
+    )
+
+    hung_before = get_hanging_pieces(board_before, player_color)
     hung_pieces = get_hanging_pieces(
         board_after, player_color, last_move=move_obj, board_before=board_before
     )
-    if material_loss_cp is None and hung_pieces:
-        material_loss_cp = max(h.get("enemy_see_gain", 0) for h in hung_pieces) or None
+    hung_before_squares = {piece["square"] for piece in hung_before}
+    new_hung_pieces = [
+        piece for piece in hung_pieces if piece["square"] not in hung_before_squares
+    ]
+
+    enemy_color = not player_color
+    enemy_hung_before = {
+        piece["square"] for piece in get_hanging_pieces(board_before, enemy_color)
+    }
+    created_threats = [
+        piece
+        for piece in get_hanging_pieces(board_after, enemy_color)
+        if piece["square"] not in enemy_hung_before
+    ]
+
+    offered_piece = None
+    if "sacrifice" in played_motifs:
+        destination = chess.square_name(move_obj.to_square)
+        offered_piece = next(
+            (piece for piece in new_hung_pieces if piece["square"] == destination),
+            None,
+        )
+        if offered_piece is None and new_hung_pieces:
+            offered_piece = max(
+                new_hung_pieces, key=lambda piece: piece.get("enemy_see_gain", 0)
+            )
+
+    if material_loss_cp is None and new_hung_pieces:
+        material_loss_cp = (
+            max(piece.get("enemy_see_gain", 0) for piece in new_hung_pieces) or None
+        )
+
+    # --- concrete lines ---------------------------------------------------
+    top_pv_uci = []
+    if move.multi_pvs:
+        top_pv_uci = list(move.multi_pvs[0].get("pv") or [])
+    if not top_pv_uci and move.pv:
+        top_pv_uci = list(move.pv)
+
+    if top_pv_uci and top_pv_uci[0] == move.uci:
+        main_line_uci = top_pv_uci[:LINE_MAX_PLIES]
+    elif (
+        next_move is not None
+        and next_move.multi_pvs
+        and next_move.fen_before == board_after.fen()
+    ):
+        main_line_uci = [
+            move.uci,
+            *list(next_move.multi_pvs[0].get("pv") or [])[: LINE_MAX_PLIES - 1],
+        ]
+    else:
+        main_line_uci = [move.uci]
+
+    main_line_san, line_captures, line_ends_in_mate, line_material_delta_cp = _scan_line(
+        board_before, main_line_uci
+    )
+    main_line_text = _format_line(board_before, main_line_uci)
+
+    best_line_uci = (
+        top_pv_uci[:LINE_MAX_PLIES]
+        if top_pv_uci and (not best_move_uci or top_pv_uci[0] == best_move_uci)
+        else []
+    )
+    best_line_san, _, _, _ = _scan_line(board_before, best_line_uci)
+    best_line_text = _format_line(board_before, best_line_uci)
+
+    second_pv = move.multi_pvs[1] if len(move.multi_pvs) > 1 else None
+    second_pv_uci = list(second_pv.get("pv") or []) if second_pv else []
+    second_best_move_san = _uci_to_san(
+        board_before, second_pv_uci[0] if second_pv_uci else None
+    )
+    second_best_eval = _pv_eval_white(second_pv, is_user_white)
+    second_best_line_san, _, _, _ = _scan_line(board_before, second_pv_uci)
+    second_best_line_text = _format_line(board_before, second_pv_uci)
+
+    best_wp = _pv_player_wp(_pv_data(move)) or wp_before
+    second_wp = _pv_player_wp(second_pv)
+    alternative_gap_wp = best_wp - second_wp if second_wp is not None else None
+    is_only_move = alternative_gap_wp is not None and alternative_gap_wp >= 0.15
 
     mate_before = player_mate_before is not None and player_mate_before > 0
     mate_after = player_mate_after is not None and player_mate_after > 0
@@ -328,6 +456,41 @@ def build_move_insight(
         allowed_motifs=allowed_motifs,
         material_loss_cp=material_loss_cp,
         missed_mate=mate_before and not mate_after,
+        is_capture=board_before.is_capture(move_obj),
+        captured_piece_name=(
+            PIECE_NAMES.get(captured_piece.piece_type) if captured_piece else None
+        ),
+        gives_check=board_after.is_check(),
+        is_double_check=board_after.is_check() and len(board_after.checkers()) > 1,
+        is_checkmate=board_after.is_checkmate(),
+        is_promotion=move_obj.promotion is not None,
+        is_castle=board_before.is_castling(move_obj),
+        moved_piece_name=(
+            PIECE_NAMES.get(moved_piece.piece_type) if moved_piece else "piece"
+        ),
+        from_square=chess.square_name(move_obj.from_square),
+        to_square=chess.square_name(move_obj.to_square),
+        played_motifs=played_motifs,
+        new_hung_pieces=new_hung_pieces,
+        created_threats=created_threats,
+        offered_piece=offered_piece,
+        main_line_uci=main_line_uci,
+        main_line_san=main_line_san,
+        main_line_text=main_line_text,
+        main_line_captures=line_captures,
+        line_material_delta_cp=line_material_delta_cp,
+        line_ends_in_mate=line_ends_in_mate or mate_after,
+        follow_up_san=main_line_san[2] if len(main_line_san) >= 3 else None,
+        best_line_uci=best_line_uci,
+        best_line_san=best_line_san,
+        best_line_text=best_line_text,
+        second_best_move_san=second_best_move_san,
+        second_best_eval=second_best_eval,
+        second_best_line_san=second_best_line_san,
+        second_best_line_text=second_best_line_text,
+        alternative_gap_wp=alternative_gap_wp,
+        is_only_move=is_only_move,
+        already_winning=wp_before >= 0.95,
         opening_name=opening,
         eco=eco,
         player_elo=player_elo,
@@ -370,6 +533,103 @@ def _pv_to_san(
     return sans
 
 
+def _captured_piece(board: chess.Board, move: chess.Move) -> chess.Piece | None:
+    """Piece removed by ``move`` (handles en passant)."""
+    if board.is_en_passant(move):
+        ep_square = chess.square(
+            chess.square_file(move.to_square),
+            chess.square_rank(move.from_square),
+        )
+        return board.piece_at(ep_square)
+    return board.piece_at(move.to_square)
+
+
+def _material_cp(board: chess.Board, color: chess.Color) -> int:
+    return sum(
+        PIECE_VALUES.get(piece.piece_type, 0) * 100
+        for piece in board.piece_map().values()
+        if piece.color == color
+    )
+
+
+def _scan_line(
+    board: chess.Board, uci_moves: list[str], limit: int = LINE_MAX_PLIES
+) -> tuple[list[str], list[dict[str, Any]], bool, int | None]:
+    """Replay a UCI line and extract the concrete events an explanation cites."""
+    sans: list[str] = []
+    captures: list[dict[str, Any]] = []
+    ends_in_mate = False
+    work = board.copy()
+    player_color = board.turn
+
+    for ply, uci in enumerate(uci_moves[:limit], start=1):
+        move = _safe_move(uci)
+        if move is None or move not in work.legal_moves:
+            break
+        sans.append(work.san(move))
+        captured = _captured_piece(work, move) if work.is_capture(move) else None
+        if captured is not None:
+            captures.append(
+                {
+                    "san": sans[-1],
+                    "piece_name": PIECE_NAMES.get(captured.piece_type, "piece"),
+                    "value_cp": PIECE_VALUES.get(captured.piece_type, 0) * 100,
+                    "by": "white" if work.turn == chess.WHITE else "black",
+                    "ply": ply,
+                }
+            )
+        if sans[-1].endswith("#"):
+            ends_in_mate = True
+        work.push(move)
+
+    enemy_color = not player_color
+    before_balance = _material_cp(board, player_color) - _material_cp(board, enemy_color)
+    after_balance = _material_cp(work, player_color) - _material_cp(work, enemy_color)
+    material_delta = after_balance - before_balance
+    return sans, captures, ends_in_mate, material_delta
+
+
+def _format_line(
+    board: chess.Board, uci_moves: list[str], limit: int = LINE_MAX_PLIES
+) -> str:
+    """Format a UCI line as correctly numbered SAN, or '' when unusable."""
+    moves: list[chess.Move] = []
+    work = board.copy()
+    for uci in uci_moves[:limit]:
+        move = _safe_move(uci)
+        if move is None or move not in work.legal_moves:
+            break
+        moves.append(move)
+        work.push(move)
+    if not moves:
+        return ""
+    try:
+        return board.variation_san(moves)
+    except Exception:  # noqa: BLE001 - malformed PVs must not break the insight
+        return ""
+
+
+def _pv_data(move: MoveAnalysis) -> dict[str, Any] | None:
+    return move.multi_pvs[0] if move.multi_pvs else None
+
+
+def _pv_player_wp(pv: dict[str, Any] | None) -> float | None:
+    if not pv:
+        return None
+    return get_win_probability(pv.get("cp"), pv.get("mate"))
+
+
+def _pv_eval_white(pv: dict[str, Any] | None, white_to_move: bool) -> str | None:
+    if not pv:
+        return None
+    cp = pv.get("cp")
+    mate = pv.get("mate")
+    if not white_to_move:
+        cp = -cp if cp is not None else None
+        mate = -mate if mate is not None else None
+    return _fmt_eval(cp, mate)
+
+
 # ---------------------------------------------------------------------------
 # Allowed-token sets (single source for the mandatory reply validation)
 # ---------------------------------------------------------------------------
@@ -386,17 +646,51 @@ def insight_allowed_tokens(insight: MoveInsight) -> tuple[set[str], set[str]]:
     for san in (
         insight.best_move_san,
         insight.actual_reply_san,
+        *insight.main_line_san,
+        *insight.best_line_san,
+        *insight.second_best_line_san,
         *insight.refutation_san,
     ):
         if san:
             allowed_san.add(san)
 
-    allowed_squares: set[str] = {h["square"] for h in insight.hung_pieces}
+    allowed_squares: set[str] = {
+        piece["square"]
+        for group in (
+            insight.hung_pieces,
+            insight.new_hung_pieces,
+            insight.created_threats,
+        )
+        for piece in group
+    }
+    if insight.offered_piece:
+        allowed_squares.add(insight.offered_piece["square"])
     for san in allowed_san:
         destination = _san_square(san)
         if destination:
             allowed_squares.add(destination)
     return allowed_san, allowed_squares
+
+
+def insight_required_anchors(insight: MoveInsight) -> set[str]:
+    """Concrete moves the explanation should cite when a line exists.
+
+    The played move itself is deliberately excluded: merely repeating
+    ``5.Nxe5`` is not an explanation. A punishment move, continuation or better
+    alternative is the minimum useful anchor.
+    """
+    anchors: set[str] = set()
+    for san in (
+        *insight.main_line_san,
+        *insight.refutation_san,
+        insight.actual_reply_san,
+        insight.best_move_san,
+        insight.second_best_move_san,
+    ):
+        if san:
+            anchors.add(san)
+    anchors.discard(insight.san)
+    return anchors
 
 
 # ---------------------------------------------------------------------------
@@ -405,199 +699,16 @@ def insight_allowed_tokens(insight: MoveInsight) -> tuple[set[str], set[str]]:
 
 
 def format_move_insight_for_llm(insight: MoveInsight) -> str:
-    """
-    The fact dossier handed to the LLM.
-
-    Deliberately neutral wording: it never says "engine"/"stockfish", because
-    models echo meta-words from the facts into their answer.
-    """
-    lines = [
-        "FACT SHEET - single move",
-        "",
-        f"- Played: {insight.numbered_san} ({insight.side})",
-        f"- Classification: {insight.classification}",
-        f"- Phase: {insight.phase}",
-        f"- Player: {insight.side.capitalize()}"
-        + (f", rating {insight.player_elo}" if insight.player_elo else ""),
-    ]
-    if insight.eco or insight.opening_name:
-        lines.append(f"- Opening: {insight.eco} {insight.opening_name}".rstrip())
-
-    lines += [
-        "",
-        "Evaluations (White's perspective; positive = White is better)",
-        f"- Before the move: {insight.eval_before}",
-        f"- After the move:  {insight.eval_after}",
-        f"Win chances (from {insight.side}'s perspective; higher = better for "
-        f"{insight.side})",
-        f"- Before the move: {_fmt_wp(insight.wp_before)}",
-        f"- After the move:  {_fmt_wp(insight.wp_after)}",
-        "",
-        "Deterministic findings",
-    ]
-    lines.extend(f"- {finding}" for finding in _finding_lines(insight))
-
-    lines += ["", "Opponent's refutation (best line)"]
-    if insight.refutation_text:
-        lines.append(f"- {insight.refutation_text}")
-    else:
-        lines.append("- (none available)")
-    if (
-        insight.actual_reply_san
-        and insight.refutation_san
-        and insight.actual_reply_san != insight.refutation_san[0]
-    ):
-        lines.append(
-            f"- In the actual game the opponent replied {insight.actual_reply_san}, "
-            "which is NOT the best line above (it is a separate branch)."
-        )
-
-    if insight.best_move_san and insight.best_move_uci == insight.uci:
-        lines += ["", "Assessment", "- This is the strongest move available in the position.", ""]
-    elif insight.best_move_san:
-        lines += [
-            "",
-            "Better move",
-            f"- {move_prefix(insight.move_number, insight.side)}"
-            f"{insight.best_move_san} (keeps {insight.best_eval})",
-            "",
-        ]
-    else:
-        lines.append("")
-
-    lines.append(
-        f"Write 2-3 sentences explaining {insight.san} to the {insight.side} player. "
-        "Quote the evaluations exactly as given (White's perspective) and the win chances "
-        "exactly as given (the player's perspective). Never flip a sign, convert between "
-        "perspectives, or calculate a win chance from an evaluation."
-    )
-    return "\n".join(lines)
-
-
-def _finding_lines(insight: MoveInsight) -> list[str]:
-    """Deterministic findings shared by the dossier and the offline text."""
-    findings: list[str] = []
-    if insight.missed_mate:
-        findings.append(f"You had a forced mate before this move ({insight.eval_before}).")
-    mate_in = insight.mate_threat_in
-    if mate_in is not None:
-        findings.append(f"The opponent now forces mate in {mate_in}.")
-
-    # A mate against the player is the whole story: loose-piece arithmetic is
-    # noise next to it. A mate *for* the player is the sacrifice's payoff, so
-    # the sacrificed piece stays in the facts.
-    if insight.mate_threat_in is None:
-        hung = _biggest_hung(insight)
-        if hung is not None:
-            if hung.get("is_undefended"):
-                state = "undefended"
-            else:
-                state = (
-                    f"under-defended (attackers {hung.get('attacker_count', 0)}, "
-                    f"defenders {hung.get('defender_count', 0)})"
-                )
-            see = hung.get("enemy_see_gain", 0)
-            findings.append(
-                f"Your {hung.get('piece_name', 'piece')} on {hung.get('square', '?')} is left "
-                f"{state} (material at risk about {see / 100:.1f} pawns)."
-            )
-        if insight.allowed_motifs:
-            findings.append(
-                "This move permits the opponent to execute: "
-                + ", ".join(insight.allowed_motifs)
-                + "."
-            )
-    if not findings:
-        findings.append("No immediate material or tactical concession detected.")
-    return findings
+    """Claim sheet handed to the LLM; the model only rewrites these claims."""
+    return format_plan_for_llm(build_explanation_plan(insight))
 
 
 def format_move_insight_offline(insight: MoveInsight) -> str:
     """
     Deterministic plain-English explanation. Always available, 0 network.
 
-    Wording is priority-ordered to mirror ``classify_move()`` and must never
-    contradict the classification badge (see the coherence test):
-    sound moves are never framed negatively, sacrificial moves are framed as
-    gains, and a "missed mate" is only ever claimed when one was really lost.
+    The claim selector decides what is worth saying; this renderer only joins
+    those claims. The same claims feed the LLM, so the fallback and the model
+    cannot tell different stories.
     """
-    if insight.is_sound:
-        return _offline_sound(insight)
-    if insight.is_sacrificial:
-        return _offline_sacrificial(insight)
-    return _offline_problem(insight)
-
-
-def _offline_sound(insight: MoveInsight) -> str:
-    if insight.best_move_uci and insight.best_move_uci == insight.uci:
-        lead = (
-            f"{insight.numbered_san} is the strongest move in the position ({insight.eval_after})."
-        )
-    else:
-        lead = f"{insight.numbered_san} is a sound move ({insight.eval_after})."
-    if insight.best_move_san and insight.best_move_uci != insight.uci:
-        return f"{lead} The top choice was {insight.best_move_san}, keeping {insight.best_eval}."
-    return lead
-
-
-def _offline_sacrificial(insight: MoveInsight) -> str:
-    lead = f"{insight.numbered_san} is a strong move ({insight.eval_after})."
-    hung = _biggest_hung(insight)
-    if hung is not None:
-        lead += (
-            f" It gives up your {hung.get('piece_name', 'piece')} on "
-            f"{hung.get('square', '?')} to keep the initiative."
-        )
-    if insight.forced_mate:
-        lead += " The follow-up is a forced mate."
-    if insight.refutation_text:
-        lead += f" The main line runs {insight.refutation_text}."
-    return lead
-
-
-def _offline_problem(insight: MoveInsight) -> str:
-    parts: list[str] = []
-    if insight.missed_mate and insight.best_move_san:
-        parts.append(
-            f"You had a forced mate: {insight.best_move_san} kept the win, "
-            f"instead of {insight.san} ({insight.eval_before} to {insight.eval_after})."
-        )
-    mate_in = insight.mate_threat_in
-    if mate_in is not None:
-        parts.append(f"The opponent now forces mate in {mate_in}.")
-
-    # When a forced mate is coming, material/loose-piece detail is noise — the
-    # mate is the whole story.
-    if mate_in is None:
-        hung = _biggest_hung(insight)
-        if hung is not None:
-            state = "undefended" if hung.get("is_undefended") else "under-defended"
-            sentence = (
-                f"This leaves your {hung.get('piece_name', 'piece')} on "
-                f"{hung.get('square', '?')} {state}"
-            )
-            if insight.refutation_san:
-                sentence += (
-                    f"; after {insight.refutation_prefix}{insight.refutation_san[0]} "
-                    "you are losing material"
-                )
-            if insight.material_loss_cp:
-                sentence += f" (about {insight.material_loss_cp / 100:.1f} pawns)"
-            parts.append(sentence + ".")
-
-        if insight.allowed_motifs and insight.refutation_san:
-            parts.append(
-                f"It allows {insight.refutation_prefix}{insight.refutation_san[0]}, "
-                f"creating a {', '.join(insight.allowed_motifs)}."
-            )
-
-    parts.append(
-        f"Your winning chances fell from {_fmt_wp(insight.wp_before)} "
-        f"to {_fmt_wp(insight.wp_after)}."
-    )
-    if insight.best_move_san:
-        parts.append(
-            f"Best was {move_prefix(insight.move_number, insight.side)}"
-            f"{insight.best_move_san}, keeping {insight.best_eval}."
-        )
-    return " ".join(parts)
+    return format_plan_offline(build_explanation_plan(insight))
