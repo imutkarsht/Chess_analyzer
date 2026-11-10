@@ -434,8 +434,15 @@ class TestExplainMove:
         assert sent["messages"][-1] == {"role": "user", "content": FACTS}
         system = sent["messages"][0]
         assert system["role"] == "system"
-        assert "Never name a move" in system["content"]
+        assert "Never invent a move" in system["content"]
         assert "classified as Blunder" in system["content"]
+
+    def test_sacrifice_guidance_is_added_for_brilliant_moves(self, configured_service):
+        service, client = configured_service("ok")
+        service.explain_move(FACTS, "Brilliant")
+
+        system = client.calls[0]["messages"][0]["content"]
+        assert "offered material as intentional" in system
 
     def test_request_is_bounded_and_unretried(self, configured_service):
         service, client = configured_service()
@@ -558,3 +565,14 @@ class TestValidateExplanation:
     @pytest.mark.parametrize("reply", ["", "   ", "Error [Timeout]: request timed out"])
     def test_empty_or_error_replies_are_invalid(self, reply):
         assert validate_explanation(reply, ALLOWED_SAN, ALLOWED_SQUARES) == (False, [])
+
+    def test_reply_must_cite_a_concrete_anchor_when_one_exists(self):
+        generic = "This was the strongest move available in the position."
+        assert validate_explanation(
+            generic, ALLOWED_SAN, ALLOWED_SQUARES, {"Bxd1", "Nxe5"}
+        ) == (False, [])
+
+        concrete = "Bxd1 wins material, but Nxe5 was the move that kept the advantage."
+        assert validate_explanation(
+            concrete, ALLOWED_SAN, ALLOWED_SQUARES, {"Bxd1", "Nxe5"}
+        ) == (True, [])

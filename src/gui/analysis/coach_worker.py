@@ -18,6 +18,7 @@ from src.backend.analysis.tactics.insight import (
     MoveInsight,
     format_move_insight_for_llm,
     insight_allowed_tokens,
+    insight_required_anchors,
 )
 from src.backend.services.groq_service import validate_explanation
 from src.backend.storage.cache import AnalysisCache
@@ -137,13 +138,19 @@ class ExplainMoveWorker(QThread):
                 return
 
             allowed_san, allowed_squares = insight_allowed_tokens(insight)
-            is_valid, offending = validate_explanation(reply, allowed_san, allowed_squares)
+            is_valid, offending = validate_explanation(
+                reply,
+                allowed_san,
+                allowed_squares,
+                insight_required_anchors(insight),
+            )
             if not is_valid:
-                self.error.emit(
-                    self._seq,
-                    insight.ply,
-                    f"Coach mentioned unknown moves or squares: {', '.join(offending)}",
+                reason = (
+                    f"Coach mentioned unknown moves or squares: {', '.join(offending)}"
+                    if offending
+                    else "Coach explanation was too generic (no concrete move cited)."
                 )
+                self.error.emit(self._seq, insight.ply, reason)
                 return
 
             self._write_cache(reply)
