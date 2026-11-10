@@ -9,6 +9,7 @@ class _FakeConfig:
     def __init__(self, overrides=None):
         self.config = {
             "explain_llm_for_trivial_moves": False,
+            "coach_persona": "tactician",
             "explain_temperature": 0.3,
             "explain_max_tokens": 1024,
             "explain_reasoning_effort": "",
@@ -25,6 +26,7 @@ class _FakeConfig:
 def test_coach_rows_reflect_saved_config(qapp):
     config = _FakeConfig({
         "explain_llm_for_trivial_moves": True,
+        "coach_persona": "socratic",
         "explain_temperature": 1.1,
         "explain_max_tokens": 2048,
         "explain_reasoning_effort": "medium",
@@ -32,6 +34,7 @@ def test_coach_rows_reflect_saved_config(qapp):
     widget = CoachSettings(config)
 
     assert widget.explain_trivial_checkbox.isChecked() is True
+    assert widget.persona_combo.currentData() == "socratic"
     assert widget.temperature_input.value() == 1.1
     assert widget.max_tokens_input.value() == 2048
     assert widget.reasoning_effort_combo.currentData() == "medium"
@@ -43,6 +46,7 @@ def test_coach_edits_write_config(qapp):
     widget = CoachSettings(config)
 
     widget.explain_trivial_checkbox.setChecked(True)
+    widget.persona_combo.setCurrentIndex(widget.persona_combo.findData("roaster"))
     widget.temperature_input.setValue(0.7)
     widget.max_tokens_input.setValue(512)
     widget.reasoning_effort_combo.setCurrentIndex(
@@ -50,6 +54,7 @@ def test_coach_edits_write_config(qapp):
     )
 
     assert config.config["explain_llm_for_trivial_moves"] is True
+    assert config.config["coach_persona"] == "roaster"
     assert config.config["explain_temperature"] == 0.7
     assert config.config["explain_max_tokens"] == 512
     assert config.config["explain_reasoning_effort"] == "high"
@@ -67,6 +72,7 @@ def test_basic_mode_keeps_the_card_and_hides_only_tuning(qapp):
     assert widget.temperature_input.parentWidget().isHidden() is True
     assert widget.max_tokens_input.parentWidget().isHidden() is True
     assert widget.reasoning_effort_combo.parentWidget().isHidden() is True
+    assert widget.persona_combo.parentWidget().isHidden() is False
 
     widget.set_advanced_visible(True)
     assert widget.temperature_input.parentWidget().isHidden() is False

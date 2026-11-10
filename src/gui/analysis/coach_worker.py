@@ -27,10 +27,12 @@ from src.backend.services.groq_service import (
 )
 from src.backend.storage.cache import AnalysisCache
 from src.constants import (
+    DEFAULT_COACH_PERSONA,
     EXPLANATION_CACHE_TTL_DAYS,
     EXPLANATION_MAX_PER_MINUTE,
     EXPLANATION_MIN_INTERVAL_S,
     EXPLANATION_PROMPT_VERSION,
+    normalize_coach_persona,
 )
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
@@ -94,6 +96,7 @@ class ExplainMoveWorker(QThread):
         cache: AnalysisCache | None = None,
         lang_code: str = "en",
         model_name: str = "",
+        persona: str = DEFAULT_COACH_PERSONA,
         force: bool = False,
     ) -> None:
         super().__init__()
@@ -102,6 +105,7 @@ class ExplainMoveWorker(QThread):
         self._seq = seq
         self._cache = cache
         self._lang_code = lang_code
+        self._persona = normalize_coach_persona(persona)
         self._model = model_name or getattr(service, "model_name", "") or "unknown"
         self._force = force
         self._ttl_days = ConfigManager().get("explain_cache_ttl_days", EXPLANATION_CACHE_TTL_DAYS)
@@ -132,7 +136,9 @@ class ExplainMoveWorker(QThread):
                 return
 
             reply = self._service.explain_move(
-                format_move_insight_for_llm(insight), insight.classification
+                format_move_insight_for_llm(insight),
+                insight.classification,
+                persona=self._persona,
             )
             if self._is_cancelled():
                 return
@@ -180,6 +186,7 @@ class ExplainMoveWorker(QThread):
             self._lang_code,
             EXPLANATION_PROMPT_VERSION,
             max_age_days=self._ttl_days,
+            persona=self._persona,
         )
 
     def _write_cache(self, reply: str) -> None:
@@ -193,4 +200,5 @@ class ExplainMoveWorker(QThread):
             EXPLANATION_PROMPT_VERSION,
             reply,
             max_age_days=self._ttl_days,
+            persona=self._persona,
         )

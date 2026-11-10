@@ -72,11 +72,13 @@ def _worker(insight, service, cache=None, **kwargs):
 class StubService:
     def __init__(self, reply: str = "You left your knight loose, so Bxd1 wins material."):
         self.reply = reply
-        self.calls: list[tuple[str, str]] = []
+        self.calls: list[tuple[str, str, str]] = []
         self.model_name = MODEL
 
-    def explain_move(self, facts_text: str, classification: str) -> str:
-        self.calls.append((facts_text, classification))
+    def explain_move(
+        self, facts_text: str, classification: str, persona: str = "tactician"
+    ) -> str:
+        self.calls.append((facts_text, classification, persona))
         return self.reply
 
 
@@ -139,15 +141,50 @@ class TestExplainMoveWorker:
         assert errors == []
         assert results == [(7, insight.ply, "Bxd1 wins material; Nxe5 was better.")]
         # the fact sheet, not the raw position, is what the model receives
-        facts, classification = service.calls[0]
+        facts, classification, persona = service.calls[0]
         assert "CLAIM SHEET" in facts
         assert "5.Nxe5" in facts
         assert classification == "Blunder"
+        assert persona == "tactician"
         assert (
             cache.get_explanation(
                 insight.fen_before, insight.uci, MODEL, "en", EXPLANATION_PROMPT_VERSION
             )
             == "Bxd1 wins material; Nxe5 was better."
+        )
+
+    def test_persona_is_passed_to_service_and_scopes_cache(self, qapp, cache):
+        insight = _insight()
+        service = StubService("Bxd1 wins material; Nxe5 was better.")
+        worker = _worker(insight, service, cache, persona="grandmaster")
+        results, errors = [], []
+        worker.finished.connect(lambda *a: results.append(a))
+        worker.error.connect(lambda *a: errors.append(a))
+
+        worker.run()
+
+        assert errors == []
+        assert service.calls[0][2] == "grandmaster"
+        assert (
+            cache.get_explanation(
+                insight.fen_before,
+                insight.uci,
+                MODEL,
+                "en",
+                EXPLANATION_PROMPT_VERSION,
+                persona="grandmaster",
+            )
+            == "Bxd1 wins material; Nxe5 was better."
+        )
+        assert (
+            cache.get_explanation(
+                insight.fen_before,
+                insight.uci,
+                MODEL,
+                "en",
+                EXPLANATION_PROMPT_VERSION,
+            )
+            is None
         )
 
     def test_hallucinated_move_is_rejected_and_not_cached(self, qapp, cache):

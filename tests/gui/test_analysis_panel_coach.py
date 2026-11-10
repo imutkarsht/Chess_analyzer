@@ -141,6 +141,7 @@ class TestAskGate:
 
     def test_dispatch_uses_the_current_seq_and_shows_loading(self, panel, monkeypatch):
         monkeypatch.setattr("src.gui.analysis.analysis_panel.ExplainMoveWorker", _StubWorker)
+        panel.config_manager.set("coach_persona", "socratic")
         panel.set_selected_move(8)
 
         panel._dispatch_explanation()
@@ -150,6 +151,7 @@ class TestAskGate:
         assert worker.kwargs["seq"] == 1
         assert worker.kwargs["lang_code"] == "en"
         assert worker.kwargs["model_name"] == "test/model"
+        assert worker.kwargs["persona"] == "socratic"
         assert worker.kwargs["cache"] is panel._explanation_cache
         assert panel.coach_card.state == CoachState.LOADING
 

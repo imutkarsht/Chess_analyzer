@@ -162,6 +162,55 @@ EXPLANATION_TEMPERATURE = 0.3
 # unsupported option. Reasoning models can opt into low/medium/high.
 EXPLANATION_REASONING_EFFORT = ""
 
+# Coach persona IDs are persisted in config.json and used in explanation cache
+# keys, so keep them stable while allowing their display text to evolve.
+DEFAULT_COACH_PERSONA = "tactician"
+COACH_PERSONAS = {
+    "tactician": {
+        "label": "The Tactician",
+        "prompt": (
+            "Coach at a beginner-to-intermediate level. Prioritize piece safety, "
+            "hanging pieces, forks, and king safety. Use plain, encouraging language "
+            "and explain jargon briefly."
+        ),
+    },
+    "grandmaster": {
+        "label": "The Grandmaster",
+        "prompt": (
+            "Coach an advanced player with concise professional chess terminology. "
+            "Emphasize positional ideas such as outposts, pawn majorities, "
+            "prophylaxis, bishop pairs, and piece activity only when supported by "
+            "the supplied claim sheet."
+        ),
+    },
+    "socratic": {
+        "label": "The Socratic Mentor",
+        "prompt": (
+            "Guide the player toward the supplied idea with a concise, instructive "
+            "question rather than simply announcing the lesson. Name any supplied "
+            "better move explicitly, and use only facts in the claim sheet."
+        ),
+    },
+    "roaster": {
+        "label": "The Roaster",
+        "prompt": (
+            "Use playful, witty, humorous commentary, especially for blunders and "
+            "missed mates, while staying respectful toward the player. Keep every "
+            "joke grounded in the supplied claim sheet; never invent chess facts."
+        ),
+    },
+}
+
+
+def normalize_coach_persona(persona: str | None) -> str:
+    """Return a known coach persona ID, defaulting safely for old/invalid config."""
+    return (
+        persona
+        if isinstance(persona, str) and persona in COACH_PERSONAS
+        else DEFAULT_COACH_PERSONA
+    )
+
+
 # Classification buckets, expressed once and reused by the fact builder
 # (offline wording) and the GUI (whether the Ask button is offered at all).
 SOUND_CLASSIFICATIONS = frozenset({"Best", "Excellent", "Good", "Book"})

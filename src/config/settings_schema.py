@@ -10,9 +10,11 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from src.constants import (
+    COACH_PERSONAS,
     DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
     DEFAULT_ANALYSIS_DEPTH,
     DEFAULT_BOARD_THEME,
+    DEFAULT_COACH_PERSONA,
     DEFAULT_ENGINE_HASH_MB,
     DEFAULT_ENGINE_THREADS,
     DEFAULT_EXPLORER_CACHE_TTL_HOURS,
@@ -520,6 +522,20 @@ def _specs() -> tuple[SettingSpec, ...]:
             "bool",
             False,
             tier="basic",
+        ),
+        SettingSpec(
+            "coach_persona",
+            "AI Coach",
+            "Explanations",
+            "Coach Persona",
+            "Choose the tone and depth used for the next Coach explanation.",
+            "choice",
+            DEFAULT_COACH_PERSONA,
+            apply="live",
+            choices=tuple(
+                Choice(persona_id, persona["label"])
+                for persona_id, persona in COACH_PERSONAS.items()
+            ),
         ),
         SettingSpec(
             "explain_temperature",

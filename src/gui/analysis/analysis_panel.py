@@ -18,7 +18,11 @@ from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.services.groq_service import GroqService
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
-from src.constants import EXPLANATION_DEBOUNCE_MS
+from src.constants import (
+    DEFAULT_COACH_PERSONA,
+    EXPLANATION_DEBOUNCE_MS,
+    normalize_coach_persona,
+)
 from src.gui.components import (
     Button,
     ButtonVariant,
@@ -721,6 +725,9 @@ class AnalysisPanel(QWidget):
             cache=self._get_explanation_cache(),
             lang_code=self.groq_service._lang_code(),
             model_name=self.groq_service.model_name,
+            persona=normalize_coach_persona(
+                self.config_manager.get("coach_persona", DEFAULT_COACH_PERSONA)
+            ),
         )
         worker.finished.connect(self._on_coach_finished)
         worker.error.connect(self._on_coach_error)
