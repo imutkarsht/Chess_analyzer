@@ -2,7 +2,6 @@
 Analysis Panel - Coordinates evaluation graphs, stats summaries, and AI coach summaries.
 """
 
-import chess
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
@@ -279,7 +278,6 @@ class AnalysisPanel(QWidget):
 
         self.coach_card = CoachCardWidget()
         self.coach_card.ask_requested.connect(self._on_coach_ask_requested)
-        self.coach_card.refutation_requested.connect(self.replay_refutation)
         self.coach_card.best_move_requested.connect(self.replay_best)
         self.coach_card.line_requested.connect(self.line_requested.emit)
         coach_layout.addWidget(self.coach_card)
@@ -761,34 +759,6 @@ class AnalysisPanel(QWidget):
                 return None
         return self._explanation_cache
 
-    def replay_refutation(self) -> None:
-        """Show the opponent's best answer to the played move (D4)."""
-        insight = self._coach_insight
-        moves = getattr(self.current_game, "moves", None) if self.current_game else None
-        if insight is None or not moves:
-            return
-        reply_index = insight.ply + 1  # ply is 0-based, so the reply is the next entry
-        if not 0 <= reply_index < len(moves):
-            return
-        reply = moves[reply_index]
-        if not reply.multi_pvs:
-            return
-
-        fen_after = self._fen_after_played_move(insight)
-        lines, _lines_fen = lines_for_move(reply, chess960=self._is_chess960())
-        self.update_lines(lines, fen=fen_after)
-        self.tabs.set_current_index(0)  # the replayed lines live in the Evaluation tab
-
-        if fen_after and insight.refutation_san:
-            try:
-                uci = chess.Board(fen_after, chess960=self._is_chess960()).parse_san(
-                    insight.refutation_san[0]
-                ).uci()
-            except ValueError:
-                uci = None
-            if uci:
-                self.variation_requested.emit(fen_after, uci)
-
     def replay_best(self) -> None:
         """Show the engine's top choice from the played move's position."""
         insight = self._coach_insight
@@ -818,19 +788,6 @@ class AnalysisPanel(QWidget):
     def _is_chess960(self) -> bool:
         meta = getattr(self.current_game, "metadata", None)
         return bool(getattr(meta, "chess960", False))
-
-    def _fen_after_played_move(self, insight) -> str | None:
-        """Position after the coach insight's move, in the game's variant."""
-        moves = getattr(self.current_game, "moves", None) or []
-        if not 0 <= insight.ply < len(moves):
-            return None
-        played = moves[insight.ply]
-        try:
-            board = chess.Board(played.fen_before, chess960=self._is_chess960())
-            board.push_uci(played.uci)
-        except ValueError:
-            return None
-        return board.fen()
 
     def _show_llm_not_configured(self) -> None:
         from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog

@@ -49,6 +49,8 @@ REFUTATION_MAX_PLIES = 4
 # a queen entry, a knight coming to the attack), but not so much that the model
 # drowns in a 20-ply engine PV.
 LINE_MAX_PLIES = 10
+# The card quotes a short preview; replay still uses the full stored line.
+LINE_TEXT_PLIES = 6
 
 # Destination square of a SAN move ("exd5" -> "d5", "Nbd7" -> "d7", "O-O" -> None).
 _SAN_SQUARE_RE = re.compile(r"([a-h][1-8])")
@@ -395,7 +397,7 @@ def build_move_insight(
     main_line_san, line_captures, line_ends_in_mate, line_material_delta_cp = _scan_line(
         board_before, main_line_uci
     )
-    main_line_text = _format_line(board_before, main_line_uci)
+    main_line_text = _format_line(board_before, main_line_uci, limit=LINE_TEXT_PLIES)
 
     best_line_uci = (
         top_pv_uci[:LINE_MAX_PLIES]

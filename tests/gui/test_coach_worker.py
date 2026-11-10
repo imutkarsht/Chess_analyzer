@@ -7,6 +7,8 @@ threads are spawned and the suite stays fast.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import chess
 import pytest
 
@@ -187,6 +189,22 @@ class TestExplainMoveWorker:
             )
             is None
         )
+
+    def test_reply_omitting_the_better_move_is_rejected(self, qapp, cache):
+        insight = replace(
+            _insight(), best_move_san="Nxf7", best_move_uci="f3f7"
+        )
+        service = StubService("Bxd1 wins material.")
+        worker = _worker(insight, service, cache)
+        results, errors = [], []
+        worker.finished.connect(lambda *a: results.append(a))
+        worker.error.connect(lambda *a: errors.append(a))
+
+        worker.run()
+
+        assert results == []
+        assert len(errors) == 1
+        assert "too generic" in errors[0][2]
 
     def test_cancelled_worker_emits_nothing(self, qapp, cache):
         insight = _insight()

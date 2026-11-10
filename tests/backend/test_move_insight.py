@@ -268,7 +268,7 @@ def test_a_sacrifice_is_framed_positively():
     assert "winning chances fell" not in text
 
 
-@pytest.mark.parametrize("classification", ["Inaccuracy", "Mistake", "Miss", "Blunder"])
+@pytest.mark.parametrize("classification", ["Inaccuracy", "Mistake", "Blunder"])
 def test_problem_moves_state_a_concrete_reason(classification):
     fen, uci = _replay(LEGAL, 8)
     played = MoveAnalysis(5, 8, "Nxe5", uci, fen, classification=classification)
@@ -277,6 +277,25 @@ def test_problem_moves_state_a_concrete_reason(classification):
     # must name the concrete punishment and what became loose
     assert "allows the opponent" in text
     assert "defended" in text  # "undefended" or "under-defended"
+
+
+def test_miss_is_framed_as_a_lost_chance_not_a_punishment():
+    fen, uci = _replay(LEGAL, 8)
+    played = MoveAnalysis(
+        5,
+        8,
+        "Nxe5",
+        uci,
+        fen,
+        classification="Miss",
+        win_chance_before=0.79,
+        win_chance_after=0.52,
+    )
+    text = format_move_insight_offline(build_move_insight([played], 0, metadata=METADATA))
+
+    assert "WHAT WAS MISSED" in text
+    assert "PUNISHMENT" not in text
+    assert "winning chances fell" in text
 
 
 def test_allowed_tokens_cover_the_facts_only():

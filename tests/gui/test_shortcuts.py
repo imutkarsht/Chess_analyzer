@@ -9,6 +9,7 @@ Booting MainWindow costs seconds, so the whole module shares one window and
 ``_reset`` puts it back into a known state before every test.
 """
 
+import chess
 import pytest
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import QLabel, QLineEdit
@@ -362,6 +363,35 @@ def test_space_without_game_does_not_start_replay(window):
     window.current_game = None
     press(window, "Space")
     assert not window._replay_timer.isActive()
+
+
+def test_show_main_line_autoplays_the_coach_line(window):
+    line = ["e2e4", "e7e5"]
+    window._on_coach_line_requested(chess.STARTING_FEN, line)
+
+    assert window.variation.is_active
+    assert window._coach_line_timer.isActive()
+
+    window._coach_line_tick()
+    window._coach_line_tick()
+    window._coach_line_tick()
+
+    expected = chess.Board()
+    expected.push_san("e4")
+    expected.push_san("e5")
+    assert window.board_widget.board.fen() == expected.fen()
+    assert not window._coach_line_timer.isActive()
+    window._exit_variation()
+
+
+def test_manual_navigation_stops_coach_line_autoplay(window):
+    window._on_coach_line_requested(chess.STARTING_FEN, ["e2e4", "e7e5"])
+    assert window._coach_line_timer.isActive()
+
+    window._nav_next()
+
+    assert not window._coach_line_timer.isActive()
+    window._exit_variation()
 
 
 # --- Pages ------------------------------------------------------------------

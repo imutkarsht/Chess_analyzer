@@ -122,7 +122,8 @@ def _detect_ui_language() -> str:
 # src.backend.analysis.tactics.explanation.format_plan_for_llm().
 EXPLANATION_SYSTEM_PROMPT = (
     "You are a chess coach writing a short note for the player. "
-    "Rewrite the supplied claim sheet; do not perform your own chess analysis.\n\n"
+    "Rewrite the supplied claim sheet into natural coaching prose; do not "
+    "perform your own chess analysis.\n\n"
     "Rules:\n"
     "- Use only the verdict, evidence, main line, better move and pattern.\n"
     "- Never invent a move, square, piece, motif, evaluation or variation.\n"
@@ -130,13 +131,39 @@ EXPLANATION_SYSTEM_PROMPT = (
     "- Do not merely restate the classification, evaluation or win chance.\n"
     "- For a good move, explain why it works and what the follow-up is.\n"
     "- For an error, explain what the opponent does, what was better and the pattern.\n"
+    "- If a better move is listed, name it explicitly.\n"
     "- Keep SAN exactly as written in the claim sheet.\n"
-    "- 70-110 words, short labelled paragraphs, no pleasantries and no meta-talk "
-    "about engines or analysis.\n"
-    "- Good moves: WHY IT WORKS / THE LINE / REMEMBER.\n"
-    "- Errors: WHAT WENT WRONG / THE PUNISHMENT / BETTER / PATTERN.\n"
+    "- Write two short paragraphs of plain prose, 70-110 words.\n"
+    "- Do NOT use markdown, asterisks, headings, labels, bullet points, or the "
+    "words VERDICT, EVIDENCE, MAIN LINE, BETTER or PATTERN in the reply.\n"
     "- If the claim sheet has no line, do not invent one."
 )
+
+
+def clean_explanation_text(text: str) -> str:
+    """Remove markdown/label artifacts from an LLM coaching reply.
+
+    Small models often echo the claim-sheet labels and wrap them in ``**`` even
+    when asked for plain prose. The card is a plain-text surface, so normalize
+    once before validation/caching/rendering.
+    """
+    cleaned = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"__(.*?)__", r"\1", cleaned)
+    cleaned = re.sub(r"`([^`]*)`", r"\1", cleaned)
+    cleaned = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", cleaned)
+    cleaned = re.sub(
+        r"(?im)^\s*(?:#{1,6}\s*)?\*{0,2}"
+        r"(VERDICT|EVIDENCE|MAIN LINE|BETTER|PATTERN|CLAIM SHEET|"
+        r"WHY IT WORKS|THE IDEA|REMEMBER|WHAT WENT WRONG|WHAT WAS MISSED|"
+        r"THE PUNISHMENT|THE LINE|THE MATE)"
+        r"\*{0,2}\s*(?::\s*|\s*$)",
+        "",
+        cleaned,
+    )
+    cleaned = re.sub(r"(?m)^\s*[-*]\s+", "", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
 
 # SAN-like move token, including castling and promotion.
 SAN_TOKEN_RE = re.compile(r"\b(?:O-O-O|O-O|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?\b")
@@ -161,6 +188,7 @@ def validate_explanation(
     allowed_san: set[str],
     allowed_squares: set[str],
     required_anchors: set[str] | None = None,
+    required_better: str | None = None,
 ) -> tuple[bool, list[str]]:
     """
     Mandatory hallucination guard (D5): the LLM may only reference moves and
@@ -201,16 +229,19 @@ def validate_explanation(
         logger.warning("explanation rejected: unknown tokens %s", offending)
         return False, offending
 
+    cited = {_normalise_san(token) for token in SAN_TOKEN_RE.findall(text)}
     if required_anchors:
-        anchors = {
-            _normalise_san(token) for token in required_anchors if token
-        }
-        cited = {_normalise_san(token) for token in SAN_TOKEN_RE.findall(text)}
+        anchors = {_normalise_san(token) for token in required_anchors if token}
         if not anchors & cited:
             logger.warning(
                 "explanation rejected: no concrete anchor (wanted one of %s)",
                 sorted(anchors),
             )
+            return False, []
+    if required_better:
+        better = _normalise_san(required_better)
+        if better and better not in cited:
+            logger.warning("explanation rejected: better move %s missing", better)
             return False, []
     return True, []
 
@@ -588,6 +619,11 @@ class GroqService:
             system += (
                 f"\nThis move is classified as {classification}. Treat the offered "
                 "material as intentional and explain the compensation."
+            )
+        elif classification == "Miss":
+            system += (
+                "\nThis move is classified as Miss. Explain the chance that was "
+                "missed and the better move; do not call it a punishment."
             )
         elif classification in PROBLEM_CLASSIFICATIONS:
             system += (

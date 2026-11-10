@@ -28,6 +28,7 @@ from src.backend.analysis.tactics.insight import (
     format_move_insight_offline,
     move_prefix,
 )
+from src.backend.services.groq_service import clean_explanation_text
 from src.constants import LLM_WORTHY_CLASSIFICATIONS
 from src.gui.components import (
     Button,
@@ -47,7 +48,7 @@ from src.gui.styles import Styles
 # pushing the actions out of reach. Measured in text lines (not pixels) so it
 # stays correct at any font/DPI scale.
 _BODY_MIN_LINES = 4
-_BODY_MAX_LINES = 12
+_BODY_MAX_LINES = 20
 _BODY_FONT_PX = 13
 _BUTTON_HEIGHT = 32
 # Header badges and action buttons wrap onto a second row when the panel is too
@@ -78,7 +79,6 @@ def is_llm_worthy(classification: str, allow_trivial: bool = False) -> bool:
 
 class CoachCardWidget(QFrame):
     ask_requested = pyqtSignal()
-    refutation_requested = pyqtSignal()
     best_move_requested = pyqtSignal()
     line_requested = pyqtSignal(str, list)  # FEN before the move, UCI line
 
@@ -142,15 +142,6 @@ class CoachCardWidget(QFrame):
         )
         self.btn_ask.setFixedHeight(_BUTTON_HEIGHT)
 
-        self.btn_refute = Button(
-            "Show refutation",
-            ButtonVariant.FILLED,
-            size=ButtonSize.SM,
-            on_click=self.refutation_requested.emit,
-            parent=self,
-        )
-        self.btn_refute.setFixedHeight(_BUTTON_HEIGHT)
-
         self.btn_best = Button(
             "Show best move",
             ButtonVariant.FILLED,
@@ -161,21 +152,22 @@ class CoachCardWidget(QFrame):
         self.btn_best.setFixedHeight(_BUTTON_HEIGHT)
 
         self.btn_line = Button(
-            "Show main line",
+            "Play line",
             ButtonVariant.FILLED,
             size=ButtonSize.SM,
+            tooltip="Autoplay the stored main line",
             on_click=self._emit_line,
             parent=self,
         )
         self.btn_line.setFixedHeight(_BUTTON_HEIGHT)
 
-        self._header_badges = (self.class_pill, self.san_label, self.eval_label, self.phase_label)
-        self._action_buttons = (
-            self.btn_ask,
-            self.btn_line,
-            self.btn_refute,
-            self.btn_best,
-        )
+        # Phase is useful context but not worth a fourth header chip on a narrow
+        # panel; keep it in the insight/tooltips and show only the three facts
+        # that explain the move at a glance.
+        self.phase_label.setParent(self)
+        self.phase_label.hide()
+        self._header_badges = (self.class_pill, self.san_label, self.eval_label)
+        self._action_buttons = (self.btn_ask, self.btn_line, self.btn_best)
 
         self.set_insight(None)
         self.refresh_styles()
@@ -240,10 +232,10 @@ class CoachCardWidget(QFrame):
         self._restyle_header()
 
         self.state = CoachState.OFFLINE
+        self.caption.setText("")
         self._set_body(format_move_insight_offline(insight))
 
-        self.btn_ask.setText(f"Ask Coach: why is this a {insight.classification}?")
-        self.btn_refute.setToolTip(self.refutation_label())
+        self.btn_ask.setText("Ask Coach")
         self.btn_best.setToolTip(self.best_move_label())
         self._layout_rows()
 
@@ -262,11 +254,15 @@ class CoachCardWidget(QFrame):
             self.insight.classification, self.allow_trivial
         ):
             offered.append(self.btn_ask)  # READY already shows the narrative
-        if len(self.insight.main_line_uci) > 1:
+        has_main_line = len(self.insight.main_line_uci) > 1
+        if has_main_line:
             offered.append(self.btn_line)
-        if self.insight.refutation_san:
-            offered.append(self.btn_refute)
-        if self.insight.best_move_san and self.insight.best_move_uci != self.insight.uci:
+        # The main line already contains the opponent's refutation, and the
+        # BETTER section already names the best move. Only offer the best-move
+        # action when there is no continuation to play (e.g. the last ply).
+        if not has_main_line and self.insight.best_move_san and (
+            self.insight.best_move_uci != self.insight.uci
+        ):
             offered.append(self.btn_best)
         return tuple(offered)
 
@@ -291,8 +287,8 @@ class CoachCardWidget(QFrame):
         if self._expected != (seq, ply):
             return False
         self.state = CoachState.READY
-        self._set_body(text)
-        self.caption.setText("Coach explanation — grounded in the analysis")
+        self._set_body(clean_explanation_text(text))
+        self.caption.setText("Coach explanation — rewritten from the analysis")
         self.btn_ask.setEnabled(True)
         self._layout_rows()  # READY drops the Ask action
         return True
@@ -310,12 +306,6 @@ class CoachCardWidget(QFrame):
             self.btn_ask.setToolTip(reason)
         self._layout_rows()
         return True
-
-    def refutation_label(self) -> str:
-        """Notation for the refutation button tooltip (opponent's move number)."""
-        if self.insight is None or not self.insight.refutation_san:
-            return ""
-        return f"{self.insight.refutation_prefix}{' '.join(self.insight.refutation_san)}"
 
     def best_move_label(self) -> str:
         if self.insight is None or not self.insight.best_move_san:
@@ -407,7 +397,7 @@ class CoachCardWidget(QFrame):
         self.setStyleSheet(Styles.get_frame_style(object_name="CoachCard", hover_accent=False))
         self.body_edit.refresh_styles()
         self._restyle_header()
-        for button in (self.btn_ask, self.btn_line, self.btn_refute, self.btn_best):
+        for button in (self.btn_ask, self.btn_line, self.btn_best):
             button.refresh_styles()
         self._layout_rows()  # the styles decide the badge/button widths
         self._fit_body()  # ...and the body font decides the line height

@@ -2,7 +2,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.backend.services.groq_service import GroqService, validate_explanation
+from src.backend.services.groq_service import (
+    GroqService,
+    clean_explanation_text,
+    validate_explanation,
+)
 from src.constants import PROVIDERS
 
 # ---------------------------------------------------------------------------
@@ -435,6 +439,7 @@ class TestExplainMove:
         system = sent["messages"][0]
         assert system["role"] == "system"
         assert "Never invent a move" in system["content"]
+        assert "Do NOT use markdown" in system["content"]
         assert "classified as Blunder" in system["content"]
 
     def test_sacrifice_guidance_is_added_for_brilliant_moves(self, configured_service):
@@ -522,6 +527,29 @@ ALLOWED_SAN = {"Bxd1", "Nxe5", "Bxf7", "O-O", "O-O-O", "e8=Q", "Qxf7"}
 ALLOWED_SQUARES = {"d1", "f7", "e5", "e8", "g1"}
 
 
+def test_clean_explanation_text_strips_markdown_and_claim_labels():
+    raw = (
+        "**WHAT WENT WRONG**\n"
+        "**VERDICT**\n"
+        "18...O-O-O is a blunder.\n\n"
+        "## EVIDENCE:\n"
+        "- The a7 pawn is loose.\n\n"
+        "**MAIN LINE**\n"
+        "19.Rxa7 Rfe8 20.Rf5.\n"
+    )
+
+    cleaned = clean_explanation_text(raw)
+
+    assert "**" not in cleaned
+    assert "##" not in cleaned
+    assert "VERDICT" not in cleaned
+    assert "EVIDENCE" not in cleaned
+    assert "MAIN LINE" not in cleaned
+    assert "WHAT WENT WRONG" not in cleaned
+    assert "18...O-O-O is a blunder." in cleaned
+    assert "19.Rxa7 Rfe8 20.Rf5." in cleaned
+
+
 class TestValidateExplanation:
     def test_grounded_reply_passes(self):
         reply = (
@@ -575,4 +603,23 @@ class TestValidateExplanation:
         concrete = "Bxd1 wins material, but Nxe5 was the move that kept the advantage."
         assert validate_explanation(
             concrete, ALLOWED_SAN, ALLOWED_SQUARES, {"Bxd1", "Nxe5"}
+        ) == (True, [])
+
+    def test_better_move_must_be_named_when_one_exists(self):
+        reply = "Bxd1 wins material, and the position is lost."
+        assert validate_explanation(
+            reply,
+            ALLOWED_SAN,
+            ALLOWED_SQUARES,
+            {"Bxd1"},
+            required_better="Nxe5",
+        ) == (False, [])
+
+        reply = "Bxd1 wins material, but Nxe5 kept the advantage."
+        assert validate_explanation(
+            reply,
+            ALLOWED_SAN,
+            ALLOWED_SQUARES,
+            {"Bxd1"},
+            required_better="Nxe5",
         ) == (True, [])

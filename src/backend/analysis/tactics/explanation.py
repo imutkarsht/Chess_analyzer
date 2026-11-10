@@ -193,6 +193,36 @@ def _sacrifice_plan(insight: MoveInsight) -> ExplanationPlan:
     )
 
 
+def _miss_plan(insight: MoveInsight) -> ExplanationPlan:
+    """A Miss lets a good position slip; it is not an opponent punishment."""
+    drop = insight.wp_before - insight.wp_after
+    evidence: list[str] = []
+    continuation = insight.refutation_text or insight.main_line_text
+    if continuation:
+        evidence.append(f"The game continued {continuation}.")
+    if drop >= 0.03:
+        evidence.append(
+            f"Your winning chances fell from {_wp(insight.wp_before)} to "
+            f"{_wp(insight.wp_after)}."
+        )
+    better = ""
+    if insight.best_move_san:
+        better = f"Better was {_move_ref(insight, insight.best_move_san)}."
+        if insight.best_eval:
+            better = better[:-1] + f", keeping {insight.best_eval}."
+    return ExplanationPlan(
+        kind="miss",
+        verdict=f"{insight.numbered_san} lets a better position slip away.",
+        evidence=tuple(evidence),
+        line=continuation,
+        better=better,
+        lesson=(
+            "When you are winning, check that your move does not give the "
+            "opponent a free improvement."
+        ),
+    )
+
+
 def _error_plan(insight: MoveInsight) -> ExplanationPlan:
     new_hung = _biggest(insight.new_hung_pieces)
     mate_in = insight.mate_threat_in
@@ -240,11 +270,9 @@ def _error_plan(insight: MoveInsight) -> ExplanationPlan:
 
     better = ""
     if insight.best_move_san:
-        better = f"Better was {_move_ref(insight, insight.best_move_san)}"
-        if insight.best_line_text:
-            better += f": {insight.best_line_text}."
-        else:
-            better += "."
+        better = f"Better was {_move_ref(insight, insight.best_move_san)}."
+        if insight.best_eval:
+            better = better[:-1] + f", keeping {insight.best_eval}."
 
     return ExplanationPlan(
         kind="error",
@@ -358,6 +386,8 @@ def build_explanation_plan(insight: MoveInsight) -> ExplanationPlan:
         return _missed_mate_plan(insight)
     if insight.is_actual_sacrifice and insight.classification in SACRIFICIAL_CLASSIFICATIONS:
         return _sacrifice_plan(insight)
+    if insight.classification == "Miss":
+        return _miss_plan(insight)
     if insight.classification in PROBLEM_CLASSIFICATIONS:
         return _error_plan(insight)
     if insight.is_only_move or insight.classification == "Great":
@@ -376,20 +406,18 @@ def build_explanation_plan(insight: MoveInsight) -> ExplanationPlan:
 
 def format_plan_offline(plan: ExplanationPlan) -> str:
     """Deterministic coaching note used when no LLM is available."""
-    is_error = plan.kind in {"error", "missed_mate"}
-    sections: list[tuple[str, str]] = [
-        (
-            "WHAT WENT WRONG" if is_error else "WHY IT WORKS",
-            plan.verdict,
-        )
-    ]
+    if plan.kind == "miss":
+        verdict_label, evidence_label = "WHAT WAS MISSED", "THE LINE"
+    elif plan.kind == "missed_mate":
+        verdict_label, evidence_label = "WHAT WAS MISSED", "THE MATE"
+    elif plan.kind == "error":
+        verdict_label, evidence_label = "WHAT WENT WRONG", "THE PUNISHMENT"
+    else:
+        verdict_label, evidence_label = "WHY IT WORKS", "THE IDEA"
+
+    sections: list[tuple[str, str]] = [(verdict_label, plan.verdict)]
     if plan.evidence:
-        sections.append(
-            (
-                "THE PUNISHMENT" if is_error else "THE IDEA",
-                " ".join(plan.evidence),
-            )
-        )
+        sections.append((evidence_label, " ".join(plan.evidence)))
     if plan.better:
         sections.append(("BETTER", plan.better))
     if plan.lesson:
