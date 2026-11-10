@@ -73,7 +73,6 @@ class TestOfflineRendering:
         assert card.insight is None
         assert "Select a move" in card.body_text()
         assert card.btn_ask.isHidden()
-        assert card.btn_refute.isHidden()
         assert card.btn_best.isHidden()
 
     def test_offline_state_renders_classification_move_and_eval_swing(self, card):
@@ -90,9 +89,9 @@ class TestOfflineRendering:
     def test_actions_follow_the_available_facts(self, card):
         card.set_insight(_insight())
         assert not card.btn_ask.isHidden()  # Blunder is LLM-worthy
-        assert not card.btn_refute.isHidden()  # a refutation exists
-        # the best move is the missed Nxe5-dodging line, which differs from the play
-        assert card.refutation_label().startswith("5...")
+        assert not card.btn_line.isHidden()  # the main line is available
+        # The main line already covers the old single-move actions.
+        assert card.btn_best.isHidden()
         assert card.best_move_label()
 
 
@@ -106,6 +105,16 @@ class TestAskAction:
         card.btn_ask.click()
 
         assert requests == [True]
+
+    def test_main_line_action_emits_the_full_uci_line(self, card):
+        insight = _insight()
+        card.set_insight(insight)
+        requests = []
+        card.line_requested.connect(lambda fen, line: requests.append((fen, line)))
+
+        card.btn_line.click()
+
+        assert requests == [(insight.fen_before, insight.main_line_uci)]
 
     @pytest.mark.parametrize(
         ("classification", "worthy"),
@@ -131,6 +140,19 @@ class TestNarrativeLifecycle:
         assert card.state == CoachState.READY
         assert card.body_text() == "Bxd1 wins the queen because e5 was loose."
         assert card.btn_ask.isHidden()  # nothing left to ask
+
+    def test_markdown_and_claim_labels_are_cleaned_from_narratives(self, card):
+        card.set_insight(_insight())
+        card.begin_loading(seq=4, ply=8)
+
+        card.show_narrative(
+            4, 8, "**VERDICT**\nBxd1 wins the queen.\n\n**MAIN LINE**\n5...Bxd1."
+        )
+
+        assert "**" not in card.body_text()
+        assert "VERDICT" not in card.body_text()
+        assert "MAIN LINE" not in card.body_text()
+        assert "rewritten from the analysis" in card.caption.text()
 
     @pytest.mark.parametrize("seq,ply", [(2, 8), (3, 7), (3, 9)])
     def test_stale_results_are_ignored(self, card, seq, ply):
@@ -211,7 +233,7 @@ class TestRowWrapping:
 
     def test_a_wrapped_action_comes_back_when_the_card_grows_again(self, qtbot):
         """Hiding a row also hides its children; the wrap must not stick."""
-        host, card = _card_in_a_host(qtbot, 320)
+        host, card = _card_in_a_host(qtbot, 140)
         card.set_insight(_insight())
         assert not card._action_rows[1].isHidden()
 
@@ -219,5 +241,6 @@ class TestRowWrapping:
         qtbot.waitUntil(lambda: card.width() > 1000, timeout=2000)
 
         assert card._action_rows[1].isHidden()
-        for button in (card.btn_ask, card.btn_refute, card.btn_best):
+        for button in (card.btn_ask, card.btn_line):
             assert not button.isHidden()
+        assert card.btn_best.isHidden()

@@ -202,6 +202,7 @@ class NavigationMixin:
                 focus_widget.showPopup()
             return
         if self._variation_active():
+            self._stop_coach_line_autoplay()
             self._set_status("Exit the variation (Esc) to replay the game", "info")
             return
 
@@ -313,6 +314,7 @@ class NavigationMixin:
     def _nav_prev(self):
         variation = getattr(self, "variation", None)
         if variation is not None and variation.is_active:
+            self._stop_coach_line_autoplay()
             variation.undo()
             return
 
@@ -329,6 +331,7 @@ class NavigationMixin:
     def _nav_next(self):
         variation = getattr(self, "variation", None)
         if variation is not None and variation.is_active:
+            self._stop_coach_line_autoplay()
             variation.forward()
             return
 
@@ -345,6 +348,7 @@ class NavigationMixin:
     def _nav_last(self):
         variation = getattr(self, "variation", None)
         if variation is not None and variation.is_active:
+            self._stop_coach_line_autoplay()
             variation.go_to_end()
             return
 
@@ -361,6 +365,7 @@ class NavigationMixin:
     def _nav_first(self):
         variation = getattr(self, "variation", None)
         if variation is not None and variation.is_active:
+            self._stop_coach_line_autoplay()
             variation.go_to_start()
             return
 

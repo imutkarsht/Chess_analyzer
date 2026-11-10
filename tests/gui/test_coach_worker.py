@@ -7,6 +7,8 @@ threads are spawned and the suite stays fast.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import chess
 import pytest
 
@@ -138,7 +140,7 @@ class TestExplainMoveWorker:
         assert results == [(7, insight.ply, "Bxd1 wins material; Nxe5 was better.")]
         # the fact sheet, not the raw position, is what the model receives
         facts, classification = service.calls[0]
-        assert "FACT SHEET" in facts
+        assert "CLAIM SHEET" in facts
         assert "5.Nxe5" in facts
         assert classification == "Blunder"
         assert (
@@ -167,6 +169,42 @@ class TestExplainMoveWorker:
             )
             is None
         )
+
+    def test_generic_reply_without_a_concrete_move_is_rejected(self, qapp, cache):
+        insight = _insight()
+        service = StubService("This was the strongest move available in the position.")
+        worker = _worker(insight, service, cache)
+        results, errors = [], []
+        worker.finished.connect(lambda *a: results.append(a))
+        worker.error.connect(lambda *a: errors.append(a))
+
+        worker.run()
+
+        assert results == []
+        assert len(errors) == 1
+        assert "too generic" in errors[0][2]
+        assert (
+            cache.get_explanation(
+                insight.fen_before, insight.uci, MODEL, "en", EXPLANATION_PROMPT_VERSION
+            )
+            is None
+        )
+
+    def test_reply_omitting_the_better_move_is_rejected(self, qapp, cache):
+        insight = replace(
+            _insight(), best_move_san="Nxf7", best_move_uci="f3f7"
+        )
+        service = StubService("Bxd1 wins material.")
+        worker = _worker(insight, service, cache)
+        results, errors = [], []
+        worker.finished.connect(lambda *a: results.append(a))
+        worker.error.connect(lambda *a: errors.append(a))
+
+        worker.run()
+
+        assert results == []
+        assert len(errors) == 1
+        assert "too generic" in errors[0][2]
 
     def test_cancelled_worker_emits_nothing(self, qapp, cache):
         insight = _insight()

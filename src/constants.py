@@ -147,7 +147,7 @@ MIN_MOVE_ACCURACY = 10.0
 # Coach ("why was this a blunder?") feature
 # ---------------------------------------------------------------------------
 # Bump to invalidate every cached explanation (prompt/schema changes).
-EXPLANATION_PROMPT_VERSION = 2
+EXPLANATION_PROMPT_VERSION = 4
 EXPLANATION_CACHE_TTL_DAYS = 30
 EXPLANATION_REQUEST_TIMEOUT_S = 20.0
 EXPLANATION_DEBOUNCE_MS = 400
@@ -198,6 +198,9 @@ PAGE_NAMES = ("Analyze", "Explore", "History", "Metrics", "Settings")
 
 # Delay between moves during Space auto-replay, in milliseconds.
 REPLAY_INTERVAL_MS = 1000
+
+# Coach line playback is a short demonstration, not a full-game replay.
+COACH_LINE_INTERVAL_MS = 700
 
 # Analysis callbacks fire faster than the eye can follow (and the final
 # classification pass emits one callback per move). Coalesce UI work so a game

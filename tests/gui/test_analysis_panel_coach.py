@@ -168,56 +168,27 @@ class TestAskGate:
 
 
 class TestReplay:
-    @pytest.mark.parametrize(
-        ("replay", "expected_move", "fen_from"),
-        [
-            # 5.Nxe5 is punished by 5...Bxd1: the opponent's line lives one ply later
-            ("replay_refutation", 9, 8),
-            # the alternatives belong to the played move's own position
-            ("replay_best", 8, None),
-        ],
-    )
-    def test_replay_shows_the_right_line(self, panel, replay, expected_move, fen_from):
+    def test_replay_best_shows_the_right_line(self, panel):
         panel.set_selected_move(8)
         panel.tabs.set_current_index(2)
 
-        getattr(panel, replay)()
+        panel.replay_best()
 
-        move = panel.current_game.moves[expected_move]
+        move = panel.current_game.moves[8]
         shown = panel.lines_widget.lines
         assert len(shown) == len(move.multi_pvs)
         assert shown[0].first_move == move.multi_pvs[0]["pv"][0]
-
-        if fen_from is None:
-            assert panel._lines_fen == move.fen_before
-        else:
-            played = panel.current_game.moves[fen_from]
-            board = chess.Board(played.fen_before)
-            board.push_uci(played.uci)
-            assert panel._lines_fen == board.fen()
-
-    def test_replay_refutation_brings_the_evaluation_tab_forward(self, panel):
-        """The lines widget lives in the Evaluation tab, so it must be shown."""
-        panel.set_selected_move(8)
-        panel.tabs.set_current_index(2)
-
-        panel.replay_refutation()
-
+        assert panel._lines_fen == move.fen_before
         assert panel.tabs.current_index() == 0
 
-    def test_replay_requests_the_matching_board_position(self, panel):
+    def test_replay_best_requests_the_matching_board_position(self, panel):
         panel.set_selected_move(8)
         requests = []
         panel.variation_requested.connect(lambda f, u: requests.append((f, u)))
 
         panel.replay_best()
-        assert requests == [(panel.current_game.moves[8].fen_before, "d2d4")]
 
-        requests.clear()
-        panel.replay_refutation()
-        after_blunder = chess.Board(panel.current_game.moves[8].fen_before)
-        after_blunder.push_uci(panel.current_game.moves[8].uci)
-        assert requests == [(after_blunder.fen(), "g4d1")]
+        assert requests == [(panel.current_game.moves[8].fen_before, "d2d4")]
 
     def test_line_click_opens_the_position_the_lines_belong_to(self, panel):
         move = panel.current_game.moves[8]

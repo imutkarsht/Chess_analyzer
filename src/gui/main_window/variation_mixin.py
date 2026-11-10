@@ -1,8 +1,10 @@
 """Variation-mode request handling for the main window."""
 
 import chess
+from PyQt6.QtCore import QTimer
 
 from src.backend.analysis.variation_tree import canonical_fen
+from src.constants import COACH_LINE_INTERVAL_MS
 from src.utils.logger import logger
 
 
@@ -43,12 +45,67 @@ class VariationMixin:
             return
         self._finish_variation_ui()
 
+    def _ensure_coach_line_timer(self) -> None:
+        if getattr(self, "_coach_line_timer", None) is not None:
+            return
+        timer = QTimer(self)
+        timer.setInterval(COACH_LINE_INTERVAL_MS)
+        timer.timeout.connect(self._coach_line_tick)
+        self._coach_line_timer = timer
+        self._coach_line_moves: list[str] = []
+        self._coach_line_index = 0
+
+    def _on_coach_line_requested(self, fen: str, uci_moves: list[str]) -> None:
+        """Open the Coach line and animate it move-by-move on the board."""
+        if not self.current_game or not uci_moves:
+            return
+        if getattr(self, "_full_analysis_running", False):
+            self._set_status("Finish the running analysis before replaying a line", "warning")
+            return
+        chess960 = bool(getattr(self.current_game.metadata, "chess960", False))
+        self._stop_coach_line_autoplay()
+        self._exit_variation()
+        started = self.variation.enter(
+            fen,
+            None,
+            return_index=self.board_widget.current_move_index,
+            chess960=chess960,
+            auto_play=False,
+            root_label="Coach line",
+        )
+        if not started:
+            return
+        self._ensure_coach_line_timer()
+        self._coach_line_moves = list(uci_moves)
+        self._coach_line_index = 0
+        self._finish_variation_ui()
+        self._coach_line_timer.start()
+
+    def _coach_line_tick(self) -> None:
+        if not self.variation.is_active or self._coach_line_index >= len(
+            self._coach_line_moves
+        ):
+            self._stop_coach_line_autoplay()
+            return
+        uci = self._coach_line_moves[self._coach_line_index]
+        self._coach_line_index += 1
+        if not self.variation.play_uci(uci):
+            self._stop_coach_line_autoplay()
+
+    def _stop_coach_line_autoplay(self) -> None:
+        timer = getattr(self, "_coach_line_timer", None)
+        if timer is not None:
+            timer.stop()
+        self._coach_line_moves = []
+        self._coach_line_index = 0
+
     def _finish_variation_ui(self) -> None:
         if not self.variation.is_active:
             return
         self._update_explore_controls()
 
     def _on_variation_exited(self, index: int) -> None:
+        self._stop_coach_line_autoplay()
         self.analysis_panel.toggle_checkbox.setEnabled(True)
         self.analysis_panel.toggle_checkbox.setToolTip("")
         self._update_explore_controls()
@@ -90,6 +147,7 @@ class VariationMixin:
 
     def _exit_variation(self) -> None:
         """Tear the variation down without restoring (caller sets the board)."""
+        self._stop_coach_line_autoplay()
         variation = getattr(self, "variation", None)
         if variation is None or not variation.is_active:
             return

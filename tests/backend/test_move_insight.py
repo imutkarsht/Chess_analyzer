@@ -175,7 +175,9 @@ def test_last_ply_has_no_refutation():
 
     assert insight.refutation_san == []
     assert insight.actual_reply_san is None
-    assert "opponent's refutation" in format_move_insight_for_llm(insight).lower()
+    dossier = format_move_insight_for_llm(insight)
+    assert "MAIN LINE:" in dossier
+    assert "CLAIM SHEET" in dossier
 
 
 @pytest.mark.parametrize("unreliable", ["not_analysed", "wrong_position"])
@@ -261,20 +263,39 @@ def test_a_sacrifice_is_framed_positively():
     insight = build_move_insight([played], 0, metadata=METADATA)
     text = format_move_insight_offline(insight)
 
-    assert "strong move" in text
+    assert "sacrifice" in text
     assert "losing material" not in text
     assert "winning chances fell" not in text
 
 
-@pytest.mark.parametrize("classification", ["Inaccuracy", "Mistake", "Miss", "Blunder"])
+@pytest.mark.parametrize("classification", ["Inaccuracy", "Mistake", "Blunder"])
 def test_problem_moves_state_a_concrete_reason(classification):
     fen, uci = _replay(LEGAL, 8)
     played = MoveAnalysis(5, 8, "Nxe5", uci, fen, classification=classification)
     text = format_move_insight_offline(build_move_insight([played], 0, metadata=METADATA))
 
-    # must quantify the damage (win-chance drop) and name what was left loose
-    assert "winning chances fell" in text
+    # must name the concrete punishment and what became loose
+    assert "allows the opponent" in text
     assert "defended" in text  # "undefended" or "under-defended"
+
+
+def test_miss_is_framed_as_a_lost_chance_not_a_punishment():
+    fen, uci = _replay(LEGAL, 8)
+    played = MoveAnalysis(
+        5,
+        8,
+        "Nxe5",
+        uci,
+        fen,
+        classification="Miss",
+        win_chance_before=0.79,
+        win_chance_after=0.52,
+    )
+    text = format_move_insight_offline(build_move_insight([played], 0, metadata=METADATA))
+
+    assert "WHAT WAS MISSED" in text
+    assert "PUNISHMENT" not in text
+    assert "winning chances fell" in text
 
 
 def test_allowed_tokens_cover_the_facts_only():
@@ -302,9 +323,10 @@ def test_dossier_is_grounded_and_has_no_meta_words():
     lowered = dossier.lower()
 
     assert "stockfish" not in lowered and "engine" not in lowered
+    assert "CLAIM SHEET" in dossier
+    assert "VERDICT:" in dossier
     assert "5.Nxe5" in dossier
-    assert "1500" in dossier  # player Elo from the metadata (D10)
-    assert "Write 2-3 sentences explaining Nxe5 to the white player." in dossier
+    assert "pattern" in lowered
 
 
 @pytest.mark.parametrize(

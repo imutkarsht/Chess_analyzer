@@ -25,7 +25,9 @@ from src.constants import (
     EXPLANATION_REASONING_EFFORT,
     EXPLANATION_REQUEST_TIMEOUT_S,
     EXPLANATION_TEMPERATURE,
+    PROBLEM_CLASSIFICATIONS,
     PROVIDERS,
+    SACRIFICIAL_CLASSIFICATIONS,
 )
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
@@ -115,18 +117,53 @@ def _detect_ui_language() -> str:
 # Move explanation (Coach feature): prompt + mandatory reply validation
 # ---------------------------------------------------------------------------
 
-# The model is a translator, never a calculator: every chess fact it may mention
-# is already in the fact sheet produced by
-# src.backend.analysis.tactics.insight.format_move_insight_for_llm().
+# The model is a translator, never a calculator: every chess claim it may make
+# is already in the claim sheet produced by
+# src.backend.analysis.tactics.explanation.format_plan_for_llm().
 EXPLANATION_SYSTEM_PROMPT = (
-    "You are a chess coach. Translate ONLY the facts below into 2-3 sentences. "
-    "Never name a move, piece, or square that is not listed. "
-    "Do not calculate. Do not add pleasantries. "
-    "The facts give evaluations from White's perspective and win chances from the "
-    "player's perspective. Quote both exactly as given: never flip a sign, never "
-    "convert one perspective to the other, and never calculate a win chance from "
-    "an evaluation."
+    "You are a chess coach writing a short note for the player. "
+    "Rewrite the supplied claim sheet into natural coaching prose; do not "
+    "perform your own chess analysis.\n\n"
+    "Rules:\n"
+    "- Use only the verdict, evidence, main line, better move and pattern.\n"
+    "- Never invent a move, square, piece, motif, evaluation or variation.\n"
+    "- Make the concrete line or tactical mechanism the centre of the note.\n"
+    "- Do not merely restate the classification, evaluation or win chance.\n"
+    "- For a good move, explain why it works and what the follow-up is.\n"
+    "- For an error, explain what the opponent does, what was better and the pattern.\n"
+    "- If a better move is listed, name it explicitly.\n"
+    "- Keep SAN exactly as written in the claim sheet.\n"
+    "- Write two short paragraphs of plain prose, 70-110 words.\n"
+    "- Do NOT use markdown, asterisks, headings, labels, bullet points, or the "
+    "words VERDICT, EVIDENCE, MAIN LINE, BETTER or PATTERN in the reply.\n"
+    "- If the claim sheet has no line, do not invent one."
 )
+
+
+def clean_explanation_text(text: str) -> str:
+    """Remove markdown/label artifacts from an LLM coaching reply.
+
+    Small models often echo the claim-sheet labels and wrap them in ``**`` even
+    when asked for plain prose. The card is a plain-text surface, so normalize
+    once before validation/caching/rendering.
+    """
+    cleaned = (text or "").replace("\r\n", "\n").replace("\r", "\n")
+    cleaned = re.sub(r"\*\*(.*?)\*\*", r"\1", cleaned)
+    cleaned = re.sub(r"__(.*?)__", r"\1", cleaned)
+    cleaned = re.sub(r"`([^`]*)`", r"\1", cleaned)
+    cleaned = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", cleaned)
+    cleaned = re.sub(
+        r"(?im)^\s*(?:#{1,6}\s*)?\*{0,2}"
+        r"(VERDICT|EVIDENCE|MAIN LINE|BETTER|PATTERN|CLAIM SHEET|"
+        r"WHY IT WORKS|THE IDEA|REMEMBER|WHAT WENT WRONG|WHAT WAS MISSED|"
+        r"THE PUNISHMENT|THE LINE|THE MATE)"
+        r"\*{0,2}\s*(?::\s*|\s*$)",
+        "",
+        cleaned,
+    )
+    cleaned = re.sub(r"(?m)^\s*[-*]\s+", "", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
 
 # SAN-like move token, including castling and promotion.
 SAN_TOKEN_RE = re.compile(r"\b(?:O-O-O|O-O|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?)[+#]?\b")
@@ -150,10 +187,16 @@ def validate_explanation(
     reply: str,
     allowed_san: set[str],
     allowed_squares: set[str],
+    required_anchors: set[str] | None = None,
+    required_better: str | None = None,
 ) -> tuple[bool, list[str]]:
     """
     Mandatory hallucination guard (D5): the LLM may only reference moves and
-    squares that were handed to it in the fact sheet.
+    squares that were handed to it in the claim sheet.
+
+    ``required_anchors`` optionally enforces that the note cites at least one
+    concrete move from the supplied line/better-move facts. This stops a fluent
+    but empty answer such as "this is the strongest move in the position".
 
     Returns ``(is_valid, offending_tokens)``. The caller must **discard** an
     invalid reply entirely and fall back to the deterministic offline text —
@@ -185,6 +228,21 @@ def validate_explanation(
         offending = sorted(set(offending))
         logger.warning("explanation rejected: unknown tokens %s", offending)
         return False, offending
+
+    cited = {_normalise_san(token) for token in SAN_TOKEN_RE.findall(text)}
+    if required_anchors:
+        anchors = {_normalise_san(token) for token in required_anchors if token}
+        if not anchors & cited:
+            logger.warning(
+                "explanation rejected: no concrete anchor (wanted one of %s)",
+                sorted(anchors),
+            )
+            return False, []
+    if required_better:
+        better = _normalise_san(required_better)
+        if better and better not in cited:
+            logger.warning("explanation rejected: better move %s missing", better)
+            return False, []
     return True, []
 
 
@@ -506,6 +564,11 @@ class GroqService:
             "move, evaluation, tactic, opening name or clock situation.\n"
             "- Every claim about a mistake, a brilliancy or a turning point must cite the move "
             "number and SAN (e.g. 14.c3 or 23...Qxf2) plus the evaluation swing in pawns.\n"
+            "- When a moment includes a tactical reason or stored line, use it. Explain WHY the "
+            "move worked or failed (hanging piece, king safety, fork, sacrifice, only move) "
+            "instead of only quoting the evaluation.\n"
+            "- Do not pad the report with generic praise or with unchanged evaluations. Every "
+            "sentence must teach a concrete decision from this game.\n"
             "- Evaluations are from White's perspective: positive means White is better. When you "
             'quote one for a player, make the side explicit (e.g. "-2.7 for White").\n'
             "- Win chances are labelled with the player they belong to. Quote them exactly as "
@@ -522,7 +585,8 @@ class GroqService:
             "the result was actually decided.\n"
             "3. The decisive errors and the best moments, quantified with accuracy, ACPL and the "
             "evaluation swings from KEY MOMENTS.\n"
-            "4. One concrete lesson the player can apply in the next game.\n\n"
+            "4. One concrete lesson tied to the dominant pattern in this game (for example "
+            "checking for loose pieces before moving, or calculating forcing replies).\n\n"
             "LENGTH: 150-220 words of plain prose. No bullet points, no emojis, no markdown, no "
             "preamble and no closing pleasantries.\n\n"
             "Reply with EXACTLY this structure and nothing else:\n\n"
@@ -551,8 +615,21 @@ class GroqService:
         temperature, max_tokens, reasoning_effort = explanation_tuning()
 
         system = EXPLANATION_SYSTEM_PROMPT
-        if classification:
-            system += f" The move was classified as {classification}."
+        if classification in SACRIFICIAL_CLASSIFICATIONS:
+            system += (
+                f"\nThis move is classified as {classification}. Treat the offered "
+                "material as intentional and explain the compensation."
+            )
+        elif classification == "Miss":
+            system += (
+                "\nThis move is classified as Miss. Explain the chance that was "
+                "missed and the better move; do not call it a punishment."
+            )
+        elif classification in PROBLEM_CLASSIFICATIONS:
+            system += (
+                f"\nThis move is classified as {classification}. Be direct and "
+                "constructive; explain the punishment and the better move."
+            )
         lang_instruction = self._lang_instruction()
         if lang_instruction:
             system = f"{system}\n{lang_instruction}"

@@ -14,12 +14,17 @@ from collections.abc import Callable
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.backend.analysis.tactics.explanation import build_explanation_plan
 from src.backend.analysis.tactics.insight import (
     MoveInsight,
     format_move_insight_for_llm,
     insight_allowed_tokens,
+    insight_required_anchors,
 )
-from src.backend.services.groq_service import validate_explanation
+from src.backend.services.groq_service import (
+    clean_explanation_text,
+    validate_explanation,
+)
 from src.backend.storage.cache import AnalysisCache
 from src.constants import (
     EXPLANATION_CACHE_TTL_DAYS,
@@ -136,14 +141,23 @@ class ExplainMoveWorker(QThread):
                 self.error.emit(self._seq, insight.ply, reply or "No response generated.")
                 return
 
+            reply = clean_explanation_text(reply)
+            plan = build_explanation_plan(insight)
             allowed_san, allowed_squares = insight_allowed_tokens(insight)
-            is_valid, offending = validate_explanation(reply, allowed_san, allowed_squares)
+            is_valid, offending = validate_explanation(
+                reply,
+                allowed_san,
+                allowed_squares,
+                insight_required_anchors(insight),
+                required_better=insight.best_move_san if plan.better else None,
+            )
             if not is_valid:
-                self.error.emit(
-                    self._seq,
-                    insight.ply,
-                    f"Coach mentioned unknown moves or squares: {', '.join(offending)}",
+                reason = (
+                    f"Coach mentioned unknown moves or squares: {', '.join(offending)}"
+                    if offending
+                    else "Coach explanation was too generic (it did not cite the concrete line or better move)."
                 )
+                self.error.emit(self._seq, insight.ply, reason)
                 return
 
             self._write_cache(reply)

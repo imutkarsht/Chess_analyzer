@@ -16,6 +16,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.backend.analysis.tactics.explanation import (
+    ExplanationPlan,
+    build_explanation_plan,
+)
+from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.storage.models import GameAnalysis, GameMetadata
 
 _CLASS_ORDER = (
@@ -44,6 +49,23 @@ _MATE_CP_THRESHOLD = 10_000
 # ---------------------------------------------------------------------------
 # Formatting helpers
 # ---------------------------------------------------------------------------
+
+
+def _claim_for(
+    game: GameAnalysis, ply: int | None, cache: dict[int, ExplanationPlan | None]
+) -> ExplanationPlan | None:
+    """Build (and cache) the per-move claim sheet for a key moment."""
+    if ply is None or not 0 <= ply < len(game.moves):
+        return None
+    if ply not in cache:
+        insight = build_move_insight(
+            game.moves,
+            ply,
+            metadata=game.metadata,
+            chess960=bool(game.metadata.chess960),
+        )
+        cache[ply] = build_explanation_plan(insight) if insight is not None else None
+    return cache[ply]
 
 
 def _is_mate(cp: int | None) -> bool:
@@ -181,18 +203,34 @@ def _theme_line(tactics: dict[str, Any]) -> list[str]:
     return ["Tactical motifs: " + ", ".join(hits) + "."] if hits else []
 
 
-def _brilliancy_line(tactics: dict[str, Any], side: str) -> list[str]:
+def _brilliancy_line(
+    tactics: dict[str, Any],
+    side: str,
+    game: GameAnalysis,
+    claim_cache: dict[int, ExplanationPlan | None],
+) -> list[str]:
     brilliancies = tactics.get("brilliancies") or []
     if not brilliancies:
         return []
-    bits = [
-        f"{_move_ref(item, side)} ({item.get('classification') or 'Brilliant'})"
-        for item in brilliancies[:_MAX_BRILLIANCIES]
-    ]
-    return ["Brilliancies: " + ", ".join(bits) + "."]
+    bits = []
+    for item in brilliancies[:_MAX_BRILLIANCIES]:
+        ref = f"{_move_ref(item, side)} ({item.get('classification') or 'Brilliant'})"
+        plan = _claim_for(game, item.get("ply"), claim_cache)
+        if plan:
+            ref += f" — {plan.verdict}"
+            if plan.line:
+                ref += f" Line: {plan.line}."
+        bits.append(ref)
+    return ["Brilliancies: " + "; ".join(bits) + "."]
 
 
-def _side_lines(side: str, summary: dict[str, Any], meta: GameMetadata) -> list[str]:
+def _side_lines(
+    side: str,
+    summary: dict[str, Any],
+    meta: GameMetadata,
+    game: GameAnalysis,
+    claim_cache: dict[int, ExplanationPlan | None],
+) -> list[str]:
     """Render one player's block; both sides go through the same path."""
     data = summary.get(side) or {}
     player = (meta.white if side == "white" else meta.black) or side.title()
@@ -224,7 +262,7 @@ def _side_lines(side: str, summary: dict[str, Any], meta: GameMetadata) -> list[
     lines.extend(_advantage_line(tactics, side))
     lines.extend(_hanging_line(tactics))
     lines.extend(_theme_line(tactics))
-    lines.extend(_brilliancy_line(tactics, side))
+    lines.extend(_brilliancy_line(tactics, side, game, claim_cache))
     return lines
 
 
@@ -254,14 +292,22 @@ def _moment_line(detail: dict[str, Any], side: str) -> str:
     )
 
 
-def _key_moment_lines(summary: dict[str, Any]) -> list[str]:
+def _key_moment_lines(
+    summary: dict[str, Any],
+    game: GameAnalysis,
+    claim_cache: dict[int, ExplanationPlan | None],
+) -> list[str]:
     moments: list[tuple[int, int, str]] = []
     for side in ("white", "black"):
         tactics = (summary.get(side) or {}).get("tactics") or {}
         for detail in tactics.get("blunders_details") or []:
-            moments.append(
-                (detail.get("ply") or 0, detail.get("eval_drop") or 0, _moment_line(detail, side))
-            )
+            line = _moment_line(detail, side)
+            plan = _claim_for(game, detail.get("ply"), claim_cache)
+            if plan:
+                line += f" Why: {plan.verdict}"
+                if plan.line:
+                    line += f" Line: {plan.line}."
+            moments.append((detail.get("ply") or 0, detail.get("eval_drop") or 0, line))
     if not moments:
         return []
 
@@ -309,10 +355,11 @@ def build_game_report(game: GameAnalysis, user_side: str | None = None) -> str:
 
     lines = ["GAME FACTS (deterministic engine analysis; treat as ground truth)"]
     lines.extend(_header_lines(game, user_side))
+    claim_cache: dict[int, ExplanationPlan | None] = {}
     for side in ("white", "black"):
-        lines.extend(_side_lines(side, summary, game.metadata))
+        lines.extend(_side_lines(side, summary, game.metadata, game, claim_cache))
 
-    moments = _key_moment_lines(summary)
+    moments = _key_moment_lines(summary, game, claim_cache)
     if moments:
         lines.append(
             "\nKEY MOMENTS (chronological; evaluations are from White's perspective, "
