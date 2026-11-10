@@ -8,8 +8,10 @@ moments, and the graceful "not analysed yet" fallback.
 
 from __future__ import annotations
 
+import chess
+
 from src.backend.analysis.game_report import build_game_report
-from src.backend.storage.models import GameAnalysis, GameMetadata
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 
 
 def _blunder(ply: int, san: str, drop: int, *, before: int, after: int) -> dict:
@@ -154,3 +156,32 @@ def test_only_the_biggest_moments_survive_and_stay_chronological():
     assert "M0" not in report and "M1" not in report  # the two smallest swings
     move_numbers = [int(line.split(".")[0]) for line in moments]
     assert move_numbers == sorted(move_numbers)
+
+
+def test_key_moments_include_the_concrete_claim_and_line():
+    summary = _summary()
+    summary["white"]["tactics"]["blunders_details"][0]["ply"] = 0
+    summary["white"]["tactics"]["blunders_details"][0]["move_number"] = 1
+    summary["white"]["tactics"]["brilliancies"] = [
+        {"ply": 0, "move_number": 1, "san": "e4", "classification": "Brilliant"}
+    ]
+    game = _game(summary)
+    game.moves = [
+        MoveAnalysis(
+            move_number=1,
+            ply=0,
+            san="e4",
+            uci="e2e4",
+            fen_before=chess.STARTING_FEN,
+            classification="Brilliant",
+            best_move="e2e4",
+            eval_after_cp=30,
+            win_chance_after=0.55,
+        )
+    ]
+
+    report = build_game_report(game)
+
+    assert "Why:" in report
+    assert "Line: 1. e4." in report
+    assert "— 1.e4 is" in report  # the brilliancy line carries the claim verdict

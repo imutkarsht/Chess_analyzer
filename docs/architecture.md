@@ -160,14 +160,20 @@ Forbidden edges:
 ### AI move explanation
 
 1. `CoachCardWidget` requests an explanation for the current move.
-2. `ExplainMoveWorker` builds a deterministic fact sheet from
-   `backend/analysis/tactics/insight.py` (classification, eval swing, tactics,
-   best line) and calls `GroqService`.
-3. The reply is validated against the facts; on failure or no network the
-   deterministic fallback text is used.
-4. Results are cached with a configurable TTL and rendered in the Coach tab.
-5. Full-game summaries use `backend/analysis/game_report.py` and are persisted
-   with the game.
+2. `ExplainMoveWorker` builds deterministic evidence from
+   `backend/analysis/tactics/insight.py`: played motifs, newly hanging pieces,
+   created threats, numbered main/punishment lines, line captures, second-best
+   comparisons and move mechanics.
+3. `backend/analysis/tactics/explanation.py` selects the dominant story and
+   emits a claim sheet (`ExplanationPlan`). The same claims feed the offline
+   fallback and the LLM prompt.
+4. `GroqService` only rewrites the claim sheet; the reply must cite a concrete
+   move from the supplied lines and is validated against all allowed SAN and
+   squares. On failure or no network the deterministic claim text is used.
+5. Results are cached with a configurable TTL and rendered in the Coach tab;
+   “Show main line” replays the stored line through `VariationMode`.
+6. Full-game summaries use `backend/analysis/game_report.py`, including per-
+   moment claim sheets, and are persisted with the game.
 
 ### Variations
 
@@ -265,6 +271,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- |
 | `board_utils.py` | Board geometry, ray tracing, piece safety | — |
 | `constants.py` | Enums and thresholds for tactics analysis | `GamePhase`, `TacticalTheme`, `MoveQualityBucket` |
+| `explanation.py` | Selects the dominant move story and renders claim sheets for the Coach | `ExplanationPlan`, `build_explanation_plan` |
 | `game.py` | Per-game tactical analysis, phase accuracy, advantage conversion | `MoveCtx`, `TacticsState` |
 | `hanging.py` | Deterministic hanging-piece detection | `get_hanging_pieces` |
 | `insight.py` | Grounded move-insight builder for Coach explanations | `MoveInsight` |
@@ -649,6 +656,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | Shared sessions | One live-engine session per surface | `LiveEngineSession` | Spawning Stockfish per widget |
 | Debounce/throttle | Coalesce high-frequency UI work | `Debouncer`, 10 Hz engine-line updates, 100 ms analysis flush | Recomputing on every signal |
 | Playback ownership | Manual navigation stops replay and detaches follow; replay ticks are exempt via `_replay_advancing` | `NavigationMixin._on_manual_navigation()` | A replay tick stopping its own timer |
+| Claim-first coaching | Deterministic evidence selects the story; the LLM only rewrites it | `ExplanationPlan`, `format_plan_for_llm()` | Asking the model to calculate tactics |
 | Board input opt-in | Wheel navigation is enabled per `BoardConfig` and routed by the host page | `Board.wheel_navigate`, `MainWindow._on_board_wheel()` | Every board consuming page scroll |
 | Paged data | Page + idle prefetch instead of loading everything | `HistoryView` (10/15 per page) | Loading 1,000 games at once |
 | Offline fallback | Deterministic text/data when the network is unavailable | Coach fallback, cached explorer | Blank screen on failure |
