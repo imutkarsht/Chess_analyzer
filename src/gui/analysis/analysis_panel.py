@@ -40,6 +40,7 @@ from src.gui.components.display.graph_widget import GraphWidget
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
+from src.gui.share import ShareReportDialog, ShareReportRenderer
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (
     clear_layout,
@@ -172,15 +173,30 @@ class AnalysisPanel(QWidget):
         self.report_layout.setContentsMargins(12, 12, 12, 12)
         self.report_layout.setSpacing(10)
 
+        result_header = QHBoxLayout()
+        result_header.setSpacing(6)
+        self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
+        result_header.addWidget(self.result_banner_lbl, stretch=1)
+        self.share_report_button = Button(
+            "",
+            variant=ButtonVariant.OUTLINED,
+            size="md",
+            icon="fa5s.share-alt",
+            icon_position="only",
+            tooltip="Analyze this game before sharing a report.",
+        )
+        self.share_report_button.setAccessibleName("Share Report")
+        self.share_report_button.setEnabled(False)
+        self.share_report_button.clicked.connect(self.open_share_report)
+        result_header.addWidget(self.share_report_button)
+        self.report_layout.addLayout(result_header)
+
         # 1. Top Section: Hero Outcome Header
         self.hero_card = QFrame()
         self.hero_card.setStyleSheet(Styles.get_transparent_style())
         hero_layout = QVBoxLayout(self.hero_card)
         hero_layout.setContentsMargins(0, 0, 0, 0)
         hero_layout.setSpacing(2)
-
-        self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
-        hero_layout.addWidget(self.result_banner_lbl)
 
         self.opening_label = Label("-", role=TextRole.CAPTION, weight=600, wrap=True)
         hero_layout.addWidget(self.opening_label)
@@ -311,6 +327,7 @@ class AnalysisPanel(QWidget):
         self.refresh()
 
     def refresh(self):
+        self._update_share_report_button()
         if not self.current_game:
             self._lines_fen = None
             self.lines_widget.clear()
@@ -380,6 +397,29 @@ class AnalysisPanel(QWidget):
 
         except Exception as e:
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
+
+    def _update_share_report_button(self) -> None:
+        can_share = ShareReportRenderer.can_render(self.current_game)
+        self.share_report_button.setEnabled(can_share)
+        self.share_report_button.setToolTip(
+            "Open the shareable game report."
+            if can_share
+            else "Analyze this game before sharing a report."
+        )
+
+    def open_share_report(self) -> None:
+        if not ShareReportRenderer.can_render(self.current_game):
+            return
+        try:
+            dialog = ShareReportDialog(self.current_game, self)
+        except Exception as error:
+            logger.error("Could not render shareable game report: %s", error, exc_info=True)
+            ToastManager.error(self, "Could not render the game report.")
+            return
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()
 
     def _get_result_color(self, meta):
         user_side = self._user_side()
