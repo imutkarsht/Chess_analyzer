@@ -39,6 +39,7 @@ flowchart TD
     stack --> settings[SettingsView]
 
     analysis --> analysisPanel[AnalysisPanel]
+    analysis --> shareReport[ShareReportDialog]
     analysis --> moveList[MoveListPanel]
     analysis --> board[Board]
     analysis --> variation[VariationMode]
@@ -105,6 +106,7 @@ Forbidden edges:
 | `src/gui/main_window` | Window composition and cross-cutting mixins |
 | `src/gui/views` | Full pages and their sub-widgets |
 | `src/gui/analysis` | Analysis board, move list, coach, variations, live engine |
+| `src/gui/share` | Model-rendered game report cards and export dialog |
 | `src/gui/components` | Shared component library, grouped by responsibility |
 | `src/gui/dialogs` | Modal flows (load game, wizard, feedback, errors, updates) |
 | `src/gui/import_workspace` | Searchable multi-game import table hosted by History |
@@ -457,6 +459,13 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `move_list_panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
 | `variation_graph.py` | Git-style branch strip | `VariationGraph` |
 | `variation_mode.py` | Board state machine for variation trees | `VariationMode` |
+
+### `src/gui/share`
+
+| File | Purpose | Key symbols |
+| --- | --- | --- |
+| `report_card.py` | Fixed-size report image rendered from game analysis models | `ShareReportRenderer` |
+| `share_report_dialog.py` | Preview, clipboard, PNG, and Markdown export actions | `ShareReportDialog` |
 
 ### `src/gui/board`, `engine_lines`, `metrics`
 
