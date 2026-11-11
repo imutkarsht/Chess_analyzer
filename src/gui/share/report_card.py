@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import math
-import re
 from collections.abc import Mapping
 
 import chess
@@ -26,6 +25,7 @@ from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 from src.utils.path_utils import get_resource_path
+from src.utils.time_control import format_time_control
 
 _CLASSIFICATIONS = (
     "Brilliant",
@@ -98,7 +98,7 @@ class ShareReportRenderer:
             "",
             f"- **Result:** {_result_text(metadata.result)}{f' · {termination}' if termination else ''}",
             f"- **Date:** {_display_value(metadata.date, 'Unknown')}",
-            f"- **Time control:** {_format_time_control(metadata.time_control)}",
+            f"- **Time control:** {format_time_control(metadata.time_control) or 'Unknown'}",
             f"- **Opening:** {opening}",
             (
                 "- **Accuracy:** "
@@ -254,7 +254,7 @@ class ShareReportRenderer:
         moves = _full_move_count(game)
         details = [
             f"DATE  {_display_value(metadata.date, 'Unknown')}",
-            f"TIME CONTROL  {_format_time_control(metadata.time_control)}",
+            f"TIME CONTROL  {format_time_control(metadata.time_control) or 'Unknown'}",
             f"{moves} {'MOVE' if moves == 1 else 'MOVES'}",
         ]
         cls._draw_text(
@@ -489,11 +489,12 @@ class ShareReportRenderer:
     def _draw_final_board(cls, painter: QPainter, game: GameAnalysis) -> None:
         cls._draw_text(
             painter,
-            QRectF(840, 372, 300, 24),
+            QRectF(885, 372, 210, 24),
             "FINAL POSITION",
             12,
             Styles.COLOR_TEXT_SECONDARY,
             QFont.Weight.Bold,
+            Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
         )
         metadata = game.metadata
         fen = _final_fen(game)
@@ -605,33 +606,6 @@ def _opening_context(eco: str | None, opening: str | None) -> str:
         if value and str(value).strip() and str(value).strip() != "?"
     ]
     return " · ".join(parts) if parts else "Opening unavailable"
-
-
-def _format_time_control(value: str | None) -> str:
-    text = _display_value(value, "Unknown")
-    if text == "Unknown":
-        return text
-
-    segments = []
-    for phase in text.split(":"):
-        match = re.fullmatch(r"(?:(\d+)/)?(\d+)(?:\+(\d+))?", phase)
-        if match is None:
-            return text
-        moves_text, seconds_text, increment_text = match.groups()
-        seconds = int(seconds_text)
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        duration = (
-            f"{hours}:{minutes:02d}:{seconds:02d}"
-            if hours
-            else f"{minutes}:{seconds:02d}"
-        )
-        if moves_text:
-            duration = f"{moves_text} moves / {duration}"
-        if increment_text and int(increment_text) > 0:
-            duration = f"{duration} + {increment_text}s"
-        segments.append(duration)
-    return " then ".join(segments)
 
 
 def _termination_suffix(mode: str | None) -> str:

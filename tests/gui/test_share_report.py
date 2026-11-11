@@ -94,7 +94,7 @@ def test_markdown_summary_includes_game_facts_and_classifications():
     assert "- Best: White 1, Black 0" in markdown
     assert "- **Opening:** C20 · King's Pawn Game" in markdown
     assert "- **Result:** White wins · by resignation" in markdown
-    assert "- **Time control:** 10:00 + 5s" in markdown
+    assert "- **Time control:** 10+5" in markdown
     assert "Chess Analyzer Pro v" in markdown
     assert "Free, open-source offline Stockfish desktop analyzer" in markdown
     assert "https://chessanalyzer.xyz" in markdown
@@ -103,13 +103,16 @@ def test_markdown_summary_includes_game_facts_and_classifications():
 @pytest.mark.parametrize(
     ("time_control", "expected"),
     [
-        ("600+5", "10:00 + 5s"),
-        ("180+2", "3:00 + 2s"),
-        ("60", "1:00"),
-        ("40/7200:3600", "40 moves / 2:00:00 then 1:00:00"),
+        ("600+5", "10+5"),
+        ("180+2", "3+2"),
+        ("180", "3+0"),
+        ("60", "1+0"),
+        ("40/7200:3600", "40m/120m then 60m+0"),
+        ("1/86400", "1d"),
+        ("40/7200+30", "40/7200+30"),
     ],
 )
-def test_report_formats_time_control_as_minutes_and_seconds(time_control, expected):
+def test_report_formats_time_control_in_standard_notation(time_control, expected):
     game = _game()
     game.metadata.time_control = time_control
 
@@ -134,13 +137,18 @@ def test_report_termination_subline_fits_without_eliding(qapp, monkeypatch):
     termination = next(
         (text, rect) for text, rect in rendered if text == "WHITE WINS · BY RESIGNATION"
     )
-    details = next(text for text, _rect in rendered if text.startswith("DATE  "))
-    font = QFont()
-    font.setPixelSize(11)
-    font.setWeight(QFont.Weight.DemiBold)
-    assert QFontMetrics(font).horizontalAdvance(termination[0]) <= termination[1].width()
-    assert "TIME CONTROL  10:00 + 5s" in details
-    assert "1 MOVE" in details
+    details_text, details_rect = next(
+        (text, rect) for text, rect in rendered if text.startswith("DATE  ")
+    )
+    subline_font = QFont()
+    subline_font.setPixelSize(11)
+    subline_font.setWeight(QFont.Weight.DemiBold)
+    details_font = QFont()
+    details_font.setPixelSize(11)
+    assert QFontMetrics(subline_font).horizontalAdvance(termination[0]) <= termination[1].width()
+    assert QFontMetrics(details_font).horizontalAdvance(details_text) <= details_rect.width()
+    assert "TIME CONTROL  10+5" in details_text
+    assert "1 MOVE" in details_text
 
 
 def test_report_handles_malformed_final_position_data(qapp):
