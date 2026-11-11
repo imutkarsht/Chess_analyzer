@@ -6,7 +6,7 @@ from __future__ import annotations
 import chess
 import pytest
 from PyQt6.QtCore import QMimeData, Qt
-from PyQt6.QtGui import QImage
+from PyQt6.QtGui import QFont, QFontMetrics, QImage
 from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication, QDialog
 
@@ -94,8 +94,53 @@ def test_markdown_summary_includes_game_facts_and_classifications():
     assert "- Best: White 1, Black 0" in markdown
     assert "- **Opening:** C20 · King's Pawn Game" in markdown
     assert "- **Result:** White wins · by resignation" in markdown
+    assert "- **Time control:** 10:00 + 5s" in markdown
     assert "Chess Analyzer Pro v" in markdown
+    assert "Free, open-source offline Stockfish desktop analyzer" in markdown
     assert "https://chessanalyzer.xyz" in markdown
+
+
+@pytest.mark.parametrize(
+    ("time_control", "expected"),
+    [
+        ("600+5", "10:00 + 5s"),
+        ("180+2", "3:00 + 2s"),
+        ("60", "1:00"),
+        ("40/7200:3600", "40 moves / 2:00:00 then 1:00:00"),
+    ],
+)
+def test_report_formats_time_control_as_minutes_and_seconds(time_control, expected):
+    game = _game()
+    game.metadata.time_control = time_control
+
+    markdown = ShareReportRenderer.markdown_summary(game)
+
+    assert f"- **Time control:** {expected}" in markdown
+
+
+def test_report_termination_subline_fits_without_eliding(qapp, monkeypatch):
+    original_draw_text = ShareReportRenderer._draw_text
+    rendered = []
+
+    def capture_text(painter, rect, text, *args, **kwargs):
+        rendered.append((str(text), rect))
+        original_draw_text(painter, rect, text, *args, **kwargs)
+
+    monkeypatch.setattr(
+        ShareReportRenderer, "_draw_text", staticmethod(capture_text)
+    )
+    ShareReportRenderer.render(_game())
+
+    termination = next(
+        (text, rect) for text, rect in rendered if text == "WHITE WINS · BY RESIGNATION"
+    )
+    details = next(text for text, _rect in rendered if text.startswith("DATE  "))
+    font = QFont()
+    font.setPixelSize(11)
+    font.setWeight(QFont.Weight.DemiBold)
+    assert QFontMetrics(font).horizontalAdvance(termination[0]) <= termination[1].width()
+    assert "TIME CONTROL  10:00 + 5s" in details
+    assert "1 MOVE" in details
 
 
 def test_report_handles_malformed_final_position_data(qapp):

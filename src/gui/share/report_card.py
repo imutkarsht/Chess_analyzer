@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Mapping
 
 import chess
@@ -97,7 +98,7 @@ class ShareReportRenderer:
             "",
             f"- **Result:** {_result_text(metadata.result)}{f' · {termination}' if termination else ''}",
             f"- **Date:** {_display_value(metadata.date, 'Unknown')}",
-            f"- **Time control:** {_display_value(metadata.time_control, 'Unknown')}",
+            f"- **Time control:** {_format_time_control(metadata.time_control)}",
             f"- **Opening:** {opening}",
             (
                 "- **Accuracy:** "
@@ -118,7 +119,13 @@ class ShareReportRenderer:
             lines.append(
                 f"- {classification}: White {white_count}, Black {black_count}"
             )
-        lines.extend(("", f"[Chess Analyzer Pro v{APP_VERSION}]({WEBSITE_URL})"))
+        lines.extend(
+            (
+                "",
+                f"[Chess Analyzer Pro v{APP_VERSION}]({WEBSITE_URL}) · "
+                "Free, open-source offline Stockfish desktop analyzer",
+            )
+        )
         return "\n".join(lines)
 
     @staticmethod
@@ -154,10 +161,14 @@ class ShareReportRenderer:
         logo_path = get_resource_path("assets/images/logo.png")
         logo = QPixmap(logo_path)
         if not logo.isNull():
-            painter.drawPixmap(QRectF(48, 17, 26, 26), logo, QRectF(logo.rect()))
+            painter.drawPixmap(
+                QRectF(48, 13, 38, 30),
+                logo,
+                QRectF(0, 0, logo.width(), int(logo.height() * 0.78)),
+            )
         cls._draw_text(
             painter,
-            QRectF(82, 16, 300, 30),
+            QRectF(94, 16, 300, 30),
             "CHESS ANALYZER PRO",
             15,
             Styles.COLOR_ACCENT,
@@ -175,7 +186,7 @@ class ShareReportRenderer:
 
         cls._draw_text(
             painter,
-            QRectF(62, 69, 420, 20),
+            QRectF(62, 69, 400, 20),
             "WHITE",
             12,
             Styles.COLOR_TEXT_MUTED,
@@ -183,7 +194,7 @@ class ShareReportRenderer:
         )
         cls._draw_text(
             painter,
-            QRectF(62, 87, 420, 36),
+            QRectF(62, 87, 400, 36),
             _display_value(metadata.white, "White"),
             25,
             Styles.COLOR_TEXT_PRIMARY,
@@ -191,7 +202,7 @@ class ShareReportRenderer:
         )
         cls._draw_text(
             painter,
-            QRectF(62, 126, 420, 22),
+            QRectF(62, 126, 400, 22),
             f"ELO  {_display_value(metadata.white_elo, 'Unrated')}",
             13,
             Styles.COLOR_TEXT_SECONDARY,
@@ -199,7 +210,7 @@ class ShareReportRenderer:
 
         cls._draw_text(
             painter,
-            QRectF(518, 82, 164, 40),
+            QRectF(478, 82, 244, 40),
             _display_value(metadata.result, "--"),
             26,
             Styles.COLOR_TEXT_PRIMARY,
@@ -208,7 +219,7 @@ class ShareReportRenderer:
         )
         cls._draw_text(
             painter,
-            QRectF(518, 121, 164, 22),
+            QRectF(478, 121, 244, 22),
             _result_display(metadata.result, metadata.termination_mode),
             11,
             Styles.COLOR_TEXT_SECONDARY,
@@ -218,7 +229,7 @@ class ShareReportRenderer:
 
         cls._draw_text(
             painter,
-            QRectF(718, 69, 420, 20),
+            QRectF(738, 69, 400, 20),
             "BLACK",
             12,
             Styles.COLOR_TEXT_MUTED,
@@ -226,7 +237,7 @@ class ShareReportRenderer:
         )
         cls._draw_text(
             painter,
-            QRectF(718, 87, 420, 36),
+            QRectF(738, 87, 400, 36),
             _display_value(metadata.black, "Black"),
             25,
             Styles.COLOR_TEXT_PRIMARY,
@@ -234,7 +245,7 @@ class ShareReportRenderer:
         )
         cls._draw_text(
             painter,
-            QRectF(718, 126, 420, 22),
+            QRectF(738, 126, 400, 22),
             f"ELO  {_display_value(metadata.black_elo, 'Unrated')}",
             13,
             Styles.COLOR_TEXT_SECONDARY,
@@ -243,8 +254,8 @@ class ShareReportRenderer:
         moves = _full_move_count(game)
         details = [
             f"DATE  {_display_value(metadata.date, 'Unknown')}",
-            f"TIME CONTROL  {_display_value(metadata.time_control, 'Unknown')}",
-            f"{moves} MOVES",
+            f"TIME CONTROL  {_format_time_control(metadata.time_control)}",
+            f"{moves} {'MOVE' if moves == 1 else 'MOVES'}",
         ]
         cls._draw_text(
             painter,
@@ -493,7 +504,7 @@ class ShareReportRenderer:
             else None
         )
         config = MiniBoardConfig(
-            size=240,
+            size=210,
             coordinates=False,
             chess960=metadata.chess960,
             board_theme=board_theme,
@@ -503,14 +514,14 @@ class ShareReportRenderer:
         if pixmap.isNull():
             pixmap = render_mini_board_pixmap(chess.STARTING_FEN, config)
         if not pixmap.isNull():
-            painter.drawPixmap(QRectF(870, 390, 240, 240), pixmap, QRectF(pixmap.rect()))
+            painter.drawPixmap(QRectF(885, 407, 210, 210), pixmap, QRectF(pixmap.rect()))
 
     @classmethod
     def _draw_footer(cls, painter: QPainter) -> None:
         cls._draw_text(
             painter,
             QRectF(48, 644, 700, 18),
-            f"Chess Analyzer Pro v{APP_VERSION}  ·  Share your game, keep improving",
+            f"Chess Analyzer Pro v{APP_VERSION}  ·  Free, open-source offline Stockfish desktop analyzer",
             10,
             Styles.COLOR_TEXT_MUTED,
         )
@@ -594,6 +605,33 @@ def _opening_context(eco: str | None, opening: str | None) -> str:
         if value and str(value).strip() and str(value).strip() != "?"
     ]
     return " · ".join(parts) if parts else "Opening unavailable"
+
+
+def _format_time_control(value: str | None) -> str:
+    text = _display_value(value, "Unknown")
+    if text == "Unknown":
+        return text
+
+    segments = []
+    for phase in text.split(":"):
+        match = re.fullmatch(r"(?:(\d+)/)?(\d+)(?:\+(\d+))?", phase)
+        if match is None:
+            return text
+        moves_text, seconds_text, increment_text = match.groups()
+        seconds = int(seconds_text)
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration = (
+            f"{hours}:{minutes:02d}:{seconds:02d}"
+            if hours
+            else f"{minutes}:{seconds:02d}"
+        )
+        if moves_text:
+            duration = f"{moves_text} moves / {duration}"
+        if increment_text and int(increment_text) > 0:
+            duration = f"{duration} + {increment_text}s"
+        segments.append(duration)
+    return " then ".join(segments)
 
 
 def _termination_suffix(mode: str | None) -> str:
