@@ -99,6 +99,7 @@ class MainWindow(
         self.current_game = None
         self._drop_highlight_active = False
         self._analysis_follow = False
+        self._sidebar_animating = False
         self._latest_analyzed_index = -1
         self._pending_analysis_updates = {}
         self._pending_analysis_progress = None
@@ -380,6 +381,7 @@ class MainWindow(
         # Sidebar
         self.sidebar = Sidebar(self.config_manager)
         self.sidebar.page_changed.connect(self.switch_page)
+        self.sidebar.animation_changed.connect(self._on_sidebar_animation_changed)
         main_layout.addWidget(self.sidebar)
 
         # Stacked Widget for Pages

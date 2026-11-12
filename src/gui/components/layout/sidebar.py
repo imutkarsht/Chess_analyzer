@@ -43,6 +43,7 @@ _LABEL_SHOW_WIDTH = 142
 
 class Sidebar(QFrame):
     page_changed = pyqtSignal(int)
+    animation_changed = pyqtSignal(bool)
 
     def __init__(self, config_manager=None):
         super().__init__()
@@ -239,6 +240,7 @@ class Sidebar(QFrame):
         self._update_collapse_icon()
 
         self._animating = True
+        self.animation_changed.emit(True)
         self._anim = QPropertyAnimation(self, b"sidebar_width", self)
         self._anim.setDuration(MotionDuration.BASE)
         self._anim.setStartValue(float(self.width()))
@@ -256,6 +258,7 @@ class Sidebar(QFrame):
 
     def _on_anim_finished(self):
         self._animating = False
+        self.animation_changed.emit(False)
         target = COLLAPSED_WIDTH if self._collapsed else EXPANDED_WIDTH
         self._sidebar_width = float(target)
         self.setFixedWidth(target)

@@ -198,9 +198,26 @@ class AnalysisMixin:
         self._analysis_ui_timer = timer
 
     def _schedule_analysis_flush(self) -> None:
+        # Keep the sidebar animation smooth: analysis results stay queued and
+        # are applied in one pass when the rail settles.
+        if getattr(self, "_sidebar_animating", False):
+            return
         self._ensure_analysis_ui_timer()
         if not self._analysis_ui_timer.isActive():
             self._analysis_ui_timer.start()
+
+    def _on_sidebar_animation_changed(self, active: bool) -> None:
+        self._sidebar_animating = bool(active)
+        timer = getattr(self, "_analysis_ui_timer", None)
+        if active:
+            if timer is not None:
+                timer.stop()
+            return
+        if (
+            getattr(self, "_pending_analysis_updates", None)
+            or getattr(self, "_pending_analysis_progress", None) is not None
+        ):
+            QTimer.singleShot(0, self._flush_analysis_updates)
 
     def _last_analyzed_index(self) -> int:
         moves = getattr(self.current_game, "moves", []) if self.current_game else []
@@ -263,8 +280,10 @@ class AnalysisMixin:
         self._update_captured_and_clocks(move_index)
         self.move_changed.emit(move_index)
 
-    def _flush_analysis_updates(self) -> None:
+    def _flush_analysis_updates(self, *, force: bool = False) -> None:
         """Apply all queued analysis data in one UI pass."""
+        if getattr(self, "_sidebar_animating", False) and not force:
+            return
         timer = getattr(self, "_analysis_ui_timer", None)
         if timer is not None:
             timer.stop()
@@ -365,7 +384,7 @@ class AnalysisMixin:
         selected_index = self.board_widget.current_move_index
         was_following = getattr(self, "_analysis_follow", False)
         self._analysis_follow = False
-        self._flush_analysis_updates()
+        self._flush_analysis_updates(force=True)
         self._sync_follow_toggle(visible=False, checked=False)
 
         target = self._latest_analyzed_index if was_following else selected_index
