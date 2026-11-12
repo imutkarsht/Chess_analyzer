@@ -43,6 +43,7 @@ def test_round_trip_hit_and_miss(cache):
         ("model", "openai/gpt-oss-20b"),
         ("lang_code", "fr"),
         ("prompt_version", 2),
+        ("persona", "grandmaster"),
         ("fen", "8/8/8/8/8/8/8/K6k w - - 0 1"),
         ("uci", "d2d4"),
     ],
@@ -81,10 +82,13 @@ def test_prune_removes_only_expired_rows(cache):
 def test_clear_cache_and_explanations_are_independent(cache):
     """Engine evaluations and LLM explanations have separate lifetimes."""
     _store(cache, "text")
+    _store(cache, "another persona", persona="roaster")
 
     # Clearing evaluations must not throw away paid-for explanations.
     assert cache.clear_cache() == 0
     assert _read(cache) == "text"
+    assert _read(cache, persona="roaster") == "another persona"
 
-    assert cache.clear_explanations() == 1
+    assert cache.clear_explanations() == 2
     assert _read(cache) is None
+    assert _read(cache, persona="roaster") is None

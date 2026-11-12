@@ -39,6 +39,7 @@ class CoachSettings(QGroupBox):
         self.explain_trivial_checkbox = self.binder.add(
             "explain_llm_for_trivial_moves"
         )
+        self.persona_combo = self.binder.add("coach_persona")
         self.temperature_input = self.binder.add(
             "explain_temperature", width=CONTROL_NARROW
         )
