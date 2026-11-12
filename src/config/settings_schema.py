@@ -333,7 +333,7 @@ def _specs() -> tuple[SettingSpec, ...]:
             "board_wheel_navigation",
             "Appearance",
             "Board & Pieces",
-            "Scroll over the board to navigate moves",
+            "Board wheel navigation",
             "Vertical mouse-wheel or trackpad scrolling moves one ply at a time.",
             "bool",
             True,
