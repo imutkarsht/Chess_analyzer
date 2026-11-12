@@ -14,12 +14,13 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.game_report import build_game_report
-from src.backend.analysis.tactics.insight import build_move_insight
+from src.backend.analysis.tactics.insight import MoveInsight, build_move_insight
 from src.backend.services.groq_service import GroqService
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import (
     DEFAULT_COACH_PERSONA,
+    EXPLANATION_CACHE_TTL_DAYS,
     EXPLANATION_DEBOUNCE_MS,
     normalize_coach_persona,
 )
@@ -54,7 +55,7 @@ from src.utils.path_utils import get_resource_path
 from src.utils.resources import ResourceManager
 
 from .coach_card_widget import CoachCardWidget
-from .coach_worker import ExplainMoveWorker, RequestLimiter
+from .coach_worker import ExplainMoveWorker, RequestLimiter, read_cached_explanation
 from .line_utils import lines_for_move
 
 # Tabs that make no sense (and would fight the engine) mid-analysis.
@@ -732,6 +733,25 @@ class AnalysisPanel(QWidget):
         self._coach_insight = insight
         self._coach_ply = insight.ply if insight else None
         self.coach_card.set_insight(insight, allow_trivial=self._allow_trivial_explanations())
+        if insight is not None:
+            self._restore_cached_explanation(insight)
+
+    def _restore_cached_explanation(self, insight: MoveInsight) -> None:
+        """Show an already-cached explanation when returning to a move."""
+        cached = read_cached_explanation(
+            self._get_explanation_cache(),
+            insight,
+            lang_code=self.groq_service._lang_code(),
+            model_name=self.groq_service.model_name,
+            persona=normalize_coach_persona(
+                self.config_manager.get("coach_persona", DEFAULT_COACH_PERSONA)
+            ),
+            ttl_days=self.config_manager.get(
+                "explain_cache_ttl_days", EXPLANATION_CACHE_TTL_DAYS
+            ),
+        )
+        if cached:
+            self.coach_card.show_cached(cached)
 
     def _allow_trivial_explanations(self) -> bool:
         return bool(self.config_manager.get("explain_llm_for_trivial_moves", False))

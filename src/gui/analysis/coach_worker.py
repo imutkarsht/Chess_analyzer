@@ -38,6 +38,29 @@ from src.utils.config import ConfigManager
 from src.utils.logger import logger
 
 
+def read_cached_explanation(
+    cache: AnalysisCache | None,
+    insight: MoveInsight,
+    *,
+    lang_code: str,
+    model_name: str,
+    persona: str,
+    ttl_days: int | None,
+) -> str | None:
+    """Read one persona-scoped explanation without starting a request."""
+    if cache is None:
+        return None
+    return cache.get_explanation(
+        insight.fen_before,
+        insight.uci,
+        model_name or "unknown",
+        lang_code,
+        EXPLANATION_PROMPT_VERSION,
+        max_age_days=ttl_days,
+        persona=normalize_coach_persona(persona),
+    )
+
+
 class RequestLimiter:
     """
     Sliding-window guard against runaway LLM spend.
@@ -177,16 +200,13 @@ class ExplainMoveWorker(QThread):
     # ------------------------------------------------------------------
 
     def _read_cache(self) -> str | None:
-        if self._cache is None:
-            return None
-        return self._cache.get_explanation(
-            self._insight.fen_before,
-            self._insight.uci,
-            self._model,
-            self._lang_code,
-            EXPLANATION_PROMPT_VERSION,
-            max_age_days=self._ttl_days,
+        return read_cached_explanation(
+            self._cache,
+            self._insight,
+            lang_code=self._lang_code,
+            model_name=self._model,
             persona=self._persona,
+            ttl_days=self._ttl_days,
         )
 
     def _write_cache(self, reply: str) -> None:
