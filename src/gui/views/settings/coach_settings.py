@@ -68,7 +68,7 @@ class CoachSettings(QGroupBox):
         self.binder.load()
 
     def set_advanced_visible(self, visible: bool) -> None:
-        # The explanation toggle is Basic; only the tuning rows disappear.
+        # The explanation toggle and persona are Basic; only tuning rows disappear.
         self.setVisible(True)
         self.binder.set_advanced_visible(visible)
 

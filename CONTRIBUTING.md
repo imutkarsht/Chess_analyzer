@@ -269,7 +269,6 @@ not break:
 | --- | --- |
 | New module/package | `docs/architecture.md` file table |
 | New shared component or setting | `docs/architecture.md` + `docs/onboarding_doc.md` |
-| User-visible feature/fix | `CHANGELOG.md` and `planning/2.5.0_progress.md` |
 | Workflow or standards | `CONTRIBUTING.md` / `AGENTS.md` |
 
 Refinements to work introduced during the unreleased 2.5.0 cycle belong in the

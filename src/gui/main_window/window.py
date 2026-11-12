@@ -17,6 +17,7 @@ from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
+from src.constants import APP_LOGO_PATH
 from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
@@ -121,7 +122,7 @@ class MainWindow(
         self._restore_window_state()
 
         # Set Window Icon
-        icon_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
+        icon_path = get_resource_path(APP_LOGO_PATH)
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 

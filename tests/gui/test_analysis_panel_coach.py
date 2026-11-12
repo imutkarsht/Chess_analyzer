@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import QDialog
 
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.constants import EXPLANATION_PROMPT_VERSION
 from src.gui.analysis.analysis_panel import AnalysisPanel
 from src.gui.analysis.coach_card_widget import CoachState
 from src.gui.analysis.line_utils import lines_for_move
@@ -138,6 +139,26 @@ class TestAskGate:
 
         assert panel._coach_debounce.isActive() is False
         assert _StubWorker.created == []
+
+    def test_returning_to_a_move_restores_its_cached_explanation(self, panel):
+        panel.set_selected_move(8)
+        insight = panel._coach_insight
+        panel._explanation_cache.set_explanation(
+            insight.fen_before,
+            insight.uci,
+            "test/model",
+            "en",
+            EXPLANATION_PROMPT_VERSION,
+            "A cached explanation for this move.",
+            persona="tactician",
+        )
+
+        panel.set_selected_move(0)
+        assert panel.coach_card.state == CoachState.OFFLINE
+
+        panel.set_selected_move(8)
+        assert panel.coach_card.state == CoachState.READY
+        assert panel.coach_card.body_text() == "A cached explanation for this move."
 
     def test_dispatch_uses_the_current_seq_and_shows_loading(self, panel, monkeypatch):
         monkeypatch.setattr("src.gui.analysis.analysis_panel.ExplainMoveWorker", _StubWorker)

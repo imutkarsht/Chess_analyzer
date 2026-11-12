@@ -7,7 +7,7 @@ def get_resource_path(relative_path: str) -> str:
     Get the absolute path to a resource, works for dev and for PyInstaller.
 
     Args:
-        relative_path: The relative path to the resource (e.g., "assets/images/logo.png").
+        relative_path: The relative path to the resource (e.g., "assets/images/logo.svg").
 
     Returns:
         The absolute path to the resource.

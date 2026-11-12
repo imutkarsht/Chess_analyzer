@@ -6,6 +6,7 @@ from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
 from PyQt6.QtWidgets import QApplication, QDialog
 
 from src.backend.analysis.engine import resolve_engine_path
+from src.constants import APP_LOGO_PATH
 from src.gui.main_window import MainWindow
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
@@ -60,8 +61,7 @@ def main():
         install_smooth_scrolling(app)
 
         # Resource paths
-        resource_path = get_resource_path("assets")
-        logo_path = os.path.join(resource_path, "images", "logo.png")
+        logo_path = get_resource_path(APP_LOGO_PATH)
 
         # Set App Icon
         if os.path.exists(logo_path):

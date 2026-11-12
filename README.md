@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/images/logo.png" alt="Chess Analyzer Pro logo" width="150">
+  <img src="assets/images/logo.svg" alt="Chess Analyzer Pro logo" width="150">
 </p>
 
 # Chess Analyzer Pro

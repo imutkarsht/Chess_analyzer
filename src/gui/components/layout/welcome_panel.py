@@ -5,7 +5,7 @@ Displayed on the right half of the main window when no game is loaded.
 import os
 
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QPixmap
+from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -14,7 +14,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.constants import ABOUT_URL, APP_VERSION, GITHUB_REPO_URL, WEBSITE_URL
+from src.constants import (
+    ABOUT_URL,
+    APP_LOGO_PATH,
+    APP_VERSION,
+    GITHUB_REPO_URL,
+    WEBSITE_URL,
+)
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
@@ -73,9 +79,9 @@ class WelcomePanel(QFrame):
 
         # ── Logo ──────────────────────────────────────────────────────────
         self.logo_label = IconLabel(size=72)
-        logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
+        logo_path = get_resource_path(APP_LOGO_PATH)
         if os.path.exists(logo_path):
-            self.logo_label.set_icon(QPixmap(logo_path))
+            self.logo_label.set_icon(QIcon(logo_path))
         card_layout.addWidget(
             self.logo_label,
             0,

@@ -16,11 +16,16 @@ from PyQt6.QtGui import (
     QPainter,
     QPainterPath,
     QPen,
-    QPixmap,
 )
+from PyQt6.QtSvg import QSvgRenderer
 
 from src.backend.storage.models import GameAnalysis
-from src.constants import APP_VERSION, DEFAULT_BOARD_THEME, WEBSITE_URL
+from src.constants import (
+    APP_LOGO_PATH,
+    APP_VERSION,
+    DEFAULT_BOARD_THEME,
+    WEBSITE_URL,
+)
 from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
@@ -68,6 +73,7 @@ class ShareReportRenderer:
         painter = QPainter(image)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         try:
             cls._draw_background(painter)
             cls._draw_matchup(painter, game)
@@ -158,14 +164,19 @@ class ShareReportRenderer:
     @classmethod
     def _draw_matchup(cls, painter: QPainter, game: GameAnalysis) -> None:
         metadata = game.metadata
-        logo_path = get_resource_path("assets/images/logo.png")
-        logo = QPixmap(logo_path)
-        if not logo.isNull():
-            painter.drawPixmap(
-                QRectF(48, 13, 38, 30),
-                logo,
-                QRectF(0, 0, logo.width(), int(logo.height() * 0.78)),
-            )
+        logo_path = get_resource_path(APP_LOGO_PATH)
+        renderer = QSvgRenderer(logo_path)
+        if renderer.isValid():
+            # Render the complete vector logo directly at badge size instead of
+            # downscaling a 499 px raster; that resampling was what made the
+            # fine linework look soft.
+            target = QRectF(40, 4, 50, 50)
+            size = renderer.defaultSize()
+            painter.save()
+            painter.translate(target.x(), target.y())
+            painter.scale(target.width() / size.width(), target.height() / size.height())
+            renderer.render(painter, QRectF(0, 0, size.width(), size.height()))
+            painter.restore()
         cls._draw_text(
             painter,
             QRectF(94, 16, 300, 30),

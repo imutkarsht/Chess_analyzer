@@ -637,7 +637,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- |
 | `tests/` | `backend/`, `gui/`, `storage/` suites with shared `conftest.py`; 85% branch floor, GUI excluded |
 | `assets/` | Images, icons, sounds, piece SVGs (third-party pieces documented separately) |
-| `planning/` | `2.5.0_progress.md` release tracking plus feature/design plans |
 | `docs/` | This reference, onboarding tutorial, user guide |
 | `installers/` | Platform packaging scripts and outputs |
 | `build.spec` | PyInstaller bundle definition |

@@ -286,12 +286,20 @@ class CoachCardWidget(QFrame):
         """
         if self._expected != (seq, ply):
             return False
+        self._show_validated(text)
+        return True
+
+    def show_cached(self, text: str) -> None:
+        """Render an already-validated explanation restored from cache."""
+        self._show_validated(text)
+
+    def _show_validated(self, text: str) -> None:
         self.state = CoachState.READY
+        self._expected = None
         self._set_body(clean_explanation_text(text))
         self.caption.setText("Coach explanation — rewritten from the analysis")
         self.btn_ask.setEnabled(True)
         self._layout_rows()  # READY drops the Ask action
-        return True
 
     def show_fallback(self, seq: int, ply: int, reason: str = "") -> bool:
         """Keep the offline text and surface a quiet retry hint."""
