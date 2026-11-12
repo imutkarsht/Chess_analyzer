@@ -167,7 +167,9 @@ EXPLANATION_TEMPERATURE = 0.3
 EXPLANATION_REASONING_EFFORT = ""
 
 # Coach persona IDs are persisted in config.json and used in explanation cache
-# keys, so keep them stable while allowing their display text to evolve.
+# keys, so keep them stable while allowing their display text to evolve. The
+# prompt text is not part of the cache key: bump EXPLANATION_PROMPT_VERSION
+# whenever any prompt below changes.
 DEFAULT_COACH_PERSONA = "tactician"
 COACH_PERSONAS = {
     "tactician": {

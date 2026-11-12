@@ -527,7 +527,7 @@ def _specs() -> tuple[SettingSpec, ...]:
             "coach_persona",
             "AI Coach",
             "Explanations",
-            "Coach Persona",
+            "Coach persona",
             "Choose the tone and depth used for the next Coach explanation.",
             "choice",
             DEFAULT_COACH_PERSONA,

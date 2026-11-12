@@ -49,7 +49,7 @@ def test_round_trip_hit_and_miss(cache):
     ],
 )
 def test_key_uniqueness_across_axes(cache, field, value):
-    """A different model / language / prompt version / position is a separate entry."""
+    """A different model, language, prompt version, persona, or position is separate."""
     _store(cache, "english gpt-oss-120b v1")
     assert _read(cache, **{field: value}) is None
 

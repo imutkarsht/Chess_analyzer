@@ -7,6 +7,7 @@ from typing import Any, Final
 
 from src.constants import (
     DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
+    DEFAULT_COACH_PERSONA,
     DEFAULT_MULTI_PV,
     EXPLANATION_CACHE_TTL_DAYS,
 )
@@ -203,7 +204,7 @@ class AnalysisCache:
         model: str,
         lang_code: str,
         prompt_version: str | int,
-        persona: str = "tactician",
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> str:
         """
         Cache key for an explanation (D7).
@@ -222,7 +223,7 @@ class AnalysisCache:
         lang_code: str,
         prompt_version: str | int,
         max_age_days: int | None = EXPLANATION_CACHE_TTL_DAYS,
-        persona: str = "tactician",
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> str | None:
         """
         Return a cached explanation, or ``None`` on a miss.
@@ -266,7 +267,7 @@ class AnalysisCache:
         prompt_version: str | int,
         explanation: str,
         max_age_days: int | None = EXPLANATION_CACHE_TTL_DAYS,
-        persona: str = "tactician",
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> None:
         """Store an explanation, pruning expired rows opportunistically first."""
         if not explanation:
@@ -304,7 +305,7 @@ class AnalysisCache:
         model: str,
         lang_code: str,
         prompt_version: str | int,
-        persona: str = "tactician",
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> int | None:
         """Return the stored 👍 (+1) / 👎 (-1) for an explanation, if any."""
         key = self._generate_explanation_key(
@@ -329,7 +330,7 @@ class AnalysisCache:
         lang_code: str,
         prompt_version: str | int,
         value: int | None,
-        persona: str = "tactician",
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> bool:
         """
         Record 👍 (+1) / 👎 (-1), or clear with ``None``.
