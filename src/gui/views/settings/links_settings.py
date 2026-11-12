@@ -3,7 +3,7 @@
 import os
 
 from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QPixmap
+from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import (
+    APP_LOGO_PATH,
     APP_VERSION,
     AUTHOR_EMAIL,
     AUTHOR_LINKEDIN_URL,
@@ -72,9 +73,9 @@ class LinksSettings(BackgroundTaskCard):
         brand_layout.setSpacing(16)
 
         self.logo_label = IconLabel(size=64)
-        logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
+        logo_path = get_resource_path(APP_LOGO_PATH)
         if os.path.exists(logo_path):
-            self.logo_label.set_icon(QPixmap(logo_path))
+            self.logo_label.set_icon(QIcon(logo_path))
         brand_layout.addWidget(self.logo_label, 0, Qt.AlignmentFlag.AlignTop)
 
         text_col = QVBoxLayout()

@@ -9,6 +9,7 @@
 
 ### Improvements
 
+- **Vector App Branding**: The in-app logo now uses the vector `logo.svg` asset, so the window icon, splash screen, welcome/About cards, setup wizard, and report card stay sharp at every scale and DPI. The report card renders the complete logo directly from the SVG at badge size instead of downscaling a large raster and stretching it into the header.
 - **Smoother Analysis Updates**: Move and progress callbacks are coalesced into a 100 ms UI flush, so a game no longer rebuilds the board, graph, captured pieces and every move cell once per analysed ply. Manual navigation and replay now share one ownership model, and the board stays on the user's chosen move unless Follow is active.
 - **Shared Label Typography**: Plain-text labels now use one `Label` component with semantic roles and tones generated from the live palette. Theme and accent switches recolour text without per-widget refreshes, and the legacy label style getters were removed.
 - **Shared Badge, Icon, and Rich-Text Primitives**: Result, status, classification, count, version, profile, and alert badges use one `StatusBadge`; pixmap labels use `IconLabel`; rich text and external links use `RichTextLabel`/`LinkLabel`; captured pieces, clocks, avatars, legends, and engine scores use shared display primitives. Container QSS is scoped so borders no longer cascade into labels, and result-loss badges use the error colour.

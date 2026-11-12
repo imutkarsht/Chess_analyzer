@@ -5,6 +5,10 @@ Global application constants.
 # App Version
 APP_VERSION = "2.5.0"
 
+# In-app brand mark. Platform packaging keeps the raster/ICO variants because
+# PyInstaller and the installers require native icon formats.
+APP_LOGO_PATH = "assets/images/logo.svg"
+
 # GitHub & Project URLs
 GITHUB_REPO_URL = "https://github.com/imutkarsht/Chess_analyzer"
 GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"

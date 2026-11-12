@@ -135,7 +135,8 @@ each game ended:
 
 | File | Purpose |
 |------|---------|
-| `logo.png` | Application window icon and taskbar icon |
+| `logo.svg` | In-app logo (window icon, splash, welcome, About, setup wizard, report card) |
+| `logo.png` / `logo.ico` | Native packaging icons for PyInstaller, DMG, and AppImage builds |
 
 ---
 
