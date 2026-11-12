@@ -64,7 +64,6 @@ Chess_analyzer/
 │   └── utils/                  # logger, config, paths, resources, secrets
 ├── tests/                      # backend/, gui/, storage/ suites
 ├── docs/                       # architecture.md, this guide, user guide
-├── planning/                   # 2.5.0 progress and feature plans
 ├── installers/                 # Platform packaging
 ├── build.spec                  # PyInstaller definition
 ├── requirements.txt
@@ -296,5 +295,3 @@ for PyQt6 and python-chess. Platform installers live in `installers/`.
 
 - Read [architecture.md](architecture.md) for the file map and extension recipes.
 - Read [CONTRIBUTING.md](../CONTRIBUTING.md) before opening a PR (issue-first).
-- Check [planning/2.5.0_progress.md](../planning/2.5.0_progress.md) for release
-  scope.

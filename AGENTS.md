@@ -156,7 +156,6 @@ src/
 4. **Verify**: Always run `ruff check .` and `pytest tests/` before considering work complete.
 5. **Git Hygiene**: Never run destructive Git commands (`git reset --hard`, force pushes). Write meaningful Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`).
 6. **Issue-First**: Every PR must close or target an existing issue. If no issue exists for the requested feature or fix, open one and get maintainer verification before implementing. Unlinked PRs are not approved.
-7. **Docs**: User-visible changes update `CHANGELOG.md` and `planning/2.5.0_progress.md`. New modules/packages update `docs/architecture.md`. Refinements to unreleased 2.5.0 work belong in the feature bullet they extend, not as new “Bug Fixes” or “Improvements” entries.
 
 ---
 
@@ -165,5 +164,3 @@ src/
 - **[docs/onboarding_doc.md](docs/onboarding_doc.md)** — setup and first-change tutorial.
 - **[docs/How_to_use.md](docs/How_to_use.md)** — user-facing feature guide.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — process, component/settings rules, test quality.
-- **[planning/2.5.0_progress.md](planning/2.5.0_progress.md)** — release tracking.
-- Never duplicate the architecture file tree in another doc; link to it instead.
