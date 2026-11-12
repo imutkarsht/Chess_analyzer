@@ -8,6 +8,7 @@ from __future__ import annotations
 import datetime
 import json
 import time
+from collections.abc import Callable
 from typing import Any
 
 from src.backend.storage.pgn_parser import PGNParser
@@ -203,13 +204,16 @@ def filter_games(
     format_filter: str = "All Formats",
     source_filter: str = "All Sources",
     date_filter: str = "All Time",
+    should_cancel: Callable[[], bool] | None = None,
 ) -> list[tuple[dict[str, Any], str]]:
     """Filter raw games by user-specified criteria, returning tuples of (game, user_color)."""
     usernames_lower = {u.lower() for u in usernames}
     now = time.time()
     matched: list[tuple[dict[str, Any], str]] = []
 
-    for g in games:
+    for index, g in enumerate(games):
+        if should_cancel is not None and index % 256 == 0 and should_cancel():
+            return []
         if not is_analyzed_game(g):
             continue
         user_color = get_user_color(g, usernames_lower)

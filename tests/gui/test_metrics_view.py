@@ -20,7 +20,7 @@ def test_metrics_view_setup_required(qapp, qtbot):
     mock_config.get.return_value = ""
 
     mock_history = MagicMock()
-    mock_history.get_games_for_users.return_value = []
+    mock_history.get_games_for_stats.return_value = []
 
     widget = MetricsWidget(mock_config, mock_history)
     qtbot.addWidget(widget)
@@ -34,7 +34,7 @@ def test_metrics_view_filter_toolbar(qapp, qtbot):
     mock_config.get.side_effect = lambda key, default="": "UserA" if "username" in key else default
 
     mock_history = MagicMock()
-    mock_history.get_games_for_users.return_value = [
+    mock_history.get_games_for_stats.return_value = [
         {"id": "1", "white": "UserA", "black": "UserB", "result": "1-0", "speed_category": "Blitz"}
     ]
 
@@ -423,7 +423,7 @@ def test_metrics_widget_brilliancy_selection_signal(qapp, qtbot):
 
     mock_game = MagicMock()
     mock_history = MagicMock()
-    mock_history.get_games_for_users.return_value = [{"id": "game_xyz"}]
+    mock_history.get_games_for_stats.return_value = [{"id": "game_xyz"}]
     mock_history.get_game_analysis.return_value = mock_game
 
     widget = MetricsWidget(mock_config, mock_history)
@@ -566,7 +566,7 @@ def test_metrics_widget_includes_advantage_and_ai_coach(qapp, qtbot):
     mock_config.get.return_value = "PlayerA"
 
     mock_history = MagicMock()
-    mock_history.get_games_for_users.return_value = [{"id": "g1"}]
+    mock_history.get_games_for_stats.return_value = [{"id": "g1"}]
 
     widget = MetricsWidget(mock_config, mock_history)
     qtbot.addWidget(widget)
@@ -619,7 +619,7 @@ def test_dashboard_applies_saved_chart_order(qapp, qtbot):
 
     mock_config.get.side_effect = _get
     mock_history = MagicMock()
-    mock_history.get_games_for_users.return_value = [{"id": "g1"}]
+    mock_history.get_games_for_stats.return_value = [{"id": "g1"}]
 
     widget = MetricsWidget(mock_config, mock_history)
     qtbot.addWidget(widget)
@@ -655,7 +655,7 @@ def test_metrics_widget_smart_invalidation_and_filter_cache(qapp, qtbot):
     mock_config.get.return_value = "PlayerA"
 
     mock_history = MagicMock()
-    mock_history.get_games_for_users.return_value = [
+    mock_history.get_games_for_stats.return_value = [
         {
             "id": "g1",
             "white": "PlayerA",
@@ -672,24 +672,30 @@ def test_metrics_widget_smart_invalidation_and_filter_cache(qapp, qtbot):
     # Wait for the background worker to finish calculating initial stats
     qtbot.waitUntil(lambda: not widget.needs_refresh, timeout=3000)
     assert widget.needs_refresh is False
-    call_count = mock_history.get_games_for_users.call_count
+    call_count = mock_history.get_games_for_stats.call_count
     assert call_count >= 1
 
     # Calling refresh() without force when not dirty should be a no-op
     widget.refresh()
-    assert mock_history.get_games_for_users.call_count == call_count
+    assert mock_history.get_games_for_stats.call_count == call_count
 
     # Calling mark_dirty() sets needs_refresh to True and clears filter cache
     widget.mark_dirty()
     assert widget.needs_refresh is True
     assert len(widget._filter_cache) == 0
 
-    # Calling refresh() now re-fetches
+    # Calling refresh() now re-fetches in the worker
     widget.refresh()
-    assert mock_history.get_games_for_users.call_count == call_count + 1
+    qtbot.waitUntil(
+        lambda: mock_history.get_games_for_stats.call_count >= call_count + 1,
+        timeout=3000,
+    )
     qtbot.waitUntil(lambda: not widget.needs_refresh, timeout=3000)
 
     # Calling refresh(force=True) re-fetches even if not dirty
     widget.refresh(force=True)
-    assert mock_history.get_games_for_users.call_count == call_count + 2
+    qtbot.waitUntil(
+        lambda: mock_history.get_games_for_stats.call_count >= call_count + 2,
+        timeout=3000,
+    )
     qtbot.waitUntil(lambda: not widget.needs_refresh, timeout=3000)

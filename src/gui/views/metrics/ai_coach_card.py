@@ -36,6 +36,7 @@ from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout, create_button, show_error_dialog
+from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.metrics.base_card import MetricCard
 
 
@@ -243,13 +244,18 @@ class AICoachCard(MetricCard):
                 self.worker.error.disconnect()
             except (TypeError, RuntimeError):
                 pass
-            self.worker.quit()
-            self.worker.wait(1000)
+            worker, self.worker = self.worker, None
+            register_worker(worker)
+            worker.done.connect(lambda w=worker: remove_worker(w))
+            worker.cancel()
 
-        self.worker = InsightWorker(self.groq_service, dossier_text)
-        self.worker.finished.connect(self._on_worker_finished)
-        self.worker.error.connect(self._handle_insight_error)
-        self.worker.start()
+        worker = InsightWorker(self.groq_service, dossier_text)
+        self.worker = worker
+        worker.finished.connect(self._on_worker_finished)
+        worker.error.connect(self._handle_insight_error)
+        worker.done.connect(lambda w=worker: remove_worker(w))
+        register_worker(worker)
+        worker.start()
 
     def _on_worker_finished(self, insight_text: str):
         self._stop_skeleton_anim()

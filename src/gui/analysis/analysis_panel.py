@@ -20,8 +20,8 @@ from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import (
     DEFAULT_COACH_PERSONA,
-    EXPLANATION_CACHE_TTL_DAYS,
     EXPLANATION_DEBOUNCE_MS,
+    EXPLANATION_PROMPT_VERSION,
     normalize_coach_persona,
 )
 from src.gui.components import (
@@ -37,7 +37,6 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.components.display.graph_widget import GraphWidget
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
@@ -49,13 +48,14 @@ from src.gui.utils.gui_utils import (
     is_error_message,
     show_error_dialog,
 )
+from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
 from src.utils.resources import ResourceManager
 
 from .coach_card_widget import CoachCardWidget
-from .coach_worker import ExplainMoveWorker, RequestLimiter, read_cached_explanation
+from .coach_worker import ExplainMoveWorker, RequestLimiter
 from .line_utils import lines_for_move
 
 # Tabs that make no sense (and would fight the engine) mid-analysis.
@@ -94,9 +94,16 @@ class AnalysisPanel(QWidget):
 
         # --- Coach state (D6): the panel owns the request counters ---
         self._coach_seq = 0
+        self._coach_index: int | None = None
         self._coach_ply: int | None = None
         self._coach_insight = None
+        self._coach_tab_index: int | None = None
         self._coach_worker: ExplainMoveWorker | None = None
+        # Rendered explanations are retained per (game, ply) so returning to a
+        # move does not need a SQLite read on the GUI thread.
+        self._coach_narratives: dict[
+            tuple[str, int], tuple[tuple[str, str, str, int], str]
+        ] = {}
         self._coach_limiter = RequestLimiter()
         self._coach_debounce = QTimer(self)
         self._coach_debounce.setSingleShot(True)
@@ -117,10 +124,11 @@ class AnalysisPanel(QWidget):
         self.eval_layout = QVBoxLayout(self.eval_tab)
         self.eval_layout.setContentsMargins(5, 5, 5, 5)
 
-        # Graph
-        self.graph_widget = GraphWidget()
-        self.graph_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.eval_layout.addWidget(self.graph_widget, stretch=2)
+        # Graph (Matplotlib is imported lazily with the first game, keeping it
+        # off the first-launch path).
+        self.graph_widget = None
+        self.graph_placeholder = QWidget()
+        self.eval_layout.addWidget(self.graph_placeholder, stretch=2)
 
         # Toggles
         toggles_layout = QHBoxLayout()
@@ -312,7 +320,7 @@ class AnalysisPanel(QWidget):
         coach_layout.addWidget(self.div_summary)
         coach_layout.addWidget(self.ai_summary_frame, stretch=1)
 
-        self.tabs.add_tab("Coach", self.coach_tab)
+        self._coach_tab_index = self.tabs.add_tab("Coach", self.coach_tab)
 
     def set_analysis_running(self, running: bool):
         self._analysis_running = running
@@ -320,8 +328,14 @@ class AnalysisPanel(QWidget):
     def _on_tab_changed(self, index):
         if self._analysis_running and index in _TABS_LOCKED_DURING_ANALYSIS:
             self.tabs.set_current_index(0)
+            return
+        if self._coach_tab_index is not None and index == self._coach_tab_index:
+            self._ensure_coach_insight()
 
     def set_game(self, game_analysis):
+        previous_id = getattr(self.current_game, "game_id", None)
+        if previous_id != getattr(game_analysis, "game_id", None):
+            self._coach_narratives.clear()
         self.current_game = game_analysis
         self._lines_fen = None
         self.set_selected_move(-1)
@@ -337,6 +351,7 @@ class AnalysisPanel(QWidget):
         try:
             self._lines_fen = None
             self.lines_widget.clear()
+            self._ensure_graph_widget()
             self.graph_widget.plot_game(self.current_game)
             self._update_summary(self.current_game.summary)
 
@@ -579,6 +594,20 @@ class AnalysisPanel(QWidget):
         # of the tab and shows its placeholder until the first report arrives.
         self.txt_ai_summary.setVisible(True)
 
+    def _ensure_graph_widget(self) -> None:
+        """Create the Matplotlib-backed graph on first game load."""
+        if self.graph_widget is not None:
+            return
+        from src.gui.components.display.graph_widget import GraphWidget
+
+        graph = GraphWidget()
+        graph.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.eval_layout.insertWidget(0, graph, stretch=2)
+        self.graph_placeholder.hide()
+        self.graph_widget = graph
+
     def refresh_styles(self):
         """Re-applies styles to widgets."""
         Styles.apply_background(self)
@@ -603,7 +632,7 @@ class AnalysisPanel(QWidget):
         if hasattr(self, "txt_ai_summary"):
             self.txt_ai_summary.refresh_styles()
 
-        if hasattr(self, "graph_widget"):
+        if self.graph_widget is not None:
             self.graph_widget.refresh_styles()
 
         self._apply_toggle_style()
@@ -707,56 +736,77 @@ class AnalysisPanel(QWidget):
 
     def set_selected_move(self, index: int) -> None:
         """
-        Rebuild the Coach facts for a newly selected move.
+        Track the selected move and rebuild Coach facts only when visible.
 
-        The offline summary is rendered immediately — no network, no engine. Any
-        in-flight explanation belongs to the previous move, so it is cancelled
-        and the request counter is bumped (D6).
+        Building the deterministic insight costs a few milliseconds per move;
+        the hidden Coach tab does not need it, so it is deferred until the tab
+        is opened or an explanation is requested. Any in-flight explanation
+        belongs to the previous move and is cancelled without waiting (D6).
         """
         self._coach_debounce.stop()
         self._cancel_explanation_worker()
 
-        insight = None
         moves = getattr(self.current_game, "moves", None) if self.current_game else None
-        if moves and 0 <= index < len(moves):
-            meta = self.current_game.metadata
-            try:
-                insight = build_move_insight(
-                    moves,
-                    index,
-                    metadata=meta,
-                    chess960=bool(getattr(meta, "chess960", False)),
-                )
-            except Exception as e:
-                logger.error(f"Failed to build move insight for index {index}: {e}", exc_info=True)
+        valid = bool(moves and 0 <= index < len(moves))
+        self._coach_index = index if valid else None
+        self._coach_insight = None
+        self._coach_ply = None
 
+        if valid and self._coach_tab_index is not None and self.tabs.current_index() == self._coach_tab_index:
+            self._ensure_coach_insight()
+        else:
+            self.coach_card.set_insight(None, allow_trivial=self._allow_trivial_explanations())
+
+    def _ensure_coach_insight(self) -> None:
+        """Build the selected move's insight lazily, once, when the Coach tab needs it."""
+        if self._coach_insight is not None or self._coach_index is None:
+            return
+        moves = getattr(self.current_game, "moves", None) if self.current_game else None
+        if not moves or not 0 <= self._coach_index < len(moves):
+            return
+        meta = self.current_game.metadata
+        try:
+            insight = build_move_insight(
+                moves,
+                self._coach_index,
+                metadata=meta,
+                chess960=bool(getattr(meta, "chess960", False)),
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to build move insight for index {self._coach_index}: {e}",
+                exc_info=True,
+            )
+            return
         self._coach_insight = insight
         self._coach_ply = insight.ply if insight else None
         self.coach_card.set_insight(insight, allow_trivial=self._allow_trivial_explanations())
         if insight is not None:
-            self._restore_cached_explanation(insight)
+            self._restore_memorized_explanation(insight)
 
-    def _restore_cached_explanation(self, insight: MoveInsight) -> None:
-        """Show an already-cached explanation when returning to a move."""
-        cached = read_cached_explanation(
-            self._get_explanation_cache(),
-            insight,
-            lang_code=self.groq_service._lang_code(),
-            model_name=self.groq_service.model_name,
-            persona=normalize_coach_persona(
+    def _coach_identity(self) -> tuple[str, str, str, int]:
+        """The axes that make a retained explanation valid for the current settings."""
+        return (
+            normalize_coach_persona(
                 self.config_manager.get("coach_persona", DEFAULT_COACH_PERSONA)
             ),
-            ttl_days=self.config_manager.get(
-                "explain_cache_ttl_days", EXPLANATION_CACHE_TTL_DAYS
-            ),
+            self.groq_service.model_name,
+            self.groq_service._lang_code(),
+            EXPLANATION_PROMPT_VERSION,
         )
-        if cached:
-            self.coach_card.show_cached(cached)
+
+    def _restore_memorized_explanation(self, insight: MoveInsight) -> None:
+        """Show a rendered explanation when returning to the same move."""
+        game_id = getattr(self.current_game, "game_id", "")
+        stored = self._coach_narratives.get((game_id, insight.ply))
+        if stored is not None and stored[0] == self._coach_identity():
+            self.coach_card.show_cached(stored[1])
 
     def _allow_trivial_explanations(self) -> bool:
         return bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
 
     def _on_coach_ask_requested(self) -> None:
+        self._ensure_coach_insight()
         if self._coach_insight is None:
             return
         if not self.groq_service.client:
@@ -766,6 +816,7 @@ class AnalysisPanel(QWidget):
         self._coach_debounce.start(EXPLANATION_DEBOUNCE_MS)
 
     def _dispatch_explanation(self) -> None:
+        self._ensure_coach_insight()
         insight = self._coach_insight
         if insight is None:
             return
@@ -796,6 +847,8 @@ class AnalysisPanel(QWidget):
 
     def _on_coach_finished(self, seq: int, ply: int, text: str) -> None:
         if self.coach_card.show_narrative(seq, ply, text):
+            game_id = getattr(self.current_game, "game_id", "")
+            self._coach_narratives[(game_id, ply)] = (self._coach_identity(), text)
             logger.info("Coach explanation rendered (ply=%d)", ply)
 
     def _on_coach_error(self, seq: int, ply: int, reason: str) -> None:
@@ -812,10 +865,13 @@ class AnalysisPanel(QWidget):
                 signal.disconnect()
             except TypeError:
                 pass  # nothing connected
+        done = getattr(worker, "done", None)
+        if done is not None:
+            register_worker(worker)
+            done.connect(lambda w=worker: remove_worker(w))
         worker.cancel()
-        if worker.isRunning():
-            worker.wait(2000)
-        worker.deleteLater()
+        if done is not None and worker.isFinished():
+            remove_worker(worker)
 
     def _get_explanation_cache(self) -> AnalysisCache | None:
         if self._explanation_cache is None:
@@ -828,6 +884,7 @@ class AnalysisPanel(QWidget):
 
     def replay_best(self) -> None:
         """Show the engine's top choice from the played move's position."""
+        self._ensure_coach_insight()
         insight = self._coach_insight
         moves = getattr(self.current_game, "moves", None) if self.current_game else None
         if insight is None or not moves:

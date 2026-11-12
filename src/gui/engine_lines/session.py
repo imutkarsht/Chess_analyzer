@@ -150,8 +150,13 @@ class LiveEngineSession(QObject):
         self._debounce.stop()
         self._throttle.stop()
         self._seq += 1
-        if self._worker is not None and self._worker.isRunning():
-            self._worker.stop()
+        worker, self._worker = self._worker, None
+        if worker is not None:
+            if worker.isRunning():
+                worker.stop(wait=False)
+                worker.finished.connect(worker.deleteLater)
+            else:
+                worker.deleteLater()
         self._set_state("idle")
 
     def resume(self) -> None:
@@ -190,7 +195,7 @@ class LiveEngineSession(QObject):
     def shutdown(self) -> None:
         self._debounce.stop()
         self._throttle.stop()
-        self._dispose_worker()
+        self._dispose_worker(wait=True)
 
     # ------------------------------------------------------------------
     # Worker plumbing
@@ -208,12 +213,15 @@ class LiveEngineSession(QObject):
         if not self._worker.isRunning():
             self._worker.start()
 
-    def _dispose_worker(self) -> None:
+    def _dispose_worker(self, *, wait: bool = False) -> None:
         worker = self._worker
         self._worker = None
         if worker is not None:
-            worker.stop()
-            worker.deleteLater()
+            if worker.isRunning():
+                worker.stop(wait=wait)
+                worker.finished.connect(worker.deleteLater)
+            else:
+                worker.deleteLater()
 
     def _dispatch(self) -> None:
         if self._paused or not self._enabled or self._pending is None:

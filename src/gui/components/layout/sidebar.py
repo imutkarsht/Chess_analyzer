@@ -34,10 +34,16 @@ QTAWESOME_ICONS = {
 
 COLLAPSED_WIDTH = 60
 EXPANDED_WIDTH = 200
+# Labels are switched while the rail is already narrow/wide enough to hold
+# them. Updating them at the first animation frame made text appear clipped in
+# a 60 px rail (and vanish from a 200 px rail), which read as a jump.
+_LABEL_HIDE_WIDTH = 118
+_LABEL_SHOW_WIDTH = 142
 
 
 class Sidebar(QFrame):
     page_changed = pyqtSignal(int)
+    animation_changed = pyqtSignal(bool)
 
     def __init__(self, config_manager=None):
         super().__init__()
@@ -46,6 +52,7 @@ class Sidebar(QFrame):
         self._start_collapsed = bool(self._config.get("sidebar_start_collapsed", False))
         self._auto_expand_on_nav = not self._start_collapsed
         self._collapsed = self._start_collapsed
+        self._labels_visible = not self._collapsed
         self._animating = False
         self._sidebar_width = COLLAPSED_WIDTH if self._collapsed else EXPANDED_WIDTH
 
@@ -101,7 +108,22 @@ class Sidebar(QFrame):
 
     def _set_sidebar_width(self, w):
         self._sidebar_width = w
-        self.setFixedWidth(int(round(w)))
+        width = int(round(w))
+        self.setFixedWidth(width)
+        self._sync_labels_for_width(width)
+
+    def _sync_labels_for_width(self, width: int) -> None:
+        """Swap between icon-only and labelled rows at a readable width."""
+        if (
+            self._collapsed
+            and self._labels_visible
+            and width <= _LABEL_HIDE_WIDTH
+        ) or (
+            not self._collapsed
+            and not self._labels_visible
+            and width >= _LABEL_SHOW_WIDTH
+        ):
+            self._update_labels_and_icons()
 
     sidebar_width = pyqtProperty(float, _get_sidebar_width, _set_sidebar_width)
 
@@ -171,6 +193,7 @@ class Sidebar(QFrame):
         self.btn_exit.setText("Exit" if not self._collapsed else "")
         self.btn_exit.set_align(align)
         self.btn_collapse.set_align(align)
+        self._labels_visible = not self._collapsed
         self._update_collapse_icon()
 
     def _update_collapse_icon(self):
@@ -214,11 +237,11 @@ class Sidebar(QFrame):
         self._animating = False
         self._collapsed = collapsed
         target = COLLAPSED_WIDTH if collapsed else EXPANDED_WIDTH
-
-        self._update_labels_and_icons()
+        self._update_collapse_icon()
 
         self._animating = True
-        self._anim = QPropertyAnimation(self, b"sidebar_width")
+        self.animation_changed.emit(True)
+        self._anim = QPropertyAnimation(self, b"sidebar_width", self)
         self._anim.setDuration(MotionDuration.BASE)
         self._anim.setStartValue(float(self.width()))
         self._anim.setEndValue(float(target))
@@ -235,7 +258,15 @@ class Sidebar(QFrame):
 
     def _on_anim_finished(self):
         self._animating = False
-        self.setFixedWidth(int(round(self._sidebar_width)))
+        self.animation_changed.emit(False)
+        target = COLLAPSED_WIDTH if self._collapsed else EXPANDED_WIDTH
+        self._sidebar_width = float(target)
+        self.setFixedWidth(target)
+        self._sync_labels_for_width(target)
+        anim = getattr(self, "_anim", None)
+        self._anim = None
+        if anim is not None:
+            anim.deleteLater()
 
     def show_help(self):
         from src.gui.dialogs import ShortcutHelpDialog

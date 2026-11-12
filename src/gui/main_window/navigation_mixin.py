@@ -461,7 +461,10 @@ class NavigationMixin:
         self.move_list_panel.select_move(index)
         self.move_changed.emit(index)
 
-        if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "graph_widget"):
+        if (
+            hasattr(self, "analysis_panel")
+            and getattr(self.analysis_panel, "graph_widget", None) is not None
+        ):
             self.analysis_panel.graph_widget.set_current_move(index)
 
         if hasattr(self, "analysis_panel"):

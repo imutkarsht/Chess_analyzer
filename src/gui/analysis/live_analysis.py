@@ -184,13 +184,17 @@ class LiveAnalysisWorker(QThread):
         self.running = True
         super().start(priority)
 
-    def stop(self):
-        """Stops the worker thread, bounded so app shutdown cannot hang."""
+    def stop(self, *, wait: bool = True):
+        """Stop the engine loop.
+
+        Interactive callers pass ``wait=False`` and let the thread retire on its
+        own; only app shutdown waits for the engine process to close.
+        """
         self.running = False
         self.mutex.lock()
         self.condition.wakeAll()
         self.mutex.unlock()
-        if self.isRunning() and not self.wait(3000):
+        if wait and self.isRunning() and not self.wait(3000):
             logger.warning("Live analysis worker did not stop in time; terminating it.")
             self.terminate()
             self.wait(1000)
