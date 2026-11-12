@@ -2,7 +2,7 @@ import os
 from importlib.util import find_spec
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
+from src.constants import APP_LOGO_PATH, DEFAULT_BOARD_THEME, PROVIDERS
 from src.gui.components import (
     Button,
     ButtonSize,
@@ -65,9 +65,9 @@ def build_welcome_page(wizard) -> QWidget:
 
     layout.addStretch(1)
 
-    logo_path = get_resource_path(os.path.join("assets", "images", "logo.png"))
+    logo_path = get_resource_path(APP_LOGO_PATH)
     if os.path.exists(logo_path):
-        logo_label = IconLabel(QPixmap(logo_path), size=110)
+        logo_label = IconLabel(QIcon(logo_path), size=110)
         layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignCenter)
 
     title = Label("Chess Analyzer Pro", role=TextRole.PAGE_TITLE)

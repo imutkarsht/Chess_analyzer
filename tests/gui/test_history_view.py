@@ -64,6 +64,84 @@ def test_annotated_pgn_export_worker_exports_history_off_thread(tmp_path, qtbot)
     assert "[%eval +0.25]" in parsed.variation(0).comment
 
 
+def test_history_export_buttons_preserve_csv_and_export_annotated_pgn(
+    tmp_path, qtbot, qapp, monkeypatch
+):
+    from PyQt6.QtWidgets import QFileDialog
+
+    from src.gui.components.feedback.toast import ToastManager
+
+    manager = GameHistoryManager(str(tmp_path / "history-export.db"))
+    board = chess.Board()
+    move = board.parse_san("e4")
+    game = GameAnalysis(
+        game_id="history-export",
+        metadata=GameMetadata(white="Alice", black="Bob", headers={}),
+        moves=[
+            MoveAnalysis(
+                move_number=1,
+                ply=0,
+                san="e4",
+                uci=move.uci(),
+                fen_before=board.fen(),
+                classification="Brilliant",
+                eval_after_cp=25,
+            )
+        ],
+        pgn_content=(
+            '[Event "Export"]\n[White "Alice"]\n[Black "Bob"]\n[Result "*"]\n\n1. e4 *'
+        ),
+    )
+    manager.save_game(game, game.pgn_content)
+
+    view = HistoryView()
+    qtbot.addWidget(view)
+    view.history_manager = manager
+    csv_path = tmp_path / "games.csv"
+    pgn_path = tmp_path / "history-export.pgn"
+    monkeypatch.setattr(
+        QFileDialog,
+        "getSaveFileName",
+        lambda _parent, title, *_args: (
+            (str(csv_path), "CSV Files (*.csv)")
+            if title == "Export Games"
+            else (str(pgn_path.with_suffix("")), "PGN Files (*.pgn)")
+        ),
+    )
+    monkeypatch.setattr(ToastManager, "success", lambda *_args: None)
+    monkeypatch.setattr(ToastManager, "loading", lambda *_args: _StubToast())
+
+    view.btn_export.click()
+
+    with csv_path.open(encoding="utf-8", newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        assert reader.fieldnames == GAME_CSV_COLUMNS
+        assert next(reader)["id"] == "history-export"
+
+    workers = []
+    monkeypatch.setattr(AnnotatedPGNExportWorker, "start", lambda worker: workers.append(worker))
+    view.btn_export_pgn.click()
+    assert len(workers) == 1
+    worker = workers[0]
+    assert not view.btn_export_pgn.isEnabled()
+
+    worker.run()
+    worker.finished.emit()
+
+    assert view.btn_export_pgn.isEnabled()
+    exported = pgn_path.read_text(encoding="utf-8")
+    parsed = chess.pgn.read_game(io.StringIO(exported))
+    assert parsed is not None
+    assert parsed.headers["White"] == "Alice"
+    assert parsed.variation(0).nags == {3}
+    assert "[%eval +0.25]" in parsed.variation(0).comment
+
+
+class _StubToast:
+    def update(self, *_args, **_kwargs):
+        pass
+
+
 def test_game_import_worker_execution(tmp_path, qtbot):
     """Test that GameImportWorker parses CSV in background and bulk saves without error."""
     db_path = str(tmp_path / "test_import.db")

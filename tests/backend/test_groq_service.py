@@ -7,7 +7,7 @@ from src.backend.services.groq_service import (
     clean_explanation_text,
     validate_explanation,
 )
-from src.constants import PROVIDERS
+from src.constants import COACH_PERSONAS, DEFAULT_COACH_PERSONA, PROVIDERS
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -441,6 +441,42 @@ class TestExplainMove:
         assert "Never invent a move" in system["content"]
         assert "Do NOT use markdown" in system["content"]
         assert "classified as Blunder" in system["content"]
+
+    @pytest.mark.parametrize(
+        ("persona", "guidance"),
+        [
+            ("tactician", "piece safety"),
+            ("grandmaster", "pawn majorities"),
+            ("socratic", "instructive question"),
+            ("roaster", "playful, witty, humorous"),
+        ],
+    )
+    def test_selected_persona_adds_its_guidance(self, configured_service, persona, guidance):
+        service, client = configured_service("ok")
+
+        service.explain_move(FACTS, "Blunder", persona=persona)
+
+        system = client.calls[0]["messages"][0]["content"]
+        assert COACH_PERSONAS[persona]["label"] in system
+        assert guidance in system
+        assert "Never invent a move" in system
+
+    def test_unknown_persona_uses_tactician_guidance(self, configured_service):
+        service, client = configured_service("ok")
+
+        service.explain_move(FACTS, "Blunder", persona="invalid")
+
+        system = client.calls[0]["messages"][0]["content"]
+        assert COACH_PERSONAS[DEFAULT_COACH_PERSONA]["label"] in system
+        assert COACH_PERSONAS[DEFAULT_COACH_PERSONA]["prompt"] in system
+
+    def test_missing_persona_defaults_to_tactician(self, configured_service):
+        service, client = configured_service("ok")
+
+        service.explain_move(FACTS, "Blunder")
+
+        system = client.calls[0]["messages"][0]["content"]
+        assert COACH_PERSONAS[DEFAULT_COACH_PERSONA]["label"] in system
 
     def test_sacrifice_guidance_is_added_for_brilliant_moves(self, configured_service):
         service, client = configured_service("ok")

@@ -5,6 +5,10 @@ Global application constants.
 # App Version
 APP_VERSION = "2.5.0"
 
+# In-app brand mark. Platform packaging keeps the raster/ICO variants because
+# PyInstaller and the installers require native icon formats.
+APP_LOGO_PATH = "assets/images/logo.svg"
+
 # GitHub & Project URLs
 GITHUB_REPO_URL = "https://github.com/imutkarsht/Chess_analyzer"
 GITHUB_RELEASES_API = "https://api.github.com/repos/imutkarsht/Chess_analyzer/releases/latest"
@@ -147,7 +151,7 @@ MIN_MOVE_ACCURACY = 10.0
 # Coach ("why was this a blunder?") feature
 # ---------------------------------------------------------------------------
 # Bump to invalidate every cached explanation (prompt/schema changes).
-EXPLANATION_PROMPT_VERSION = 4
+EXPLANATION_PROMPT_VERSION = 5
 EXPLANATION_CACHE_TTL_DAYS = 30
 EXPLANATION_REQUEST_TIMEOUT_S = 20.0
 EXPLANATION_DEBOUNCE_MS = 400
@@ -161,6 +165,77 @@ EXPLANATION_TEMPERATURE = 0.3
 # Default omits the parameter so non-reasoning models never receive an
 # unsupported option. Reasoning models can opt into low/medium/high.
 EXPLANATION_REASONING_EFFORT = ""
+
+# Coach persona IDs are persisted in config.json and used in explanation cache
+# keys, so keep them stable while allowing their display text to evolve. The
+# prompt text is not part of the cache key: bump EXPLANATION_PROMPT_VERSION
+# whenever any prompt below changes.
+DEFAULT_COACH_PERSONA = "tactician"
+COACH_PERSONAS = {
+    "tactician": {
+        "label": "The Tactician",
+        "prompt": (
+            "Voice: a patient beginner-to-intermediate coach. Prioritize piece "
+            "safety, hanging pieces, forks, and king safety. Use plain, encouraging "
+            "language and explain jargon briefly. Do not use positional jargon.\n"
+            "Shape: two short paragraphs. First explain the practical lesson; then "
+            "give one check the player can use in their next game.\n"
+            'Example cadence (do not reuse its chess facts): "That piece was doing '
+            'two jobs at once, so it could not do either safely."'
+        ),
+    },
+    "grandmaster": {
+        "label": "The Grandmaster",
+        "prompt": (
+            "Voice: an advanced coach speaking to a strong club player. Use concise "
+            "professional chess terminology and assume the reader knows the rules. "
+            "Emphasize positional ideas such as outposts, pawn majorities, "
+            "prophylaxis, bishop pairs, and piece activity only when supported by "
+            "the supplied claim sheet.\n"
+            "Shape: one dense paragraph. Lead with the strategic verdict, then give "
+            "the concrete line or tactical consequence that justifies it. Skip "
+            "beginner definitions.\n"
+            'Example cadence (do not reuse its chess facts): "The verdict is '
+            'positional; the concrete line explains why it works."'
+        ),
+    },
+    "socratic": {
+        "label": "The Socratic Mentor",
+        "prompt": (
+            "Voice: a mentor who guides with a concise, instructive question. Do not "
+            "simply announce the lesson. Use only facts in the claim sheet.\n"
+            "Shape: one short observation, exactly one question that points at the "
+            "key move or square, then a concise answer. Name any supplied better "
+            "move explicitly in that answer. Ask no more than one question.\n"
+            'Example cadence (do not reuse its chess facts): "What was that piece '
+            'still defending? Once it moved, the answer became clear."'
+        ),
+    },
+    "roaster": {
+        "label": "The Roaster",
+        "prompt": (
+            "Voice: playful, witty, humorous commentary, especially for blunders and "
+            "missed mates, while staying respectful toward the player. Mock the move, "
+            "never the person, their rating, or their identity. Keep every joke "
+            "grounded in the supplied claim sheet; never invent chess facts.\n"
+            "Shape: exactly one joke sentence, then two or three sentences of real "
+            "coaching that explain the punishment and name the better move. One joke "
+            "maximum.\n"
+            'Example cadence (do not reuse its chess facts): "That move had a plan. '
+            'Unfortunately, the plan was to donate material."'
+        ),
+    },
+}
+
+
+def normalize_coach_persona(persona: str | None) -> str:
+    """Return a known coach persona ID, defaulting safely for old/invalid config."""
+    return (
+        persona
+        if isinstance(persona, str) and persona in COACH_PERSONAS
+        else DEFAULT_COACH_PERSONA
+    )
+
 
 # Classification buckets, expressed once and reused by the fact builder
 # (offline wording) and the GUI (whether the Ask button is offered at all).

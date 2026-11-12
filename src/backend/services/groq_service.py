@@ -21,6 +21,8 @@ from typing import Any
 from openai import OpenAI
 
 from src.constants import (
+    COACH_PERSONAS,
+    DEFAULT_COACH_PERSONA,
     EXPLANATION_MAX_TOKENS,
     EXPLANATION_REASONING_EFFORT,
     EXPLANATION_REQUEST_TIMEOUT_S,
@@ -28,6 +30,7 @@ from src.constants import (
     PROBLEM_CLASSIFICATIONS,
     PROVIDERS,
     SACRIFICIAL_CLASSIFICATIONS,
+    normalize_coach_persona,
 )
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
@@ -133,7 +136,7 @@ EXPLANATION_SYSTEM_PROMPT = (
     "- For an error, explain what the opponent does, what was better and the pattern.\n"
     "- If a better move is listed, name it explicitly.\n"
     "- Keep SAN exactly as written in the claim sheet.\n"
-    "- Write two short paragraphs of plain prose, 70-110 words.\n"
+    "- Write 70-110 words of plain prose. Use the shape specified by the coaching persona below.\n"
     "- Do NOT use markdown, asterisks, headings, labels, bullet points, or the "
     "words VERDICT, EVIDENCE, MAIN LINE, BETTER or PATTERN in the reply.\n"
     "- If the claim sheet has no line, do not invent one."
@@ -600,7 +603,12 @@ class GroqService:
         )
         return self._chat(prompt, system=self._lang_instruction())
 
-    def explain_move(self, facts_text: str, classification: str) -> str:
+    def explain_move(
+        self,
+        facts_text: str,
+        classification: str,
+        persona: str = DEFAULT_COACH_PERSONA,
+    ) -> str:
         """
         Translate a grounded fact sheet into 2-3 instructive sentences.
 
@@ -614,7 +622,13 @@ class GroqService:
 
         temperature, max_tokens, reasoning_effort = explanation_tuning()
 
-        system = EXPLANATION_SYSTEM_PROMPT
+        persona = normalize_coach_persona(persona)
+        system = (
+            f"{EXPLANATION_SYSTEM_PROMPT}\n\n"
+            f"Coaching persona ({COACH_PERSONAS[persona]['label']}):\n"
+            f"{COACH_PERSONAS[persona]['prompt']}\n"
+            "The persona controls voice and shape; the grounding rules above always win."
+        )
         if classification in SACRIFICIAL_CLASSIFICATIONS:
             system += (
                 f"\nThis move is classified as {classification}. Treat the offered "
@@ -627,8 +641,8 @@ class GroqService:
             )
         elif classification in PROBLEM_CLASSIFICATIONS:
             system += (
-                f"\nThis move is classified as {classification}. Be direct and "
-                "constructive; explain the punishment and the better move."
+                f"\nThis move is classified as {classification}. Explain the "
+                "punishment and the better move."
             )
         lang_instruction = self._lang_instruction()
         if lang_instruction:

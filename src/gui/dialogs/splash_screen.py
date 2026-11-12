@@ -1,7 +1,7 @@
 import os
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QProgressBar, QSplashScreen, QVBoxLayout, QWidget
 
 from src.gui.components import IconLabel, Label, TextRole, TextTone
@@ -46,7 +46,7 @@ class SplashScreen(QSplashScreen):
         # Logo
         if os.path.exists(logo_path):
             layout.addWidget(
-                IconLabel(QPixmap(logo_path), size=100),
+                IconLabel(QIcon(logo_path), size=100),
                 0,
                 Qt.AlignmentFlag.AlignCenter,
             )

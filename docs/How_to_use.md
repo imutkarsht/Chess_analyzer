@@ -159,6 +159,7 @@ Once a game is loaded:
 The Coach tab turns engine facts into readable explanations:
 
 - **Per-move explanation**: Select a move and open the Coach tab. The explanation is built from concrete evidence — the tactical motif, the offered piece, the opponent’s punishment, and the stored main line — then explained as **why it works / the idea / remember** (or **what went wrong / the punishment / better / pattern** for errors). Use **Show main line** to replay the continuation on the board.
+- **Coach persona**: In **Settings → AI Coach → Move Explanations**, choose **The Tactician** for clear, beginner-friendly advice about safety and tactics; **The Grandmaster** for concise positional language; **The Socratic Mentor** for question-led guidance; or **The Roaster** for respectful, playful commentary. The selected persona is saved and shapes the next requested per-move explanation; it does not change the underlying engine analysis or facts.
 - **Full-game summary**: After analysis completes, generate a persistent game report; key moments now carry their concrete tactical reason and line instead of only an evaluation swing. It is stored with the game and shown again on later visits.
 - **Offline behaviour**: With no active LLM profile or no network, the app shows a deterministic offline explanation instead of failing.
 - **Tuning**: Settings → AI Coach exposes temperature, max tokens, and reasoning effort. “Test Connection” exercises the same parameters as a real explanation.

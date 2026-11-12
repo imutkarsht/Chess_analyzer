@@ -39,6 +39,7 @@ class CoachSettings(QGroupBox):
         self.explain_trivial_checkbox = self.binder.add(
             "explain_llm_for_trivial_moves"
         )
+        self.persona_combo = self.binder.add("coach_persona")
         self.temperature_input = self.binder.add(
             "explain_temperature", width=CONTROL_NARROW
         )
@@ -67,7 +68,7 @@ class CoachSettings(QGroupBox):
         self.binder.load()
 
     def set_advanced_visible(self, visible: bool) -> None:
-        # The explanation toggle is Basic; only the tuning rows disappear.
+        # The explanation toggle and persona are Basic; only tuning rows disappear.
         self.setVisible(True)
         self.binder.set_advanced_visible(visible)
 

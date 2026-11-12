@@ -7,6 +7,7 @@ from typing import Any, Final
 
 from src.constants import (
     DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
+    DEFAULT_COACH_PERSONA,
     DEFAULT_MULTI_PV,
     EXPLANATION_CACHE_TTL_DAYS,
 )
@@ -197,15 +198,21 @@ class AnalysisCache:
     # ------------------------------------------------------------------
 
     def _generate_explanation_key(
-        self, fen: str, uci: str, model: str, lang_code: str, prompt_version: str | int
+        self,
+        fen: str,
+        uci: str,
+        model: str,
+        lang_code: str,
+        prompt_version: str | int,
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> str:
         """
         Cache key for an explanation (D7).
 
-        Model and language are part of the key: a different model or a different
-        UI language produces different prose for the same position.
+        Model, language, and persona are part of the key because each can produce
+        different prose for the same position.
         """
-        key_str = f"{fen}|{uci}|{model}|{lang_code}|{prompt_version}"
+        key_str = f"{fen}|{uci}|{model}|{lang_code}|{prompt_version}|{persona}"
         return hashlib.sha256(key_str.encode("utf-8")).hexdigest()
 
     def get_explanation(
@@ -216,6 +223,7 @@ class AnalysisCache:
         lang_code: str,
         prompt_version: str | int,
         max_age_days: int | None = EXPLANATION_CACHE_TTL_DAYS,
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> str | None:
         """
         Return a cached explanation, or ``None`` on a miss.
@@ -223,7 +231,9 @@ class AnalysisCache:
         ``max_age_days=None`` disables the age check; ``0`` treats every entry as
         stale (equivalent to no caching).
         """
-        key = self._generate_explanation_key(fen, uci, model, lang_code, prompt_version)
+        key = self._generate_explanation_key(
+            fen, uci, model, lang_code, prompt_version, persona
+        )
         try:
             with self._lock:
                 self._ensure_connection()
@@ -257,12 +267,15 @@ class AnalysisCache:
         prompt_version: str | int,
         explanation: str,
         max_age_days: int | None = EXPLANATION_CACHE_TTL_DAYS,
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> None:
         """Store an explanation, pruning expired rows opportunistically first."""
         if not explanation:
             return
         self.prune_explanations(max_age_days)
-        key = self._generate_explanation_key(fen, uci, model, lang_code, prompt_version)
+        key = self._generate_explanation_key(
+            fen, uci, model, lang_code, prompt_version, persona
+        )
         try:
             with self._lock:
                 self._ensure_connection()
@@ -292,9 +305,12 @@ class AnalysisCache:
         model: str,
         lang_code: str,
         prompt_version: str | int,
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> int | None:
         """Return the stored 👍 (+1) / 👎 (-1) for an explanation, if any."""
-        key = self._generate_explanation_key(fen, uci, model, lang_code, prompt_version)
+        key = self._generate_explanation_key(
+            fen, uci, model, lang_code, prompt_version, persona
+        )
         try:
             with self._lock:
                 self._ensure_connection()
@@ -314,13 +330,16 @@ class AnalysisCache:
         lang_code: str,
         prompt_version: str | int,
         value: int | None,
+        persona: str = DEFAULT_COACH_PERSONA,
     ) -> bool:
         """
         Record 👍 (+1) / 👎 (-1), or clear with ``None``.
 
         Returns ``True`` when an explanation row existed and was updated.
         """
-        key = self._generate_explanation_key(fen, uci, model, lang_code, prompt_version)
+        key = self._generate_explanation_key(
+            fen, uci, model, lang_code, prompt_version, persona
+        )
         try:
             with self._lock:
                 self._ensure_connection()

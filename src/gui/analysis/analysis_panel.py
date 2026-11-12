@@ -16,12 +16,17 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.game_report import build_game_report
-from src.backend.analysis.tactics.insight import build_move_insight
+from src.backend.analysis.tactics.insight import MoveInsight, build_move_insight
 from src.backend.services.groq_service import GroqService
 from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
-from src.constants import EXPLANATION_DEBOUNCE_MS
+from src.constants import (
+    DEFAULT_COACH_PERSONA,
+    EXPLANATION_CACHE_TTL_DAYS,
+    EXPLANATION_DEBOUNCE_MS,
+    normalize_coach_persona,
+)
 from src.gui.components import (
     Button,
     ButtonVariant,
@@ -39,6 +44,7 @@ from src.gui.components.display.graph_widget import GraphWidget
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
+from src.gui.share import ShareReportDialog, ShareReportRenderer
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (
     clear_layout,
@@ -52,7 +58,7 @@ from src.utils.path_utils import get_resource_path
 from src.utils.resources import ResourceManager
 
 from .coach_card_widget import CoachCardWidget
-from .coach_worker import ExplainMoveWorker, RequestLimiter
+from .coach_worker import ExplainMoveWorker, RequestLimiter, read_cached_explanation
 from .line_utils import lines_for_move
 
 # Tabs that make no sense (and would fight the engine) mid-analysis.
@@ -171,15 +177,30 @@ class AnalysisPanel(QWidget):
         self.report_layout.setContentsMargins(12, 12, 12, 12)
         self.report_layout.setSpacing(10)
 
+        result_header = QHBoxLayout()
+        result_header.setSpacing(6)
+        self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
+        result_header.addWidget(self.result_banner_lbl, stretch=1)
+        self.share_report_button = Button(
+            "",
+            variant=ButtonVariant.OUTLINED,
+            size="md",
+            icon="fa5s.share-alt",
+            icon_position="only",
+            tooltip="Analyze this game before sharing a report.",
+        )
+        self.share_report_button.setAccessibleName("Share Report")
+        self.share_report_button.setEnabled(False)
+        self.share_report_button.clicked.connect(self.open_share_report)
+        result_header.addWidget(self.share_report_button)
+        self.report_layout.addLayout(result_header)
+
         # 1. Top Section: Hero Outcome Header
         self.hero_card = QFrame()
         self.hero_card.setStyleSheet(Styles.get_transparent_style())
         hero_layout = QVBoxLayout(self.hero_card)
         hero_layout.setContentsMargins(0, 0, 0, 0)
         hero_layout.setSpacing(2)
-
-        self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
-        hero_layout.addWidget(self.result_banner_lbl)
 
         self.opening_label = Label("-", role=TextRole.CAPTION, weight=600, wrap=True)
         hero_layout.addWidget(self.opening_label)
@@ -344,6 +365,7 @@ class AnalysisPanel(QWidget):
             ToastManager.error(self, f"Export failed: {e}")
 
     def refresh(self):
+        self._update_share_report_button()
         if not self.current_game:
             self.btn_export_pgn.setEnabled(False)
             self._lines_fen = None
@@ -415,6 +437,29 @@ class AnalysisPanel(QWidget):
 
         except Exception as e:
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
+
+    def _update_share_report_button(self) -> None:
+        can_share = ShareReportRenderer.can_render(self.current_game)
+        self.share_report_button.setEnabled(can_share)
+        self.share_report_button.setToolTip(
+            "Open the shareable game report."
+            if can_share
+            else "Analyze this game before sharing a report."
+        )
+
+    def open_share_report(self) -> None:
+        if not ShareReportRenderer.can_render(self.current_game):
+            return
+        try:
+            dialog = ShareReportDialog(self.current_game, self)
+        except Exception as error:
+            logger.error("Could not render shareable game report: %s", error, exc_info=True)
+            ToastManager.error(self, "Could not render the game report.")
+            return
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()
 
     def _get_result_color(self, meta):
         user_side = self._user_side()
@@ -727,6 +772,25 @@ class AnalysisPanel(QWidget):
         self._coach_insight = insight
         self._coach_ply = insight.ply if insight else None
         self.coach_card.set_insight(insight, allow_trivial=self._allow_trivial_explanations())
+        if insight is not None:
+            self._restore_cached_explanation(insight)
+
+    def _restore_cached_explanation(self, insight: MoveInsight) -> None:
+        """Show an already-cached explanation when returning to a move."""
+        cached = read_cached_explanation(
+            self._get_explanation_cache(),
+            insight,
+            lang_code=self.groq_service._lang_code(),
+            model_name=self.groq_service.model_name,
+            persona=normalize_coach_persona(
+                self.config_manager.get("coach_persona", DEFAULT_COACH_PERSONA)
+            ),
+            ttl_days=self.config_manager.get(
+                "explain_cache_ttl_days", EXPLANATION_CACHE_TTL_DAYS
+            ),
+        )
+        if cached:
+            self.coach_card.show_cached(cached)
 
     def _allow_trivial_explanations(self) -> bool:
         return bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
@@ -760,6 +824,9 @@ class AnalysisPanel(QWidget):
             cache=self._get_explanation_cache(),
             lang_code=self.groq_service._lang_code(),
             model_name=self.groq_service.model_name,
+            persona=normalize_coach_persona(
+                self.config_manager.get("coach_persona", DEFAULT_COACH_PERSONA)
+            ),
         )
         worker.finished.connect(self._on_coach_finished)
         worker.error.connect(self._on_coach_error)

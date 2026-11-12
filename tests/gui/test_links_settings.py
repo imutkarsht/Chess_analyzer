@@ -21,6 +21,10 @@ def test_about_card_shows_copyright_and_licence(qapp, qtbot):
     assert "Utkarsh Tiwari" in text
     assert "contributors" in text
 
+    logo = card.logo_label.pixmap()
+    assert logo is not None
+    assert not logo.isNull()
+
 
 def test_about_card_links_to_licence_and_notices(qapp, qtbot, mocker):
     from src.gui.views.settings.links_settings import LinksSettings

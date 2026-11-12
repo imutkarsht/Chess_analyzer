@@ -39,6 +39,7 @@ flowchart TD
     stack --> settings[SettingsView]
 
     analysis --> analysisPanel[AnalysisPanel]
+    analysis --> shareReport[ShareReportDialog]
     analysis --> moveList[MoveListPanel]
     analysis --> board[Board]
     analysis --> variation[VariationMode]
@@ -105,6 +106,7 @@ Forbidden edges:
 | `src/gui/main_window` | Window composition and cross-cutting mixins |
 | `src/gui/views` | Full pages and their sub-widgets |
 | `src/gui/analysis` | Analysis board, move list, coach, variations, live engine |
+| `src/gui/share` | Model-rendered game report cards and export dialog |
 | `src/gui/components` | Shared component library, grouped by responsibility |
 | `src/gui/dialogs` | Modal flows (load game, wizard, feedback, errors, updates) |
 | `src/gui/import_workspace` | Searchable multi-game import table hosted by History |
@@ -459,6 +461,13 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `variation_graph.py` | Git-style branch strip | `VariationGraph` |
 | `variation_mode.py` | Board state machine for variation trees | `VariationMode` |
 
+### `src/gui/share`
+
+| File | Purpose | Key symbols |
+| --- | --- | --- |
+| `report_card.py` | Fixed-size report image rendered from game analysis models | `ShareReportRenderer` |
+| `share_report_dialog.py` | Preview, clipboard, PNG, and Markdown export actions | `ShareReportDialog` |
+
 ### `src/gui/board`, `engine_lines`, `metrics`
 
 | File | Purpose | Key symbols |
@@ -629,7 +638,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- |
 | `tests/` | `backend/`, `gui/`, `storage/` suites with shared `conftest.py`; 85% branch floor, GUI excluded |
 | `assets/` | Images, icons, sounds, piece SVGs (third-party pieces documented separately) |
-| `planning/` | `2.5.0_progress.md` release tracking plus feature/design plans |
 | `docs/` | This reference, onboarding tutorial, user guide |
 | `installers/` | Platform packaging scripts and outputs |
 | `build.spec` | PyInstaller bundle definition |
