@@ -1,6 +1,7 @@
 from typing import Any
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6 import sip
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -59,6 +60,14 @@ class MetricsWidget(QWidget):
         self.history_manager = history_manager
         self.usernames = []
         self._stats_request_id = 0
+        # Coalesce geometry refreshes during sidebar/window resizes so custom
+        # masonry layouts do not keep a height from the previous width.
+        self._layout_timer = QTimer(self)
+        self._layout_timer.setSingleShot(True)
+        # Let the sidebar/window resize settle before rebuilding the custom
+        # card geometry; doing it every frame makes the rail animation stutter.
+        self._layout_timer.setInterval(60)
+        self._layout_timer.timeout.connect(self._relayout_dashboard)
 
         self._groq_service = GroqService()
 
@@ -81,6 +90,38 @@ class MetricsWidget(QWidget):
         self._needs_refresh = True
         self._filter_cache.clear()
         self._stats_request_id += 1
+
+    def showEvent(self, event):  # noqa: N802 - Qt override
+        super().showEvent(event)
+        self._schedule_layout_refresh()
+
+    def resizeEvent(self, event):  # noqa: N802 - Qt override
+        super().resizeEvent(event)
+        self._schedule_layout_refresh()
+
+    def _schedule_layout_refresh(self) -> None:
+        if hasattr(self, "_layout_timer"):
+            self._layout_timer.start()
+
+    def _relayout_dashboard(self) -> None:
+        """Recompute the custom stats/masonry layouts for the current width."""
+        dashboard_layout = getattr(self, "dashboard_layout", None)
+        if dashboard_layout is None or sip.isdeleted(dashboard_layout):
+            return
+        for layout_name, container_name in (
+            ("stats_layout", "stats_container"),
+            ("charts_layout", "charts_container"),
+        ):
+            layout = getattr(self, layout_name, None)
+            container = getattr(self, container_name, None)
+            if layout is None or container is None:
+                continue
+            if sip.isdeleted(layout) or sip.isdeleted(container):
+                continue
+            layout.invalidate()
+            container.updateGeometry()
+        dashboard_layout.invalidate()
+        dashboard_layout.activate()
 
     @property
     def groq_service(self):
@@ -438,6 +479,7 @@ class MetricsWidget(QWidget):
     def show_dashboard(self, stats):
         # Never leave a previous dashboard (or message view) behind: direct
         # callers and async refreshes must not stack dashboards.
+        self._layout_timer.stop()
         clear_layout(self.content_layout)
         self.current_stats = stats
         self.scroll_area = QScrollArea()
@@ -456,6 +498,9 @@ class MetricsWidget(QWidget):
 
         # 1. Key Metrics Row - uses custom adaptive StatsLayout
         self.stats_container = QWidget()
+        stats_policy = self.stats_container.sizePolicy()
+        stats_policy.setHeightForWidth(True)
+        self.stats_container.setSizePolicy(stats_policy)
         self.stats_layout = StatsLayout(self.stats_container, spacing=16)
 
         # Dynamic context subtitle based on active filters
@@ -524,6 +569,9 @@ class MetricsWidget(QWidget):
 
         # 2. Sortable chart cards — order is a saved user preference.
         self.charts_container = QWidget()
+        charts_policy = self.charts_container.sizePolicy()
+        charts_policy.setHeightForWidth(True)
+        self.charts_container.setSizePolicy(charts_policy)
         self.charts_layout = MasonryLayout(
             self.charts_container, margin=0, spacing=20, min_col_width=400
         )
@@ -542,6 +590,7 @@ class MetricsWidget(QWidget):
 
         self.scroll_area.setWidget(dashboard)
         self.content_layout.addWidget(self.scroll_area)
+        self._schedule_layout_refresh()
 
     def _build_chart_card(self, key: str, stats):
         """Create one sortable dashboard card, preserving its public attribute."""

@@ -83,6 +83,9 @@ class StatsLayout(QLayout):
         self.doLayout(rect)
 
     def sizeHint(self):
+        parent = self.parentWidget()
+        if parent is not None and parent.width() > 0:
+            return QSize(parent.width(), self.heightForWidth(parent.width()))
         return self.minimumSize()
 
     def minimumSize(self):
