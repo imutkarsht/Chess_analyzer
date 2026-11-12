@@ -15,8 +15,39 @@ from ...components import Label, TextRole, TextTone
 from ...components.controls.select import Select, SelectOption
 from ...components.feedback.toast import ToastManager
 from ...styles import Styles
+from ...utils.worker_registry import register_worker, remove_worker
+from .background_worker import BackgroundTaskWorker
 from .components import PathField, SettingsBinder, SettingsForm
 from .modern_widgets import ModernSliderCounter
+
+
+def _probe_engine_binary(path: str) -> tuple[bool, str]:
+    """Run the UCI handshake off the GUI thread and return a display message."""
+    try:
+        creationflags = 0
+        if os.name == "nt":
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+        proc = subprocess.Popen(
+            [path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            creationflags=creationflags,
+        )
+        stdout, _ = proc.communicate(input="uci\nquit\n", timeout=1.0)
+        if "uciok" not in stdout:
+            return False, "❌ Handshake failed (not a valid UCI engine)"
+        name = "Stockfish"
+        for line in stdout.split("\n"):
+            if line.startswith("id name "):
+                name = line[8:].strip()
+                break
+        return True, f"✓ Valid UCI Engine: {name}"
+    except subprocess.TimeoutExpired:
+        return False, "❌ Timeout: Engine failed to respond within 1s"
+    except Exception as e:
+        return False, f"❌ Failed to execute binary: {e}"
 
 
 class EngineSettings(QGroupBox):
@@ -39,8 +70,13 @@ class EngineSettings(QGroupBox):
         self._add_path_row()
         self._add_threads_row()
         self._add_hash_row()
+        self._validation_generation = 0
+        self._validation_worker: BackgroundTaskWorker | None = None
 
-        self.validate_engine_path()
+    def _set_checking(self) -> None:
+        self.validation_label.setText("Checking engine...")
+        self.validation_label.set_tone(TextTone.SECONDARY)
+        self.validation_label.setVisible(True)
 
     def _add_path_row(self):
         self.path_field = PathField(
@@ -102,6 +138,9 @@ class EngineSettings(QGroupBox):
     # Validation
     # ------------------------------------------------------------------
     def validate_engine_path(self):
+        """Validate asynchronously; the UCI probe never runs on the GUI thread."""
+        self._validation_generation += 1
+        generation = self._validation_generation
         path = self.path_input.text().strip()
         if not path:
             self._set_validation("⚠️ No path specified", Styles.COLOR_MISTAKE)
@@ -109,45 +148,39 @@ class EngineSettings(QGroupBox):
 
         is_in_path = shutil.which(path) is not None
         is_file = os.path.exists(path) and os.path.isfile(path)
-
         if not (is_in_path or is_file):
             self._set_validation(
                 "❌ File does not exist or is not executable", Styles.COLOR_BLUNDER
             )
             return
 
-        try:
-            creationflags = 0
-            if os.name == "nt":
-                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-            proc = subprocess.Popen(
-                [path],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                creationflags=creationflags,
-            )
+        self._set_checking()
+        worker = BackgroundTaskWorker(lambda: _probe_engine_binary(path))
+        self._validation_worker = worker
+        register_worker(worker)
+        worker.completed.connect(
+            lambda result, gen=generation: self._on_validation_result(result, gen)
+        )
+        worker.failed.connect(
+            lambda reason, gen=generation: self._on_validation_failed(reason, gen)
+        )
+        worker.finished.connect(lambda w=worker: remove_worker(w))
+        worker.start()
 
-            stdout, _ = proc.communicate(input="uci\nquit\n", timeout=1.0)
+    def _on_validation_result(self, result, generation: int) -> None:
+        if generation != self._validation_generation:
+            return
+        ok, message = result
+        self._set_validation(
+            message, Styles.COLOR_BEST if ok else Styles.COLOR_BLUNDER
+        )
 
-            if "uciok" in stdout:
-                name = "Stockfish"
-                for line in stdout.split("\n"):
-                    if line.startswith("id name "):
-                        name = line[8:].strip()
-                        break
-                self._set_validation(f"✓ Valid UCI Engine: {name}", Styles.COLOR_BEST)
-            else:
-                self._set_validation(
-                    "❌ Handshake failed (not a valid UCI engine)", Styles.COLOR_BLUNDER
-                )
-        except subprocess.TimeoutExpired:
-            self._set_validation(
-                "❌ Timeout: Engine failed to respond within 1s", Styles.COLOR_BLUNDER
-            )
-        except Exception as e:
-            self._set_validation(f"❌ Failed to execute binary: {e}", Styles.COLOR_BLUNDER)
+    def _on_validation_failed(self, reason: str, generation: int) -> None:
+        if generation != self._validation_generation:
+            return
+        self._set_validation(
+            f"❌ Failed to execute binary: {reason}", Styles.COLOR_BLUNDER
+        )
 
     def _set_validation(self, text: str, color: str) -> None:
         self.validation_label.setText(text)
@@ -209,4 +242,3 @@ class EngineSettings(QGroupBox):
         self.path_input.refresh_styles()
         self.browse_btn.refresh_styles()
         self.threads_input.refresh_styles()
-        self.validate_engine_path()

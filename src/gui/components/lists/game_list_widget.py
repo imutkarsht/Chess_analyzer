@@ -40,11 +40,14 @@ class GameListWidget(QWidget):
 
     # Ask for the next page while the reader is still this far from the end.
     _APPEND_THRESHOLD_PX = 600
+    # Keep the rendered widget list bounded on very large archives.
+    _MAX_RETAINED_ROWS = 300
 
     def __init__(self):
         super().__init__()
         self._all_games: list = []
         self._total = 0
+        self._loaded = 0
         self._rendered = 0
         self._request_pending = False
         self.usernames: list = []
@@ -153,6 +156,7 @@ class GameListWidget(QWidget):
     def reset(self, total: int | None = None, usernames=None):
         """Clear rendered rows and start a new result set."""
         self._all_games = []
+        self._loaded = 0
         self._rendered = 0
         self._request_pending = False
         self.list_widget.clear()
@@ -171,7 +175,9 @@ class GameListWidget(QWidget):
             return
         self.show_list()
         self._all_games.extend(games)
+        self._loaded += len(games)
         self._render_from(self._rendered)
+        self._trim_retained_rows()
         self._request_pending = False
         self._update_count()
         # If the page does not fill the viewport there is no scrollbar event to
@@ -232,6 +238,7 @@ class GameListWidget(QWidget):
             self.list_widget.takeItem(row)
             self._all_games.pop(row)
             self._rendered = max(0, self._rendered - 1)
+            self._loaded = max(0, self._loaded - 1)
             self._total = max(0, self._total - 1)
             self._update_count()
             return True
@@ -300,14 +307,35 @@ class GameListWidget(QWidget):
 
     def _render_from(self, start: int):
         """Render stored rows from ``start`` to the end of the list."""
-        for index in range(start, len(self._all_games)):
-            game = self._all_games[index]
-            widget = self._build_item_widget(game)
-            hint = widget.sizeHint()
-            item = QListWidgetItem()
-            item.setSizeHint(hint)
-            self.list_widget.addItem(item)
-            self.list_widget.setItemWidget(item, widget)
+        self.list_widget.setUpdatesEnabled(False)
+        try:
+            for index in range(start, len(self._all_games)):
+                game = self._all_games[index]
+                widget = self._build_item_widget(game)
+                hint = widget.sizeHint()
+                item = QListWidgetItem()
+                item.setSizeHint(hint)
+                self.list_widget.addItem(item)
+                self.list_widget.setItemWidget(item, widget)
+        finally:
+            self.list_widget.setUpdatesEnabled(True)
+            self.list_widget.viewport().update()
+        self._rendered = len(self._all_games)
+
+    def _trim_retained_rows(self) -> None:
+        """Drop the oldest rendered rows beyond the retention cap."""
+        excess = len(self._all_games) - self._MAX_RETAINED_ROWS
+        if excess <= 0:
+            return
+        for _ in range(excess):
+            item = self.list_widget.item(0)
+            if item is None:
+                break
+            widget = self.list_widget.itemWidget(item)
+            if widget is not None:
+                widget.deleteLater()
+            self.list_widget.takeItem(0)
+            self._all_games.pop(0)
         self._rendered = len(self._all_games)
 
     def _build_item_widget(self, game) -> GameListItemWidget:
@@ -325,16 +353,18 @@ class GameListWidget(QWidget):
         """Re-render every loaded row (view-mode switch, style refresh)."""
         top_id = self.top_game_id() if preserve_scroll else None
         rows = list(self._all_games)
+        loaded = self._loaded
         self.list_widget.clear()
         self._rendered = 0
         self._all_games = []
         self.append_rows(rows)
+        self._loaded = loaded
         if top_id:
             self.scroll_to_game(top_id)
 
     def _maybe_request_page(self, value: int):
         """Ask the view for the next page as the reader nears the end."""
-        if self._request_pending or self._rendered >= self._total:
+        if self._request_pending or self._loaded >= self._total:
             return
         bar = self.list_widget.verticalScrollBar()
         # A zero range means the list is not laid out yet: asking there would
@@ -346,14 +376,14 @@ class GameListWidget(QWidget):
         self._request_page()
 
     def _request_page(self):
-        if self._request_pending or self._rendered >= self._total:
+        if self._request_pending or self._loaded >= self._total:
             return
         self._request_pending = True
         self.load_more_requested.emit()
 
     def _fill_if_needed(self):
         """Request another page when a page does not fill the viewport."""
-        if self._rendered >= self._total:
+        if self._loaded >= self._total:
             return
         if not self.list_widget.isVisible() or self.list_widget.viewport().height() <= 0:
             return

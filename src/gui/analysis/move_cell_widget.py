@@ -94,6 +94,7 @@ class MoveCellWidget(QWidget):
         self._row_active: bool = False
         self._hovered: bool = False
         self._compact: bool = False
+        self._background_key: tuple[bool, bool, bool] | None = None
         self._apply_background()
 
         self.setMouseTracking(True)
@@ -245,9 +246,14 @@ class MoveCellWidget(QWidget):
         if self._variation_count > 0:
             self.set_variation_count(self._variation_count)
 
+        self._background_key = None
         self._apply_background()
 
     def _apply_background(self) -> None:
+        background_key = (self._selected, self._hovered, self._row_active)
+        if background_key == self._background_key:
+            return
+        self._background_key = background_key
         if self._selected:
             background = Styles.COLOR_ACCENT_SUBTLE
             left = Styles.COLOR_ACCENT

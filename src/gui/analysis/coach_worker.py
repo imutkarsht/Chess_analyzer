@@ -109,6 +109,7 @@ class ExplainMoveWorker(QThread):
 
     finished = pyqtSignal(int, int, str)  # seq, ply, validated narrative
     error = pyqtSignal(int, int, str)  # seq, ply, human-readable reason
+    done = pyqtSignal()  # emitted after run() exits, including cancellation
 
     def __init__(
         self,
@@ -194,6 +195,8 @@ class ExplainMoveWorker(QThread):
         except Exception as exc:  # noqa: BLE001 - a failed explanation must never crash the app
             logger.error("Coach explanation worker failed: %s", exc, exc_info=True)
             self.error.emit(self._seq, insight.ply, str(exc))
+        finally:
+            self.done.emit()
 
     # ------------------------------------------------------------------
     # Cache helpers (both are no-ops when no cache was supplied)

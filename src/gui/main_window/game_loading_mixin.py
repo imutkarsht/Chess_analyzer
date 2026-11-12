@@ -252,11 +252,14 @@ class GameLoadingMixin:
         self.captured_black.update_clock(black_time)
 
         # Wire graph click → board navigation.
-        try:
-            self.analysis_panel.graph_widget.move_clicked.disconnect(self.on_move_selected)
-        except (RuntimeError, TypeError):
-            pass
-        self.analysis_panel.graph_widget.move_clicked.connect(self.on_move_selected)
+        if getattr(self.analysis_panel, "graph_widget", None) is not None:
+            try:
+                self.analysis_panel.graph_widget.move_clicked.disconnect(
+                    self.on_move_selected
+                )
+            except (RuntimeError, TypeError):
+                pass
+            self.analysis_panel.graph_widget.move_clicked.connect(self.on_move_selected)
 
         # Navigate to final position if game already has analysis data
         if game.moves and any(m.classification for m in game.moves):

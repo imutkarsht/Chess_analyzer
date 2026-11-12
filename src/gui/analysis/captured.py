@@ -30,6 +30,8 @@ class CapturedPiecesWidget(QFrame):
         self._fen = None
         self._clock_seconds = None
         self._capture_signature = None
+        self._container_key: bool | None = None
+        self._clock_style_key: tuple[str, bool, bool] | None = None
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shape.NoFrame)
         self.setStyleSheet(Styles.get_captured_pieces_style())
 
@@ -66,6 +68,8 @@ class CapturedPiecesWidget(QFrame):
         self.clock_label.set_compact(compact)
         self._apply_row_height()
         self._capture_signature = None
+        self._container_key = None
+        self._clock_style_key = None
         self.update_captured(self._fen)
         if self._clock_seconds is not None:
             self._apply_clock_style(self._clock_seconds)
@@ -252,6 +256,10 @@ class CapturedPiecesWidget(QFrame):
 
     def _apply_clock_style(self, seconds):
         # Color coding: red/orange if less than 20 seconds
+        style_key = (self.side, seconds <= 20.0, self._compact)
+        if style_key == self._clock_style_key:
+            return
+        self._clock_style_key = style_key
         if seconds <= 20.0:
             self.clock_label.refresh_styles(
                 background=Styles.COLOR_BLUNDER,
@@ -282,14 +290,21 @@ class CapturedPiecesWidget(QFrame):
         has_pieces = self.pieces_layout.count() > 0
         has_clock = hasattr(self, 'clock_label') and not self.clock_label.isHidden()
 
-        if has_pieces or has_clock:
+        style_key = bool(has_pieces or has_clock)
+        if style_key == self._container_key:
+            return
+        self._container_key = style_key
+        if style_key:
             self.setStyleSheet(Styles.get_captured_pieces_style())
         else:
             self.setStyleSheet(Styles.get_transparent_style())
+
     def refresh_styles(self):
         # Chip colours/fonts come from the palette, so a theme change must
         # rebuild them even when the capture signature is unchanged.
         self._capture_signature = None
+        self._container_key = None
+        self._clock_style_key = None
         self.update_captured(self._fen)
         if self._clock_seconds is not None:
             self._apply_clock_style(self._clock_seconds)
