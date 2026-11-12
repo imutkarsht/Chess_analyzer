@@ -112,23 +112,43 @@ def test_get_games_for_users_and_stats(temp_db):
             game_id=f"game_{i}",
             metadata=meta,
             moves=[],
+            summary={
+                "analysis_status": "completed",
+                "white": {"accuracy": 80.0},
+            },
             pgn_content="1. e4 1-0",
         )
         manager.save_game(game, "1. e4 1-0")
 
+    unanalyzed = GameAnalysis(
+        game_id="game_unanalyzed",
+        metadata=GameMetadata(
+            white="Player1",
+            black="Imported",
+            result="*",
+            date="2024.01.09",
+            event="Import",
+            headers={},
+        ),
+        summary={"analysis_status": "not_started"},
+        pgn_content="1. e4 *",
+    )
+    manager.save_game(unanalyzed, "1. e4 *")
+
     # 1. Test get_games_for_users
     games = manager.get_games_for_users(["player1"])
-    assert len(games) == 3
+    assert len(games) == 4
 
     limited_games = manager.get_games_for_users(["player1"], limit=2)
     assert len(limited_games) == 2
 
-    # 2. Test get_games_for_stats returns full payload for backward-compatible statistics
+    # 2. Stats use a light projection: summaries in, PGN/moves blobs out.
     stats_games = manager.get_games_for_stats(["player1"])
     assert len(stats_games) == 3
     for g in stats_games:
         assert "summary_json" in g
-        assert "moves_json" in g
+        assert "moves_json" not in g
+        assert "pgn" not in g
         assert g["white"] == "Player1"
 
     # Empty usernames returns empty list

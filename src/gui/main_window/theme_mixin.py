@@ -64,7 +64,7 @@ class ThemeMixin:
         ConfigManager itself, so we don't have to pass anything here.
         """
         logger.info("Updating LLM configuration in all views...")
-        if hasattr(self, "metrics_view") and hasattr(self.metrics_view, "groq_service"):
+        if self.metrics_view is not None and hasattr(self.metrics_view, "groq_service"):
             self.metrics_view.groq_service = GroqService()
             logger.info("LLM service in metrics_view refreshed.")
         if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "groq_service"):
@@ -77,7 +77,7 @@ class ThemeMixin:
         # Reload config in config_manager (it's a singleton pattern issue)
         self.config_manager.reload_config()
         # Refresh metrics view which uses usernames
-        if hasattr(self, "metrics_view"):
+        if self.metrics_view is not None:
             self.metrics_view.mark_dirty()
             if self.stack.currentIndex() == 3:
                 self.metrics_view.refresh(force=True)
@@ -178,7 +178,7 @@ class ThemeMixin:
             self.history_view.refresh_styles()
         if hasattr(self, "settings_view"):
             self.settings_view.refresh_styles()
-        if hasattr(self, "metrics_view"):
+        if self.metrics_view is not None:
             if hasattr(self.metrics_view, "refresh_styles"):
                 self.metrics_view.refresh_styles()
             else:

@@ -6,6 +6,7 @@ Backward-compatibility facade delegating to the modular `src.backend.analysis.me
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from src.backend.analysis.metrics import (
@@ -64,7 +65,8 @@ class MetricsAggregator:
         format_filter: str = "All Formats",
         source_filter: str = "All Sources",
         date_filter: str = "All Time",
-    ) -> dict[str, Any]:
+        should_cancel: Callable[[], bool] | None = None,
+    ) -> dict[str, Any] | None:
         """Calculate comprehensive game statistics over filtered games."""
         return calculate_stats(
             games,
@@ -73,6 +75,7 @@ class MetricsAggregator:
             format_filter=format_filter,
             source_filter=source_filter,
             date_filter=date_filter,
+            should_cancel=should_cancel,
         )
 
     @classmethod

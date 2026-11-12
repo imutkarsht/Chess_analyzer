@@ -70,6 +70,29 @@ def test_stats_exclude_unanalyzed_games():
     assert stats["win_rate"] == 100.0
 
 
+def test_stats_worker_loader_runs_in_worker_and_cancellation_discards_result():
+    """The loader keeps DB I/O in run(), and a cancelled worker publishes nothing."""
+    games = [make_dummy_game("g1", summary='{"white": {"accuracy": 80.0}}')]
+
+    worker = StatsWorker(None, ["PlayerA"], loader=lambda: games)
+    results = []
+    worker.finished.connect(results.append)
+    worker.run()
+
+    assert results and results[0]["total"] == 1
+
+    cancelled = StatsWorker(None, ["PlayerA"], loader=lambda: games)
+    cancelled_results = []
+    cancelled.finished.connect(cancelled_results.append)
+    cancelled.cancel()
+    cancelled.run()
+
+    assert cancelled_results == []
+    assert MetricsAggregator.calculate_stats(
+        games, ["PlayerA"], should_cancel=lambda: True
+    ) is None
+
+
 def test_stats_worker_color_filter():
     """Test filtering games by user color."""
     games = [

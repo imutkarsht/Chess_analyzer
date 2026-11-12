@@ -29,22 +29,22 @@ from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout, create_button
+from src.gui.utils.worker_registry import register_worker, remove_worker
 
-# Import modular cards
-from src.gui.views.metrics import (
-    AccuracyTrendCard,
-    AdvantageConversionCard,
-    AICoachCard,
-    BrilliancyHallCard,
-    EndingDistributionCard,
-    HangingPiecesCard,
-    MoveQualityCard,
-    OpeningsListCard,
-    PhasePerformanceCard,
-    TacticalThemesCard,
-    TimeManagementCard,
-)
+# Import modular cards directly; the package facade stays Matplotlib-free for
+# callers that only need the card registry (Settings -> Dashboard Layout).
+from src.gui.views.metrics.accuracy_trend_card import AccuracyTrendCard
+from src.gui.views.metrics.advantage_card import AdvantageConversionCard
+from src.gui.views.metrics.ai_coach_card import AICoachCard
+from src.gui.views.metrics.brilliancy_hall_card import BrilliancyHallCard
 from src.gui.views.metrics.card_registry import normalise_card_order
+from src.gui.views.metrics.ending_distribution_card import EndingDistributionCard
+from src.gui.views.metrics.hanging_pieces_card import HangingPiecesCard
+from src.gui.views.metrics.move_quality_card import MoveQualityCard
+from src.gui.views.metrics.openings_list_card import OpeningsListCard
+from src.gui.views.metrics.phase_performance_card import PhasePerformanceCard
+from src.gui.views.metrics.tactical_themes_card import TacticalThemesCard
+from src.gui.views.metrics.time_management_card import TimeManagementCard
 
 
 class MetricsWidget(QWidget):
@@ -58,7 +58,7 @@ class MetricsWidget(QWidget):
         self.config_manager = config_manager
         self.history_manager = history_manager
         self.usernames = []
-        self.games_data = []
+        self._stats_request_id = 0
 
         self._groq_service = GroqService()
 
@@ -80,6 +80,7 @@ class MetricsWidget(QWidget):
         """Marks the dashboard as dirty so it refreshes on the next view."""
         self._needs_refresh = True
         self._filter_cache.clear()
+        self._stats_request_id += 1
 
     @property
     def groq_service(self):
@@ -257,19 +258,12 @@ class MetricsWidget(QWidget):
             self.show_setup_required()
             return
 
-        self.games_data = self.history_manager.get_games_for_users(self.usernames)
-
-        if not self.games_data:
-            self.filter_bar.setVisible(False)
-            self.show_no_data()
-            return
-
         self.filter_bar.setVisible(True)
         self._filter_cache.clear()
         self.on_filter_changed()
 
     def on_filter_changed(self, _=None):
-        if not self.games_data or not self.usernames:
+        if not self.usernames:
             return
 
         color = self.combo_color.currentText()
@@ -298,41 +292,57 @@ class MetricsWidget(QWidget):
         lbl = Label("Filtering Statistics...", role=TextRole.SUBHEADING)
         l_layout.addWidget(lbl)
 
-        # Stop existing worker safely
+        # Stop existing worker without waiting on the GUI thread.
         self.stop_worker()
 
-        self.stats_worker = StatsWorker(
-            self.games_data,
-            self.usernames,
+        self._stats_request_id += 1
+        request_id = self._stats_request_id
+        usernames = list(self.usernames)
+        worker = StatsWorker(
+            None,
+            usernames,
             color_filter=color,
             format_filter=fmt,
             source_filter=source,
             date_filter=period,
+            loader=lambda: self.history_manager.get_games_for_stats(usernames),
         )
-        self.stats_worker.finished.connect(
-            lambda stats, fk=filter_key: self._on_worker_stats_ready(stats, fk)
+        self.stats_worker = worker
+        register_worker(worker)
+        worker.finished.connect(
+            lambda stats, fk=filter_key, rid=request_id: self._on_worker_stats_ready(
+                stats, fk, rid
+            )
         )
-        self.stats_worker.start()
+        worker.done.connect(lambda w=worker: self._on_stats_worker_done(w))
+        worker.start()
+
+    def _on_stats_worker_done(self, worker) -> None:
+        if self.stats_worker is worker:
+            self.stats_worker = None
+        remove_worker(worker)
 
     def _on_worker_stats_ready(
-        self, stats: dict[str, Any], filter_key: tuple[str, str, str, str]
+        self,
+        stats: dict[str, Any],
+        filter_key: tuple[str, str, str, str],
+        request_id: int,
     ) -> None:
+        if request_id != self._stats_request_id:
+            return
         self._filter_cache[filter_key] = stats
         self.on_stats_ready(stats)
 
     def stop_worker(self):
-        """Safely stops any active background stats worker."""
-        if (
-            hasattr(self, "stats_worker")
-            and self.stats_worker is not None
-            and self.stats_worker.isRunning()
-        ):
+        """Cancel the active stats worker; never block the GUI thread."""
+        worker = getattr(self, "stats_worker", None)
+        self.stats_worker = None
+        if worker is not None:
             try:
-                self.stats_worker.finished.disconnect()
+                worker.finished.disconnect()
+                worker.cancel()
             except (TypeError, RuntimeError):
                 pass
-            self.stats_worker.quit()
-            self.stats_worker.wait(2000)
 
     def closeEvent(self, event):
         self.stop_worker()

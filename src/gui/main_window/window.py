@@ -51,7 +51,6 @@ from src.gui.utils.gui_utils import create_button
 from src.gui.views import HistoryView, SettingsView
 from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
 from src.gui.views.explorer import ExplorerView
-from src.gui.views.metrics_view import MetricsWidget
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
@@ -408,15 +407,11 @@ class MainWindow(
         )
         self.stack.addWidget(self.history_view)
 
-        # --- Page 3: Metrics View ---
-        self.metrics_view = MetricsWidget(self.config_manager, self.history_manager)
-        self.metrics_view.request_settings.connect(
-            lambda: (self.sidebar.set_active(4), self.switch_page(4))
-        )
-        self.metrics_view.game_selected.connect(self.load_game_from_metrics)
-        self.metrics_view.drill_down_opened.connect(self._on_drill_down_opened)
-        self.metrics_view.drill_down_closed.connect(self._on_drill_down_closed)
-        self.stack.addWidget(self.metrics_view)
+        # --- Page 3: Metrics View (created on first visit; keeps Matplotlib
+        # and the dashboard build off the first-launch path) ---
+        self.metrics_view = None
+        self.metrics_placeholder = QWidget()
+        self.stack.addWidget(self.metrics_placeholder)
 
         # --- Page 4: Settings View ---
         self.settings_view = SettingsView()
@@ -427,9 +422,6 @@ class MainWindow(
         self.settings_view.sidebar_prefs_changed.connect(self.sidebar.apply_preferences)
         self.settings_view.appearance_prefs_changed.connect(
             self.history_view.apply_default_view_mode
-        )
-        self.settings_view.appearance_prefs_changed.connect(
-            self.metrics_view.reload_dashboard
         )
         self.settings_view.analysis_prefs_changed.connect(self.sync_analysis_prefs)
         self.stack.addWidget(self.settings_view)
@@ -442,6 +434,28 @@ class MainWindow(
         # Auto-start tour for the landing page (Analysis) on initial launch
         if hasattr(self, "tour_manager") and not self.tour_manager.has_seen_tour("landing"):
             QTimer.singleShot(600, lambda: self._auto_start_tour(0))
+
+    def _ensure_metrics_view(self) -> None:
+        """Create the dashboard (and import Matplotlib) on first use."""
+        if self.metrics_view is not None:
+            return
+        from src.gui.views.metrics_view import MetricsWidget
+
+        view = MetricsWidget(self.config_manager, self.history_manager)
+        view.request_settings.connect(
+            lambda: (self.sidebar.set_active(4), self.switch_page(4))
+        )
+        view.game_selected.connect(self.load_game_from_metrics)
+        view.drill_down_opened.connect(self._on_drill_down_opened)
+        view.drill_down_closed.connect(self._on_drill_down_closed)
+        if hasattr(self, "settings_view") and self.settings_view is not None:
+            self.settings_view.appearance_prefs_changed.connect(view.reload_dashboard)
+
+        self.stack.removeWidget(self.metrics_placeholder)
+        self.metrics_placeholder.deleteLater()
+        self.metrics_placeholder = None
+        self.stack.insertWidget(3, view)
+        self.metrics_view = view
 
     def setup_analysis_page(self, parent_widget):
         main_layout = QVBoxLayout(parent_widget)

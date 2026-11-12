@@ -303,9 +303,9 @@ class AnalysisMixin:
             if self._analysis_follow and self._latest_analyzed_index >= 0:
                 self._show_followed_position(self._latest_analyzed_index)
 
-            if hasattr(self, "analysis_panel") and hasattr(
-                self.analysis_panel, "graph_widget"
-            ):
+            if hasattr(self, "analysis_panel") and getattr(
+                self.analysis_panel, "graph_widget", None
+            ) is not None:
                 current_index = (
                     self._latest_analyzed_index
                     if self._analysis_follow
@@ -398,7 +398,7 @@ class AnalysisMixin:
         self._update_analyze_button(running=False)
         self._restore_analysis_view(game, target_index)
 
-        if hasattr(self, "metrics_view"):
+        if self.metrics_view is not None:
             self.metrics_view.mark_dirty()
             if self.stack.currentIndex() == 3:
                 self.metrics_view.refresh(force=True)
@@ -407,7 +407,7 @@ class AnalysisMixin:
             self.history_view.refresh_game(getattr(game, "game_id", None))
 
     def on_history_changed(self, *_):
-        if hasattr(self, "metrics_view"):
+        if self.metrics_view is not None:
             self.metrics_view.mark_dirty()
             if self.stack.currentIndex() == 3:
                 self.metrics_view.refresh(force=True)
@@ -422,7 +422,7 @@ class AnalysisMixin:
         logger.info("Analysis finished successfully.")
         self._update_analyze_button(running=False)
         self._restore_analysis_view(game, target_index)
-        if hasattr(self, "metrics_view"):
+        if self.metrics_view is not None:
             self.metrics_view.mark_dirty()
             if self.stack.currentIndex() == 3:
                 self.metrics_view.refresh(force=True)

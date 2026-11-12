@@ -5,6 +5,7 @@ Aggregates games and coordinates filtering, parsing, and statistical accumulatio
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from .accumulators import StatsAccumulator
@@ -19,8 +20,13 @@ def calculate_stats(
     format_filter: str = "All Formats",
     source_filter: str = "All Sources",
     date_filter: str = "All Time",
-) -> dict[str, Any]:
-    """Calculate comprehensive game statistics over filtered games."""
+    should_cancel: Callable[[], bool] | None = None,
+) -> dict[str, Any] | None:
+    """Calculate comprehensive game statistics over filtered games.
+
+    Returns ``None`` when ``should_cancel`` asks to stop; callers must discard
+    that result and never publish it to the UI.
+    """
     accumulator = StatsAccumulator()
     filtered_games = filter_games(
         games,
@@ -29,9 +35,14 @@ def calculate_stats(
         format_filter=format_filter,
         source_filter=source_filter,
         date_filter=date_filter,
+        should_cancel=should_cancel,
     )
+    if should_cancel is not None and should_cancel():
+        return None
 
-    for game, user_color in filtered_games:
+    for index, (game, user_color) in enumerate(filtered_games):
+        if should_cancel is not None and index % 64 == 0 and should_cancel():
+            return None
         rec = GameRecord.from_dict(game, user_color)
         accumulator.add(rec)
 
