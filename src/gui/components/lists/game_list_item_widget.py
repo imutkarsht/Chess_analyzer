@@ -22,6 +22,7 @@ from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
+from src.utils.time_control import format_time_control
 
 try:
     import qtawesome as qta
@@ -80,7 +81,7 @@ class GameListItemWidget(QWidget):
         speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
             game.metadata.time_control
         )
-        formatted_tc = self._format_time_control(game.metadata.time_control)
+        formatted_tc = format_time_control(game.metadata.time_control)
         tc_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc else speed_cat
         tc_icon = self._get_time_control_icon(game.metadata.time_control)
         tc_widget = self._create_meta_item(tc_icon, tc_display)
@@ -322,7 +323,7 @@ class GameListItemWidget(QWidget):
         speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
             game.metadata.time_control
         )
-        formatted_tc = self._format_time_control(game.metadata.time_control)
+        formatted_tc = format_time_control(game.metadata.time_control)
         speed_display = (
             f"{speed_cat} {formatted_tc}".strip()
             if formatted_tc and formatted_tc not in ("-", "?")
@@ -606,49 +607,6 @@ class GameListItemWidget(QWidget):
         if result_text == "0-1":
             return TextTone.RESULT_WIN if user_is_black else TextTone.RESULT_LOSS
         return TextTone.RESULT_DRAW
-
-    def _format_time_control(self, time_control):
-        if not time_control or time_control in ("-", "?"):
-            return ""
-
-        tc = time_control.strip()
-        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
-        if slash_match:
-            try:
-                moves = int(slash_match.group(1))
-                seconds = int(slash_match.group(2))
-                if moves == 1 and seconds >= 86400:
-                    days = seconds // 86400
-                    return f"{days}d"
-                elif moves == 1 and seconds >= 3600:
-                    hours = seconds // 3600
-                    return f"{hours}h"
-                elif moves > 1:
-                    return f"{moves}m/{seconds // 60}m"
-            except ValueError:
-                pass
-
-        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
-        if match:
-            try:
-                base_seconds = int(match.group(1))
-                increment = int(match.group(2)) if match.group(2) else 0
-
-                if base_seconds < 60:
-                    base_str = f"{base_seconds}s"
-                elif base_seconds % 60 == 0:
-                    base_str = str(base_seconds // 60)
-                else:
-                    base_str = f"{base_seconds / 60:.1f}".rstrip("0").rstrip(".")
-
-                if increment > 0:
-                    return f"{base_str}+{increment}"
-                else:
-                    return base_str
-            except ValueError:
-                pass
-
-        return time_control
 
     def _get_time_control_icon(self, time_control):
         tc_type = self._classify_time_control(time_control)
