@@ -124,16 +124,11 @@ MAX_REASONABLE_TIME_SECONDS: Final[float] = 7200.0  # 2 hours per move cap
 # Tactical evaluation thresholds
 ADVANTAGE_THRESHOLD_CP: Final[int] = 300
 MIN_SACRIFICE_DEFICIT_CP: Final[int] = 200
-LEAD_COLLAPSE_DROP_CP: Final[int] = 300
-COMEBACK_SWING_CP: Final[int] = 300
 WINNING_WP_THRESHOLD: Final[float] = 0.50
 SOUND_MOVE_WP_DROP_THRESHOLD: Final[float] = 0.03
 GOOD_MOVE_WP_DROP_THRESHOLD: Final[float] = 0.05
 TURNING_POINT_MIN_WP_SWING: Final[float] = 0.05
 SOUND_TACTIC_MAX_WP_DROP: Final[float] = 0.08
-
-# Hanging piece attribution: losses are resolved one reply ahead only.
-PUNISHMENT_HORIZON_PLIES: Final[int] = 2
 
 # Game phase material thresholds
 ENDGAME_NO_QUEEN_TOTAL_MAX: Final[int] = 26

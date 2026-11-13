@@ -19,7 +19,7 @@ from src.backend.analysis.tactics.board_utils import piece_value
 from src.backend.analysis.tactics.constants import PIECE_VALUES
 
 
-def _legal_captures_on_square(
+def legal_captures_on_square(
     board: chess.Board,
     square: chess.Square,
     attacking_color: chess.Color,
@@ -49,7 +49,7 @@ def _see(
     if board.piece_at(square) is None:
         return 0
 
-    captures = _legal_captures_on_square(board, square, attacking_color)
+    captures = legal_captures_on_square(board, square, attacking_color)
     if not captures:
         return 0
 
@@ -105,7 +105,7 @@ def is_safely_placed(
     if piece is None or piece.color != color or piece.piece_type == chess.KING:
         return True
 
-    if not _legal_captures_on_square(board_after, square, not color):
+    if not legal_captures_on_square(board_after, square, not color):
         return True
 
     return static_exchange_evaluation(board_after, square, not color) <= 0

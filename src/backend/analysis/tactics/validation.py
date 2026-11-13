@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import chess
 
+from src.backend.analysis.tactics.board_utils import captured_square
 from src.backend.analysis.tactics.constants import (
     SOUND_CLASSIFICATIONS,
     Confidence,
@@ -50,9 +51,9 @@ def confirm_facts(
     """
     Return ``facts`` with confidence upgraded where evidence allows.
 
-    Objective facts (mate, check, doomed target, promotion, validated pin or
-    skewer) are confirmed directly. Other facts are confirmed only when the
-    actual reply or engine PV captures the target or mates.
+    Objective facts (mate, check, doomed target, promotion, validated sacrifice)
+    are confirmed directly. Other facts are confirmed only when the actual reply
+    or engine PV captures the target or mates.
     """
     demonstrated = _demonstrated_capture_squares(board_after, reply_move, engine_pv)
     mate_demonstrated = _pv_ends_in_mate(board_after, engine_pv)
@@ -73,10 +74,7 @@ def confirm_facts(
             )
             continue
 
-        targets = set(fact.targets)
-        if fact.target_square is not None:
-            targets.add(fact.target_square)
-        if targets & demonstrated:
+        if _fact_targets(fact) & demonstrated:
             validated.append(
                 fact.with_confidence(
                     Confidence.CONFIRMED.value, "target captured in the continuation"
@@ -87,6 +85,24 @@ def confirm_facts(
         validated.append(fact)
 
     return validated
+
+
+def _fact_targets(fact: TacticFact) -> set[str]:
+    """All target squares a fact can be demonstrated by."""
+    targets = set(fact.targets)
+    if fact.target_square is not None:
+        targets.add(fact.target_square)
+    return targets
+
+
+def _target_square(fact: TacticFact) -> chess.Square | None:
+    """Parsed primary target square, or None when absent/invalid."""
+    if fact.target_square is None:
+        return None
+    try:
+        return chess.parse_square(fact.target_square)
+    except ValueError:
+        return None
 
 
 def _is_objective(
@@ -103,11 +119,8 @@ def _is_objective(
         return board_after.is_check()
 
     if fact.motif in _OBJECTIVE_LOSS_MOTIFS:
-        if fact.target_square is None:
-            return False
-        try:
-            square = chess.parse_square(fact.target_square)
-        except ValueError:
+        square = _target_square(fact)
+        if square is None:
             return False
 
         target = board_after.piece_at(square)
@@ -140,11 +153,8 @@ def _is_objective(
 
 
 def _fork_target_is_lost(fact: TacticFact, board_after: chess.Board) -> bool:
-    if fact.target_square is None:
-        return False
-    try:
-        square = chess.parse_square(fact.target_square)
-    except ValueError:
+    square = _target_square(fact)
+    if square is None:
         return False
 
     target = board_after.piece_at(square)
@@ -164,7 +174,7 @@ def _demonstrated_capture_squares(
     squares: set[str] = set()
 
     if reply_move is not None and board_after.is_capture(reply_move):
-        squares.add(chess.square_name(_capture_square(board_after, reply_move)))
+        squares.add(chess.square_name(captured_square(board_after, reply_move)))
 
     if not engine_pv:
         return squares
@@ -178,7 +188,7 @@ def _demonstrated_capture_squares(
         if move not in work.legal_moves:
             break
         if work.is_capture(move):
-            squares.add(chess.square_name(_capture_square(work, move)))
+            squares.add(chess.square_name(captured_square(work, move)))
         work.push(move)
 
     return squares
@@ -199,15 +209,6 @@ def _pv_ends_in_mate(board_after: chess.Board, engine_pv: list[str] | None) -> b
         work.push(move)
 
     return work.is_checkmate()
-
-
-def _capture_square(board: chess.Board, move: chess.Move) -> chess.Square:
-    if board.is_en_passant(move):
-        return chess.square(
-            chess.square_file(move.to_square),
-            chess.square_rank(move.from_square),
-        )
-    return move.to_square
 
 
 __all__ = ["confirm_facts"]

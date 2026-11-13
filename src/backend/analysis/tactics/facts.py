@@ -10,10 +10,10 @@ Zero Qt dependencies.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
-from src.backend.analysis.tactics.constants import Confidence, TacticRole
+from src.backend.analysis.tactics.constants import Confidence
 
 
 @dataclass(frozen=True)
@@ -42,23 +42,38 @@ class TacticFact:
 
     def with_confidence(self, confidence: str, evidence: str = "") -> TacticFact:
         """Return a copy with updated confidence/evidence."""
-        return TacticFact(
-            motif=self.motif,
-            role=self.role,
-            side=self.side,
-            confidence=confidence,
-            ply=self.ply,
-            move_san=self.move_san,
-            move_uci=self.move_uci,
-            origin_square=self.origin_square,
-            target_square=self.target_square,
-            target_piece=self.target_piece,
-            targets=self.targets,
-            evidence=evidence or self.evidence,
-            line=self.line,
-            material_gain_cp=self.material_gain_cp,
-            mate_in=self.mate_in,
+        return replace(self, confidence=confidence, evidence=evidence or self.evidence)
+
+
+def merge_same_motif_facts(facts: list[TacticFact]) -> list[TacticFact]:
+    """
+    Collapse multiple alignments of the same motif on one move into one fact.
+
+    A queen can pin two pieces at once; that is one tactical occurrence, not
+    two, and the drill-down should show it once.
+    """
+    merged: dict[str, TacticFact] = {}
+    for fact in facts:
+        existing = merged.get(fact.motif)
+        if existing is None:
+            merged[fact.motif] = fact
+            continue
+
+        targets = tuple(dict.fromkeys((*existing.targets, *fact.targets)))
+        evidence = existing.evidence
+        if fact.evidence and fact.evidence not in evidence:
+            evidence = f"{evidence}; {fact.evidence}" if evidence else fact.evidence
+
+        merged[fact.motif] = replace(
+            existing,
+            targets=targets,
+            evidence=evidence,
+            line=existing.line or fact.line,
+            material_gain_cp=max(existing.material_gain_cp, fact.material_gain_cp),
+            mate_in=existing.mate_in if existing.mate_in is not None else fact.mate_in,
         )
+
+    return list(merged.values())
 
 
 def fact_to_dict(fact: TacticFact) -> dict[str, Any]:
@@ -82,9 +97,4 @@ def fact_to_dict(fact: TacticFact) -> dict[str, Any]:
     }
 
 
-def role_count(roles: dict[str, dict[str, int]], motif: str, role: TacticRole) -> int:
-    """Small helper used by accumulators and tests."""
-    return roles.get(motif, {}).get(role.value, 0)
-
-
-__all__ = ["TacticFact", "fact_to_dict", "role_count"]
+__all__ = ["TacticFact", "fact_to_dict", "merge_same_motif_facts"]

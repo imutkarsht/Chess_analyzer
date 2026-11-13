@@ -15,10 +15,14 @@ from typing import Any
 
 import chess
 
-from src.backend.analysis.tactics.board_utils import legal_defenders, piece_value
+from src.backend.analysis.tactics.board_utils import (
+    captured_piece,
+    legal_defenders,
+    piece_value,
+)
 from src.backend.analysis.tactics.constants import PIECE_NAMES, PIECE_VALUES
 from src.backend.analysis.tactics.see import (
-    _legal_captures_on_square,
+    legal_captures_on_square,
     static_exchange_evaluation,
 )
 
@@ -64,7 +68,7 @@ def piece_loss_evidence(
             "defender_count": len(legal_defenders(board, color, square)),
         }
 
-    captures = _legal_captures_on_square(board, square, enemy_color)
+    captures = legal_captures_on_square(board, square, enemy_color)
     if not captures:
         return empty
 
@@ -130,21 +134,6 @@ def is_piece_doomed(board: chess.Board, square: chess.Square, color: chess.Color
     return not can_save_piece(board, square, color)
 
 
-def _captured_piece(
-    board: chess.Board,
-    move: chess.Move,
-) -> tuple[chess.Square, chess.Piece | None]:
-    """Square and piece captured by ``move`` (handles en passant)."""
-    if board.is_en_passant(move):
-        square = chess.square(
-            chess.square_file(move.to_square),
-            chess.square_rank(move.from_square),
-        )
-    else:
-        square = move.to_square
-    return square, board.piece_at(square)
-
-
 def _is_routine_recapture(
     board: chess.Board,
     square: chess.Square,
@@ -155,7 +144,7 @@ def _is_routine_recapture(
     if last_move is None or board_before is None or last_move.to_square != square:
         return False
 
-    _, captured = _captured_piece(board_before, last_move)
+    captured = captured_piece(board_before, last_move)
     current = board.piece_at(square)
     if captured is None or current is None:
         return False
@@ -253,7 +242,7 @@ def _attacked_by_lesser(board: chess.Board, square: chess.Square, color: chess.C
         return False
 
     value = piece_value(board, square)
-    for move in _legal_captures_on_square(board, square, not color):
+    for move in legal_captures_on_square(board, square, not color):
         if piece_value(board, move.from_square) < value:
             return True
     return False
