@@ -8,8 +8,11 @@ import chess
 from src.backend.analysis.tactics import (
     analyze_game_tactics,
     classify_game_phase,
+    confirm_facts,
+    detect_candidates,
     get_hanging_pieces,
 )
+from src.backend.analysis.tactics.contexts import build_contexts
 
 
 def test_hanging_piece_undefended():
@@ -409,3 +412,153 @@ def test_routine_exchange_not_flagged_as_hanging_or_captured():
     tactics_black = analyze_game_tactics(moves_data, user_color="black", result="0-1")
     assert tactics_black["hanging_metrics"]["total_hung"] == 0
     assert len(tactics_black["hung_pieces_details"]) == 0
+
+
+def test_best_move_does_not_report_a_missed_hanging_piece():
+    """A best move is not a missed tactic, even if another piece is loose."""
+    moves_data = [
+        {
+            "ply": 0,
+            "move_number": 1,
+            "san": "Qd2",
+            "uci": "d1d2",
+            "fen_before": "4k3/8/8/3p4/8/8/8/3Q2K1 w - - 0 1",
+            "eval_before_cp": 50,
+            "eval_after_cp": 50,
+            "win_chance_before": 0.55,
+            "win_chance_after": 0.55,
+            "classification": "Best",
+            "is_book_move": False,
+        }
+    ]
+
+    tactics = analyze_game_tactics(moves_data, user_color="white", result="1-0")
+
+    assert tactics["missed_tactics_details"] == []
+    assert tactics["tactical_roles"]["hanging_piece"]["missed"] == 0
+
+
+def test_blunder_still_reports_a_missed_hanging_piece():
+    """A real miss on a bad move is still recorded."""
+    moves_data = [
+        {
+            "ply": 0,
+            "move_number": 1,
+            "san": "Qd2",
+            "uci": "d1d2",
+            "fen_before": "4k3/8/8/3p4/8/8/8/3Q2K1 w - - 0 1",
+            "eval_before_cp": 50,
+            "eval_after_cp": -100,
+            "win_chance_before": 0.55,
+            "win_chance_after": 0.40,
+            "classification": "Blunder",
+            "is_book_move": False,
+        }
+    ]
+
+    tactics = analyze_game_tactics(moves_data, user_color="white", result="0-1")
+
+    missed = tactics["missed_tactics_details"]
+    assert any(item.get("missed_square") == "d5" for item in missed)
+    assert tactics["tactical_roles"]["hanging_piece"]["missed"] == 1
+
+
+def test_mating_move_does_not_report_a_missed_hanging_piece():
+    """Delivering mate is never a missed hanging capture."""
+    moves_data = [
+        {
+            "ply": 0,
+            "move_number": 1,
+            "san": "Re8#",
+            "uci": "e1e8",
+            "fen_before": "n5k1/5ppp/2B5/8/8/8/8/4R1K1 w - - 0 1",
+            "eval_before_cp": 500,
+            "eval_after_mate": 1,
+            "win_chance_before": 0.99,
+            "win_chance_after": 1.0,
+            "classification": "Best",
+            "is_book_move": False,
+        }
+    ]
+
+    tactics = analyze_game_tactics(moves_data, user_color="white", result="1-0")
+
+    assert tactics["missed_tactics_details"] == []
+    assert tactics["tactical_roles"]["hanging_piece"]["missed"] == 0
+
+
+def test_confirmation_preserves_the_chess_evidence():
+    """Confirming a tactic keeps the line/pattern, not the validation reason."""
+    before = chess.Board(
+        "r1bqkbnr/pp2pppp/2n5/3p4/4P3/8/PPPPBPPP/RNBQK1NR w KQkq - 0 4"
+    )
+    move = chess.Move.from_uci("e2b5")
+    after = before.copy(stack=False)
+    after.push(move)
+
+    facts = [
+        fact
+        for fact in detect_candidates(before, after, move, chess.WHITE)
+        if fact.motif == "pin"
+    ]
+    confirmed = confirm_facts(
+        facts, after, engine_pv=["d5e4", "b5c6"], board_before=before
+    )
+    pin = next(fact for fact in confirmed if fact.motif == "pin")
+
+    assert pin.is_confirmed
+    assert pin.evidence == "line b5-c6-e8"
+
+
+def test_unanalyzed_move_context_uses_neutral_win_chances():
+    """Stored moves can have ``None`` win chances; contexts must not crash."""
+    contexts = build_contexts(
+        [
+            {
+                "ply": 0,
+                "san": "e4",
+                "uci": "e2e4",
+                "fen_before": chess.STARTING_FEN,
+                "win_chance_before": None,
+                "win_chance_after": None,
+            }
+        ],
+        is_user_white=True,
+    )
+
+    context = contexts[0]
+    assert context is not None
+    assert context.player_wp_before == 0.5
+    assert context.player_wp_after == 0.5
+    assert context.wp_drop == 0.0
+
+
+def test_exchange_sacrifice_requires_the_best_move_and_reports_net_material():
+    """An inferior exchange sac is a concession; a real one reports net cost."""
+    before = chess.Board("r2k4/pp1bnppp/3R4/2Pn4/8/8/P1P2PPP/3R2K1 w - - 0 23")
+    move = chess.Move.from_uci("d6d7")
+    after = before.copy(stack=False)
+    after.push(move)
+
+    excellent = detect_candidates(
+        before, after, move, chess.WHITE, classification="Excellent"
+    )
+    assert not any(fact.motif == "sacrifice" for fact in excellent)
+
+    best = detect_candidates(before, after, move, chess.WHITE, classification="Best")
+    sacrifice = next(fact for fact in best if fact.motif == "sacrifice")
+    assert sacrifice.evidence == "rook for bishop · 2 points invested"
+
+
+def test_vacuous_pawn_pin_is_not_reported():
+    """A pawn whose only move stays on the line is not tactically pinned."""
+    before = chess.Board(
+        "r2r2k1/1ppqppbp/p1n2np1/3p1b2/3PPB2/P1NB1N1P/1PP2PP1/R2QR1K1 b - - 0 14"
+    )
+    move = chess.Move.from_uci("d5e4")
+    after = before.copy(stack=False)
+    after.push(move)
+
+    facts = detect_candidates(before, after, move, chess.BLACK, classification="Best")
+
+    assert not any(fact.motif == "pin" for fact in facts)

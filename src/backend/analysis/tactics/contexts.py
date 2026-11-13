@@ -76,10 +76,10 @@ def _build_context(
     is_book = bool(move_dict.get("is_book_move", move_dict.get("is_book", False)))
 
     player_wp_before = to_user_wp(
-        move_dict.get("win_chance_before", 0.5), is_user_white
+        _win_probability(move_dict.get("win_chance_before")), is_user_white
     )
     player_wp_after = to_user_wp(
-        move_dict.get("win_chance_after", 0.5), is_user_white
+        _win_probability(move_dict.get("win_chance_after")), is_user_white
     )
 
     try:
@@ -162,6 +162,16 @@ def _parse_move(
     board_after = board_before.copy()
     board_after.push(move_obj)
     return move_obj, board_after
+
+
+def _win_probability(value: Any) -> float:
+    """Coerce a stored win chance to 0..1; unanalyzed moves are neutral."""
+    if value is None:
+        return 0.5
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.5
 
 
 def _is_mating_move(move_dict: dict[str, Any], is_user_white: bool) -> bool:

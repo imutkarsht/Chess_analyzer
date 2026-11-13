@@ -14,7 +14,7 @@ import chess
 
 from src.backend.analysis.tactics.board_utils import captured_square
 from src.backend.analysis.tactics.constants import (
-    SOUND_CLASSIFICATIONS,
+    SACRIFICE_CLASSIFICATIONS,
     Confidence,
     TacticalTheme,
 )
@@ -67,19 +67,13 @@ def confirm_facts(
             continue
 
         if fact.motif in _MATE_MOTIFS and mate_demonstrated:
-            validated.append(
-                fact.with_confidence(
-                    Confidence.CONFIRMED.value, "continuation ends in mate"
-                )
-            )
+            # Keep the chess evidence (the line/pattern), not the validation
+            # reason, so the UI can explain the tactic itself.
+            validated.append(fact.with_confidence(Confidence.CONFIRMED.value))
             continue
 
         if _fact_targets(fact) & demonstrated:
-            validated.append(
-                fact.with_confidence(
-                    Confidence.CONFIRMED.value, "target captured in the continuation"
-                )
-            )
+            validated.append(fact.with_confidence(Confidence.CONFIRMED.value))
             continue
 
         validated.append(fact)
@@ -147,7 +141,7 @@ def _is_objective(
         return True
 
     if fact.motif == TacticalTheme.SACRIFICE.value:
-        return classification in SOUND_CLASSIFICATIONS
+        return classification in SACRIFICE_CLASSIFICATIONS
 
     return False
 

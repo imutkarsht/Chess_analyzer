@@ -15,7 +15,7 @@ from src.backend.analysis.tactics.board_utils import min_attacker_value, piece_v
 from src.backend.analysis.tactics.constants import (
     MIN_SACRIFICE_DEFICIT_CP,
     PIECE_NAMES,
-    SOUND_CLASSIFICATIONS,
+    SACRIFICE_CLASSIFICATIONS,
     TacticalTheme,
 )
 from src.backend.analysis.tactics.facts import TacticFact
@@ -27,9 +27,9 @@ def sacrifice_fact(ctx: MotifCtx) -> TacticFact | None:
     """A sound non-pawn move that deliberately offers material."""
     if ctx.piece.piece_type in (chess.PAWN, chess.KING):
         return None
-    # A sacrifice is only a tactic when the move is actually sound. Without a
-    # sound classification the move may simply be hanging material.
-    if ctx.classification not in SOUND_CLASSIFICATIONS:
+    # A sacrifice is only a tactic when it is the engine's choice. A merely
+    # sound alternative that gives material is a concession, not the idea.
+    if ctx.classification not in SACRIFICE_CLASSIFICATIONS:
         return None
 
     moved_value = piece_value(ctx.after, ctx.move.to_square)
@@ -51,12 +51,23 @@ def sacrifice_fact(ctx: MotifCtx) -> TacticFact | None:
     if net_deficit < MIN_SACRIFICE_DEFICIT_CP:
         return None
 
+    captured_piece = ctx.before.piece_at(ctx.move.to_square)
+    if captured_piece is not None:
+        moved_name = PIECE_NAMES.get(ctx.piece.piece_type, "piece")
+        captured_name = PIECE_NAMES.get(captured_piece.piece_type, "piece")
+        evidence = (
+            f"{moved_name} for {captured_name} · "
+            f"{net_deficit / 100:g} points invested"
+        )
+    else:
+        evidence = f"offers {moved_value} points"
+
     return make_fact(
         ctx,
         TacticalTheme.SACRIFICE,
         target_square=ctx.move.to_square,
         target_piece=PIECE_NAMES.get(ctx.piece.piece_type),
-        evidence=f"offers {moved_value} points for a tactical return",
+        evidence=evidence,
         material_gain_cp=-net_deficit,
     )
 

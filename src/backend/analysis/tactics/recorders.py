@@ -30,6 +30,7 @@ from src.backend.analysis.tactics.constants import (
     BLUNDER_CLASSIFICATIONS,
     BRILLIANT_CLASSIFICATIONS,
     PIECE_VALUES,
+    SOUND_CLASSIFICATIONS,
     SOUND_TACTIC_MAX_WP_DROP,
     TURNING_POINT_MIN_WP_SWING,
     TacticalTheme,
@@ -286,6 +287,16 @@ def is_previous_capture(ctx: MoveCtx, prev_ctx: MoveCtx | None) -> bool:
 def record_missed_tactics(ctx: MoveCtx, state: TacticsState) -> None:
     """High-confidence missed tactics: hanging captures and mate in one."""
     if ctx.move_obj is None:
+        return
+    # A move that is already best/sound or delivers mate did not miss a tactic.
+    if ctx.is_checkmate_move or ctx.is_mating_move:
+        return
+    if ctx.classification in SOUND_CLASSIFICATIONS:
+        return
+    if (
+        ctx.classification not in ("Mistake", "Blunder", "Miss")
+        and ctx.wp_drop < SOUND_TACTIC_MAX_WP_DROP
+    ):
         return
 
     enemy_hanging = get_lost_pieces(ctx.board_before, not ctx.board_before.turn)

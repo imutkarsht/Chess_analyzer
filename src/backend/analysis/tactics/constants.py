@@ -104,6 +104,12 @@ BRILLIANT_CLASSIFICATIONS: Final[frozenset[str]] = frozenset({"Brilliant", "Grea
 SOUND_CLASSIFICATIONS: Final[frozenset[str]] = frozenset(
     {"Brilliant", "Great", "Best", "Excellent"}
 )
+# A sacrifice is only a tactic when there was no better alternative. An
+# "Excellent" exchange sacrifice is usually a material concession, not the
+# engine-approved tactical idea.
+SACRIFICE_CLASSIFICATIONS: Final[frozenset[str]] = frozenset(
+    {"Brilliant", "Great", "Best"}
+)
 
 
 # ==============================================================================
@@ -142,5 +148,7 @@ KING_SKEWER_VALUE: Final[int] = 100
 
 # Bump when tactic facts or their schema change; stored summaries with an older
 # version are lazily recomputed. v3 merges multiple alignments of one motif on a
-# single move into one occurrence.
-TACTICS_VERSION: Final[int] = 3
+# single move into one occurrence. v4 excludes best/mating moves from missed
+# tactical stats. v5 preserves the chess evidence when a fact is confirmed.
+# v6 drops non-best sacrifices and vacuous pins.
+TACTICS_VERSION: Final[int] = 6

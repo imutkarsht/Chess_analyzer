@@ -50,6 +50,7 @@ def pin_is_effective(
     if rear_value <= front_value:
         return False
 
+    has_off_line_move = False
     for move in board.legal_moves:
         if move.from_square != front_sq:
             continue
@@ -58,12 +59,15 @@ def pin_is_effective(
         if stays_on_line(move.to_square, slider_sq, rear_sq):
             continue
 
+        has_off_line_move = True
         next_board = board.copy(stack=False)
         next_board.push(move)
         if not is_piece_lost(next_board, rear_sq, rear.color):
             return False
 
-    return True
+    # If the front piece has no legal move that leaves the line, the alignment
+    # restricts nothing (e.g. a pawn whose only move is forward along the pin).
+    return has_off_line_move
 
 
 def skewer_is_effective(
