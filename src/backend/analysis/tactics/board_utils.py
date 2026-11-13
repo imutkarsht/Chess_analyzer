@@ -16,6 +16,21 @@ def piece_value(board: chess.Board, sq: chess.Square) -> int:
     return PIECE_VALUES.get(piece.piece_type, 0) if piece else 0
 
 
+def captured_square(board: chess.Board, move: chess.Move) -> chess.Square:
+    """Square of the piece removed by ``move`` (en passant aware)."""
+    if board.is_en_passant(move):
+        return chess.square(
+            chess.square_file(move.to_square),
+            chess.square_rank(move.from_square),
+        )
+    return move.to_square
+
+
+def captured_piece(board: chess.Board, move: chess.Move) -> chess.Piece | None:
+    """Piece removed by ``move`` (en passant aware)."""
+    return board.piece_at(captured_square(board, move))
+
+
 def legal_defenders(
     board: chess.Board,
     color: chess.Color,

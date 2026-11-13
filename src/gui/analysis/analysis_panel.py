@@ -14,7 +14,12 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.game_report import build_game_report
+from src.backend.analysis.tactics import TACTICS_VERSION, analyze_game_tactics
 from src.backend.analysis.tactics.insight import MoveInsight, build_move_insight
+from src.backend.analysis.tactics.report import (
+    GameTacticsReport,
+    build_game_tactics_report,
+)
 from src.backend.services.groq_service import GroqService
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
@@ -57,9 +62,11 @@ from src.utils.resources import ResourceManager
 from .coach_card_widget import CoachCardWidget
 from .coach_worker import ExplainMoveWorker, RequestLimiter
 from .line_utils import lines_for_move
+from .tactics_tab import TacticsTab
 
-# Tabs that make no sense (and would fight the engine) mid-analysis.
-_TABS_LOCKED_DURING_ANALYSIS = (1, 2)
+# Tabs that only make sense once the game has analysis results.
+_TABS_REQUIRING_ANALYSIS = (1, 2, 3)
+_TAB_LOCK_HINT = "Analyze this game to unlock this tab."
 
 # The Generate button lives below the summary: once a report exists the text
 # fills the space above it, so the action has to sit in the lower half to stay
@@ -77,6 +84,8 @@ class AnalysisPanel(QWidget):
     variation_requested = pyqtSignal(str, str)
     # (FEN before the move, full UCI line) — replays a coach explanation line.
     line_requested = pyqtSignal(str, list)
+    # Board move index selected from the per-game Tactics tab.
+    move_requested = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
@@ -98,6 +107,7 @@ class AnalysisPanel(QWidget):
         self._coach_ply: int | None = None
         self._coach_insight = None
         self._coach_tab_index: int | None = None
+        self._tactics_tab_index: int | None = None
         self._coach_worker: ExplainMoveWorker | None = None
         # Rendered explanations are retained per (game, ply) so returning to a
         # move does not need a SQLite read on the GUI thread.
@@ -322,15 +332,47 @@ class AnalysisPanel(QWidget):
 
         self._coach_tab_index = self.tabs.add_tab("Coach", self.coach_tab)
 
+        # --- Tab 4: Tactics ---
+        self.tactics_tab = TacticsTab()
+        self.tactics_tab.move_requested.connect(self.move_requested.emit)
+        self._tactics_tab_index = self.tabs.add_tab("Tactics", self.tactics_tab)
+        self._tactics_cache: dict[tuple[str, str], GameTacticsReport] = {}
+
     def set_analysis_running(self, running: bool):
         self._analysis_running = running
+        self._tactics_cache.clear()
+        self._update_tab_availability()
+        if running:
+            self.tactics_tab.show_empty("Analysis in progress…")
+        elif (
+            self._tactics_tab_index is not None
+            and self.tabs.current_index() == self._tactics_tab_index
+        ):
+            self._ensure_tactics_reports()
+
+    def _analysis_tabs_unlocked(self) -> bool:
+        """True when the current game has analysis results and is not running."""
+        if self._analysis_running or self.current_game is None:
+            return False
+        return getattr(self.current_game, "analyzed_moves_count", 0) > 0
+
+    def _update_tab_availability(self) -> None:
+        """Disable Report/Coach/Tactics until the current game has analysis."""
+        unlocked = self._analysis_tabs_unlocked()
+        for index in _TABS_REQUIRING_ANALYSIS:
+            self.tabs.set_tab_enabled(index, unlocked)
+            self.tabs.set_tab_tooltip(index, "" if unlocked else _TAB_LOCK_HINT)
+        if not unlocked and self.tabs.current_index() in _TABS_REQUIRING_ANALYSIS:
+            self.tabs.set_current_index(0)
 
     def _on_tab_changed(self, index):
-        if self._analysis_running and index in _TABS_LOCKED_DURING_ANALYSIS:
+        if index in _TABS_REQUIRING_ANALYSIS and not self._analysis_tabs_unlocked():
             self.tabs.set_current_index(0)
             return
         if self._coach_tab_index is not None and index == self._coach_tab_index:
             self._ensure_coach_insight()
+        if self._tactics_tab_index is not None and index == self._tactics_tab_index:
+            self._ensure_tactics_reports()
 
     def set_game(self, game_analysis):
         previous_id = getattr(self.current_game, "game_id", None)
@@ -338,14 +380,19 @@ class AnalysisPanel(QWidget):
             self._coach_narratives.clear()
         self.current_game = game_analysis
         self._lines_fen = None
+        self._tactics_cache.clear()
+        self.tactics_tab.show_empty("Analyze this game to reveal its tactics.")
         self.set_selected_move(-1)
         self.refresh()
 
     def refresh(self):
         self._update_share_report_button()
+        self._update_tab_availability()
+        self._tactics_cache.clear()
         if not self.current_game:
             self._lines_fen = None
             self.lines_widget.clear()
+            self.tactics_tab.show_empty("Load a game to see its tactical insights.")
             return
 
         try:
@@ -413,6 +460,74 @@ class AnalysisPanel(QWidget):
 
         except Exception as e:
             logger.error(f"Error refreshing AnalysisPanel: {e}", exc_info=True)
+
+        if (
+            not self._analysis_running
+            and self._tactics_tab_index is not None
+            and self.tabs.current_index() == self._tactics_tab_index
+        ):
+            self._ensure_tactics_reports()
+
+    # ------------------------------------------------------------------
+    # Tactics tab
+    # ------------------------------------------------------------------
+
+    def _ensure_tactics_reports(self) -> None:
+        """Build and render both side reports, reusing cached results."""
+        if not self.current_game:
+            self.tactics_tab.show_empty("Load a game to see its tactical insights.")
+            return
+
+        moves = getattr(self.current_game, "moves", None) or []
+        if not moves:
+            self.tactics_tab.show_empty("Analyze this game to reveal its tactics.")
+            return
+        if self._analysis_running:
+            self.tactics_tab.show_empty("Analysis in progress…")
+            return
+        if not any(getattr(move, "classification", "") for move in moves):
+            self.tactics_tab.show_empty("Analyze this game to reveal its tactics.")
+            return
+
+        meta = self.current_game.metadata
+        result = getattr(meta, "result", "*") or "*"
+        speed = getattr(meta, "speed_category", "Blitz") or "Blitz"
+        game_id = str(getattr(self.current_game, "game_id", "") or "")
+        moves_data = [move.to_dict() for move in moves]
+
+        reports: dict[str, GameTacticsReport] = {}
+        for side in ("white", "black"):
+            key = (game_id, side)
+            report = self._tactics_cache.get(key)
+            if report is None:
+                tactics = self._stored_or_compute_tactics(
+                    side, moves_data, result, speed
+                )
+                report = build_game_tactics_report(tactics, moves, side)
+                self._tactics_cache[key] = report
+            reports[side] = report
+
+        self.tactics_tab.set_reports(
+            reports,
+            self._user_side() or "white",
+            {"white": meta.white or "", "black": meta.black or ""},
+            result,
+        )
+        if self._coach_index is not None:
+            self.tactics_tab.set_selected_move(self._coach_index)
+
+    def _stored_or_compute_tactics(
+        self,
+        side: str,
+        moves_data: list[dict],
+        result: str,
+        speed: str,
+    ) -> dict:
+        summary = getattr(self.current_game, "summary", None) or {}
+        stored = (summary.get(side) or {}).get("tactics")
+        if isinstance(stored, dict) and stored.get("tactics_version") == TACTICS_VERSION:
+            return stored
+        return analyze_game_tactics(moves_data, side, result, speed)
 
     def _update_share_report_button(self) -> None:
         can_share = ShareReportRenderer.can_render(self.current_game)
@@ -646,6 +761,9 @@ class AnalysisPanel(QWidget):
         if hasattr(self, "coach_card"):
             self.coach_card.refresh_styles()
 
+        if hasattr(self, "tactics_tab"):
+            self.tactics_tab.refresh_styles()
+
         if hasattr(self, "move_list_panel"):
             self.move_list_panel.refresh_styles()
 
@@ -751,6 +869,8 @@ class AnalysisPanel(QWidget):
         self._coach_index = index if valid else None
         self._coach_insight = None
         self._coach_ply = None
+        if hasattr(self, "tactics_tab"):
+            self.tactics_tab.set_selected_move(index if valid else -1)
 
         if valid and self._coach_tab_index is not None and self.tabs.current_index() == self._coach_tab_index:
             self._ensure_coach_insight()

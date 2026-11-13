@@ -5,8 +5,6 @@ Unit tests for StatsWorker filtering and statistical aggregation.
 import json
 import time
 
-import chess
-
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
 from src.gui.metrics.workers import StatsWorker
 
@@ -405,7 +403,7 @@ def test_metrics_aggregator_build_coach_dossier():
     assert "Conversion: 80.0%" in dossier
     assert "Comeback Rate: 33.3%" in dossier
     assert "Sicilian Defense (ECO B20)" in dossier
-    assert "Undefended Pieces Dropped: 2" in dossier
+    assert "Pieces Lost: 2" in dossier
 
 
 def test_metrics_aggregator_drill_down():
@@ -416,7 +414,8 @@ def test_metrics_aggregator_drill_down():
             "move_number": 1,
             "san": "Ba6",
             "uci": "f1a6",
-            "fen_before": chess.STARTING_FEN,
+            "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1",
+            "fen_after": "rnbqkbnr/pppppppp/B7/8/8/8/PPPP1PPP/RNBQK1NR b KQkq - 0 1",
             "eval_before_cp": 50,
             "eval_after_cp": -200,
             "win_chance_before": 0.55,
@@ -429,7 +428,8 @@ def test_metrics_aggregator_drill_down():
             "move_number": 1,
             "san": "e5",
             "uci": "e7e5",
-            "fen_before": "rnbqkbnr/pppppppp/B7/8/8/8/PPPPPPPP/RNBQK1NR b KQkq - 1 1",
+            "fen_before": "rnbqkbnr/pppppppp/B7/8/8/8/PPPP1PPP/RNBQK1NR b KQkq - 0 1",
+            "fen_after": "rnbqkbnr/pppp1ppp/B7/4p3/8/8/PPPP1PPP/RNBQK1NR w KQkq - 0 2",
             "eval_before_cp": -200,
             "win_chance_before": 0.30,
             "win_chance_after": 0.30,

@@ -128,8 +128,18 @@ def _lesson(insight: MoveInsight) -> str:
             return "Before moving, check whether an opponent piece can skewer two of your pieces."
         if motif == "discovered_attack":
             return "Before moving, check what an opponent slider will see once your piece moves."
-        if motif == "back_rank":
+        if motif in ("back_rank", "back_rank_mate"):
             return "Before moving, give your king an escape square on the back rank."
+        if motif == "discovered_check":
+            return "Before moving, check which of your lines the move will open."
+        if motif == "double_check":
+            return "Before moving, check whether the opponent can give double check."
+        if motif == "removal_of_defender":
+            return "Before moving, check whether the opponent can remove a key defender."
+        if motif == "trapped_piece":
+            return "Before moving, check whether one of your pieces has a safe escape."
+        if motif == "hanging_piece":
+            return "Before moving, scan for undefended pieces on both sides."
     if insight.new_hung_pieces:
         return "After your move, ask which of your pieces is no longer defended."
     return ""

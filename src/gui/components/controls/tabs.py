@@ -218,6 +218,16 @@ class Tabs(QWidget):
     def set_tab_text(self, index: int, text: str) -> None:
         self.bar.setTabText(index, text)
 
+    def set_tab_enabled(self, index: int, enabled: bool) -> None:
+        """Enable or disable a tab; disabled tabs cannot be selected."""
+        self.bar.setTabEnabled(index, enabled)
+
+    def is_tab_enabled(self, index: int) -> bool:
+        return self.bar.isTabEnabled(index)
+
+    def set_tab_tooltip(self, index: int, tooltip: str) -> None:
+        self.bar.setTabToolTip(index, tooltip)
+
     def page(self, index: int) -> QWidget | None:
         """The page bound to ``index``, or ``None`` for a bar-only bar."""
         return self.pages.widget(index) if self._has_pages else None
