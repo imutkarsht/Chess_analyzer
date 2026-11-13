@@ -235,6 +235,9 @@ class HangingStats:
     """Dropped and punished piece statistics."""
 
     total_hung: int = 0
+    total_lost: int = 0
+    immediate_hung: int = 0
+    punished_lost: int = 0
     by_piece: dict[str, int] = field(default_factory=lambda: {p: 0 for p in PIECE_NAMES})
     hanging_blunders: int = 0
     opponent_hanging_captured: int = 0
@@ -243,8 +246,11 @@ class HangingStats:
 
     def merge(self, h_metrics: dict[str, Any]) -> int:
         """Merge hanging piece metrics and return total pieces hung in this game."""
-        hung = h_metrics.get("total_hung", 0)
-        self.total_hung += hung
+        lost = h_metrics.get("total_lost", h_metrics.get("total_hung", 0))
+        self.total_hung += lost
+        self.total_lost += lost
+        self.immediate_hung += h_metrics.get("immediate_hung", 0)
+        self.punished_lost += h_metrics.get("punished_lost", 0)
         self.hanging_blunders += h_metrics.get("hanging_blunders", 0)
         self.opponent_hanging_captured += h_metrics.get("opponent_hanging_captured", 0)
         self.opponent_hanging_missed += h_metrics.get("opponent_hanging_missed", 0)
@@ -257,11 +263,15 @@ class HangingStats:
             if p_type in self.captured_by_piece:
                 self.captured_by_piece[p_type] += count
 
-        return hung
+        return lost
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "total_hung": self.total_hung,
+            "total_hung": self.total_lost,
+            "total_lost": self.total_lost,
+            "immediate_hung": self.immediate_hung,
+            "punished_lost": self.punished_lost,
+            "deduplicated_total": self.total_lost,
             "by_piece": dict(self.by_piece),
             "hanging_blunders": self.hanging_blunders,
             "opponent_hanging_captured": self.opponent_hanging_captured,
@@ -361,6 +371,9 @@ class StatsAccumulator:
         self.advantage = AdvantageStats()
 
         self.tactical_themes: dict[str, int] = {m: 0 for m in MOTIF_NAMES}
+        self.tactical_roles: dict[str, dict[str, int]] = {
+            m: {"executed": 0, "allowed": 0, "missed": 0} for m in MOTIF_NAMES
+        }
         self.brilliancies: list[dict[str, Any]] = []
 
         self.drill_down: dict[str, Any] = {
@@ -548,10 +561,16 @@ class StatsAccumulator:
         adv = tactics.get("advantage_metrics", {})
         self.advantage.merge(adv)
 
-        # Tactical themes
+        # Tactical themes and executed/allowed/missed roles
         for motif, count in tactics.get("tactical_themes", {}).items():
             if motif in self.tactical_themes:
                 self.tactical_themes[motif] += count
+
+        for motif, counts in tactics.get("tactical_roles", {}).items():
+            if motif not in self.tactical_roles or not isinstance(counts, dict):
+                continue
+            for role in ("executed", "allowed", "missed"):
+                self.tactical_roles[motif][role] += counts.get(role, 0)
 
         # Brilliancies
         for b in tactics.get("brilliancies", []):
@@ -668,6 +687,7 @@ class StatsAccumulator:
             "advantage_stats": self.advantage.to_dict(),
             "brilliancies": self.brilliancies,
             "tactical_themes": self.tactical_themes,
+            "tactical_roles": self.tactical_roles,
             "drill_down": self.drill_down,
             "time_stats": self.clock.to_dict(formats_final),
             "filter_applied": {

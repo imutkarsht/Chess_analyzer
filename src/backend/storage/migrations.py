@@ -11,6 +11,7 @@ from collections import Counter
 
 import chess.pgn
 
+from src.backend.analysis.tactics.constants import TACTICS_VERSION
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.models import MoveAnalysis
 from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
@@ -449,7 +450,11 @@ def _backfill_legacy_tactics(cursor: sqlite3.Cursor) -> None:
             "SELECT id, moves_json, result, speed_category, summary_json "
             "FROM games "
             "WHERE moves_json IS NOT NULL AND moves_json != '' "
-            "  AND (summary_json IS NULL OR summary_json = '' OR summary_json NOT LIKE '%hung_pieces_details%')"
+            "  AND ("
+            "    summary_json IS NULL OR summary_json = '' "
+            "    OR summary_json NOT LIKE '%hung_pieces_details%' "
+            f"    OR summary_json NOT LIKE '%\"tactics_version\": {TACTICS_VERSION}%'"
+            "  )"
         )
         rows = cursor.fetchall()
         if not rows:

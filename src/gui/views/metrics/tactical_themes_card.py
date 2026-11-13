@@ -40,23 +40,13 @@ class TacticalThemesCard(MetricCard):
 
     MOTIF_CONFIG: dict[str, tuple[str, str, str, str]] = {
         # key: (Display Name, Icon, Description/Tooltip, Color Property Name)
+        # Hanging pieces are tracked by the dedicated piece-safety card; they
+        # are a material win, not a tactical pattern.
         "fork": (
             "Fork",
             "fa5s.code-branch",
             "Double attack against two enemy targets simultaneously",
             "COLOR_BEST",
-        ),
-        "skewer": (
-            "Skewer",
-            "fa5s.arrows-alt-v",
-            "Attack through a higher-value piece to win material behind it",
-            "COLOR_GREAT",
-        ),
-        "sacrifice": (
-            "Sacrifice",
-            "fa5s.gem",
-            "Deliberate material investment for decisive tactical or positional gain",
-            "COLOR_ACCENT",
         ),
         "pin": (
             "Pin",
@@ -64,16 +54,82 @@ class TacticalThemesCard(MetricCard):
             "Immobilizing an enemy piece against their King or high-value piece",
             "COLOR_BOOK",
         ),
+        "skewer": (
+            "Skewer",
+            "fa5s.arrows-alt-v",
+            "Attack through a higher-value piece to win material behind it",
+            "COLOR_GREAT",
+        ),
         "discovered_attack": (
             "Discovered Attack",
             "fa5s.eye",
             "Moving one piece to unmask a deadly line of attack from another",
             "COLOR_GOOD",
         ),
-        "back_rank": (
-            "Back-Rank Threat",
+        "discovered_check": (
+            "Discovered Check",
+            "fa5s.bullseye",
+            "Moving a piece to reveal a check from a hidden attacker",
+            "COLOR_BEST",
+        ),
+        "double_check": (
+            "Double Check",
+            "fa5s.crosshairs",
+            "Two pieces give check at once, forcing the king to move",
+            "COLOR_BEST",
+        ),
+        "removal_of_defender": (
+            "Removal of Defender",
+            "fa5s.user-slash",
+            "Capturing a defender so the piece it guarded becomes loose",
+            "COLOR_GREAT",
+        ),
+        "trapped_piece": (
+            "Trapped Piece",
+            "fa5s.lock",
+            "A piece with no safe escape that is about to be captured",
+            "COLOR_ACCENT",
+        ),
+        "sacrifice": (
+            "Sacrifice",
+            "fa5s.gem",
+            "Deliberate material investment for decisive tactical or positional gain",
+            "COLOR_ACCENT",
+        ),
+        "promotion": (
+            "Promotion",
+            "fa5s.arrow-up",
+            "Promoting a pawn to a queen or another piece",
+            "COLOR_GOOD",
+        ),
+        "back_rank_mate": (
+            "Back-Rank Mate",
             "fa5s.chess-rook",
-            "Infiltrating the trapped enemy King along their baseline",
+            "Mating the trapped enemy King along their baseline",
+            "COLOR_TEXT_SECONDARY",
+        ),
+        "smothered_mate": (
+            "Smothered Mate",
+            "fa5s.chess-knight",
+            "A knight mates a King surrounded by its own pieces",
+            "COLOR_BOOK",
+        ),
+        "morphy_mate": (
+            "Morphy's Mate",
+            "fa5s.chess-bishop",
+            "A bishop mates while a rook confines the King",
+            "COLOR_TEXT_SECONDARY",
+        ),
+        "opera_mate": (
+            "Opera Mate",
+            "fa5s.chess-rook",
+            "A rook mates while a bishop defends it",
+            "COLOR_TEXT_SECONDARY",
+        ),
+        "boden_mate": (
+            "Boden's Mate",
+            "fa5s.chess-bishop",
+            "Two bishops mate on criss-crossing diagonals",
             "COLOR_TEXT_SECONDARY",
         ),
     }
@@ -91,7 +147,14 @@ class TacticalThemesCard(MetricCard):
         )
 
     def _render_view(self):
-        themes = self.stats.get("tactical_themes", {})
+        # Only patterns with a tactical entry belong on this card. In
+        # particular, hanging pieces are a material win handled by the
+        # piece-safety card, not a tactical motif.
+        themes = {
+            key: count
+            for key, count in (self.stats.get("tactical_themes") or {}).items()
+            if key in self.MOTIF_CONFIG
+        }
         total_games = self.stats.get("total", 0)
         total_tactics = sum(themes.values())
 
@@ -106,9 +169,9 @@ class TacticalThemesCard(MetricCard):
 
         main_vbox = self.new_content(spacing=14).layout()
 
-        # Sort motifs by strike count descending (frequency ranking)
+        # Rank only motifs that actually occurred; zero-count rows add noise.
         sorted_motifs = sorted(
-            self.MOTIF_CONFIG.keys(),
+            (key for key in self.MOTIF_CONFIG if themes.get(key, 0) > 0),
             key=lambda k: themes.get(k, 0),
             reverse=True,
         )
@@ -203,8 +266,6 @@ class TacticalThemesCard(MetricCard):
         segments = []
         for key in sorted_motifs:
             cnt = themes.get(key, 0)
-            if cnt <= 0:
-                continue
             pct = cnt / total_tactics * 100
             _, _, _, color_attr = self.MOTIF_CONFIG[key]
             seg_color = getattr(Styles, color_attr, Styles.COLOR_ACCENT)
@@ -283,7 +344,7 @@ class TacticalThemesCard(MetricCard):
             row_l.addWidget(
                 MiniBar(
                     int(pct),
-                    theme_color if cnt > 0 else "transparent",
+                    theme_color,
                     height=6,
                     radius=3,
                     track_color=Styles.COLOR_SURFACE_LIGHT,

@@ -278,9 +278,9 @@ def test_detect_tactical_motifs():
     """Test detection of forks, pins, and discovered attacks."""
     from src.backend.analysis.tactics import detect_tactical_motifs
 
-    # 1. Knight fork on c7 attacking e8 (King) and a8 (Rook)
-    board_b = chess.Board("r3k2r/pppb1ppp/8/4N3/1b2P3/8/PPP2PPP/R1B1KB1R w KQkq - 1 10")
-    move_fork = chess.Move.from_uci("e5c7")
+    # 1. Knight fork on c7 attacking e8 (King) and a8 (Rook), protected by Bd6
+    board_b = chess.Board("r3k3/1p6/3B4/1N6/8/8/8/4K3 w - - 0 1")
+    move_fork = chess.Move.from_uci("b5c7")
     board_a = board_b.copy()
     board_a.push(move_fork)
     motifs_fork = detect_tactical_motifs(board_b, board_a, move_fork, chess.WHITE)
@@ -306,13 +306,14 @@ def test_detect_tactical_motifs():
 def test_drill_down_details_in_tactics():
     """Test that analyze_game_tactics populates drill-down detail lists."""
     moves_data = [
-        # Move 1: White blunders and hangs a bishop
+        # Move 1: White blunders and hangs a bishop (e2 cleared so Ba6 is legal)
         {
             "ply": 1,
             "move_number": 1,
             "san": "Ba6",
             "uci": "f1a6",
-            "fen_before": chess.STARTING_FEN,
+            "fen_before": "rnbqkbnr/pppppppp/8/8/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1",
+            "fen_after": "rnbqkbnr/pppppppp/B7/8/8/8/PPPP1PPP/RNBQK1NR b KQkq - 0 1",
             "eval_before_cp": 50,
             "eval_after_cp": -200,
             "win_chance_before": 0.55,
@@ -326,7 +327,8 @@ def test_drill_down_details_in_tactics():
             "move_number": 1,
             "san": "e5",
             "uci": "e7e5",
-            "fen_before": "rnbqkbnr/pppppppp/B7/8/8/8/PPPPPPPP/RNBQK1NR b KQkq - 1 1",
+            "fen_before": "rnbqkbnr/pppppppp/B7/8/8/8/PPPP1PPP/RNBQK1NR b KQkq - 0 1",
+            "fen_after": "rnbqkbnr/pppp1ppp/B7/4p3/8/8/PPPP1PPP/RNBQK1NR w KQkq - 0 2",
             "eval_before_cp": -200,
             "win_chance_before": 0.30,
             "win_chance_after": 0.30,

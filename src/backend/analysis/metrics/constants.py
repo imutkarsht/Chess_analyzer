@@ -24,12 +24,22 @@ QUALITY_NAMES: tuple[str, ...] = (
 QUALITY_PACE_KEYS: tuple[str, ...] = ("best", "blunder", "other")
 
 MOTIF_NAMES: tuple[str, ...] = (
+    "hanging_piece",
     "fork",
     "pin",
     "skewer",
     "discovered_attack",
+    "discovered_check",
+    "double_check",
+    "removal_of_defender",
+    "trapped_piece",
     "sacrifice",
-    "back_rank",
+    "promotion",
+    "back_rank_mate",
+    "smothered_mate",
+    "morphy_mate",
+    "opera_mate",
+    "boden_mate",
 )
 
 ADVANTAGE_KEYS: tuple[str, ...] = (

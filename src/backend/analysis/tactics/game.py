@@ -1,7 +1,13 @@
 """
-Comprehensive game tactical analysis, phase accuracies, advantage conversion,
-and drill-down position tracking.
-Zero Qt dependencies — headless and independently testable.
+Game-level tactical analysis.
+
+One pass over parsed move contexts produces:
+- phase accuracies and blunder distribution;
+- validated executed / allowed / missed tactic facts;
+- hanging-piece losses with immediate vs punished attribution;
+- advantage conversion, brilliancies, clock metrics and drill-down records.
+
+Zero Qt dependencies.
 """
 
 from __future__ import annotations
@@ -16,90 +22,38 @@ from src.backend.analysis.math_utils import (
     apply_accuracy_floor,
     calculate_move_accuracy,
 )
-from src.backend.analysis.tactics.board_utils import to_user_cp, to_user_wp
+from src.backend.analysis.tactics.attribution import (
+    LossRecord,
+    is_blunder,
+    is_sound_move,
+    resolve_losses,
+)
 from src.backend.analysis.tactics.constants import (
     ADVANTAGE_THRESHOLD_CP,
     BAD_MOVE_CLASSIFICATIONS,
     BLUNDER_CLASSIFICATIONS,
     BRILLIANT_CLASSIFICATIONS,
     DEFAULT_TROUBLE_SECONDS,
-    GOOD_MOVE_WP_DROP_THRESHOLD,
     MAX_REASONABLE_TIME_SECONDS,
     PHASES,
     PIECE_NAMES_ORDERED,
     PIECE_VALUES,
-    SOUND_MOVE_WP_DROP_THRESHOLD,
     SOUND_TACTIC_MAX_WP_DROP,
+    TACTICS_VERSION,
     TROUBLE_SECONDS,
     TURNING_POINT_MIN_WP_SWING,
-    WINNING_WP_THRESHOLD,
     MoveQualityBucket,
     TacticalTheme,
+    TacticRole,
 )
-from src.backend.analysis.tactics.hanging import get_hanging_pieces
-from src.backend.analysis.tactics.motifs import detect_tactical_motifs
-from src.backend.analysis.tactics.phase import classify_game_phase
+from src.backend.analysis.tactics.contexts import MoveCtx, build_contexts
+from src.backend.analysis.tactics.facts import TacticFact, fact_to_dict
+from src.backend.analysis.tactics.motifs import detect_candidates
+from src.backend.analysis.tactics.piece_safety import get_lost_pieces
+from src.backend.analysis.tactics.validation import confirm_facts
 
-# ==============================================================================
-# CONTEXT & DATA OBJECTS
-# ==============================================================================
-
-
-@dataclass(frozen=True)
-class MoveCtx:
-    """Immutable data context for a single analyzed ply in the game."""
-
-    ply: int
-    move_number: int
-    san: str
-    uci: str
-    fen_before: str
-    fen_after: str
-    classification: str
-    eval_user_cp: int | None
-    eval_after_user: int | None
-    eval_diff: int | None
-    wp_drop: float
-    player_wp_before: float
-    player_wp_after: float
-    is_user_move: bool
-    is_book: bool
-    is_mating_move: bool
-    is_checkmate_move: bool
-    board_before: chess.Board
-    board_after: chess.Board | None
-    move_obj: chess.Move | None
-    phase: str
-    time_spent: float | None = None
-    time_left: float | None = None
-    opening_name: str = ""
-    explanation: str = ""
-
-
-def _move_detail(mv: MoveCtx, **extra: Any) -> dict[str, Any]:
-    """Factory creating the standardized drill-down detail dictionary.
-
-    ``eval_before_cp``/``eval_after_cp`` are stored from the analysed side's own
-    view; ``win_chance_before``/``win_chance_after`` are that same side's win
-    chances, so the report can quote a player's chances without guessing the
-    colour.
-    """
-    return {
-        "ply": mv.ply,
-        "move_number": mv.move_number,
-        "san": mv.san,
-        "uci": mv.uci,
-        "fen_before": mv.fen_before,
-        "fen_after": mv.fen_after,
-        "classification": mv.classification,
-        "eval_before_cp": mv.eval_user_cp,
-        "eval_after_cp": mv.eval_after_user,
-        "eval_drop": mv.eval_diff,
-        "wp_drop": round(mv.wp_drop, 3),
-        "win_chance_before": round(mv.player_wp_before, 3),
-        "win_chance_after": round(mv.player_wp_after, 3),
-        **extra,
-    }
+# Re-exported for callers that imported MoveCtx from this module historically.
+__all__ = ["ClockStats", "MoveCtx", "TacticsState", "analyze_game_tactics"]
 
 
 @dataclass
@@ -198,7 +152,17 @@ class TacticsState:
         default_factory=lambda: dict.fromkeys(PIECE_NAMES_ORDERED, 0)
     )
     tactical_themes: dict[str, int] = field(
-        default_factory=lambda: {t.value: 0 for t in TacticalTheme}
+        default_factory=lambda: {theme.value: 0 for theme in TacticalTheme}
+    )
+    tactical_roles: dict[str, dict[str, int]] = field(
+        default_factory=lambda: {
+            theme.value: {
+                TacticRole.EXECUTED.value: 0,
+                TacticRole.ALLOWED.value: 0,
+                TacticRole.MISSED.value: 0,
+            }
+            for theme in TacticalTheme
+        }
     )
 
     brilliancies: list[dict[str, Any]] = field(default_factory=list)
@@ -206,6 +170,8 @@ class TacticsState:
     opp_captured_details: list[dict[str, Any]] = field(default_factory=list)
     tactical_motifs_details: list[dict[str, Any]] = field(default_factory=list)
     blunders_details: list[dict[str, Any]] = field(default_factory=list)
+    missed_tactics_details: list[dict[str, Any]] = field(default_factory=list)
+    tactic_facts: list[dict[str, Any]] = field(default_factory=list)
 
     had_winning_advantage: bool = False
     converted_advantage: bool = False
@@ -226,10 +192,14 @@ class TacticsState:
     peak_eval_cp: int | None = None
     lowest_eval_cp: int | None = None
     book_exit_ply: int | None = None
-    total_hung: int = 0
+
+    immediate_hung: int = 0
+    punished_lost: int = 0
+    total_lost: int = 0
     hanging_blunders: int = 0
     opponent_hanging_captured: int = 0
     opponent_hanging_missed: int = 0
+    seen_loss_keys: set[tuple[int, str]] = field(default_factory=set)
 
     clock_stats: ClockStats = field(default_factory=ClockStats)
 
@@ -239,15 +209,33 @@ class TacticsState:
 # ==============================================================================
 
 
+def _move_detail(ctx: MoveCtx, **extra: Any) -> dict[str, Any]:
+    """Standard drill-down dictionary for one ply."""
+    return {
+        "ply": ctx.ply,
+        "move_number": ctx.move_number,
+        "san": ctx.san,
+        "uci": ctx.uci,
+        "fen_before": ctx.fen_before,
+        "fen_after": ctx.fen_after,
+        "classification": ctx.classification,
+        "eval_before_cp": ctx.eval_user_cp,
+        "eval_after_cp": ctx.eval_after_user,
+        "eval_drop": ctx.eval_diff,
+        "wp_drop": round(ctx.wp_drop, 3),
+        "win_chance_before": round(ctx.player_wp_before, 3),
+        "win_chance_after": round(ctx.player_wp_after, 3),
+        **extra,
+    }
+
+
 def _phase_accuracy(accuracies: list[float], win_percents: list[float]) -> float | None:
-    """Computes volatility-weighted harmonic accuracy for one game phase."""
     if not accuracies:
         return None
     return aggregate_accuracy(accuracies, win_percents)
 
 
 def _record_accuracy(ctx: MoveCtx, state: TacticsState) -> None:
-    """Records move accuracy and blunder occurrence by game phase."""
     state.phase_move_counts[ctx.phase] += 1
 
     if ctx.is_book or ctx.is_checkmate_move or ctx.is_mating_move:
@@ -264,138 +252,7 @@ def _record_accuracy(ctx: MoveCtx, state: TacticsState) -> None:
         state.blunders_details.append(_move_detail(ctx))
 
 
-def _record_hanging(
-    ctx: MoveCtx,
-    state: TacticsState,
-    hanging_before: list[dict[str, Any]],
-    hanging_after: list[dict[str, Any]],
-) -> None:
-    """Records hung pieces and hanging blunders resulting from user moves."""
-    is_advantageous_or_sound = (
-        ctx.is_book
-        or ctx.classification in ("Brilliant", "Great", "Best", "Excellent")
-        or (ctx.classification == "Good" and ctx.wp_drop < GOOD_MOVE_WP_DROP_THRESHOLD)
-        or (
-            ctx.wp_drop < SOUND_MOVE_WP_DROP_THRESHOLD
-            and ctx.player_wp_after >= WINNING_WP_THRESHOLD
-        )
-    )
-    if is_advantageous_or_sound:
-        return
-
-    hung_sqs_before = {h["square"] for h in hanging_before}
-    to_sq_name = chess.square_name(ctx.move_obj.to_square) if ctx.move_obj else ""
-    newly_hung = [
-        h for h in hanging_after if h["square"] not in hung_sqs_before or h["square"] == to_sq_name
-    ]
-
-    if newly_hung:
-        state.total_hung += len(newly_hung)
-        for h in newly_hung:
-            p_name = h["piece_name"]
-            if p_name in state.pieces_hung_by_type:
-                state.pieces_hung_by_type[p_name] += 1
-            state.hung_pieces_details.append(
-                _move_detail(ctx, piece_name=p_name, square=h["square"])
-            )
-
-        if ctx.classification in BAD_MOVE_CLASSIFICATIONS:
-            state.hanging_blunders += 1
-
-
-def _record_opp_hanging(
-    ctx: MoveCtx,
-    state: TacticsState,
-    opp_hanging_before: list[dict[str, Any]],
-    prev_move_obj: chess.Move | None = None,
-    prev_board_before: chess.Board | None = None,
-) -> None:
-    """Records user capitalizing on or missing opponent hanging pieces."""
-    if not opp_hanging_before or not ctx.move_obj:
-        return
-
-    # Routine recapture / exchange filter:
-    # If user is capturing on the exact square where opponent just captured an equal
-    # or greater value piece on the immediately preceding ply, this is a routine
-    # recapture completing an exchange — NOT capitalizing on an opponent hanging piece!
-    if (
-        prev_move_obj is not None
-        and prev_board_before is not None
-        and prev_move_obj.to_square == ctx.move_obj.to_square
-    ):
-        opp_captured_piece = prev_board_before.piece_at(ctx.move_obj.to_square)
-        if opp_captured_piece is None and prev_board_before.is_en_passant(prev_move_obj):
-            ep_sq = chess.square(
-                chess.square_file(prev_move_obj.to_square),
-                chess.square_rank(prev_move_obj.from_square),
-            )
-            opp_captured_piece = prev_board_before.piece_at(ep_sq)
-
-        if opp_captured_piece is not None:
-            opp_captured_val = PIECE_VALUES.get(opp_captured_piece.piece_type, 0)
-            opp_mover_piece = ctx.board_before.piece_at(ctx.move_obj.to_square)
-            opp_mover_val = (
-                PIECE_VALUES.get(opp_mover_piece.piece_type, 0)
-                if opp_mover_piece is not None
-                else 0
-            )
-            if opp_captured_val >= opp_mover_val:
-                return
-
-    opp_hung_sqs = {h["square"]: h for h in opp_hanging_before}
-    to_sq_name = chess.square_name(ctx.move_obj.to_square)
-
-    if to_sq_name in opp_hung_sqs:
-        # Only count as a successful capture if user didn't blunder into a trap/poisoned piece
-        if (
-            ctx.classification not in BAD_MOVE_CLASSIFICATIONS
-            and ctx.wp_drop < SOUND_TACTIC_MAX_WP_DROP
-        ):
-            state.opponent_hanging_captured += 1
-            captured_h = opp_hung_sqs[to_sq_name]
-            p_name = captured_h["piece_name"]
-            if p_name in state.captured_by_piece:
-                state.captured_by_piece[p_name] += 1
-            state.opp_captured_details.append(
-                {
-                    "piece_name": p_name,
-                    "square": to_sq_name,
-                    "ply": ctx.ply,
-                    "move_number": ctx.move_number,
-                    "san": ctx.san,
-                    "uci": ctx.uci,
-                    "fen_before": ctx.fen_before,
-                    "fen_after": ctx.fen_after,
-                    "classification": ctx.classification,
-                    "eval_before_cp": ctx.eval_user_cp,
-                }
-            )
-    elif opp_hanging_before and ctx.classification in ("Mistake", "Blunder", "Miss"):
-        state.opponent_hanging_missed += 1
-
-
-def _record_motifs(ctx: MoveCtx, state: TacticsState) -> None:
-    """Detects and records tactical motifs on sound moves."""
-    if not ctx.move_obj or not ctx.board_after:
-        return
-    if ctx.classification in BAD_MOVE_CLASSIFICATIONS or ctx.wp_drop >= SOUND_TACTIC_MAX_WP_DROP:
-        return
-
-    motifs = detect_tactical_motifs(
-        ctx.board_before,
-        ctx.board_after,
-        ctx.move_obj,
-        ctx.board_before.turn,
-        ctx.classification,
-    )
-    for motif in motifs:
-        if motif in state.tactical_themes:
-            state.tactical_themes[motif] += 1
-            state.tactical_motifs_details.append(_move_detail(ctx, motif=motif))
-
-
 def _record_brilliancies(ctx: MoveCtx, state: TacticsState) -> None:
-    """Records brilliancies and great moves."""
     if ctx.classification in BRILLIANT_CLASSIFICATIONS:
         state.brilliancies.append(
             {
@@ -413,7 +270,6 @@ def _record_brilliancies(ctx: MoveCtx, state: TacticsState) -> None:
 
 
 def _record_turning_points(ctx: MoveCtx, state: TacticsState) -> None:
-    """Tracks peak/lowest evaluation and advantage collapse/comeback turning points."""
     if ctx.eval_user_cp is not None:
         if state.peak_eval_cp is None or ctx.eval_user_cp > state.peak_eval_cp:
             state.peak_eval_cp = ctx.eval_user_cp
@@ -440,7 +296,6 @@ def _record_turning_points(ctx: MoveCtx, state: TacticsState) -> None:
         and wp_gain > TURNING_POINT_MIN_WP_SWING
     ):
         state.max_comeback_gain = wp_gain
-        eval_gain = -ctx.eval_diff if ctx.eval_diff is not None else None
         state.comeback_turn_move = {
             "ply": ctx.ply,
             "move_number": ctx.move_number,
@@ -451,17 +306,12 @@ def _record_turning_points(ctx: MoveCtx, state: TacticsState) -> None:
             "classification": ctx.classification,
             "eval_before_cp": ctx.eval_user_cp,
             "eval_after_cp": ctx.eval_after_user,
-            "eval_gain": eval_gain,
+            "eval_gain": -ctx.eval_diff if ctx.eval_diff is not None else None,
             "wp_gain": round(wp_gain, 3),
         }
 
 
-def _record_clock(
-    ctx: MoveCtx,
-    state: TacticsState,
-    trouble_threshold: float,
-) -> None:
-    """Records clock metrics for timed moves."""
+def _record_clock(ctx: MoveCtx, state: TacticsState, trouble_threshold: float) -> None:
     state.clock_stats.record(
         time_spent=ctx.time_spent,
         time_left=ctx.time_left,
@@ -469,6 +319,202 @@ def _record_clock(
         classification=ctx.classification,
         trouble_threshold=trouble_threshold,
     )
+
+
+def _record_facts(
+    ctx: MoveCtx,
+    state: TacticsState,
+    facts: list[TacticFact],
+    role: TacticRole,
+) -> None:
+    """Record confirmed facts only; probable facts stay out of headline stats."""
+    for fact in facts:
+        if not fact.is_confirmed:
+            continue
+        roles = state.tactical_roles.get(fact.motif)
+        if roles is None:
+            continue
+
+        roles[role.value] += 1
+        if role is TacticRole.EXECUTED:
+            state.tactical_themes[fact.motif] = roles[TacticRole.EXECUTED.value]
+
+        state.tactical_motifs_details.append(
+            {
+                **_move_detail(ctx, motif=fact.motif),
+                "role": role.value,
+                "confidence": fact.confidence,
+                "target_square": fact.target_square,
+                "target_piece": fact.target_piece,
+                "evidence": fact.evidence,
+            }
+        )
+        state.tactic_facts.append(fact_to_dict(fact))
+
+
+def _record_losses(ctx: MoveCtx, state: TacticsState, losses: list[LossRecord]) -> None:
+    for loss in losses:
+        key = (ctx.ply, loss.square)
+        if key in state.seen_loss_keys:
+            continue
+        state.seen_loss_keys.add(key)
+
+        if loss.kind == "punished":
+            state.punished_lost += 1
+        else:
+            state.immediate_hung += 1
+        state.total_lost += 1
+
+        if loss.piece_name in state.pieces_hung_by_type:
+            state.pieces_hung_by_type[loss.piece_name] += 1
+
+        state.hung_pieces_details.append(
+            {
+                **_move_detail(ctx),
+                "piece_name": loss.piece_name,
+                "square": loss.square,
+                "loss_kind": loss.kind,
+                "punished_by": loss.punished_by,
+                "punished_by_uci": loss.punished_by_uci,
+                "line": list(loss.line),
+                "see_gain_cp": loss.see_gain_cp,
+            }
+        )
+
+        if is_blunder(ctx):
+            state.hanging_blunders += 1
+
+
+def _record_opp_hanging(
+    ctx: MoveCtx,
+    state: TacticsState,
+    opp_hanging_before: list[dict[str, Any]],
+    prev_ctx: MoveCtx | None,
+) -> None:
+    """Records user capitalising on, or missing, opponent hanging pieces."""
+    if not opp_hanging_before or ctx.move_obj is None:
+        return
+
+    if _is_previous_capture(ctx, prev_ctx):
+        return
+
+    opp_hung = {item["square"]: item for item in opp_hanging_before}
+    to_square = chess.square_name(ctx.move_obj.to_square)
+
+    if to_square in opp_hung:
+        if (
+            ctx.classification not in BAD_MOVE_CLASSIFICATIONS
+            and ctx.wp_drop < SOUND_TACTIC_MAX_WP_DROP
+        ):
+            state.opponent_hanging_captured += 1
+            captured = opp_hung[to_square]
+            piece_name = captured["piece_name"]
+            if piece_name in state.captured_by_piece:
+                state.captured_by_piece[piece_name] += 1
+            state.opp_captured_details.append(
+                {
+                    "piece_name": piece_name,
+                    "square": to_square,
+                    "ply": ctx.ply,
+                    "move_number": ctx.move_number,
+                    "san": ctx.san,
+                    "uci": ctx.uci,
+                    "fen_before": ctx.fen_before,
+                    "fen_after": ctx.fen_after,
+                    "classification": ctx.classification,
+                    "eval_before_cp": ctx.eval_user_cp,
+                }
+            )
+    elif ctx.classification in ("Mistake", "Blunder", "Miss"):
+        state.opponent_hanging_missed += 1
+
+
+def _is_previous_capture(ctx: MoveCtx, prev_ctx: MoveCtx | None) -> bool:
+    """True when the user's move simply recaptures on the same square."""
+    if (
+        prev_ctx is None
+        or prev_ctx.move_obj is None
+        or ctx.move_obj is None
+        or prev_ctx.move_obj.to_square != ctx.move_obj.to_square
+    ):
+        return False
+    if not prev_ctx.board_before.is_capture(prev_ctx.move_obj):
+        return False
+
+    _, captured = _captured_piece(prev_ctx.board_before, prev_ctx.move_obj)
+    user_piece = ctx.board_before.piece_at(ctx.move_obj.to_square)
+    if captured is None or user_piece is None:
+        return False
+
+    return PIECE_VALUES.get(captured.piece_type, 0) >= PIECE_VALUES.get(
+        user_piece.piece_type, 0
+    )
+
+
+def _captured_piece(
+    board: chess.Board, move: chess.Move
+) -> tuple[chess.Square, chess.Piece | None]:
+    if board.is_en_passant(move):
+        square = chess.square(
+            chess.square_file(move.to_square),
+            chess.square_rank(move.from_square),
+        )
+    else:
+        square = move.to_square
+    return square, board.piece_at(square)
+
+
+def _record_missed_tactics(ctx: MoveCtx, state: TacticsState) -> None:
+    """High-confidence missed tactics: hanging captures and mate in one."""
+    if ctx.move_obj is None:
+        return
+
+    enemy_hanging = get_lost_pieces(ctx.board_before, not ctx.board_before.turn)
+    captured_square = (
+        chess.square_name(_captured_piece(ctx.board_before, ctx.move_obj)[0])
+        if ctx.board_before.is_capture(ctx.move_obj)
+        else None
+    )
+
+    missed_capture = next(
+        (item for item in enemy_hanging if item["square"] != captured_square),
+        None,
+    )
+    if missed_capture is not None:
+        state.tactical_roles[TacticalTheme.HANGING_PIECE.value][TacticRole.MISSED.value] += 1
+        state.missed_tactics_details.append(
+            {
+                **_move_detail(ctx),
+                "motif": TacticalTheme.HANGING_PIECE.value,
+                "role": TacticRole.MISSED.value,
+                "missed_square": missed_capture["square"],
+                "missed_piece": missed_capture["piece_name"],
+                "missed_see_gain": missed_capture.get("enemy_see_gain", 0),
+            }
+        )
+
+    mate_move = _find_mate_in_one(ctx.board_before)
+    if mate_move is not None and ctx.move_obj != mate_move:
+        state.missed_tactics_details.append(
+            {
+                **_move_detail(ctx),
+                "motif": TacticalTheme.BACK_RANK_MATE.value,
+                "role": TacticRole.MISSED.value,
+                "missed_uci": mate_move.uci(),
+                "missed_san": ctx.board_before.san(mate_move),
+            }
+        )
+
+
+def _find_mate_in_one(board: chess.Board) -> chess.Move | None:
+    for move in board.legal_moves:
+        if not board.gives_check(move):
+            continue
+        work = board.copy(stack=False)
+        work.push(move)
+        if work.is_checkmate():
+            return move
+    return None
 
 
 # ==============================================================================
@@ -483,187 +529,98 @@ def analyze_game_tactics(
     speed_category: str = "Blitz",
 ) -> dict[str, Any]:
     """
-    Full comprehensive tactical, phase, and advantage analysis of a game's moves.
+    Comprehensive tactical, phase and advantage analysis for one game.
 
-    Returns a rich dict containing:
-    - phase_accuracies: {opening: float, middlegame: float, endgame: float}
-    - phase_blunders: {opening: int, middlegame: int, endgame: int}
-    - phase_move_counts: {opening: int, middlegame: int, endgame: int}
-    - hanging_metrics: {total_hung, by_piece, captured_by_piece, ...}
-    - advantage_metrics: {had_winning_advantage, converted_advantage, ...}
-    - brilliancies: list of brilliancy dicts
-    - tactical_themes: {fork, pin, skewer, discovered_attack, sacrifice, back_rank}
-    - drill_down detail lists (hung_pieces_details, opp_captured_details, etc.)
-    - clock_metrics: aggregated timing summary
+    Headline tactic counts use confirmed facts only. Every historical key is
+    preserved; new fields are additive.
     """
     is_user_white = user_color.lower() == "white"
     target_color = chess.WHITE if is_user_white else chess.BLACK
+    enemy_color = not target_color
 
-    cat = (speed_category or "blitz").lower()
     trouble_threshold = DEFAULT_TROUBLE_SECONDS
-    for k, v in TROUBLE_SECONDS.items():
-        if k in cat:
-            trouble_threshold = v
+    category = (speed_category or "blitz").lower()
+    for key, seconds in TROUBLE_SECONDS.items():
+        if key in category:
+            trouble_threshold = seconds
             break
 
+    contexts = build_contexts(moves_data, is_user_white)
     state = TacticsState()
-    cached_hanging_target: list[dict[str, Any]] | None = None
-    cached_hanging_enemy: list[dict[str, Any]] | None = None
-    prev_move_obj: chess.Move | None = None
-    prev_board_before: chess.Board | None = None
 
-    for idx, move_dict in enumerate(moves_data):
-        ply = move_dict.get("ply", idx)
-        move_number = move_dict.get("move_number", (ply + 1) // 2)
-        san = move_dict.get("san", "")
-        uci = move_dict.get("uci", "")
-        fen_before = move_dict.get("fen_before", "")
-        fen_after = move_dict.get("fen_after", "")
-        classification = move_dict.get("classification", "")
-        is_book = bool(move_dict.get("is_book_move", move_dict.get("is_book", False)))
-        eval_before_raw = move_dict.get("eval_before_cp")
-        eval_after_raw = move_dict.get("eval_after_cp")
-        eval_after_mate = move_dict.get("eval_after_mate")
-
-        wp_before_raw = move_dict.get("win_chance_before", 0.5)
-        wp_after_raw = move_dict.get("win_chance_after", 0.5)
-        player_wp_before = to_user_wp(wp_before_raw, is_user_white)
-        player_wp_after = to_user_wp(wp_after_raw, is_user_white)
-
-        is_checkmate_move = san.endswith("#") if san else False
-        is_mating_move = eval_after_mate is not None and (
-            (is_user_white and eval_after_mate > 0) or (not is_user_white and eval_after_mate < 0)
-        )
-
-        time_spent = move_dict.get("time_spent")
-        time_left = move_dict.get("time_left")
-        opening_name = move_dict.get("opening_name", "")
-        explanation = move_dict.get("explanation", "")
-
-        try:
-            board_before = chess.Board(fen_before) if fen_before else chess.Board()
-        except Exception:
-            board_before = chess.Board()
-
-        is_white_turn = board_before.turn == chess.WHITE if fen_before else (ply % 2 == 0)
-        is_user_move = is_white_turn == is_user_white
-
-        phase = classify_game_phase(board_before, ply, is_book_move=is_book)
-        if not is_book and state.book_exit_ply is None:
-            state.book_exit_ply = ply
-
-        # Move parsing (if move exists)
-        move_obj: chess.Move | None = None
-        board_after: chess.Board | None = None
-        if uci or san:
-            try:
-                move_obj = chess.Move.from_uci(uci) if uci else board_before.parse_san(san)
-                board_after = chess.Board(fen_after) if fen_after else board_before.copy()
-                if not fen_after:
-                    board_after.push(move_obj)
-            except (ValueError, chess.IllegalMoveError):
-                move_obj = None
-                board_after = None
-        elif fen_after:
-            try:
-                board_after = chess.Board(fen_after)
-            except ValueError:
-                board_after = None
-
-        if board_after is not None:
-            fen_after = board_after.fen()
-
-        eval_user_cp = to_user_cp(eval_before_raw, is_user_white)
-        eval_after_user = to_user_cp(eval_after_raw, is_user_white)
-        eval_diff = (
-            (eval_user_cp - eval_after_user)
-            if (eval_user_cp is not None and eval_after_user is not None)
-            else move_dict.get("eval_diff")
-        )
-        wp_drop = max(0.0, player_wp_before - player_wp_after)
-
-        ctx = MoveCtx(
-            ply=ply,
-            move_number=move_number,
-            san=san,
-            uci=uci,
-            fen_before=fen_before,
-            fen_after=fen_after,
-            classification=classification,
-            eval_user_cp=eval_user_cp,
-            eval_after_user=eval_after_user,
-            eval_diff=eval_diff,
-            wp_drop=wp_drop,
-            player_wp_before=player_wp_before,
-            player_wp_after=player_wp_after,
-            is_user_move=is_user_move,
-            is_book=is_book,
-            is_mating_move=is_mating_move,
-            is_checkmate_move=is_checkmate_move,
-            board_before=board_before,
-            board_after=board_after,
-            move_obj=move_obj,
-            phase=phase,
-            time_spent=time_spent,
-            time_left=time_left,
-            opening_name=opening_name,
-            explanation=explanation,
-        )
-
-        if not is_user_move:
-            if board_after is not None:
-                cached_hanging_target = get_hanging_pieces(board_after, target_color)
-                cached_hanging_enemy = get_hanging_pieces(
-                    board_after, not target_color, last_move=move_obj, board_before=board_before
-                )
-            prev_move_obj = move_obj
-            prev_board_before = board_before
+    for index, ctx in enumerate(contexts):
+        if ctx is None:
             continue
 
-        # User move analysis
+        if not ctx.is_book and state.book_exit_ply is None:
+            state.book_exit_ply = ctx.ply
+
+        if not ctx.is_user_move:
+            continue
+
         _record_accuracy(ctx, state)
         _record_turning_points(ctx, state)
         _record_brilliancies(ctx, state)
         _record_clock(ctx, state, trouble_threshold)
 
-        if move_obj is not None and board_after is not None:
-            hanging_before = (
-                cached_hanging_target
-                if cached_hanging_target is not None
-                else get_hanging_pieces(board_before, target_color)
-            )
-            opp_hanging_before = (
-                cached_hanging_enemy
-                if cached_hanging_enemy is not None
-                else get_hanging_pieces(
-                    board_before,
-                    not target_color,
-                    last_move=prev_move_obj,
-                    board_before=prev_board_before,
-                )
-            )
+        if ctx.move_obj is None or ctx.board_after is None:
+            continue
 
-            hanging_after = get_hanging_pieces(
-                board_after, target_color, last_move=move_obj, board_before=board_before
+        next_ctx = contexts[index + 1] if index + 1 < len(contexts) else None
+        prev_ctx = contexts[index - 1] if index > 0 else None
+
+        losses = resolve_losses(ctx, next_ctx, target_color)
+        _record_losses(ctx, state, losses)
+
+        executed = confirm_facts(
+            detect_candidates(
+                ctx.board_before,
+                ctx.board_after,
+                ctx.move_obj,
+                ctx.board_before.turn,
+                ctx.classification,
+            ),
+            ctx.board_after,
+            reply_move=next_ctx.move_obj if next_ctx is not None else None,
+            engine_pv=list(next_ctx.engine_pv) if next_ctx is not None else None,
+            classification=ctx.classification,
+            board_before=ctx.board_before,
+        )
+        _record_facts(ctx, state, executed, TacticRole.EXECUTED)
+
+        if (
+            next_ctx is not None
+            and next_ctx.move_obj is not None
+            and next_ctx.board_after is not None
+            and (not is_sound_move(ctx) or ctx.classification in BAD_MOVE_CLASSIFICATIONS)
+        ):
+            allowed = confirm_facts(
+                detect_candidates(
+                    next_ctx.board_before,
+                    next_ctx.board_after,
+                    next_ctx.move_obj,
+                    next_ctx.board_before.turn,
+                    next_ctx.classification,
+                ),
+                next_ctx.board_after,
+                engine_pv=list(next_ctx.engine_pv),
+                classification=next_ctx.classification,
+                board_before=next_ctx.board_before,
             )
-            cached_hanging_target = hanging_after
-            cached_hanging_enemy = get_hanging_pieces(board_after, not target_color)
+            _record_facts(next_ctx, state, allowed, TacticRole.ALLOWED)
 
-            _record_hanging(ctx, state, hanging_before, hanging_after)
-            _record_opp_hanging(
-                ctx,
-                state,
-                opp_hanging_before,
-                prev_move_obj=prev_move_obj,
-                prev_board_before=prev_board_before,
-            )
-            _record_motifs(ctx, state)
+        _record_missed_tactics(ctx, state)
 
-        prev_move_obj = move_obj
-        prev_board_before = board_before
+        _record_opp_hanging(
+            ctx,
+            state,
+            get_lost_pieces(ctx.board_before, enemy_color),
+            prev_ctx,
+        )
 
-    # Finalize advantage conversion
-    is_user_win = (result == "1-0" and is_user_white) or (result == "0-1" and not is_user_white)
+    is_user_win = (result == "1-0" and is_user_white) or (
+        result == "0-1" and not is_user_white
+    )
     is_draw = result in ("1/2-1/2", "Draw")
     user_lost = not is_user_win and not is_draw
 
@@ -683,16 +640,24 @@ def analyze_game_tactics(
             state.comeback_draws = True
         state.lost_deficit = user_lost
 
-    phase_acc_results = {
-        p: _phase_accuracy(state.phase_accuracies[p], state.phase_win_percents[p]) for p in PHASES
+    phase_accuracies = {
+        phase: _phase_accuracy(
+            state.phase_accuracies[phase], state.phase_win_percents[phase]
+        )
+        for phase in PHASES
     }
 
     return {
-        "phase_accuracies": phase_acc_results,
+        "tactics_version": TACTICS_VERSION,
+        "phase_accuracies": phase_accuracies,
         "phase_blunders": state.phase_blunders,
         "phase_move_counts": state.phase_move_counts,
         "hanging_metrics": {
-            "total_hung": state.total_hung,
+            "total_hung": state.total_lost,
+            "total_lost": state.total_lost,
+            "immediate_hung": state.immediate_hung,
+            "punished_lost": state.punished_lost,
+            "deduplicated_total": state.total_lost,
             "by_piece": state.pieces_hung_by_type,
             "captured_by_piece": state.captured_by_piece,
             "hanging_blunders": state.hanging_blunders,
@@ -714,10 +679,13 @@ def analyze_game_tactics(
             "lowest_eval_cp": state.lowest_eval_cp if state.lowest_eval_cp is not None else 0,
         },
         "brilliancies": state.brilliancies,
-        "tactical_themes": state.tactical_themes,
+        "tactical_themes": dict(state.tactical_themes),
+        "tactical_roles": state.tactical_roles,
+        "tactic_facts": state.tactic_facts,
         "hung_pieces_details": state.hung_pieces_details,
         "opp_captured_details": state.opp_captured_details,
         "tactical_motifs_details": state.tactical_motifs_details,
+        "missed_tactics_details": state.missed_tactics_details,
         "blunders_details": state.blunders_details,
         "lead_collapse_move": state.lead_collapse_move,
         "comeback_turn_move": state.comeback_turn_move,
