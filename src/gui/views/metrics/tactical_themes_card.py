@@ -25,6 +25,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.tactics_meta import TACTICAL_MOTIF_KEYS, motif_meta
 from src.gui.views.metrics.base_card import MetricCard
 
 
@@ -37,102 +38,6 @@ class TacticalThemesCard(MetricCard):
     """
 
     drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
-
-    MOTIF_CONFIG: dict[str, tuple[str, str, str, str]] = {
-        # key: (Display Name, Icon, Description/Tooltip, Color Property Name)
-        # Hanging pieces are tracked by the dedicated piece-safety card; they
-        # are a material win, not a tactical pattern.
-        "fork": (
-            "Fork",
-            "fa5s.code-branch",
-            "Double attack against two enemy targets simultaneously",
-            "COLOR_BEST",
-        ),
-        "pin": (
-            "Pin",
-            "fa5s.thumbtack",
-            "Immobilizing an enemy piece against their King or high-value piece",
-            "COLOR_BOOK",
-        ),
-        "skewer": (
-            "Skewer",
-            "fa5s.arrows-alt-v",
-            "Attack through a higher-value piece to win material behind it",
-            "COLOR_GREAT",
-        ),
-        "discovered_attack": (
-            "Discovered Attack",
-            "fa5s.eye",
-            "Moving one piece to unmask a deadly line of attack from another",
-            "COLOR_GOOD",
-        ),
-        "discovered_check": (
-            "Discovered Check",
-            "fa5s.bullseye",
-            "Moving a piece to reveal a check from a hidden attacker",
-            "COLOR_BEST",
-        ),
-        "double_check": (
-            "Double Check",
-            "fa5s.crosshairs",
-            "Two pieces give check at once, forcing the king to move",
-            "COLOR_BEST",
-        ),
-        "removal_of_defender": (
-            "Removal of Defender",
-            "fa5s.user-slash",
-            "Capturing a defender so the piece it guarded becomes loose",
-            "COLOR_GREAT",
-        ),
-        "trapped_piece": (
-            "Trapped Piece",
-            "fa5s.lock",
-            "A piece with no safe escape that is about to be captured",
-            "COLOR_ACCENT",
-        ),
-        "sacrifice": (
-            "Sacrifice",
-            "fa5s.gem",
-            "Deliberate material investment for decisive tactical or positional gain",
-            "COLOR_ACCENT",
-        ),
-        "promotion": (
-            "Promotion",
-            "fa5s.arrow-up",
-            "Promoting a pawn to a queen or another piece",
-            "COLOR_GOOD",
-        ),
-        "back_rank_mate": (
-            "Back-Rank Mate",
-            "fa5s.chess-rook",
-            "Mating the trapped enemy King along their baseline",
-            "COLOR_TEXT_SECONDARY",
-        ),
-        "smothered_mate": (
-            "Smothered Mate",
-            "fa5s.chess-knight",
-            "A knight mates a King surrounded by its own pieces",
-            "COLOR_BOOK",
-        ),
-        "morphy_mate": (
-            "Morphy's Mate",
-            "fa5s.chess-bishop",
-            "A bishop mates while a rook confines the King",
-            "COLOR_TEXT_SECONDARY",
-        ),
-        "opera_mate": (
-            "Opera Mate",
-            "fa5s.chess-rook",
-            "A rook mates while a bishop defends it",
-            "COLOR_TEXT_SECONDARY",
-        ),
-        "boden_mate": (
-            "Boden's Mate",
-            "fa5s.chess-bishop",
-            "Two bishops mate on criss-crossing diagonals",
-            "COLOR_TEXT_SECONDARY",
-        ),
-    }
 
     def __init__(self, parent=None):
         self.stats: dict = {}
@@ -153,7 +58,7 @@ class TacticalThemesCard(MetricCard):
         themes = {
             key: count
             for key, count in (self.stats.get("tactical_themes") or {}).items()
-            if key in self.MOTIF_CONFIG
+            if key in TACTICAL_MOTIF_KEYS
         }
         total_games = self.stats.get("total", 0)
         total_tactics = sum(themes.values())
@@ -171,13 +76,14 @@ class TacticalThemesCard(MetricCard):
 
         # Rank only motifs that actually occurred; zero-count rows add noise.
         sorted_motifs = sorted(
-            (key for key in self.MOTIF_CONFIG if themes.get(key, 0) > 0),
+            (key for key in TACTICAL_MOTIF_KEYS if themes.get(key, 0) > 0),
             key=lambda k: themes.get(k, 0),
             reverse=True,
         )
         top_motif_key = sorted_motifs[0]
         top_count = themes.get(top_motif_key, 0)
-        top_name, top_icon, _, _ = self.MOTIF_CONFIG[top_motif_key]
+        top_meta = motif_meta(top_motif_key)
+        top_name, top_icon = top_meta.label, top_meta.icon
         top_share = (top_count / total_tactics * 100) if total_tactics > 0 else 0.0
         tpg = (total_tactics / total_games) if total_games > 0 else 0.0
 
@@ -267,13 +173,13 @@ class TacticalThemesCard(MetricCard):
         for key in sorted_motifs:
             cnt = themes.get(key, 0)
             pct = cnt / total_tactics * 100
-            _, _, _, color_attr = self.MOTIF_CONFIG[key]
-            seg_color = getattr(Styles, color_attr, Styles.COLOR_ACCENT)
+            meta = motif_meta(key)
+            seg_color = getattr(Styles, meta.color_attr, Styles.COLOR_ACCENT)
             segments.append(
                 (
                     max(1, int(pct * 10)),
                     seg_color,
-                    f"{self.MOTIF_CONFIG[key][0]}: {cnt} strikes ({pct:.1f}%)",
+                    f"{meta.label}: {cnt} strikes ({pct:.1f}%)",
                 )
             )
 
@@ -299,7 +205,13 @@ class TacticalThemesCard(MetricCard):
         list_layout.setSpacing(4)
 
         for rank_idx, key in enumerate(sorted_motifs, start=1):
-            name, icon_name, desc, color_attr = self.MOTIF_CONFIG[key]
+            meta = motif_meta(key)
+            name, icon_name, desc, color_attr = (
+                meta.label,
+                meta.icon,
+                meta.description,
+                meta.color_attr,
+            )
             cnt = themes.get(key, 0)
             pct = (cnt / total_tactics * 100) if total_tactics > 0 else 0.0
             theme_color = getattr(Styles, color_attr, Styles.COLOR_BEST)
