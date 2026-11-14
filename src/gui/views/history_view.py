@@ -287,6 +287,7 @@ class HistoryView(QWidget):
     _DETAILED_PAGE_SIZE = 10
     _COMPACT_PAGE_SIZE = 15
     _MAX_RESTORE_PAGES = 4
+    _MAX_RETAINED_GAMES = 300
 
     def _page_size(self) -> int:
         """Cards are taller than rows, so the page size follows the view mode."""
@@ -337,7 +338,7 @@ class HistoryView(QWidget):
 
             games = self._fetch_page(query)
             self._offset = len(games)
-            self.games = games
+            self.games = games[-self._MAX_RETAINED_GAMES :]
             self.game_list.append_rows(games)
 
             if top_id:
@@ -354,6 +355,7 @@ class HistoryView(QWidget):
                         break
                     self._offset += len(extra)
                     self.games.extend(extra)
+                    self.games = self.games[-self._MAX_RETAINED_GAMES :]
                     self.game_list.append_rows(extra)
                     pages += 1
             self._update_empty_state()
@@ -402,6 +404,7 @@ class HistoryView(QWidget):
                 return
             self._offset += len(games)
             self.games.extend(games)
+            self.games = self.games[-self._MAX_RETAINED_GAMES :]
             self.game_list.append_rows(games)
         except Exception as e:
             logger.error(f"Failed to load more history: {e}")

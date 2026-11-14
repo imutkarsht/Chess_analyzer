@@ -13,6 +13,8 @@ class TourMixin:
     def _do_switch_page(self, index):
         if sip.isdeleted(self):
             return
+        if index == 3:
+            self._ensure_metrics_view()
         self.stack.setCurrentIndex(index)
         if index == 2 and hasattr(self, "history_view"):
             analyzing_id = (
@@ -25,7 +27,7 @@ class TourMixin:
             )
             self.history_view.set_analyzing_game_id(analyzing_id)
             self.history_view.load_history()
-        if index == 3 and hasattr(self, "metrics_view") and self.metrics_view.needs_refresh:
+        if index == 3 and self.metrics_view is not None and self.metrics_view.needs_refresh:
             self.metrics_view.refresh()
         # If a tour is active, close it silently (don't mark seen — user didn't finish it).
         if hasattr(self, "tour_overlay") and self.tour_overlay.isVisible():
@@ -48,7 +50,7 @@ class TourMixin:
             return "history"
         if page_index == 3:
             if (
-                hasattr(self, "metrics_view")
+                self.metrics_view is not None
                 and hasattr(self.metrics_view, "stacked_widget")
                 and self.metrics_view.stacked_widget.currentIndex() == 1
             ):
@@ -82,14 +84,14 @@ class TourMixin:
         # so the tour retriggers on next visit once data becomes available).
         if tour_key == "history" and hasattr(self, "history_view") and not self.history_view.games:
             return
-        if tour_key == "metrics" and hasattr(self, "metrics_view"):
+        if tour_key == "metrics" and self.metrics_view is not None:
             mv = self.metrics_view
             if not any(
                 hasattr(mv, attr) and getattr(mv, attr) and getattr(mv, attr).isVisible()
                 for attr in ("stats_container", "accuracy_card", "openings_card", "quality_card")
             ):
                 return
-        if tour_key == "metrics_drill_down" and hasattr(self, "metrics_view"):
+        if tour_key == "metrics_drill_down" and self.metrics_view is not None:
             ddv = getattr(self.metrics_view, "drill_down_view", None)
             if not ddv or not ddv.items:
                 return

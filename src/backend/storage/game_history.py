@@ -180,7 +180,7 @@ class GameHistoryManager:
         usernames: list[str],
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        """Retrieves user games with full payload for statistics aggregation."""
+        """Retrieves light user rows with summaries for statistics aggregation."""
         return self._games_repo.get_games_for_stats(usernames, limit=limit)
 
     def delete_game(self, game_id: str) -> None:

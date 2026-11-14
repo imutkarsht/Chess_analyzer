@@ -742,12 +742,40 @@ class GamesRepo:
         usernames: list[str],
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        """Return light, analyzed game rows for metrics aggregation.
+
+        PGN and move payloads are deliberately excluded: metrics read the
+        per-game summary, and loading the blobs for every imported row made the
+        dashboard scale with the whole library. Explicitly unanalyzed rows are
+        filtered in SQL so they never reach the Python aggregator.
         """
-        Retrieves user games for statistics aggregation.
-        Maintains full payloads (including moves_json and pgn) to allow complete tactical
-        analysis and backward-compatible drill-down recomputations.
+        if not usernames:
+            return []
+
+        placeholders = ",".join(["?"] * len(usernames))
+        lower_usernames = [u.lower() for u in usernames]
+        params: list[Any] = lower_usernames + lower_usernames
+        query = f"""
+            SELECT {_LIGHT_GAME_COLS_SQL} FROM games
+            WHERE (LOWER(white) IN ({placeholders})
+               OR LOWER(black) IN ({placeholders}))
+              AND COALESCE(analysis_status, '') NOT IN ('not_started', 'unanalyzed')
+            ORDER BY timestamp DESC
         """
-        return self.get_games_for_users(usernames, limit=limit)
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(int(limit))
+
+        games: list[dict[str, Any]] = []
+        try:
+            with self._get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                games = [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error("Failed to fetch stats games: %s", e)
+        return games
 
     def delete_game(self, game_id: str) -> None:
         """Deletes a game from history."""

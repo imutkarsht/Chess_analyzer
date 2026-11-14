@@ -27,6 +27,7 @@ from src.gui.components import (
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import show_error_dialog
+from src.gui.utils.worker_registry import register_worker, remove_worker
 
 from .components import (
     CONTROL_DEFAULT,
@@ -531,11 +532,6 @@ class ApiSettings(QGroupBox):
     # Connection test
     # ------------------------------------------------------------------
     def _test_llm_profile(self) -> None:
-        prev = getattr(self, "_test_worker", None)
-        if prev is not None and prev.isRunning():
-            prev.quit()
-            prev.wait(2000)
-
         class _TestWorker(QThread):
             done = pyqtSignal(bool, str, str, float)
 
@@ -563,8 +559,10 @@ class ApiSettings(QGroupBox):
             previous_toast.dismiss()
         self._test_toast = ToastManager.loading(self, f"Testing {model}…")
 
-        worker = _TestWorker(profile, tuning, parent=self)
+        worker = _TestWorker(profile, tuning)
         self._test_worker = worker
+        register_worker(worker)
+        worker.finished.connect(lambda w=worker: remove_worker(w))
 
         def _on_done(success: bool, msg: str, details: str, elapsed_ms: float):
             if self._test_worker is not worker:
@@ -598,7 +596,6 @@ class ApiSettings(QGroupBox):
         def _cleanup():
             if self._test_worker is worker:
                 self._test_worker = None
-            worker.deleteLater()
 
         worker.done.connect(_on_done)
         worker.finished.connect(_cleanup)

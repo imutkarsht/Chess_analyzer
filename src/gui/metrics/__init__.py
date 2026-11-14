@@ -2,19 +2,9 @@
 Metrics package - Dashboard widgets and statistics.
 """
 
-from .charts import (
-    create_accuracy_trend_figure,
-    create_donut_figure,
-    fig_to_canvas,
-    fig_to_pixmap,
-)
+# Chart helpers intentionally live in ``charts`` and are imported directly by
+# the cards that need them, so importing ``src.gui.metrics`` (e.g. for the card
+# registry) does not pull Matplotlib into the first-launch path.
 from .workers import InsightWorker, StatsWorker
 
-__all__ = [
-    "InsightWorker",
-    "StatsWorker",
-    "create_donut_figure",
-    "create_accuracy_trend_figure",
-    "fig_to_pixmap",
-    "fig_to_canvas",
-]
+__all__ = ["InsightWorker", "StatsWorker"]

@@ -42,7 +42,7 @@ class GameListItemWidget(QWidget):
     )  # emits (game, action: "reanalyze" | "resume" | "analyze")
 
     # Standard starting FEN
-    _STANDARD_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 
     def __init__(self, game, usernames=None, view_mode="detailed", is_analyzing: bool = False):
         super().__init__()
@@ -686,8 +686,17 @@ class GameListItemWidget(QWidget):
             if "960" in val or "frc" in val or "fischer" in val:
                 return True
 
+        # A custom starting position is not automatically Chess960. Only a
+        # file-letter castling field (``A``-``H``/``a``-``h``) marks the variant;
+        # Chess.com also exports ordinary non-standard setups with ordinary
+        # ``KQkq`` castling rights.
         fen = game.metadata.starting_fen
-        return bool(fen and fen.split()[0:4] != self._STANDARD_START_FEN.split()[0:4])
+        if not fen:
+            return False
+        parts = fen.split()
+        if len(parts) < 3:
+            return False
+        return any(piece not in "KQkq-" for piece in parts[2])
 
     def _get_termination_icon(self, termination):
         term_lower = str(termination).lower()

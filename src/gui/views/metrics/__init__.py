@@ -1,27 +1,5 @@
-from src.gui.views.metrics.accuracy_trend_card import AccuracyTrendCard
-from src.gui.views.metrics.advantage_card import AdvantageConversionCard
-from src.gui.views.metrics.ai_coach_card import AICoachCard
-from src.gui.views.metrics.base_card import MetricCard
-from src.gui.views.metrics.brilliancy_hall_card import BrilliancyHallCard
-from src.gui.views.metrics.ending_distribution_card import EndingDistributionCard
-from src.gui.views.metrics.hanging_pieces_card import HangingPiecesCard
-from src.gui.views.metrics.move_quality_card import MoveQualityCard
-from src.gui.views.metrics.openings_list_card import OpeningsListCard
-from src.gui.views.metrics.phase_performance_card import PhasePerformanceCard
-from src.gui.views.metrics.tactical_themes_card import TacticalThemesCard
-from src.gui.views.metrics.time_management_card import TimeManagementCard
+"""Dashboard cards.
 
-__all__ = [
-    "MetricCard",
-    "EndingDistributionCard",
-    "MoveQualityCard",
-    "AccuracyTrendCard",
-    "PhasePerformanceCard",
-    "HangingPiecesCard",
-    "TacticalThemesCard",
-    "AdvantageConversionCard",
-    "BrilliancyHallCard",
-    "OpeningsListCard",
-    "TimeManagementCard",
-    "AICoachCard",
-]
+Cards are imported directly by ``metrics_view`` so importing the card registry
+in Settings does not pull Matplotlib into the first-launch path.
+"""

@@ -271,6 +271,32 @@ def test_history_view_load_history_fast_path(tmp_path, qtbot, qapp):
     assert view.games[0].metadata.termination_description == "Player1 won by resignation"
 
 
+def test_custom_start_position_is_not_mislabeled_as_chess960(qtbot):
+    meta = GameMetadata(
+        white="A",
+        black="B",
+        result="1-0",
+        date="2023.08.25",
+        event="Live Chess",
+        starting_fen=(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/2BQKBNR w Kkq - 0 1"
+        ),
+        headers={},
+    )
+    game = GameAnalysis(game_id="custom", metadata=meta, moves=[])
+
+    widget = GameListItemWidget(game, usernames=[], view_mode="detailed")
+    qtbot.addWidget(widget)
+    assert not any(
+        label.text() == "Chess960" for label in widget.findChildren(QLabel)
+    )
+
+    meta.chess960 = True
+    widget = GameListItemWidget(game, usernames=[], view_mode="detailed")
+    qtbot.addWidget(widget)
+    assert any(label.text() == "Chess960" for label in widget.findChildren(QLabel))
+
+
 @pytest.mark.parametrize(
     "status,expected_badge,expected_action",
     [
