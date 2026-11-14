@@ -372,7 +372,8 @@ class AnalysisPanel(QWidget):
                 file_name = f"{file_name}.pgn"
 
             pgn = AnnotatedPGNExporter.export_game(self.current_game)
-            Path(file_name).write_text(pgn, encoding="utf-8")
+            with Path(file_name).open("w", encoding="utf-8", newline="\n") as output:
+                output.write(pgn)
             ToastManager.success(self, "Annotated PGN exported.")
         except Exception as e:
             logger.error("Annotated PGN export failed: %s", e, exc_info=True)
@@ -382,11 +383,20 @@ class AnalysisPanel(QWidget):
         self._update_share_report_button()
         if not self.current_game:
             self.btn_export_pgn.setEnabled(False)
+            self.btn_export_pgn.setToolTip(
+                "Load and analyze a game before exporting an annotated PGN."
+            )
             self._lines_fen = None
             self.lines_widget.clear()
             return
 
-        self.btn_export_pgn.setEnabled(True)
+        has_annotations = self._has_move_analysis()
+        self.btn_export_pgn.setEnabled(has_annotations)
+        self.btn_export_pgn.setToolTip(
+            "Export analyzed moves and engine variations."
+            if has_annotations
+            else "Analyze this game before exporting an annotated PGN."
+        )
         try:
             self._lines_fen = None
             self.lines_widget.clear()
@@ -461,6 +471,19 @@ class AnalysisPanel(QWidget):
             if can_share
             else "Analyze this game before sharing a report."
         )
+
+    def _has_move_analysis(self) -> bool:
+        """Whether the current game has analysis data worth exporting."""
+        for move in getattr(self.current_game, "moves", []) or []:
+            if (
+                move.classification
+                or move.eval_after_cp is not None
+                or move.eval_after_mate is not None
+                or move.pv
+                or move.multi_pvs
+            ):
+                return True
+        return False
 
     def open_share_report(self) -> None:
         if not ShareReportRenderer.can_render(self.current_game):

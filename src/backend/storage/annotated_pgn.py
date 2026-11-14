@@ -16,7 +16,7 @@ _CLASSIFICATION_NAGS = {
     "inaccuracy": 6,
     "mistake": 2,
     "blunder": 4,
-    "miss": 5,
+    "miss": 6,
 }
 _EVAL_TAG_RE = re.compile(r"\[%eval\s+[^\]]*\]")
 _DEPTH_TAG_RE = re.compile(r"\[%depth\s+[^\]]*\]")
@@ -34,12 +34,20 @@ class AnnotatedPGNExporter:
         pgn_game = cls._load_game(game)
         mainline = list(pgn_game.mainline())
 
-        for move_analysis, node in zip(game.moves, mainline, strict=False):
-            cls._annotate_move(node, move_analysis)
-            cls._add_pv_variations(node.parent, move_analysis)
+        if game.moves and len(game.moves) != len(mainline):
+            raise ValueError(
+                f"Game {game.game_id} has {len(game.moves)} stored moves but "
+                f"{len(mainline)} PGN moves."
+            )
+
+        if game.moves:
+            for move_analysis, node in zip(game.moves, mainline, strict=True):
+                cls._validate_move_identity(game, move_analysis, node)
+                cls._annotate_move(node, move_analysis)
+                cls._add_pv_variations(node.parent, move_analysis)
 
         exporter = chess.pgn.StringExporter(
-            headers=True, variations=True, comments=True, columns=80
+            headers=True, variations=True, comments=True, columns=None
         )
         return pgn_game.accept(exporter)
 
@@ -60,6 +68,12 @@ class AnnotatedPGNExporter:
                 raise ValueError(
                     f"Game {game.game_id} contains invalid PGN: {pgn_game.errors[0]}"
                 )
+            cls._validate_pgn_game(
+                game.game_id,
+                game.pgn_content,
+                pgn_game,
+                game.metadata.move_count,
+            )
         else:
             pgn_game = cls._game_from_analysis(game)
 
@@ -94,6 +108,75 @@ class AnnotatedPGNExporter:
                 pgn_game.headers[key] = str(value)
 
         return pgn_game
+
+    @classmethod
+    def validate_unanalyzed_pgn(
+        cls, game_id: str, pgn_content: str | None, move_count: int | None = None
+    ) -> str:
+        """Validate a stored unanalyzed PGN and return its original text unchanged."""
+        if not pgn_content:
+            raise ValueError(f"Game {game_id} has no PGN content.")
+        pgn_game = chess.pgn.read_game(io.StringIO(pgn_content))
+        if pgn_game is None:
+            raise ValueError(f"Game {game_id} does not contain a readable PGN game.")
+        if pgn_game.errors:
+            raise ValueError(f"Game {game_id} contains invalid PGN: {pgn_game.errors[0]}")
+        cls._validate_pgn_game(game_id, pgn_content, pgn_game, move_count)
+        return pgn_content
+
+    @staticmethod
+    def _validate_pgn_game(
+        game_id: str,
+        pgn_content: str,
+        pgn_game: chess.pgn.Game,
+        move_count: int | None,
+    ) -> None:
+        mainline = list(pgn_game.mainline())
+        if move_count and move_count > 0:
+            last_move_number = (
+                mainline[-1].parent.board().fullmove_number if mainline else 0
+            )
+            if last_move_number != move_count:
+                raise ValueError(
+                    f"Game {game_id} has {last_move_number} parsed move numbers; "
+                    f"expected {move_count}."
+                )
+        if not mainline:
+            has_explicit_headers = any(
+                value not in ("?", "*", "????.??.??")
+                for key, value in pgn_game.headers.items()
+                if key not in ("FEN", "SetUp", "Variant")
+            )
+            if not has_explicit_headers and pgn_content.strip() not in (
+                "*",
+                "1-0",
+                "0-1",
+                "1/2-1/2",
+            ):
+                raise ValueError(f"Game {game_id} contains no PGN headers or moves.")
+
+    @staticmethod
+    def _validate_move_identity(
+        game: GameAnalysis, move_analysis: MoveAnalysis, node: chess.pgn.ChildNode
+    ) -> None:
+        if move_analysis.uci:
+            if node.move.uci() != move_analysis.uci:
+                raise ValueError(
+                    f"Game {game.game_id} move {move_analysis.ply} does not match "
+                    f"the PGN mainline ({node.move.uci()} != {move_analysis.uci})."
+                )
+            return
+        if move_analysis.san:
+            pgn_san = node.parent.board().san(node.move)
+            if pgn_san != move_analysis.san:
+                raise ValueError(
+                    f"Game {game.game_id} move {move_analysis.ply} does not match "
+                    f"the PGN mainline ({pgn_san} != {move_analysis.san})."
+                )
+            return
+        raise ValueError(
+            f"Game {game.game_id} move {move_analysis.ply} has no UCI or SAN identity."
+        )
 
     @staticmethod
     def _prepare_pgn_content(game: GameAnalysis) -> str:
@@ -200,8 +283,7 @@ class AnnotatedPGNExporter:
 
     @staticmethod
     def _analysis_depth(move: MoveAnalysis) -> int | None:
-        depths: list[int] = []
-        for line in move.multi_pvs:
+        for line in move.multi_pvs or []:
             if not isinstance(line, dict):
                 continue
             try:
@@ -209,8 +291,8 @@ class AnnotatedPGNExporter:
             except (TypeError, ValueError):
                 continue
             if depth > 0:
-                depths.append(depth)
-        return max(depths) if depths else None
+                return depth
+        return None
 
     @staticmethod
     def _format_clock(seconds: float | None) -> str | None:
@@ -233,14 +315,14 @@ class AnnotatedPGNExporter:
             return
 
         lines: list[list[chess.Move]] = []
-        for line in move.multi_pvs:
+        for line in (move.multi_pvs or [])[:2]:
             if isinstance(line, dict):
                 raw_pv = line.get("pv_uci") or line.get("pv") or []
                 pv = cls._validated_pv(parent.board(), raw_pv)
                 if pv and pv not in lines:
                     lines.append(pv)
 
-        if move.pv:
+        if move.pv and len(lines) < 2:
             pv = cls._validated_pv(parent.board(), move.pv)
             if pv and pv not in lines:
                 lines.append(pv)
@@ -249,12 +331,14 @@ class AnnotatedPGNExporter:
             cls._insert_variation(parent, line)
 
     @staticmethod
-    def _validated_pv(board: chess.Board, raw_pv: object) -> list[chess.Move]:
+    def _validated_pv(
+        board: chess.Board, raw_pv: object, max_plies: int = 12
+    ) -> list[chess.Move]:
         if not isinstance(raw_pv, (list, tuple)):
             return []
         position = board.copy(stack=False)
         moves: list[chess.Move] = []
-        for raw_move in raw_pv:
+        for raw_move in raw_pv[:max_plies]:
             try:
                 move = (
                     raw_move
@@ -272,33 +356,23 @@ class AnnotatedPGNExporter:
     @staticmethod
     def _insert_variation(parent: chess.pgn.GameNode, line: list[chess.Move]) -> None:
         node = parent
-        index = 0
-        while index < len(line):
-            mainline = node.variation(0) if node.variations else None
-            if mainline is None or mainline.move != line[index]:
-                break
-            node = mainline
-            index += 1
-
-        if index == len(line):
-            return
-
-        branch = line[index:]
-        for existing in node.variations:
-            if existing.move == branch[0] and AnnotatedPGNExporter._contains_line(
-                existing, branch[1:]
-            ):
+        diverged = False
+        for move in line:
+            matching = next(
+                (
+                    (index, child)
+                    for index, child in enumerate(node.variations)
+                    if child.move == move
+                ),
+                None,
+            )
+            if matching is not None:
+                index, matching_child = matching
+                if index:
+                    diverged = True
+                node = matching_child
+                continue
+            if not node.variations and not diverged:
                 return
-
-        branch_node = node.add_variation(branch[0])
-        for move in branch[1:]:
-            branch_node = branch_node.add_variation(move)
-
-    @staticmethod
-    def _contains_line(node: chess.pgn.ChildNode, moves: list[chess.Move]) -> bool:
-        for move in moves:
-            matching_child = next((child for child in node.variations if child.move == move), None)
-            if matching_child is None:
-                return False
-            node = matching_child
-        return True
+            node = node.add_variation(move)
+            diverged = True

@@ -230,6 +230,20 @@ class TestReplay:
 
 
 class TestExport:
+    def test_analysis_export_is_disabled_until_move_annotations_exist(self, panel):
+        board = chess.Board()
+        move = board.parse_san("e4")
+        unanalyzed = GameAnalysis(
+            game_id="unanalyzed",
+            metadata=GameMetadata(headers={}),
+            moves=[MoveAnalysis(1, 0, "e4", move.uci(), board.fen())],
+        )
+
+        panel.set_game(unanalyzed)
+
+        assert not panel.btn_export_pgn.isEnabled()
+        assert "Analyze this game" in panel.btn_export_pgn.toolTip()
+
     def test_analysis_panel_exports_the_current_game_as_pgn(
         self, panel, tmp_path, monkeypatch
     ):

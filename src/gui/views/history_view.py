@@ -1,9 +1,15 @@
+import json
+import os
+import tempfile
+import time
 from pathlib import Path
+from threading import Event
 
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QMenu,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -72,30 +78,127 @@ class GameImportWorker(QThread):
 
 
 class AnnotatedPGNExportWorker(QThread):
-    """Export the full game archive without blocking the History view."""
+    """Stream filtered game history to PGN without blocking the History view."""
 
-    exported = pyqtSignal(int)
+    exported = pyqtSignal(int, int)  # exported_count, skipped_count
+    progress = pyqtSignal(int, int)  # processed_count, total_count
+    cancelled = pyqtSignal(int, int)  # exported_count, skipped_count
     error = pyqtSignal(str)
+    _BATCH_SIZE = 25
+    _YIELD_EVERY = 25
 
-    def __init__(self, history_manager: GameHistoryManager, file_path: str, parent=None):
+    def __init__(
+        self,
+        history_manager: GameHistoryManager,
+        file_path: str,
+        query: GameQuery | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.history_manager = history_manager
         self.file_path = file_path
+        self.query = query or GameQuery()
+        self._cancel_requested = Event()
+
+    def request_cancel(self) -> None:
+        self._cancel_requested.set()
 
     def run(self) -> None:
+        temporary_path: Path | None = None
         try:
-            rows = self.history_manager.get_all_games(limit=None)
-            games = [self.history_manager.row_to_game_analysis(row) for row in rows]
-            if not games:
-                self.exported.emit(0)
+            total = self.history_manager.count_games(self.query)
+            if not total:
+                self.exported.emit(0, 0)
                 return
 
-            pgn = AnnotatedPGNExporter.export_games(games)
-            Path(self.file_path).write_text(pgn, encoding="utf-8")
-            self.exported.emit(len(games))
+            output_path = Path(self.file_path)
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+                dir=output_path.parent,
+                prefix=f".{output_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as output:
+                temporary_path = Path(output.name)
+                exported_count = 0
+                skipped_count = 0
+                processed_count = 0
+                has_output = False
+
+                rows = self.history_manager.iter_games_for_export(
+                    self.query, self._BATCH_SIZE
+                )
+                try:
+                    for row in rows:
+                        if self._cancel_requested.is_set():
+                            break
+                        try:
+                            pgn = row.get("pgn") or ""
+                            if self._is_unanalyzed(row):
+                                pgn = AnnotatedPGNExporter.validate_unanalyzed_pgn(
+                                    str(row.get("id") or ""),
+                                    pgn,
+                                    row.get("move_count"),
+                                )
+                            else:
+                                game = self.history_manager.row_to_game_analysis(row)
+                                pgn = AnnotatedPGNExporter.export_game(game)
+                            self._write_game(output, pgn, has_output)
+                            has_output = True
+                            exported_count += 1
+                        except Exception as error:
+                            skipped_count += 1
+                            logger.warning(
+                                "Skipping game %s during annotated PGN export: %s",
+                                row.get("id", "<unknown>"),
+                                error,
+                            )
+
+                        processed_count += 1
+                        if processed_count % self._YIELD_EVERY == 0:
+                            self.progress.emit(processed_count, total)
+                            time.sleep(0)
+                finally:
+                    close_iterator = getattr(rows, "close", None)
+                    if close_iterator is not None:
+                        close_iterator()
+
+                self.progress.emit(processed_count, total)
+                cancelled = self._cancel_requested.is_set()
+
+            if cancelled:
+                self.cancelled.emit(exported_count, skipped_count)
+                return
+
+            os.replace(temporary_path, output_path)
+            temporary_path = None
+            self.exported.emit(exported_count, skipped_count)
         except Exception as e:
             logger.error("Annotated PGN export failed: %s", e, exc_info=True)
             self.error.emit(str(e))
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+
+    @staticmethod
+    def _is_unanalyzed(row: dict) -> bool:
+        moves_json = row.get("moves_json")
+        if not moves_json:
+            return True
+        try:
+            return not json.loads(moves_json)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _write_game(output, pgn: str, has_output: bool) -> None:
+        if has_output:
+            output.write("\n")
+        output.write(pgn)
+        if not pgn.endswith("\n"):
+            output.write("\n")
 
 
 class HistoryView(QWidget):
@@ -160,15 +263,22 @@ class HistoryView(QWidget):
         self.btn_import = self._create_icon_button("Import", "fa5s.file-import", self.import_games)
         header_layout.addWidget(self.btn_import)
 
-        self.btn_export = self._create_icon_button("Export", "fa5s.file-export", self.export_games)
+        self.btn_export = self._create_icon_button("Export", "fa5s.file-export", None)
+        self.export_menu = QMenu(self)
+        self.export_csv_action = self.export_menu.addAction("Export CSV")
+        self.export_csv_action.triggered.connect(self.export_games)
+        self.export_pgn_action = self.export_menu.addAction("Export Annotated PGN")
+        self.export_pgn_action.triggered.connect(self.export_annotated_pgn)
+        self.btn_export.setMenu(self.export_menu)
         header_layout.addWidget(self.btn_export)
 
-        self.btn_export_pgn = self._create_icon_button(
-            "Export Annotated PGN",
-            "fa5s.file-export",
-            self.export_annotated_pgn,
+        self.btn_cancel_export = Button(
+            "Cancel export",
+            ButtonVariant.OUTLINED,
+            on_click=self._cancel_annotated_pgn_export,
         )
-        header_layout.addWidget(self.btn_export_pgn)
+        self.btn_cancel_export.setVisible(False)
+        header_layout.addWidget(self.btn_cancel_export)
 
         self.btn_clear = self._create_icon_button(
             "Delete all games",
@@ -249,7 +359,7 @@ class HistoryView(QWidget):
         if inserted:
             self.games_imported.emit(inserted)
 
-    def _create_icon_button(self, text, icon_name, callback, danger=False):
+    def _create_icon_button(self, text, icon_name, callback=None, danger=False):
         """Create a Button with a themed icon."""
         return Button(
             text,
@@ -484,24 +594,27 @@ class HistoryView(QWidget):
             if not file_name:
                 return
 
-            history_games = self.history_manager.get_all_games(limit=None)
-            if not history_games:
+            query = self._current_query()
+            total = self.history_manager.count_games(query)
+            if not total:
                 ToastManager.warning(self, "No games to export.")
                 return
 
+            exported_count = 0
             with open(file_name, mode="w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=GAME_CSV_COLUMNS)
                 writer.writeheader()
 
-                for game_dict in history_games:
+                for game_dict in self.history_manager.iter_games_for_export(query):
                     row = {
                         k: game_dict.get(k) if game_dict.get(k) is not None else ""
                         for k in GAME_CSV_COLUMNS
                     }
                     writer.writerow(row)
+                    exported_count += 1
 
-            logger.info(f"Exported {len(history_games)} games to {file_name}")
-            ToastManager.success(self, f"Exported {len(history_games)} games.")
+            logger.info(f"Exported {exported_count} games to {file_name}")
+            ToastManager.success(self, f"Exported {exported_count} games.")
 
         except Exception as e:
             logger.error(f"Export failed: {e}")
@@ -525,14 +638,20 @@ class HistoryView(QWidget):
             if not Path(file_name).suffix:
                 file_name = f"{file_name}.pgn"
 
-            self.btn_export_pgn.setEnabled(False)
-            self._export_toast = ToastManager.loading(self, "Exporting annotated PGN…")
+            self.btn_export.setEnabled(False)
+            self.btn_cancel_export.setVisible(True)
+            self._export_toast = ToastManager.loading(
+                self, "Exporting annotated PGN…", show_progress=True
+            )
             worker = AnnotatedPGNExportWorker(
                 self.history_manager,
                 file_name,
+                self._current_query(),
             )
             self._export_worker = worker
             worker.exported.connect(self._on_annotated_pgn_exported)
+            worker.progress.connect(self._on_annotated_pgn_export_progress)
+            worker.cancelled.connect(self._on_annotated_pgn_export_cancelled)
             worker.error.connect(self._on_annotated_pgn_export_error)
             worker.finished.connect(lambda: remove_worker(worker))
             worker.finished.connect(self._on_annotated_pgn_worker_finished)
@@ -540,19 +659,42 @@ class HistoryView(QWidget):
             worker.start()
         except Exception as e:
             logger.error("Failed to start annotated PGN export: %s", e, exc_info=True)
-            self.btn_export_pgn.setEnabled(True)
+            self.btn_export.setEnabled(True)
+            self.btn_cancel_export.setVisible(False)
             if self._export_toast is not None:
                 self._export_toast.update(f"Export failed: {e}", variant="error")
             else:
                 ToastManager.error(self, f"Export failed: {e}")
             self._export_toast = None
 
-    def _on_annotated_pgn_exported(self, count: int) -> None:
+    def _on_annotated_pgn_export_progress(self, processed: int, total: int) -> None:
+        if self._export_toast is not None:
+            self._export_toast.update(
+                f"Exporting games: {processed} of {total}…", variant="loading"
+            )
+            self._export_toast.set_progress(processed / total if total else 0)
+
+    def _on_annotated_pgn_exported(self, count: int, skipped: int) -> None:
         if self._export_toast is not None:
             if count:
-                self._export_toast.update(f"Exported {count} games.", variant="success")
+                message = f"Exported {count} games."
+                if skipped:
+                    message += f" Skipped {skipped} invalid games."
+                self._export_toast.update(message, variant="success")
+            elif skipped:
+                self._export_toast.update(
+                    f"No valid games exported; skipped {skipped} invalid games.",
+                    variant="warning",
+                )
             else:
                 self._export_toast.update("No games to export.", variant="warning")
+            self._export_toast = None
+
+    def _on_annotated_pgn_export_cancelled(self, _count: int, _skipped: int) -> None:
+        if self._export_toast is not None:
+            self._export_toast.update(
+                "Export cancelled. No file was written.", variant="warning"
+            )
             self._export_toast = None
 
     def _on_annotated_pgn_export_error(self, message: str) -> None:
@@ -562,7 +704,17 @@ class HistoryView(QWidget):
 
     def _on_annotated_pgn_worker_finished(self) -> None:
         self._export_worker = None
-        self.btn_export_pgn.setEnabled(True)
+        self.btn_export.setEnabled(True)
+        self.btn_cancel_export.setVisible(False)
+        self.btn_cancel_export.setEnabled(True)
+        self.btn_cancel_export.setText("Cancel export")
+
+    def _cancel_annotated_pgn_export(self) -> None:
+        if self._export_worker is None:
+            return
+        self._export_worker.request_cancel()
+        self.btn_cancel_export.setEnabled(False)
+        self.btn_cancel_export.setText("Cancelling…")
 
     def import_games(self):
         handle: ToastHandle | None = None
