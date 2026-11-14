@@ -9,7 +9,10 @@ path in ``test_coach_worker.py``.
 
 from __future__ import annotations
 
+import io
+
 import chess
+import chess.pgn
 import pytest
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import QDialog
@@ -224,3 +227,39 @@ class TestReplay:
         panel.update_lines([], fen=None)
         panel._on_line_clicked("d2d4")
         assert requests == [(move.fen_before, "d2d4")]
+
+
+class TestExport:
+    def test_analysis_export_is_disabled_until_move_annotations_exist(self, panel):
+        board = chess.Board()
+        move = board.parse_san("e4")
+        unanalyzed = GameAnalysis(
+            game_id="unanalyzed",
+            metadata=GameMetadata(headers={}),
+            moves=[MoveAnalysis(1, 0, "e4", move.uci(), board.fen())],
+        )
+
+        panel.set_game(unanalyzed)
+
+        assert not panel.btn_export_pgn.isEnabled()
+        assert "Analyze this game" in panel.btn_export_pgn.toolTip()
+
+    def test_analysis_panel_exports_the_current_game_as_pgn(
+        self, panel, tmp_path, monkeypatch
+    ):
+        from PyQt6.QtWidgets import QFileDialog
+
+        output = tmp_path / "current-game.pgn"
+        monkeypatch.setattr(
+            QFileDialog,
+            "getSaveFileName",
+            lambda *args: (str(output), "PGN Files (*.pgn)"),
+        )
+        panel.set_game(_game())
+
+        panel.btn_export_pgn.click()
+
+        exported = output.read_text(encoding="utf-8")
+        parsed = chess.pgn.read_game(io.StringIO(exported))
+        assert parsed is not None
+        assert len(list(parsed.mainline_moves())) == len(panel.current_game.moves)

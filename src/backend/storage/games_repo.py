@@ -8,6 +8,7 @@ import sqlite3
 import time
 import uuid
 from collections import Counter
+from collections.abc import Iterator
 from typing import Any
 
 from src.backend.storage.db_connection import get_db_connection
@@ -685,6 +686,20 @@ class GamesRepo:
             cursor.execute(sql, payload)
             games = [dict(row) for row in cursor.fetchall()]
         return games
+
+    def iter_games_for_export(
+        self, query: GameQuery, batch_size: int = 100
+    ) -> Iterator[dict[str, Any]]:
+        """Yield matching full game rows in bounded batches and the requested order."""
+        where, params = build_filters(query)
+        sql = f"SELECT * FROM games{where} ORDER BY {build_order_by(query)}"
+        size = max(1, int(batch_size))
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            while rows := cursor.fetchmany(size):
+                yield from (dict(row) for row in rows)
 
     def fetch_game_row(self, game_id: str) -> dict[str, Any] | None:
         """Light row for one game, used to refresh a single list row in place."""

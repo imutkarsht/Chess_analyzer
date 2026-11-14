@@ -311,8 +311,9 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `schema_constants.py` | Column specs and SQL shared by repos | `GAME_COLUMNS` |
 | `models.py` | Domain dataclasses and serialisation | `GameAnalysis`, `GameMetadata`, `MoveAnalysis` |
 | `game_history.py` | Storage facade over games and caches | `GameHistoryManager` |
-| `games_repo.py` | Game persistence, querying and hydration | `GamesRepo` |
+| `games_repo.py` | Game persistence, querying, hydration and batched export iteration | `GamesRepo` |
 | `game_query.py` | Declarative history queries and filters | `GameQuery` |
+| `annotated_pgn.py` | PGN generation with move-identity checks, bounded engine lines and annotations | `AnnotatedPGNExporter` |
 | `api_cache_repo.py` | Cache of games fetched from external APIs | `ApiCacheRepo` |
 | `explorer_cache_repo.py` | Opening-explorer response cache and pruning | `ExplorerCacheRepo` |
 | `profile_cache_repo.py` | Cached public profiles and avatars | `ProfileCacheRepo`, `CachedProfile` |
