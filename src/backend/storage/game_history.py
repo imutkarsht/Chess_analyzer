@@ -5,6 +5,7 @@ Maintains 100% backward-compatible public & private API while delegating to focu
 
 import os
 import sqlite3
+from collections.abc import Iterator
 from typing import Any
 
 from src.backend.storage import migrations
@@ -162,6 +163,12 @@ class GameHistoryManager:
     def fetch_games_page(self, query: GameQuery) -> list[dict[str, Any]]:
         """Returns one page of light game rows for the history list."""
         return self._games_repo.fetch_games_page(query)
+
+    def iter_games_for_export(
+        self, query: GameQuery, batch_size: int = 100
+    ) -> Iterator[dict[str, Any]]:
+        """Yields filtered full game rows in bounded batches for file exports."""
+        return self._games_repo.iter_games_for_export(query, batch_size)
 
     def fetch_game_row(self, game_id: str) -> dict[str, Any] | None:
         """Returns the light row for a single game, for in-place list updates."""

@@ -176,3 +176,21 @@ class TestPaging:
         # The paged query the list uses is deliberately narrower than export.
         assert len(manager.fetch_games_page(GameQuery(limit=25))) == 25
         assert len(manager.get_all_games(limit=None)) == 40
+
+    def test_export_iterator_streams_filtered_rows_in_requested_order(self, manager):
+        manager.save_games_bulk(
+            [
+                _row(1, event="Keep this game", timestamp=10),
+                _row(2, event="Skip this game", timestamp=30),
+                _row(3, event="Keep this game too", timestamp=20),
+            ]
+        )
+
+        rows = list(
+            manager.iter_games_for_export(
+                GameQuery(search="keep", sort="oldest"), batch_size=1
+            )
+        )
+
+        assert [row["id"] for row in rows] == ["g1", "g3"]
+        assert all("pgn" in row and "moves_json" in row for row in rows)

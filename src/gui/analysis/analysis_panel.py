@@ -2,6 +2,8 @@
 Analysis Panel - Coordinates evaluation graphs, stats summaries, and AI coach summaries.
 """
 
+from pathlib import Path
+
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
@@ -16,6 +18,7 @@ from PyQt6.QtWidgets import (
 from src.backend.analysis.game_report import build_game_report
 from src.backend.analysis.tactics.insight import MoveInsight, build_move_insight
 from src.backend.services.groq_service import GroqService
+from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import (
@@ -213,6 +216,15 @@ class AnalysisPanel(QWidget):
         self.details_label = Label("-", role=TextRole.MICRO, tone=TextTone.MUTED)
         hero_layout.addWidget(self.details_label)
 
+        self.btn_export_pgn = Button(
+            "Export Annotated PGN",
+            ButtonVariant.OUTLINED,
+            icon="fa5s.file-export",
+        )
+        self.btn_export_pgn.clicked.connect(self.export_annotated_pgn)
+        self.btn_export_pgn.setEnabled(False)
+        hero_layout.addWidget(self.btn_export_pgn, alignment=Qt.AlignmentFlag.AlignRight)
+
         self.report_layout.addWidget(self.hero_card)
 
         # Subtle divider 1
@@ -341,13 +353,50 @@ class AnalysisPanel(QWidget):
         self.set_selected_move(-1)
         self.refresh()
 
+    def export_annotated_pgn(self):
+        if self.current_game is None:
+            return
+
+        try:
+            from PyQt6.QtWidgets import QFileDialog
+
+            file_name, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Annotated PGN",
+                "game.pgn",
+                "PGN Files (*.pgn)",
+            )
+            if not file_name:
+                return
+            if not Path(file_name).suffix:
+                file_name = f"{file_name}.pgn"
+
+            pgn = AnnotatedPGNExporter.export_game(self.current_game)
+            with Path(file_name).open("w", encoding="utf-8", newline="\n") as output:
+                output.write(pgn)
+            ToastManager.success(self, "Annotated PGN exported.")
+        except Exception as e:
+            logger.error("Annotated PGN export failed: %s", e, exc_info=True)
+            ToastManager.error(self, f"Export failed: {e}")
+
     def refresh(self):
         self._update_share_report_button()
         if not self.current_game:
+            self.btn_export_pgn.setEnabled(False)
+            self.btn_export_pgn.setToolTip(
+                "Load and analyze a game before exporting an annotated PGN."
+            )
             self._lines_fen = None
             self.lines_widget.clear()
             return
 
+        has_annotations = self._has_move_analysis()
+        self.btn_export_pgn.setEnabled(has_annotations)
+        self.btn_export_pgn.setToolTip(
+            "Export analyzed moves and engine variations."
+            if has_annotations
+            else "Analyze this game before exporting an annotated PGN."
+        )
         try:
             self._lines_fen = None
             self.lines_widget.clear()
@@ -422,6 +471,19 @@ class AnalysisPanel(QWidget):
             if can_share
             else "Analyze this game before sharing a report."
         )
+
+    def _has_move_analysis(self) -> bool:
+        """Whether the current game has analysis data worth exporting."""
+        for move in getattr(self.current_game, "moves", []) or []:
+            if (
+                move.classification
+                or move.eval_after_cp is not None
+                or move.eval_after_mate is not None
+                or move.pv
+                or move.multi_pvs
+            ):
+                return True
+        return False
 
     def open_share_report(self) -> None:
         if not ShareReportRenderer.can_render(self.current_game):
