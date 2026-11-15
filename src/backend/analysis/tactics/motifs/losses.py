@@ -124,7 +124,9 @@ def trapped_piece_fact(ctx: MotifCtx) -> TacticFact | None:
         if target.piece_type in (chess.KING, chess.PAWN):
             continue
         # A trapped piece has no legal escape at all. A piece that can move but
-        # merely loses material is a different motif (hanging/doomed).
+        # merely loses material is a different motif (hanging/doomed). Lichess
+        # also tags bad-escape pieces, but that broad rule confirms poorly on
+        # game data, so keep this strict high-confidence definition.
         if any(move.from_square == target_sq for move in ctx.after.legal_moves):
             continue
         if not is_piece_doomed(ctx.after, target_sq, ctx.enemy_color):

@@ -19,6 +19,7 @@ from src.backend.analysis.tactics.constants import (
     TacticalTheme,
 )
 from src.backend.analysis.tactics.facts import TacticFact
+from src.backend.analysis.tactics.motifs.context import stays_on_line
 from src.backend.analysis.tactics.piece_safety import is_piece_doomed, is_piece_lost
 
 _MATE_MOTIFS = {
@@ -70,6 +71,13 @@ def confirm_facts(
             # Keep the chess evidence (the line/pattern), not the validation
             # reason, so the UI can explain the tactic itself.
             validated.append(fact.with_confidence(Confidence.CONFIRMED.value))
+            continue
+
+        if fact.motif == TacticalTheme.SKEWER.value:
+            if _skewer_sequence_demonstrated(fact, board_after, engine_pv):
+                validated.append(fact.with_confidence(Confidence.CONFIRMED.value))
+            else:
+                validated.append(fact)
             continue
 
         if _fact_targets(fact) & demonstrated:
@@ -157,6 +165,51 @@ def _fork_target_is_lost(fact: TacticFact, board_after: chess.Board) -> bool:
     if target.piece_type == chess.KING:
         return board_after.is_check()
     return is_piece_doomed(board_after, square, target.color)
+
+
+def _skewer_sequence_demonstrated(
+    fact: TacticFact,
+    board_after: chess.Board,
+    engine_pv: list[str] | None,
+) -> bool:
+    """True when the line vacates the front piece and captures the rear next.
+
+    Lichess only tags a skewer when the line actually opens: the opponent
+    moves the front piece off the ray, then the player captures the rear piece
+    with a bishop, rook, or queen. A later unrelated capture is not enough.
+    """
+    line = fact.line
+    if len(line) != 3 and fact.evidence.startswith("line "):
+        line = tuple(fact.evidence.removeprefix("line ").split("-"))
+    if len(line) != 3 or not engine_pv or len(engine_pv) < 2:
+        return False
+
+    try:
+        slider_sq, front_sq, rear_sq = (
+            chess.parse_square(square) for square in line
+        )
+        reply = chess.Move.from_uci(engine_pv[0])
+        capture = chess.Move.from_uci(engine_pv[1])
+    except ValueError:
+        return False
+
+    work = board_after.copy(stack=False)
+    if reply not in work.legal_moves:
+        return False
+    if reply.from_square != front_sq:
+        return False
+    if stays_on_line(reply.to_square, slider_sq, rear_sq):
+        return False
+
+    work.push(reply)
+    if capture not in work.legal_moves or capture.to_square != rear_sq:
+        return False
+    capturer = work.piece_at(capture.from_square)
+    return capturer is not None and capturer.piece_type in (
+        chess.BISHOP,
+        chess.ROOK,
+        chess.QUEEN,
+    )
 
 
 def _demonstrated_capture_squares(

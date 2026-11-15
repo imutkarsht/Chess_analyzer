@@ -108,6 +108,22 @@ def skewer_is_effective(
     elif not is_piece_lost(board, front_sq, enemy_color):
         return False
 
+    # If the opponent can answer without moving the front piece off the line,
+    # the rear piece is not forced to become vulnerable. For a check, that is
+    # any interposition or capture of the checking piece by another unit. For a
+    # non-king front, it is any defence or block that saves the attacked piece.
+    if front.piece_type == chess.KING:
+        if any(move.from_square != front_sq for move in board.legal_moves):
+            return False
+    else:
+        for move in board.legal_moves:
+            if move.from_square == front_sq:
+                continue
+            next_board = board.copy(stack=False)
+            next_board.push(move)
+            if not is_piece_lost(next_board, front_sq, enemy_color):
+                return False
+
     exposed = False
     for move in board.legal_moves:
         if move.from_square != front_sq:
@@ -126,17 +142,64 @@ def skewer_is_effective(
     return exposed
 
 
+def _pin_has_consequence(
+    board: chess.Board,
+    enemy_color: chess.Color,
+    slider_sq: chess.Square,
+    front_sq: chess.Square,
+    rear_sq: chess.Square,
+) -> bool:
+    """True when the pin prevents an escape or a meaningful attack.
+
+    Lichess only tags tactical pins: the pinned piece cannot capture something
+    it attacks, or it is attacked and cannot escape. A purely positional
+    alignment is not a tactic.
+    """
+    front = board.piece_at(front_sq)
+    slider = board.piece_at(slider_sq)
+    if front is None or slider is None:
+        return False
+
+    front_value = PIECE_VALUES.get(front.piece_type, 0)
+    slider_value = PIECE_VALUES.get(slider.piece_type, 0)
+
+    # Pin prevents escape: the pinner attacks the front piece, which is more
+    # valuable and cannot move off the line.
+    if front_value > slider_value and is_piece_lost(board, front_sq, enemy_color):
+        return True
+
+    # Pin prevents attack: the pinned piece attacks a player piece off the pin
+    # line, but cannot legally capture it.
+    for target_sq in board.attacks(front_sq):
+        if stays_on_line(target_sq, slider_sq, rear_sq):
+            continue
+        target = board.piece_at(target_sq)
+        if target is None or target.color == enemy_color:
+            continue
+        target_value = PIECE_VALUES.get(target.piece_type, 0)
+        if target_value > front_value or is_piece_lost(board, target_sq, target.color):
+            return True
+
+    return False
+
+
 def alignment_facts(ctx: MotifCtx, motif: TacticalTheme) -> list[TacticFact]:
     """Pin or skewer facts for newly formed alignments."""
     facts: list[TacticFact] = []
     for slider_sq, front_sq, rear_sq in affected_alignments(ctx):
-        effective = (
-            pin_is_effective(ctx.after, ctx.enemy_color, slider_sq, front_sq, rear_sq)
-            if motif is TacticalTheme.PIN
-            else skewer_is_effective(
+        if motif is TacticalTheme.PIN:
+            effective = pin_is_effective(
+                ctx.after, ctx.enemy_color, slider_sq, front_sq, rear_sq
+            ) and (
+                ctx.after.is_pinned(ctx.enemy_color, front_sq)
+                or _pin_has_consequence(
+                    ctx.after, ctx.enemy_color, slider_sq, front_sq, rear_sq
+                )
+            )
+        else:
+            effective = skewer_is_effective(
                 ctx.after, ctx.enemy_color, slider_sq, front_sq, rear_sq
             )
-        )
         if not effective:
             continue
 
@@ -159,6 +222,11 @@ def alignment_facts(ctx: MotifCtx, motif: TacticalTheme) -> list[TacticFact]:
                 evidence=(
                     f"line {chess.square_name(slider_sq)}-"
                     f"{chess.square_name(front_sq)}-{chess.square_name(rear_sq)}"
+                ),
+                line=(
+                    chess.square_name(slider_sq),
+                    chess.square_name(front_sq),
+                    chess.square_name(rear_sq),
                 ),
             )
         )

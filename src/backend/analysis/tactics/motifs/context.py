@@ -101,6 +101,7 @@ def make_fact(
     material_gain_cp: int = 0,
     mate_in: int | None = None,
     include_origin: bool = True,
+    line: tuple[str, ...] = (),
 ) -> TacticFact:
     """Build a probable executed fact with the shared move metadata filled in."""
     return TacticFact(
@@ -119,6 +120,7 @@ def make_fact(
         target_piece=target_piece,
         targets=targets,
         evidence=evidence,
+        line=line,
         material_gain_cp=material_gain_cp,
         mate_in=mate_in,
     )

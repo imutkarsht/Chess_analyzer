@@ -146,9 +146,7 @@ OPENING_MIN_NON_PAWN: Final[int] = 20
 # King arbitrary high value for skewer comparison
 KING_SKEWER_VALUE: Final[int] = 100
 
-# Bump when tactic facts or their schema change; stored summaries with an older
-# version are lazily recomputed. v3 merges multiple alignments of one motif on a
-# single move into one occurrence. v4 excludes best/mating moves from missed
-# tactical stats. v5 preserves the chess evidence when a fact is confirmed.
-# v6 drops non-best sacrifices and vacuous pins.
-TACTICS_VERSION: Final[int] = 6
+# Development cache epoch. While the app is pre-release we keep this fixed at
+# 2 and clear the local tactics summaries whenever the tactic schema changes.
+# Bump to a monotonically increasing value before shipping to users.
+TACTICS_VERSION: Final[int] = 2

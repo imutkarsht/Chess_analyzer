@@ -91,8 +91,25 @@ def morphy_mate_fact(ctx: MotifCtx) -> TacticFact | None:
     """Bishop delivers mate while a rook confines the king."""
     if not single_checker(ctx, chess.BISHOP):
         return None
-    if not ctx.after.pieces(chess.ROOK, ctx.color):
+    if ctx.enemy_king_sq is None:
         return None
+
+    king_sq = ctx.enemy_king_sq
+    king_file = chess.square_file(king_sq)
+    king_rank = chess.square_rank(king_sq)
+    if king_file not in (0, 7) and king_rank not in (0, 7):
+        return None
+
+    escape_squares = _king_escape_squares(king_sq)
+    rook_confines = any(
+        square in ctx.after.attacks(rook_sq)
+        for rook_sq in ctx.after.pieces(chess.ROOK, ctx.color)
+        for square in escape_squares
+        if ctx.after.piece_at(square) is None
+    )
+    if not rook_confines:
+        return None
+
     return _mate_fact(ctx, TacticalTheme.MORPHY_MATE, "bishop mates with rook support")
 
 
@@ -111,12 +128,49 @@ def opera_mate_fact(ctx: MotifCtx) -> TacticFact | None:
 
 
 def boden_mate_fact(ctx: MotifCtx) -> TacticFact | None:
-    """Two bishops on criss-crossing diagonals mate the king."""
+    """Two bishops on criss-crossing diagonals cover the mating net."""
     if not single_checker(ctx, chess.BISHOP):
         return None
-    if len(ctx.after.pieces(chess.BISHOP, ctx.color)) < 2:
+    bishops = list(ctx.after.pieces(chess.BISHOP, ctx.color))
+    if len(bishops) < 2 or ctx.enemy_king_sq is None:
         return None
+
+    king_sq = ctx.enemy_king_sq
+    king_file = chess.square_file(king_sq)
+    bishop_attacks: set[chess.Square] = set()
+    for bishop_sq in bishops:
+        bishop_attacks.update(ctx.after.attacks(bishop_sq))
+
+    for square in _king_escape_squares(king_sq):
+        piece = ctx.after.piece_at(square)
+        if piece is not None and piece.color == ctx.enemy_color:
+            continue
+        if square not in bishop_attacks:
+            return None
+
+    # The bishops must approach the king from opposite sides, producing the
+    # criss-crossing diagonals that define Boden's mate.
+    sides = {chess.square_file(bishop_sq) < king_file for bishop_sq in bishops}
+    if len(sides) < 2:
+        return None
+
     return _mate_fact(ctx, TacticalTheme.BODEN_MATE, "two bishops cover the mating net")
+
+
+def _king_escape_squares(king_sq: chess.Square) -> list[chess.Square]:
+    """Squares adjacent to ``king_sq`` inside the board."""
+    file = chess.square_file(king_sq)
+    rank = chess.square_rank(king_sq)
+    squares: list[chess.Square] = []
+    for delta_file in (-1, 0, 1):
+        for delta_rank in (-1, 0, 1):
+            if delta_file == 0 and delta_rank == 0:
+                continue
+            target_file = file + delta_file
+            target_rank = rank + delta_rank
+            if 0 <= target_file < 8 and 0 <= target_rank < 8:
+                squares.append(chess.square(target_file, target_rank))
+    return squares
 
 
 def single_checker(ctx: MotifCtx, piece_type: chess.PieceType) -> bool:
