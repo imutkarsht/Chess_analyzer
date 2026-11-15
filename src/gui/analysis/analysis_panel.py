@@ -199,6 +199,18 @@ class AnalysisPanel(QWidget):
         result_header.setSpacing(6)
         self.result_banner_lbl = RichTextLabel("-", role=TextRole.BODY)
         result_header.addWidget(self.result_banner_lbl, stretch=1)
+        self.btn_export_pgn = Button(
+            "",
+            variant=ButtonVariant.OUTLINED,
+            size="md",
+            icon="fa5s.file-export",
+            icon_position="only",
+            tooltip="Analyze this game before exporting an annotated PGN.",
+        )
+        self.btn_export_pgn.setAccessibleName("Export Annotated PGN")
+        self.btn_export_pgn.setEnabled(False)
+        self.btn_export_pgn.clicked.connect(self.export_annotated_pgn)
+        result_header.addWidget(self.btn_export_pgn)
         self.share_report_button = Button(
             "",
             variant=ButtonVariant.OUTLINED,
@@ -225,15 +237,6 @@ class AnalysisPanel(QWidget):
 
         self.details_label = Label("-", role=TextRole.MICRO, tone=TextTone.MUTED)
         hero_layout.addWidget(self.details_label)
-
-        self.btn_export_pgn = Button(
-            "Export Annotated PGN",
-            ButtonVariant.OUTLINED,
-            icon="fa5s.file-export",
-        )
-        self.btn_export_pgn.clicked.connect(self.export_annotated_pgn)
-        self.btn_export_pgn.setEnabled(False)
-        hero_layout.addWidget(self.btn_export_pgn, alignment=Qt.AlignmentFlag.AlignRight)
 
         self.report_layout.addWidget(self.hero_card)
 
