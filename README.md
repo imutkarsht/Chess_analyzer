@@ -45,6 +45,8 @@ Documentation and downloads: **[chessanalyzer.xyz](https://chessanalyzer.xyz/)**
   account, no upload, no internet needed; repeat loads are instant and export to CSV.
 - **Deep metrics and statistics** — tactical motifs, phase-by-phase accuracy, advantage
   conversion, termination breakdowns, and rating trends, with drill-down into any position.
+- **Per-game Tactics tab** — executed, allowed, and missed tactics plus pieces lost or won,
+  with grouped rows, real chess evidence, and click-to-jump navigation.
 - **AI Coach** — move-by-move explanations and full-game summaries grounded in deterministic
   engine facts, on any OpenAI-compatible provider, with an offline fallback.
 - **Highly configurable settings** — schema-driven, searchable settings for engine tuning,

@@ -128,7 +128,8 @@ Forbidden edges:
    `AnalysisCache`, and converts every score to White's perspective in
    `_process_analysis_results()`.
 4. Progress signals update `MoveListPanel`, `Board`, `VariationGraph` and the
-   status bar. `AnalysisPanel` renders accuracy, charts and the AI Coach tab.
+   status bar. `AnalysisPanel` renders the Report, Coach, and per-game Tactics
+   tabs; result tabs unlock once the game has analysis.
 
 ### Live engine session
 
@@ -267,21 +268,48 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 #### `src/backend/analysis/tactics`
 
 <details>
-<summary>Deterministic tactical facts used by metrics and the Coach</summary>
+<summary>Deterministic tactical facts, validation, and per-game reporting</summary>
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `board_utils.py` | Board geometry, ray tracing, piece safety | — |
-| `constants.py` | Enums and thresholds for tactics analysis | `GamePhase`, `TacticalTheme`, `MoveQualityBucket` |
-| `explanation.py` | Selects the dominant move story and renders claim sheets for the Coach | `ExplanationPlan`, `build_explanation_plan` |
-| `game.py` | Per-game tactical analysis, phase accuracy, advantage conversion | `MoveCtx`, `TacticsState` |
-| `hanging.py` | Deterministic hanging-piece detection | `get_hanging_pieces` |
-| `insight.py` | Grounded move-insight builder for Coach explanations | `MoveInsight` |
-| `motifs.py` | Fork/pin/skewer motif detection registry | `MotifCtx` |
+| `contexts.py` | Parse every ply once into an immutable context | `MoveCtx`, `build_contexts` |
+| `constants.py` | Themes, roles, thresholds, and the development cache epoch | `TacticalTheme`, `TACTICS_VERSION` |
+| `motifs/` | Focused detectors for forks, pins, skewers, discovered attacks, losses, sacrifices, promotions, and mate patterns | `detect_candidates`, `fork_fact`, `alignment_facts`, `mate_facts` |
+| `facts.py` | Fact model, merge rules, and serialisation | `TacticFact`, `merge_same_motif_facts` |
+| `validation.py` | Engine/game confirmation; only confirmed facts enter headline stats | `confirm_facts`, `_skewer_sequence_demonstrated` |
+| `attribution.py` | One-reply-ahead loss attribution with immediate/punished deduplication | `resolve_losses`, `is_sound_move` |
+| `piece_safety.py` | Legal-capture SEE and escape analysis | `is_piece_lost`, `is_piece_doomed`, `get_lost_pieces` |
+| `see.py` | Legal-capture swap-off | `static_exchange_evaluation` |
+| `state.py` | Mutable accumulators for one game | `TacticsState`, `ClockStats` |
+| `recorders.py` | Turn contexts and facts into summary/drill-down details | `move_detail`, `record_facts` |
+| `game.py` | Per-game orchestrator | `analyze_game_tactics` |
+| `report.py` | Qt-free projection into the Tactics tab’s sections | `build_game_tactics_report`, `GameTacticsReport` |
+| `board_utils.py` | Geometry, ray tracing, and perspective conversion | `to_user_cp`, `to_user_mate`, `to_user_wp` |
+| `insight.py`, `explanation.py` | Deterministic Coach facts and explanation plans | `MoveInsight`, `ExplanationPlan` |
 | `phase.py` | Opening/middlegame/endgame classification | `classify_game_phase` |
-| `see.py` | Static Exchange Evaluation minimax | `static_exchange_evaluation` |
+| `hanging.py` | Backward-compatible hanging-piece facade | `get_hanging_pieces` |
 
 </details>
+
+**Tactics pipeline**
+
+1. `build_contexts()` parses SAN/UCI, boards, clocks, evaluations, and mate distances once per game.
+2. `detect_candidates()` proposes facts from legal moves, legal-capture SEE, escape analysis, and the focused motif detectors.
+3. `confirm_facts()` promotes a fact only when the engine line or played reply demonstrates it.
+4. `resolve_losses()` attributes material loss one reply ahead and separates immediate from punished losses.
+5. `recorders.py` and `state.py` accumulate phase accuracy, clocks, roles, losses, and drill-down details.
+6. `build_game_tactics_report()` projects the result into the per-game Tactics tab.
+
+**Guardrails**
+
+- Never count probable facts in headline stats.
+- Suppress missed tactics on sound, book, and mating moves.
+- Sacrifices require the engine-approved move and report net material given.
+- Absolute pins always count; relative pins need a tactical consequence.
+- Skewers must survive interposition and show a vacate-then-capture line.
+- Morphy and Boden mates require real mating geometry.
+- Keep the strict trapped-piece rule; broader bad-escape rules confirmed poorly on game data.
+- `TACTICS_VERSION` is a development cache epoch (`2`). When the tactic schema changes, clear the local tactics summaries instead of accumulating version bumps.
 
 ### `src/backend/api`, `cache`, `engine`, `models`, `services`, `updater`
 
@@ -307,7 +335,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `db_connection.py` | Connection context manager and performance pragmas | `get_db_connection()` |
-| `migrations.py` | Schema creation, versioning and indexes | `init_db` |
+| `migrations.py` | Schema creation, versioning, termination/tactics backfills and indexes | `init_db` |
 | `schema_constants.py` | Column specs and SQL shared by repos | `GAME_COLUMNS` |
 | `models.py` | Domain dataclasses and serialisation | `GameAnalysis`, `GameMetadata`, `MoveAnalysis` |
 | `game_history.py` | Storage facade over games and caches | `GameHistoryManager` |
@@ -318,13 +346,22 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `explorer_cache_repo.py` | Opening-explorer response cache and pruning | `ExplorerCacheRepo` |
 | `profile_cache_repo.py` | Cached public profiles and avatars | `ProfileCacheRepo`, `CachedProfile` |
 | `cache.py` | Position-level analysis cache | `AnalysisCache` |
-| `pgn_parser.py` | PGN file/text parsing and validation | `PGNParser` |
+| `pgn_parser.py` | PGN file/text parsing, header indexing, and meaningful move-less records | `PGNParser` |
 | `historic_games.py` | Curated historic positions for the landing puzzle | `HistoricPosition` |
-| `termination_detector.py` | Termination reason detection | `TerminationDetector` |
+| `termination_detector.py` | Board/header/clock/result termination detection and human-readable reasons | `TerminationDetector` |
 | `stats.py` | Read-only storage usage report | `StorageStats` |
 | `backup.py` | Validated backup/restore with safety copy | `BackupSummary`, `BackupError` |
 
 </details>
+
+#### Termination and clocks
+
+- `TerminationDetector.detect_termination()` checks physical board states first, then explicit PGN termination headers, then zero-clock fallbacks, then the result. Header-only checkmates, stalemates, and forfeits no longer fall through to “resignation”.
+- `PGNParser` keeps move-less games when they carry meaningful headers (no-show forfeits, timeout-vs-insufficient draws) and still skips arbitrary non-PGN text.
+- Schema version 7 recomputes stored termination modes from PGN headers, so History and Metrics use the same reason.
+- History rows read the stored termination description from light rows; they do not need the full move list.
+- `compute_clock_times()` infers `0:00` for the side to move at a terminal `timeout` or `timeout_insufficient` position, because PGNs omit the flag-fall clock.
+- `backend/analysis/metrics/termination.py` maps the stored mode into the dashboard’s Checkmate/Resignation/Time/Abandon/Draw buckets.
 
 ### `src/config` and `src/utils`
 
@@ -447,7 +484,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `analysis_panel.py` | Report card, graphs, stats and AI Coach host | `AnalysisPanel`, `GenerateSummaryThread` |
+| `analysis_panel.py` | Analysis workspace: Report, Evaluation, Coach, and per-game Tactics; gates result tabs until analysis | `AnalysisPanel`, `GenerateSummaryThread` |
 | `analysis_worker.py` | Full-game analysis QThread | `AnalysisWorker` |
 | `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
 | `coach_worker.py` | Off-thread explanation request and rate limiting | `ExplainMoveWorker`, `RequestLimiter` |
@@ -458,6 +495,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `live_analysis.py` | Live position analysis worker | `LiveAnalysisWorker` |
 | `move_cell_widget.py` | One move cell with badge and think time | `MoveCellWidget` |
 | `move_list_panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
+| `tactics_tab.py` | Scrollable per-game tactics timeline with side toggle and grouped rows | `TacticsTab`, `TacticRow` |
 | `variation_graph.py` | Git-style branch strip | `VariationGraph` |
 | `variation_mode.py` | Board state machine for variation trees | `VariationMode` |
 
@@ -484,7 +522,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `engine_lines/widget.py` | Engine-lines panel and rows | `EngineLinesWidget`, `EngineLineRow` |
 | `metrics/charts.py` | Matplotlib chart builders | — |
 | `metrics/drill_down_view.py` | Position-level stats explorer | `DrillDownView` |
-| `metrics/drill_down_item.py` | One drill-down occurrence row | `DrillDownItemWidget` |
+| `metrics/drill_down_item.py` | One drill-down occurrence row; opens the exact 0-based ply and renders mate evals | `DrillDownItemWidget` |
 | `metrics/workers.py` | Stats and AI-insight workers | `StatsWorker`, `InsightWorker` |
 
 ### `src/gui/components` (use the facade, not these paths)
@@ -498,7 +536,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `filter_chip.py` | Removable filter token with separate open/remove actions | `FilterChip` |
 | `input.py` | Input, text area, numeric editors | `Input`, `TextArea`, `InputVariant` |
 | `select.py` | The only dropdown | `Select`, `SelectOption` |
-| `tabs.py` | Underline/segmented tabs | `Tabs`, `TabVariant` |
+| `tabs.py` | Underline/segmented tabs with page switching, enable/tooltip support | `Tabs`, `TabVariant` |
 | `date_picker.py` | Outlined date picker with calendar popup | `DatePicker` |
 | `form_field.py` | Label + control + helper/error | `FormField` |
 | `segmented_control.py` | Chip selector built on `Button` | `SegmentedControl` |
@@ -627,6 +665,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `theme/motion.py` | Durations, easings, animation helpers | `Motion`, `MotionDuration` |
 | `theme/system.py` | OS theme/accent detection | `OSThemeWatcher` |
 | `styles.py` | QSS generators for every control | `Styles` |
+| `tactics_meta.py` | Shared motif labels, icons, descriptions and colour attributes | `MOTIF_META`, `motif_meta` |
 | `utils/debounce.py` | Single-shot debouncer | `Debouncer` |
 | `utils/gui_utils.py` | Widget factories and GUI helpers | `create_button` |
 | `utils/shortcut_manager.py` | Central shortcut registry and presets | `ShortcutManager`, `ShortcutAction` |
@@ -729,6 +768,14 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 3. Generate its look from `Styles`; no widget-local QSS or hex.
 4. Restyle on theme/accent change.
 5. Add a `pytest-qt` test; use it from call sites via the facade.
+
+### Add a tactic motif
+
+1. Add the value to `TacticalTheme` in `tactics/constants.py`.
+2. Add a detector under `tactics/motifs/` and register it in `motifs/detection.py`.
+3. Add a confirmation rule in `tactics/validation.py` when the motif needs an engine/game sequence.
+4. Add its label, icon, description, and colour to `gui/tactics_meta.py`.
+5. Clear the local tactics summaries (`TACTICS_VERSION` is the development cache epoch) and re-run the puzzle benchmark and full suite.
 
 ### Add an analysis feature
 
