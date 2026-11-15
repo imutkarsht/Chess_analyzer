@@ -3,6 +3,8 @@
 from PyQt6.QtCore import Qt
 
 from src.gui.analysis.move_list_view import MoveListEntry, MoveListView
+from src.gui.components import TextTone
+from src.gui.styles import Styles
 
 
 def test_explorer_variant_renders_plain_items_and_pending(qapp):
@@ -57,6 +59,44 @@ def test_analysis_variant_uses_cell_widgets_and_think_time(qapp):
     assert set(view.move_widgets) == {0, 1}
     assert view.think_bars == list(view.move_widgets.values())
     assert view.move_widgets[0]._time_label.text()
+
+
+def test_move_cell_emphasizes_time_trouble_and_disproportionate_think_time(qapp):
+    view = MoveListView(variant="analysis")
+    view.set_entries(
+        [
+            MoveListEntry(
+                san="e4", time_spent=10.0, time_left=29.9, starting_clock=300.0
+            ),
+            MoveListEntry(
+                san="e5", time_spent=90.1, time_left=60.0, starting_clock=300.0
+            ),
+        ]
+    )
+
+    for cell in view.move_widgets.values():
+        assert cell._time_label.text()
+        assert cell._time_label.tone == TextTone.BLUNDER
+        assert cell._time_label.property("textWeight") == "600"
+        assert Styles.COLOR_BLUNDER in cell._bar.styleSheet()
+
+
+def test_move_cell_keeps_ordinary_and_unclocked_think_time_neutral(qapp):
+    view = MoveListView(variant="analysis")
+    view.set_entries(
+        [
+            MoveListEntry(
+                san="e4", time_spent=90.0, time_left=30.0, starting_clock=300.0
+            ),
+            MoveListEntry(san="e5", time_spent=10.0),
+        ]
+    )
+
+    for cell in view.move_widgets.values():
+        assert cell._time_label.text()
+        assert cell._time_label.tone == TextTone.SECONDARY
+        assert cell._time_label.property("textWeight") == "500"
+        assert Styles.COLOR_BLUNDER not in cell._bar.styleSheet()
 
 
 def test_analysis_selection_repaints_only_old_and_new_rows(qapp):

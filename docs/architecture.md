@@ -260,6 +260,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `coach_dossier.py` | Formats aggregated facts for AI Coach prompts | `build_coach_dossier` |
 | `constants.py` | Thresholds and shared metric constants | — |
 | `filters.py` | Game filtering and player-colour resolution | `filter_games` |
+| `game_time_management.py` | Shared clock thresholds, initial time-control parsing, and per-game time summary | `GameTimeManagement`, `summarize_game_time` |
 | `models.py` | Typed metric records | `Outcome`, `GameRecord` |
 | `termination.py` | Termination classification for charts | `classify_termination` |
 
@@ -485,6 +486,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `analysis_panel.py` | Analysis workspace: Report, Evaluation, Coach, and per-game Tactics; gates result tabs until analysis | `AnalysisPanel`, `GenerateSummaryThread` |
+| `think_time_chart.py` | Move-synchronized think-time bars with clock-pressure highlights and ply navigation | `ThinkTimeChart` |
 | `analysis_worker.py` | Full-game analysis QThread | `AnalysisWorker` |
 | `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
 | `coach_worker.py` | Off-thread explanation request and rate limiting | `ExplainMoveWorker`, `RequestLimiter` |
@@ -493,7 +495,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `move_list_view.py` | Shared move table, row mapping, selection and both render modes | `MoveListView`, `MoveListEntry` |
 | `line_utils.py` | Engine-line presentation helpers | — |
 | `live_analysis.py` | Live position analysis worker | `LiveAnalysisWorker` |
-| `move_cell_widget.py` | One move cell with badge and think time | `MoveCellWidget` |
+| `move_cell_widget.py` | One move cell with badge, think-time bar, and clock-pressure emphasis | `MoveCellWidget` |
 | `move_list_panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
 | `tactics_tab.py` | Scrollable per-game tactics timeline with side toggle and grouped rows | `TacticsTab`, `TacticRow` |
 | `variation_graph.py` | Git-style branch strip | `VariationGraph` |

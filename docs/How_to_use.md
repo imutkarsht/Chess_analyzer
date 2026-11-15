@@ -205,6 +205,7 @@ The Analysis Explorer is a dedicated interactive view for analyzing positions ou
 ### Detailed Stats
 
 - **Game Stats**: View accuracy per player, opening name, and blunder counts in the **Analysis Panel**.
+- **Think Time & Clock Management**: In Analysis, the Think Time chart follows the selected ply and can be hidden from the toggle row. Low-clock (under 30 seconds) and disproportionate (over 30% of the starting clock) moves are highlighted. The Report tab summarizes average, blunder, and best-move think times plus time-trouble blunders when PGN clock data is available.
 - **Global Stats (Metrics)**: Click the **Stats** icon in the sidebar to see your performance over time (Win/Loss rates, accuracy trends) across all analyzed games.
 - **Tactical Patterns & Drill-Down**: Click a tactical theme card to see matching positions. Each row shows the move, classification, evaluation, and motif. Mate scores use `+M3`/`-M4` notation; click the row or its arrow to open the game on the exact displayed move.
 - **Stats by Piece Color**: View your performance breakdown by piece color (White vs Black) to understand how you play from each side.

@@ -2,9 +2,16 @@
 Custom widget representing a compact move cell that packs the classification icon, SAN, and think-time.
 """
 
+from types import SimpleNamespace
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QVBoxLayout, QWidget
+
+from src.backend.analysis.metrics.game_time_management import (
+    is_disproportionate,
+    is_time_trouble,
+)
 
 from ..components import IconLabel, Label, TextRole, TextTone
 from ..styles import Styles
@@ -85,6 +92,7 @@ class MoveCellWidget(QWidget):
         self._classification_name: str = ""
         self._last_time_spent: float | None = None
         self._last_max_seconds: float = 30.0
+        self._time_emphasized = False
         self._variation_count: int = 0
         self._show_time: bool = True
 
@@ -108,6 +116,8 @@ class MoveCellWidget(QWidget):
         icon: QIcon = None,
         max_seconds: float = 30.0,
         variation_count: int | None = None,
+        time_left: float | None = None,
+        starting_clock: float | None = None,
     ) -> None:
         self._move_index = move_index
         self._san_text = entry.san
@@ -135,6 +145,22 @@ class MoveCellWidget(QWidget):
 
         self._last_time_spent = time_spent_val
         self._last_max_seconds = float(max_seconds) if max_seconds is not None else 30.0
+        time_left_val = self._as_seconds(
+            time_left if time_left is not None else getattr(entry, "time_left", None)
+        )
+        starting_clock_val = self._as_seconds(
+            starting_clock
+            if starting_clock is not None
+            else getattr(entry, "starting_clock", None)
+        )
+        clock_move = SimpleNamespace(
+            time_left=time_left_val,
+            time_spent=time_spent_val,
+        )
+        self._time_emphasized = is_time_trouble(clock_move) or is_disproportionate(
+            clock_move, starting_clock_val
+        )
+        self._apply_time_style()
 
         if self._show_time and time_spent_val is not None and time_spent_val > 0:
             time_str = self._format_time(time_spent_val)
@@ -143,7 +169,7 @@ class MoveCellWidget(QWidget):
 
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, time_spent_val / safe_max)
-            colour = self._bar_colour(ratio)
+            colour = Styles.COLOR_BLUNDER if self._time_emphasized else self._bar_colour(ratio)
             track = Styles.COLOR_SURFACE_LIGHT
             self._bar.setStyleSheet(Styles.get_think_time_bar_style(colour, track, ratio))
             self._bar.show()
@@ -171,6 +197,12 @@ class MoveCellWidget(QWidget):
         if not self._classification_name or self._classification_name == "Pending":
             return ""
         return f"{self._classification_name}: "
+
+    def _apply_time_style(self) -> None:
+        self._time_label.set_tone(
+            TextTone.BLUNDER if self._time_emphasized else TextTone.SECONDARY
+        )
+        self._time_label.set_weight(600 if self._time_emphasized else 500)
 
     def set_state(self, selected: bool, row_active: bool) -> None:
         """Paint the active half-move and the faint tint of its partner."""
@@ -228,6 +260,7 @@ class MoveCellWidget(QWidget):
 
     def refresh_styles(self):
         self._apply_san_style()
+        self._apply_time_style()
 
         if (
             self._show_time
@@ -236,7 +269,7 @@ class MoveCellWidget(QWidget):
         ):
             safe_max = max(1.0, self._last_max_seconds)
             ratio = min(1.0, self._last_time_spent / safe_max)
-            colour = self._bar_colour(ratio)
+            colour = Styles.COLOR_BLUNDER if self._time_emphasized else self._bar_colour(ratio)
             track = Styles.COLOR_SURFACE_LIGHT
             self._bar.setStyleSheet(Styles.get_think_time_bar_style(colour, track, ratio))
             self._bar.show()
@@ -298,6 +331,15 @@ class MoveCellWidget(QWidget):
         if seconds >= 10:
             return f"{seconds:.0f}s"
         return f"{seconds:.1f}s"
+
+    @staticmethod
+    def _as_seconds(value: float | None) -> float | None:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     def _bar_colour(self, ratio: float) -> str:
         """Neutral ramp: length carries the time, colour stays out of the

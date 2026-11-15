@@ -86,6 +86,36 @@ def test_time_gap_grows_when_pane_is_stretched(qtbot, mocker):
     assert wide_time_x > narrow_time_x
 
 
+def test_time_management_data_reaches_move_cells(qtbot, mocker):
+    panel = _panel(qtbot, mocker)
+    move = MoveAnalysis(
+        1,
+        1,
+        "e4",
+        "e2e4",
+        chess.STARTING_FEN,
+        time_left=20.0,
+        time_spent=200.0,
+    )
+    game = GameAnalysis(
+        game_id="clocked",
+        metadata=GameMetadata(
+            white="W",
+            black="B",
+            result="*",
+            time_control="600+5",
+        ),
+        moves=[move],
+        pgn_content="",
+    )
+
+    panel.set_game(game)
+
+    assert panel.move_list.entries[0].starting_clock == 600.0
+    assert panel.move_list.entries[0].time_left == 20.0
+    assert panel._move_widgets[0]._time_emphasized is True
+
+
 def test_checkmate_shows_only_the_mating_line(qtbot, mocker):
     mating = _line(["d6e7"], "28. Qxe7#", "M1")
     alternative = _line(["h1h2"], "28. Rh1 Qxh1+ 29. Rxh1", "2.82")

@@ -8,6 +8,7 @@ import chess
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.backend.analysis.metrics.game_time_management import starting_clock_seconds
 from src.gui.analysis.line_utils import lines_for_index
 from src.gui.analysis.move_list_view import MoveListEntry, MoveListView
 from src.gui.engine_lines import LiveEngineSession
@@ -127,6 +128,7 @@ class MoveListPanel(QWidget):
             if base_time > 0:
                 max_seconds = max(10.0, min(600.0, base_time * 0.1))
             self._max_seconds = max_seconds
+            starting_clock = starting_clock_seconds(tc)
 
             entries = [
                 MoveListEntry(
@@ -134,6 +136,8 @@ class MoveListPanel(QWidget):
                     classification=move.classification,
                     move_number=move.move_number,
                     time_spent=move.time_spent,
+                    time_left=move.time_left,
+                    starting_clock=starting_clock,
                     variation_count=self._variation_counts.get(index, 0),
                 )
                 for index, move in enumerate(self.current_game.moves)

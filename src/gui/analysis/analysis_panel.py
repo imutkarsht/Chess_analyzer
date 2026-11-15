@@ -16,6 +16,11 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.game_report import build_game_report
+from src.backend.analysis.metrics.game_time_management import (
+    has_clock_data,
+    starting_clock_seconds,
+    summarize_game_time,
+)
 from src.backend.analysis.tactics import TACTICS_VERSION, analyze_game_tactics
 from src.backend.analysis.tactics.insight import MoveInsight, build_move_insight
 from src.backend.analysis.tactics.report import (
@@ -32,6 +37,7 @@ from src.constants import (
     EXPLANATION_PROMPT_VERSION,
     normalize_coach_persona,
 )
+from src.gui.analysis.think_time_chart import ThinkTimeChart
 from src.gui.components import (
     Button,
     ButtonVariant,
@@ -142,6 +148,10 @@ class AnalysisPanel(QWidget):
         self.graph_widget = None
         self.graph_placeholder = QWidget()
         self.eval_layout.addWidget(self.graph_placeholder, stretch=2)
+        self.think_time_chart = ThinkTimeChart()
+        self.think_time_chart.setVisible(False)
+        self.think_time_chart.move_selected.connect(self.move_requested.emit)
+        self.eval_layout.addWidget(self.think_time_chart)
 
         # Toggles
         toggles_layout = QHBoxLayout()
@@ -162,6 +172,12 @@ class AnalysisPanel(QWidget):
         self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         toggles_layout.addWidget(self.cache_checkbox)
+        self.think_time_checkbox = QCheckBox("Think Time")
+        self.think_time_checkbox.setChecked(True)
+        self.think_time_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.think_time_checkbox.setVisible(False)
+        self.think_time_checkbox.toggled.connect(self.think_time_chart.setVisible)
+        toggles_layout.addWidget(self.think_time_checkbox)
         toggles_layout.addStretch()
         self.eval_layout.addLayout(toggles_layout)
         self._apply_toggle_style()
@@ -259,6 +275,20 @@ class AnalysisPanel(QWidget):
         self.accuracy_layout.addWidget(self.b_circular_acc)
 
         self.report_layout.addWidget(self.accuracy_frame)
+
+        self.time_management_frame = QFrame()
+        self.time_management_frame.setStyleSheet(Styles.get_transparent_style())
+        self.time_management_layout = QVBoxLayout(self.time_management_frame)
+        self.time_management_layout.setContentsMargins(0, 0, 0, 0)
+        self.time_management_layout.setSpacing(4)
+        self.time_management_title = Label(
+            "Time Management", role=TextRole.BODY_LARGE, weight=700
+        )
+        self.time_management_layout.addWidget(self.time_management_title)
+        self.time_management_values = Label("", role=TextRole.CAPTION, wrap=True)
+        self.time_management_layout.addWidget(self.time_management_values)
+        self.time_management_frame.setVisible(False)
+        self.report_layout.addWidget(self.time_management_frame)
 
         # Subtle divider 2
         self.div2 = QFrame()
@@ -428,6 +458,7 @@ class AnalysisPanel(QWidget):
 
     def refresh(self):
         self._update_share_report_button()
+        self._update_time_management()
         self._update_tab_availability()
         self._tactics_cache.clear()
         if not self.current_game:
@@ -469,7 +500,6 @@ class AnalysisPanel(QWidget):
                 moves=getattr(self.current_game, "moves", []) or [],
                 starting_fen=meta.starting_fen,
             )
-
             res_color = self._get_result_color(meta)
 
             self.result_banner_lbl.setText(
@@ -519,6 +549,61 @@ class AnalysisPanel(QWidget):
             and self.tabs.current_index() == self._tactics_tab_index
         ):
             self._ensure_tactics_reports()
+
+    def _update_time_management(self) -> None:
+        moves = getattr(self.current_game, "moves", []) or []
+        meta = getattr(self.current_game, "metadata", None)
+        time_control = getattr(meta, "time_control", None)
+        if not time_control and meta is not None:
+            time_control = getattr(meta, "headers", {}).get("TimeControl")
+        starting_clock = starting_clock_seconds(time_control)
+        self.think_time_chart.set_moves(moves, starting_clock)
+
+        available = has_clock_data(moves)
+        self.think_time_checkbox.setVisible(available)
+        self.think_time_chart.setVisible(
+            available and self.think_time_checkbox.isChecked()
+        )
+        self.time_management_frame.setVisible(available)
+        if not available:
+            self.time_management_values.setText("")
+            return
+
+        summary_data = getattr(self.current_game, "summary", None) or {}
+        clock_metrics = []
+        for side in ("white", "black"):
+            side_summary = summary_data.get(side) or {}
+            tactics = side_summary.get("tactics") or {}
+            metrics = tactics.get("clock_metrics")
+            if (
+                tactics.get("tactics_version") == TACTICS_VERSION
+                and isinstance(metrics, dict)
+            ):
+                clock_metrics.append(metrics)
+        summary = summarize_game_time(
+            moves,
+            clock_metrics if len(clock_metrics) == 2 else None,
+        )
+        average = (
+            f"{summary.average_think_time:.1f}s"
+            if summary.average_think_time is not None
+            else "—"
+        )
+        blunder = (
+            f"{summary.blunder_think_time:.1f}s"
+            if summary.blunder_think_time is not None
+            else "—"
+        )
+        best = (
+            f"{summary.best_think_time:.1f}s"
+            if summary.best_think_time is not None
+            else "—"
+        )
+        self.time_management_values.setText(
+            f"Average think time: {average}   ·   "
+            f"Blunders: {blunder}   ·   Best moves: {best}   ·   "
+            f"Time-trouble blunders: {summary.time_trouble_blunders}"
+        )
 
     # ------------------------------------------------------------------
     # Tactics tab
@@ -823,6 +908,9 @@ class AnalysisPanel(QWidget):
         if hasattr(self, "lines_widget"):
             self.lines_widget.refresh_styles()
 
+        if hasattr(self, "think_time_chart"):
+            self.think_time_chart.refresh_styles()
+
         if hasattr(self, "coach_card"):
             self.coach_card.refresh_styles()
 
@@ -928,6 +1016,11 @@ class AnalysisPanel(QWidget):
         """
         self._coach_debounce.stop()
         self._cancel_explanation_worker()
+        self.think_time_chart.set_current_move(index)
+        if self.graph_widget is not None:
+            set_graph_move = getattr(self.graph_widget, "set_current_move", None)
+            if callable(set_graph_move):
+                set_graph_move(index)
 
         moves = getattr(self.current_game, "moves", None) if self.current_game else None
         valid = bool(moves and 0 <= index < len(moves))

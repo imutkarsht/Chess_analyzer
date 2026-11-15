@@ -19,6 +19,7 @@
 
 ### Features
 
+- **Think Time & Clock Management**: Analysis adds a move-synchronized think-time chart with low-clock and high-spend highlights, plus a Report summary for average, blunder, and best-move think times and time-trouble blunders. Clock controls and report details are hidden when the PGN has no clock data.
 - **Annotated PGN Export**: Export one analyzed game from Analysis or filtered History as standards-compatible PGN with move-quality NAGs, white-perspective evaluations, depth/clock tags, and up to two legal 12-ply engine variations. History exports stream in the background with progress and cancellation, preserve unanalyzed PGN text, and skip/report invalid games; CSV export uses the active History filters.
 - **Per-Game Tactics Tab**: Analysis now includes a White/Black tactics timeline with **Executed Tactics**, **Tactics Allowed**, **Tactics Missed**, **Pieces Lost**, and **Pieces Won**. Rows group multiple pieces lost or won on the same move, show the real chess evidence, and jump to the exact board position. Report, Coach, and Tactics stay disabled until the game has analysis.
 - **Configurable Coach Personas**: Choose The Tactician, The Grandmaster, The Socratic Mentor, or The Roaster in AI Coach settings. Each persona has a distinct voice and note shape — plain two-paragraph lessons, one dense positional assessment, a single guided question, or one joke followed by real coaching — while the grounded facts stay identical. Each persona has its own explanation cache namespace.

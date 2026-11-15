@@ -37,6 +37,8 @@ class MoveListEntry:
     move_number: int | None = None
     time_spent: float | None = None
     variation_count: int = 0
+    time_left: float | None = None
+    starting_clock: float | None = None
 
 
 class MoveListView(QWidget):
@@ -334,6 +336,8 @@ class MoveListView(QWidget):
             icon=self._icon_for(entry),
             max_seconds=self._max_seconds,
             variation_count=entry.variation_count,
+            time_left=entry.time_left,
+            starting_clock=entry.starting_clock,
         )
         cell.clicked.connect(self._on_cell_clicked)
         cell.variation_clicked.connect(self.variation_requested.emit)
@@ -351,6 +355,8 @@ class MoveListView(QWidget):
             icon=self._icon_for(entry),
             max_seconds=self._max_seconds,
             variation_count=entry.variation_count,
+            time_left=entry.time_left,
+            starting_clock=entry.starting_clock,
         )
 
     def _update_plain_cell(self, index: int) -> None:
