@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from threading import Event
 
+import qtawesome as qta
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
@@ -265,10 +266,12 @@ class HistoryView(QWidget):
 
         self.btn_export = self._create_icon_button("Export", "fa5s.file-export", None)
         self.export_menu = QMenu(self)
+        self.export_menu.setStyleSheet(Styles.get_menu_style())
         self.export_csv_action = self.export_menu.addAction("Export CSV")
         self.export_csv_action.triggered.connect(self.export_games)
         self.export_pgn_action = self.export_menu.addAction("Export Annotated PGN")
         self.export_pgn_action.triggered.connect(self.export_annotated_pgn)
+        self._refresh_export_menu_icons()
         self.btn_export.setMenu(self.export_menu)
         header_layout.addWidget(self.btn_export)
 
@@ -368,6 +371,12 @@ class HistoryView(QWidget):
             danger=danger,
             on_click=callback,
         )
+
+    def _refresh_export_menu_icons(self):
+        """Retint the export menu icons from the live palette."""
+        color = Styles.COLOR_TEXT_SECONDARY
+        self.export_csv_action.setIcon(qta.icon("fa5s.file-csv", color=color))
+        self.export_pgn_action.setIcon(qta.icon("fa5s.file-code", color=color))
 
     def apply_default_view_mode(self):
         """Apply the Appearance default layout without overriding a manual toggle."""
@@ -771,6 +780,10 @@ class HistoryView(QWidget):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):
             self.btn_export.refresh_styles()
+        if hasattr(self, "export_menu"):
+            self.export_menu.setStyleSheet(Styles.get_menu_style())
+        if hasattr(self, "export_csv_action"):
+            self._refresh_export_menu_icons()
         if hasattr(self, "btn_clear"):
             self.btn_clear.refresh_styles()
         if hasattr(self, "btn_refresh"):

@@ -1837,14 +1837,20 @@ class Styles(metaclass=_StylesMeta):
                 border: 1px solid {p.border};
                 border-radius: 8px;
                 padding: 6px;
+                font-size: 12px;
             }}
             QMenu::item {{
-                padding: 8px 16px;
+                padding: 7px 14px;
                 border-radius: 6px;
                 color: {p.text_primary};
+                font-size: 12px;
+                font-weight: 500;
             }}
             QMenu::item:selected {{
                 background-color: {p.surface_light};
+            }}
+            QMenu::item:disabled {{
+                color: {p.text_muted};
             }}
         """
 
