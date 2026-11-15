@@ -154,6 +154,18 @@ Once a game is loaded:
     - 🔴 **Mistake/Blunder**: Significant errors.
 - **Status bar**: When idle it shows only `● Engine ready`; progress, warnings, and errors appear next to it only while they are relevant.
 
+### Tactics Tab
+
+After analysis, open **Analysis → Tactics**:
+
+- **Side toggle**: Switch between White and Black to see the same game from either player’s perspective.
+- **Sections**: **Executed Tactics**, **Tactics Allowed**, **Tactics Missed**, **Pieces Lost**, and **Pieces Won**.
+- **Grouped rows**: Multiple pieces lost or won on the same move appear once, with the per-piece detail in the tooltip.
+- **Evidence**: Rows show the actual chess evidence — the pin/skewer line, the punishing move, or the piece left loose — instead of generic validation text.
+- **Navigation**: Click any row, or use Enter/Space, to jump the board to that exact move.
+- **Availability**: Report, Coach, and Tactics stay disabled until the game has analysis. A newly loaded game shows **Analyze this game to reveal its tactics** instead of computing on unanalyzed moves.
+- **Quality gates**: Missed tactics are not reported for sound or mating moves; sacrifices appear only when they are the engine-approved choice; vacuous pins, interposable skewers, and non-mating mate patterns are rejected. Stored summaries recompute automatically when detection changes.
+
 ### AI Coach
 
 The Coach tab turns engine facts into readable explanations:
@@ -194,11 +206,13 @@ The Analysis Explorer is a dedicated interactive view for analyzing positions ou
 
 - **Game Stats**: View accuracy per player, opening name, and blunder counts in the **Analysis Panel**.
 - **Global Stats (Metrics)**: Click the **Stats** icon in the sidebar to see your performance over time (Win/Loss rates, accuracy trends) across all analyzed games.
+- **Tactical Patterns & Drill-Down**: Click a tactical theme card to see matching positions. Each row shows the move, classification, evaluation, and motif. Mate scores use `+M3`/`-M4` notation; click the row or its arrow to open the game on the exact displayed move.
 - **Stats by Piece Color**: View your performance breakdown by piece color (White vs Black) to understand how you play from each side.
 
 ### History & Caching
 
 - **History Tab**: Keeps a record of every game you've analyzed. Double-click any entry to reload it.
+- **Termination Reasons**: Game cards and the Report tab use the PGN termination header plus the final board to distinguish checkmate, resignation, time, abandonment, repetition, agreement, stalemate, and insufficient material. Move-less no-show/timeout games are preserved, and a flag fall shows `0:00` on the final position.
 - **Layouts**: Switch between detailed cards and compact rows; the default layout is an Appearance setting and the header toggle overrides it for the session.
 - **Paging**: Games load one page at a time (10 detailed / 15 compact) and the next page is prefetched while you read, so scrolling stays smooth even with large libraries.
 - **Filters**: Search by player, opening, or date; filter by result, type, and source. Input is debounced so typing stays responsive.

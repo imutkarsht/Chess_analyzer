@@ -25,6 +25,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.tactics_meta import TACTICAL_MOTIF_KEYS, motif_meta
 from src.gui.views.metrics.base_card import MetricCard
 
 
@@ -37,46 +38,6 @@ class TacticalThemesCard(MetricCard):
     """
 
     drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
-
-    MOTIF_CONFIG: dict[str, tuple[str, str, str, str]] = {
-        # key: (Display Name, Icon, Description/Tooltip, Color Property Name)
-        "fork": (
-            "Fork",
-            "fa5s.code-branch",
-            "Double attack against two enemy targets simultaneously",
-            "COLOR_BEST",
-        ),
-        "skewer": (
-            "Skewer",
-            "fa5s.arrows-alt-v",
-            "Attack through a higher-value piece to win material behind it",
-            "COLOR_GREAT",
-        ),
-        "sacrifice": (
-            "Sacrifice",
-            "fa5s.gem",
-            "Deliberate material investment for decisive tactical or positional gain",
-            "COLOR_ACCENT",
-        ),
-        "pin": (
-            "Pin",
-            "fa5s.thumbtack",
-            "Immobilizing an enemy piece against their King or high-value piece",
-            "COLOR_BOOK",
-        ),
-        "discovered_attack": (
-            "Discovered Attack",
-            "fa5s.eye",
-            "Moving one piece to unmask a deadly line of attack from another",
-            "COLOR_GOOD",
-        ),
-        "back_rank": (
-            "Back-Rank Threat",
-            "fa5s.chess-rook",
-            "Infiltrating the trapped enemy King along their baseline",
-            "COLOR_TEXT_SECONDARY",
-        ),
-    }
 
     def __init__(self, parent=None):
         self.stats: dict = {}
@@ -91,7 +52,14 @@ class TacticalThemesCard(MetricCard):
         )
 
     def _render_view(self):
-        themes = self.stats.get("tactical_themes", {})
+        # Only patterns with a tactical entry belong on this card. In
+        # particular, hanging pieces are a material win handled by the
+        # piece-safety card, not a tactical motif.
+        themes = {
+            key: count
+            for key, count in (self.stats.get("tactical_themes") or {}).items()
+            if key in TACTICAL_MOTIF_KEYS
+        }
         total_games = self.stats.get("total", 0)
         total_tactics = sum(themes.values())
 
@@ -106,15 +74,16 @@ class TacticalThemesCard(MetricCard):
 
         main_vbox = self.new_content(spacing=14).layout()
 
-        # Sort motifs by strike count descending (frequency ranking)
+        # Rank only motifs that actually occurred; zero-count rows add noise.
         sorted_motifs = sorted(
-            self.MOTIF_CONFIG.keys(),
+            (key for key in TACTICAL_MOTIF_KEYS if themes.get(key, 0) > 0),
             key=lambda k: themes.get(k, 0),
             reverse=True,
         )
         top_motif_key = sorted_motifs[0]
         top_count = themes.get(top_motif_key, 0)
-        top_name, top_icon, _, _ = self.MOTIF_CONFIG[top_motif_key]
+        top_meta = motif_meta(top_motif_key)
+        top_name, top_icon = top_meta.label, top_meta.icon
         top_share = (top_count / total_tactics * 100) if total_tactics > 0 else 0.0
         tpg = (total_tactics / total_games) if total_games > 0 else 0.0
 
@@ -203,16 +172,14 @@ class TacticalThemesCard(MetricCard):
         segments = []
         for key in sorted_motifs:
             cnt = themes.get(key, 0)
-            if cnt <= 0:
-                continue
             pct = cnt / total_tactics * 100
-            _, _, _, color_attr = self.MOTIF_CONFIG[key]
-            seg_color = getattr(Styles, color_attr, Styles.COLOR_ACCENT)
+            meta = motif_meta(key)
+            seg_color = getattr(Styles, meta.color_attr, Styles.COLOR_ACCENT)
             segments.append(
                 (
                     max(1, int(pct * 10)),
                     seg_color,
-                    f"{self.MOTIF_CONFIG[key][0]}: {cnt} strikes ({pct:.1f}%)",
+                    f"{meta.label}: {cnt} strikes ({pct:.1f}%)",
                 )
             )
 
@@ -238,7 +205,13 @@ class TacticalThemesCard(MetricCard):
         list_layout.setSpacing(4)
 
         for rank_idx, key in enumerate(sorted_motifs, start=1):
-            name, icon_name, desc, color_attr = self.MOTIF_CONFIG[key]
+            meta = motif_meta(key)
+            name, icon_name, desc, color_attr = (
+                meta.label,
+                meta.icon,
+                meta.description,
+                meta.color_attr,
+            )
             cnt = themes.get(key, 0)
             pct = (cnt / total_tactics * 100) if total_tactics > 0 else 0.0
             theme_color = getattr(Styles, color_attr, Styles.COLOR_BEST)
@@ -283,7 +256,7 @@ class TacticalThemesCard(MetricCard):
             row_l.addWidget(
                 MiniBar(
                     int(pct),
-                    theme_color if cnt > 0 else "transparent",
+                    theme_color,
                     height=6,
                     radius=3,
                     track_color=Styles.COLOR_SURFACE_LIGHT,

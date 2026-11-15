@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from src.backend.analysis.tactics import analyze_game_tactics
+from src.backend.analysis.tactics import TACTICS_VERSION, analyze_game_tactics
 from src.backend.storage.pgn_parser import PGNParser
 from src.utils.logger import logger
 
@@ -146,6 +146,7 @@ class GameRecord:
             or "phase_move_counts" not in tactics_data
             or "clock_metrics" not in tactics_data
             or "hung_pieces_details" not in tactics_data
+            or tactics_data.get("tactics_version", 0) < TACTICS_VERSION
         ):
             try:
                 moves_data = json.loads(game["moves_json"])

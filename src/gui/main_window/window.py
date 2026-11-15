@@ -797,6 +797,7 @@ class MainWindow(
         self.variation.message.connect(self._on_variation_message)
         self.analysis_panel.variation_requested.connect(self._on_variation_requested)
         self.analysis_panel.line_requested.connect(self._on_coach_line_requested)
+        self.analysis_panel.move_requested.connect(self.on_move_selected)
         self.move_list_panel.variation_requested.connect(self._open_variation_tree_for_index)
 
         splitter.addWidget(self.analysis_panel)

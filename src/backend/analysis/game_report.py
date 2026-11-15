@@ -177,7 +177,7 @@ def _advantage_line(tactics: dict[str, Any], side: str) -> list[str]:
 
 def _hanging_line(tactics: dict[str, Any]) -> list[str]:
     metrics = tactics.get("hanging_metrics") or {}
-    total = metrics.get("total_hung") or 0
+    total = metrics.get("total_lost", metrics.get("total_hung")) or 0
     if not total:
         return []
 
@@ -185,6 +185,10 @@ def _hanging_line(tactics: dict[str, Any]) -> list[str]:
         f"{piece} {count}" for piece, count in (metrics.get("by_piece") or {}).items() if count
     )
     bits = [f"hung {total} piece(s)" + (f" ({pieces})" if pieces else "")]
+    immediate = metrics.get("immediate_hung") or 0
+    punished = metrics.get("punished_lost") or 0
+    if immediate or punished:
+        bits.append(f"{immediate} immediate, {punished} punished")
     in_blunders = metrics.get("hanging_blunders") or 0
     if in_blunders:
         bits.append(f"{in_blunders} of them while blundering")

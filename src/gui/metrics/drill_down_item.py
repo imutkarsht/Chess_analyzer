@@ -31,6 +31,28 @@ from src.gui.components import (
 from src.gui.styles import Styles
 
 
+def _safe_cp(cp: Any) -> int | None:
+    """Drop analyzer mate sentinels when no mate distance is available."""
+    if cp is None:
+        return None
+    try:
+        value = int(cp)
+    except (TypeError, ValueError):
+        return None
+    return None if abs(value) >= 90000 else value
+
+
+def _format_eval(cp: Any, mate: Any) -> str:
+    if mate is not None:
+        try:
+            value = int(mate)
+        except (TypeError, ValueError):
+            value = 0
+        return f"+M{value}" if value > 0 else f"-M{abs(value)}"
+    value = _safe_cp(cp)
+    return f"{value / 100:+.1f}" if value is not None else "?"
+
+
 class DrillDownItemWidget(QFrame):
     """
     Card item representing a single tactical/game occurrence for drill-down.
@@ -44,9 +66,15 @@ class DrillDownItemWidget(QFrame):
         self.setObjectName("DrillDownCard")
         self.item = item
         self.game_id: str = item.get("game_id", "")
-        # ply is 1-indexed, move_index in analysis board is 0-indexed
-        ply = item.get("ply", 1)
-        self.move_index: int = max(0, ply - 1)
+        # Move drill-down items store the 0-based ply, which already matches the
+        # analysis board index. Game-level rows open at the first move.
+        if self.item.get("is_game"):
+            self.move_index = 0
+        else:
+            try:
+                self.move_index = max(0, int(self.item.get("ply", 0) or 0))
+            except (TypeError, ValueError):
+                self.move_index = 0
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(f"""
@@ -203,7 +231,7 @@ class DrillDownItemWidget(QFrame):
 
         main_layout.addLayout(content_layout, 1)
 
-        # 3. Right: Date & "Analyze Move →" Action Column
+        # 3. Right: Date & open-position action column
         right_layout = QVBoxLayout()
         right_layout.setContentsMargins(0, 2, 0, 2)
         right_layout.setSpacing(6)
@@ -221,14 +249,18 @@ class DrillDownItemWidget(QFrame):
 
         right_layout.addStretch()
 
-        action_text = self.item.get("action_text") or (
-            "Analyze Game →" if self.item.get("is_game") else "Analyze Move →"
-        )
+        is_game = bool(self.item.get("is_game"))
         btn_action = Button(
-            action_text,
+            "",
             ButtonVariant.OUTLINED,
             ButtonSize.SM,
+            icon="fa5s.arrow-right",
+            icon_position="only",
+            tooltip="Open this game" if is_game else "Open this position",
             on_click=self._trigger_selection,
+        )
+        btn_action.setAccessibleName(
+            "Open game" if is_game else "Open position"
         )
         right_layout.addWidget(btn_action, 0, Qt.AlignmentFlag.AlignRight)
 
@@ -241,16 +273,33 @@ class DrillDownItemWidget(QFrame):
         eval_drop = self.item.get("eval_drop")
         eval_before = self.item.get("eval_before_cp")
         eval_after = self.item.get("eval_after_cp")
+        eval_before_mate = self.item.get("eval_before_mate")
+        eval_after_mate = self.item.get("eval_after_mate")
         wp_drop = self.item.get("wp_drop")
 
         if piece_name and square:
             parts.append(f"Dropped {piece_name.capitalize()} on {square}")
 
-        if eval_drop is not None and eval_before is not None and eval_after is not None:
-            drop_str = (
-                f"-{abs(eval_drop) / 100:.1f}" if eval_drop > 0 else f"+{abs(eval_drop) / 100:.1f}"
+        if eval_before_mate is not None or eval_after_mate is not None:
+            parts.append(
+                f"Eval: {_format_eval(eval_before, eval_before_mate)} → "
+                f"{_format_eval(eval_after, eval_after_mate)}"
             )
-            parts.append(f"Eval: {eval_before / 100:+.1f} → {eval_after / 100:+.1f} ({drop_str})")
+        elif eval_before is not None and eval_after is not None:
+            eval_before = _safe_cp(eval_before)
+            eval_after = _safe_cp(eval_after)
+            if eval_before is not None and eval_after is not None:
+                drop_str = (
+                    f"-{abs(eval_drop) / 100:.1f}"
+                    if eval_drop is not None and eval_drop > 0
+                    else f"+{abs(eval_drop) / 100:.1f}"
+                    if eval_drop is not None
+                    else "0.0"
+                )
+                parts.append(
+                    f"Eval: {eval_before / 100:+.1f} → "
+                    f"{eval_after / 100:+.1f} ({drop_str})"
+                )
         elif wp_drop is not None and wp_drop > 0.05:
             parts.append(f"Win % drop: -{wp_drop * 100:.0f}%")
 

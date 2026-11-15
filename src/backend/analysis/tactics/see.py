@@ -1,13 +1,80 @@
 """
-Static Exchange Evaluation (SEE) minimax implementation.
-Zero Qt dependencies — headless and independently testable.
+Static Exchange Evaluation (SEE) using only legal captures.
+
+Implements the recursive swap-off algorithm from the Chess Programming Wiki:
+the side to move may capture, then the opponent may recapture, and so on. A
+side always has the option to stop, so every returned value is non-negative.
+
+Because every candidate capture comes from ``board.legal_moves``, pins, checks,
+king safety, castling and en passant are handled by python-chess itself.
+
+Zero Qt dependencies -- headless and independently testable.
 """
 
 from __future__ import annotations
 
 import chess
 
-from src.backend.analysis.tactics.board_utils import legal_defenders, piece_value
+from src.backend.analysis.tactics.board_utils import piece_value
+from src.backend.analysis.tactics.constants import PIECE_VALUES
+
+
+def legal_captures_on_square(
+    board: chess.Board,
+    square: chess.Square,
+    attacking_color: chess.Color,
+) -> list[chess.Move]:
+    """Legal captures on ``square`` by ``attacking_color``, cheapest attacker first.
+
+    ``board`` may have either side to move; a cheap copy is used when the turn
+    does not already match ``attacking_color``.
+    """
+    work = board
+    if work.turn != attacking_color:
+        work = board.copy(stack=False)
+        work.turn = attacking_color
+
+    return sorted(
+        (move for move in work.legal_moves if move.to_square == square),
+        key=lambda move: piece_value(work, move.from_square),
+    )
+
+
+def _see(
+    board: chess.Board,
+    square: chess.Square,
+    attacking_color: chess.Color,
+) -> int:
+    """Recursive swap-off on a board where ``attacking_color`` is to move."""
+    if board.piece_at(square) is None:
+        return 0
+
+    captures = legal_captures_on_square(board, square, attacking_color)
+    if not captures:
+        return 0
+
+    best_gain = 0
+    for move in captures:
+        captured = board.piece_at(square)
+        if captured is None:
+            continue
+
+        captured_value = piece_value(board, square) * 100
+        promotion_gain = 0
+        if move.promotion is not None:
+            promotion_gain = (PIECE_VALUES.get(move.promotion, 1) - 1) * 100
+
+        board.push(move)
+        try:
+            recapture_gain = _see(board, square, not attacking_color)
+        finally:
+            board.pop()
+
+        gain = captured_value + promotion_gain - recapture_gain
+        if gain > best_gain:
+            best_gain = gain
+
+    return best_gain
 
 
 def static_exchange_evaluation(
@@ -16,78 +83,29 @@ def static_exchange_evaluation(
     attacking_color: chess.Color,
 ) -> int:
     """
-    Computes Static Exchange Evaluation (SEE) score in centipawns on `square`
-    from the perspective of `attacking_color`.
+    Net material gain in centipawns for ``attacking_color`` if the exchange on
+    ``square`` is played out optimally.
 
-    Simulates the sequence of best captures and recaptures on a single target
-    square:
-    - Least valuable legal attacker captures first.
-    - Captures by pinned pieces are filtered unless along the pin ray.
-    - King captures are prohibited if enemy defenders remain.
-    - Handles pawn promotions (+800 cp net).
-
-    Returns:
-        Net material gain in centipawns (>= 0 if attacking side can choose
-        not to continue when unfavorable).
+    The attacker can always choose not to capture, so the result is >= 0.
     """
-    target_piece = board.piece_at(square)
-    if not target_piece:
-        return 0
-
-    attackers = legal_defenders(board, attacking_color, square)
-    if not attackers:
-        return 0
-
-    enemy_color = not attacking_color
-    enemy_defenders = legal_defenders(board, enemy_color, square)
-
-    # Find the least valuable legal attacker
-    best_attacker: chess.Square | None = None
-    min_val = 99999
-
-    for sq in attackers:
-        attacker_piece = board.piece_at(sq)
-        if not attacker_piece:
-            continue
-        # King cannot capture if defended by enemy
-        if attacker_piece.piece_type == chess.KING and enemy_defenders:
-            continue
-        val = piece_value(board, sq)
-        if val < min_val:
-            min_val = val
-            best_attacker = sq
-
-    if best_attacker is None:
-        return 0
-
-    captured_val = piece_value(board, square) * 100
-
-    board_copy = board.copy(stack=False)
-    attacker_p = board.piece_at(best_attacker)
-    promotion = None
-    if attacker_p and attacker_p.piece_type == chess.PAWN and chess.square_rank(square) in (0, 7):
-        promotion = chess.QUEEN
-        captured_val += 800  # Promotion adds net Queen value over pawn
-
-    board_copy.push(chess.Move(best_attacker, square, promotion=promotion))
-
-    recapture_gain = static_exchange_evaluation(board_copy, square, enemy_color)
-    return max(0, captured_val - recapture_gain)
+    work = board
+    if work.turn != attacking_color:
+        work = board.copy(stack=False)
+        work.turn = attacking_color
+    return _see(work, square, attacking_color)
 
 
 def is_safely_placed(
     board_after: chess.Board,
-    sq: chess.Square,
+    square: chess.Square,
     color: chess.Color,
 ) -> bool:
-    """
-    Returns True if the piece on `sq` belonging to `color` is not capturable
-    for free or with net material profit by the enemy on their immediate turn.
-    """
-    can_be_captured = any(m.to_square == sq for m in board_after.legal_moves)
-    if not can_be_captured:
+    """True when the piece on ``square`` cannot be won profitably next move."""
+    piece = board_after.piece_at(square)
+    if piece is None or piece.color != color or piece.piece_type == chess.KING:
         return True
-    defenders = legal_defenders(board_after, color, sq)
-    if not defenders:
-        return False
-    return static_exchange_evaluation(board_after, sq, not color) <= 0
+
+    if not legal_captures_on_square(board_after, square, not color):
+        return True
+
+    return static_exchange_evaluation(board_after, square, not color) <= 0

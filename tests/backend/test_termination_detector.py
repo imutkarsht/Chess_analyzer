@@ -97,6 +97,8 @@ def test_detect_headerless_agreed_draw_fallback():
         ("Draw by 50-move rule", "1/2-1/2", "fifty_moves", "Drawn by 50-move rule"),
         ("Draw by insufficient material", "1/2-1/2", "insufficient_material", "Drawn by insufficient material"),
         ("Game drawn by mutual agreement", "1/2-1/2", "agreed_draw", "Drawn by agreement"),
+        ("Alice won by checkmate", "1-0", "checkmate", "Alice won by checkmate"),
+        ("Game drawn by stalemate", "1/2-1/2", "stalemate", "Drawn by stalemate"),
     ],
 )
 def test_termination_header_keywords(

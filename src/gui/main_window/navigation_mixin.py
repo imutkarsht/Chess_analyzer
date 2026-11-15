@@ -20,7 +20,11 @@ from src.gui.dialogs import ShortcutHelpDialog
 from src.gui.utils.shortcut_manager import ShortcutManager
 
 
-def compute_clock_times(moves, index: int = -1) -> tuple[float | None, float | None]:
+def compute_clock_times(
+    moves,
+    index: int = -1,
+    termination_mode: str | None = None,
+) -> tuple[float | None, float | None]:
     """Calculate White and Black clock values at a given move index.
 
     Uses enumerate for linear lookup rather than moves.index(m).
@@ -54,6 +58,20 @@ def compute_clock_times(moves, index: int = -1) -> tuple[float | None, float | N
             if m.time_left is not None and idx % 2 == 1:
                 black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
                 break
+
+    # PGNs omit the flag-fall clock because the losing side never moved again.
+    # On the terminal position, show the side to move at 0:00 instead of their
+    # last recorded clock.
+    if (
+        termination_mode in ("timeout", "timeout_insufficient")
+        and moves
+        and index == len(moves) - 1
+    ):
+        side_to_move = (moves[-1].ply + 1) % 2
+        if side_to_move == 0:
+            white_time = 0.0
+        else:
+            black_time = 0.0
 
     return white_time, black_time
 
@@ -447,7 +465,13 @@ class NavigationMixin:
 
         self.captured_white.update_captured(fen)
         self.captured_black.update_captured(fen)
-        white_time, black_time = compute_clock_times(moves, index)
+        white_time, black_time = compute_clock_times(
+            moves,
+            index,
+            termination_mode=getattr(
+                self.current_game.metadata, "termination_mode", None
+            ),
+        )
         self.captured_white.update_clock(white_time)
         self.captured_black.update_clock(black_time)
 

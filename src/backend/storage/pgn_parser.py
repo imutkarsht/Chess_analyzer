@@ -132,6 +132,23 @@ def _skip_leading_comments(handle: io.StringIO) -> bool:
         return True
 
 
+def _has_meaningful_headers(game: chess.pgn.Game) -> bool:
+    """True for a move-less game that still has real PGN metadata.
+
+    ``chess.pgn`` turns arbitrary text such as SQL into a default game with
+    ``Result "*"`` and no termination. A no-show forfeit is different: it has
+    a decisive result and an explicit termination reason.
+    """
+    headers = game.headers
+    result = (headers.get("Result") or "*").strip()
+    termination = (headers.get("Termination") or "").strip().lower()
+    return result in ("1-0", "0-1", "1/2-1/2") or termination not in (
+        "",
+        "normal",
+        "?",
+    )
+
+
 def _summary_from_headers(
     headers: chess.pgn.Headers,
     start: int,
@@ -270,13 +287,13 @@ class PGNParser:
 
     @staticmethod
     def parse_first_game(text: str) -> GameAnalysis | None:
-        """Parse the first game that actually contains moves."""
+        """Parse the first game with moves or meaningful terminating metadata."""
         handle = io.StringIO(text)
         while _skip_leading_comments(handle):
             game = chess.pgn.read_game(handle)
             if game is None:
                 break
-            if game.next() is None:
+            if game.next() is None and not _has_meaningful_headers(game):
                 continue
             return PGNParser._convert_to_game_analysis(game)
         return None
@@ -291,10 +308,9 @@ class PGNParser:
                     game = chess.pgn.read_game(f)
                     if game is None:
                         break
-                    # Skip games with no moves — garbage input like SQL text
-                    # produces a default game object from python-chess but has
-                    # no actual moves.
-                    if game.next() is None:
+                    # Skip games with no moves unless they are real no-show /
+                    # forfeit records with meaningful headers.
+                    if game.next() is None and not _has_meaningful_headers(game):
                         continue
                     games.append(PGNParser._convert_to_game_analysis(game))
             logger.info("Successfully parsed %d game(s) from %s", len(games), file_path)
@@ -311,8 +327,9 @@ class PGNParser:
             game = chess.pgn.read_game(pgn_io)
             if game is None:
                 break
-            # Skip games with no moves (see comment above).
-            if game.next() is None:
+            # Skip games with no moves unless they are real no-show / forfeit
+            # records with meaningful headers.
+            if game.next() is None and not _has_meaningful_headers(game):
                 continue
             games.append(PGNParser._convert_to_game_analysis(game))
         logger.debug("Successfully parsed %d game(s) from PGN text", len(games))
@@ -373,7 +390,7 @@ class PGNParser:
             game = chess.pgn.read_game(handle)
             if game is None:
                 break
-            if game.next() is None:
+            if game.next() is None and not _has_meaningful_headers(game):
                 continue
             metadata, _headers = PGNParser._metadata_from_game(game)
             final_board = game.end().board()

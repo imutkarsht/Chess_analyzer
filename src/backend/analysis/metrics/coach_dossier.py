@@ -76,16 +76,32 @@ def _advantage_section(stats: dict[str, Any]) -> list[str]:
 def _tactics_section(stats: dict[str, Any]) -> list[str]:
     hanging = stats.get("hanging_stats", {})
     by_p = hanging.get("by_piece", {})
-    tactics = stats.get("tactical_themes", {})
-    top_motifs = sorted(tactics.items(), key=lambda x: x[1], reverse=True)
-    motifs_str = ", ".join(f"{k}: {v}" for k, v in top_motifs if v > 0)
+    roles = stats.get("tactical_roles", {})
     brills = len(stats.get("brilliancies", []))
+
+    def _role_line(role: str) -> str:
+        entries = sorted(
+            (
+                (motif, counts.get(role, 0))
+                for motif, counts in roles.items()
+                if isinstance(counts, dict) and motif != "hanging_piece"
+            ),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        rendered = ", ".join(f"{motif}: {count}" for motif, count in entries if count > 0)
+        return rendered if rendered else "None detected"
+
+    remaining = hanging.get("total_lost", hanging.get("total_hung", 0))
+    immediate = hanging.get("immediate_hung", 0)
+    punished = hanging.get("punished_lost", 0)
 
     return [
         "\nTactical Profile & Board Awareness:",
         (
-            f"- Undefended Pieces Dropped: {hanging.get('total_hung', 0)} "
-            f"(P: {by_p.get('pawn', 0)}, "
+            f"- Pieces Lost: {remaining} "
+            f"(immediate: {immediate}, punished: {punished}; "
+            f"P: {by_p.get('pawn', 0)}, "
             f"N: {by_p.get('knight', 0)}, "
             f"B: {by_p.get('bishop', 0)}, "
             f"R: {by_p.get('rook', 0)}, "
@@ -95,7 +111,9 @@ def _tactics_section(stats: dict[str, Any]) -> list[str]:
             f"- Opponent Hanging Pieces Punished: {hanging.get('opponent_hanging_captured', 0)} captured "
             f"vs {hanging.get('opponent_hanging_missed', 0)} missed opportunities"
         ),
-        f"- Tactical Motifs Executed: {motifs_str if motifs_str else 'None detected'}",
+        f"- Tactical Motifs Executed: {_role_line('executed')}",
+        f"- Tactical Motifs Allowed: {_role_line('allowed')}",
+        f"- Tactical Motifs Missed: {_role_line('missed')}",
         f"- Brilliant Moves (!!): {brills}",
     ]
 
