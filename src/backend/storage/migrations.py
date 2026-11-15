@@ -183,45 +183,83 @@ def _fen_after_last_move(move: dict) -> str | None:
 
 
 def _backfill_termination_mode(cursor: sqlite3.Cursor) -> None:
+    """Recompute stored termination modes from the authoritative PGN headers.
+
+    Older databases were backfilled when lightweight rows had no moves. A
+    "won by checkmate" header then fell through to the resignation default, so
+    the History list showed the wrong reason even though the PGN was correct.
+    """
     cursor.execute(
-        "SELECT id, result, termination, pgn, starting_fen, chess960 "
-        "FROM games WHERE termination_mode IS NULL OR termination_mode = ''"
+        "SELECT id, result, termination, pgn, starting_fen, chess960 FROM games"
     )
     rows_to_migrate = cursor.fetchall()
     if not rows_to_migrate:
         return
 
+    updated = 0
     for gid, res, term, pgn_str, s_fen, is_960 in rows_to_migrate:
         try:
-            game = chess.pgn.read_game(io.StringIO(pgn_str)) if pgn_str else None
-            headers = dict(game.headers) if game else {"Result": res, "Termination": term or ""}
-            moves = []
-            if game:
-                for ply_idx, node in enumerate(game.mainline()):
-                    moves.append(
-                        MoveAnalysis(
-                            move_number=ply_idx // 2 + 1,
-                            ply=ply_idx + 1,
-                            san=node.san(),
-                            uci=node.move.uci(),
-                            fen_before="",
-                        )
-                    )
+            headers: dict[str, str] = {
+                "Result": res or "*",
+                "Termination": term or "",
+            }
+            moves: list[MoveAnalysis] = []
+            header_term = ""
+            if pgn_str:
+                try:
+                    parsed_headers = chess.pgn.read_headers(io.StringIO(pgn_str))
+                except (ValueError, KeyError):
+                    parsed_headers = None
+                if parsed_headers:
+                    headers = dict(parsed_headers)
+                    header_term = str(headers.get("Termination", "")).strip().lower()
+
+                # Generic headers carry no reason: replay the game so the board
+                # state can identify mate, stalemate, repetition, etc.
+                if header_term in ("", "normal", "unknown", "?"):
+                    game = chess.pgn.read_game(io.StringIO(pgn_str))
+                    if game:
+                        headers = dict(game.headers)
+                        moves = [
+                            MoveAnalysis(
+                                move_number=ply_idx // 2 + 1,
+                                ply=ply_idx + 1,
+                                san=node.san(),
+                                uci=node.move.uci(),
+                                fen_before="",
+                            )
+                            for ply_idx, node in enumerate(game.mainline())
+                        ]
+
+            headers.setdefault("Result", res or "*")
+            headers.setdefault("Termination", term or "")
             mode, desc = TerminationDetector.detect_termination(
                 headers=headers,
                 moves=moves,
                 starting_fen=s_fen,
                 chess960=bool(is_960),
             )
+            generic_term = not term or term.strip().lower() in (
+                "",
+                "normal",
+                "unknown",
+                "?",
+            )
             clean_term = (
-                desc if (not term or term.strip().lower() in ("", "normal", "unknown")) else term
+                desc
+                if generic_term or header_term in ("", "normal", "unknown", "?")
+                else term
             )
             cursor.execute(
                 "UPDATE games SET termination_mode = ?, termination = ? WHERE id = ?",
                 (mode, clean_term, gid),
             )
+            updated += 1
         except Exception as e:
             logger.error("Failed to backfill termination for game %s: %s", gid, e)
+
+    if updated:
+        logger.info("Migrating DB: recomputed termination for %d games", updated)
 
 
 def _game_richness(

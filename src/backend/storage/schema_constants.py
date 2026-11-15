@@ -81,7 +81,9 @@ _API_CACHE_COLS_SQL: str = ", ".join(API_CACHE_COLUMNS)
 _API_CACHE_PLACEHOLDERS_SQL: str = ", ".join(["?"] * len(API_CACHE_COLUMNS))
 INSERT_API_CACHE_SQL: str = f"INSERT OR REPLACE INTO api_game_cache ({_API_CACHE_COLS_SQL}) VALUES ({_API_CACHE_PLACEHOLDERS_SQL})"
 
-CURRENT_SCHEMA_VERSION: int = 6
+# v7 recomputes termination modes from PGN headers so header-described
+# checkmates and stalemates are not stored as resignations.
+CURRENT_SCHEMA_VERSION: int = 7
 EXPLORER_CACHE_TTL_SECONDS: float = DEFAULT_EXPLORER_CACHE_TTL_HOURS * 3600.0
 
 # Every table that stores user or cache data. The clear-all path and the

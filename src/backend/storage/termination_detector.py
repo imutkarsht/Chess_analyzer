@@ -62,10 +62,32 @@ class TerminationDetector:
             return "fifty_moves", "Drawn by 50-move rule"
 
         # 2. Explicit PGN Headers (Chess.com / Lichess strings)
+        if "checkmate" in term_lower or "check mate" in term_lower:
+            if winner_name:
+                return "checkmate", f"{winner_name} won by checkmate"
+            return "checkmate", "Game won by checkmate"
+
+        if "stalemate" in term_lower:
+            return "stalemate", "Drawn by stalemate"
+
         if "resign" in term_lower:
             if winner_name:
                 return "resignation", f"{winner_name} won by resignation"
             return "resignation", "Game won by resignation"
+
+        if any(
+            kw in term_lower
+            for kw in (
+                "abandon",
+                "disconnected",
+                "left the game",
+                "no-show",
+                "no show",
+            )
+        ):
+            if winner_name:
+                return "abandonment", f"{winner_name} won - game abandoned"
+            return "abandonment", "Game abandoned"
 
         if any(kw in term_lower for kw in ("time", "clock", "timeout", "flag", "forfeit")):
             # Check for timeout vs insufficient material
@@ -74,11 +96,6 @@ class TerminationDetector:
             if winner_name:
                 return "timeout", f"{winner_name} won on time"
             return "timeout", "Game won on time"
-
-        if any(kw in term_lower for kw in ("abandoned", "disconnected", "left the game")):
-            if winner_name:
-                return "abandonment", f"{winner_name} won - game abandoned"
-            return "abandonment", "Game abandoned"
 
         if any(kw in term_lower for kw in ("rules", "cheat", "disqualif")):
             if winner_name:
