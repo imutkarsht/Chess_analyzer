@@ -45,8 +45,8 @@ def test_drill_down_item_widget_rendering_and_click(qapp, qtbot):
     qtbot.addWidget(widget)
 
     assert widget.game_id == "game_1"
-    # ply 18 -> move_index 17
-    assert widget.move_index == 17
+    # Backend plies are 0-based and already match the analysis board index.
+    assert widget.move_index == 18
 
     mini_board = widget.findChild(MiniBoardWidget)
     assert mini_board is not None
@@ -59,16 +59,16 @@ def test_drill_down_item_widget_rendering_and_click(qapp, qtbot):
         assert btn_analyze is not None
         qtbot.mouseClick(btn_analyze, Qt.MouseButton.LeftButton)
 
-    assert blocker.args == ["game_1", 17]
+    assert blocker.args == ["game_1", 18]
 
     # Test clicking anywhere on the card emits position_selected
     with qtbot.waitSignal(widget.position_selected) as blocker:
         qtbot.mouseClick(widget, Qt.MouseButton.LeftButton)
 
-    assert blocker.args == ["game_1", 17]
+    assert blocker.args == ["game_1", 18]
 
-    # Missing optional fields must not crash; ply 1 -> move_index 0.
-    minimal = DrillDownItemWidget({"game_id": "game_min", "ply": 1, "san": "e4"})
+    # Missing optional fields must not crash; ply 0 is the first move.
+    minimal = DrillDownItemWidget({"game_id": "game_min", "ply": 0, "san": "e4"})
     qtbot.addWidget(minimal)
     assert minimal.game_id == "game_min"
     assert minimal.move_index == 0
@@ -140,7 +140,7 @@ def test_drill_down_view_selection_forwarding(qapp, qtbot):
     with qtbot.waitSignal(view.position_selected) as blocker:
         qtbot.mouseClick(child_item, Qt.MouseButton.LeftButton)
 
-    assert blocker.args == ["game_1", 17]
+    assert blocker.args == ["game_1", 18]
 
 
 def test_metrics_widget_drill_down_stacked_navigation(qapp, qtbot):

@@ -54,6 +54,8 @@ def move_detail(ctx: MoveCtx, **extra: Any) -> dict[str, Any]:
         "classification": ctx.classification,
         "eval_before_cp": ctx.eval_user_cp,
         "eval_after_cp": ctx.eval_after_user,
+        "eval_before_mate": ctx.eval_before_mate,
+        "eval_after_mate": ctx.eval_after_mate,
         "eval_drop": ctx.eval_diff,
         "wp_drop": round(ctx.wp_drop, 3),
         "win_chance_before": round(ctx.player_wp_before, 3),

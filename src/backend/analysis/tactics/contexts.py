@@ -14,7 +14,11 @@ from typing import Any
 
 import chess
 
-from src.backend.analysis.tactics.board_utils import to_user_cp, to_user_wp
+from src.backend.analysis.tactics.board_utils import (
+    to_user_cp,
+    to_user_mate,
+    to_user_wp,
+)
 from src.backend.analysis.tactics.phase import classify_game_phase
 
 
@@ -31,6 +35,8 @@ class MoveCtx:
     classification: str
     eval_user_cp: int | None
     eval_after_user: int | None
+    eval_before_mate: int | None
+    eval_after_mate: int | None
     eval_diff: int | None
     wp_drop: float
     player_wp_before: float
@@ -94,6 +100,12 @@ def _build_context(
 
     eval_user_cp = to_user_cp(move_dict.get("eval_before_cp"), is_user_white)
     eval_after_user = to_user_cp(move_dict.get("eval_after_cp"), is_user_white)
+    eval_before_mate = to_user_mate(
+        move_dict.get("eval_before_mate"), is_user_white
+    )
+    eval_after_mate = to_user_mate(
+        move_dict.get("eval_after_mate"), is_user_white
+    )
     eval_diff = (
         eval_user_cp - eval_after_user
         if eval_user_cp is not None and eval_after_user is not None
@@ -110,6 +122,8 @@ def _build_context(
         classification=classification,
         eval_user_cp=eval_user_cp,
         eval_after_user=eval_after_user,
+        eval_before_mate=eval_before_mate,
+        eval_after_mate=eval_after_mate,
         eval_diff=eval_diff,
         wp_drop=max(0.0, player_wp_before - player_wp_after),
         player_wp_before=player_wp_before,
