@@ -181,6 +181,17 @@ class GameHistoryManager:
         """Return light rows for selected games in caller order."""
         return self._games_repo.fetch_game_rows_by_ids(game_ids)
 
+    def get_game_analysis_status(self, game_id: str) -> str | None:
+        """Return the persisted analysis status, falling back for legacy rows."""
+        row = self.fetch_game_row(game_id)
+        if row is None:
+            return None
+        status = row.get("analysis_status")
+        if status:
+            return str(status)
+        game = self.get_game_analysis(game_id)
+        return game.status if game else None
+
     # --- Batch analysis queue methods ---
 
     def save_analysis_batch(self, batch: AnalysisBatch) -> AnalysisBatch:

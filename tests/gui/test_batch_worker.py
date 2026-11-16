@@ -53,7 +53,7 @@ class SavingAnalyzer:
 
     def analyze_game(self, game, callback=None, cancel_token=None, resume=True):
         self.calls.append((game.game_id, resume))
-        callback(1, len(game.moves))
+        callback(1, len(game.moves), {"index": 0, "classification": "Best"})
         callback(len(game.moves) + 1, len(game.moves))
         game.summary = {
             "analysis_status": "completed",

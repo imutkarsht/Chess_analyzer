@@ -121,4 +121,5 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert len(warning_called) == 1
     assert window.current_game.game_id == "active_1"
 
+    window.worker = None
     window.close()

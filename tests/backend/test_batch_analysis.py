@@ -53,7 +53,9 @@ class FakeAnalyzer:
         if error is not None:
             raise error
         total = len(game.moves)
-        on_progress(1, total)
+        # Classification callbacks carry a third move-data dict; it must not
+        # be mistaken for the game id.
+        on_progress(1, total, {"index": 0, "classification": "Best"})
         on_progress(total + 1, total)
         # The analyzer replays 1..total while classifying; the runner must
         # suppress those callbacks after the final-position marker.

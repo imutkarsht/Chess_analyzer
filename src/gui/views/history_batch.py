@@ -193,13 +193,14 @@ class BatchQueueCard(QFrame):
         self,
         batch: AnalysisBatch,
         *,
-        active_label: str = "",
+        active_label: str | None = None,
         position: int = 0,
         move_current: int = 0,
         move_total: int = 0,
     ) -> None:
         self._state = batch.state
-        self._active_label = active_label or self._active_label
+        if active_label is not None:
+            self._active_label = active_label
         self._move_current = max(0, int(move_current))
         self._move_total = max(0, int(move_total))
         summary = batch.summary()

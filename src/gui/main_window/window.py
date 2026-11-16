@@ -38,6 +38,7 @@ from src.gui.components.layout.tour_overlay import TourOverlay
 from src.gui.components.layout.transition_stack import FadedStackedWidget
 from src.gui.components.layout.welcome_panel import WelcomePanel
 from src.gui.main_window.analysis_mixin import AnalysisMixin
+from src.gui.main_window.batch_mixin import BatchAnalysisMixin
 from src.gui.main_window.game_loading_mixin import GameLoadingMixin
 from src.gui.main_window.navigation_mixin import NavigationMixin
 from src.gui.main_window.status_bar_mixin import StatusBarMixin
@@ -75,6 +76,7 @@ def _stop_thread(thread, timeout: int | None = None, signals: tuple = ()):
 class MainWindow(
     NavigationMixin,
     AnalysisMixin,
+    BatchAnalysisMixin,
     GameLoadingMixin,
     VariationMixin,
     StatusBarMixin,
@@ -193,6 +195,7 @@ class MainWindow(
         self._spinner_timer.timeout.connect(self._tick_spinner)
 
         self._refresh_engine_status()
+        self._init_batch_analysis()
 
         # Overlay
         self.loading_overlay = LoadingOverlay(self)
@@ -284,6 +287,33 @@ class MainWindow(
                 timer.stop()
         except Exception as e:  # pragma: no cover - defensive
             logger.debug(f"Failed to flush analysis UI on close: {e}")
+
+        batch_worker = getattr(self, "_batch_worker", None)
+        batch_running = bool(batch_worker and batch_worker.isRunning())
+        single_running = bool(
+            getattr(self, "worker", None) and self.worker.isRunning()
+        )
+        if batch_running or single_running:
+            from src.gui.utils.gui_utils import confirm_dialog
+
+            message = (
+                "A batch analysis is still running. If you exit now, the current "
+                "game will be saved as paused and the batch will be paused. You can "
+                "resume it from History next time."
+                if batch_running
+                else "An analysis is still running. Stop it and exit?"
+            )
+            if not confirm_dialog(
+                self,
+                "Analysis in Progress",
+                message,
+                confirm_label="Stop and exit",
+                cancel_label="Keep analyzing",
+            ):
+                event.ignore()
+                return
+            if batch_running:
+                self._stop_batch_for_exit()
 
         # Stop the shared live-engine sessions cleanly
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):

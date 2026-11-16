@@ -612,12 +612,13 @@ class HistoryView(QWidget):
             self.analysis_filter.set_value(self._pre_bulk_analysis_filter, emit=False)
         self._pre_bulk_analysis_filter = ""
         self._batch_total = batch.total
+        self._batch_active_label = ""
         self.set_batch_running(
             True,
             active_game_id=None,
-            queued_ids={item.game_id for item in batch.items},
+            queued_ids={item.game_id for item in batch.pending_items()},
         )
-        self.batch_queue_card.show_batch(batch, position=1)
+        self.batch_queue_card.show_batch(batch, active_label="", position=1)
         self.apply_filters(clear_selection=False)
 
     def set_batch_running(
@@ -685,13 +686,18 @@ class HistoryView(QWidget):
         batch,
         *,
         active_label: str = "",
-        position: int = 0,
-        move_current: int = 0,
-        move_total: int = 0,
+        position: int | None = None,
+        move_current: int | None = None,
+        move_total: int | None = None,
     ) -> None:
         self._batch_total = batch.total
         self._batch_active_label = active_label or self._batch_active_label
-        self._batch_position = int(position)
+        if position is not None:
+            self._batch_position = int(position)
+        if move_current is not None:
+            self._batch_move_current = max(0, int(move_current))
+        if move_total is not None:
+            self._batch_move_total = max(0, int(move_total))
         if batch.state == "running":
             self._batch_running = True
             self._batch_queued_ids = {
@@ -709,8 +715,8 @@ class HistoryView(QWidget):
             batch,
             active_label=self._batch_active_label,
             position=self._batch_position,
-            move_current=move_current,
-            move_total=move_total,
+            move_current=self._batch_move_current,
+            move_total=self._batch_move_total,
         )
 
     def refresh_batch_queue(self) -> None:
@@ -1003,6 +1009,7 @@ class HistoryView(QWidget):
         ):
             self.history_manager.clear_history()
             logger.info("Deleted all games from history via UI")
+            self.hide_batch_queue()
             self.history_cleared.emit()
             self.load_history()
 

@@ -107,15 +107,7 @@ class BatchAnalysisWorker(QThread):
             logger.debug("Failed to cancel batch analyzer: %s", error)
 
     def _load_status(self, game_id: str) -> str | None:
-        row = self._history_manager.fetch_game_row(game_id)
-        if row is None:
-            return None
-        status = row.get("analysis_status")
-        if status:
-            return str(status)
-        # Legacy rows rely on the hydrated summary/move fallback.
-        game = self._history_manager.get_game_analysis(game_id)
-        return game.status if game else None
+        return self._history_manager.get_game_analysis_status(game_id)
 
     def _analyze_game(self, game, resume, on_progress, cancel_token) -> None:
         self._analyzer.analyze_game(

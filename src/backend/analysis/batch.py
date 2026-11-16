@@ -158,7 +158,14 @@ class BatchAnalysisRunner:
 
             final_seen = False
 
-            def on_progress(current: int, total: int, game_id=item.game_id) -> None:
+            def on_progress(
+                current: int,
+                total: int,
+                _move_data=None,
+                game_id=item.game_id,
+            ) -> None:
+                # The analyzer passes a move-data dict with its classification
+                # callback; the batch only needs move progress.
                 nonlocal final_seen
                 if final_seen:
                     return
