@@ -196,6 +196,34 @@ def results_by_id(items):
     }
 
 
+def test_runner_picks_up_reordered_pending_items_between_games():
+    statuses = {game_id: "not_started" for game_id in ("g1", "g2", "g3")}
+    games = {game_id: _game(game_id) for game_id in statuses}
+    pending = _items("g1", "g2", "g3")
+
+    def analyze(game, _resume, on_progress, _token):
+        on_progress(1, len(game.moves))
+        statuses[game.game_id] = "completed"
+        if game.game_id == "g1":
+            # The user drags g3 above g2 while g1 is being analyzed.
+            pending[:] = [
+                pending[0],
+                AnalysisBatchItem("g3", 2),
+                AnalysisBatchItem("g2", 3),
+            ]
+
+    analyzer = analyze
+    runner = BatchAnalysisRunner(games.get, statuses.get, analyzer)
+    result = runner.run(pending, pending_items=lambda: list(pending))
+
+    assert [item.game_id for item in result.items] == ["g1", "g3", "g2"]
+    assert [item.outcome for item in result.items] == [
+        OUTCOME_COMPLETED,
+        OUTCOME_COMPLETED,
+        OUTCOME_COMPLETED,
+    ]
+
+
 def test_reconcile_uses_game_status_and_keeps_batch_completions():
     batch = AnalysisBatch(
         items=[

@@ -1168,11 +1168,64 @@ class Styles(metaclass=_StylesMeta):
                 background-color: {p.surface_card};
                 border: 1px solid {p.border};
                 border-left: 3px solid {p.accent};
-                border-radius: 10px;
+                border-radius: 12px;
             }}
             QFrame#BatchQueueCard QLabel {{
                 background: transparent;
                 border: none;
+            }}
+        """
+
+    @classmethod
+    def get_batch_stat_tile_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#BatchStatTile {{
+                background-color: {p.surface_light};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+            }}
+            QFrame#BatchStatTile QLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """
+
+    @classmethod
+    def get_batch_current_game_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#BatchCurrentGame {{
+                background-color: {p.surface_light};
+                border: 1px solid {p.accent};
+                border-radius: 10px;
+            }}
+            QFrame#BatchCurrentGame QLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """
+
+    @classmethod
+    def get_batch_up_next_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QListWidget#BatchUpNextList {{
+                background-color: {p.surface_light};
+                border: 1px solid {p.border};
+                border-radius: 8px;
+                outline: none;
+            }}
+            QListWidget#BatchUpNextList::item {{
+                background: transparent;
+                border-bottom: 1px solid {p.border};
+                padding: 0px;
+            }}
+            QListWidget#BatchUpNextList::item:selected {{
+                background-color: {p.surface};
+            }}
+            QListWidget#BatchUpNextList::item:hover {{
+                background-color: {p.surface};
             }}
         """
 

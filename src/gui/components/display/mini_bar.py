@@ -36,9 +36,20 @@ class MiniBar(QProgressBar):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.refresh_styles()
 
+    def set_color(self, color: str) -> None:
+        self._color = color
+        self.refresh_styles()
+
+    def set_track_color(self, color: str) -> None:
+        self._track_color = color
+        self.refresh_styles()
+
     def refresh_styles(self) -> None:
         track = self._track_color or Styles.COLOR_SURFACE
-        chunk = self._color if self.value() > 0 else "transparent"
+        # Keep the chunk colour in the stylesheet even at zero: QProgressBar
+        # draws no fill there, and a value update must not leave a transparent
+        # chunk behind on the next paint.
+        chunk = self._color
         self.setStyleSheet(
             f"""
             QProgressBar {{

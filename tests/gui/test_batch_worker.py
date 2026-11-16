@@ -130,6 +130,32 @@ def test_worker_runs_sequentially_and_skips_completed_games(tmp_path):
     ]
 
 
+class RemovingAnalyzer(BlockingAnalyzer):
+    def analyze_game(self, game, callback=None, cancel_token=None, resume=True):
+        self.manager.remove_analysis_batch_item("g2")
+        self.manager.reorder_analysis_batch_items(["g3"], active_game_id="g1")
+        super().analyze_game(game, callback, cancel_token, resume)
+
+
+def test_worker_does_not_resurrect_removed_or_reordered_items(qtbot, qapp, tmp_path):
+    manager = GameHistoryManager(str(tmp_path / "batch-remove.db"))
+    _save_games(manager, {"g1": "not_started", "g2": "not_started", "g3": "not_started"})
+    analyzer = RemovingAnalyzer(manager)
+    worker = BatchAnalysisWorker(analyzer, _batch(manager, "g1", "g2", "g3"), manager)
+
+    with qtbot.waitSignal(worker.game_started, timeout=3000):
+        worker.start()
+    with qtbot.waitSignal(worker.batch_paused, timeout=3000):
+        worker.pause()
+    worker.wait(3000)
+
+    stored = manager.get_analysis_batch()
+    assert stored.state == BATCH_PAUSED
+    assert [item.game_id for item in stored.items] == ["g1", "g3"]
+    assert stored.items[0].outcome == OUTCOME_PAUSED
+    assert stored.items[1].outcome == OUTCOME_PENDING
+
+
 @pytest.mark.parametrize(
     "action,terminal,expected_state,remaining_outcome,expected_paused,expected_remaining",
     [

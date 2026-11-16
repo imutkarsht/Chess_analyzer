@@ -16,7 +16,7 @@ from src.backend.models.analysis_batch import (
 )
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components.feedback.toast import ToastManager
-from src.gui.views.history_batch import BatchQueueCard
+from src.gui.views.history_batch import BatchQueueCard, UpNextEntry
 from src.gui.views.history_view import HistoryView
 
 
@@ -209,11 +209,29 @@ def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp)
         position=2,
         move_current=5,
         move_total=10,
+        elapsed_seconds=192,
+        eta_seconds=600,
+        up_next=[
+            UpNextEntry("g2", "Carol vs Dave", 34, 50),
+            UpNextEntry("g3", "Eve vs Frank", 41, 65),
+        ],
     )
     assert not card.isHidden()
-    assert "Game 2 of 3" in card.title_label.text()
-    assert card.current_label.text() == "Alice vs Bob"
-    assert card.move_label.text() == "move 5 / 10"
+    assert card.up_next_list.count() == 2
+    removed = []
+    card.remove_requested.connect(removed.append)
+    first_row = card.up_next_list.itemWidget(card.up_next_list.item(0))
+    first_row.remove_button.click()
+    assert removed == ["g2"]
+    assert card.title_label.text() == "Batch analysis"
+    assert card.game_title.text() == "Alice vs Bob"
+    assert card.game_position.text() == "Game 2 of 3"
+    assert card.elapsed_value.text() == "03:12"
+    assert card.eta_value.text() == "~10:00"
+    assert card.finish_value.text() != "—"
+    card.set_move_progress(5, 10, 33, 12.5)
+    assert "Move 5 / 10" in card.move_label.text()
+    assert "~00:33" in card.game_meta.text()
     assert not card.btn_pause.isHidden()
     assert card.btn_resume.isHidden()
     assert not card.btn_cancel.isHidden()
@@ -225,6 +243,8 @@ def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp)
     card.show_batch(paused, active_label="Alice vs Bob")
     assert card.btn_pause.isHidden()
     assert not card.btn_resume.isHidden()
+    assert card.elapsed_value.text() == "03:12"
+    assert card.eta_value.text() == "—"
     assert "1 completed" in card.summary_label.text()
     assert "2 remaining" in card.summary_label.text()
 
@@ -239,3 +259,7 @@ def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp)
     assert "1 completed" in card.summary_label.text()
     assert "1 skipped" in card.summary_label.text()
     assert "1 failed" in card.summary_label.text()
+
+    card.show_batch(AnalysisBatch(state=BATCH_RUNNING, items=items))
+    card.set_up_next([])
+    assert card.up_next_container.isHidden()

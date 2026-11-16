@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import time
+
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QMessageBox, QVBoxLayout
 
 from src.backend.analysis.batch import reconcile_batch
@@ -26,6 +29,7 @@ from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import confirm_dialog
 from src.gui.utils.worker_registry import register_worker, remove_worker
+from src.gui.views.history_batch import UpNextEntry
 from src.utils.logger import logger
 
 
@@ -36,8 +40,18 @@ class BatchAnalysisMixin:
         self.analysis_coordinator = AnalysisCoordinator()
         self._batch_worker: BatchAnalysisWorker | None = None
         self._batch_active_label = ""
+        self._batch_elapsed_base = 0.0
+        self._batch_session_started_at: float | None = None
+        self._batch_game_started_at: float | None = None
+        self._batch_current_move = 0
+        self._batch_current_total = 0
+        self._batch_eta_timer = QTimer(self)
+        self._batch_eta_timer.setInterval(1000)
+        self._batch_eta_timer.timeout.connect(self._tick_batch_timing)
         self.history_view.batch_analysis_requested.connect(self.start_batch_analysis)
         self.history_view.batch_control_requested.connect(self._on_batch_control)
+        self.history_view.batch_reorder_requested.connect(self._on_batch_reorder)
+        self.history_view.batch_remove_requested.connect(self._on_batch_remove)
         self._recover_persisted_batch()
 
     # ------------------------------------------------------------------
@@ -63,12 +77,15 @@ class BatchAnalysisMixin:
                 else:
                     batch.state = BATCH_PAUSED
                     self.history_manager.set_analysis_batch_state(BATCH_PAUSED)
+            self._batch_elapsed_base = max(0.0, float(batch.elapsed_seconds or 0.0))
+            self._batch_session_started_at = None
             self.analysis_coordinator.restore_batch(
                 batch.state,
                 batch.total,
                 {item.game_id for item in batch.actionable_items()},
             )
             self.history_view.set_batch_queue(batch)
+            self._refresh_up_next()
         except Exception as e:
             logger.error("Failed to restore the batch queue: %s", e, exc_info=True)
 
@@ -220,6 +237,13 @@ class BatchAnalysisMixin:
         worker.finished.connect(lambda: self._release_batch_worker(worker))
         self._batch_worker = worker
         self._batch_active_label = ""
+        self._batch_elapsed_base = max(0.0, float(batch.elapsed_seconds or 0.0))
+        self._batch_session_started_at = time.monotonic()
+        self._batch_game_started_at = None
+        self._batch_current_move = 0
+        self._batch_current_total = 0
+        self.history_view.set_batch_timing(self._batch_total_elapsed(), None)
+        self._batch_eta_timer.start()
         register_worker(worker)
 
         self._stop_replay()
@@ -234,29 +258,56 @@ class BatchAnalysisMixin:
     # ------------------------------------------------------------------
 
     def _on_batch_game_started(
-        self, game_id, position, total, action, label, _total_moves
+        self, game_id, position, total, action, label, total_moves
     ) -> None:
         self._batch_active_label = label
+        self._batch_game_started_at = time.monotonic()
+        self._batch_current_move = 0
+        self._batch_current_total = max(0, int(total_moves))
         batch = self._current_batch()
         queued = {item.game_id for item in (batch.pending_items() if batch else [])}
         queued.discard(game_id)
         self.analysis_coordinator.set_batch_runtime(
             game_id, position, total, queued_game_ids=queued
         )
+        self._refresh_up_next()
         self.history_view.set_batch_active(
-            game_id, label, position, total, queued, batch=batch
+            game_id,
+            label,
+            position,
+            total,
+            queued,
+            batch=batch,
+            total_moves=self._batch_current_total,
+            depth=self.analyzer.config.get("depth"),
         )
         self._set_engine_state("calculating", f"{position}/{total}")
         self._set_status(f"Batch {position}/{total} · {label}", "progress")
         self._update_analyze_button(running=False)
+        self._tick_batch_timing()
 
     def _on_batch_game_progress(self, game_id, current, total_moves) -> None:
-        if self.analysis_coordinator.active_game_id == game_id:
-            self.history_view.update_batch_move_progress(current, total_moves)
+        if self.analysis_coordinator.active_game_id != game_id:
+            return
+        self._batch_current_move = max(0, int(current))
+        self._batch_current_total = max(0, int(total_moves))
+        game_elapsed = (
+            max(0.0, time.monotonic() - self._batch_game_started_at)
+            if self._batch_game_started_at is not None
+            else 0.0
+        )
+        self.history_view.update_batch_move_progress(
+            current, total_moves, self._current_game_eta(), game_elapsed
+        )
+        self._tick_batch_timing()
 
     def _on_batch_game_outcome(self, game_id, _outcome, error) -> None:
         if error:
             logger.warning("Batch game %s failed: %s", game_id, error)
+        self._persist_batch_elapsed()
+        if game_id == self.analysis_coordinator.active_game_id:
+            self._batch_game_started_at = None
+            self._batch_current_move = 0
         self.history_view.refresh_game(game_id)
         batch = self._current_batch()
         if batch is not None:
@@ -273,6 +324,7 @@ class BatchAnalysisMixin:
                 active_label=self._batch_active_label,
                 position=self.analysis_coordinator.active_position,
             )
+        self._refresh_up_next()
         if self.metrics_view is not None:
             self.metrics_view.mark_dirty()
 
@@ -289,12 +341,21 @@ class BatchAnalysisMixin:
         self._finish_batch_state(BATCH_FAILED, f"Batch stopped: {error}", "error")
 
     def _finish_batch_state(self, state: str, message: str, kind: str) -> None:
+        elapsed = self._batch_total_elapsed()
+        self._batch_eta_timer.stop()
+        self._persist_batch_elapsed(elapsed)
+        self._batch_elapsed_base = elapsed
+        self._batch_session_started_at = None
+        self._batch_game_started_at = None
+        self._batch_current_move = 0
         self.analysis_coordinator.end_batch(state)
         self._batch_active_label = ""
+        self.history_view.set_batch_timing(elapsed, None)
         self._set_batch_engine_lock(False)
         self.history_view.set_batch_running(False)
         self.history_view.load_history()
         self.history_view.refresh_batch_queue()
+        self._refresh_up_next()
         self._set_engine_state("ready")
         self._set_status(message, kind)
         self._update_analyze_button(running=False)
@@ -368,9 +429,13 @@ class BatchAnalysisMixin:
         batch = self._current_batch()
         if batch is None or batch.state == BATCH_RUNNING:
             return
+        self._batch_eta_timer.stop()
         self.history_manager.delete_analysis_batch()
         self.history_view.hide_batch_queue()
         self.analysis_coordinator.reset()
+        self._batch_elapsed_base = 0.0
+        self._batch_session_started_at = None
+        self._batch_game_started_at = None
         self._update_analyze_button(running=False)
 
     # ------------------------------------------------------------------
@@ -399,6 +464,77 @@ class BatchAnalysisMixin:
             logger.error("Failed to sync paused batch: %s", e)
 
     # ------------------------------------------------------------------
+    # Queue ordering
+    # ------------------------------------------------------------------
+
+    def _on_batch_reorder(self, game_ids) -> None:
+        if (
+            self.history_manager.reorder_analysis_batch_items(
+                list(game_ids), active_game_id=self.analysis_coordinator.active_game_id
+            )
+            is False
+        ):
+            logger.debug("Batch reorder no longer matched the persisted queue")
+
+    def _on_batch_remove(self, game_id: str) -> None:
+        if game_id == self.analysis_coordinator.active_game_id:
+            return
+        self.history_manager.remove_analysis_batch_item(game_id)
+        self.history_view.refresh_batch_queue()
+        self._refresh_up_next()
+
+    def _refresh_up_next(self) -> None:
+        batch = self._current_batch()
+        if batch is None or batch.state not in (BATCH_RUNNING, BATCH_PAUSED):
+            self.history_view.set_batch_up_next([])
+            return
+        active_id = self.analysis_coordinator.active_game_id
+        pending = [
+            item
+            for item in batch.items
+            if item.outcome == OUTCOME_PENDING and item.game_id != active_id
+        ]
+        if not pending:
+            self.history_view.set_batch_up_next([])
+            return
+        try:
+            rows = self.history_manager.fetch_game_rows_by_ids(
+                [item.game_id for item in pending]
+            )
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("Failed to load Up next rows: %s", e)
+            rows = []
+        by_id = {row.get("id"): row for row in rows}
+        seconds_per_move = self._estimated_seconds_per_move()
+        entries = []
+        for item in pending:
+            row = by_id.get(item.game_id)
+            if row is None:
+                continue
+            moves = int(row.get("move_count") or 0)
+            plies = max(1, moves * 2)
+            entries.append(
+                UpNextEntry(
+                    game_id=item.game_id,
+                    label=f"{row.get('white', '?')} vs {row.get('black', '?')}",
+                    moves=moves,
+                    eta_seconds=seconds_per_move * plies,
+                    number=int(item.position),
+                )
+            )
+        self.history_view.set_batch_up_next(entries)
+
+    def _estimated_seconds_per_move(self) -> float:
+        if self._batch_current_move > 0 and self._batch_game_started_at is not None:
+            elapsed = max(0.0, time.monotonic() - self._batch_game_started_at)
+            if elapsed > 0:
+                return elapsed / self._batch_current_move
+        try:
+            return float(self.analyzer.config.get("time_per_move") or 1.0)
+        except (TypeError, ValueError):
+            return 1.0
+
+    # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
@@ -425,16 +561,84 @@ class BatchAnalysisMixin:
         if hasattr(self, "btn_analyze"):
             self._update_analyze_button(running=False)
 
+    def _batch_total_elapsed(self) -> float:
+        if self._batch_session_started_at is None:
+            return max(0.0, self._batch_elapsed_base)
+        return max(
+            0.0,
+            self._batch_elapsed_base
+            + (time.monotonic() - self._batch_session_started_at),
+        )
+
+    def _current_game_eta(self) -> float | None:
+        if (
+            self._batch_game_started_at is None
+            or self._batch_current_move <= 0
+            or self._batch_current_total <= 0
+        ):
+            return None
+        elapsed = max(0.0, time.monotonic() - self._batch_game_started_at)
+        seconds_per_move = elapsed / max(1, self._batch_current_move)
+        remaining = max(
+            0, self._batch_current_total - min(self._batch_current_move, self._batch_current_total)
+        )
+        return remaining * seconds_per_move
+
+    def _estimate_batch_eta(self) -> float | None:
+        if not self.analysis_coordinator.batch_running:
+            return None
+        current_eta = self._current_game_eta()
+        if current_eta is None:
+            return None
+        batch = self._current_batch()
+        if batch is None:
+            return None
+        summary = batch.summary()
+        position = self.analysis_coordinator.active_position or (summary.processed + 1)
+        future_games = max(0, summary.total - position)
+        if future_games == 0:
+            return current_eta
+
+        analyzed_games = summary.completed + summary.failed
+        if analyzed_games > 0:
+            average_game = self._batch_total_elapsed() / analyzed_games
+        else:
+            seconds_per_move = (
+                time.monotonic() - self._batch_game_started_at
+            ) / max(1, self._batch_current_move)
+            average_game = seconds_per_move * self._batch_current_total
+        return current_eta + future_games * average_game
+
+    def _tick_batch_timing(self) -> None:
+        if not self.analysis_coordinator.batch_running:
+            return
+        self.history_view.set_batch_timing(
+            self._batch_total_elapsed(), self._estimate_batch_eta()
+        )
+
+    def _persist_batch_elapsed(self, seconds: float | None = None) -> None:
+        try:
+            self.history_manager.set_analysis_batch_elapsed(
+                self._batch_total_elapsed() if seconds is None else seconds
+            )
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("Failed to persist batch elapsed time: %s", e)
+
     def _release_batch_worker(self, worker) -> None:
         if self._batch_worker is worker:
             self._batch_worker = None
         remove_worker(worker)
 
     def _stop_batch_for_exit(self) -> None:
+        self._batch_eta_timer.stop()
         worker = self._batch_worker
         if worker is not None and worker.isRunning():
             worker.pause()
             worker.wait()
+        elapsed = self._batch_total_elapsed()
+        self._persist_batch_elapsed(elapsed)
+        self._batch_elapsed_base = elapsed
+        self._batch_session_started_at = None
         self._batch_worker = None
         try:
             self.analyzer.engine_manager.stop_engine()

@@ -41,6 +41,7 @@ AnalyzeCallable = Callable[
 ]
 EventObserver = Callable[[BatchEvent], None]
 FatalClassifier = Callable[[BaseException], bool]
+ItemsProvider = Callable[[], list[AnalysisBatchItem]]
 
 
 def normalize_game_status(status: str | None) -> str:
@@ -106,19 +107,43 @@ class BatchAnalysisRunner:
         items: list[AnalysisBatchItem],
         cancel_token: threading.Event | None = None,
         on_event: EventObserver | None = None,
+        pending_items: ItemsProvider | None = None,
     ) -> BatchRunResult:
         token = cancel_token or threading.Event()
         observer = on_event or (lambda _event: None)
+        current_items = list(items)
         results: dict[str, AnalysisBatchItem] = {
-            item.game_id: item for item in items
+            item.game_id: item for item in current_items
         }
-        order = [item.game_id for item in items]
+        # Terminal work from an earlier run is not repeated and needs no fresh
+        # event; pending/failed/paused items are still candidates.
+        attempted = {
+            item.game_id
+            for item in current_items
+            if item.outcome in (OUTCOME_COMPLETED, OUTCOME_SKIPPED)
+        }
 
-        for position, item in enumerate(items, start=1):
-            if item.outcome in (OUTCOME_COMPLETED, OUTCOME_SKIPPED):
-                continue
-            if token.is_set():
+        while not token.is_set():
+            if pending_items is not None:
+                try:
+                    refreshed = pending_items()
+                    if refreshed:
+                        current_items = list(refreshed)
+                        for item in current_items:
+                            if item.game_id not in attempted:
+                                results[item.game_id] = item
+                except Exception as error:  # pragma: no cover - defensive
+                    logger.warning("Could not refresh batch queue order: %s", error)
+
+            candidates = [
+                item for item in current_items if item.game_id not in attempted
+            ]
+            if not candidates:
                 break
+            item = candidates[0]
+            attempted.add(item.game_id)
+            position = max(1, int(item.position))
+            total = len(current_items)
 
             game = self._load_game(item.game_id)
             if game is None:
@@ -149,7 +174,7 @@ class BatchAnalysisRunner:
                 GameStarted(
                     game_id=item.game_id,
                     position=position,
-                    total=len(items),
+                    total=total,
                     action=action,
                     label=_game_label(game, position),
                     total_moves=len(game.moves),
@@ -190,7 +215,7 @@ class BatchAnalysisRunner:
                     )
                     return BatchRunResult(
                         reason="fatal",
-                        items=self._result_items(order, results),
+                        items=self._result_items(current_items, results),
                         fatal_error=str(error),
                     )
                 else:
@@ -222,7 +247,7 @@ class BatchAnalysisRunner:
         ):
             reason = "stopped"
         return BatchRunResult(
-            reason=reason, items=self._result_items(order, results)
+            reason=reason, items=self._result_items(current_items, results)
         )
 
     def _cancelled_outcome(
@@ -247,12 +272,12 @@ class BatchAnalysisRunner:
 
     @staticmethod
     def _result_items(
-        order: list[str], results: dict[str, AnalysisBatchItem]
+        items: list[AnalysisBatchItem], results: dict[str, AnalysisBatchItem]
     ) -> tuple[AnalysisBatchItem, ...]:
-        merged = list(results.values())
-        # Keep the queue's creation order even when some items were skipped.
-        by_id = {item.game_id: item for item in merged}
-        return tuple(by_id[game_id] for game_id in order if game_id in by_id)
+        # Preserve the queue's current order, including a reordered tail.
+        return tuple(
+            results[item.game_id] for item in items if item.game_id in results
+        )
 
 
 def _game_label(game: GameAnalysis, position: int) -> str:

@@ -41,8 +41,10 @@ def test_batch_round_trip_replaces_queue_and_persists_outcomes(tmp_path):
 
     manager.set_analysis_batch_state(BATCH_PAUSED)
     manager.set_analysis_batch_item_outcome("g1", OUTCOME_COMPLETED)
+    manager.set_analysis_batch_elapsed(42.5)
     loaded = manager.get_analysis_batch()
     assert loaded.state == BATCH_PAUSED
+    assert loaded.elapsed_seconds == 42.5
     assert [(item.game_id, item.outcome) for item in loaded.items] == [
         ("g1", OUTCOME_COMPLETED),
         ("g2", OUTCOME_PENDING),
@@ -67,6 +69,36 @@ def test_batch_round_trip_replaces_queue_and_persists_outcomes(tmp_path):
     assert manager.pause_interrupted_analysis_batch() is True
     assert manager.get_analysis_batch().state == BATCH_PAUSED
     assert manager.pause_interrupted_analysis_batch() is False
+
+
+def test_reorder_pending_keeps_active_and_terminal_positions(tmp_path):
+    manager = GameHistoryManager(str(tmp_path / "batch-order.db"))
+    manager.save_analysis_batch(
+        AnalysisBatch(
+            items=[
+                AnalysisBatchItem("active", 1),
+                AnalysisBatchItem("next_a", 2),
+                AnalysisBatchItem("done", 3, outcome=OUTCOME_COMPLETED),
+                AnalysisBatchItem("next_b", 4),
+            ]
+        )
+    )
+
+    assert manager.reorder_analysis_batch_items(
+        ["next_b", "next_a"], active_game_id="active"
+    )
+    positions = {
+        item.game_id: item.position for item in manager.get_analysis_batch().items
+    }
+    assert positions == {
+        "active": 1,
+        "next_b": 2,
+        "done": 3,
+        "next_a": 4,
+    }
+    assert manager.reorder_analysis_batch_items(
+        ["next_a"], active_game_id="active"
+    ) is False
 
 
 def test_delete_and_clear_prune_the_queue(tmp_path):

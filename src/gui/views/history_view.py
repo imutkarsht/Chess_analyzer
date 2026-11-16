@@ -34,7 +34,7 @@ from src.gui.utils.gui_utils import create_button
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.logger import logger
 
-from .history_batch import BatchQueueCard, BatchSelectionBar
+from .history_batch import BatchQueueCard, BatchSelectionBar, UpNextEntry
 from .history_filter_bar import HistoryFilterBar
 
 
@@ -209,6 +209,8 @@ class HistoryView(QWidget):
     game_deleted = pyqtSignal(str)
     batch_analysis_requested = pyqtSignal(object)  # list[str] in selection order
     batch_control_requested = pyqtSignal(str)  # pause | resume | cancel | dismiss
+    batch_reorder_requested = pyqtSignal(object)  # list[str] in new order
+    batch_remove_requested = pyqtSignal(str)  # game_id
     games_imported = pyqtSignal(int)
     history_cleared = pyqtSignal()
     open_imported_game = pyqtSignal(str, object)
@@ -233,6 +235,12 @@ class HistoryView(QWidget):
         self._batch_total = 0
         self._batch_move_current = 0
         self._batch_move_total = 0
+        self._batch_game_eta: float | None = None
+        self._batch_game_elapsed = 0.0
+        self._batch_depth: int | None = None
+        self._batch_elapsed = 0.0
+        self._batch_eta: float | None = None
+        self._batch_up_next: list = []
         self._pre_bulk_analysis_filter = ""
         self.usernames: list[str] = []
         self._total = 0
@@ -359,6 +367,10 @@ class HistoryView(QWidget):
         )
         self.batch_queue_card.dismiss_requested.connect(
             lambda: self.batch_control_requested.emit("dismiss")
+        )
+        self.batch_queue_card.reorder_requested.connect(self._on_batch_reordered)
+        self.batch_queue_card.remove_requested.connect(
+            self.batch_remove_requested.emit
         )
         content_layout.addWidget(self.batch_queue_card)
 
@@ -613,12 +625,25 @@ class HistoryView(QWidget):
         self._pre_bulk_analysis_filter = ""
         self._batch_total = batch.total
         self._batch_active_label = ""
+        self._batch_move_current = 0
+        self._batch_move_total = 0
+        self._batch_game_eta = None
+        self._batch_game_elapsed = 0.0
+        self._batch_elapsed = max(0.0, float(batch.elapsed_seconds or 0.0))
+        self._batch_eta = None
+        self._batch_up_next = []
         self.set_batch_running(
             True,
             active_game_id=None,
             queued_ids={item.game_id for item in batch.pending_items()},
         )
-        self.batch_queue_card.show_batch(batch, active_label="", position=1)
+        self.batch_queue_card.show_batch(
+            batch,
+            active_label="",
+            position=1,
+            elapsed_seconds=self._batch_elapsed,
+            eta_seconds=self._batch_eta,
+        )
         self.apply_filters(clear_selection=False)
 
     def set_batch_running(
@@ -652,6 +677,9 @@ class HistoryView(QWidget):
         total: int,
         queued_ids: set[str],
         batch=None,
+        total_moves: int = 0,
+        depth: int | None = None,
+        up_next: list | None = None,
     ) -> None:
         self._batch_active_game_id = game_id
         self._batch_active_label = label
@@ -659,7 +687,13 @@ class HistoryView(QWidget):
         self._batch_total = int(total)
         self._batch_queued_ids = set(queued_ids)
         self._batch_move_current = 0
-        self._batch_move_total = 0
+        self._batch_move_total = max(0, int(total_moves))
+        self._batch_game_eta = None
+        self._batch_game_elapsed = 0.0
+        if depth is not None:
+            self._batch_depth = int(depth)
+        if up_next is not None:
+            self._batch_up_next = list(up_next)
         self.game_list.set_batch_runtime(
             game_id,
             self._batch_position,
@@ -672,14 +706,62 @@ class HistoryView(QWidget):
                 batch,
                 active_label=label,
                 position=self._batch_position,
+                move_total=self._batch_move_total,
+                elapsed_seconds=self._batch_elapsed,
+                eta_seconds=self._batch_eta,
+                game_elapsed_seconds=self._batch_game_elapsed,
+                depth=self._batch_depth,
+                up_next=self._batch_up_next,
             )
 
-    def update_batch_move_progress(self, current: int, total: int) -> None:
+    def update_batch_move_progress(
+        self,
+        current: int,
+        total: int,
+        game_eta: float | None = None,
+        game_elapsed: float | None = None,
+    ) -> None:
         self._batch_move_current = max(0, int(current))
         self._batch_move_total = max(0, int(total))
+        self._batch_game_eta = game_eta
+        if game_elapsed is not None:
+            self._batch_game_elapsed = max(0.0, float(game_elapsed))
         self.batch_queue_card.set_move_progress(
-            self._batch_move_current, self._batch_move_total
+            self._batch_move_current,
+            self._batch_move_total,
+            game_eta,
+            self._batch_game_elapsed,
         )
+
+    def set_batch_up_next(self, entries: list) -> None:
+        self._batch_up_next = list(entries)
+        self.batch_queue_card.set_up_next(entries)
+
+    def _on_batch_reordered(self, game_ids) -> None:
+        by_id = {entry.game_id: entry for entry in self._batch_up_next}
+        numbers = sorted(entry.number for entry in self._batch_up_next if entry.number)
+        if len(numbers) != len(game_ids):
+            numbers = list(range(1, len(game_ids) + 1))
+        ordered = []
+        for game_id, number in zip(game_ids, numbers, strict=True):
+            entry = by_id.get(game_id)
+            if entry is not None:
+                ordered.append(
+                    UpNextEntry(
+                        entry.game_id,
+                        entry.label,
+                        entry.moves,
+                        entry.eta_seconds,
+                        number,
+                    )
+                )
+        self._batch_up_next = ordered
+        self.batch_reorder_requested.emit(game_ids)
+
+    def set_batch_timing(self, elapsed: float, eta: float | None) -> None:
+        self._batch_elapsed = max(0.0, float(elapsed))
+        self._batch_eta = eta
+        self.batch_queue_card.set_timing(self._batch_elapsed, eta)
 
     def set_batch_queue(
         self,
@@ -698,6 +780,8 @@ class HistoryView(QWidget):
             self._batch_move_current = max(0, int(move_current))
         if move_total is not None:
             self._batch_move_total = max(0, int(move_total))
+        if self._batch_elapsed <= 0 and batch.elapsed_seconds > 0:
+            self._batch_elapsed = float(batch.elapsed_seconds)
         if batch.state == "running":
             self._batch_running = True
             self._batch_queued_ids = {
@@ -711,12 +795,19 @@ class HistoryView(QWidget):
         else:
             self.set_batch_running(False)
             self._batch_queued_ids = set()
+            self._batch_eta = None
+            self._batch_game_eta = None
         self.batch_queue_card.show_batch(
             batch,
             active_label=self._batch_active_label,
             position=self._batch_position,
             move_current=self._batch_move_current,
             move_total=self._batch_move_total,
+            elapsed_seconds=self._batch_elapsed,
+            eta_seconds=self._batch_eta,
+            game_elapsed_seconds=self._batch_game_elapsed,
+            depth=self._batch_depth,
+            up_next=self._batch_up_next,
         )
 
     def refresh_batch_queue(self) -> None:
@@ -739,6 +830,12 @@ class HistoryView(QWidget):
         self._batch_total = 0
         self._batch_move_current = 0
         self._batch_move_total = 0
+        self._batch_game_eta = None
+        self._batch_game_elapsed = 0.0
+        self._batch_depth = None
+        self._batch_elapsed = 0.0
+        self._batch_eta = None
+        self._batch_up_next = []
 
     def load_history(self):
         """Reload the current query from the first page, keeping the reader's place."""

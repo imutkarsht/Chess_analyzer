@@ -38,9 +38,10 @@ class AnalysisBatchRepo:
             cursor.execute("DELETE FROM analysis_batch_items")
             cursor.execute("DELETE FROM analysis_batches")
             cursor.execute(
-                "INSERT INTO analysis_batches (id, state, created_at, updated_at) "
-                "VALUES (1, ?, ?, ?)",
-                (batch.state, created_at, now),
+                "INSERT INTO analysis_batches "
+                "(id, state, created_at, updated_at, elapsed_seconds) "
+                "VALUES (1, ?, ?, ?, ?)",
+                (batch.state, created_at, now, max(0.0, batch.elapsed_seconds)),
             )
             cursor.executemany(
                 "INSERT INTO analysis_batch_items "
@@ -63,6 +64,7 @@ class AnalysisBatchRepo:
             state=batch.state,
             created_at=created_at,
             updated_at=now,
+            elapsed_seconds=max(0.0, batch.elapsed_seconds),
             items=list(batch.items),
         )
 
@@ -72,8 +74,8 @@ class AnalysisBatchRepo:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id, state, created_at, updated_at FROM analysis_batches "
-                "WHERE id = 1"
+                "SELECT id, state, created_at, updated_at, elapsed_seconds "
+                "FROM analysis_batches WHERE id = 1"
             )
             row = cursor.fetchone()
             if row is None:
@@ -98,6 +100,7 @@ class AnalysisBatchRepo:
             state=row["state"],
             created_at=float(row["created_at"] or 0.0),
             updated_at=float(row["updated_at"] or 0.0),
+            elapsed_seconds=float(row["elapsed_seconds"] or 0.0),
             items=items,
         )
 
@@ -106,6 +109,14 @@ class AnalysisBatchRepo:
             conn.execute(
                 "UPDATE analysis_batches SET state = ?, updated_at = ? WHERE id = 1",
                 (state, time.time()),
+            )
+            conn.commit()
+
+    def set_elapsed_seconds(self, seconds: float) -> None:
+        with self._get_connection() as conn:
+            conn.execute(
+                "UPDATE analysis_batches SET elapsed_seconds = ? WHERE id = 1",
+                (max(0.0, float(seconds)),),
             )
             conn.commit()
 
@@ -150,6 +161,46 @@ class AnalysisBatchRepo:
                 (time.time(),),
             )
             conn.commit()
+
+    def reorder_pending(
+        self, game_ids: list[str], active_game_id: str | None = None
+    ) -> bool:
+        """Assign the queue's pending positions to ``game_ids`` order.
+
+        The active game and terminal items keep their positions; only the
+        "Up next" pending rows move. Returns False when the supplied set no
+        longer matches the persisted queue (for example, after a delete).
+        """
+        ordered = [game_id for game_id in game_ids if game_id]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT game_id, position FROM analysis_batch_items "
+                "WHERE outcome = 'pending' ORDER BY position"
+            )
+            rows = cursor.fetchall()
+            movable = [
+                (game_id, position)
+                for game_id, position in rows
+                if game_id != active_game_id
+            ]
+            slots = [position for _game_id, position in movable]
+            if len(ordered) != len(slots) or set(ordered) != {
+                game_id for game_id, _position in movable
+            }:
+                return False
+            for game_id, position in zip(ordered, slots, strict=True):
+                cursor.execute(
+                    "UPDATE analysis_batch_items SET position = ? "
+                    "WHERE batch_id = 1 AND game_id = ?",
+                    (position, game_id),
+                )
+            cursor.execute(
+                "UPDATE analysis_batches SET updated_at = ? WHERE id = 1",
+                (time.time(),),
+            )
+            conn.commit()
+        return True
 
     def remove_item(self, game_id: str) -> None:
         with self._get_connection() as conn:

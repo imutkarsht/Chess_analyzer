@@ -69,6 +69,7 @@ class BatchAnalysisWorker(QThread):
                 self._batch.items,
                 cancel_token=self._cancel_token,
                 on_event=self._on_event,
+                pending_items=self._load_pending_items,
             )
         except Exception as error:  # noqa: BLE001 - reported to the UI
             logger.error("Batch analysis worker failed: %s", error, exc_info=True)
@@ -108,6 +109,10 @@ class BatchAnalysisWorker(QThread):
 
     def _load_status(self, game_id: str) -> str | None:
         return self._history_manager.get_game_analysis_status(game_id)
+
+    def _load_pending_items(self):
+        batch = self._history_manager.get_analysis_batch()
+        return batch.items if batch is not None else []
 
     def _analyze_game(self, game, resume, on_progress, cancel_token) -> None:
         self._analyzer.analyze_game(
@@ -157,7 +162,7 @@ class BatchAnalysisWorker(QThread):
             self.game_outcome.emit(item.game_id, item.outcome, item.error or "")
 
     def _finish(self, result) -> None:
-        items = list(result.items)
+        items = self._merge_with_current_queue(result.items)
         if self._cancel_requested.is_set():
             items = _mark_pending_not_started(items)
             state = BATCH_CANCELLED
@@ -181,6 +186,22 @@ class BatchAnalysisWorker(QThread):
             self.batch_paused.emit(summary)
         else:
             self.batch_finished.emit(summary)
+
+    def _merge_with_current_queue(self, result_items):
+        """Apply runner outcomes without resurrecting reordered/removed rows.
+
+        The runner may be holding the queue snapshot from when the current
+        game started. A remove or drag during that game must win over the
+        stale snapshot when we persist the final outcomes.
+        """
+        try:
+            current = self._history_manager.get_analysis_batch()
+        except Exception:  # pragma: no cover - defensive
+            current = None
+        if current is None:
+            return list(result_items)
+        by_id = {item.game_id: item for item in result_items}
+        return [by_id.get(item.game_id, item) for item in current.items]
 
     def _fail_unexpected(self, error: BaseException) -> None:
         batch = None

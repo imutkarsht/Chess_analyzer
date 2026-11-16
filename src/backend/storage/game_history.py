@@ -205,6 +205,9 @@ class GameHistoryManager:
     def set_analysis_batch_state(self, state: str) -> None:
         self._batch_repo.set_state(state)
 
+    def set_analysis_batch_elapsed(self, seconds: float) -> None:
+        self._batch_repo.set_elapsed_seconds(seconds)
+
     def save_analysis_batch_items(self, items: list[AnalysisBatchItem]) -> None:
         self._batch_repo.save_items(items)
 
@@ -218,6 +221,11 @@ class GameHistoryManager:
 
     def remove_analysis_batch_item(self, game_id: str) -> None:
         self._batch_repo.remove_item(game_id)
+
+    def reorder_analysis_batch_items(
+        self, game_ids: list[str], active_game_id: str | None = None
+    ) -> bool:
+        return self._batch_repo.reorder_pending(game_ids, active_game_id)
 
     def pause_interrupted_analysis_batch(self) -> bool:
         """Recover a queue left running by a crash or forced shutdown."""

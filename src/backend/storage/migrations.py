@@ -632,9 +632,16 @@ def _init_batch_tables(cursor: sqlite3.Cursor) -> None:
             id INTEGER PRIMARY KEY CHECK (id = 1),
             state TEXT NOT NULL,
             created_at REAL NOT NULL,
-            updated_at REAL NOT NULL
+            updated_at REAL NOT NULL,
+            elapsed_seconds REAL NOT NULL DEFAULT 0
         )
     """)
+    cursor.execute("PRAGMA table_info(analysis_batches)")
+    if "elapsed_seconds" not in {row[1] for row in cursor.fetchall()}:
+        cursor.execute(
+            "ALTER TABLE analysis_batches "
+            "ADD COLUMN elapsed_seconds REAL NOT NULL DEFAULT 0"
+        )
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS analysis_batch_items (
             batch_id INTEGER NOT NULL,

@@ -124,6 +124,7 @@ class AnalysisBatch:
     state: str = BATCH_RUNNING
     created_at: float = 0.0
     updated_at: float = 0.0
+    elapsed_seconds: float = 0.0
     items: list[AnalysisBatchItem] = field(default_factory=list)
 
     @property
@@ -171,6 +172,7 @@ class AnalysisBatch:
             state=self.state,
             created_at=self.created_at,
             updated_at=self.updated_at,
+            elapsed_seconds=self.elapsed_seconds,
             items=items,
         )
 
@@ -180,6 +182,7 @@ class AnalysisBatch:
             state=self.state,
             created_at=self.created_at,
             updated_at=self.updated_at,
+            elapsed_seconds=self.elapsed_seconds,
             items=list(items),
         )
 
