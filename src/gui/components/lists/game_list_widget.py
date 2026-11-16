@@ -8,7 +8,7 @@ counting never run in Python over the whole table.
 
 from collections.abc import Callable
 
-from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, QPoint, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -35,7 +35,8 @@ class GameListWidget(QWidget):
 
     game_selected = pyqtSignal(object)
     game_action_requested = pyqtSignal(object, str)
-    game_deleted = pyqtSignal(str)
+    game_delete_requested = pyqtSignal(str)
+    batch_selection_toggled = pyqtSignal(object, bool)
     load_more_requested = pyqtSignal()
 
     # Ask for the next page while the reader is still this far from the end.
@@ -53,6 +54,8 @@ class GameListWidget(QWidget):
         self.usernames: list = []
         self.view_mode: str = "compact"  # "compact" or "detailed"
         self.analyzing_game_id: str | None = None
+        self._selection_mode = False
+        self._selected_ids: set[str] = set()
 
         from src.gui.theme import ThemeManager
 
@@ -118,6 +121,7 @@ class GameListWidget(QWidget):
         self.list_widget.setUniformItemSizes(True)
         SmoothScroll(self.list_widget)
         self.list_widget.itemClicked.connect(self._on_item_clicked)
+        self.list_widget.installEventFilter(self)
         self.list_widget.verticalScrollBar().valueChanged.connect(self._maybe_request_page)
 
         # Filtered/empty results replace the rows but keep the count header and
@@ -296,6 +300,44 @@ class GameListWidget(QWidget):
             if self._all_games:
                 self._rebuild(preserve_scroll=True)
 
+    @property
+    def selection_mode(self) -> bool:
+        return self._selection_mode
+
+    def set_selection_mode(
+        self, enabled: bool, selected_ids: set[str] | None = None
+    ) -> None:
+        """Toggle click-to-select rendering for the batch bulk mode."""
+        self._selection_mode = bool(enabled)
+        self._selected_ids = set(selected_ids or ())
+        if self._all_games:
+            self._rebuild(preserve_scroll=True)
+
+    def set_selected_ids(self, selected_ids: set[str]) -> None:
+        """Update check marks without rebuilding rows."""
+        self._selected_ids = set(selected_ids)
+        for row, game in enumerate(self._all_games):
+            item = self.list_widget.item(row)
+            if item is None:
+                continue
+            widget = self.list_widget.itemWidget(item)
+            if widget is not None:
+                widget.set_selected(
+                    getattr(game, "game_id", None) in self._selected_ids
+                )
+
+    def page_games(self, page_size: int) -> list:
+        """Rows in the page block under the viewport top."""
+        if not self._all_games:
+            return []
+        size = max(1, int(page_size))
+        index = self.list_widget.indexAt(QPoint(0, 1))
+        if not index.isValid():
+            index = self.list_widget.indexAt(QPoint(0, 0))
+        row = index.row() if index.isValid() else 0
+        start = max(0, (row // size) * size)
+        return self._all_games[start : start + size]
+
     def _update_view_toggle_styles(self):
         is_detailed = self.view_mode == "detailed"
         self.btn_detailed.setChecked(is_detailed)
@@ -342,9 +384,19 @@ class GameListWidget(QWidget):
         is_analyzing = bool(
             self.analyzing_game_id and getattr(game, "game_id", None) == self.analyzing_game_id
         )
+        game_id = getattr(game, "game_id", None)
         widget = GameListItemWidget(
-            game, self.usernames, view_mode=self.view_mode, is_analyzing=is_analyzing
+            game,
+            self.usernames,
+            view_mode=self.view_mode,
+            is_analyzing=is_analyzing,
+            selection_mode=self._selection_mode,
+            selected=game_id in self._selected_ids,
         )
+        if self._selection_mode:
+            widget.setAttribute(
+                Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+            )
         widget.delete_requested.connect(self._on_delete_requested)
         widget.action_requested.connect(self.game_action_requested.emit)
         return widget
@@ -401,33 +453,56 @@ class GameListWidget(QWidget):
     # ── Navigation ────────────────────────────────────────────────────────────
 
     def _on_delete_requested(self, game_id: str):
-        """Delete a single game from history after confirmation."""
-        from src.backend.storage.game_history import GameHistoryManager
-        from src.gui.utils.gui_utils import confirm_dialog
-
-        if not confirm_dialog(
-            self,
-            "Delete Game",
-            "Remove this game from history? This cannot be undone.",
-            confirm_label="Delete",
-        ):
-            return
-
-        try:
-            GameHistoryManager().delete_game(game_id)
-        except Exception as e:
-            from src.utils.logger import logger
-
-            logger.error(f"Failed to delete game {game_id}: {e}")
-            return
-
-        self.remove_row(game_id)
-        self.game_deleted.emit(game_id)
+        """Ask the owning view to confirm and persist the deletion."""
+        self.game_delete_requested.emit(game_id)
 
     def _on_item_clicked(self, item):
         row = self.list_widget.row(item)
-        if 0 <= row < len(self._all_games):
-            self.game_selected.emit(self._all_games[row])
+        if not 0 <= row < len(self._all_games):
+            return
+        game = self._all_games[row]
+        if self._selection_mode:
+            self._toggle_selected(game)
+            return
+        self.game_selected.emit(game)
+
+    def _toggle_selected(self, game) -> None:
+        game_id = getattr(game, "game_id", None)
+        if not game_id:
+            return
+        selected = game_id not in self._selected_ids
+        if selected:
+            self._selected_ids.add(game_id)
+        else:
+            self._selected_ids.discard(game_id)
+        row = next(
+            (
+                index
+                for index, existing in enumerate(self._all_games)
+                if getattr(existing, "game_id", None) == game_id
+            ),
+            -1,
+        )
+        if row >= 0:
+            item = self.list_widget.item(row)
+            widget = self.list_widget.itemWidget(item) if item is not None else None
+            if widget is not None:
+                widget.set_selected(selected)
+        self.batch_selection_toggled.emit(game, selected)
+
+    def eventFilter(self, obj, event):  # noqa: N802 - Qt override
+        if (
+            obj is self.list_widget
+            and self._selection_mode
+            and event.type() == QEvent.Type.KeyPress
+            and event.key()
+            in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter)
+        ):
+            item = self.list_widget.currentItem()
+            if item is not None:
+                self._on_item_clicked(item)
+                return True
+        return super().eventFilter(obj, event)
 
     # ── Style refresh ─────────────────────────────────────────────────────────
 

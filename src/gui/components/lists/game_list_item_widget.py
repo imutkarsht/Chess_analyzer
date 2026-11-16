@@ -10,7 +10,13 @@ import re
 import chess
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QFrame,
+    QHBoxLayout,
+    QVBoxLayout,
+    QWidget,
+)
 
 from src.gui.board import MiniBoardConfig, MiniBoardWidget
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
@@ -44,11 +50,24 @@ class GameListItemWidget(QWidget):
     # Standard starting FEN
 
 
-    def __init__(self, game, usernames=None, view_mode="detailed", is_analyzing: bool = False):
+    def __init__(
+        self,
+        game,
+        usernames=None,
+        view_mode="detailed",
+        is_analyzing: bool = False,
+        selection_mode: bool = False,
+        selected: bool = False,
+    ):
         super().__init__()
         self._game = game
         self.view_mode = view_mode
         self._is_analyzing = is_analyzing
+        self._selection_mode = False
+        self._selection_checkbox: QCheckBox | None = None
+        self._status_badge = None
+        self._action_button = None
+        self._delete_button = None
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(
@@ -64,6 +83,9 @@ class GameListItemWidget(QWidget):
         else:
             self._build_detailed_ui(game, usernames, root_layout)
 
+        if selection_mode:
+            self.set_selection_mode(True, selected)
+
     def _build_compact_ui(self, game, usernames, root_layout):
         """Build compact single-row list item layout (Lichess/Chess.com table style)."""
         self.card_frame.setStyleSheet(Styles.get_game_card_style(border_radius=6, compact=True))
@@ -71,6 +93,7 @@ class GameListItemWidget(QWidget):
         card_layout = QHBoxLayout(self.card_frame)
         card_layout.setContentsMargins(12, 8, 12, 8)
         card_layout.setSpacing(8)
+        self._card_layout = card_layout
 
         # 1. Source & Speed Icon
         source = getattr(game.metadata, "source", "file")
@@ -214,6 +237,7 @@ class GameListItemWidget(QWidget):
         card_layout = QHBoxLayout(self.card_frame)
         card_layout.setContentsMargins(12, 10, 12, 10)
         card_layout.setSpacing(14)
+        self._card_layout = card_layout
 
         # ===== LEFT: Mini Chessboard Thumbnail =====
         mini_board = self._create_mini_board_widget(game, usernames)
@@ -407,6 +431,7 @@ class GameListItemWidget(QWidget):
             icon_position="only",
         )
         action_btn.setFixedSize(btn_size, btn_size)
+        self._action_button = action_btn
 
         if getattr(self, "_is_analyzing", False):
             status_lbl = StatusBadge(
@@ -421,6 +446,7 @@ class GameListItemWidget(QWidget):
             action_btn.clicked.connect(
                 lambda: self.action_requested.emit(self._game, "view_analysis")
             )
+            self._status_badge = status_lbl
             return status_lbl, action_btn
 
         if status == "completed":
@@ -461,7 +487,53 @@ class GameListItemWidget(QWidget):
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_TEXT_SECONDARY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "analyze"))
 
+        self._status_badge = status_lbl
         return status_lbl, action_btn
+
+    def set_selection_mode(self, enabled: bool, selected: bool = False) -> None:
+        """Show a visual checkbox and hide card actions while bulk-selecting."""
+        self._selection_mode = bool(enabled)
+        if enabled:
+            if self._selection_checkbox is None:
+                checkbox = QCheckBox()
+                checkbox.setAttribute(
+                    Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+                )
+                checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                checkbox.setAccessibleName(
+                    f"Select {self._game.metadata.white} vs {self._game.metadata.black}"
+                )
+                tick_path = get_resource_path("assets/images/tick.svg").replace(
+                    "\\", "/"
+                )
+                checkbox.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
+                self._selection_checkbox = checkbox
+                self._card_layout.insertWidget(0, checkbox)
+            self._selection_checkbox.show()
+            self.set_selected(selected)
+        else:
+            if self._selection_checkbox is not None:
+                self._selection_checkbox.hide()
+            self.card_frame.setStyleSheet(
+                Styles.get_game_card_style(
+                    compact=self.view_mode == "compact", selected=False
+                )
+            )
+        if self._action_button is not None:
+            self._action_button.setVisible(not enabled)
+        if self._delete_button is not None:
+            self._delete_button.setVisible(not enabled)
+        self.setToolTip("Click to select this game" if enabled else "")
+
+    def set_selected(self, selected: bool) -> None:
+        selected = bool(selected)
+        if self._selection_checkbox is not None:
+            self._selection_checkbox.setChecked(selected)
+        self.card_frame.setStyleSheet(
+            Styles.get_game_card_style(
+                compact=self.view_mode == "compact", selected=selected
+            )
+        )
 
     @staticmethod
     def _set_icon(btn: Button, icon_name: str, color: str) -> None:
@@ -478,6 +550,7 @@ class GameListItemWidget(QWidget):
             tooltip="Delete game",
         )
         del_btn.setFixedSize(btn_size, btn_size)
+        self._delete_button = del_btn
         game_id = getattr(self._game, "game_id", None)
         del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))
         return del_btn

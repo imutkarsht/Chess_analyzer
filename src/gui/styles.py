@@ -1146,6 +1146,21 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_batch_selection_bar_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#BatchSelectionBar {{
+                background-color: {p.surface_light};
+                border: 1px solid {p.border};
+                border-radius: 10px;
+            }}
+            QFrame#BatchSelectionBar QLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """
+
+    @classmethod
     def get_filter_chip_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -2005,14 +2020,16 @@ class Styles(metaclass=_StylesMeta):
     #  HISTORY / GAME LIST PAGE
     # ═══════════════════════════════════════════════════════════════
     @classmethod
-    def get_game_card_style(cls, border_radius=10, compact=False):
+    def get_game_card_style(cls, border_radius=10, compact=False, selected=False):
         p = ThemeManager.palette()
         hover_bg = f"background-color: {p.surface};" if compact else ""
         card_padding = "10px 14px" if compact else "8px 14px"
+        background = p.surface_light if selected else p.surface_card
+        border = p.accent if selected else p.border
         return f"""
             QFrame#GameCard {{
-                background-color: {p.surface_card};
-                border: 1px solid {p.border};
+                background-color: {background};
+                border: 1px solid {border};
                 border-radius: {border_radius}px;
                 padding: {card_padding};
             }}

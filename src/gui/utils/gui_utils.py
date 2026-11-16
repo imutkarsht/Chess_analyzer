@@ -121,7 +121,8 @@ def create_button(
 
 def confirm_dialog(parent, title: str, message: str,
                    confirm_label: str = "Confirm",
-                   cancel_label: str = "Cancel") -> bool:
+                   cancel_label: str = "Cancel",
+                   danger: bool = True) -> bool:
     """
     Show a lightweight, styled Yes/No confirmation dialog.
     Returns True if the user confirmed, False otherwise.
@@ -164,8 +165,11 @@ def confirm_dialog(parent, title: str, message: str,
 
     cancel_btn = create_button(cancel_label, style="secondary",
                                on_click=dlg.reject)
-    confirm_btn = create_button(confirm_label, style="danger",
-                                on_click=dlg.accept)
+    confirm_btn = create_button(
+        confirm_label,
+        style="danger" if danger else "primary",
+        on_click=dlg.accept,
+    )
 
     btn_row.addWidget(cancel_btn)
     btn_row.addWidget(confirm_btn)
