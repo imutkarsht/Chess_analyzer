@@ -1161,6 +1161,22 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_batch_queue_card_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QFrame#BatchQueueCard {{
+                background-color: {p.surface_card};
+                border: 1px solid {p.border};
+                border-left: 3px solid {p.accent};
+                border-radius: 10px;
+            }}
+            QFrame#BatchQueueCard QLabel {{
+                background: transparent;
+                border: none;
+            }}
+        """
+
+    @classmethod
     def get_filter_chip_style(cls):
         p = ThemeManager.palette()
         return f"""

@@ -34,7 +34,7 @@ from src.gui.utils.gui_utils import create_button
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.logger import logger
 
-from .history_batch import BatchSelectionBar
+from .history_batch import BatchQueueCard, BatchSelectionBar
 from .history_filter_bar import HistoryFilterBar
 
 
@@ -208,6 +208,7 @@ class HistoryView(QWidget):
     game_action_requested = pyqtSignal(object, str)  # Emits (GameAnalysis, action)
     game_deleted = pyqtSignal(str)
     batch_analysis_requested = pyqtSignal(object)  # list[str] in selection order
+    batch_control_requested = pyqtSignal(str)  # pause | resume | cancel | dismiss
     games_imported = pyqtSignal(int)
     history_cleared = pyqtSignal()
     open_imported_game = pyqtSignal(str, object)
@@ -227,6 +228,11 @@ class HistoryView(QWidget):
         self._batch_running = False
         self._batch_active_game_id: str | None = None
         self._batch_queued_ids: set[str] = set()
+        self._batch_active_label = ""
+        self._batch_position = 0
+        self._batch_total = 0
+        self._batch_move_current = 0
+        self._batch_move_total = 0
         self._pre_bulk_analysis_filter = ""
         self.usernames: list[str] = []
         self._total = 0
@@ -340,6 +346,21 @@ class HistoryView(QWidget):
         self.batch_selection_bar.clear_requested.connect(self._clear_batch_selection)
         self.batch_selection_bar.exit_requested.connect(self._exit_batch_mode)
         content_layout.addWidget(self.batch_selection_bar)
+
+        self.batch_queue_card = BatchQueueCard()
+        self.batch_queue_card.pause_requested.connect(
+            lambda: self.batch_control_requested.emit("pause")
+        )
+        self.batch_queue_card.resume_requested.connect(
+            lambda: self.batch_control_requested.emit("resume")
+        )
+        self.batch_queue_card.cancel_requested.connect(
+            lambda: self.batch_control_requested.emit("cancel")
+        )
+        self.batch_queue_card.dismiss_requested.connect(
+            lambda: self.batch_control_requested.emit("dismiss")
+        )
+        content_layout.addWidget(self.batch_queue_card)
 
         # Game List
         self.game_list = GameListWidget()
@@ -590,11 +611,13 @@ class HistoryView(QWidget):
         if self._pre_bulk_analysis_filter:
             self.analysis_filter.set_value(self._pre_bulk_analysis_filter, emit=False)
         self._pre_bulk_analysis_filter = ""
+        self._batch_total = batch.total
         self.set_batch_running(
             True,
             active_game_id=None,
             queued_ids={item.game_id for item in batch.items},
         )
+        self.batch_queue_card.show_batch(batch, position=1)
         self.apply_filters(clear_selection=False)
 
     def set_batch_running(
@@ -607,8 +630,109 @@ class HistoryView(QWidget):
         self._batch_running = bool(running)
         self._batch_active_game_id = active_game_id if running else None
         self._batch_queued_ids = set(queued_ids or ()) if running else set()
+        if running:
+            self.game_list.set_batch_runtime(
+                active_game_id,
+                self._batch_position,
+                self._batch_total,
+                self._batch_queued_ids,
+                locked=True,
+            )
+        else:
+            self.game_list.clear_batch_runtime()
         self.btn_clear.setEnabled(not running)
         self._update_batch_button()
+
+    def set_batch_active(
+        self,
+        game_id: str,
+        label: str,
+        position: int,
+        total: int,
+        queued_ids: set[str],
+        batch=None,
+    ) -> None:
+        self._batch_active_game_id = game_id
+        self._batch_active_label = label
+        self._batch_position = int(position)
+        self._batch_total = int(total)
+        self._batch_queued_ids = set(queued_ids)
+        self._batch_move_current = 0
+        self._batch_move_total = 0
+        self.game_list.set_batch_runtime(
+            game_id,
+            self._batch_position,
+            self._batch_total,
+            self._batch_queued_ids,
+            locked=True,
+        )
+        if batch is not None:
+            self.batch_queue_card.show_batch(
+                batch,
+                active_label=label,
+                position=self._batch_position,
+            )
+
+    def update_batch_move_progress(self, current: int, total: int) -> None:
+        self._batch_move_current = max(0, int(current))
+        self._batch_move_total = max(0, int(total))
+        self.batch_queue_card.set_move_progress(
+            self._batch_move_current, self._batch_move_total
+        )
+
+    def set_batch_queue(
+        self,
+        batch,
+        *,
+        active_label: str = "",
+        position: int = 0,
+        move_current: int = 0,
+        move_total: int = 0,
+    ) -> None:
+        self._batch_total = batch.total
+        self._batch_active_label = active_label or self._batch_active_label
+        self._batch_position = int(position)
+        if batch.state == "running":
+            self._batch_running = True
+            self._batch_queued_ids = {
+                item.game_id for item in batch.pending_items()
+            }
+            self.set_batch_running(
+                True,
+                self._batch_active_game_id,
+                self._batch_queued_ids,
+            )
+        else:
+            self.set_batch_running(False)
+            self._batch_queued_ids = set()
+        self.batch_queue_card.show_batch(
+            batch,
+            active_label=self._batch_active_label,
+            position=self._batch_position,
+            move_current=move_current,
+            move_total=move_total,
+        )
+
+    def refresh_batch_queue(self) -> None:
+        """Reload the persisted card without starting any work."""
+        try:
+            batch = self.history_manager.get_analysis_batch()
+        except Exception as e:
+            logger.debug(f"Failed to load batch queue: {e}")
+            return
+        if batch is None:
+            self.hide_batch_queue()
+            return
+        self.set_batch_queue(batch, active_label=self._batch_active_label)
+
+    def hide_batch_queue(self) -> None:
+        self.batch_queue_card.hide_card()
+        self.set_batch_running(False)
+        self._batch_active_label = ""
+        self._batch_position = 0
+        self._batch_total = 0
+        self._batch_move_current = 0
+        self._batch_move_total = 0
 
     def load_history(self):
         """Reload the current query from the first page, keeping the reader's place."""
@@ -820,6 +944,11 @@ class HistoryView(QWidget):
         else:
             self._update_empty_state()
         self._update_selection_bar_page()
+        try:
+            if self.history_manager.get_analysis_batch() is not None:
+                self.refresh_batch_queue()
+        except Exception as e:
+            logger.debug(f"Failed to refresh batch queue after delete: {e}")
 
     def refresh_game(self, game_id: str | None):
         """Refresh one rendered row after its analysis changed."""
@@ -1066,6 +1195,8 @@ class HistoryView(QWidget):
             self.btn_batch.refresh_styles()
         if hasattr(self, "batch_selection_bar"):
             self.batch_selection_bar.refresh_styles()
+        if hasattr(self, "batch_queue_card"):
+            self.batch_queue_card.refresh_styles()
         if hasattr(self, "btn_import"):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):

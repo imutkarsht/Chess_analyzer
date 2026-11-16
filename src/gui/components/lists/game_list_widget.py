@@ -56,6 +56,9 @@ class GameListWidget(QWidget):
         self.analyzing_game_id: str | None = None
         self._selection_mode = False
         self._selected_ids: set[str] = set()
+        self._batch_states: dict[str, str] = {}
+        self._batch_active_id: str | None = None
+        self._batch_locked = False
 
         from src.gui.theme import ThemeManager
 
@@ -338,6 +341,54 @@ class GameListWidget(QWidget):
         start = max(0, (row // size) * size)
         return self._all_games[start : start + size]
 
+    def set_batch_runtime(
+        self,
+        active_game_id: str | None,
+        position: int,
+        total: int,
+        queued_ids: set[str] | None = None,
+        *,
+        locked: bool = True,
+    ) -> None:
+        """Badge the active/queued rows and block single-analysis actions."""
+        self._batch_active_id = active_game_id
+        self._batch_locked = bool(locked)
+        self._batch_states = {
+            game_id: "Queued" for game_id in (queued_ids or set())
+        }
+        if active_game_id:
+            self._batch_states[active_game_id] = (
+                f"In batch · {position}/{total}"
+            )
+        for row, game in enumerate(self._all_games):
+            item = self.list_widget.item(row)
+            if item is None:
+                continue
+            widget = self.list_widget.itemWidget(item)
+            if widget is not None:
+                self._apply_batch_state(widget, getattr(game, "game_id", None))
+
+    def clear_batch_runtime(self) -> None:
+        self._batch_states = {}
+        self._batch_active_id = None
+        self._batch_locked = False
+        for row, game in enumerate(self._all_games):
+            item = self.list_widget.item(row)
+            if item is None:
+                continue
+            widget = self.list_widget.itemWidget(item)
+            if widget is not None:
+                self._apply_batch_state(widget, getattr(game, "game_id", None))
+
+    def _apply_batch_state(self, widget, game_id: str | None) -> None:
+        label = self._batch_states.get(game_id or "")
+        widget.set_batch_state(
+            label,
+            TextTone.ENGINE_BUSY if game_id == self._batch_active_id else TextTone.MUTED,
+            locked=self._batch_locked,
+            active=game_id == self._batch_active_id,
+        )
+
     def _update_view_toggle_styles(self):
         is_detailed = self.view_mode == "detailed"
         self.btn_detailed.setChecked(is_detailed)
@@ -397,6 +448,7 @@ class GameListWidget(QWidget):
             widget.setAttribute(
                 Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
             )
+        self._apply_batch_state(widget, game_id)
         widget.delete_requested.connect(self._on_delete_requested)
         widget.action_requested.connect(self.game_action_requested.emit)
         return widget

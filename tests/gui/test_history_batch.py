@@ -2,9 +2,21 @@
 
 import json
 
-from src.backend.models.analysis_batch import AnalysisBatch, AnalysisBatchItem
+from PyQt6.QtWidgets import QLabel
+
+from src.backend.models.analysis_batch import (
+    BATCH_COMPLETED,
+    BATCH_PAUSED,
+    BATCH_RUNNING,
+    OUTCOME_COMPLETED,
+    OUTCOME_FAILED,
+    OUTCOME_SKIPPED,
+    AnalysisBatch,
+    AnalysisBatchItem,
+)
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components.feedback.toast import ToastManager
+from src.gui.views.history_batch import BatchQueueCard
 from src.gui.views.history_view import HistoryView
 
 
@@ -145,11 +157,33 @@ def test_select_page_confirmation_counts_and_delete_guards(
     assert "1 will resume from partial results" in messages[0]
     assert "0 already complete will be skipped" in messages[0]
 
+    view.on_batch_started(manager.get_analysis_batch())
+    view.set_batch_active(
+        "paused",
+        "White paused vs Black paused",
+        1,
+        2,
+        {"paused", "fresh"},
+    )
+    row_widgets = {
+        game.game_id: view.game_list.list_widget.itemWidget(
+            view.game_list.list_widget.item(index)
+        )
+        for index, game in enumerate(view.game_list.games)
+    }
+    active_badges = [
+        label.text() for label in row_widgets["paused"].findChildren(QLabel)
+    ]
+    queued_badges = [
+        label.text() for label in row_widgets["fresh"].findChildren(QLabel)
+    ]
+    assert "In batch · 1/2" in active_badges
+    assert "Queued" in queued_badges
+
     warnings = []
     monkeypatch.setattr(
         ToastManager, "warning", lambda *_args, **_kwargs: warnings.append(True)
     )
-    view.set_batch_running(True, active_game_id="paused", queued_ids={"paused", "fresh"})
     view._on_game_delete_requested("paused")
     assert warnings
     assert manager.game_exists("paused")
@@ -158,3 +192,50 @@ def test_select_page_confirmation_counts_and_delete_guards(
     view._on_game_delete_requested("fresh")
     assert manager.game_exists("fresh") is False
     assert manager.get_analysis_batch().item("fresh") is None
+
+
+def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp):
+    card = BatchQueueCard()
+    qtbot.addWidget(card)
+    items = [
+        AnalysisBatchItem("g1", 1, outcome=OUTCOME_COMPLETED),
+        AnalysisBatchItem("g2", 2),
+        AnalysisBatchItem("g3", 3),
+    ]
+
+    card.show_batch(
+        AnalysisBatch(state=BATCH_RUNNING, items=items),
+        active_label="Alice vs Bob",
+        position=2,
+        move_current=5,
+        move_total=10,
+    )
+    assert not card.isHidden()
+    assert "Game 2 of 3" in card.title_label.text()
+    assert card.current_label.text() == "Alice vs Bob"
+    assert card.move_label.text() == "move 5 / 10"
+    assert not card.btn_pause.isHidden()
+    assert card.btn_resume.isHidden()
+    assert not card.btn_cancel.isHidden()
+    assert card.btn_dismiss.isHidden()
+    with qtbot.waitSignal(card.pause_requested, timeout=500):
+        card.btn_pause.click()
+
+    paused = AnalysisBatch(state=BATCH_PAUSED, items=items)
+    card.show_batch(paused, active_label="Alice vs Bob")
+    assert card.btn_pause.isHidden()
+    assert not card.btn_resume.isHidden()
+    assert "1 completed" in card.summary_label.text()
+    assert "2 remaining" in card.summary_label.text()
+
+    finished_items = [
+        AnalysisBatchItem("g1", 1, outcome=OUTCOME_COMPLETED),
+        AnalysisBatchItem("g2", 2, outcome=OUTCOME_SKIPPED),
+        AnalysisBatchItem("g3", 3, outcome=OUTCOME_FAILED, error="bad"),
+    ]
+    card.show_batch(AnalysisBatch(state=BATCH_COMPLETED, items=finished_items))
+    assert not card.btn_dismiss.isHidden()
+    assert card.btn_cancel.isHidden()
+    assert "1 completed" in card.summary_label.text()
+    assert "1 skipped" in card.summary_label.text()
+    assert "1 failed" in card.summary_label.text()

@@ -86,6 +86,16 @@ class GameListItemWidget(QWidget):
         if selection_mode:
             self.set_selection_mode(True, selected)
 
+        self._base_status_text = (
+            self._status_badge.text() if self._status_badge is not None else ""
+        )
+        self._base_status_tone = (
+            self._status_badge.tone if self._status_badge is not None else TextTone.MUTED
+        )
+        self._base_action_tooltip = (
+            self._action_button.toolTip() if self._action_button is not None else ""
+        )
+
     def _build_compact_ui(self, game, usernames, root_layout):
         """Build compact single-row list item layout (Lichess/Chess.com table style)."""
         self.card_frame.setStyleSheet(Styles.get_game_card_style(border_radius=6, compact=True))
@@ -534,6 +544,31 @@ class GameListItemWidget(QWidget):
                 compact=self.view_mode == "compact", selected=selected
             )
         )
+
+    def set_batch_state(
+        self,
+        label: str | None,
+        tone: str = TextTone.ENGINE_BUSY,
+        *,
+        locked: bool = False,
+        active: bool = False,
+    ) -> None:
+        """Show batch progress on a row and lock analysis actions."""
+        if self._status_badge is not None:
+            if label:
+                self._status_badge.setText(label)
+                self._status_badge.set_tone(tone)
+            else:
+                self._status_badge.setText(self._base_status_text)
+                self._status_badge.set_tone(self._base_status_tone)
+        if self._action_button is not None:
+            self._action_button.setVisible(not label)
+            self._action_button.setEnabled(not locked and not label)
+            self._action_button.setToolTip(
+                "Batch analysis in progress" if locked else self._base_action_tooltip
+            )
+        if self._delete_button is not None:
+            self._delete_button.setEnabled(not active)
 
     @staticmethod
     def _set_icon(btn: Button, icon_name: str, color: str) -> None:
