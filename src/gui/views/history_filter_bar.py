@@ -57,6 +57,7 @@ class HistoryFilterBar(QWidget):
 
     search_changed = pyqtSignal()
     filters_changed = pyqtSignal()
+    sort_changed = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -125,7 +126,7 @@ class HistoryFilterBar(QWidget):
             size=SelectSize.SM,
             min_width=150,
             accessible_name="Sort games",
-            on_change=lambda _value: self._on_filter_changed(),
+            on_change=lambda _value: self.sort_changed.emit(),
         )
         layout.addWidget(self.sort_dropdown)
 

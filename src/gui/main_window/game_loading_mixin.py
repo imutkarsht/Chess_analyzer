@@ -40,6 +40,19 @@ class GameLoadingMixin:
 
     def on_game_action_requested(self, game, action: str):
         """Handle action button requests from game cards ('reanalyze', 'resume', 'analyze', 'view_analysis')."""
+        coordinator = getattr(self, "analysis_coordinator", None)
+        if (
+            coordinator is not None
+            and coordinator.batch_running
+            and action != "view_analysis"
+        ):
+            QMessageBox.warning(
+                self,
+                "Batch Analysis Running",
+                "Pause or cancel the batch from History before analyzing another game.",
+            )
+            return
+
         if action == "view_analysis" or (
             hasattr(self, "worker")
             and self.worker

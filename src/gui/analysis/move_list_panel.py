@@ -48,6 +48,7 @@ class MoveListPanel(QWidget):
         )
         self._analysed_fen: str | None = None
         self._variation_active = False
+        self._analysis_locked = False
         self.is_chess960 = False
         self.starting_fen = chess.STARTING_FEN
         self._variation_counts: dict[int, int] = {}
@@ -224,7 +225,13 @@ class MoveListPanel(QWidget):
 
     def _request_live(self, fen: str, terminal: bool = False) -> None:
         """Ask the shared session for live lines, or cancel when disabled."""
-        if self._variation_active or not self.engine_lines_enabled or terminal or not fen:
+        if (
+            self._analysis_locked
+            or self._variation_active
+            or not self.engine_lines_enabled
+            or terminal
+            or not fen
+        ):
             self.session.clear(emit=False)
             return
         self.session.request(fen, chess960=self.is_chess960, emit_empty=False)
@@ -274,12 +281,21 @@ class MoveListPanel(QWidget):
         self._analysed_fen = None
         self.lines_updated.emit([], "")
 
+    def set_analysis_locked(self, locked: bool) -> None:
+        """Pause live analysis while a full batch owns the engine."""
+        self._analysis_locked = bool(locked)
+        if locked:
+            self.session.pause()
+            return
+        if self.engine_lines_enabled:
+            self.start_live_analysis()
+
     def _apply_variation_lines(self) -> None:
         """Start or clear engine lines for the active variation position."""
         fen = self._analysed_fen
         self.session.clear(emit=False)
-        if not fen:
-            self.lines_updated.emit([], "")
+        if self._analysis_locked or not fen:
+            self.lines_updated.emit([], self._analysed_fen or "")
             return
         if self.engine_lines_enabled:
             self.session.request(fen, chess960=self.is_chess960, emit_empty=False)
@@ -287,7 +303,12 @@ class MoveListPanel(QWidget):
             self.lines_updated.emit([], fen)
 
     def start_live_analysis(self):
-        if not self.current_game or self._variation_active or not self.engine_lines_enabled:
+        if (
+            self._analysis_locked
+            or not self.current_game
+            or self._variation_active
+            or not self.engine_lines_enabled
+        ):
             return
         index = self._selected_index if self._selected_index is not None else -1
         if index >= len(self.current_game.moves):
@@ -302,7 +323,7 @@ class MoveListPanel(QWidget):
 
     def _on_session_lines(self, lines):
         """Publish lines for whichever position the session is analysing."""
-        if not self.engine_lines_enabled:
+        if self._analysis_locked or not self.engine_lines_enabled:
             return
         self.lines_updated.emit(lines, self._analysed_fen or "")
 

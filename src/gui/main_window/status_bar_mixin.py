@@ -35,14 +35,18 @@ class StatusBarMixin:
     ):
         return ToastManager.show(widget, message, kind, duration=duration, **options)
 
+    def _is_batch_running(self) -> bool:
+        coordinator = getattr(self, "analysis_coordinator", None)
+        return bool(coordinator and coordinator.batch_running)
+
     def _on_live_thinking_started(self):
-        """Live engine started computing — show Calculating unless full analysis is running."""
-        if not getattr(self, "_full_analysis_running", False):
+        """Live engine started computing — show Calculating unless an analysis owns it."""
+        if not getattr(self, "_full_analysis_running", False) and not self._is_batch_running():
             self._set_engine_state("calculating")
 
     def _on_live_thinking_stopped(self):
-        """Live engine finished computing — revert to Ready unless full analysis is running."""
-        if not getattr(self, "_full_analysis_running", False):
+        """Live engine finished computing — revert unless an analysis owns it."""
+        if not getattr(self, "_full_analysis_running", False) and not self._is_batch_running():
             self._set_engine_state("ready")
 
     def _on_live_engine_state(self, state: str):

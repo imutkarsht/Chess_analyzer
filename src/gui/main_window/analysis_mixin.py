@@ -19,6 +19,21 @@ class AnalysisMixin:
         if not self.current_game:
             return
 
+        coordinator = getattr(self, "analysis_coordinator", None)
+        if coordinator is not None and coordinator.batch_running:
+            self._set_status(
+                "A batch analysis is running. Pause or cancel it before analyzing.",
+                "warning",
+            )
+            return
+        batch_worker = getattr(self, "_batch_worker", None)
+        if batch_worker is not None:
+            self._set_status(
+                "The batch analysis is still finishing. Try again in a moment.",
+                "warning",
+            )
+            return
+
         # A running analysis owns the board; never leave replay running underneath it.
         self._stop_replay()
 
@@ -29,39 +44,19 @@ class AnalysisMixin:
             QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
             return
 
-        # Auto-detect engine if the configured path doesn't work.
-        resolved = resolve_engine_path(self.config_manager, deep_probe=True)
-        if resolved:
-            if resolved != self.engine_path:
-                self.engine_path = resolved
-                self.analyzer = Analyzer(
-                    EngineManager(self.engine_path, config_manager=self.config_manager)
-                )
-        else:
-            logger.warning(f"Engine not found (configured: {self.engine_path})")
-            dialog = EngineNotFoundDialog(self)
-            if hasattr(self, "config_manager"):
-                dialog.config_manager = lambda: self.config_manager
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                new_path = dialog.engine_path()
-                if new_path:
-                    self.config_manager.config["engine_path"] = new_path
-                    self.config_manager.save_config()
-                    self.engine_path = new_path
-                    self.analyzer = Analyzer(
-                        EngineManager(self.engine_path, config_manager=self.config_manager)
-                    )
-                    invalidate_engine_cache()
-                    logger.info(f"Engine path set to {new_path} via error dialog")
-                    self._refresh_engine_status()
-            else:
-                # Cancel navigates to Settings (index 4) where the engine can be configured
-                self.sidebar.set_active(4)
-                self.switch_page(4)
+        if not self._ensure_engine_ready():
             return
 
         if resume is None:
             resume = getattr(self.current_game, "status", "") == "paused"
+
+        if coordinator is not None and not coordinator.begin_single(
+            getattr(self.current_game, "game_id", None)
+        ):
+            QMessageBox.warning(
+                self, "Analysis in Progress", "An analysis is already running."
+            )
+            return
 
         logger.info("Starting analysis (resume=%s)...", resume)
 
@@ -120,6 +115,40 @@ class AnalysisMixin:
 
         self.worker.start()
 
+    def _ensure_engine_ready(self) -> bool:
+        """Resolve/prepare the engine, returning False when the user backs out."""
+        resolved = resolve_engine_path(self.config_manager, deep_probe=True)
+        if resolved:
+            if resolved != self.engine_path:
+                self.engine_path = resolved
+                self.analyzer = Analyzer(
+                    EngineManager(self.engine_path, config_manager=self.config_manager)
+                )
+            return True
+
+        logger.warning(f"Engine not found (configured: {self.engine_path})")
+        dialog = EngineNotFoundDialog(self)
+        if hasattr(self, "config_manager"):
+            dialog.config_manager = lambda: self.config_manager
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_path = dialog.engine_path()
+            if new_path:
+                self.config_manager.config["engine_path"] = new_path
+                self.config_manager.save_config()
+                self.engine_path = new_path
+                self.analyzer = Analyzer(
+                    EngineManager(self.engine_path, config_manager=self.config_manager)
+                )
+                invalidate_engine_cache()
+                logger.info(f"Engine path set to {new_path} via error dialog")
+                self._refresh_engine_status()
+                return True
+        else:
+            # Cancel navigates to Settings (index 4) where the engine can be configured
+            self.sidebar.set_active(4)
+            self.switch_page(4)
+        return False
+
     def stop_analysis(self):
         """Immediately stop running analysis and preserve partial results."""
         if not getattr(self, "_full_analysis_running", False):
@@ -147,6 +176,32 @@ class AnalysisMixin:
         if not hasattr(self, "btn_analyze"):
             return
 
+        coordinator = getattr(self, "analysis_coordinator", None)
+        if coordinator is not None and coordinator.batch_running and not running:
+            try:
+                self.btn_analyze.clicked.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            current_id = getattr(self.current_game, "game_id", None)
+            if current_id and current_id == coordinator.active_game_id:
+                self.btn_analyze.setText(
+                    f"In batch ({coordinator.active_position}/{coordinator.batch_total})"
+                )
+                self.btn_analyze.setToolTip(
+                    "This game is being analyzed in the batch "
+                    f"({coordinator.active_position}/{coordinator.batch_total})."
+                )
+            else:
+                self.btn_analyze.setText("Batch analysis running")
+                self.btn_analyze.setToolTip(
+                    "Pause or cancel the batch from History before analyzing another game."
+                )
+            self.btn_analyze.set_danger(False)
+            self.btn_analyze.set_icon_spec("fa5s.lock")
+            self.btn_analyze.setEnabled(False)
+            return
+
+        self.btn_analyze.setToolTip("")
         try:
             self.btn_analyze.clicked.disconnect()
         except (TypeError, RuntimeError):
@@ -402,6 +457,9 @@ class AnalysisMixin:
 
     def on_analysis_cancelled(self, game):
         """Handle analysis cancellation while preserving partial results."""
+        coordinator = getattr(self, "analysis_coordinator", None)
+        if coordinator is not None:
+            coordinator.end_single()
         target_index = self._prepare_analysis_end(game)
         self._full_analysis_running = False
         self.analysis_panel.set_analysis_running(False)
@@ -424,6 +482,8 @@ class AnalysisMixin:
         if hasattr(self, "history_view"):
             self.history_view.set_analyzing_game_id(None)
             self.history_view.refresh_game(getattr(game, "game_id", None))
+        if hasattr(self, "_sync_paused_batch"):
+            self._sync_paused_batch(getattr(game, "game_id", None))
 
     def on_history_changed(self, *_):
         if self.metrics_view is not None:
@@ -432,6 +492,9 @@ class AnalysisMixin:
                 self.metrics_view.refresh(force=True)
 
     def on_analysis_finished(self, game):
+        coordinator = getattr(self, "analysis_coordinator", None)
+        if coordinator is not None:
+            coordinator.end_single()
         target_index = self._prepare_analysis_end(game)
         self._full_analysis_running = False
         self.analysis_panel.set_analysis_running(False)
@@ -459,6 +522,8 @@ class AnalysisMixin:
 
         if count >= next_prompt and not reviewed and not dismissed:
             QTimer.singleShot(1500, lambda: self._prompt_review_if_active(count))
+        if hasattr(self, "_sync_paused_batch"):
+            self._sync_paused_batch(getattr(game, "game_id", None))
 
     def _prompt_review_if_active(self, count: int):
         """Display the review prompt if the main window is active."""
@@ -467,6 +532,9 @@ class AnalysisMixin:
             dialog.exec()
 
     def on_analysis_error(self, error_msg):
+        coordinator = getattr(self, "analysis_coordinator", None)
+        if coordinator is not None:
+            coordinator.end_single()
         self._full_analysis_running = False
         self._analysis_follow = False
         self._flush_analysis_updates()
@@ -502,6 +570,8 @@ class AnalysisMixin:
                 initial_message=f"Analysis failed with error:\n{error_msg}",
             )
             dialog.exec()
+        if self.current_game and hasattr(self, "_sync_paused_batch"):
+            self._sync_paused_batch(self.current_game.game_id)
 
     def explore_current_position(self):
         """Switches to the Explorer tab and loads the current board position."""

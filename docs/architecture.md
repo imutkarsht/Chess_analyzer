@@ -212,6 +212,31 @@ Forbidden edges:
    one-action recovery path.
 5. `PaginationBar` and `GameListWidget` share the paging state.
 
+### Batch analysis
+
+1. History bulk mode pins `GameQuery(batchable_only=True)` and keeps a
+   game-ID selection set in `HistoryView`; search/filter changes clear it,
+   while paging and sorting preserve it.
+2. `BatchAnalysisMixin` creates one persisted `AnalysisBatch`, resolves the
+   engine, and starts one `BatchAnalysisWorker` QThread.
+3. `BatchAnalysisRunner` (Qt-free) walks the queue sequentially and calls the
+   existing `Analyzer.analyze_game()` once per game. The analyzer stops its
+   Stockfish process in `finally`, so thermal-safe defaults and Chess960
+   handling stay unchanged.
+4. Queue items store only intent/outcome; the `games` row is the source of
+   truth. Recovery and resume reconcile from stored analysis status, skip
+   completed games, and resume paused games from their first unanalyzed ply.
+5. `AnalysisBatchRepo` persists state, elapsed active time, item outcomes and
+   order. Worker finalization updates outcomes only, so a concurrent
+   reorder/remove cannot be resurrected.
+6. `AnalysisCoordinator` is the app-wide gate for single analysis, batch
+   analysis, live engine sessions, and deletion of the active game. While a
+   batch runs, live sessions are paused and new single analyses are blocked.
+7. `BatchQueueCard` renders stats, current-game progress, elapsed/ETA, and a
+   reorderable **Up next** list. Up-next previews are cached and the list is
+   built lazily when History is visible/expanded; pause/resume/cancel/dismiss
+   flow through MainWindow signals.
+
 ---
 
 ## 4. File reference
@@ -234,6 +259,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `analyzer.py` | Orchestrates the analysis loop, caching, pause/resume and White-perspective conversion | `Analyzer` |
+| `batch.py` | Qt-free sequential batch runner, reorder refresh, reconciliation and summary | `BatchAnalysisRunner`, `reconcile_batch` |
 | `engine.py` | Stockfish UCI lifecycle, path resolution, thread/hash configuration | `EngineManager` |
 | `engine_line.py` | Shared engine-line model for cached and live output | `EngineLine` |
 | `game_report.py` | Factual dossier used to ground full-game AI summaries | `build_game_report` |
@@ -338,7 +364,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `migrations.py` | Schema creation, versioning, termination/tactics backfills and indexes | `init_db` |
 | `schema_constants.py` | Column specs and SQL shared by repos | `GAME_COLUMNS` |
 | `models.py` | Domain dataclasses and serialisation | `GameAnalysis`, `GameMetadata`, `MoveAnalysis` |
-| `game_history.py` | Storage facade over games and caches | `GameHistoryManager` |
+| `game_history.py` | Storage facade over games, caches and the batch queue | `GameHistoryManager` |
+| `analysis_batch_repo.py` | Persisted single batch queue, outcomes, elapsed time and pending reorder | `AnalysisBatchRepo` |
 | `games_repo.py` | Game persistence, querying, hydration and batched export iteration | `GamesRepo` |
 | `game_query.py` | Declarative history queries and filters | `GameQuery` |
 | `annotated_pgn.py` | PGN generation with move-identity checks, bounded engine lines and annotations | `AnnotatedPGNExporter` |
@@ -358,7 +385,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 - `TerminationDetector.detect_termination()` checks physical board states first, then explicit PGN termination headers, then zero-clock fallbacks, then the result. Header-only checkmates, stalemates, and forfeits no longer fall through to “resignation”.
 - `PGNParser` keeps move-less games when they carry meaningful headers (no-show forfeits, timeout-vs-insufficient draws) and still skips arbitrary non-PGN text.
-- Schema version 7 recomputes stored termination modes from PGN headers, so History and Metrics use the same reason.
+- Schema version 8 adds the persisted batch-analysis queue (`analysis_batches`, `analysis_batch_items`, including active elapsed seconds). Version 7 recomputes stored termination modes from PGN headers, so History and Metrics use the same reason.
 - History rows read the stored termination description from light rows; they do not need the full move list.
 - `compute_clock_times()` infers `0:00` for the side to move at a terminal `timeout` or `timeout_insufficient` position, because PGNs omit the flag-fall clock.
 - `backend/analysis/metrics/termination.py` maps the stored mode into the dashboard’s Checkmate/Resignation/Time/Abandon/Draw buckets.
@@ -381,6 +408,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `window.py` | Window composition, splitter layout, landing board, shutdown | `MainWindow` |
 | `navigation_mixin.py` | Page switching, move stepping, replay/follow ownership, wheel routing, shortcuts glue | `NavigationMixin` |
 | `analysis_mixin.py` | Full-analysis lifecycle, coalesced UI flushing and follow state | `AnalysisMixin` |
+| `batch_mixin.py` | Batch queue orchestration, timing/ETA cache, reorder/remove, gating and exit handling | `BatchAnalysisMixin` |
 | `game_loading_mixin.py` | Loading, staging and analysing games | `GameLoadingMixin` |
 | `variation_mixin.py` | Variation-mode request handling | `VariationMixin` |
 | `theme_mixin.py` | Palette application and theme refresh fan-out | `ThemeMixin` |
@@ -406,7 +434,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `explorer/ratio_bar.py` | Win/draw/loss ratio bar | `RatioBar` |
 | `explorer/lichess_worker.py` | Off-thread Lichess explorer lookup | `LichessExplorerWorker` |
 | `explorer/types.py` | Shared explorer typing | `ClassificationContext` |
-| `history_view.py` | Game history page: paging, import, empty states | `HistoryView`, `GameImportWorker` |
+| `history_view.py` | Game history page: paging, import, bulk selection and queue hosting | `HistoryView`, `GameImportWorker` |
+| `history_batch.py` | Batch selection bar, collapsible queue card, stats/timing and reorderable Up next | `BatchSelectionBar`, `BatchQueueCard`, `UpNextEntry` |
 | `history_filter_bar.py` | Search, active-filter tokens, disclosure panel | `HistoryFilterBar` |
 | `metrics_view.py` | Stats dashboard shell | `MetricsWidget` |
 | `settings_view.py` | Settings shell: category rail, search, cards | `SettingsView` |
@@ -486,6 +515,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- |
 | `analysis_panel.py` | Analysis workspace: Report, Evaluation, Coach, and per-game Tactics; gates result tabs until analysis | `AnalysisPanel`, `GenerateSummaryThread` |
 | `analysis_worker.py` | Full-game analysis QThread | `AnalysisWorker` |
+| `batch_analysis_worker.py` | Batch queue QThread adapter; persists outcomes and emits progress/summary signals | `BatchAnalysisWorker` |
+| `coordinator.py` | App-wide single/batch/live-engine/delete gating state | `AnalysisCoordinator` |
 | `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
 | `coach_worker.py` | Off-thread explanation request and rate limiting | `ExplainMoveWorker`, `RequestLimiter` |
 | `captured.py` | Captured pieces and material advantage | `CapturedPiecesWidget` |

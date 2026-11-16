@@ -23,6 +23,9 @@ class ExplorerEngineMixin:
         The shared session owns the sequence counter, so any result that
         arrives for a position we already left is discarded for us.
         """
+        if self._analysis_locked:
+            self.session.pause()
+            return
         if self.chk_engine.isChecked():
             self.lines_widget.set_empty_text("Analysing position…")
             self.session.request(fen, chess960=self.is_chess960, emit_empty=True)
@@ -37,6 +40,11 @@ class ExplorerEngineMixin:
         self.board_widget.eval_bar.set_eval(0.0, None)
 
     def on_engine_toggled(self, enabled):
+        if self._analysis_locked:
+            self.chk_engine.blockSignals(True)
+            self.chk_engine.setChecked(not enabled)
+            self.chk_engine.blockSignals(False)
+            return
         self.lines_widget.setVisible(enabled)
         self.session.set_enabled(enabled)
         if enabled:

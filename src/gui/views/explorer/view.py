@@ -65,6 +65,7 @@ class ExplorerView(
         self._classify_queue: list[int] = []
         self._classify_before_eval: dict | None = None
         self.classify_enabled = False
+        self._analysis_locked = False
 
         # Book panel state
         self._book_row_widgets: list[QWidget] = []
@@ -105,6 +106,16 @@ class ExplorerView(
         super().showEvent(event)
         # Resume only when the user has engine lines enabled; cached lines
         # stay visible otherwise.
+        if self.chk_engine.isChecked() and not self._analysis_locked:
+            self.session.resume()
+
+    def set_analysis_locked(self, locked: bool) -> None:
+        """Pause and block live engine work while a batch owns the engine."""
+        self._analysis_locked = bool(locked)
+        self.chk_engine.setEnabled(not locked)
+        if locked:
+            self.session.pause()
+            return
         if self.chk_engine.isChecked():
             self.session.resume()
 
