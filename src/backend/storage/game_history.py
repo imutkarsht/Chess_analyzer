@@ -8,7 +8,9 @@ import sqlite3
 from collections.abc import Iterator
 from typing import Any
 
+from src.backend.models.analysis_batch import AnalysisBatch, AnalysisBatchItem
 from src.backend.storage import migrations
+from src.backend.storage.analysis_batch_repo import AnalysisBatchRepo
 from src.backend.storage.api_cache_repo import (
     ApiCacheRepo,
     _info_to_cache_row,
@@ -72,6 +74,7 @@ class GameHistoryManager:
             self.db_path = db_path
 
         self._games_repo = GamesRepo(self.db_path)
+        self._batch_repo = AnalysisBatchRepo(self.db_path)
         self._api_cache_repo = ApiCacheRepo(self.db_path)
         self._explorer_cache_repo = ExplorerCacheRepo(self.db_path)
         self._profile_cache_repo = ProfileCacheRepo(self.db_path)
@@ -173,6 +176,41 @@ class GameHistoryManager:
     def fetch_game_row(self, game_id: str) -> dict[str, Any] | None:
         """Returns the light row for a single game, for in-place list updates."""
         return self._games_repo.fetch_game_row(game_id)
+
+    def fetch_game_rows_by_ids(self, game_ids: list[str]) -> list[dict[str, Any]]:
+        """Return light rows for selected games in caller order."""
+        return self._games_repo.fetch_game_rows_by_ids(game_ids)
+
+    # --- Batch analysis queue methods ---
+
+    def save_analysis_batch(self, batch: AnalysisBatch) -> AnalysisBatch:
+        """Replace the persisted queue with ``batch``."""
+        return self._batch_repo.save(batch)
+
+    def get_analysis_batch(self) -> AnalysisBatch | None:
+        """Return the one persisted queue, if any."""
+        return self._batch_repo.load()
+
+    def set_analysis_batch_state(self, state: str) -> None:
+        self._batch_repo.set_state(state)
+
+    def save_analysis_batch_items(self, items: list[AnalysisBatchItem]) -> None:
+        self._batch_repo.save_items(items)
+
+    def set_analysis_batch_item_outcome(
+        self, game_id: str, outcome: str, error: str | None = None
+    ) -> None:
+        self._batch_repo.set_item_outcome(game_id, outcome, error)
+
+    def delete_analysis_batch(self) -> None:
+        self._batch_repo.delete()
+
+    def remove_analysis_batch_item(self, game_id: str) -> None:
+        self._batch_repo.remove_item(game_id)
+
+    def pause_interrupted_analysis_batch(self) -> bool:
+        """Recover a queue left running by a crash or forced shutdown."""
+        return self._batch_repo.pause_if_running()
 
     def get_games_for_users(
         self,

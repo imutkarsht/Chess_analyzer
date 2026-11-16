@@ -713,6 +713,27 @@ class GamesRepo:
             row = cursor.fetchone()
         return dict(row) if row else None
 
+    def fetch_game_rows_by_ids(self, game_ids: list[str]) -> list[dict[str, Any]]:
+        """Return light rows for ``game_ids`` in the caller's order.
+
+        Used by History batch selection and confirmation so the UI never
+        hydrates moves or PGN for games that are only being counted.
+        """
+        ordered = [str(game_id) for game_id in game_ids if game_id]
+        if not ordered:
+            return []
+        placeholders = ", ".join("?" for _ in ordered)
+        with self._get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT {_LIGHT_GAME_COLS_SQL} FROM games "
+                f"WHERE id IN ({placeholders})",
+                ordered,
+            )
+            by_id = {dict(row)["id"]: dict(row) for row in cursor.fetchall()}
+        return [by_id[game_id] for game_id in ordered if game_id in by_id]
+
     def get_games_for_users(
         self,
         usernames: list[str],
@@ -793,11 +814,14 @@ class GamesRepo:
         return games
 
     def delete_game(self, game_id: str) -> None:
-        """Deletes a game from history."""
+        """Delete a game and prune it from the persisted analysis queue."""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM games WHERE id = ?", (game_id,))
+                cursor.execute(
+                    "DELETE FROM analysis_batch_items WHERE game_id = ?", (game_id,)
+                )
                 conn.commit()
             logger.info("Game deleted from history: %s", game_id)
         except Exception as e:
@@ -929,13 +953,15 @@ class GamesRepo:
             return False
 
     def clear_history(self) -> None:
-        """Clears all games from history and reclaims disk space via VACUUM."""
+        """Clear all games and any persisted batch queue, then vacuum."""
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
+                cursor.execute("DELETE FROM analysis_batch_items")
+                cursor.execute("DELETE FROM analysis_batches")
                 cursor.execute("DELETE FROM games")
                 conn.commit()
                 cursor.execute("VACUUM")
-            logger.info("Game history cleared and database vacuumed.")
+            logger.info("Game history and batch queue cleared; database vacuumed.")
         except Exception as e:
             logger.error("Failed to clear history: %s", e)

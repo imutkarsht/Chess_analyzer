@@ -55,6 +55,12 @@ class TestFilterSql:
         where, _ = build_filters(GameQuery(result="win"))
         assert where.strip() == "WHERE 0"
 
+    def test_batchable_filter_matches_unanalyzed_and_paused(self):
+        where, params = build_filters(GameQuery(batchable_only=True))
+        assert "COALESCE(analysis_status, '') IN" in where
+        assert "'not_started', 'unanalyzed', 'paused'" in where
+        assert params == {}
+
     def test_win_is_user_relative(self):
         where, params = build_filters(GameQuery(result="win", usernames=("PlayerA",)))
         assert "result = '1-0' AND LOWER(white) IN (:user0)" in where

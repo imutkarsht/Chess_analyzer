@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from src.backend.models.analysis_batch import BATCHABLE_GAME_STATUSES
+
 # Columns searched by the free-text box. Kept lowercase for LOWER(col) matching.
 SEARCH_COLUMNS: tuple[str, ...] = ("white", "black", "event", "opening", "eco", "date")
 
@@ -29,6 +31,10 @@ ANALYSIS_FILTERS = frozenset(
 OWNERSHIP_MINE = "mine"
 OWNERSHIP_OTHER = "other"
 OWNERSHIP_FILTERS = frozenset({OWNERSHIP_MINE, OWNERSHIP_OTHER})
+
+_BATCHABLE_STATUS_SQL = ", ".join(
+    f"'{status}'" for status in BATCHABLE_GAME_STATUSES
+)
 
 SORTS: dict[str, str] = {
     "newest": "timestamp DESC, id DESC",
@@ -49,6 +55,7 @@ class GameQuery:
     ownership: str = ""
     speed: str = ""
     source: str = ""
+    batchable_only: bool = False
     sort: str = DEFAULT_SORT
     usernames: tuple[str, ...] = ()
     limit: int = 25
@@ -124,6 +131,11 @@ def build_filters(query: GameQuery) -> tuple[str, dict[str, object]]:
                 "COALESCE(analysis_status, '') "
                 "NOT IN ('not_started', 'unanalyzed', 'paused')"
             )
+
+    if query.batchable_only:
+        clauses.append(
+            f"COALESCE(analysis_status, '') IN ({_BATCHABLE_STATUS_SQL})"
+        )
 
     ownership = (query.ownership or "").strip().lower()
     if ownership in OWNERSHIP_FILTERS:

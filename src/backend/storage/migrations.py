@@ -620,6 +620,38 @@ def _init_cache_tables(cursor: sqlite3.Cursor) -> None:
         logger.error("Failed to initialize API/Explorer cache tables: %s", e)
 
 
+def _init_batch_tables(cursor: sqlite3.Cursor) -> None:
+    """Create the single-queue batch-analysis tables.
+
+    There is deliberately one queue row. A completed/cancelled summary stays
+    until dismissed, and a paused queue survives restart; starting another
+    batch replaces the row after the UI resolves the conflict.
+    """
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS analysis_batches (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            state TEXT NOT NULL,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS analysis_batch_items (
+            batch_id INTEGER NOT NULL,
+            position INTEGER NOT NULL,
+            game_id TEXT NOT NULL,
+            intent TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            error TEXT,
+            PRIMARY KEY (batch_id, game_id)
+        )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_batch_items_game "
+        "ON analysis_batch_items(game_id)"
+    )
+
+
 def init_db(db_path: str) -> None:
     """
     Initializes database tables, executes schema migrations if needed,
@@ -671,6 +703,7 @@ def init_db(db_path: str) -> None:
                 logger.debug("Could not execute PRAGMA quick_check: %s", e)
 
             _init_cache_tables(cursor)
+            _init_batch_tables(cursor)
             conn.commit()
     except Exception as e:
         logger.error("Failed to initialize game history DB: %s", e)
