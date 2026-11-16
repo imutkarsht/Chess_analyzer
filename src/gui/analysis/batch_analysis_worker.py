@@ -217,7 +217,7 @@ class BatchAnalysisWorker(QThread):
 
     def _persist_items(self, items) -> None:
         try:
-            self._history_manager.save_analysis_batch_items(list(items))
+            self._history_manager.update_analysis_batch_items(list(items))
         except Exception as error:  # pragma: no cover - defensive
             logger.error("Failed to persist batch item outcomes: %s", error)
 

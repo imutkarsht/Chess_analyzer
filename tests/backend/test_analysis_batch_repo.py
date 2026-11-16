@@ -5,6 +5,7 @@ from src.backend.models.analysis_batch import (
     BATCH_RUNNING,
     INTENT_RESUME,
     OUTCOME_COMPLETED,
+    OUTCOME_NOT_STARTED,
     OUTCOME_PENDING,
     AnalysisBatch,
     AnalysisBatchItem,
@@ -69,6 +70,23 @@ def test_batch_round_trip_replaces_queue_and_persists_outcomes(tmp_path):
     assert manager.pause_interrupted_analysis_batch() is True
     assert manager.get_analysis_batch().state == BATCH_PAUSED
     assert manager.pause_interrupted_analysis_batch() is False
+
+
+def test_update_items_never_recreates_a_removed_row(tmp_path):
+    manager = GameHistoryManager(str(tmp_path / "batch-update.db"))
+    manager.save_analysis_batch(_batch("g1", "g2"))
+    manager.remove_analysis_batch_item("g2")
+
+    manager.update_analysis_batch_items(
+        [
+            AnalysisBatchItem("g1", 1, outcome=OUTCOME_COMPLETED),
+            AnalysisBatchItem("g2", 2, outcome=OUTCOME_NOT_STARTED),
+        ]
+    )
+
+    items = manager.get_analysis_batch().items
+    assert [item.game_id for item in items] == ["g1"]
+    assert items[0].outcome == OUTCOME_COMPLETED
 
 
 def test_reorder_pending_keeps_active_and_terminal_positions(tmp_path):

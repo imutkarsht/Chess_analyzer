@@ -112,8 +112,12 @@ class BatchSummary:
 
     @property
     def processed(self) -> int:
-        """Items the batch no longer has to run (pending excluded)."""
-        return max(0, self.total - self.pending)
+        """Items that actually reached a run outcome.
+
+        ``not_started`` items are terminal for the queue but were never run;
+        counting them as progress made a cancelled/failed batch look 100% done.
+        """
+        return self.completed + self.skipped + self.failed + self.paused
 
 
 @dataclass

@@ -139,6 +139,8 @@ class _QueueRow(QWidget):
         layout.addWidget(self.number_label)
 
         name = Label(entry.label, role=TextRole.BODY, weight=600)
+        name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        name.setToolTip(entry.label)
         layout.addWidget(name, 1)
 
         moves = Label(
@@ -148,16 +150,18 @@ class _QueueRow(QWidget):
         )
         layout.addWidget(moves)
 
-        eta = Label(
+        self.eta_label = Label(
             f"~{format_clock(entry.eta_seconds)}"
             if entry.eta_seconds is not None
             else "—",
             role=TextRole.MICRO,
             tone=TextTone.MUTED,
         )
-        eta.setMinimumWidth(58)
-        eta.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        layout.addWidget(eta)
+        self.eta_label.setMinimumWidth(58)
+        self.eta_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        layout.addWidget(self.eta_label)
 
         handle = IconLabel(size=16)
         handle.set_icon("fa5s.grip-vertical")
@@ -176,11 +180,16 @@ class _QueueRow(QWidget):
         self.remove_button.setAccessibleName("Remove game from batch")
         layout.addWidget(self.remove_button)
 
-        for child in (self.number_label, name, moves, eta, handle):
+        for child in (self.number_label, name, self.eta_label, moves, handle):
             child.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
     def set_number(self, number: int) -> None:
         self.number_label.setText(str(number))
+
+    def set_eta(self, eta_seconds: float | None) -> None:
+        self.eta_label.setText(
+            f"~{format_clock(eta_seconds)}" if eta_seconds is not None else "—"
+        )
 
     def mousePressEvent(self, event):
         if sip.isdeleted(self):
@@ -265,6 +274,7 @@ class BatchQueueCard(QFrame):
     collapse_requested = pyqtSignal()
     reorder_requested = pyqtSignal(object)
     remove_requested = pyqtSignal(str)
+    up_next_refresh_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -283,6 +293,7 @@ class BatchQueueCard(QFrame):
         self._populating_up_next = False
         self._up_next: list[UpNextEntry] = []
         self._pending_up_next: list[UpNextEntry] | None = None
+        self._up_next_dirty = False
 
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 16, 20, 16)
@@ -386,6 +397,9 @@ class BatchQueueCard(QFrame):
         current_head = QHBoxLayout()
         current_head.setSpacing(8)
         self.game_title = Label("", role=TextRole.BODY_LARGE, weight=700)
+        self.game_title.setSizePolicy(
+            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
+        )
         current_head.addWidget(self.game_title, 1)
         self.game_position = Label("", role=TextRole.CAPTION, tone=TextTone.SECONDARY)
         current_head.addWidget(self.game_position)
@@ -475,8 +489,7 @@ class BatchQueueCard(QFrame):
         eta_seconds: float | None = None,
         game_elapsed_seconds: float | None = None,
         depth: int | None = None,
-        up_next: list[UpNextEntry] | None = None,
-        populating: bool = True,
+        reveal: bool = True,
     ) -> None:
         self._state = batch.state
         if active_label is not None:
@@ -495,17 +508,13 @@ class BatchQueueCard(QFrame):
         self._eta_seconds = eta_seconds
         summary = batch.summary()
 
-        if up_next is not None:
-            self._up_next = list(up_next)
-        if populating:
-            self.set_up_next(self._up_next)
-
         if batch.state == BATCH_RUNNING:
             self._show_running(summary, position)
         elif batch.state == BATCH_PAUSED:
             self._show_paused(summary, position)
         else:
             self._show_summary(batch.state, summary)
+        self.setVisible(reveal)
 
     def hide_card(self) -> None:
         self.setVisible(False)
@@ -543,7 +552,31 @@ class BatchQueueCard(QFrame):
             # row widget still receiving mouse events. Apply after the drop.
             self._pending_up_next = list(entries)
             return
+        old_signature = [
+            (entry.game_id, entry.number, entry.moves) for entry in self._up_next
+        ]
+        new_signature = [
+            (entry.game_id, entry.number, entry.moves) for entry in entries
+        ]
         self._up_next = list(entries)
+        self._up_next_dirty = True
+        if not self.isVisible():
+            return
+        if (
+            old_signature == new_signature
+            and self.up_next_list.count() == len(entries)
+        ):
+            for row, entry in enumerate(entries):
+                widget = self.up_next_list.itemWidget(self.up_next_list.item(row))
+                if isinstance(widget, _QueueRow):
+                    widget.set_eta(entry.eta_seconds)
+            self._up_next_dirty = False
+            self._update_up_next_visibility()
+            return
+        self._rebuild_up_next()
+
+    def _rebuild_up_next(self) -> None:
+        entries = self._up_next
         self._populating_up_next = True
         try:
             self.up_next_list.clear()
@@ -559,16 +592,54 @@ class BatchQueueCard(QFrame):
             self.up_next_list.setFixedHeight(42 * rows + 2)
         finally:
             self._populating_up_next = False
+        self._up_next_dirty = False
+        self._update_up_next_visibility()
+
+    def remove_up_next(self, game_id: str) -> None:
+        was_dirty = self._up_next_dirty
+        self._up_next = [
+            entry for entry in self._up_next if entry.game_id != game_id
+        ]
+        if self.up_next_list.is_dragging or not self.isVisible():
+            self._up_next_dirty = True
+            return
+        if was_dirty:
+            self._rebuild_up_next()
+            return
+        for row in range(self.up_next_list.count()):
+            item = self.up_next_list.item(row)
+            widget = self.up_next_list.itemWidget(item)
+            if isinstance(widget, _QueueRow) and widget.entry.game_id == game_id:
+                self.up_next_list.takeItem(row)
+                widget.deleteLater()
+                break
+        numbers = sorted(entry.number for entry in self._up_next if entry.number)
+        if len(numbers) != len(self._up_next):
+            numbers = list(range(1, len(self._up_next) + 1))
+        for row, number in enumerate(numbers):
+            item = self.up_next_list.item(row)
+            widget = self.up_next_list.itemWidget(item) if item is not None else None
+            if isinstance(widget, _QueueRow):
+                widget.set_number(number)
+        self._up_next_dirty = False
+        self._update_up_next_visibility()
+
+    def _update_up_next_visibility(self) -> None:
         self.up_next_container.setVisible(
-            bool(entries) and self._state in (BATCH_RUNNING, BATCH_PAUSED)
+            bool(self._up_next) and self._state in (BATCH_RUNNING, BATCH_PAUSED)
         )
 
     def _apply_pending_up_next(self) -> None:
         if self._pending_up_next is None:
             return
-        entries = self._pending_up_next
         self._pending_up_next = None
-        self.set_up_next(entries)
+        self._up_next_dirty = True
+        self.up_next_refresh_requested.emit()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._up_next_dirty:
+            self._rebuild_up_next()
 
     def set_timing(self, elapsed_seconds: float, eta_seconds: float | None) -> None:
         self._elapsed_seconds = max(0.0, float(elapsed_seconds))
@@ -591,7 +662,6 @@ class BatchQueueCard(QFrame):
             self._update_current_panel()
 
     def _show_running(self, summary, position: int) -> None:
-        self.setVisible(True)
         self.title_label.setText("Batch analysis")
         self.state_badge.setText("Running")
         self.state_badge.set_tone(TextTone.ENGINE_BUSY)
@@ -599,6 +669,7 @@ class BatchQueueCard(QFrame):
         self._update_stats()
         self._update_overall(summary)
         self.game_title.setText(self._active_label or "Preparing the next game…")
+        self.game_title.setToolTip(self._active_label)
         self.game_position.setText(f"Game {position or summary.processed + 1} of {summary.total}")
         self._update_current_panel()
         self.current_panel.setVisible(True)
@@ -609,7 +680,6 @@ class BatchQueueCard(QFrame):
         self._set_running_buttons()
 
     def _show_paused(self, summary, position: int) -> None:
-        self.setVisible(True)
         self.title_label.setText("Batch paused")
         self.state_badge.setText("Paused")
         self.state_badge.set_tone(TextTone.INACCURACY)
@@ -617,6 +687,7 @@ class BatchQueueCard(QFrame):
         self._update_stats()
         self._update_overall(summary)
         self.game_title.setText(self._active_label or "Ready to resume")
+        self.game_title.setToolTip(self._active_label)
         self.game_position.setText(
             f"Game {position or summary.processed + 1} of {summary.total}"
         )
@@ -630,13 +701,16 @@ class BatchQueueCard(QFrame):
         self._set_paused_buttons()
 
     def _show_summary(self, state: str, summary) -> None:
-        self.setVisible(True)
         titles = {
             BATCH_COMPLETED: "Batch complete",
             BATCH_CANCELLED: "Batch cancelled",
             BATCH_FAILED: "Batch stopped",
         }
-        self.title_label.setText(titles.get(state, "Batch finished"))
+        if state == BATCH_COMPLETED and summary.failed:
+            title = "Batch finished with failures"
+        else:
+            title = titles.get(state, "Batch finished")
+        self.title_label.setText(title)
         self.state_badge.setVisible(False)
         self._update_stats()
         self._update_overall(summary)
@@ -713,7 +787,20 @@ class BatchQueueCard(QFrame):
         for row, number in zip(rows, numbers, strict=True):
             row.set_number(number)
         by_id = {entry.game_id: entry for entry in self._up_next}
-        self._up_next = [by_id[game_id] for game_id in order if game_id in by_id]
+        reordered = []
+        for game_id, number in zip(order, numbers, strict=True):
+            entry = by_id.get(game_id)
+            if entry is not None:
+                reordered.append(
+                    UpNextEntry(
+                        entry.game_id,
+                        entry.label,
+                        entry.moves,
+                        entry.eta_seconds,
+                        number,
+                    )
+                )
+        self._up_next = reordered
         self.reorder_requested.emit(order)
 
     def _set_running_buttons(self) -> None:

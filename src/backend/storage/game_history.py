@@ -211,6 +211,9 @@ class GameHistoryManager:
     def save_analysis_batch_items(self, items: list[AnalysisBatchItem]) -> None:
         self._batch_repo.save_items(items)
 
+    def update_analysis_batch_items(self, items: list[AnalysisBatchItem]) -> None:
+        self._batch_repo.update_items(items)
+
     def set_analysis_batch_item_outcome(
         self, game_id: str, outcome: str, error: str | None = None
     ) -> None:

@@ -223,6 +223,7 @@ class HistoryView(QWidget):
     batch_control_requested = pyqtSignal(str)  # pause | resume | cancel | dismiss
     batch_reorder_requested = pyqtSignal(object)  # list[str] in new order
     batch_remove_requested = pyqtSignal(str)  # game_id
+    batch_up_next_refresh_requested = pyqtSignal()
     games_imported = pyqtSignal(int)
     history_cleared = pyqtSignal()
     open_imported_game = pyqtSignal(str, object)
@@ -401,6 +402,9 @@ class HistoryView(QWidget):
         self.batch_queue_card.remove_requested.connect(
             self.batch_remove_requested.emit
         )
+        self.batch_queue_card.up_next_refresh_requested.connect(
+            self.batch_up_next_refresh_requested.emit
+        )
         self.batch_queue_card.collapse_requested.connect(self._collapse_batch)
         content_layout.addWidget(self.batch_queue_card)
 
@@ -507,7 +511,7 @@ class HistoryView(QWidget):
         )
         self.batch_selection_bar.setVisible(True)
         self.batch_selection_bar.set_count(0)
-        self.game_list.set_selection_mode(True, set())
+        self.game_list.set_selection_mode(True, set(), rebuild=False)
         self._update_batch_button()
         self.apply_filters(clear_selection=False)
 
@@ -516,7 +520,7 @@ class HistoryView(QWidget):
             return
         self._bulk_mode = False
         self._selected_games.clear()
-        self.game_list.set_selection_mode(False, set())
+        self.game_list.set_selection_mode(False, set(), rebuild=False)
         self.batch_selection_bar.setVisible(False)
         self.analysis_filter.setEnabled(True)
         self.analysis_filter.setToolTip("")
@@ -646,7 +650,7 @@ class HistoryView(QWidget):
         """Close bulk selection and reflect the new running queue."""
         self._bulk_mode = False
         self._selected_games.clear()
-        self.game_list.set_selection_mode(False, set())
+        self.game_list.set_selection_mode(False, set(), rebuild=False)
         self.batch_selection_bar.setVisible(False)
         self.analysis_filter.setEnabled(True)
         self.analysis_filter.setToolTip("")
@@ -702,6 +706,8 @@ class HistoryView(QWidget):
             self.game_list.clear_batch_runtime()
         self.btn_clear.setEnabled(not running)
         self._update_batch_button()
+        if not running:
+            self._refresh_batch_availability()
 
     def set_batch_active(
         self,
@@ -745,10 +751,9 @@ class HistoryView(QWidget):
                 eta_seconds=self._batch_eta,
                 game_elapsed_seconds=self._batch_game_elapsed,
                 depth=self._batch_depth,
-                up_next=self._batch_up_next,
+                reveal=not self._batch_collapsed,
             )
             if self._batch_collapsed:
-                self.batch_queue_card.setVisible(False)
                 self._update_collapsed_bar()
 
     def update_batch_move_progress(
@@ -773,6 +778,12 @@ class HistoryView(QWidget):
     def set_batch_up_next(self, entries: list) -> None:
         self._batch_up_next = list(entries)
         self.batch_queue_card.set_up_next(entries)
+
+    def remove_batch_up_next(self, game_id: str) -> None:
+        self._batch_up_next = [
+            entry for entry in self._batch_up_next if entry.game_id != game_id
+        ]
+        self.batch_queue_card.remove_up_next(game_id)
 
     def _collapse_batch(self) -> None:
         if self.batch_queue_card.isHidden():
@@ -884,10 +895,8 @@ class HistoryView(QWidget):
             eta_seconds=self._batch_eta,
             game_elapsed_seconds=self._batch_game_elapsed,
             depth=self._batch_depth,
-            up_next=self._batch_up_next,
+            reveal=not self._batch_collapsed,
         )
-        if self._batch_collapsed:
-            self.batch_queue_card.setVisible(False)
         self._update_collapsed_bar()
 
     def refresh_batch_queue(self) -> None:
@@ -1147,7 +1156,8 @@ class HistoryView(QWidget):
                 self.game_list.update_row(game_id, self.history_manager.row_to_game_analysis(row))
         except Exception as e:
             logger.debug(f"Failed to refresh history row {game_id}: {e}")
-        self._refresh_batch_availability()
+        if not self._batch_running:
+            self._refresh_batch_availability()
 
 
     def on_game_selected(self, game):

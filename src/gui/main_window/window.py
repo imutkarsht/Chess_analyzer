@@ -289,7 +289,11 @@ class MainWindow(
             logger.debug(f"Failed to flush analysis UI on close: {e}")
 
         batch_worker = getattr(self, "_batch_worker", None)
-        batch_running = bool(batch_worker and batch_worker.isRunning())
+        coordinator = getattr(self, "analysis_coordinator", None)
+        batch_running = bool(
+            batch_worker is not None
+            or (coordinator is not None and coordinator.batch_running)
+        )
         single_running = bool(
             getattr(self, "worker", None) and self.worker.isRunning()
         )

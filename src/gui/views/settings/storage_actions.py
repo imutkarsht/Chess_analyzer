@@ -6,6 +6,7 @@ cards cannot drift apart.
 
 import chess
 
+from src.backend.models.analysis_batch import BATCH_PAUSED, BATCH_RUNNING
 from src.gui.components.feedback.toast import ToastManager
 from src.utils.logger import logger
 
@@ -26,7 +27,15 @@ def format_count(count: int) -> str:
 
 def analysis_is_running(window) -> bool:
     worker = getattr(window, "worker", None)
-    return bool(worker is not None and worker.isRunning())
+    if worker is not None and worker.isRunning():
+        return True
+    if getattr(window, "_batch_worker", None) is not None:
+        return True
+    coordinator = getattr(window, "analysis_coordinator", None)
+    return bool(
+        coordinator is not None
+        and coordinator.batch_state in (BATCH_RUNNING, BATCH_PAUSED)
+    )
 
 
 def ensure_idle(window) -> bool:
@@ -35,7 +44,8 @@ def ensure_idle(window) -> bool:
         return True
 
     ToastManager.warning(
-        window, "Stop the current analysis before changing local data."
+        window,
+        "Finish or cancel the current analysis or batch before changing local data.",
     )
     return False
 
@@ -86,8 +96,22 @@ def reset_analysis_workspace(window) -> None:
 
 def refresh_after_data_change(window) -> None:
     """Reload every view that reads the database after a reset or restore."""
+    timer = getattr(window, "_batch_eta_timer", None)
+    if timer is not None:
+        timer.stop()
+    coordinator = getattr(window, "analysis_coordinator", None)
+    if coordinator is not None:
+        coordinator.reset()
+    if hasattr(window, "_set_batch_snapshot"):
+        window._set_batch_snapshot(None)
+    cache = getattr(window, "_batch_up_next_cache", None)
+    if cache is not None:
+        cache.clear()
+
     history_view = getattr(window, "history_view", None)
     if history_view is not None:
+        if hasattr(history_view, "hide_batch_queue"):
+            history_view.hide_batch_queue()
         history_view.load_history()
 
     metrics_view = getattr(window, "metrics_view", None)

@@ -146,6 +146,26 @@ class AnalysisBatchRepo:
             )
             conn.commit()
 
+    def update_items(self, items: list[AnalysisBatchItem]) -> None:
+        """Update outcomes only; never reinsert a row removed by the user."""
+        if not items:
+            return
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                "UPDATE analysis_batch_items SET outcome = ?, error = ? "
+                "WHERE batch_id = 1 AND game_id = ?",
+                [
+                    (item.outcome, item.error, item.game_id)
+                    for item in items
+                ],
+            )
+            cursor.execute(
+                "UPDATE analysis_batches SET updated_at = ? WHERE id = 1",
+                (time.time(),),
+            )
+            conn.commit()
+
     def set_item_outcome(
         self, game_id: str, outcome: str, error: str | None = None
     ) -> None:

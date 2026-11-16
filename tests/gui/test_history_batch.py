@@ -219,10 +219,12 @@ def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp)
         move_total=10,
         elapsed_seconds=192,
         eta_seconds=600,
-        up_next=[
+    )
+    card.set_up_next(
+        [
             UpNextEntry("g2", "Carol vs Dave", 34, 50),
             UpNextEntry("g3", "Eve vs Frank", 41, 65),
-        ],
+        ]
     )
     assert not card.isHidden()
     assert card.up_next_list.count() == 2
@@ -273,3 +275,9 @@ def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp)
     card.show_batch(AnalysisBatch(state=BATCH_RUNNING, items=items))
     card.set_up_next([])
     assert card.up_next_container.isHidden()
+
+    card.hide_card()
+    card.set_up_next([UpNextEntry("later", "Later vs Game", 20, 30, 2)])
+    assert card.up_next_list.count() == 0
+    card.show()
+    qtbot.waitUntil(lambda: card.up_next_list.count() == 1, timeout=500)

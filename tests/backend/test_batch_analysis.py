@@ -224,6 +224,18 @@ def test_runner_picks_up_reordered_pending_items_between_games():
     ]
 
 
+def test_summary_progress_does_not_count_unstarted_games():
+    batch = AnalysisBatch(
+        items=[
+            AnalysisBatchItem("done", 1, outcome=OUTCOME_COMPLETED),
+            AnalysisBatchItem("skipped", 2, outcome=OUTCOME_SKIPPED),
+            AnalysisBatchItem("failed", 3, outcome=OUTCOME_FAILED),
+            AnalysisBatchItem("never", 4, outcome=OUTCOME_NOT_STARTED),
+        ]
+    )
+    assert batch.summary().processed == 3
+
+
 def test_reconcile_uses_game_status_and_keeps_batch_completions():
     batch = AnalysisBatch(
         items=[

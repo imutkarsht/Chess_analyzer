@@ -308,12 +308,16 @@ class GameListWidget(QWidget):
         return self._selection_mode
 
     def set_selection_mode(
-        self, enabled: bool, selected_ids: set[str] | None = None
+        self,
+        enabled: bool,
+        selected_ids: set[str] | None = None,
+        *,
+        rebuild: bool = True,
     ) -> None:
         """Toggle click-to-select rendering for the batch bulk mode."""
         self._selection_mode = bool(enabled)
         self._selected_ids = set(selected_ids or ())
-        if self._all_games:
+        if rebuild and self._all_games:
             self._rebuild(preserve_scroll=True)
 
     def set_selected_ids(self, selected_ids: set[str]) -> None:

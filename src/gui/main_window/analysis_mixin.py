@@ -26,6 +26,13 @@ class AnalysisMixin:
                 "warning",
             )
             return
+        batch_worker = getattr(self, "_batch_worker", None)
+        if batch_worker is not None:
+            self._set_status(
+                "The batch analysis is still finishing. Try again in a moment.",
+                "warning",
+            )
+            return
 
         # A running analysis owns the board; never leave replay running underneath it.
         self._stop_replay()
