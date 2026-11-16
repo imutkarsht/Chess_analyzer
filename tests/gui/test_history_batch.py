@@ -180,6 +180,14 @@ def test_select_page_confirmation_counts_and_delete_guards(
     assert "In batch · 1/2" in active_badges
     assert "Queued" in queued_badges
 
+    view._collapse_batch()
+    assert view.batch_queue_card.isHidden()
+    assert not view.batch_collapsed_bar.isHidden()
+    assert "Batch analysis" in view.batch_collapsed_bar.text()
+    view._expand_batch()
+    assert not view.batch_queue_card.isHidden()
+    assert view.batch_collapsed_bar.isHidden()
+
     warnings = []
     monkeypatch.setattr(
         ToastManager, "warning", lambda *_args, **_kwargs: warnings.append(True)
@@ -238,6 +246,8 @@ def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp)
     assert card.btn_dismiss.isHidden()
     with qtbot.waitSignal(card.pause_requested, timeout=500):
         card.btn_pause.click()
+    with qtbot.waitSignal(card.collapse_requested, timeout=500):
+        card.btn_collapse.click()
 
     paused = AnalysisBatch(state=BATCH_PAUSED, items=items)
     card.show_batch(paused, active_label="Alice vs Bob")

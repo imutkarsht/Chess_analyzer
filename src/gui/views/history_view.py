@@ -16,11 +16,18 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.models.analysis_batch import (
+    BATCH_CANCELLED,
+    BATCH_COMPLETED,
+    BATCH_FAILED,
+    BATCH_PAUSED,
+)
 from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
 from src.backend.storage.game_history import GAME_CSV_COLUMNS, GameHistoryManager
 from src.backend.storage.game_query import GameQuery
 from src.gui.components import (
     Button,
+    ButtonSize,
     ButtonVariant,
     Label,
     TextRole,
@@ -34,7 +41,12 @@ from src.gui.utils.gui_utils import create_button
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.logger import logger
 
-from .history_batch import BatchQueueCard, BatchSelectionBar, UpNextEntry
+from .history_batch import (
+    BatchQueueCard,
+    BatchSelectionBar,
+    UpNextEntry,
+    format_clock,
+)
 from .history_filter_bar import HistoryFilterBar
 
 
@@ -241,6 +253,9 @@ class HistoryView(QWidget):
         self._batch_elapsed = 0.0
         self._batch_eta: float | None = None
         self._batch_up_next: list = []
+        self._batch_collapsed = False
+        self._batch_state = ""
+        self._batch_processed = 0
         self._pre_bulk_analysis_filter = ""
         self.usernames: list[str] = []
         self._total = 0
@@ -355,6 +370,20 @@ class HistoryView(QWidget):
         self.batch_selection_bar.exit_requested.connect(self._exit_batch_mode)
         content_layout.addWidget(self.batch_selection_bar)
 
+        self.batch_collapsed_bar = Button(
+            "",
+            ButtonVariant.HOLLOW,
+            ButtonSize.SM,
+            icon="fa5s.chevron-down",
+            on_click=self._expand_batch,
+            tooltip="Show batch details",
+        )
+        self.batch_collapsed_bar.setAccessibleName("Show batch details")
+        self.batch_collapsed_bar.setVisible(False)
+        content_layout.addWidget(
+            self.batch_collapsed_bar, 0, Qt.AlignmentFlag.AlignLeft
+        )
+
         self.batch_queue_card = BatchQueueCard()
         self.batch_queue_card.pause_requested.connect(
             lambda: self.batch_control_requested.emit("pause")
@@ -372,6 +401,7 @@ class HistoryView(QWidget):
         self.batch_queue_card.remove_requested.connect(
             self.batch_remove_requested.emit
         )
+        self.batch_queue_card.collapse_requested.connect(self._collapse_batch)
         content_layout.addWidget(self.batch_queue_card)
 
         # Game List
@@ -624,6 +654,10 @@ class HistoryView(QWidget):
             self.analysis_filter.set_value(self._pre_bulk_analysis_filter, emit=False)
         self._pre_bulk_analysis_filter = ""
         self._batch_total = batch.total
+        self._batch_state = batch.state
+        self._batch_processed = batch.summary().processed
+        self._batch_collapsed = False
+        self.batch_collapsed_bar.setVisible(False)
         self._batch_active_label = ""
         self._batch_move_current = 0
         self._batch_move_total = 0
@@ -713,6 +747,9 @@ class HistoryView(QWidget):
                 depth=self._batch_depth,
                 up_next=self._batch_up_next,
             )
+            if self._batch_collapsed:
+                self.batch_queue_card.setVisible(False)
+                self._update_collapsed_bar()
 
     def update_batch_move_progress(
         self,
@@ -736,6 +773,42 @@ class HistoryView(QWidget):
     def set_batch_up_next(self, entries: list) -> None:
         self._batch_up_next = list(entries)
         self.batch_queue_card.set_up_next(entries)
+
+    def _collapse_batch(self) -> None:
+        if self.batch_queue_card.isHidden():
+            return
+        self._batch_collapsed = True
+        self.batch_queue_card.setVisible(False)
+        self._update_collapsed_bar()
+        self.batch_collapsed_bar.setVisible(True)
+
+    def _expand_batch(self) -> None:
+        if not self._batch_collapsed:
+            return
+        self._batch_collapsed = False
+        self.batch_collapsed_bar.setVisible(False)
+        self.batch_queue_card.setVisible(True)
+
+    def _update_collapsed_bar(self) -> None:
+        if not self._batch_collapsed:
+            return
+        total = max(0, self._batch_total)
+        processed = min(self._batch_processed, total)
+        percent = round(100 * processed / max(1, total))
+        if self._batch_state == BATCH_PAUSED:
+            text = f"Batch paused · {processed}/{total} · {percent}%"
+        elif self._batch_state == BATCH_COMPLETED:
+            text = f"Batch complete · {processed}/{total}"
+        elif self._batch_state == BATCH_CANCELLED:
+            text = f"Batch cancelled · {processed}/{total}"
+        elif self._batch_state == BATCH_FAILED:
+            text = f"Batch stopped · {processed}/{total}"
+        else:
+            parts = [f"Batch analysis · {processed}/{total} · {percent}%"]
+            if self._batch_eta is not None:
+                parts.append(f"ETA ~{format_clock(self._batch_eta)}")
+            text = " · ".join(parts)
+        self.batch_collapsed_bar.setText(text)
 
     def _on_batch_reordered(self, game_ids) -> None:
         by_id = {entry.game_id: entry for entry in self._batch_up_next}
@@ -762,6 +835,7 @@ class HistoryView(QWidget):
         self._batch_elapsed = max(0.0, float(elapsed))
         self._batch_eta = eta
         self.batch_queue_card.set_timing(self._batch_elapsed, eta)
+        self._update_collapsed_bar()
 
     def set_batch_queue(
         self,
@@ -773,6 +847,9 @@ class HistoryView(QWidget):
         move_total: int | None = None,
     ) -> None:
         self._batch_total = batch.total
+        summary = batch.summary()
+        self._batch_state = batch.state
+        self._batch_processed = summary.processed
         self._batch_active_label = active_label or self._batch_active_label
         if position is not None:
             self._batch_position = int(position)
@@ -809,6 +886,9 @@ class HistoryView(QWidget):
             depth=self._batch_depth,
             up_next=self._batch_up_next,
         )
+        if self._batch_collapsed:
+            self.batch_queue_card.setVisible(False)
+        self._update_collapsed_bar()
 
     def refresh_batch_queue(self) -> None:
         """Reload the persisted card without starting any work."""
@@ -836,6 +916,10 @@ class HistoryView(QWidget):
         self._batch_elapsed = 0.0
         self._batch_eta = None
         self._batch_up_next = []
+        self._batch_collapsed = False
+        self._batch_state = ""
+        self._batch_processed = 0
+        self.batch_collapsed_bar.setVisible(False)
 
     def load_history(self):
         """Reload the current query from the first page, keeping the reader's place."""
@@ -1301,6 +1385,8 @@ class HistoryView(QWidget):
             self.batch_selection_bar.refresh_styles()
         if hasattr(self, "batch_queue_card"):
             self.batch_queue_card.refresh_styles()
+        if hasattr(self, "batch_collapsed_bar"):
+            self.batch_collapsed_bar.refresh_styles()
         if hasattr(self, "btn_import"):
             self.btn_import.refresh_styles()
         if hasattr(self, "btn_export"):

@@ -149,7 +149,7 @@ class _QueueRow(QWidget):
         layout.addWidget(moves)
 
         eta = Label(
-            f"~{_format_clock(entry.eta_seconds)}"
+            f"~{format_clock(entry.eta_seconds)}"
             if entry.eta_seconds is not None
             else "—",
             role=TextRole.MICRO,
@@ -262,6 +262,7 @@ class BatchQueueCard(QFrame):
     resume_requested = pyqtSignal()
     cancel_requested = pyqtSignal()
     dismiss_requested = pyqtSignal()
+    collapse_requested = pyqtSignal()
     reorder_requested = pyqtSignal(object)
     remove_requested = pyqtSignal(str)
 
@@ -326,6 +327,18 @@ class BatchQueueCard(QFrame):
         )
         self.btn_dismiss.setAccessibleName("Dismiss batch summary")
         header.addWidget(self.btn_dismiss)
+
+        self.btn_collapse = Button(
+            variant=ButtonVariant.GHOST,
+            size=ButtonSize.MD,
+            icon="fa5s.chevron-up",
+            icon_position="only",
+            tooltip="Collapse batch details",
+            on_click=lambda: self.collapse_requested.emit(),
+        )
+        self.btn_collapse.setAccessibleName("Collapse batch details")
+        self.btn_collapse.setFixedSize(36, 36)
+        header.addWidget(self.btn_collapse)
 
         self.btn_cancel = Button(
             variant=ButtonVariant.GHOST,
@@ -511,6 +524,7 @@ class BatchQueueCard(QFrame):
             self.btn_pause,
             self.btn_resume,
             self.btn_dismiss,
+            self.btn_collapse,
             self.btn_cancel,
         ):
             button.refresh_styles()
@@ -638,9 +652,9 @@ class BatchQueueCard(QFrame):
         total = max(0, getattr(self, "_summary_total", 0))
         processed = min(getattr(self, "_summary_processed", 0), total)
         self.progress_value.setText(f"{processed} / {total}")
-        self.elapsed_value.setText(_format_clock(self._elapsed_seconds))
+        self.elapsed_value.setText(format_clock(self._elapsed_seconds))
         self.eta_value.setText(
-            f"~{_format_clock(self._eta_seconds)}"
+            f"~{format_clock(self._eta_seconds)}"
             if self._eta_seconds is not None
             else "—"
         )
@@ -670,9 +684,9 @@ class BatchQueueCard(QFrame):
 
         parts = []
         if self._game_elapsed_seconds > 0:
-            parts.append(f"Game elapsed {_format_clock(self._game_elapsed_seconds)}")
+            parts.append(f"Game elapsed {format_clock(self._game_elapsed_seconds)}")
         if self._game_eta_seconds is not None:
-            parts.append(f"Left ~{_format_clock(self._game_eta_seconds)}")
+            parts.append(f"Left ~{format_clock(self._game_eta_seconds)}")
         if current > 0 and self._game_elapsed_seconds > 0:
             speed = current / max(0.001, self._game_elapsed_seconds)
             parts.append(f"Speed {speed:.1f} moves/s")
@@ -743,7 +757,7 @@ def _summary_text(summary) -> str:
     return "  ·  ".join(parts) if parts else "No games processed."
 
 
-def _format_clock(seconds: float) -> str:
+def format_clock(seconds: float) -> str:
     total = int(max(0, round(seconds)))
     hours, remainder = divmod(total, 3600)
     minutes, seconds = divmod(remainder, 60)
