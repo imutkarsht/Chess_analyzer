@@ -9,11 +9,11 @@
 [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg?style=flat)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg?style=flat)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg?style=flat)
-![Version](https://img.shields.io/badge/version-2.5.0-green.svg?style=flat)
+![Version](https://img.shields.io/badge/version-2.6.0-green.svg?style=flat)
 
 <p align="center">
   <a href="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/showcasevideo.mp4" target="_blank">
-    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/analysis_loaded.png" alt="Chess Analyzer Pro analysis view" width="90%">
+    <img src="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/03_analysis.png" alt="Chess Analyzer Pro analysis view" width="90%">
     <br>
     <sub>▶ Watch the showcase video</sub>
   </a>
@@ -64,19 +64,23 @@ Every feature is documented in [docs/How_to_use.md](docs/How_to_use.md).
 
 | Deep Analysis & Live Lines | Opening Explorer |
 | :-: | :-: |
-| ![Analysis View](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/analysis_loaded.png) | ![Opening Explorer](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/explorer_engine.png) |
+| ![Analysis View](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/03_analysis.png) | ![Opening Explorer](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/11_explorer_engine.png) |
 
-| Performance Dashboard | AI Coach Summary |
+| AI Coach Summary | Playable Variations |
 | :-: | :-: |
-| ![Performance Metrics](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/metrics_dashboard.png) | ![AI Coach Summary](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/analysis_coach_summary.png) |
+| ![AI Coach Summary](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/07_coach_summary.png) | ![Variations](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/09_variations.png) |
 
-| Playable Variations | Game History |
+| Settings — Analysis | Settings — AI Coach |
 | :-: | :-: |
-| ![Variations](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/variation_tree.png) | ![Game History](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/history_detailed.png) |
+| ![Settings Analysis](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/19_settings_analysis.png) | ![Settings AI Coach](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/21_settings_ai_coach.png) |
 
-| Interactive Landing Hub | Load Game |
+| Game Report | Per-Game Tactics |
 | :-: | :-: |
-| ![Landing](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/landing.png) | ![Load Game](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/app/dark/native/load_game_initial.png) |
+| ![Game Report](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/05_analysis_report.png) | ![Per-Game Tactics](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/06_analysis_tactics.png) |
+
+| Batch Analysis Queue | Load Game |
+| :-: | :-: |
+| ![Batch Analysis](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/16_history_batch_running.png) | ![Load Game](https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/readme_2.6.0/23_load_game.png) |
 
 ## Installation
 

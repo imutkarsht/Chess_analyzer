@@ -3,7 +3,7 @@ Global application constants.
 """
 
 # App Version
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.6.0"
 
 # In-app brand mark. Platform packaging keeps the raster/ICO variants because
 # PyInstaller and the installers require native icon formats.

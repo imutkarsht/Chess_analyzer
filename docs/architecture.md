@@ -2,7 +2,7 @@
 
 Canonical reference for the Chess Analyzer Pro codebase: layers, runtime flows,
 every source file's purpose, the patterns we follow, and where to make common
-changes. It describes the v2.5.0 layout.
+changes. It describes the v2.6.0 layout.
 
 **Audience:** new contributors, maintainers, and AI agents working in the repo.
 For setup and a first change, read [onboarding_doc.md](onboarding_doc.md); for
@@ -886,5 +886,5 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
   [onboarding_doc.md](onboarding_doc.md) and the relevant recipe here.
 - **Do not duplicate this file.** README, AGENTS, CONTRIBUTING and onboarding
   link here for trees and file purposes; they keep only what is unique to them.
-- This document describes the **v2.5.0** layout; update the version note when the
+- This document describes the **v2.6.0** layout; update the version note when the
   structure changes materially.
