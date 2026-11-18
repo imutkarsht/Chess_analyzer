@@ -463,23 +463,26 @@ class Board(QWidget):
         for c in range(8):
             self.overlay_layout.setColumnStretch(c, 1)
 
-        # Legal move dots
+        # Legal move dots — use a colour that contrasts with each destination
+        # square so the dots remain visible on every board theme and accent.
         if self.show_legal_moves and self.legal_destinations:
+            sq_size = max(1, self.svg_widget.width() // 8)
+            dot_size = max(12, int(sq_size * 0.35))
             for sq in self.legal_destinations:
-                colour = QColor(Styles.COLOR_ACCENT)
+                dot_color = self._legal_dot_color(sq)
                 dot = IconLabel(
                     None,
-                    size=1,
-                    fixed_size=False,
+                    size=dot_size,
+                    fixed_size=True,
                     fallback="●",
-                    fallback_size=24,
-                    color=(
-                        f"rgba({colour.red()},{colour.green()},"
-                        f"{colour.blue()},0.5)"
-                    ),
+                    fallback_size=dot_size,
                 )
+                # Trigger the fallback glyph with the resolved colour.
+                dot.set_color(dot_color)
                 r, col = self._sq_to_grid(sq)
-                self.overlay_layout.addWidget(dot, r, col)
+                self.overlay_layout.addWidget(
+                    dot, r, col, alignment=Qt.AlignmentFlag.AlignCenter
+                )
 
         if self._show_classification and self.config.classification_overlay == "last_move":
             self._draw_last_move_badge()
@@ -508,6 +511,25 @@ class Board(QWidget):
         if self.is_flipped:
             return rank, 7 - file
         return 7 - rank, file
+
+    def _legal_dot_color(self, square: int) -> str:
+        """Return a high-contrast dot colour for the given board square."""
+        from ...utils.config import ConfigManager
+
+        config = ConfigManager()
+        theme_name = self.config.board_theme or config.get(
+            "board_theme", DEFAULT_BOARD_THEME
+        )
+        colors = Styles.get_board_colors(theme_name)
+        file_idx = chess.square_file(square)
+        rank_idx = chess.square_rank(square)
+        is_light = (file_idx + rank_idx) % 2 == 1
+        square_hex = colors["light"] if is_light else colors["dark"]
+        sq_color = QColor(square_hex)
+        # Dark square → white dot; light square → black dot for maximum contrast.
+        if sq_color.lightness() < 128:
+            return "rgba(255,255,255,0.90)"
+        return "rgba(0,0,0,0.85)"
 
     # ------------------------------------------------------------------ Historic / Free Position
     def load_fen(self, fen: str, flipped: bool | None = None, *, chess960: bool | None = None):
