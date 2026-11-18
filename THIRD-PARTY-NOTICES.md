@@ -11,7 +11,7 @@ libraries bundled into packaged builds. Full licence texts for the bundled
 Python packages are copied into the packaged application at build time (see
 `build.spec`) — they are not vendored here.
 
-Versions below reflect the 2.6.0 release environment. Run
+Versions below reflect the 2.6.1 release environment. Run
 `pip freeze` for the exact set in a given build.
 
 ---
