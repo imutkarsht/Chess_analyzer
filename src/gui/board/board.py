@@ -526,6 +526,7 @@ class Board(QWidget):
         self.dimmed = False
         self.best_move_uci = None
         self.last_move_classification = None
+        self.last_move_uci = None
         self.game_moves = []
         self.current_move_index = -1
         self.selected_square = None
@@ -543,6 +544,7 @@ class Board(QWidget):
         self.dimmed = False
         self.best_move_uci = None
         self.last_move_classification = None
+        self.last_move_uci = None
         # Never inherit the orientation of a historic/free-play FEN.
         self.is_flipped = False
         self.selected_square = None
@@ -586,6 +588,7 @@ class Board(QWidget):
                 if start_fen
                 else chess.Board(chess960=self.is_chess960)
             )
+            self.last_move_uci = None
 
         self.update_board()
         self.draw_overlays(move_index)
@@ -599,21 +602,28 @@ class Board(QWidget):
         self.legal_destinations = []
         self.best_move_uci = None
         self.last_move_classification = None
+        self.last_move_uci = None
         self.update_board()
         self.draw_interactive_overlays()
 
     # ------------------------------------------------------------------ Analysis / Variation
-    def load_analysis_position(self, fen: str, chess960: bool = False):
+    def load_analysis_position(
+        self, fen: str, chess960: bool = False, last_move_uci: str | None = None
+    ):
         """
         Load a position for free analysis while keeping the game replay data.
 
         Unlike ``load_fen`` this never clears ``game_moves``, so leaving the
         analysis position can restore the game with ``set_position``.
+
+        ``last_move_uci`` highlights the move that led to this position, since
+        the board is constructed from a FEN and has no move-stack history.
         """
         self.board = chess.Board(fen, chess960=chess960)
         self.is_chess960 = chess960
         self.interactive = True
         self.last_move_classification = None
+        self.last_move_uci = last_move_uci
         self.selected_square = None
         self.legal_destinations = []
         self.drag_start_sq = None
@@ -800,8 +810,14 @@ class Board(QWidget):
 
         # Resolve last move to highlight
         last_move = None
-        if self._show_last_move and self.board.move_stack:
-            last_move = self.board.move_stack[-1]
+        if self._show_last_move:
+            if self.board.move_stack:
+                last_move = self.board.move_stack[-1]
+            elif getattr(self, "last_move_uci", None):
+                try:
+                    last_move = chess.Move.from_uci(self.last_move_uci)
+                except ValueError:
+                    last_move = None
         last_from = last_move.from_square if last_move else None
         last_to = last_move.to_square if last_move else None
 

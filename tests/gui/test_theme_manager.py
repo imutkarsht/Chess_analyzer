@@ -38,3 +38,13 @@ def test_apply_app_stylesheet(qapp):
     """apply_app_stylesheet compiles template and applies without error."""
     ThemeManager.apply_app_stylesheet()
     assert len(qapp.styleSheet()) > 50
+
+
+def test_theme_template_qss_path_exists():
+    """The central QSS template must exist next to ThemeManager in dev and be packaged."""
+    import os
+
+    import src.gui.theme.manager as manager_module
+
+    qss_path = os.path.join(os.path.dirname(manager_module.__file__), "theme_template.qss")
+    assert os.path.exists(qss_path)

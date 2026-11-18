@@ -1,15 +1,21 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-from PyQt6.QtCore import QtMsgType, qInstallMessageHandler
+from PyQt6.QtCore import QTimer, QtMsgType, qInstallMessageHandler
 from PyQt6.QtWidgets import QApplication, QDialog
 
 from src.backend.analysis.engine import resolve_engine_path
 from src.constants import APP_LOGO_PATH
-from src.gui.main_window import MainWindow
 from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
+from src.utils.path_utils import get_resource_path, get_user_data_dir
+
+# Persist matplotlib's font cache across frozen launches instead of letting
+# PyInstaller's runtime hook point it at a fresh temp directory every run.
+os.environ["MPLCONFIGDIR"] = os.path.join(get_user_data_dir(), "matplotlib")
+
+from src.gui.main_window import MainWindow
 
 
 def qt_message_handler(mode, context, message):
@@ -90,6 +96,19 @@ def main():
         splash.update_progress(70, "Loading user interface...")
         app.processEvents()
 
+        # The first frozen launch rebuilds matplotlib's font cache; tell the user
+        # explicitly so the splash does not look frozen on a long blocking import.
+        mpl_cache_dir = Path(os.environ["MPLCONFIGDIR"])
+        has_font_cache = any(mpl_cache_dir.glob("fontlist-*.json"))
+        splash_msg = (
+            "Preparing charts & analytics..."
+            if has_font_cache
+            else "Building font cache (one-time)..."
+        )
+        splash.update_progress(75, splash_msg)
+        app.processEvents()
+        import src.gui.views.metrics_view  # noqa: F401 - warm matplotlib/card imports
+
         window = MainWindow()
 
         splash.update_progress(95, "Starting up...")
@@ -168,6 +187,10 @@ def main():
 
         # Show Main Window
         window.show()
+
+        # Prewarm the metrics dashboard shell after the event loop starts so
+        # the first Stats tab click serves cached stats instantly.
+        QTimer.singleShot(0, window._ensure_metrics_view)
 
         if not needs_setup:
             splash.update_progress(100, "Done!")

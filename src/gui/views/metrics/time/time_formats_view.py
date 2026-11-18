@@ -74,6 +74,8 @@ class FormatsView(QWidget):
             row = self._build_format_row(sp, self._formats[sp])
             if row is not None:
                 self._layout.addWidget(row)
+        # Push rows to the top so a single entry is not stretched to fill the card.
+        self._layout.addStretch(1)
 
     def _build_format_row(self, sp: str, f_data: dict) -> QFrame | None:
         tot = f_data["games"]

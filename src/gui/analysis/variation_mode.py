@@ -320,8 +320,12 @@ class VariationMode(QObject):
         if not self._active or self.tree is None:
             return
         node = self.tree.active_node
-        self.board_widget.load_analysis_position(node.fen, chess960=self._chess960)
+        last_uci = node.move_uci if node.parent is not None else None
+        self.board_widget.load_analysis_position(
+            node.fen, chess960=self._chess960, last_move_uci=last_uci
+        )
         self.board_widget.set_dimmed(True)
+        self.board_widget.set_interactive(True)
         if node.eval_cp is not None or node.eval_mate is not None:
             self.board_widget.eval_bar.set_eval(node.eval_cp, node.eval_mate)
         self.board_widget.set_best_move(None)

@@ -564,7 +564,7 @@ def build_done_page(wizard) -> QWidget:
     )
     wizard.done_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     wizard._update_done_icon()
-    layout.addWidget(wizard.done_icon_label)
+    layout.addWidget(wizard.done_icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
 
     layout.addSpacing(14)
 

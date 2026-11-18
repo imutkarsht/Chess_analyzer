@@ -5,7 +5,6 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QProgressBar,
     QScrollArea,
     QStackedWidget,
     QVBoxLayout,
@@ -19,6 +18,7 @@ from src.gui.components import (
     ButtonVariant,
     Label,
     MasonryLayout,
+    PulsingSkeleton,
     Select,
     StatCard,
     StatsLayout,
@@ -270,6 +270,13 @@ class MetricsWidget(QWidget):
         if hasattr(self, "drill_down_view") and self.drill_down_view:
             self.drill_down_view.refresh_styles()
 
+        skeleton = getattr(self, "_skeleton", None)
+        if skeleton is not None:
+            try:
+                skeleton.refresh_styles()
+            except RuntimeError:
+                pass
+
         if self.current_stats:
             saved_insights = self.current_insights
             clear_layout(self.content_layout)
@@ -318,20 +325,16 @@ class MetricsWidget(QWidget):
             self.on_stats_ready(self._filter_cache[filter_key])
             return
 
-        # Show Loading in content area
+        # Show a dashboard-shaped skeleton while the worker queries/calculates.
+        # This is inserted before starting the worker so the UI thread is free
+        # and the breathing animation actually paints.
         clear_layout(self.content_layout)
-        loading_widget = QWidget()
-        l_layout = QVBoxLayout(loading_widget)
-        l_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        spinner = QProgressBar()
-        spinner.setRange(0, 0)  # Infinite loading
-        spinner.setFixedWidth(200)
-        spinner.setStyleSheet(Styles.get_progress_bar_style())
-        l_layout.addWidget(spinner)
-
-        lbl = Label("Filtering Statistics...", role=TextRole.SUBHEADING)
-        l_layout.addWidget(lbl)
+        self._skeleton = PulsingSkeleton(
+            title="Crunching your stats…",
+            subtitle="Filtering your game history...",
+        )
+        self._skeleton.start()
+        self.content_layout.addWidget(self._skeleton)
 
         # Stop existing worker without waiting on the GUI thread.
         self.stop_worker()
@@ -385,6 +388,15 @@ class MetricsWidget(QWidget):
             except (TypeError, RuntimeError):
                 pass
 
+    def _stop_loading_skeleton(self) -> None:
+        skeleton = getattr(self, "_skeleton", None)
+        self._skeleton = None
+        if skeleton is not None:
+            try:
+                skeleton.stop()
+            except RuntimeError:
+                pass
+
     def closeEvent(self, event):
         self.stop_worker()
         super().closeEvent(event)
@@ -418,6 +430,7 @@ class MetricsWidget(QWidget):
             self.stacked_widget.setCurrentIndex(0)
             self.filter_bar.setVisible(True)
 
+        self._stop_loading_skeleton()
         clear_layout(self.content_layout)
         if total == 0:
             self._show_message_view(

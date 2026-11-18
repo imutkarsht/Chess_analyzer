@@ -60,7 +60,7 @@ class SplashScreen(QSplashScreen):
 
         # Loading Status
         self.status_label = Label(
-            "Initializing...",
+            "Starting up...",
             role=TextRole.CAPTION,
             tone=TextTone.MUTED,
         )
@@ -92,5 +92,7 @@ class SplashScreen(QSplashScreen):
         self.progress_bar.setValue(value)
         if message:
             self.status_label.setText(message)
+        self.status_label.repaint()
+        self.progress_bar.repaint()
         QApplication.processEvents()
 
