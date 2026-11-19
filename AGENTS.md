@@ -73,6 +73,15 @@ src/
 - GUI components are imported from the `src.gui.components` facade, never from a subpackage path, so grouping can change without touching call sites.
 - Settings are added through `src/config/settings_schema.py`; widgets do not invent defaults.
 - Per-widget styles are rebuilt on theme/accent change; no palette colour is captured at construction.
+- **Shared utilities**: extend the canonical modules before adding a private helper:
+  - `src/utils/format_utils.py` — clock, eval, count, bytes, percent, duration
+  - `src/utils/time_control.py` — parse/format/classify time controls
+  - `src/backend/analysis/chess_utils.py` — FEN keys, canonical FEN, Chess960
+  - `src/backend/storage/pgn_metadata.py` — PGN headers and mainline metadata
+  - `src/backend/storage/cache_time.py` — cache timestamps and TTLs
+  - `src/backend/storage/db_connection.py` — connections, read-only access, row counts
+  - `src/gui/utils/assets.py`, `links.py`, `result_ui.py` — GUI asset, link, and result helpers
+  - `src/gui/views/metrics/lazy_view.py` — lazy metric sub-view rendering
 
 ---
 
@@ -80,7 +89,7 @@ src/
 - **Typing**: Python 3.10+ modern syntax required: use `X | None` (never `Optional[X]`), `list[T]`, `dict[K, V]`.
 - **Logging**: Use `from src.utils.logger import logger`. **Never use `print()`**. Sensitive tokens (`sk-...`, `gsk_...`, Bearer) are automatically redacted.
 - **Styling**: **Never hardcode hex colors** in widget files. Use `Styles.COLOR_*` and generator helpers from `src/gui/styles.py`.
-- **Components**: Use the shared components from `src.gui.components` for every control: `Button`, `Input`/`TextArea`, `Select`, `Tabs`, `DatePicker`, `Toast`, `PaginationBar`, `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `SegmentedBar`. Pick a variant/size (or `create_button` / `create_icon_button`) instead of constructing `QPushButton`/`QToolButton`/`QLineEdit`/`QComboBox` or writing widget QSS. The only exceptions are the documented specials (board swatches, theme cards, star rating, variation graph nodes).
+- **Components**: Use the shared components from `src.gui.components` for every control: `Button`, `Input`/`TextArea`, `Select`, `Tabs`, `DatePicker`, `Toast`, `PaginationBar`, `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `SegmentedBar`. Construct `Button` directly with a variant/size instead of `QPushButton`/`QToolButton`/`QLineEdit`/`QComboBox` or widget QSS. Do not reintroduce `create_button` / `create_icon_button` wrapper factories. The only exceptions are the documented specials (board swatches, theme cards, star rating, variation graph nodes).
 - **Theming**: Every per-widget stylesheet must be regenerated on theme/accent change. Use `Styles.COLOR_*` and generator helpers; never capture palette values at construction.
 - **Settings**: Add fields to `src/config/settings_schema.py` with a default, type, validation, and `apply="live"` when appropriate. Do not scatter `config.get("key", default)` fallbacks through widgets; credentials go through `SecretStore`.
 - **Dashboard Cards**: Cards in `src/gui/views/metrics/` must use `MetricCard`'s `new_content()` / `clear_content()` / `show_empty()` lifecycle and the shared `EmptyState`, `StatusBadge`, `SegmentedControl`, `PaginationBar`, `LegendList`, `MiniBar`, and `SegmentedBar` components. Never reimplement empty-state QSS, header pills, segmented chips, chart legends, mini bars, or prev/next bars inside a card.
