@@ -9,6 +9,7 @@ import chess.pgn
 
 from src.backend.analysis.chess_utils import requires_chess960
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.backend.storage.pgn_metadata import metadata_from_headers
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import MAX_PGN_FILE_BYTES, MAX_PGN_GAMES
 from src.utils.logger import logger
@@ -157,24 +158,25 @@ def _summary_from_headers(
     index: int,
     move_count: int | None,
 ) -> PGNGameSummary:
+    meta = metadata_from_headers(headers)
     return PGNGameSummary(
         index=index,
         start=start,
         end=end,
-        white=headers.get("White", "?"),
-        black=headers.get("Black", "?"),
-        date=headers.get("Date", "?"),
-        result=headers.get("Result", "*"),
-        time_control=headers.get("TimeControl", ""),
-        white_elo=headers.get("WhiteElo"),
-        black_elo=headers.get("BlackElo"),
-        event=headers.get("Event", "?"),
-        opening=headers.get("Opening"),
-        eco=headers.get("ECO"),
-        termination=headers.get("Termination"),
-        variant=headers.get("Variant"),
-        white_rating_diff=headers.get("WhiteRatingDiff"),
-        black_rating_diff=headers.get("BlackRatingDiff"),
+        white=meta.white,
+        black=meta.black,
+        date=meta.date,
+        result=meta.result,
+        time_control=meta.time_control,
+        white_elo=meta.white_elo,
+        black_elo=meta.black_elo,
+        event=meta.event,
+        opening=meta.opening,
+        eco=meta.eco,
+        termination=meta.termination,
+        variant=meta.variant,
+        white_rating_diff=meta.white_rating_diff,
+        black_rating_diff=meta.black_rating_diff,
         move_count=move_count,
     )
 
@@ -339,23 +341,24 @@ class PGNParser:
     @staticmethod
     def _metadata_from_game(game: chess.pgn.Game) -> tuple[GameMetadata, dict[str, str]]:
         headers = dict(game.headers)
+        meta = metadata_from_headers(headers)
         metadata = GameMetadata(
-            white=headers.get("White", "?"),
-            black=headers.get("Black", "?"),
-            event=headers.get("Event", "?"),
-            date=headers.get("Date", "?"),
-            result=headers.get("Result", "*"),
+            white=meta.white,
+            black=meta.black,
+            event=meta.event,
+            date=meta.date,
+            result=meta.result,
             headers=headers,
-            white_elo=headers.get("WhiteElo"),
-            black_elo=headers.get("BlackElo"),
-            time_control=headers.get("TimeControl"),
-            eco=headers.get("ECO"),
-            termination=headers.get("Termination"),
-            opening=headers.get("Opening"),  # Some sites provide this
-            starting_fen=headers.get("FEN"),  # If started from position
+            white_elo=meta.white_elo,
+            black_elo=meta.black_elo,
+            time_control=meta.time_control or None,
+            eco=meta.eco,
+            termination=meta.termination,
+            opening=meta.opening,
+            starting_fen=meta.starting_fen,
         )
 
-        site = headers.get("Site", "").lower()
+        site = (headers.get("Site") or "").lower()
         if "chess.com" in site:
             metadata.source = "chesscom"
         elif "lichess.org" in site:
@@ -371,9 +374,7 @@ class PGNParser:
         # in the FEN header.  python-chess does not do this automatically when
         # no Variant header is present.
         if not metadata.chess960:
-            setup_fen = headers.get("FEN", "")
-            if requires_chess960(setup_fen):
-                metadata.chess960 = True
+            metadata.chess960 = requires_chess960(meta.starting_fen)
         metadata.speed_category = PGNParser.detect_speed_category(
             metadata.time_control, metadata.event
         )

@@ -9,8 +9,8 @@ from typing import Any
 from src.backend.analysis.chess_utils import is_chess960_variant
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_identity import game_identity_key
+from src.backend.storage.pgn_metadata import PgnMetadata, extract_pgn_metadata
 from src.backend.storage.pgn_parser import PGNIndex
-from src.gui.import_workspace.boards import summarize_pgn
 from src.utils.time_control import classify_time_control
 
 _TIME_CONTROL_RE = re.compile(r'\[TimeControl "([^"]+)"\]')
@@ -122,7 +122,7 @@ class GameBatch:
     ) -> GameBatch:
         candidates = []
         for position, info in enumerate(infos):
-            summary = summarize_pgn(info.pgn)
+            summary = extract_pgn_metadata(info.pgn) or PgnMetadata()
             candidates.append(
                 GameCandidate(
                     candidate_id=position,

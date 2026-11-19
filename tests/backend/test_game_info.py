@@ -111,7 +111,7 @@ def test_from_lichess_ndjson_ignores_malformed_pgn():
 
 def test_from_lichess_ndjson_survives_pgn_parser_exception(mocker):
     mocker.patch(
-        "src.backend.models.game_info.chess.pgn.read_game",
+        "src.backend.storage.pgn_metadata.chess.pgn.read_game",
         side_effect=ValueError("corrupt pgn"),
     )
 
