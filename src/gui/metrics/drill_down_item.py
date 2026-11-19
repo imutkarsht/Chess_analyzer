@@ -29,6 +29,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.utils.format_utils import format_eval
 
 
 def _safe_cp(cp: Any) -> int | None:
@@ -40,17 +41,6 @@ def _safe_cp(cp: Any) -> int | None:
     except (TypeError, ValueError):
         return None
     return None if abs(value) >= 90000 else value
-
-
-def _format_eval(cp: Any, mate: Any) -> str:
-    if mate is not None:
-        try:
-            value = int(mate)
-        except (TypeError, ValueError):
-            value = 0
-        return f"+M{value}" if value > 0 else f"-M{abs(value)}"
-    value = _safe_cp(cp)
-    return f"{value / 100:+.1f}" if value is not None else "?"
 
 
 class DrillDownItemWidget(QFrame):
@@ -281,10 +271,21 @@ class DrillDownItemWidget(QFrame):
             parts.append(f"Dropped {piece_name.capitalize()} on {square}")
 
         if eval_before_mate is not None or eval_after_mate is not None:
-            parts.append(
-                f"Eval: {_format_eval(eval_before, eval_before_mate)} → "
-                f"{_format_eval(eval_after, eval_after_mate)}"
+            before_text = format_eval(
+                _safe_cp(eval_before),
+                eval_before_mate,
+                mate_style="signed",
+                decimals=1,
+                none_text="?",
             )
+            after_text = format_eval(
+                _safe_cp(eval_after),
+                eval_after_mate,
+                mate_style="signed",
+                decimals=1,
+                none_text="?",
+            )
+            parts.append(f"Eval: {before_text} → {after_text}")
         elif eval_before is not None and eval_after is not None:
             eval_before = _safe_cp(eval_before)
             eval_after = _safe_cp(eval_after)

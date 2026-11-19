@@ -10,19 +10,13 @@ from src.backend.models.analysis_batch import BATCH_PAUSED, BATCH_RUNNING
 from src.gui.components.feedback.toast import ToastManager
 from src.utils.logger import logger
 
-
-def format_bytes(size: int) -> str:
-    """Human-readable size with one decimal, e.g. ``42.6 MB``."""
-    value = float(max(0, size))
-    for unit in ("B", "KB", "MB", "GB", "TB"):
-        if value < 1024 or unit == "TB":
-            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
-        value /= 1024
-    return f"{value:.1f} TB"
-
-
-def format_count(count: int) -> str:
-    return f"{int(count):,}"
+__all__ = [
+    "analysis_is_running",
+    "close_analyzer_cache",
+    "ensure_idle",
+    "refresh_after_data_change",
+    "reset_analysis_workspace",
+]
 
 
 def analysis_is_running(window) -> bool:

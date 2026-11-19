@@ -7,6 +7,7 @@ from typing import Any
 import chess
 import chess.engine
 
+from src.backend.analysis.chess_utils import position_key
 from src.backend.analysis.engine import EngineManager
 from src.backend.analysis.local_book import BookResult, LocalBookManager
 from src.backend.analysis.math_utils import (
@@ -24,6 +25,7 @@ from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.models import GameAnalysis, MoveAnalysis
 from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV
 from src.utils.config import ConfigManager
+from src.utils.format_utils import format_eval
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path, get_user_data_dir
 
@@ -685,8 +687,13 @@ class Analyzer:
             except Exception:
                 pv_data["pv_san"] = " ".join(pv_uci)
 
-            pv_data["score_value"] = (
-                f"M{mate}" if mate is not None else f"{cp / 100:.2f}" if cp is not None else "?"
+            pv_data["score_value"] = format_eval(
+                cp,
+                mate,
+                mate_style="M",
+                decimals=2,
+                signed_cp=False,
+                none_text="?",
             )
 
             move_data.multi_pvs.append(pv_data)
@@ -756,12 +763,12 @@ class Analyzer:
         clean_fens = []
         if game_analysis.moves:
             rep_board = chess.Board(chess960=is_chess960)
-            clean_fens.append(" ".join(rep_board.fen().split()[:4]))
+            clean_fens.append(position_key(rep_board.fen()))
             for m in game_analysis.moves:
                 rep_board.set_fen(m.fen_before)
                 try:
                     rep_board.push_uci(m.uci)
-                    clean_fens.append(" ".join(rep_board.fen().split()[:4]))
+                    clean_fens.append(position_key(rep_board.fen()))
                 except Exception:
                     clean_fens.append("")
 

@@ -7,10 +7,12 @@ from dataclasses import dataclass
 
 import chess.pgn
 
+from src.backend.analysis.chess_utils import requires_chess960
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import MAX_PGN_FILE_BYTES, MAX_PGN_GAMES
 from src.utils.logger import logger
+from src.utils.time_control import classify_time_control
 
 # Matches [%clk H:MM:SS(.s)?] — chess.com style clock comments.
 # The colon-separated hours/minutes/seconds format with optional decimal
@@ -370,12 +372,8 @@ class PGNParser:
         # no Variant header is present.
         if not metadata.chess960:
             setup_fen = headers.get("FEN", "")
-            if setup_fen:
-                fen_parts = setup_fen.split(" ")
-                if len(fen_parts) >= 3:
-                    castling = fen_parts[2]
-                    if any(c not in "KQkq-" for c in castling):
-                        metadata.chess960 = True
+            if requires_chess960(setup_fen):
+                metadata.chess960 = True
         metadata.speed_category = PGNParser.detect_speed_category(
             metadata.time_control, metadata.event
         )
@@ -525,61 +523,6 @@ class PGNParser:
     @staticmethod
     def detect_speed_category(time_control: str | None, event: str | None) -> str:
         """Classify game into UltraBullet, Bullet, Blitz, Rapid, Classical, or Daily."""
-        tc = (time_control or "").strip()
-
-        # Handle slash notation: e.g. "1/259200" (Daily) or "40/7200" (Classical)
-        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
-        if slash_match:
-            try:
-                moves_count = int(slash_match.group(1))
-                sec_count = int(slash_match.group(2))
-                if sec_count >= 86400 or (moves_count == 1 and sec_count >= 3600):
-                    return "Daily"
-                elif sec_count >= 1800:
-                    return "Classical"
-                elif sec_count >= 600:
-                    return "Rapid"
-                else:
-                    return "Blitz"
-            except ValueError:
-                pass
-
-        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
-        if match:
-            try:
-                base_sec = int(match.group(1))
-                inc_sec = int(match.group(2)) if match.group(2) else 0
-                total_sec = base_sec + 40 * inc_sec
-                if total_sec < 30:
-                    return "UltraBullet"
-                elif total_sec < 180:
-                    return "Bullet"
-                elif total_sec < 600:
-                    return "Blitz"
-                elif total_sec < 1800:
-                    return "Rapid"
-                elif total_sec >= 86400:
-                    return "Daily"
-                else:
-                    return "Classical"
-            except ValueError:
-                pass
-
-        evt_lower = (event or "").lower()
-        tc_lower = tc.lower()
-        if "ultrabullet" in evt_lower or "ultrabullet" in tc_lower:
-            return "UltraBullet"
-        elif "bullet" in evt_lower or "bullet" in tc_lower:
-            return "Bullet"
-        elif "blitz" in evt_lower or "blitz" in tc_lower:
-            return "Blitz"
-        elif "rapid" in evt_lower or "rapid" in tc_lower:
-            return "Rapid"
-        elif any(k in evt_lower or k in tc_lower for k in ("daily", "correspondence")):
-            return "Daily"
-        elif "classical" in evt_lower or "classical" in tc_lower:
-            return "Classical"
-
-        return "Blitz"
+        return classify_time_control(time_control, event, default="Blitz")
 
     _detect_speed_category = detect_speed_category

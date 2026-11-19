@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import chess
 
+from src.utils.format_utils import format_eval
+
 # Mate scores are converted to centipawns with this sentinel so a numeric
 # score is always comparable.  It only matters for sorting/display of
 # non-mate alternatives.
@@ -105,11 +107,16 @@ class EngineLine:
 
     @property
     def score_text(self) -> str:
-        if self.mate is not None:
-            return f"M{self.mate}" if self.mate > 0 else f"-M{abs(self.mate)}"
-        if self.cp is not None:
-            return f"{self.cp / 100:+.2f}"
-        return UNKNOWN_SCORE
+        return (
+            format_eval(
+                self.cp,
+                self.mate,
+                mate_style="M",
+                decimals=2,
+                none_text=UNKNOWN_SCORE,
+            )
+            or UNKNOWN_SCORE
+        )
 
     @property
     def score_tone(self) -> int:

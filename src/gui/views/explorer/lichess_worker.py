@@ -13,6 +13,7 @@ import urllib.parse
 import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.backend.analysis.chess_utils import position_key
 from src.backend.api.base_api import BaseChessAPI
 from src.constants import LICHESS_EXPLORER_URL
 
@@ -37,8 +38,7 @@ class LichessExplorerWorker(QThread):
 
     def run(self):
         try:
-            parts = self.fen.split()
-            norm_fen = " ".join(parts[:4])
+            norm_fen = position_key(self.fen)
 
             if self.cache_enabled:
                 cached = self.history_manager.get_explorer_cache(norm_fen)

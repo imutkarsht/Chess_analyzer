@@ -9,8 +9,8 @@ from src.gui.components import Label, TextRole
 from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsForm
 from src.gui.views.settings.helpers import create_icon_button
-from src.gui.views.settings.storage_actions import format_bytes, format_count
 from src.gui.views.settings.storage_card import StorageCard
+from src.utils.format_utils import format_bytes, format_count
 from src.utils.path_utils import get_user_data_dir
 
 _STAT_ROWS = (

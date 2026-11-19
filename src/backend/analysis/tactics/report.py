@@ -16,6 +16,8 @@ from typing import Any, Protocol
 
 import chess
 
+from src.utils.format_utils import format_eval
+
 
 class MoveLike(Protocol):
     """Minimal move shape needed to resolve a tactic to a board index."""
@@ -354,11 +356,9 @@ def _eval_text(detail: dict[str, Any]) -> str:
     after = detail.get("eval_after_cp")
     if before is None or after is None:
         return ""
-    return f"{_format_cp(before)} → {_format_cp(after)}"
-
-
-def _format_cp(cp: int) -> str:
-    return f"{cp / 100:+.1f}"
+    before_text = format_eval(before, None, decimals=1, none_text="")
+    after_text = format_eval(after, None, decimals=1, none_text="")
+    return f"{before_text} → {after_text}"
 
 
 __all__ = ["GameTacticEntry", "GameTacticsReport", "build_game_tactics_report"]

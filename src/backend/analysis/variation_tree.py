@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-import chess
+from src.backend.analysis.chess_utils import canonical_fen
 
 MAX_CHILDREN = 3
 
@@ -66,11 +66,6 @@ class RecordResult:
     node: VariationNode | None = None
     branch: VariationBranch | None = None
     evicted_name: str | None = None
-
-
-def canonical_fen(fen: str, chess960: bool = False) -> str:
-    """Normalize a FEN so equivalent positions compare by the same key."""
-    return chess.Board(fen, chess960=chess960).fen()
 
 
 class VariationTree:

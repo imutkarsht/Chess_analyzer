@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.analysis.chess_utils import is_chess960_variant, requires_chess960
 from src.gui.board import MiniBoardConfig, MiniBoardWidget
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.icon_label import IconLabel
@@ -28,7 +29,7 @@ from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
-from src.utils.time_control import format_time_control
+from src.utils.time_control import classify_time_control, format_time_control
 
 try:
     import qtawesome as qta
@@ -111,8 +112,12 @@ class GameListItemWidget(QWidget):
         if source_icon:
             card_layout.addWidget(source_icon)
 
-        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
-            game.metadata.time_control
+        speed_cat = getattr(
+            game.metadata, "speed_category", None
+        ) or classify_time_control(
+            game.metadata.time_control,
+            default="Blitz",
+            empty_default="Classical",
         )
         formatted_tc = format_time_control(game.metadata.time_control)
         tc_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc else speed_cat
@@ -354,8 +359,12 @@ class GameListItemWidget(QWidget):
         meta_layout.setSpacing(12)
 
         # Speed Category Badge
-        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
-            game.metadata.time_control
+        speed_cat = getattr(
+            game.metadata, "speed_category", None
+        ) or classify_time_control(
+            game.metadata.time_control,
+            default="Blitz",
+            empty_default="Classical",
         )
         formatted_tc = format_time_control(game.metadata.time_control)
         speed_display = (
@@ -717,94 +726,33 @@ class GameListItemWidget(QWidget):
         return TextTone.RESULT_DRAW
 
     def _get_time_control_icon(self, time_control):
-        tc_type = self._classify_time_control(time_control)
+        tc_type = classify_time_control(
+            time_control,
+            default="Blitz",
+            empty_default="Classical",
+        )
         if tc_type == "Daily":
             return "assets/images/classical.svg"
+        if tc_type == "UltraBullet":
+            return "assets/images/bullet.svg"
         return f"assets/images/{tc_type}.svg"
-
-    def _classify_time_control(self, time_control):
-        if not time_control or time_control in ("-", "?", "*", ""):
-            return "Classical"
-
-        tc = time_control.strip()
-        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
-        if slash_match:
-            try:
-                moves = int(slash_match.group(1))
-                seconds = int(slash_match.group(2))
-                if seconds >= 86400 or (moves == 1 and seconds >= 3600):
-                    return "Daily"
-                elif seconds >= 1800:
-                    return "Classical"
-                elif seconds >= 600:
-                    return "Rapid"
-                else:
-                    return "Blitz"
-            except ValueError:
-                pass
-
-        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
-        if match:
-            try:
-                base_seconds = int(match.group(1))
-                increment = int(match.group(2)) if match.group(2) else 0
-                total_time = base_seconds + 40 * increment
-
-                if total_time < 30:
-                    return "UltraBullet"
-                elif total_time < 180:
-                    return "Bullet"
-                elif total_time < 600:
-                    return "Blitz"
-                elif total_time < 1800:
-                    return "Rapid"
-                elif total_time >= 86400:
-                    return "Daily"
-                else:
-                    return "Classical"
-            except ValueError:
-                pass
-
-        tc_lower = tc.lower()
-        if "ultrabullet" in tc_lower:
-            return "UltraBullet"
-        elif "bullet" in tc_lower:
-            return "Bullet"
-        elif "blitz" in tc_lower:
-            return "Blitz"
-        elif "rapid" in tc_lower:
-            return "Rapid"
-        elif any(k in tc_lower for k in ("daily", "correspondence")):
-            return "Daily"
-        elif "classical" in tc_lower:
-            return "Classical"
-
-        return "Blitz"
 
     def _is_chess960(self, game) -> bool:
         if getattr(game.metadata, "chess960", False):
             return True
         headers = getattr(game.metadata, "headers", {}) or {}
-        variant = headers.get("Variant", "").lower()
-        if any(k in variant for k in ("960", "fischer", "random", "frc")):
+        if is_chess960_variant(headers.get("Variant")):
             return True
 
         for key in ("Event", "Site"):
-            val = headers.get(key, "").lower()
-            if "960" in val or "frc" in val or "fischer" in val:
+            if is_chess960_variant(headers.get(key)):
                 return True
 
         # A custom starting position is not automatically Chess960. Only a
         # file-letter castling field (``A``-``H``/``a``-``h``) marks the variant;
         # Chess.com also exports ordinary non-standard setups with ordinary
         # ``KQkq`` castling rights.
-        fen = game.metadata.starting_fen
-        if not fen:
-            return False
-        parts = fen.split()
-        if len(parts) < 3:
-            return False
-        return any(piece not in "KQkq-" for piece in parts[2])
+        return requires_chess960(game.metadata.starting_fen)
 
     def _get_termination_icon(self, termination):
         term_lower = str(termination).lower()

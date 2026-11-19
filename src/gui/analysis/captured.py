@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy, QWidget
 from src.gui.components import ChipLabel, ClockLabel
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
+from src.utils.format_utils import format_clock
 
 
 class CapturedPiecesWidget(QFrame):
@@ -245,7 +246,7 @@ class CapturedPiecesWidget(QFrame):
             self._update_container_style()
             return
 
-        formatted = self._format_ui_clock(seconds)
+        formatted = format_clock(seconds, compact_under=20.0)
         self.clock_label.setText(formatted)
         self._apply_clock_style(seconds)
 
@@ -309,17 +310,3 @@ class CapturedPiecesWidget(QFrame):
         if self._clock_seconds is not None:
             self._apply_clock_style(self._clock_seconds)
 
-    def _format_ui_clock(self, seconds: float) -> str:
-        """Format seconds to a standard premium chess clock format (e.g. 10:00, 1:35, 15.4)."""
-        seconds = max(0.0, float(seconds))
-        h = int(seconds // 3600)
-        m = int((seconds % 3600) // 60)
-        s = seconds - h * 3600 - m * 60
-
-        if h > 0:
-            return f"{h}:{m:02d}:{int(s):02d}"
-        if m > 0:
-            return f"{m}:{int(s):02d}"
-        if s < 20.0:
-            return f"{s:.1f}"
-        return f"{int(s)}"

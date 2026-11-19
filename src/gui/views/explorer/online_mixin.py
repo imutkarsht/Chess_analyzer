@@ -5,7 +5,7 @@ import time
 
 from PyQt6.QtCore import QTimer
 
-from src.backend.analysis.opening_db import _normalize_fen
+from src.backend.analysis.chess_utils import position_key
 from src.backend.api.import_limits import current_token
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.views.explorer.lichess_worker import LichessExplorerWorker
@@ -73,7 +73,7 @@ class ExplorerOnlineMixin:
         if not self.chk_cache.isChecked():
             return False
         try:
-            raw = self._history().get_explorer_cache(_normalize_fen(fen))
+            raw = self._history().get_explorer_cache(position_key(fen))
             data = json.loads(raw) if raw else None
         except Exception:
             return False
@@ -97,7 +97,7 @@ class ExplorerOnlineMixin:
     # ------------------------------------------------------------------
 
     def update_opening_db(self, fen):
-        norm_fen = _normalize_fen(fen)
+        norm_fen = position_key(fen)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
 
         if not self.board_widget.board.move_stack:
@@ -205,7 +205,7 @@ class ExplorerOnlineMixin:
             current_fen = self.board_widget.board.fen()
         except Exception:
             return False
-        return _normalize_fen(worker.fen) == _normalize_fen(current_fen)
+        return position_key(worker.fen) == position_key(current_fen)
 
     def _on_explorer_data(self, worker: LichessExplorerWorker, data) -> None:
         if not self._is_worker_current(worker):

@@ -43,9 +43,9 @@ from src.gui.views.history_batch import (
     BatchQueueCard,
     BatchSelectionBar,
     UpNextEntry,
-    format_clock,
 )
 from src.gui.views.history_filter_bar import HistoryFilterBar
+from src.utils.format_utils import format_clock
 from src.utils.logger import logger
 
 
@@ -816,7 +816,9 @@ class HistoryView(QWidget):
         else:
             parts = [f"Batch analysis · {processed}/{total} · {percent}%"]
             if self._batch_eta is not None:
-                parts.append(f"ETA ~{format_clock(self._batch_eta)}")
+                parts.append(
+                    f"ETA ~{format_clock(self._batch_eta, pad_minutes=True, round_seconds=True)}"
+                )
             text = " · ".join(parts)
         self.batch_collapsed_bar.setText(text)
 

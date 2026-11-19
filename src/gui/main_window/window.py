@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.analyzer import Analyzer
+from src.backend.analysis.chess_utils import position_key
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
@@ -966,8 +967,8 @@ class MainWindow(
             ref_board = chess.Board(pos.fen)
             ref_move = ref_board.parse_san(pos.famous_move)
             ref_board.push(ref_move)
-            # Compare piece placement, active color, castling, en-passant (first 4 FEN fields)
-            if new_fen.split()[:4] == ref_board.fen().split()[:4]:
+            # Compare piece placement, active color, castling, en-passant.
+            if position_key(new_fen) == position_key(ref_board.fen()):
                 self._historic_move_found = True
                 self._celebrate_historic_move(pos)
         except Exception as e:

@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 
 import chess
 
-from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
+from src.backend.analysis.chess_utils import position_key
+from src.backend.analysis.opening_db import OpeningDB
 
 
 @dataclass
@@ -53,7 +54,7 @@ class LocalBookManager:
                 book_move_count=self._count,
                 book_exit_move=self._exit_move,
             )
-        fen_after = _normalize_fen(board.fen())
+        fen_after = position_key(board.fen())
 
         node_id = self.db.get_node_by_fen(fen_after)
         if node_id is not None:

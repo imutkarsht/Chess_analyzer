@@ -101,32 +101,61 @@ def _format_period(phase: TimeControlPhase, with_unit: bool = False) -> str | No
     return None
 
 
-def classify_time_control(tc: str) -> str:
-    """Return Bullet/Blitz/Rapid/Classical/Correspondence from a TimeControl string."""
-    if not tc or tc in ("-", "?", ""):
-        return "Unknown"
-    try:
-        # Handle formats like "600", "600+5", "40/7200:1800+30"
-        base = 0
-        for period in tc.split(":"):
-            base_part = period.split("+")[0]
-            sec_part = base_part.split("/")[-1]
-            try:
-                base += int(sec_part)
-            except ValueError:
-                pass
+def classify_time_control(
+    tc: str | None,
+    event: str | None = None,
+    *,
+    default: str = "Unknown",
+    empty_default: str | None = None,
+) -> str:
+    """Classify a time control into UltraBullet/Bullet/Blitz/Rapid/Classical/Daily.
 
-        if base == 0:
-            return tc
+    ``tc`` may be PGN notation (``600+5``, ``40/7200:1800``, ``1/86400``) or a
+    named speed such as ``blitz``. When the numeric form is absent, the named
+    speed is checked first, then ``event``. ``empty_default`` lets UI callers
+    keep their historical placeholder label without changing the shared logic.
+    """
+    text = (tc or "").strip()
+    placeholder = not text or text in {"-", "?", "*"}
 
-        if base < 180:
-            return "Bullet"
-        if base < 600:
-            return "Blitz"
-        if base < 1800:
-            return "Rapid"
-        if base >= 86400:
-            return "Daily"
+    if not placeholder:
+        phases = parse_time_control(text)
+        if phases is not None:
+            if any(
+                phase.moves == 1 and phase.base_seconds >= 3600
+                for phase in phases
+            ):
+                return "Daily"
+
+            total = sum(
+                phase.base_seconds + 40 * phase.increment for phase in phases
+            )
+            if total >= 86400:
+                return "Daily"
+            if total < 30:
+                return "UltraBullet"
+            if total < 180:
+                return "Bullet"
+            if total < 600:
+                return "Blitz"
+            if total < 1800:
+                return "Rapid"
+            return "Classical"
+
+    haystack = "".join(f"{text} {event or ''}".casefold().split())
+    if "ultrabullet" in haystack:
+        return "UltraBullet"
+    if "bullet" in haystack:
+        return "Bullet"
+    if "blitz" in haystack:
+        return "Blitz"
+    if "rapid" in haystack:
+        return "Rapid"
+    if "daily" in haystack or "correspondence" in haystack:
+        return "Daily"
+    if "classical" in haystack:
         return "Classical"
-    except Exception:
-        return tc
+
+    if placeholder and empty_default is not None:
+        return empty_default
+    return default

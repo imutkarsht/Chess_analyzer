@@ -9,6 +9,7 @@ import chess
 import chess.pgn
 
 from src.backend.storage.models import GameAnalysis, MoveAnalysis
+from src.utils.format_utils import format_eval, format_pgn_clock
 
 _CLASSIFICATION_NAGS = {
     "brilliant": 3,
@@ -252,7 +253,13 @@ class AnnotatedPGNExporter:
             node.nags.add(nag)
 
         comment = node.comment
-        eval_text = cls._format_eval(move.eval_after_cp, move.eval_after_mate)
+        eval_text = format_eval(
+            move.eval_after_cp,
+            move.eval_after_mate,
+            mate_style="pgn",
+            decimals=2,
+            none_text=None,
+        )
         if eval_text is not None:
             comment = _EVAL_TAG_RE.sub("", comment).strip()
             comment = cls._append_tag(comment, f"[%eval {eval_text}]")
@@ -263,7 +270,7 @@ class AnnotatedPGNExporter:
             comment = cls._append_tag(comment, f"[%depth {depth}]")
 
         if not _CLK_TAG_RE.search(comment):
-            clock = move.raw_clk or cls._format_clock(move.time_left)
+            clock = move.raw_clk or format_pgn_clock(move.time_left)
             if clock:
                 comment = cls._append_tag(comment, f"[%clk {clock}]")
 
@@ -272,14 +279,6 @@ class AnnotatedPGNExporter:
     @staticmethod
     def _append_tag(comment: str, tag: str) -> str:
         return f"{comment} {tag}".strip()
-
-    @staticmethod
-    def _format_eval(cp: int | None, mate: int | None) -> str | None:
-        if mate is not None:
-            return f"#{mate}"
-        if cp is not None:
-            return f"{cp / 100:+.2f}"
-        return None
 
     @staticmethod
     def _analysis_depth(move: MoveAnalysis) -> int | None:
@@ -293,19 +292,6 @@ class AnnotatedPGNExporter:
             if depth > 0:
                 return depth
         return None
-
-    @staticmethod
-    def _format_clock(seconds: float | None) -> str | None:
-        if seconds is None or seconds < 0:
-            return None
-        tenths = round(seconds * 10)
-        hours, remainder = divmod(tenths, 36_000)
-        minutes, remainder = divmod(remainder, 600)
-        whole_seconds, fractional = divmod(remainder, 10)
-        seconds_text = (
-            f"{whole_seconds:02d}.{fractional}" if fractional else f"{whole_seconds:02d}"
-        )
-        return f"{hours}:{minutes:02d}:{seconds_text}"
 
     @classmethod
     def _add_pv_variations(

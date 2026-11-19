@@ -29,6 +29,7 @@ from src.constants import (
 from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
+from src.utils.format_utils import format_count, format_percent
 from src.utils.path_utils import get_resource_path
 from src.utils.time_control import format_time_control
 
@@ -108,8 +109,8 @@ class ShareReportRenderer:
             f"- **Opening:** {opening}",
             (
                 "- **Accuracy:** "
-                f"White {_format_percent(white.get('accuracy'))}; "
-                f"Black {_format_percent(black.get('accuracy'))}"
+                f"White {format_percent(white.get('accuracy'))}; "
+                f"Black {format_percent(black.get('accuracy'))}"
             ),
             (
                 "- **ACPL:** "
@@ -120,8 +121,12 @@ class ShareReportRenderer:
             "**Move classifications**",
         ]
         for classification in _CLASSIFICATIONS:
-            white_count = _format_count(white.get(classification, 0))
-            black_count = _format_count(black.get(classification, 0))
+            white_count = format_count(
+                white.get(classification, 0), none_text="0", thousands=False
+            )
+            black_count = format_count(
+                black.get(classification, 0), none_text="0", thousands=False
+            )
             lines.append(
                 f"- {classification}: White {white_count}, Black {black_count}"
             )
@@ -326,7 +331,7 @@ class ShareReportRenderer:
         cls._draw_text(
             painter,
             QRectF(center_x - 38, center_y - 15, 76, 30),
-            _format_percent(value),
+            format_percent(value),
             16,
             Styles.COLOR_TEXT_PRIMARY,
             QFont.Weight.Bold,
@@ -480,7 +485,7 @@ class ShareReportRenderer:
             cls._draw_text(
                 painter,
                 QRectF(542, y, 95, 20),
-                _format_count(white.get(name, 0)),
+                format_count(white.get(name, 0), none_text="0", thousands=False),
                 12,
                 Styles.COLOR_TEXT_PRIMARY,
                 QFont.Weight.Bold,
@@ -489,7 +494,7 @@ class ShareReportRenderer:
             cls._draw_text(
                 painter,
                 QRectF(668, y, 95, 20),
-                _format_count(black.get(name, 0)),
+                format_count(black.get(name, 0), none_text="0", thousands=False),
                 12,
                 Styles.COLOR_TEXT_PRIMARY,
                 QFont.Weight.Bold,
@@ -658,18 +663,8 @@ def _finite_number(value) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def _format_percent(value) -> str:
-    number = _finite_number(value)
-    return f"{number:.1f}%" if number is not None else "--"
-
-
 def _format_number(value) -> str:
     number = _finite_number(value)
     if number is None:
         return "--"
     return str(round(number)) if number.is_integer() else f"{number:.1f}"
-
-
-def _format_count(value) -> str:
-    number = _finite_number(value)
-    return str(max(0, int(number))) if number is not None else "0"

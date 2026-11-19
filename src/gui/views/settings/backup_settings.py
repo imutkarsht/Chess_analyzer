@@ -19,10 +19,10 @@ from src.gui.views.settings.helpers import create_icon_button
 from src.gui.views.settings.storage_actions import (
     close_analyzer_cache,
     ensure_idle,
-    format_bytes,
     refresh_after_data_change,
 )
 from src.gui.views.settings.storage_card import StorageCard
+from src.utils.format_utils import format_bytes
 
 
 class BackupSettings(StorageCard):

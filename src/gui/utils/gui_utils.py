@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from src.utils.format_utils import format_clock
 from src.utils.path_utils import get_resource_path
 
 
@@ -56,23 +57,6 @@ def resolve_asset(filename: str) -> str:
         if os.path.exists(full_path):
             return full_path
     return None
-
-
-def get_user_color(game: dict, usernames: list) -> str:
-    """
-    Determines the user's color in a game based on configured usernames.
-
-    Args:
-        game: Game dictionary with 'white' and 'black' keys
-        usernames: List of usernames to check against
-
-    Returns:
-        'white' or 'black' depending on which player matches usernames
-    """
-    white = game.get('white', '').lower()
-    if white in [u.lower() for u in usernames]:
-        return 'white'
-    return 'black'
 
 
 # ============== Widget Factory Functions ==============
@@ -245,19 +229,6 @@ def is_error_message(text: str) -> bool:
     return bool(text) and text.lstrip().startswith("Error")
 
 
-def format_clock_duration(seconds: float) -> str:
-    """Format a clock duration in a compact human-readable form, e.g. 0:09:56."""
-    if seconds is None:
-        return "-"
-    seconds = max(0.0, float(seconds))
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = seconds - h * 3600 - m * 60
-    if h > 0:
-        return f"{h}:{m:02d}:{s:04.1f}"
-    return f"{m}:{s:04.1f}"
-
-
 def format_time_stats_for_llm(moves) -> str:
     """
     Build a compact, LLM-friendly summary of the move clocks.
@@ -331,8 +302,8 @@ def format_time_stats_for_llm(moves) -> str:
 
     lines.append(
         "Final clock — "
-        f"White: {format_clock_duration(last_time(True))}, "
-        f"Black: {format_clock_duration(last_time(False))}"
+        f"White: {format_clock(last_time(True), precision=1)}, "
+        f"Black: {format_clock(last_time(False), precision=1)}"
     )
 
     return "\n".join(lines)

@@ -3,7 +3,7 @@
 import chess
 from PyQt6.QtCore import QTimer
 
-from src.backend.analysis.variation_tree import canonical_fen
+from src.backend.analysis.chess_utils import canonical_fen
 from src.constants import COACH_LINE_INTERVAL_MS
 from src.utils.logger import logger
 
