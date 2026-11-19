@@ -3,14 +3,13 @@
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout
 
-from src.gui.components import SortableItem, SortableItemList
+from src.gui.components import Button, ButtonVariant, SortableItem, SortableItemList
 from src.gui.styles import Styles
 from src.gui.views.metrics.card_registry import (
     DEFAULT_CARD_ORDER,
     SORTABLE_BY_KEY,
     normalise_card_order,
 )
-from src.gui.views.settings.helpers import create_icon_button
 
 
 class DashboardLayoutSettings(QGroupBox):
@@ -36,9 +35,7 @@ class DashboardLayoutSettings(QGroupBox):
         self.sortable_list.order_changed.connect(self._on_order_changed)
         outer.addWidget(self.sortable_list)
 
-        self.reset_btn = create_icon_button(
-            "Reset order", "fa5s.undo", self.reset_order, self
-        )
+        self.reset_btn = Button('Reset order', ButtonVariant.FILLED, icon='fa5s.undo', on_click=self.reset_order, parent=self)
         row = QHBoxLayout()
         row.addWidget(self.reset_btn)
         row.addStretch(1)

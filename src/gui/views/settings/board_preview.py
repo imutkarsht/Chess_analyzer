@@ -10,6 +10,7 @@ from PyQt6.QtSvgWidgets import QSvgWidget
 
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.board.piece_themes import get_piece_defs
+from src.gui.board.svg_board import add_svg_rect, add_svg_use
 from src.gui.styles import Styles
 
 
@@ -43,29 +44,10 @@ def _svg_with_pieces(
     for row in range(squares):
         for column in range(squares):
             fill = colors["light"] if (row + column) % 2 == 0 else colors["dark"]
-            ET.SubElement(
-                svg,
-                "rect",
-                {
-                    "x": str(column * square),
-                    "y": str(row * square),
-                    "width": str(square),
-                    "height": str(square),
-                    "fill": fill,
-                },
-            )
+            add_svg_rect(svg, column * square, row * square, square, square, fill)
 
     for symbol, column, row in placements:
-        href = f"#{symbol}"
-        ET.SubElement(
-            svg,
-            "use",
-            {
-                "href": href,
-                "xlink:href": href,
-                "transform": f"translate({column * square}, {row * square})",
-            },
-        )
+        add_svg_use(svg, f"#{symbol}", column * square, row * square)
     return ET.tostring(svg, encoding="utf-8")
 
 

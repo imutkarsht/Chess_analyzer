@@ -14,10 +14,11 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import clear_layout
+from src.gui.views.metrics.lazy_view import LazyRenderView
 from src.gui.views.metrics.time.panels import IconTile
 
 
-class FormatsView(QWidget):
+class FormatsView(LazyRenderView):
     """Performance breakdown per speed category."""
 
     FORMAT_META: dict[str, tuple[str, str]] = {
@@ -30,28 +31,14 @@ class FormatsView(QWidget):
     }
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setStyleSheet("background: transparent;")
-        self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(10)
+        super().__init__(parent, spacing=10)
         self._formats: dict[str, dict] = {}
         self._has_clock = False
-        self._dirty = True
 
     def set_data(self, formats: dict[str, dict], has_clock: bool) -> None:
         self._formats = formats or {}
         self._has_clock = has_clock
         self._dirty = True
-
-    def mark_dirty(self) -> None:
-        self._dirty = True
-
-    def ensure_rendered(self) -> None:
-        if not self._dirty:
-            return
-        self._render()
-        self._dirty = False
 
     def _render(self) -> None:
         clear_layout(self._layout)

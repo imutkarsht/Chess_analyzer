@@ -35,7 +35,7 @@ from src.gui.components import (
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout, create_button, show_error_dialog
+from src.gui.utils.gui_utils import clear_layout, show_error_dialog
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -185,12 +185,7 @@ class AICoachCard(MetricCard):
 
         vbox.addSpacing(10)
 
-        btn_analyze = create_button(
-            "Generate Coach Insights",
-            style="primary",
-            on_click=self._generate_insights,
-            icon_name="fa5s.robot",
-        )
+        btn_analyze = Button('Generate Coach Insights', ButtonVariant.PRIMARY, icon='fa5s.robot', on_click=self._generate_insights)
         btn_analyze.setFixedWidth(220)
         btn_analyze.setFixedHeight(38)
         btn_analyze.setEnabled(total > 0)

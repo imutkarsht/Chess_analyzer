@@ -37,7 +37,6 @@ from src.gui.components.lists.game_list_widget import GameListWidget
 from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
-from src.gui.utils.gui_utils import create_button
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.history_batch import (
     BatchQueueCard,
@@ -312,10 +311,17 @@ class HistoryView(QWidget):
         header_layout.addWidget(self.btn_batch)
 
         # Action Buttons in Top Header (Import, Export, Clear, Refresh)
-        self.btn_import = self._create_icon_button("Import", "fa5s.file-import", self.import_games)
+        self.btn_import = Button(
+            "Import",
+            ButtonVariant.FILLED,
+            icon="fa5s.file-import",
+            on_click=self.import_games,
+        )
         header_layout.addWidget(self.btn_import)
 
-        self.btn_export = self._create_icon_button("Export", "fa5s.file-export", None)
+        self.btn_export = Button(
+            "Export", ButtonVariant.FILLED, icon="fa5s.file-export"
+        )
         self.export_menu = QMenu(self)
         self.export_menu.setStyleSheet(Styles.get_menu_style())
         self.export_csv_action = self.export_menu.addAction("Export CSV")
@@ -334,17 +340,16 @@ class HistoryView(QWidget):
         self.btn_cancel_export.setVisible(False)
         header_layout.addWidget(self.btn_cancel_export)
 
-        self.btn_clear = self._create_icon_button(
+        self.btn_clear = Button(
             "Delete all games",
-            "fa5s.trash-alt",
-            self.clear_history,
+            ButtonVariant.FILLED,
+            icon="fa5s.trash-alt",
             danger=True,
+            on_click=self.clear_history,
         )
         header_layout.addWidget(self.btn_clear)
 
-        self.btn_refresh = create_button(
-            "Refresh", style="secondary", on_click=self.load_history, icon_name="fa5s.sync-alt"
-        )
+        self.btn_refresh = Button('Refresh', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=self.load_history)
         header_layout.addWidget(self.btn_refresh)
 
         history_page_layout.addWidget(self.header_bar)
@@ -458,16 +463,6 @@ class HistoryView(QWidget):
     def _on_import_games_added(self, inserted: int, _skipped: int) -> None:
         if inserted:
             self.games_imported.emit(inserted)
-
-    def _create_icon_button(self, text, icon_name, callback=None, danger=False):
-        """Create a Button with a themed icon."""
-        return Button(
-            text,
-            ButtonVariant.FILLED,
-            icon=icon_name,
-            danger=danger,
-            on_click=callback,
-        )
 
     def _refresh_export_menu_icons(self):
         """Retint the export menu icons from the live palette."""

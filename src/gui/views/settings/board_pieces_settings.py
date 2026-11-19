@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import DEFAULT_BOARD_THEME
-from src.gui.components import Label, Tabs, TabVariant, TextRole, TextTone
+from src.gui.components import Button, ButtonVariant, Label, Tabs, TabVariant, TextRole, TextTone
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
@@ -27,7 +27,6 @@ from src.gui.views.settings.board_preview import (
     piece_theme_preview,
 )
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
-from src.gui.views.settings.helpers import create_icon_button
 
 
 class BoardPiecesSettings(QGroupBox):
@@ -93,9 +92,7 @@ class BoardPiecesSettings(QGroupBox):
         outer.addWidget(self.form)
         self._add_board_display_rows()
 
-        self.import_theme_btn = create_icon_button(
-            "Import Theme...", "fa5s.folder-open", self.import_theme, self
-        )
+        self.import_theme_btn = Button('Import Theme...', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=self.import_theme, parent=self)
         self.import_theme_btn.setMaximumWidth(170)
 
         self._build_board_buttons()

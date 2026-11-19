@@ -23,12 +23,11 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SettingSpec, get_spec
-from src.gui.components import Label, TextRole, TextTone
+from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
 from src.gui.components.controls.input import DecimalInput, Input, NumberInput
 from src.gui.components.controls.select import Select, SelectOption
 from src.gui.styles import Styles
 from src.gui.utils.assets import tick_icon_path
-from src.gui.views.settings.helpers import create_icon_button
 
 # Central size tokens for settings controls.
 CONTROL_NARROW = 120
@@ -490,18 +489,14 @@ class PathField(QWidget):
         self.line_edit.setMinimumWidth(min(320, input_width))
         layout.addWidget(self.line_edit, 1)
 
-        self.browse_btn = create_icon_button(
-            "Browse", "fa5s.folder-open", browse_callback, self
-        )
+        self.browse_btn = Button('Browse', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=browse_callback, parent=self)
         self.browse_btn.setMaximumWidth(120)
         self.browse_btn.setMinimumWidth(110)
         layout.addWidget(self.browse_btn)
 
         self.clear_btn = None
         if clear_callback is not None:
-            self.clear_btn = create_icon_button(
-                "Clear", "fa5s.times", clear_callback, self
-            )
+            self.clear_btn = Button('Clear', ButtonVariant.FILLED, icon='fa5s.times', on_click=clear_callback, parent=self)
             self.clear_btn.setMaximumWidth(100)
             self.clear_btn.setMinimumWidth(90)
             layout.addWidget(self.clear_btn)

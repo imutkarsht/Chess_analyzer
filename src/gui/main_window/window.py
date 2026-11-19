@@ -24,6 +24,8 @@ from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardConfig, BoardGameHeader, BoardPanel
 from src.gui.components import (
     BadgeVariant,
+    Button,
+    ButtonVariant,
     Label,
     LoadingOverlay,
     RichTextLabel,
@@ -50,7 +52,6 @@ from src.gui.resources import ResourceManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.utils.assets import app_logo_path
-from src.gui.utils.gui_utils import create_button
 from src.gui.views import HistoryView, SettingsView
 from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
 from src.gui.views.explorer import ExplorerView
@@ -535,32 +536,17 @@ class MainWindow(
         header_layout.addStretch()
 
         # Explore Button
-        self.btn_explore = create_button(
-            "Explore from here",
-            style="secondary",
-            on_click=self.explore_current_position,
-            icon_name="fa5s.compass",
-        )
+        self.btn_explore = Button('Explore from here', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self.explore_current_position)
         self.btn_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         header_layout.addWidget(self.btn_explore)
 
         # Load Game Button
-        self.btn_load = create_button(
-            "Load Game",
-            style="secondary",
-            on_click=lambda: self.open_load_dialog(),
-            icon_name="fa5s.folder-open",
-        )
+        self.btn_load = Button('Load Game', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=lambda: self.open_load_dialog())
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         header_layout.addWidget(self.btn_load)
 
         # Analyze Game Button
-        self.btn_analyze = create_button(
-            "Analyze Game",
-            style="primary",
-            on_click=lambda: self.start_analysis(),
-            icon_name="fa5s.play",
-        )
+        self.btn_analyze = Button('Analyze Game', ButtonVariant.PRIMARY, icon='fa5s.play', on_click=lambda: self.start_analysis())
         header_layout.addWidget(self.btn_analyze)
 
         main_layout.addWidget(self.analysis_header_bar)
@@ -627,22 +613,12 @@ class MainWindow(
         hero_actions.setSpacing(10)
         hero_actions.addStretch(1)
 
-        self.btn_hero_load = create_button(
-            "Load Game",
-            style="primary",
-            on_click=lambda: self.open_load_dialog(),
-            icon_name="fa5s.folder-open",
-        )
+        self.btn_hero_load = Button('Load Game', ButtonVariant.PRIMARY, icon='fa5s.folder-open', on_click=lambda: self.open_load_dialog())
         self.btn_hero_load.setFixedSize(140, 38)
         self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         hero_actions.addWidget(self.btn_hero_load)
 
-        self.btn_hero_paste = create_button(
-            "Paste PGN",
-            style="secondary",
-            on_click=self.paste_pgn_from_clipboard,
-            icon_name="fa5s.paste",
-        )
+        self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='fa5s.paste', on_click=self.paste_pgn_from_clipboard)
         self.btn_hero_paste.setFixedSize(130, 38)
         self.btn_hero_paste.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hero_paste.setToolTip("Load PGN text from the clipboard")
@@ -735,33 +711,18 @@ class MainWindow(
         hib_top.insertWidget(1, self._hib_turn)
 
         hib_top.addStretch()
-        self.btn_hib_reveal = create_button(
-            "Reveal",
-            style="ghost",
-            on_click=self._reveal_historic_move,
-            icon_name="fa5s.eye",
-        )
+        self.btn_hib_reveal = Button('Reveal', ButtonVariant.GHOST, icon='fa5s.eye', on_click=self._reveal_historic_move)
         self.btn_hib_reveal.setFixedHeight(30)
         self.btn_hib_reveal.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hib_reveal.setToolTip("Play the famous move on the board")
         hib_top.addWidget(self.btn_hib_reveal)
-        self.btn_hib_explore = create_button(
-            "Explore Position",
-            style="secondary",
-            on_click=self._explore_historic_position,
-            icon_name="fa5s.compass",
-        )
+        self.btn_hib_explore = Button('Explore Position', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self._explore_historic_position)
         self.btn_hib_explore.setFixedHeight(30)
         self.btn_hib_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hib_explore.setToolTip("Open this position in the Opening Explorer")
         self.btn_hib_explore.hide()
         hib_top.addWidget(self.btn_hib_explore)
-        self._btn_shuffle = create_button(
-            "Next Gem",
-            style="secondary",
-            on_click=self._load_random_historic_position,
-            icon_name="fa5s.random",
-        )
+        self._btn_shuffle = Button('Next Gem', ButtonVariant.FILLED, icon='fa5s.random', on_click=self._load_random_historic_position)
         self._btn_shuffle.setFixedHeight(30)
         self._btn_shuffle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         hib_top.addWidget(self._btn_shuffle)

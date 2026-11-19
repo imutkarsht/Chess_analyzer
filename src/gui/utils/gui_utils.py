@@ -1,7 +1,6 @@
 """
 Shared GUI utility functions and widget factories.
 """
-from collections.abc import Callable
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
@@ -34,50 +33,6 @@ def clear_layout(layout: QLayout) -> None:
             clear_layout(item.layout())
 
 
-# ============== Widget Factory Functions ==============
-
-def create_button(
-    text: str,
-    style: str = "primary",
-    on_click: Callable | None = None,
-    cursor: bool = True,
-    icon_name: str | None = None
-):
-    """
-    Factory kept for existing call sites; builds the central Button.
-
-    Args:
-        text: Button text
-        style: "primary", "secondary", "export", "import" or "danger"
-        on_click: Click handler callback
-        cursor: Whether to show pointer cursor on hover
-        icon_name: Optional icon name from qtawesome (e.g. "fa5s.save")
-
-    Returns:
-        Configured Button
-    """
-    from src.gui.components import Button, ButtonVariant
-
-    variants = {
-        "primary": ButtonVariant.PRIMARY,
-        "secondary": ButtonVariant.FILLED,
-        "export": ButtonVariant.FILLED,
-        "import": ButtonVariant.FILLED,
-        "ghost": ButtonVariant.GHOST,
-        "danger": ButtonVariant.PRIMARY,
-    }
-    btn = Button(
-        text,
-        variants.get(style, ButtonVariant.PRIMARY),
-        icon=icon_name,
-        danger=style == "danger",
-        on_click=on_click,
-    )
-    if not cursor:
-        btn.setCursor(Qt.CursorShape.ArrowCursor)
-    return btn
-
-
 def confirm_dialog(parent, title: str, message: str,
                    confirm_label: str = "Confirm",
                    cancel_label: str = "Cancel",
@@ -89,7 +44,7 @@ def confirm_dialog(parent, title: str, message: str,
     """
     from PyQt6.QtWidgets import QDialog, QHBoxLayout
 
-    from src.gui.components import Label, TextRole, TextTone
+    from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
     from src.gui.styles import Styles
 
     dlg = QDialog(parent)
@@ -122,11 +77,11 @@ def confirm_dialog(parent, title: str, message: str,
     btn_row = QHBoxLayout()
     btn_row.addStretch()
 
-    cancel_btn = create_button(cancel_label, style="secondary",
-                               on_click=dlg.reject)
-    confirm_btn = create_button(
+    cancel_btn = Button(cancel_label, ButtonVariant.FILLED, on_click=dlg.reject)
+    confirm_btn = Button(
         confirm_label,
-        style="danger" if danger else "primary",
+        ButtonVariant.PRIMARY,
+        danger=danger,
         on_click=dlg.accept,
     )
 
@@ -149,7 +104,6 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
     caller was a thread that outlived its view), this falls back to a
     top-level dialog and never raises.
     """
-    from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import QMessageBox
 
     # Drop a dead parent rather than letting QMessageBox crash on it.

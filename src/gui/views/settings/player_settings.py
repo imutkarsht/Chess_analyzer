@@ -10,7 +10,7 @@ from src.backend.api.import_limits import (
 from src.backend.api.import_limits import (
     current_token as configured_token,
 )
-from src.gui.components import Input, Label, TextRole, TextTone
+from src.gui.components import Button, ButtonVariant, Input, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.settings.background_card import BackgroundTaskCard
 from src.gui.views.settings.components import (
@@ -21,7 +21,6 @@ from src.gui.views.settings.components import (
     make_line_edit,
     make_select,
 )
-from src.gui.views.settings.helpers import create_icon_button
 from src.gui.views.settings.modern_widgets import ModernSliderCounter
 from src.gui.views.settings.profile_preview import ProfilePreview
 
@@ -134,9 +133,7 @@ class LichessCard(_ProfileCard):
         self.lichess_token_input.setMaximumWidth(420)
         self.lichess_token_input.setPlaceholderText("lip_… (optional)")
 
-        self.validate_token_btn = create_icon_button(
-            "Validate", "fa5s.key", self._validate_token, self
-        )
+        self.validate_token_btn = Button('Validate', ButtonVariant.FILLED, icon='fa5s.key', on_click=self._validate_token, parent=self)
         self.validate_token_btn.setToolTip(
             "Check the token against your Lichess account."
         )

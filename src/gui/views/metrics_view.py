@@ -29,7 +29,7 @@ from src.gui.components import (
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout, create_button
+from src.gui.utils.gui_utils import clear_layout
 from src.gui.utils.worker_registry import register_worker, remove_worker
 
 # Import modular cards directly; the package facade stays Matplotlib-free for
@@ -151,12 +151,7 @@ class MetricsWidget(QWidget):
 
         header_layout.addStretch()
 
-        self.btn_refresh = create_button(
-            "Refresh",
-            style="secondary",
-            on_click=lambda: self.refresh(force=True),
-            icon_name="fa5s.sync-alt",
-        )
+        self.btn_refresh = Button('Refresh', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=lambda: self.refresh(force=True))
         header_layout.addWidget(self.btn_refresh)
 
         self.main_layout.addWidget(self.header_bar)
@@ -207,9 +202,7 @@ class MetricsWidget(QWidget):
             filter_layout.addSpacing(10)
 
         # Reset button
-        self.btn_reset_filters = create_button(
-            "Reset", style="secondary", on_click=self.reset_filters, icon_name="fa5s.undo"
-        )
+        self.btn_reset_filters = Button('Reset', ButtonVariant.FILLED, icon='fa5s.undo', on_click=self.reset_filters)
         filter_layout.addWidget(self.btn_reset_filters)
 
         filter_layout.addStretch()

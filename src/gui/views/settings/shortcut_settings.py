@@ -4,10 +4,9 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.constants import SHORTCUT_PRESET_LABELS
-from src.gui.components import Label, TextRole, TextTone
+from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
-from src.gui.views.settings.helpers import create_icon_button
 
 
 class ShortcutSettings(QGroupBox):
@@ -48,9 +47,7 @@ class ShortcutSettings(QGroupBox):
         )
         layout.addWidget(self.form)
 
-        self.help_btn = create_icon_button(
-            "View All Shortcuts", "fa5s.keyboard", self._open_help, self
-        )
+        self.help_btn = Button('View All Shortcuts', ButtonVariant.FILLED, icon='fa5s.keyboard', on_click=self._open_help, parent=self)
         self.help_btn.setMaximumWidth(200)
         layout.addWidget(self.help_btn)
         layout.addStretch(1)

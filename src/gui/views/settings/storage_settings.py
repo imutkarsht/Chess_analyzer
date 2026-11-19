@@ -4,11 +4,10 @@
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from src.backend.storage.stats import StorageStats, collect_storage_stats
-from src.gui.components import Label, TextRole
+from src.gui.components import Button, ButtonVariant, Label, TextRole
 from src.gui.styles import Styles
 from src.gui.utils.links import open_path
 from src.gui.views.settings.components import SettingsForm
-from src.gui.views.settings.helpers import create_icon_button
 from src.gui.views.settings.storage_card import StorageCard
 from src.utils.format_utils import format_bytes, format_count
 from src.utils.path_utils import get_user_data_dir
@@ -44,12 +43,8 @@ class StorageSettings(StorageCard):
             self.stat_labels[key] = value
             self.form.add_row(label, value, hint="", width=None)
 
-        self.refresh_btn = create_icon_button(
-            "Refresh", "fa5s.sync-alt", self.refresh_stats, self
-        )
-        self.open_folder_btn = create_icon_button(
-            "Open Data Folder", "fa5s.folder-open", self.open_data_folder, self
-        )
+        self.refresh_btn = Button('Refresh', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=self.refresh_stats, parent=self)
+        self.open_folder_btn = Button('Open Data Folder', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=self.open_data_folder, parent=self)
         for btn in (self.refresh_btn, self.open_folder_btn):
             btn.setMaximumWidth(180)
 
