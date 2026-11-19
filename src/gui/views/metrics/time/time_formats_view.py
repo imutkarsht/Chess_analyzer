@@ -13,7 +13,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout
+from src.gui.utils.layout import clear_layout
 from src.gui.views.metrics.lazy_view import LazyRenderView
 from src.gui.views.metrics.time.panels import IconTile
 

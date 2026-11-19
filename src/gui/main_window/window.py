@@ -26,19 +26,20 @@ from src.gui.components import (
     BadgeVariant,
     Button,
     ButtonVariant,
+    FadedStackedWidget,
     Label,
     LoadingOverlay,
     RichTextLabel,
+    Sidebar,
     StatusBadge,
     TextRole,
     TextTone,
+    ToastManager,
+    TourManager,
+    TourOverlay,
+    WelcomePanel,
+    confirm_dialog,
 )
-from src.gui.components.feedback.toast import ToastManager
-from src.gui.components.layout.sidebar import Sidebar
-from src.gui.components.layout.tour_manager import TourManager
-from src.gui.components.layout.tour_overlay import TourOverlay
-from src.gui.components.layout.transition_stack import FadedStackedWidget
-from src.gui.components.layout.welcome_panel import WelcomePanel
 from src.gui.main_window.analysis_mixin import AnalysisMixin
 from src.gui.main_window.batch_mixin import BatchAnalysisMixin
 from src.gui.main_window.game_loading_mixin import GameLoadingMixin
@@ -299,8 +300,6 @@ class MainWindow(
             getattr(self, "worker", None) and self.worker.isRunning()
         )
         if batch_running or single_running:
-            from src.gui.utils.gui_utils import confirm_dialog
-
             message = (
                 "A batch analysis is still running. If you exit now, the current "
                 "game will be saved as paused and the batch will be paused. You can "

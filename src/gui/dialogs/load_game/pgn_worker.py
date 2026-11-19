@@ -11,13 +11,8 @@ from src.backend.storage.pgn_parser import (
     PGNParsingCancelledError,
     PGNTooManyGamesError,
 )
+from src.utils.format_utils import format_bytes
 from src.utils.logger import logger
-
-
-def _format_size(size_bytes: int) -> str:
-    if size_bytes >= 1024 * 1024:
-        return f"{size_bytes / (1024 * 1024):.1f} MB"
-    return f"{size_bytes / 1024:.0f} KB"
 
 
 class PgnIndexWorker(QThread):
@@ -54,8 +49,8 @@ class PgnIndexWorker(QThread):
         except PGNFileTooLargeError as exc:
             logger.warning("PGN index rejected oversized file: %s", self._path)
             self.failed.emit(
-                f"This PGN is {_format_size(exc.size_bytes)}. "
-                f"The limit is {_format_size(exc.limit_bytes)}. "
+                f"This PGN is {format_bytes(exc.size_bytes)}. "
+                f"The limit is {format_bytes(exc.limit_bytes)}. "
                 "Split it into smaller files and try again."
             )
         except PGNTooManyGamesError as exc:

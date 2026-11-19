@@ -29,7 +29,7 @@ from src.gui.components import (
 from src.gui.metrics.drill_down_view import DrillDownView
 from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout
+from src.gui.utils.layout import clear_layout
 from src.gui.utils.worker_registry import register_worker, remove_worker
 
 # Import modular cards directly; the package facade stays Matplotlib-free for

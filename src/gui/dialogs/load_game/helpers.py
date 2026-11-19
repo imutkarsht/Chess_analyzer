@@ -2,24 +2,13 @@
 Helper utilities for the Load Game dialog panels.
 """
 
-import datetime
-
+from src.utils.date_utils import format_display_date
 from src.utils.time_control import classify_time_control
 
 __all__ = [
     "classify_time_control",
-    "format_display_date",
     "game_row",
 ]
-def format_display_date(value: str | None) -> str:
-    """Render API/PGN dates in the same human format as the query summary."""
-    if not value or value in ("?", "????.??.??", "????-??-??"):
-        return "Unknown date"
-    text = str(value).replace(".", "-")
-    try:
-        return datetime.datetime.strptime(text, "%Y-%m-%d").strftime("%b %d, %Y")
-    except ValueError:
-        return str(value)
 
 
 def game_row(

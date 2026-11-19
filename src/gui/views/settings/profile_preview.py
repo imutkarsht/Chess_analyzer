@@ -7,7 +7,6 @@ falls back to the cached row so the page still works offline.
 
 from __future__ import annotations
 
-import re
 import time
 from dataclasses import dataclass
 from urllib.parse import quote
@@ -39,7 +38,9 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.gui.views.settings.background_worker import BackgroundTaskWorker
+from src.utils.date_utils import format_cache_age
 from src.utils.logger import logger
+from src.utils.text_utils import country_flag, initials_for
 
 AVATAR_SIZE = 56
 ACTIVE_PROFILE_WORKERS: set[BackgroundTaskWorker] = set()
@@ -153,46 +154,6 @@ def load_profile(
         # Keep the last known profile visible; the card labels it as offline.
         return _from_cache(result.status, cached, username)
     return ProfileLoad(result.status, username)
-
-
-def format_cache_age(fetched_at: float, now: float | None = None) -> str:
-    """Human-readable age for a profile snapshot."""
-    if not fetched_at:
-        return ""
-    now = time.time() if now is None else now
-    seconds = max(0, now - fetched_at)
-    if seconds < 90:
-        return "just now"
-
-    minutes = int(seconds // 60)
-    if minutes < 60:
-        return f"{minutes} min ago"
-
-    hours = int(seconds // 3600)
-    if hours < 24:
-        return f"{hours} hr ago" if hours == 1 else f"{hours} hrs ago"
-
-    days = int(seconds // 86400)
-    if days < 30:
-        return f"{days} day ago" if days == 1 else f"{days} days ago"
-    return time.strftime("%d %b %Y", time.localtime(fetched_at))
-
-
-def country_flag(code: str | None) -> str:
-    """Turn an ISO country code into a flag emoji without shipping assets."""
-    if not code or len(code) != 2 or not code.isalpha():
-        return ""
-    return "".join(chr(0x1F1E6 + ord(char.upper()) - ord("A")) for char in code)
-
-
-def initials_for(name: str) -> str:
-    """Two-letter avatar fallback that tolerates underscores and dots."""
-    parts = [part for part in re.split(r"[\s_.\-]+", (name or "").strip()) if part]
-    if not parts:
-        return "?"
-    if len(parts) == 1:
-        return parts[0][:2].upper()
-    return (parts[0][0] + parts[-1][0]).upper()
 
 
 def status_message(status: ApiStatus, platform: str, username: str) -> str:

@@ -22,10 +22,11 @@ from src.gui.components import (
     Select,
     TextRole,
     TextTone,
+    ToastManager,
+    confirm_dialog,
+    show_error_dialog,
 )
-from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import show_error_dialog
 from src.gui.utils.links import open_url
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.settings.components import (
@@ -509,7 +510,6 @@ class ApiSettings(QGroupBox):
         if not (0 <= idx < len(profiles)):
             return
         name = profiles[idx].get("name", "")
-        from src.gui.utils.gui_utils import confirm_dialog
         if not confirm_dialog(self, "Delete Profile",
                               f'Delete profile "{name}"?',
                               confirm_label="Delete"):

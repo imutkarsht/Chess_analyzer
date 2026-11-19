@@ -21,6 +21,7 @@ from src.constants import (
     WEBSITE_URL,
 )
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.dialogs import open_feedback_dialog
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.feedback.status_badge import StatusBadge
@@ -178,8 +179,16 @@ class WelcomePanel(QFrame):
         links.addStretch(1)
 
         util_specs = [
-            ("Report Issue", "fa5s.bug", self._open_report_issue),
-            ("Suggest Feature", "fa5s.lightbulb", self._open_suggest_feature),
+            (
+                "Report Issue",
+                "fa5s.bug",
+                lambda: open_feedback_dialog(self, initial_tab="bug"),
+            ),
+            (
+                "Suggest Feature",
+                "fa5s.lightbulb",
+                lambda: open_feedback_dialog(self, initial_tab="feature"),
+            ),
             ("About", "fa5s.info-circle", self._open_about),
             ("Website", "fa5s.globe", self._open_website),
         ]
@@ -232,18 +241,6 @@ class WelcomePanel(QFrame):
         from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
 
         dialog = ReviewPromptDialog(self, games_count=0)
-        dialog.exec()
-
-    def _open_report_issue(self) -> None:
-        from src.gui.dialogs.feedback_dialog import FeedbackDialog
-
-        dialog = FeedbackDialog(self, initial_tab="bug")
-        dialog.exec()
-
-    def _open_suggest_feature(self) -> None:
-        from src.gui.dialogs.feedback_dialog import FeedbackDialog
-
-        dialog = FeedbackDialog(self, initial_tab="feature")
         dialog.exec()
 
     def _open_about(self) -> None:

@@ -5,7 +5,14 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.gui.components import IconLabel, Label, MiniBar, StatusBadge, TextRole, TextTone
+from src.gui.components import (
+    IconLabel,
+    Label,
+    MiniBar,
+    StatusBadge,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 

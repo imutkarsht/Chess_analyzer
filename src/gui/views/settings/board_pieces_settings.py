@@ -16,8 +16,16 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import DEFAULT_BOARD_THEME
-from src.gui.components import Button, ButtonVariant, Label, Tabs, TabVariant, TextRole, TextTone
-from src.gui.components.feedback.toast import ToastManager
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Label,
+    Tabs,
+    TabVariant,
+    TextRole,
+    TextTone,
+    ToastManager,
+)
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
 from src.gui.utils.assets import tick_icon_path

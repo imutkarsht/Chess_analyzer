@@ -13,8 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.storage.game_history import GameHistoryManager
-from src.gui.components import EmptyState
-from src.gui.components.feedback.toast import ToastManager
+from src.gui.components import EmptyState, ToastManager
 from src.gui.import_workspace.action_bar import ImportActionBar
 from src.gui.import_workspace.batch import GameBatch, GameCandidate
 from src.gui.import_workspace.boards import MiniBoardFenWorker, MiniBoardPosition

@@ -23,9 +23,18 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SettingSpec, get_spec
-from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
-from src.gui.components.controls.input import DecimalInput, Input, NumberInput
-from src.gui.components.controls.select import Select, SelectOption
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    DecimalInput,
+    Input,
+    Label,
+    NumberInput,
+    Select,
+    SelectOption,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.gui.utils.assets import tick_icon_path
 

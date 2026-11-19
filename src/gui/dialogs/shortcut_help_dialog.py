@@ -20,6 +20,7 @@ from src.gui.components import (
     StatusBadge,
     TextRole,
     TextTone,
+    open_feedback_dialog,
 )
 from src.gui.styles import Styles
 
@@ -161,7 +162,7 @@ class ShortcutHelpDialog(QDialog):
             "Report Bug / Feedback",
             ButtonVariant.FILLED,
             icon="fa5s.comment-dots",
-            on_click=self._open_feedback,
+            on_click=lambda: open_feedback_dialog(self, initial_tab="bug"),
         )
 
         # Close button
@@ -195,12 +196,6 @@ class ShortcutHelpDialog(QDialog):
             ]
         )
         return grouped
-
-    def _open_feedback(self):
-        from src.gui.dialogs.feedback_dialog import FeedbackDialog
-
-        dialog = FeedbackDialog(self, initial_tab="bug")
-        dialog.exec()
 
     def _create_shortcut_row(self, key, description):
         """Create a compact row with key badge and description."""

@@ -30,8 +30,8 @@ from src.gui.components import (
     TabVariant,
     TextRole,
     TextTone,
+    ToastManager,
 )
-from src.gui.components.feedback.toast import ToastManager
 from src.gui.dialogs.load_game.api_worker import ApiWorker, register_worker, remove_worker
 from src.gui.import_workspace import GameBatch
 from src.gui.styles import Styles

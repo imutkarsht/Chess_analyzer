@@ -26,9 +26,15 @@ from src.backend.models.analysis_batch import (
 )
 from src.gui.analysis.batch_analysis_worker import BatchAnalysisWorker
 from src.gui.analysis.coordinator import AnalysisCoordinator
-from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Label,
+    TextRole,
+    TextTone,
+    confirm_dialog,
+)
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import confirm_dialog
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.history_batch import UpNextEntry
 from src.utils.logger import logger

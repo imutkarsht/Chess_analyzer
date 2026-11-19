@@ -144,7 +144,7 @@ def test_select_page_confirmation_counts_and_delete_guards(
 
     messages = []
     monkeypatch.setattr(
-        "src.gui.utils.gui_utils.confirm_dialog",
+        "src.gui.views.history_view.confirm_dialog",
         lambda _parent, _title, message, **_kwargs: messages.append(message) or True,
     )
     emitted = []

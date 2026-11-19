@@ -1,6 +1,5 @@
 from src.backend.analysis.engine import resolve_engine_path
-from src.gui.components import TextTone
-from src.gui.components.feedback.toast import ToastManager
+from src.gui.components import TextTone, ToastManager
 
 
 class StatusBarMixin:

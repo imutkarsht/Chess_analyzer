@@ -32,20 +32,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.gui.tactics_meta import motif_meta
-
-_CLASSIFICATION_TONES: dict[str, str] = {
-    "brilliant": "brilliant",
-    "great": "great",
-    "best": "best",
-    "excellent": "excellent",
-    "good": "good",
-    "inaccuracy": "inaccuracy",
-    "mistake": "mistake",
-    "blunder": "blunder",
-    "miss": "miss",
-    "book": "book",
-}
+from src.gui.tactics_meta import classification_tone, motif_meta
 
 _PIECE_ICONS: dict[str, str] = {
     "pawn": "fa5s.chess-pawn",
@@ -147,7 +134,7 @@ class TacticRow(QFrame):
             classification = Label(
                 self.entry.classification,
                 role=TextRole.MICRO_STRONG,
-                tone=_classification_tone(self.entry.classification),
+                tone=classification_tone(self.entry.classification),
             )
             classification.setAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
@@ -451,10 +438,6 @@ def _secondary_text(entry: GameTacticEntry) -> str:
         return entry.summary
     meta = motif_meta(entry.motif)
     return meta.label + (f" · {entry.summary}" if entry.summary else "")
-
-
-def _classification_tone(classification: str) -> str:
-    return _CLASSIFICATION_TONES.get(classification.lower(), TextTone.SECONDARY.value)
 
 
 __all__ = ["TacticRow", "TacticsTab"]

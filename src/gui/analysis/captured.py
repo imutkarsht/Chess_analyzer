@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy, QWidget
 
 from src.gui.components import ChipLabel, ClockLabel
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout
+from src.gui.utils.layout import clear_layout
 from src.utils.format_utils import format_clock
 
 

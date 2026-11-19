@@ -7,7 +7,7 @@ cards cannot drift apart.
 import chess
 
 from src.backend.models.analysis_batch import BATCH_PAUSED, BATCH_RUNNING
-from src.gui.components.feedback.toast import ToastManager
+from src.gui.components import ToastManager
 from src.utils.logger import logger
 
 __all__ = [

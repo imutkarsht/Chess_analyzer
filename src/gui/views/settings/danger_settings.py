@@ -3,9 +3,8 @@
 from PyQt6.QtWidgets import QVBoxLayout
 
 from src.backend.storage.game_history import GameHistoryManager
-from src.gui.components import Button, ButtonVariant
+from src.gui.components import Button, ButtonVariant, confirm_dialog
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import confirm_dialog
 from src.gui.views.settings.components import SettingsForm
 from src.gui.views.settings.storage_actions import (
     close_analyzer_cache,

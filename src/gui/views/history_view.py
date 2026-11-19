@@ -29,11 +29,13 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    GameListWidget,
     Label,
     TextRole,
+    ToastHandle,
+    ToastManager,
+    confirm_dialog,
 )
-from src.gui.components.feedback.toast import ToastHandle, ToastManager
-from src.gui.components.lists.game_list_widget import GameListWidget
 from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
@@ -620,8 +622,6 @@ class HistoryView(QWidget):
             else:
                 analyze += 1
 
-        from src.gui.utils.gui_utils import confirm_dialog
-
         noun = "game" if len(valid_ids) == 1 else "games"
         message = (
             f"Analyze {len(valid_ids)} selected {noun}?\n\n"
@@ -1100,8 +1100,6 @@ class HistoryView(QWidget):
             )
             return
 
-        from src.gui.utils.gui_utils import confirm_dialog
-
         if not confirm_dialog(
             self,
             "Delete Game",
@@ -1184,8 +1182,6 @@ class HistoryView(QWidget):
                 self, "Pause or cancel the running batch before deleting all games."
             )
             return
-
-        from src.gui.utils.gui_utils import confirm_dialog
 
         if confirm_dialog(
             self,
