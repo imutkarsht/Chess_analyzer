@@ -3,23 +3,14 @@ Helper utilities for the Load Game dialog panels.
 """
 
 import datetime
-import os
 
-from src.utils.path_utils import get_resource_path
 from src.utils.time_control import classify_time_control
 
 __all__ = [
     "classify_time_control",
     "format_display_date",
     "game_row",
-    "icon_path",
 ]
-
-
-def icon_path(filename: str) -> str:
-    return get_resource_path(os.path.join("assets", "icons", filename))
-
-
 def format_display_date(value: str | None) -> str:
     """Render API/PGN dates in the same human format as the query summary."""
     if not value or value in ("?", "????.??.??", "????-??-??"):

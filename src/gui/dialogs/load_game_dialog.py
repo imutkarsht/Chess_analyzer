@@ -28,7 +28,7 @@ from src.gui.components import (
 )
 from src.gui.dialogs.load_game import OnlineFetchPanel, PgnFilePanel, PgnTextPanel
 from src.gui.styles import Styles
-from src.utils.path_utils import get_resource_path
+from src.gui.utils.assets import asset_path
 
 __all__ = [
     "LoadGameDialog",
@@ -125,7 +125,7 @@ class LoadGameDialog(QDialog):
         self.tabs.add_tab("Online", icon="fa5s.globe")
         self.tabs.add_tab(
             "PGN",
-            icon=QIcon(get_resource_path("assets/icons/file.png")),
+            icon=QIcon(asset_path("assets/icons/file.png")),
         )
         self.tabs.current_changed.connect(self._on_tab_index_changed)
         self.tabs.setFixedHeight(44)

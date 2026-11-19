@@ -21,16 +21,15 @@ from PyQt6.QtSvg import QSvgRenderer
 
 from src.backend.storage.models import GameAnalysis
 from src.constants import (
-    APP_LOGO_PATH,
     APP_VERSION,
     DEFAULT_BOARD_THEME,
     WEBSITE_URL,
 )
 from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
+from src.gui.utils.assets import app_logo_path
 from src.utils.config import ConfigManager
 from src.utils.format_utils import format_count, format_percent
-from src.utils.path_utils import get_resource_path
 from src.utils.time_control import format_time_control
 
 _CLASSIFICATIONS = (
@@ -169,7 +168,7 @@ class ShareReportRenderer:
     @classmethod
     def _draw_matchup(cls, painter: QPainter, game: GameAnalysis) -> None:
         metadata = game.metadata
-        logo_path = get_resource_path(APP_LOGO_PATH)
+        logo_path = app_logo_path()
         renderer = QSvgRenderer(logo_path)
         if renderer.isValid():
             # Render the complete vector logo directly at badge size instead of

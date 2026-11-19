@@ -55,6 +55,7 @@ from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.resources import ResourceManager
 from src.gui.share import ShareReportDialog, ShareReportRenderer
 from src.gui.styles import Styles
+from src.gui.utils.assets import tick_icon_path
 from src.gui.utils.gui_utils import (
     clear_layout,
     format_time_stats_for_llm,
@@ -64,7 +65,6 @@ from src.gui.utils.gui_utils import (
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
 
 # Tabs that only make sense once the game has analysis results.
 _TABS_REQUIRING_ANALYSIS = (1, 2, 3)
@@ -835,7 +835,7 @@ class AnalysisPanel(QWidget):
             self._update_summary(self.current_game.summary)
 
     def _apply_toggle_style(self):
-        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        tick_path = tick_icon_path()
         cb_style = Styles.get_checkbox_style(tick_path)
         if hasattr(self, "toggle_checkbox"):
             self.toggle_checkbox.setStyleSheet(cb_style)

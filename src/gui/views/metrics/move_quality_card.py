@@ -7,8 +7,9 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy
 
 from src.gui.components import LegendList
+from src.gui.resources import CLASSIFICATION_ICONS
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import resolve_asset
+from src.gui.utils.assets import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
 
 
@@ -43,19 +44,6 @@ class MoveQualityCard(MetricCard):
             "Mistake": Styles.COLOR_MISTAKE,
             "Miss": Styles.COLOR_MISS,
             "Blunder": Styles.COLOR_BLUNDER,
-        }
-
-        icon_map = {
-            "Brilliant": "brilliant.svg",
-            "Great": "great_find.svg",
-            "Best": "best_v2.svg",
-            "Excellent": "excellent.svg",
-            "Good": "good.svg",
-            "Book": "book.svg",
-            "Inaccuracy": "inaccuracy.svg",
-            "Mistake": "mistake.svg",
-            "Miss": "missed_win.svg",
-            "Blunder": "blunder.svg",
         }
 
         labels = []
@@ -124,7 +112,7 @@ class MoveQualityCard(MetricCard):
             if v == 0:
                 continue
 
-            icon_file = icon_map.get(k, f"{k.lower()}.svg")
+            icon_file = CLASSIFICATION_ICONS.get(k, f"{k.lower()}.svg")
             icon_path = resolve_asset(icon_file)
             pixmap = None
 

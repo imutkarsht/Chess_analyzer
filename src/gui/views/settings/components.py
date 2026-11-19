@@ -27,8 +27,8 @@ from src.gui.components import Label, TextRole, TextTone
 from src.gui.components.controls.input import DecimalInput, Input, NumberInput
 from src.gui.components.controls.select import Select, SelectOption
 from src.gui.styles import Styles
+from src.gui.utils.assets import tick_icon_path
 from src.gui.views.settings.helpers import create_icon_button
-from src.utils.path_utils import get_resource_path
 
 # Central size tokens for settings controls.
 CONTROL_NARROW = 120
@@ -43,10 +43,6 @@ _UNSET = object()
 
 # Returned by widget readers when a value cannot be parsed.
 _INVALID = object()
-
-
-def _tick_path() -> str:
-    return get_resource_path("assets/images/tick.svg").replace("\\", "/")
 
 
 class SettingsForm(QWidget):
@@ -161,7 +157,7 @@ def make_select(max_width: int = CONTROL_DEFAULT) -> Select:
 
 def make_checkbox(text: str, max_width: int | None = None) -> QCheckBox:
     box = QCheckBox(text)
-    box.setStyleSheet(Styles.get_settings_checkbox_style(_tick_path()))
+    box.setStyleSheet(Styles.get_settings_checkbox_style(tick_icon_path()))
     box.setCursor(Qt.CursorShape.PointingHandCursor)
     if max_width is not None:
         box.setMaximumWidth(max_width)

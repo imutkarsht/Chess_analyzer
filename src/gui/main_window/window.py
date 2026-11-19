@@ -18,7 +18,6 @@ from src.backend.analysis.chess_utils import position_key
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
-from src.constants import APP_LOGO_PATH
 from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
@@ -50,13 +49,13 @@ from src.gui.main_window.variation_mixin import VariationMixin
 from src.gui.resources import ResourceManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.utils.assets import app_logo_path
 from src.gui.utils.gui_utils import create_button
 from src.gui.views import HistoryView, SettingsView
 from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
 from src.gui.views.explorer import ExplorerView
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
 
 
 def _stop_thread(thread, timeout: int | None = None, signals: tuple = ()):
@@ -125,7 +124,7 @@ class MainWindow(
         self._restore_window_state()
 
         # Set Window Icon
-        icon_path = get_resource_path(APP_LOGO_PATH)
+        icon_path = app_logo_path()
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 

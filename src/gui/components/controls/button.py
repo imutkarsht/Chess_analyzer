@@ -21,12 +21,12 @@ from PyQt6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.utils.icons import HAS_QTAWESOME
 
 try:
     import qtawesome as qta
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
+    qta = None
 
 
 class ButtonVariant(StrEnum):

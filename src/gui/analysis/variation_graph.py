@@ -30,15 +30,13 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.format_utils import format_eval
 
 try:
     import qtawesome as qta
-
-    HAS_QTAWESOME = True
 except ImportError:  # pragma: no cover - exercised only on broken installs
     qta = None
-    HAS_QTAWESOME = False
 
 COL_W = 58
 LANE_H = 30

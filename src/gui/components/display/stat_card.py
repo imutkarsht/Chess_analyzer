@@ -13,7 +13,7 @@ from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
-from src.gui.utils.gui_utils import resolve_asset  # Use shared utility
+from src.gui.utils.assets import resolve_asset
 
 
 class StatCard(QFrame):

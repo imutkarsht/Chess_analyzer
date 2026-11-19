@@ -1,7 +1,6 @@
 """
 Shared GUI utility functions and widget factories.
 """
-import os
 from collections.abc import Callable
 
 from PyQt6.QtCore import Qt
@@ -11,7 +10,6 @@ from PyQt6.QtWidgets import (
 )
 
 from src.utils.format_utils import format_clock
-from src.utils.path_utils import get_resource_path
 
 
 def clear_layout(layout: QLayout) -> None:
@@ -34,29 +32,6 @@ def clear_layout(layout: QLayout) -> None:
             widget.deleteLater()
         elif item.layout():
             clear_layout(item.layout())
-
-
-def resolve_asset(filename: str) -> str:
-    """
-    Robustly find assets using the project's standard resource resolver.
-
-    Args:
-        filename: Asset filename (with or without extension)
-
-    Returns:
-        Absolute path to asset, or None if not found
-    """
-    candidates = [
-        os.path.join("assets", "images", filename),
-        os.path.join("assets", "icons", filename),
-        os.path.join("assets", filename)
-    ]
-
-    for rel_path in candidates:
-        full_path = get_resource_path(rel_path)
-        if os.path.exists(full_path):
-            return full_path
-    return None
 
 
 # ============== Widget Factory Functions ==============

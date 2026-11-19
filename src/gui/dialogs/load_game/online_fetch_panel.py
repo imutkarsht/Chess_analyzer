@@ -36,8 +36,8 @@ from src.gui.dialogs.load_game.api_worker import ApiWorker, register_worker, rem
 from src.gui.import_workspace import GameBatch
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.utils.assets import asset_path
 from src.utils.config import ConfigManager
-from src.utils.path_utils import get_resource_path
 
 try:
     import qtawesome as qta
@@ -83,7 +83,7 @@ class SegmentedSelector(QWidget):
     def _icon_spec(icon_name: str):
         """Asset paths become QIcons; anything else is a themed icon name."""
         if icon_name.startswith("assets/") or "/" in icon_name:
-            return QIcon(get_resource_path(icon_name))
+            return QIcon(asset_path(icon_name))
         return icon_name
 
     def _on_tab_changed(self, index: int) -> None:

@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
 
 from src.constants import (
     ABOUT_URL,
-    APP_LOGO_PATH,
     APP_VERSION,
     GITHUB_REPO_URL,
     WEBSITE_URL,
@@ -28,7 +27,7 @@ from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
-from src.utils.path_utils import get_resource_path
+from src.gui.utils.assets import app_logo_path
 
 
 class WelcomePanel(QFrame):
@@ -79,7 +78,7 @@ class WelcomePanel(QFrame):
 
         # ── Logo ──────────────────────────────────────────────────────────
         self.logo_label = IconLabel(size=72)
-        logo_path = get_resource_path(APP_LOGO_PATH)
+        logo_path = app_logo_path()
         if os.path.exists(logo_path):
             self.logo_label.set_icon(QIcon(logo_path))
         card_layout.addWidget(

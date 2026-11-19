@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.theme.palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
 from src.gui.theme.system import OSThemeWatcher, get_system_accent
+from src.gui.utils.assets import tick_icon_path
 
 
 @dataclass
@@ -139,7 +140,7 @@ class ThemeManager(QObject):
                 template = f.read()
 
             p = cls._palette
-            tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+            tick_path = tick_icon_path()
 
             template_qss = template.format(
                 BACKGROUND=p.background,

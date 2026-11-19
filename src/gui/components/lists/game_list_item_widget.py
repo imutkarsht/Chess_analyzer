@@ -27,16 +27,14 @@ from src.gui.components.display.rich_text import RichTextLabel
 from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
+from src.gui.utils.assets import asset_path, icon_path, tick_icon_path
+from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
 from src.utils.time_control import classify_time_control, format_time_control
 
 try:
     import qtawesome as qta
-
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
     logger.warning("qtawesome not installed. Using text fallbacks for icons.")
 
 
@@ -335,9 +333,9 @@ class GameListItemWidget(QWidget):
             opening_layout.setSpacing(6)
 
             book_icon = IconLabel(size=14)
-            icon_path = get_resource_path("assets/images/book.svg")
-            if os.path.exists(icon_path):
-                book_icon.set_icon(QIcon(icon_path))
+            book_path = asset_path("assets/images/book.svg")
+            if os.path.exists(book_path):
+                book_icon.set_icon(QIcon(book_path))
             elif HAS_QTAWESOME:
                 book_icon.set_icon("fa5s.book-open")
             opening_layout.addWidget(book_icon)
@@ -522,10 +520,9 @@ class GameListItemWidget(QWidget):
                 checkbox.setAccessibleName(
                     f"Select {self._game.metadata.white} vs {self._game.metadata.black}"
                 )
-                tick_path = get_resource_path("assets/images/tick.svg").replace(
-                    "\\", "/"
+                checkbox.setStyleSheet(
+                    Styles.get_settings_checkbox_style(tick_icon_path())
                 )
-                checkbox.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
                 self._selection_checkbox = checkbox
                 self._card_layout.insertWidget(0, checkbox)
             self._selection_checkbox.show()
@@ -647,11 +644,10 @@ class GameListItemWidget(QWidget):
         else:
             src_name = "file"
 
-        filename = f"{src_name}.png"
-        icon_path = get_resource_path(os.path.join("assets", "icons", filename))
+        source_icon = icon_path(f"{src_name}.png")
 
-        if os.path.exists(icon_path):
-            lbl.set_icon(QPixmap(icon_path))
+        if os.path.exists(source_icon):
+            lbl.set_icon(QPixmap(source_icon))
             return lbl
 
         if HAS_QTAWESOME:
@@ -668,9 +664,9 @@ class GameListItemWidget(QWidget):
     def _create_winner_crown(self):
         lbl = IconLabel(size=16)
 
-        icon_path = get_resource_path(os.path.join("assets", "images", "winner_crown.svg"))
-        if os.path.exists(icon_path):
-            lbl.set_icon(QPixmap(icon_path))
+        crown_path = asset_path("assets/images/winner_crown.svg")
+        if os.path.exists(crown_path):
+            lbl.set_icon(QPixmap(crown_path))
             return lbl
 
         if HAS_QTAWESOME:
@@ -691,9 +687,9 @@ class GameListItemWidget(QWidget):
 
         icon_lbl = IconLabel(size=14)
         if isinstance(icon, str) and icon.endswith(".svg"):
-            icon_path = get_resource_path(icon)
-            if os.path.exists(icon_path):
-                icon_lbl.set_icon(QPixmap(icon_path))
+            meta_icon = asset_path(icon)
+            if os.path.exists(meta_icon):
+                icon_lbl.set_icon(QPixmap(meta_icon))
             elif HAS_QTAWESOME:
                 icon_lbl.set_icon("fa5s.clock")
         elif isinstance(icon, str) and HAS_QTAWESOME:

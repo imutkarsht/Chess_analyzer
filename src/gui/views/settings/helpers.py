@@ -2,9 +2,7 @@
 Helper utilities for the settings view modules.
 """
 
-from importlib.util import find_spec
 
-HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 def create_icon_button(text, icon_name, callback, parent=None, danger=False, primary=False):

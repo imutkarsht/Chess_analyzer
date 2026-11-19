@@ -13,14 +13,14 @@ from src.gui.components.controls.button import Button, ButtonVariant
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
+from src.gui.utils.assets import icon_path
+from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.config import ConfigManager
-from src.utils.path_utils import get_resource_path
 
 try:
     import qtawesome as qta
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
+    qta = None
 
 QTAWESOME_ICONS = {
     "help.png": "fa5s.question-circle",
@@ -132,9 +132,9 @@ class Sidebar(QFrame):
             color_str = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
             btn.set_icon_spec(qta.icon(QTAWESOME_ICONS[icon_name], color=color_str))
         else:
-            icon_path = get_resource_path(os.path.join("assets", "icons", icon_name))
-            if os.path.exists(icon_path):
-                btn.set_icon_spec(QIcon(icon_path))
+            sidebar_icon = icon_path(icon_name)
+            if os.path.exists(sidebar_icon):
+                btn.set_icon_spec(QIcon(sidebar_icon))
 
     def _make_nav_button(self, text: str, icon_name: str, index: int) -> Button:
         on_click = (

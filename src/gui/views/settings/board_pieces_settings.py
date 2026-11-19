@@ -20,6 +20,7 @@ from src.gui.components import Label, Tabs, TabVariant, TextRole, TextTone
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
+from src.gui.utils.assets import tick_icon_path
 from src.gui.views.settings.board_preview import (
     BoardThemePreview,
     board_swatch,
@@ -27,7 +28,6 @@ from src.gui.views.settings.board_preview import (
 )
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
 from src.gui.views.settings.helpers import create_icon_button
-from src.utils.path_utils import get_resource_path
 
 
 class BoardPiecesSettings(QGroupBox):
@@ -295,7 +295,7 @@ class BoardPiecesSettings(QGroupBox):
         self.form.refresh_styles()
         self._apply_button_styles()
         self._sync_theme_selection()
-        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        tick_path = tick_icon_path()
         for checkbox in (
             self.coordinates_checkbox,
             self.classification_checkbox,

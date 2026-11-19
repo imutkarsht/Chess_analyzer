@@ -30,7 +30,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import resolve_asset
+from src.gui.utils.assets import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
 
 
