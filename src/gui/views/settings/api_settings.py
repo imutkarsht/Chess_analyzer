@@ -155,11 +155,10 @@ class ApiSettings(QGroupBox):
         self.llm_add_btn.setAccessibleName("Add LLM profile")
 
         self.llm_del_btn = Button(
-            variant=ButtonVariant.FILLED,
+            variant=ButtonVariant.DANGER,
             size=ButtonSize.SM,
             icon="fa5s.minus",
             icon_position="only",
-            danger=True,
             tooltip="Delete profile",
             on_click=self._delete_llm_profile,
             parent=self,

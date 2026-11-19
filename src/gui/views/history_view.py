@@ -342,9 +342,8 @@ class HistoryView(QWidget):
 
         self.btn_clear = Button(
             "Delete all games",
-            ButtonVariant.FILLED,
+            ButtonVariant.DANGER,
             icon="fa5s.trash-alt",
-            danger=True,
             on_click=self.clear_history,
         )
         header_layout.addWidget(self.btn_clear)
