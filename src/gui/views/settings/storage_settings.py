@@ -1,12 +1,12 @@
 """Read-only storage usage and access to the local data folder."""
 
-from PyQt6.QtCore import QUrl
-from PyQt6.QtGui import QDesktopServices
+
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from src.backend.storage.stats import StorageStats, collect_storage_stats
 from src.gui.components import Label, TextRole
 from src.gui.styles import Styles
+from src.gui.utils.links import open_path
 from src.gui.views.settings.components import SettingsForm
 from src.gui.views.settings.helpers import create_icon_button
 from src.gui.views.settings.storage_card import StorageCard
@@ -94,7 +94,7 @@ class StorageSettings(StorageCard):
 
     def open_data_folder(self) -> None:
         folder = get_user_data_dir()
-        QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+        open_path(folder)
 
     # ------------------------------------------------------------------
     # Lifecycle hooks used by SettingsView

@@ -2,8 +2,8 @@
 
 import os
 
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QIcon
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -32,6 +32,7 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.gui.utils.assets import app_logo_path
+from src.gui.utils.links import open_url
 from src.gui.views.settings.background_card import BackgroundTaskCard
 
 LINK_COLUMNS = 4
@@ -230,7 +231,7 @@ class LinksSettings(BackgroundTaskCard):
     # Actions
     # ------------------------------------------------------------------
     def _open(self, url: str):
-        QDesktopServices.openUrl(QUrl(url))
+        open_url(url)
 
     def open_website(self):
         self._open(WEBSITE_URL)

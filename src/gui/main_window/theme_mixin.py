@@ -1,5 +1,5 @@
 from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
@@ -32,8 +32,9 @@ class ThemeMixin:
             self.show_toast("Engine path updated. Future analyses will use the new engine.", "info")
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
-            QMessageBox.warning(
-                self, "Warning", f"Engine path updated, but failed to initialize: {e}"
+            self.show_toast(
+                f"Engine path updated, but failed to initialize: {e}",
+                "warning",
             )
         finally:
             self._refresh_engine_status()

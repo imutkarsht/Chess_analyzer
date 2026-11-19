@@ -41,7 +41,7 @@ class AnalysisMixin:
         self._exit_variation()
 
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
-            QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
+            self.show_toast("An analysis is already running.", "warning")
             return
 
         if not self._ensure_engine_ready():
@@ -53,9 +53,7 @@ class AnalysisMixin:
         if coordinator is not None and not coordinator.begin_single(
             getattr(self.current_game, "game_id", None)
         ):
-            QMessageBox.warning(
-                self, "Analysis in Progress", "An analysis is already running."
-            )
+            self.show_toast("An analysis is already running.", "warning")
             return
 
         logger.info("Starting analysis (resume=%s)...", resume)

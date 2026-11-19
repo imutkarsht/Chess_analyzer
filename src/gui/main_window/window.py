@@ -25,12 +25,12 @@ from src.gui.board import Board, BoardConfig, BoardGameHeader, BoardPanel
 from src.gui.components import (
     BadgeVariant,
     Label,
+    LoadingOverlay,
     RichTextLabel,
     StatusBadge,
     TextRole,
     TextTone,
 )
-from src.gui.components.feedback.loading_widget import LoadingOverlay
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.components.layout.sidebar import Sidebar
 from src.gui.components.layout.tour_manager import TourManager

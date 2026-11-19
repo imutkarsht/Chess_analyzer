@@ -184,12 +184,7 @@ class EngineSettings(QGroupBox):
 
     def _set_validation(self, text: str, color: str) -> None:
         self.validation_label.setText(text)
-        tone = {
-            Styles.COLOR_BEST: TextTone.BEST,
-            Styles.COLOR_MISTAKE: TextTone.MISTAKE,
-            Styles.COLOR_BLUNDER: TextTone.BLUNDER,
-        }.get(color, TextTone.SECONDARY)
-        self.validation_label.set_tone(tone)
+        self.validation_label.set_tone(Styles.get_tone_for_color(color))
         self.validation_label.setVisible(True)
 
     def browse_engine(self):

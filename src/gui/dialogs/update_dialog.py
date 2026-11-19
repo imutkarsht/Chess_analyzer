@@ -15,8 +15,7 @@ ERROR       → shows error text + "Open in Browser" fallback
 import os
 import re
 
-from PyQt6.QtCore import Qt, QTimer, QUrl
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -44,6 +43,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.utils.links import open_path, open_url
 from src.utils.logger import logger  # src/gui/dialogs/ → src/utils/
 
 # ---------------------------------------------------------------------------
@@ -508,17 +508,17 @@ class UpdateNotificationDialog(QDialog):
         try:
             subprocess.Popen(["open", "-R", self._dest_path])
         except Exception:
-            QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(self._dest_path)))
+            open_path(os.path.dirname(self._dest_path))
 
     def _open_in_browser(self):
         url = self.update_info.html_url or self.update_info.download_url
         if url:
-            QDesktopServices.openUrl(QUrl(url))
+            open_url(url)
         self.accept()
 
     def _open_github_release(self):
         url = self.update_info.html_url or "https://github.com/imutkarsht/chess-analyzer/releases"
-        QDesktopServices.openUrl(QUrl(url))
+        open_url(url)
 
     # ------------------------------------------------------------- Helpers --
 

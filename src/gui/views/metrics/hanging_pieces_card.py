@@ -141,16 +141,6 @@ class HangingPiecesCard(MetricCard):
         main_vbox.addLayout(pillars_row)
         self.set_content(self.content_widget)
 
-    @staticmethod
-    def _tone_for_color(color: str) -> TextTone:
-        mapping = {
-            Styles.COLOR_TEXT_PRIMARY: TextTone.PRIMARY,
-            Styles.COLOR_BEST: TextTone.BEST,
-            Styles.COLOR_BLUNDER: TextTone.BLUNDER,
-            Styles.COLOR_MISTAKE: TextTone.MISTAKE,
-        }
-        return mapping.get(color, TextTone.PRIMARY)
-
     def _build_piece_pillar(
         self,
         *,
@@ -203,7 +193,7 @@ class HangingPiecesCard(MetricCard):
             role=TextRole.STAT,
             size=22,
             weight=800,
-            tone=self._tone_for_color(hero_color),
+            tone=Styles.get_tone_for_color(hero_color),
         )
         hero.setCursor(Qt.CursorShape.PointingHandCursor)
         hero.setToolTip(hero_tooltip)

@@ -28,6 +28,11 @@ from src.constants import (
 from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
 from src.gui.utils.assets import app_logo_path
+from src.gui.utils.result_ui import (
+    result_display,
+    result_text,
+    termination_suffix,
+)
 from src.utils.config import ConfigManager
 from src.utils.format_utils import format_count, format_percent
 from src.utils.time_control import format_time_control
@@ -96,13 +101,13 @@ class ShareReportRenderer:
         white = game.summary["white"]
         black = game.summary["black"]
         opening = _opening_context(metadata.eco, metadata.opening)
-        termination = _termination_suffix(metadata.termination_mode)
+        termination = termination_suffix(metadata.termination_mode)
         white_name = _display_value(metadata.white, "White")
         black_name = _display_value(metadata.black, "Black")
         lines = [
             f"# Game Report: {white_name} vs {black_name}",
             "",
-            f"- **Result:** {_result_text(metadata.result)}{f' · {termination}' if termination else ''}",
+            f"- **Result:** {result_text(metadata.result)}{f' · {termination}' if termination else ''}",
             f"- **Date:** {_display_value(metadata.date, 'Unknown')}",
             f"- **Time control:** {format_time_control(metadata.time_control) or 'Unknown'}",
             f"- **Opening:** {opening}",
@@ -235,7 +240,7 @@ class ShareReportRenderer:
         cls._draw_text(
             painter,
             QRectF(478, 121, 244, 22),
-            _result_display(metadata.result, metadata.termination_mode),
+            result_display(metadata.result, metadata.termination_mode),
             11,
             Styles.COLOR_TEXT_SECONDARY,
             QFont.Weight.DemiBold,
@@ -623,33 +628,11 @@ def _opening_context(eco: str | None, opening: str | None) -> str:
     return " · ".join(parts) if parts else "Opening unavailable"
 
 
-def _termination_suffix(mode: str | None) -> str:
-    if mode == "resignation":
-        return "by resignation"
-    if mode in {"timeout", "timeout_insufficient"}:
-        return "by timeout"
-    return ""
-
-
-def _result_display(result: str | None, termination_mode: str | None) -> str:
-    outcome = _result_text(result).upper()
-    suffix = _termination_suffix(termination_mode)
-    return f"{outcome} · {suffix.upper()}" if suffix else outcome
-
-
 def _display_value(value, fallback: str) -> str:
     if value is None:
         return fallback
     text = str(value).strip()
     return text if text and text not in {"?", "*", "-"} else fallback
-
-
-def _result_text(result: str | None) -> str:
-    return {
-        "1-0": "White wins",
-        "0-1": "Black wins",
-        "1/2-1/2": "Draw",
-    }.get(result, "In progress")
 
 
 def _finite_number(value) -> float | None:

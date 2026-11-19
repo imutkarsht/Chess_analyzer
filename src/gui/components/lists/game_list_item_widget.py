@@ -29,6 +29,7 @@ from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.assets import asset_path, icon_path, tick_icon_path
 from src.gui.utils.icons import HAS_QTAWESOME
+from src.gui.utils.result_ui import result_tone as tone_for_result
 from src.utils.logger import logger
 from src.utils.time_control import classify_time_control, format_time_control
 
@@ -186,7 +187,9 @@ class GameListItemWidget(QWidget):
         card_layout.addWidget(op_lbl, stretch=1)
 
         # 4. Result Badge
-        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_tone = tone_for_result(
+            result_text, self._user_color(game.metadata, usernames)
+        )
         result_label = StatusBadge(
             result_text,
             result_tone,
@@ -304,7 +307,9 @@ class GameListItemWidget(QWidget):
         header_layout.addStretch()
 
         # Result badge
-        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_tone = tone_for_result(
+            result_text, self._user_color(game.metadata, usernames)
+        )
         result_label = StatusBadge(
             result_text,
             result_tone,
@@ -703,23 +708,6 @@ class GameListItemWidget(QWidget):
         layout.addWidget(text_lbl)
 
         return container
-
-    def _get_result_tone(self, result_text, metadata, usernames) -> TextTone:
-        if not usernames:
-            if result_text == "1-0":
-                return TextTone.RESULT_WIN
-            elif result_text == "0-1":
-                return TextTone.RESULT_LOSS
-            return TextTone.RESULT_DRAW
-
-        user_is_white = metadata.white.lower() in [u.lower() for u in usernames]
-        user_is_black = metadata.black.lower() in [u.lower() for u in usernames]
-
-        if result_text == "1-0":
-            return TextTone.RESULT_WIN if user_is_white else TextTone.RESULT_LOSS
-        if result_text == "0-1":
-            return TextTone.RESULT_WIN if user_is_black else TextTone.RESULT_LOSS
-        return TextTone.RESULT_DRAW
 
     def _get_time_control_icon(self, time_control):
         tc_type = classify_time_control(

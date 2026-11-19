@@ -3,8 +3,7 @@ API Configuration Settings group component.
 """
 import time
 
-from PyQt6.QtCore import QThread, QUrl, pyqtSignal
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -27,6 +26,7 @@ from src.gui.components import (
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import show_error_dialog
+from src.gui.utils.links import open_url
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.settings.components import (
     CONTROL_DEFAULT,
@@ -477,7 +477,7 @@ class ApiSettings(QGroupBox):
 
     def _open_provider_help(self) -> None:
         if self._help_url:
-            QDesktopServices.openUrl(QUrl(self._help_url))
+            open_url(self._help_url)
 
     # ------------------------------------------------------------------
     # Profile actions

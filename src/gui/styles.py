@@ -943,6 +943,14 @@ class Styles(metaclass=_StylesMeta):
         return colors[tone]
 
     @classmethod
+    def get_tone_for_color(cls, color: str) -> TextTone:
+        """Resolve a palette colour back to its semantic text tone."""
+        for tone in TextTone:
+            if cls.get_tone_color(tone) == color:
+                return tone
+        return TextTone.PRIMARY
+
+    @classmethod
     def get_typography_qss(cls) -> str:
         """Generated rules for :class:`src.gui.components.display.label.Label`.
 

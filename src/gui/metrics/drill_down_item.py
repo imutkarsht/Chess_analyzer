@@ -29,6 +29,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.utils.result_ui import result_tone
 from src.utils.format_utils import format_eval
 
 
@@ -124,7 +125,7 @@ class DrillDownItemWidget(QFrame):
 
         # Result badge (Win/Loss/Draw)
         result = self.item.get("result", "*")
-        res_tone = self._get_result_tone(result, user_color.lower())
+        res_tone = result_tone(result, user_color.lower())
         res_lbl = StatusBadge(
             result,
             res_tone,
@@ -313,21 +314,6 @@ class DrillDownItemWidget(QFrame):
             parts.append(desc)
 
         return "  •  ".join(parts)
-
-    def _get_result_tone(self, result: str, user_color: str) -> TextTone:
-        if result == "1-0":
-            return (
-                TextTone.RESULT_WIN
-                if user_color == "white"
-                else TextTone.RESULT_LOSS
-            )
-        if result == "0-1":
-            return (
-                TextTone.RESULT_WIN
-                if user_color == "black"
-                else TextTone.RESULT_LOSS
-            )
-        return TextTone.RESULT_DRAW
 
     def _create_mini_board(self) -> MiniBoardWidget:
         fen_before = self.item.get("fen_before", chess.STARTING_FEN)

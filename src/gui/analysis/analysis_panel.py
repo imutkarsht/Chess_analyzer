@@ -40,6 +40,7 @@ from src.gui.components import (
     Button,
     ButtonVariant,
     CircularAccuracyWidget,
+    GraphWidget,
     IconLabel,
     Label,
     RichTextLabel,
@@ -777,7 +778,6 @@ class AnalysisPanel(QWidget):
         """Create the Matplotlib-backed graph on first game load."""
         if self.graph_widget is not None:
             return
-        from src.gui.components.display.graph_widget import GraphWidget
 
         graph = GraphWidget()
         graph.setSizePolicy(

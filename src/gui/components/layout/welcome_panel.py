@@ -4,8 +4,8 @@ Displayed on the right half of the main window when no game is loaded.
 """
 import os
 
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QIcon
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -28,6 +28,7 @@ from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.assets import app_logo_path
+from src.gui.utils.links import open_url
 
 
 class WelcomePanel(QFrame):
@@ -225,7 +226,7 @@ class WelcomePanel(QFrame):
 
     # ── Action callbacks ──────────────────────────────────────────────────
     def _open_github(self) -> None:
-        QDesktopServices.openUrl(QUrl(GITHUB_REPO_URL))
+        open_url(GITHUB_REPO_URL)
 
     def _open_review(self) -> None:
         from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
@@ -246,7 +247,7 @@ class WelcomePanel(QFrame):
         dialog.exec()
 
     def _open_about(self) -> None:
-        QDesktopServices.openUrl(QUrl(ABOUT_URL))
+        open_url(ABOUT_URL)
 
     def _open_website(self) -> None:
-        QDesktopServices.openUrl(QUrl(WEBSITE_URL))
+        open_url(WEBSITE_URL)

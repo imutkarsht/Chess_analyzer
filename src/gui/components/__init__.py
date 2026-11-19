@@ -18,12 +18,14 @@ from src.gui.components.controls.input import (
 from src.gui.components.controls.segmented_bar import SegmentedBar
 from src.gui.components.controls.segmented_control import SegmentedControl
 from src.gui.components.controls.select import Select, SelectOption, SelectSize
+from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.components.controls.tabs import TabAppearance, Tabs, TabVariant
 from src.gui.components.display.avatar import Avatar
 from src.gui.components.display.chip_label import ChipLabel
 from src.gui.components.display.circular_accuracy import CircularAccuracyWidget
 from src.gui.components.display.clock_label import ClockLabel
 from src.gui.components.display.color_label import ColorLabel
+from src.gui.components.display.graph_widget import GraphWidget
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.display.mini_bar import MiniBar
@@ -31,6 +33,7 @@ from src.gui.components.display.rich_text import LinkLabel, RichTextLabel
 from src.gui.components.display.stat_card import SimpleStatCard, StatCard
 from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.components.feedback.engine_score_badge import EngineScoreBadge
+from src.gui.components.feedback.loading_widget import LoadingOverlay
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.status_badge import BadgeVariant, StatusBadge
 from src.gui.components.feedback.toast import (
@@ -68,6 +71,7 @@ __all__ = [
     'EngineScoreBadge',
     'FilterChip',
     'FormField',
+    'GraphWidget',
     'IconLabel',
     'Input',
     'Label',
@@ -83,6 +87,7 @@ __all__ = [
     'TextAreaVariant',
     'TEXT_INPUT_TYPES',
     'LegendList',
+    'LoadingOverlay',
     'MiniBar',
     'PaginationBar',
     'PaginationSize',
@@ -97,6 +102,7 @@ __all__ = [
     'install_smooth_scrolling',
     'StatCard',
     'SimpleStatCard',
+    'StarRatingWidget',
     'StatusBadge',
     'MasonryLayout',
     'StatsLayout',
