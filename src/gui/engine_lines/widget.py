@@ -29,9 +29,8 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.gui.engine_lines.config import EngineLinesConfig
 from src.gui.styles import Styles
-
-from .config import EngineLinesConfig
 
 
 def format_pv_html(text: str) -> str:

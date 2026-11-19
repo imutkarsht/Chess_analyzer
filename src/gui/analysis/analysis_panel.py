@@ -32,6 +32,10 @@ from src.constants import (
     EXPLANATION_PROMPT_VERSION,
     normalize_coach_persona,
 )
+from src.gui.analysis.coach_card_widget import CoachCardWidget
+from src.gui.analysis.coach_worker import ExplainMoveWorker, RequestLimiter
+from src.gui.analysis.line_utils import lines_for_move
+from src.gui.analysis.tactics_tab import TacticsTab
 from src.gui.components import (
     Button,
     ButtonVariant,
@@ -48,6 +52,7 @@ from src.gui.components import (
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
+from src.gui.resources import ResourceManager
 from src.gui.share import ShareReportDialog, ShareReportRenderer
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import (
@@ -60,12 +65,6 @@ from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
-from src.utils.resources import ResourceManager
-
-from .coach_card_widget import CoachCardWidget
-from .coach_worker import ExplainMoveWorker, RequestLimiter
-from .line_utils import lines_for_move
-from .tactics_tab import TacticsTab
 
 # Tabs that only make sense once the game has analysis results.
 _TABS_REQUIRING_ANALYSIS = (1, 2, 3)
@@ -743,7 +742,7 @@ class AnalysisPanel(QWidget):
         if not self.current_game:
             return
         if not self.groq_service.client:
-            from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+            from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
 
             dlg = LlmNotConfiguredDialog(self)
             if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
@@ -861,7 +860,7 @@ class AnalysisPanel(QWidget):
                 _BTN_REGENERATE_SUMMARY if previous else _BTN_GENERATE_SUMMARY
             )
             if "not configured" in summary.lower():
-                from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+                from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
 
                 dlg = LlmNotConfiguredDialog(self)
                 if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
@@ -1099,7 +1098,7 @@ class AnalysisPanel(QWidget):
         return bool(getattr(meta, "chess960", False))
 
     def _show_llm_not_configured(self) -> None:
-        from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
+        from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
 
         dlg = LlmNotConfiguredDialog(self)
         if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():

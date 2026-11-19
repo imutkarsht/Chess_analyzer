@@ -2,11 +2,11 @@
 
 from PyQt6.QtWidgets import QVBoxLayout
 
-from ....backend.storage.cache import AnalysisCache
-from ...styles import Styles
-from .components import SettingsBinder, SettingsForm, make_select
-from .modern_widgets import ModernSliderCounter
-from .storage_card import StorageCard
+from src.backend.storage.cache import AnalysisCache
+from src.gui.styles import Styles
+from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
+from src.gui.views.settings.modern_widgets import ModernSliderCounter
+from src.gui.views.settings.storage_card import StorageCard
 
 EXPLORER_TTL_CHOICES = [
     (1, "1 hour"),

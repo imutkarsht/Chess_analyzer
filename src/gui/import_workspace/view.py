@@ -15,22 +15,17 @@ from PyQt6.QtWidgets import (
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components import EmptyState
 from src.gui.components.feedback.toast import ToastManager
-from src.gui.styles import Styles
-from src.gui.theme import ThemeManager
-from src.gui.utils.worker_registry import register_worker, remove_worker
-from src.utils.config import ConfigManager
-
-from .action_bar import ImportActionBar
-from .batch import GameBatch, GameCandidate
-from .boards import MiniBoardFenWorker, MiniBoardPosition
-from .delegates import (
+from src.gui.import_workspace.action_bar import ImportActionBar
+from src.gui.import_workspace.batch import GameBatch, GameCandidate
+from src.gui.import_workspace.boards import MiniBoardFenWorker, MiniBoardPosition
+from src.gui.import_workspace.delegates import (
     BoardDelegate,
     CheckboxDelegate,
     CheckboxHeader,
     StatusPillDelegate,
 )
-from .header import ImportHeader
-from .model import (
+from src.gui.import_workspace.header import ImportHeader
+from src.gui.import_workspace.model import (
     COL_BOARD,
     COL_DETAILS,
     COL_MOVES,
@@ -39,8 +34,12 @@ from .model import (
     GameImportFilterProxy,
     GameImportTableModel,
 )
-from .toolbar import ImportToolbar
-from .worker import GameImportWorker
+from src.gui.import_workspace.toolbar import ImportToolbar
+from src.gui.import_workspace.worker import GameImportWorker
+from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
+from src.gui.utils.worker_registry import register_worker, remove_worker
+from src.utils.config import ConfigManager
 
 _ROWS_WITH_BOARDS = 80
 _ROWS_COMPACT = 44

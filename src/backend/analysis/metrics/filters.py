@@ -11,10 +11,9 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from src.backend.analysis.metrics.constants import VALID_DATE_FILTERS
 from src.backend.storage.pgn_parser import PGNParser
 from src.utils.logger import logger
-
-from .constants import VALID_DATE_FILTERS
 
 _DATE_FILTER_SECONDS: dict[str, float] = {
     "Last 24 Hours": 86400.0,

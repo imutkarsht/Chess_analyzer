@@ -24,8 +24,8 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.analysis.move_cell_widget import MoveCellWidget
+from src.gui.resources import ResourceManager
 from src.gui.styles import Styles
-from src.utils.resources import ResourceManager
 
 
 @dataclass(frozen=True, slots=True)

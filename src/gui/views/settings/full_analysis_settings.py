@@ -2,11 +2,10 @@
 
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
+from src.gui.styles import Styles
+from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
+from src.gui.views.settings.modern_widgets import ModernSliderCounter
 from src.utils.path_utils import get_resource_path
-
-from ...styles import Styles
-from .components import SettingsBinder, SettingsForm, make_select
-from .modern_widgets import ModernSliderCounter
 
 # The engine also receives a depth limit, so "No cap" means depth-only.
 TIME_CAP_CHOICES = [

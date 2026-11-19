@@ -4,9 +4,8 @@ from typing import Any
 
 import chess
 
+from src.backend.analysis.math_utils import get_win_probability
 from src.utils.logger import logger
-
-from .math_utils import get_win_probability
 
 # Standard piece values in centipawns. Used for sacrifice detection.
 _PIECE_VALUES_CP: dict[chess.PieceType, int] = {

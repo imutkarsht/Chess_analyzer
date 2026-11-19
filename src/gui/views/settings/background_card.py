@@ -5,9 +5,9 @@ from collections.abc import Callable
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox
 
-from ...components.feedback.toast import ToastHandle, ToastManager
-from ...styles import Styles
-from .background_worker import BackgroundTaskWorker
+from src.gui.components.feedback.toast import ToastHandle, ToastManager
+from src.gui.styles import Styles
+from src.gui.views.settings.background_worker import BackgroundTaskWorker
 
 # Workers are deliberately not parented to their card: Qt destroys children
 # with the widget, and destroying a running QThread aborts the process. This

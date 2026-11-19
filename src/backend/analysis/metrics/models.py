@@ -10,12 +10,11 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from src.backend.analysis.metrics.constants import QUALITY_NAMES
+from src.backend.analysis.metrics.termination import classify_termination
 from src.backend.analysis.tactics import TACTICS_VERSION, analyze_game_tactics
 from src.backend.storage.pgn_parser import PGNParser
 from src.utils.logger import logger
-
-from .constants import QUALITY_NAMES
-from .termination import classify_termination
 
 
 class Outcome(StrEnum):

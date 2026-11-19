@@ -7,11 +7,10 @@ from dataclasses import dataclass
 
 import chess.pgn
 
+from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import MAX_PGN_FILE_BYTES, MAX_PGN_GAMES
 from src.utils.logger import logger
-
-from .models import GameAnalysis, GameMetadata, MoveAnalysis
-from .termination_detector import TerminationDetector
 
 # Matches [%clk H:MM:SS(.s)?] — chess.com style clock comments.
 # The colon-separated hours/minutes/seconds format with optional decimal

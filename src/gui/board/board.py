@@ -20,12 +20,11 @@ from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QDialog, QGridLayout, QSizePolicy, QWidget
 
 from src.constants import DEFAULT_BOARD_THEME
+from src.gui.board.eval_bar import EvalBarWidget
+from src.gui.board.promotion_dialog import PromotionDialog
+from src.gui.components import IconLabel
+from src.gui.styles import Styles
 from src.utils.logger import logger
-
-from ..components import IconLabel
-from ..styles import Styles
-from .eval_bar import EvalBarWidget
-from .promotion_dialog import PromotionDialog
 
 ClassificationOverlay = Literal["none", "game_move", "last_move"]
 
@@ -491,7 +490,7 @@ class Board(QWidget):
         if not self.last_move_classification or not self.board.move_stack:
             return
 
-        from src.utils.resources import ResourceManager
+        from src.gui.resources import ResourceManager
 
         icon = ResourceManager().get_icon(self.last_move_classification)
         if icon.isNull():
@@ -514,7 +513,7 @@ class Board(QWidget):
 
     def _legal_dot_color(self, square: int) -> str:
         """Return a high-contrast dot colour for the given board square."""
-        from ...utils.config import ConfigManager
+        from src.utils.config import ConfigManager
 
         config = ConfigManager()
         theme_name = self.config.board_theme or config.get(
@@ -723,7 +722,7 @@ class Board(QWidget):
         if not move.classification:
             return
 
-        from ...utils.resources import ResourceManager
+        from src.gui.resources import ResourceManager
 
         icon = ResourceManager().get_icon(move.classification)
 
@@ -751,7 +750,7 @@ class Board(QWidget):
 
     def _resolve_display_preferences(self):
         """Resolve appearance prefs: a page override wins, otherwise the user setting."""
-        from ...utils.config import ConfigManager
+        from src.utils.config import ConfigManager
 
         prefs = ConfigManager()
 
@@ -797,8 +796,8 @@ class Board(QWidget):
 
     def update_board(self):
         # Determine colors from configured theme
-        from ...utils.config import ConfigManager
-        from .piece_themes import get_piece_defs
+        from src.gui.board.piece_themes import get_piece_defs
+        from src.utils.config import ConfigManager
 
         self._resolve_display_preferences()
         self._apply_eval_bar_visibility()

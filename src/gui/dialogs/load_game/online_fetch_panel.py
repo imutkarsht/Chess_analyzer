@@ -32,13 +32,12 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.components.feedback.toast import ToastManager
+from src.gui.dialogs.load_game.api_worker import ApiWorker, register_worker, remove_worker
 from src.gui.import_workspace import GameBatch
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.config import ConfigManager
 from src.utils.path_utils import get_resource_path
-
-from .api_worker import ApiWorker, register_worker, remove_worker
 
 try:
     import qtawesome as qta

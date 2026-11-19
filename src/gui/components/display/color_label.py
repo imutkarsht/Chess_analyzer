@@ -5,9 +5,8 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QWidget
 
+from src.gui.components.display.label import Label
 from src.gui.theme.typography import TextRole, TextTone
-
-from .label import Label
 
 
 class ColorLabel(Label):

@@ -9,9 +9,8 @@ from typing import Any
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_identity import game_identity_key
 from src.backend.storage.pgn_parser import PGNIndex
+from src.gui.import_workspace.boards import summarize_pgn
 from src.utils.time_control import classify_time_control
-
-from .boards import summarize_pgn
 
 _TIME_CONTROL_RE = re.compile(r'\[TimeControl "([^"]+)"\]')
 _NAMED_TIME_CLASSES = {

@@ -15,15 +15,19 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ....constants import DEFAULT_BOARD_THEME
-from ....utils.path_utils import get_resource_path
-from ...components import Label, Tabs, TabVariant, TextRole, TextTone
-from ...components.feedback.toast import ToastManager
-from ...styles import Styles
-from ...theme.palette import BOARD_THEMES
-from .board_preview import BoardThemePreview, board_swatch, piece_theme_preview
-from .components import SettingsBinder, SettingsForm
-from .helpers import create_icon_button
+from src.constants import DEFAULT_BOARD_THEME
+from src.gui.components import Label, Tabs, TabVariant, TextRole, TextTone
+from src.gui.components.feedback.toast import ToastManager
+from src.gui.styles import Styles
+from src.gui.theme.palette import BOARD_THEMES
+from src.gui.views.settings.board_preview import (
+    BoardThemePreview,
+    board_swatch,
+    piece_theme_preview,
+)
+from src.gui.views.settings.components import SettingsBinder, SettingsForm
+from src.gui.views.settings.helpers import create_icon_button
+from src.utils.path_utils import get_resource_path
 
 
 class BoardPiecesSettings(QGroupBox):
@@ -121,7 +125,7 @@ class BoardPiecesSettings(QGroupBox):
             self.board_buttons[name] = button
 
     def _build_piece_buttons(self) -> None:
-        from ...board.piece_themes import get_piece_theme_names
+        from src.gui.board.piece_themes import get_piece_theme_names
 
         for button in self.piece_buttons.values():
             button.setParent(None)
@@ -253,10 +257,7 @@ class BoardPiecesSettings(QGroupBox):
         )
 
     def import_theme(self):
-        from ...board.piece_themes import (
-            import_theme_from_folder,
-            validate_theme_folder,
-        )
+        from src.gui.board.piece_themes import import_theme_from_folder, validate_theme_folder
 
         folder = QFileDialog.getExistingDirectory(
             self, "Select Piece Theme Folder", "", QFileDialog.Option.ShowDirsOnly

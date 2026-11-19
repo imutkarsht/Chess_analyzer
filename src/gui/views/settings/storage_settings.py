@@ -4,15 +4,14 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
+from src.backend.storage.stats import StorageStats, collect_storage_stats
 from src.gui.components import Label, TextRole
-
-from ....backend.storage.stats import StorageStats, collect_storage_stats
-from ....utils.path_utils import get_user_data_dir
-from ...styles import Styles
-from .components import SettingsForm
-from .helpers import create_icon_button
-from .storage_actions import format_bytes, format_count
-from .storage_card import StorageCard
+from src.gui.styles import Styles
+from src.gui.views.settings.components import SettingsForm
+from src.gui.views.settings.helpers import create_icon_button
+from src.gui.views.settings.storage_actions import format_bytes, format_count
+from src.gui.views.settings.storage_card import StorageCard
+from src.utils.path_utils import get_user_data_dir
 
 _STAT_ROWS = (
     ("database", "Database"),

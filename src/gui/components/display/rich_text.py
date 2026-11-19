@@ -8,11 +8,10 @@ import html
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget
 
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
-
-from .label import Label
 
 
 class RichTextLabel(Label):

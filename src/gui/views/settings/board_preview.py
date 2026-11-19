@@ -8,9 +8,9 @@ from PyQt6.QtGui import QColor, QImage, QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtSvgWidgets import QSvgWidget
 
-from ....constants import DEFAULT_BOARD_THEME
-from ...board.piece_themes import get_piece_defs
-from ...styles import Styles
+from src.constants import DEFAULT_BOARD_THEME
+from src.gui.board.piece_themes import get_piece_defs
+from src.gui.styles import Styles
 
 
 def _svg_with_pieces(

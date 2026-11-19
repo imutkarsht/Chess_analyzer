@@ -132,8 +132,8 @@ QT_QPA_PLATFORM=offscreen pytest tests/ -v
 pytest tests/ -v
 ```
 
-> The full suite should finish in under 20 seconds. If it gets slower, run
-> `pytest tests/ --durations=10` and fix the outliers instead of accepting them.
+> If the suite gets slower, run `pytest tests/ --durations=10` and fix the
+> outliers instead of accepting them.
 
 ### 7. Check coverage
 
@@ -155,9 +155,9 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 - **No test bloat.** Extend or parameterize an existing test instead of adding a
   near-duplicate. Delete tests that only smoke-check construction, duplicate
   another module's coverage, or do not protect app-breaking behavior.
-- **No lengthy tests.** Keep the whole suite under 20 seconds and avoid tests
-  that approach one second without a clear reason. Reuse fixtures and test
-  logic directly instead of booting the full `MainWindow`.
+- **No lengthy tests.** Avoid tests that approach one second without a clear
+  reason. Reuse fixtures and test logic directly instead of booting the full
+  `MainWindow`.
 - **No timeout-based tests.** Never make a test pass by letting a timer expire,
   and never use `time.sleep()`, `QTest.qWait()`, or real request timeouts to wait
   for work to finish. Run workers synchronously (`worker.run()`), observe emitted

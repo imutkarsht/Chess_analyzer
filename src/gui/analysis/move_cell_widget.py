@@ -6,8 +6,8 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 
-from ..components import IconLabel, Label, TextRole, TextTone
-from ..styles import Styles
+from src.gui.components import IconLabel, Label, TextRole, TextTone
+from src.gui.styles import Styles
 
 # Every classified move keeps its badge. Only decisive/problem moves get colour
 # and weight; routine classes (Book/Best/Excellent/Good) stay neutral so a page

@@ -3,14 +3,14 @@
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout
 
-from ...components import SortableItem, SortableItemList
-from ...styles import Styles
-from ..metrics.card_registry import (
+from src.gui.components import SortableItem, SortableItemList
+from src.gui.styles import Styles
+from src.gui.views.metrics.card_registry import (
     DEFAULT_CARD_ORDER,
     SORTABLE_BY_KEY,
     normalise_card_order,
 )
-from .helpers import create_icon_button
+from src.gui.views.settings.helpers import create_icon_button
 
 
 class DashboardLayoutSettings(QGroupBox):

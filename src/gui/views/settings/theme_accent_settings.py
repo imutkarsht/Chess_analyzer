@@ -4,12 +4,12 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QColorDialog, QGroupBox, QVBoxLayout
 
-from ....config.settings_schema import get_spec
-from ...components import Button, ButtonVariant
-from ...components.feedback.toast import ToastManager
-from ...styles import Styles
-from ...theme import ThemeManager
-from .components import RadioChoice, SettingsBinder, SettingsForm
+from src.config.settings_schema import get_spec
+from src.gui.components import Button, ButtonVariant
+from src.gui.components.feedback.toast import ToastManager
+from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
+from src.gui.views.settings.components import RadioChoice, SettingsBinder, SettingsForm
 
 
 class ThemeAccentSettings(QGroupBox):

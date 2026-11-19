@@ -12,9 +12,8 @@ from src.backend.api.import_limits import (
 )
 from src.gui.components import Input, Label, TextRole, TextTone
 from src.gui.styles import Styles
-
-from .background_card import BackgroundTaskCard
-from .components import (
+from src.gui.views.settings.background_card import BackgroundTaskCard
+from src.gui.views.settings.components import (
     CONTROL_WIDE,
     SettingsBinder,
     SettingsForm,
@@ -22,9 +21,9 @@ from .components import (
     make_line_edit,
     make_select,
 )
-from .helpers import create_icon_button
-from .modern_widgets import ModernSliderCounter
-from .profile_preview import ProfilePreview
+from src.gui.views.settings.helpers import create_icon_button
+from src.gui.views.settings.modern_widgets import ModernSliderCounter
+from src.gui.views.settings.profile_preview import ProfilePreview
 
 
 def _divider() -> QFrame:

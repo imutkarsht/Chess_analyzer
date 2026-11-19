@@ -1,6 +1,6 @@
 import chess
 
-from .models import MoveAnalysis
+from src.backend.storage.models import MoveAnalysis
 
 
 class TerminationDetector:

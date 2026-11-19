@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..components import (
+from src.gui.components import (
     Button,
     ButtonVariant,
     IconLabel,
@@ -21,7 +21,7 @@ from ..components import (
     TextRole,
     TextTone,
 )
-from ..styles import Styles
+from src.gui.styles import Styles
 
 
 class ShortcutHelpDialog(QDialog):
@@ -197,7 +197,7 @@ class ShortcutHelpDialog(QDialog):
         return grouped
 
     def _open_feedback(self):
-        from .feedback_dialog import FeedbackDialog
+        from src.gui.dialogs.feedback_dialog import FeedbackDialog
 
         dialog = FeedbackDialog(self, initial_tab="bug")
         dialog.exec()

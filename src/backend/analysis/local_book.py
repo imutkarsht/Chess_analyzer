@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 import chess
 
-from .opening_db import OpeningDB, _normalize_fen
+from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
 
 
 @dataclass

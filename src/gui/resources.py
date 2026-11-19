@@ -4,8 +4,8 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QIcon
 from PyQt6.QtMultimedia import QSoundEffect
 
-from .logger import logger
-from .path_utils import get_resource_path
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path
 
 
 class ResourceManager:
@@ -122,7 +122,7 @@ class ResourceManager:
         event (common while stepping through a game) do not collide with
         a still-playing instance of the same sound.
         """
-        from .config import ConfigManager
+        from src.utils.config import ConfigManager
         config = ConfigManager()
         if not config.get("sound_enabled", True):
             return

@@ -5,8 +5,8 @@ Helper utilities for the Load Game dialog panels.
 import datetime
 import os
 
-from ....utils.path_utils import get_resource_path
-from ....utils.time_control import classify_time_control
+from src.utils.path_utils import get_resource_path
+from src.utils.time_control import classify_time_control
 
 __all__ = [
     "classify_time_control",

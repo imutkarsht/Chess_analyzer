@@ -503,7 +503,7 @@ def build_move_insight(
 def _safe_move(uci: str) -> chess.Move | None:
     try:
         return chess.Move.from_uci(uci)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - malformed UCI must never break the insight
         return None
 
 
@@ -516,7 +516,7 @@ def _uci_to_san(board: chess.Board, uci: str | None) -> str | None:
         return None
     try:
         return board.san(move)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - illegal move must never break the insight
         return None
 
 

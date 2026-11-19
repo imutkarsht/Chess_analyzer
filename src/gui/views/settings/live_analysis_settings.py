@@ -2,11 +2,10 @@
 
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
+from src.gui.styles import Styles
+from src.gui.views.settings.components import SettingsBinder, SettingsForm
+from src.gui.views.settings.modern_widgets import ModernSliderCounter
 from src.utils.path_utils import get_resource_path
-
-from ...styles import Styles
-from .components import SettingsBinder, SettingsForm
-from .modern_widgets import ModernSliderCounter
 
 
 class LiveAnalysisSettings(QGroupBox):

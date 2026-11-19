@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .constants import DRAW_MODE_TO_BUCKET
+from src.backend.analysis.metrics.constants import DRAW_MODE_TO_BUCKET
 
 # Regex patterns anchored with word boundaries to avoid false substrings
 _STALEMATE_PAT = re.compile(r"\bstalemate\b", re.IGNORECASE)

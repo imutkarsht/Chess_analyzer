@@ -8,9 +8,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from .accumulators import StatsAccumulator
-from .filters import filter_games, get_user_color, matches_filters
-from .models import GameRecord
+from src.backend.analysis.metrics.accumulators import StatsAccumulator
+from src.backend.analysis.metrics.filters import filter_games, get_user_color, matches_filters
+from src.backend.analysis.metrics.models import GameRecord
 
 
 def calculate_stats(

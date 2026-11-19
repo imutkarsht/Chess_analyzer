@@ -20,8 +20,7 @@ from PyQt6.QtWidgets import (
 from src.backend.storage.models import GameAnalysis
 from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
 from src.gui.components.feedback.toast import ToastManager
-
-from .report_card import ShareReportRenderer
+from src.gui.share.report_card import ShareReportRenderer
 
 
 class ShareReportDialog(QDialog):
