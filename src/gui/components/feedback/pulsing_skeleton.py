@@ -146,8 +146,21 @@ class PulsingSkeleton(QWidget):
     # Building blocks
     # ------------------------------------------------------------------
 
+    def refresh_styles(self) -> None:
+        """Re-apply palette-derived colours after a theme or accent change."""
+        for divider in self.findChildren(QFrame, "skeletonDivider"):
+            divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
+        for bar in self.findChildren(QFrame, "skeletonBar"):
+            radius = bar.property("radius") or _ROW_RADIUS
+            bar.setStyleSheet(
+                f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
+                f"border: 1px solid {Styles.COLOR_BORDER}; "
+                f"border-radius: {radius}px;"
+            )
+
     def _divider(self) -> QFrame:
         divider = QFrame()
+        divider.setObjectName("skeletonDivider")
         divider.setFixedHeight(1)
         divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
         return divider
@@ -166,6 +179,8 @@ class PulsingSkeleton(QWidget):
         row_layout.setSpacing(0)
 
         bar = QFrame()
+        bar.setObjectName("skeletonBar")
+        bar.setProperty("radius", radius)
         bar.setFixedHeight(height)
         bar.setStyleSheet(
             f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "

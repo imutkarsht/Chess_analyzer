@@ -10,7 +10,7 @@
 #   ./build_dmg.sh
 #
 # Output:
-#   installers/mac/Output/ChessAnalyzerPro-2.6.0-macOS.dmg
+#   installers/mac/Output/ChessAnalyzerPro-2.6.1-macOS.dmg
 # ==============================================================================
 
 set -euo pipefail

@@ -463,23 +463,26 @@ class Board(QWidget):
         for c in range(8):
             self.overlay_layout.setColumnStretch(c, 1)
 
-        # Legal move dots
+        # Legal move dots — use a colour that contrasts with each destination
+        # square so the dots remain visible on every board theme and accent.
         if self.show_legal_moves and self.legal_destinations:
+            sq_size = max(1, self.svg_widget.width() // 8)
+            dot_size = max(12, int(sq_size * 0.35))
             for sq in self.legal_destinations:
-                colour = QColor(Styles.COLOR_ACCENT)
+                dot_color = self._legal_dot_color(sq)
                 dot = IconLabel(
                     None,
-                    size=1,
-                    fixed_size=False,
+                    size=dot_size,
+                    fixed_size=True,
                     fallback="●",
-                    fallback_size=24,
-                    color=(
-                        f"rgba({colour.red()},{colour.green()},"
-                        f"{colour.blue()},0.5)"
-                    ),
+                    fallback_size=dot_size,
                 )
+                # Trigger the fallback glyph with the resolved colour.
+                dot.set_color(dot_color)
                 r, col = self._sq_to_grid(sq)
-                self.overlay_layout.addWidget(dot, r, col)
+                self.overlay_layout.addWidget(
+                    dot, r, col, alignment=Qt.AlignmentFlag.AlignCenter
+                )
 
         if self._show_classification and self.config.classification_overlay == "last_move":
             self._draw_last_move_badge()
@@ -509,6 +512,25 @@ class Board(QWidget):
             return rank, 7 - file
         return 7 - rank, file
 
+    def _legal_dot_color(self, square: int) -> str:
+        """Return a high-contrast dot colour for the given board square."""
+        from ...utils.config import ConfigManager
+
+        config = ConfigManager()
+        theme_name = self.config.board_theme or config.get(
+            "board_theme", DEFAULT_BOARD_THEME
+        )
+        colors = Styles.get_board_colors(theme_name)
+        file_idx = chess.square_file(square)
+        rank_idx = chess.square_rank(square)
+        is_light = (file_idx + rank_idx) % 2 == 1
+        square_hex = colors["light"] if is_light else colors["dark"]
+        sq_color = QColor(square_hex)
+        # Dark square → white dot; light square → black dot for maximum contrast.
+        if sq_color.lightness() < 128:
+            return "rgba(255,255,255,0.90)"
+        return "rgba(0,0,0,0.85)"
+
     # ------------------------------------------------------------------ Historic / Free Position
     def load_fen(self, fen: str, flipped: bool | None = None, *, chess960: bool | None = None):
         """Load a position for free play.
@@ -526,6 +548,7 @@ class Board(QWidget):
         self.dimmed = False
         self.best_move_uci = None
         self.last_move_classification = None
+        self.last_move_uci = None
         self.game_moves = []
         self.current_move_index = -1
         self.selected_square = None
@@ -543,6 +566,7 @@ class Board(QWidget):
         self.dimmed = False
         self.best_move_uci = None
         self.last_move_classification = None
+        self.last_move_uci = None
         # Never inherit the orientation of a historic/free-play FEN.
         self.is_flipped = False
         self.selected_square = None
@@ -586,6 +610,7 @@ class Board(QWidget):
                 if start_fen
                 else chess.Board(chess960=self.is_chess960)
             )
+            self.last_move_uci = None
 
         self.update_board()
         self.draw_overlays(move_index)
@@ -599,21 +624,28 @@ class Board(QWidget):
         self.legal_destinations = []
         self.best_move_uci = None
         self.last_move_classification = None
+        self.last_move_uci = None
         self.update_board()
         self.draw_interactive_overlays()
 
     # ------------------------------------------------------------------ Analysis / Variation
-    def load_analysis_position(self, fen: str, chess960: bool = False):
+    def load_analysis_position(
+        self, fen: str, chess960: bool = False, last_move_uci: str | None = None
+    ):
         """
         Load a position for free analysis while keeping the game replay data.
 
         Unlike ``load_fen`` this never clears ``game_moves``, so leaving the
         analysis position can restore the game with ``set_position``.
+
+        ``last_move_uci`` highlights the move that led to this position, since
+        the board is constructed from a FEN and has no move-stack history.
         """
         self.board = chess.Board(fen, chess960=chess960)
         self.is_chess960 = chess960
         self.interactive = True
         self.last_move_classification = None
+        self.last_move_uci = last_move_uci
         self.selected_square = None
         self.legal_destinations = []
         self.drag_start_sq = None
@@ -800,8 +832,14 @@ class Board(QWidget):
 
         # Resolve last move to highlight
         last_move = None
-        if self._show_last_move and self.board.move_stack:
-            last_move = self.board.move_stack[-1]
+        if self._show_last_move:
+            if self.board.move_stack:
+                last_move = self.board.move_stack[-1]
+            elif getattr(self, "last_move_uci", None):
+                try:
+                    last_move = chess.Move.from_uci(self.last_move_uci)
+                except ValueError:
+                    last_move = None
         last_from = last_move.from_square if last_move else None
         last_to = last_move.to_square if last_move else None
 

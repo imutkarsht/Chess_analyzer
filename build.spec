@@ -38,6 +38,7 @@ a = Analysis(
         ('.env.sample', '.'),
         ('LICENSE', '.'),
         ('THIRD-PARTY-NOTICES.md', '.'),
+        ('src/gui/theme/theme_template.qss', 'src/gui/theme'),
     ] + _package_licenses,
     hiddenimports=['chess', 'PyQt6', 'groq', 'dotenv', 'PyQt6.QtSvg', 'qtawesome', 'packaging', 'packaging.version', 'keyring'],
     hookspath=[],

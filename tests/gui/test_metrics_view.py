@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
+from src.gui.metrics.workers import StatsWorker
 from src.gui.views.metrics.card_registry import (
     DEFAULT_CARD_ORDER,
     normalise_card_order,
@@ -55,6 +56,32 @@ def test_metrics_view_filter_toolbar(qapp, qtbot):
     widget.reset_filters()
     assert widget.combo_color.currentText() == "All Colors"
     assert widget.combo_format.currentText() == "All Formats"
+
+    widget.stop_worker()
+
+
+def test_metrics_view_shows_skeleton_while_loading(qapp, qtbot, monkeypatch):
+    """A breathing skeleton placeholder is shown while stats calculate."""
+    # Prevent the worker from finishing so the skeleton stays visible.
+    monkeypatch.setattr(StatsWorker, "start", lambda self: None)
+
+    mock_config = MagicMock()
+    mock_config.get.return_value = "PlayerA"
+
+    mock_history = MagicMock()
+    mock_history.get_games_for_stats.return_value = [{"id": "g1"}]
+
+    widget = MetricsWidget(mock_config, mock_history)
+    qtbot.addWidget(widget)
+    widget.show()
+
+    widget.on_filter_changed()
+    skeleton = widget.findChild(PulsingSkeleton)
+    assert skeleton is not None
+    assert skeleton.is_animating()
+
+    # Theme changes must refresh the skeleton's palette-derived colours.
+    skeleton.refresh_styles()
 
     widget.stop_worker()
 

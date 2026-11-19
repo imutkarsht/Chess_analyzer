@@ -116,17 +116,25 @@ class ThemeManager(QObject):
 
     @classmethod
     def apply_app_stylesheet(cls):
-        """Compiles and applies the central QSS theme template globally to QApplication."""
+        """Compiles and applies the central QSS theme template globally to QApplication.
+
+        The template and generated typography rules are loaded independently so
+        a packaging mistake that loses the template can never wipe out all font
+        styling again.
+        """
         import os
 
         from PyQt6.QtWidgets import QApplication
 
+        from src.gui.styles import Styles
+        from src.utils.logger import logger
         from src.utils.path_utils import get_resource_path
 
         qss_path = os.path.join(os.path.dirname(__file__), "theme_template.qss")
         if not os.path.exists(qss_path):
             qss_path = get_resource_path("src/gui/theme/theme_template.qss")
 
+        template_qss = ""
         try:
             with open(qss_path, encoding="utf-8") as f:
                 template = f.read()
@@ -134,7 +142,7 @@ class ThemeManager(QObject):
             p = cls._palette
             tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
 
-            qss = template.format(
+            template_qss = template.format(
                 BACKGROUND=p.background,
                 SURFACE=p.surface,
                 SURFACE_LIGHT=p.surface_light,
@@ -150,17 +158,16 @@ class ThemeManager(QObject):
                 ACCENT_SUBTLE=p.accent_subtle,
                 TICK_PATH=tick_path,
             )
-            app = QApplication.instance()
-            if app:
-                # Typography rules are generated from the live palette, so they
-                # must be appended after the template has been formatted.
-                from src.gui.styles import Styles
-
-                app.setStyleSheet(qss + "\n" + Styles.get_typography_qss())
         except Exception as e:
-            from src.utils.logger import logger
+            logger.error(f"Failed to load app stylesheet template from {qss_path}: {e}")
 
-            logger.error(f"Failed to apply app stylesheet: {e}")
+        # Typography is always applied, even if the template is missing, so
+        # labels keep their roles, sizes, and semantic tones.
+        typography_qss = Styles.get_typography_qss()
+
+        app = QApplication.instance()
+        if app:
+            app.setStyleSheet(template_qss + "\n" + typography_qss)
 
     @classmethod
     def set_mode(cls, mode: str, force: bool = True):

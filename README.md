@@ -9,7 +9,7 @@
 [![Test Suite](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml/badge.svg?style=flat)](https://github.com/imutkarsht/Chess_analyzer/actions/workflows/test.yml)
 ![License](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg?style=flat)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg?style=flat)
-![Version](https://img.shields.io/badge/version-2.6.0-green.svg?style=flat)
+![Version](https://img.shields.io/badge/version-2.6.1-green.svg?style=flat)
 
 <p align="center">
   <a href="https://ik.imagekit.io/hghxc7q4v/Chess%20Analyzer/v2.1/showcasevideo.mp4" target="_blank">

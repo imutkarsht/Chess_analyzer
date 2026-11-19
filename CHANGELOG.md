@@ -1,10 +1,10 @@
 # Changelog
 
-## v2.6.0 - Unreleased
+## v2.6.1 - 2026-11-18
 
 ### Licensing
 
-- **Relicensed to GPL-3.0-only**: From 2.6.0 the project is released under the GNU GPL version 3 (only), including the section 7 attribution terms recorded in `LICENSE`. Releases up to and including 2.5.0 remain MIT and are not affected.
+- **Relicensed to GPL-3.0-only**: From 2.6.1 the project is released under the GNU GPL version 3 (only), including the section 7 attribution terms recorded in `LICENSE`. Releases up to and including 2.5.0 remain MIT and are not affected.
 - **Third-Party Notices**: Added `THIRD-PARTY-NOTICES.md` covering committed assets (pieces, openings, icon fonts, bundled fonts) and the bundled libraries. Packaged builds now ship every bundled package's licence text under `licenses/`.
 
 ### Features
@@ -34,6 +34,19 @@
 - **Tactical Drill-Down**: Rows open the exact displayed move, mate evaluations render as `+M3`/`-M4`, and the action uses a compact "Open" label.
 - **Cached Coach Explanations**: Restored when revisiting a move without re-requesting the LLM.
 - **Time-Control Notation**: Centralised parsing for report cards and share output.
+- **Packaged Theme Stylesheet**: `theme_template.qss` is now included in PyInstaller builds, and typography is applied even when the template cannot be loaded, so a packaging regression can no longer strip every font role from the app.
+- **Frozen First Launch**: Matplotlib's font cache now persists under the user data directory instead of a new temp folder per launch; the analytics dashboard is prewarmed during the splash so the first Stats tab no longer freezes.
+- **Metrics Loading State**: The bare stats progress bar was replaced with an animated dashboard-shaped skeleton while history is queried and aggregated.
+- **Time & Clock Analytics**: A single format row no longer stretches vertically to fill the whole card.
+- **Setup Wizard Completion**: Centered the success icon on the final wizard page.
+- **Variation Mode Board State**: Restored last-move highlighting, kept the board interactive, and ensured legal-move indicators appear when a piece is selected.
+- **Legal-Move Indicators**: Fixed invisible move dots caused by an unapplied fallback glyph; dots now scale with the board and use a high-contrast colour for each destination square (black on light squares, white on dark squares).
+- **First-Launch Splash**: Replaced the static “Initializing…” state with clear startup messages, including a one-time font-cache notice, and forced repaint before blocking imports.
+
+### Contributors
+
+- **Utkarsh Tiwari** ([@imutkarsht](https://github.com/imutkarsht)) — maintainer and release engineering.
+- **LouisB88** ([@LouisB88](https://github.com/LouisB88)) — annotated PGN export, shareable report cards, and related fixes.
 
 ### Chores
 

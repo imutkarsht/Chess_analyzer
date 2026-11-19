@@ -170,7 +170,7 @@ def setup_logging(custom_level: int | None = None) -> logging.Logger:
             try:
                 from src.constants import APP_VERSION
             except Exception:
-                APP_VERSION = "2.6.0"
+                APP_VERSION = "2.6.1"
             platform_info = f"{sys.platform} ({platform.machine()})"
             py_ver = platform.python_version()
             logger_instance.info("=" * 80)
