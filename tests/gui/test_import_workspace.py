@@ -5,12 +5,10 @@ from PyQt6.QtCore import Qt
 
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_identity import game_identity_key
+from src.backend.storage.pgn_metadata import extract_pgn_metadata
 from src.backend.storage.pgn_parser import PGNParser
 from src.gui.import_workspace import GameBatch, GameImportView
-from src.gui.import_workspace.boards import (
-    MiniBoardFenWorker,
-    summarize_pgn,
-)
+from src.gui.import_workspace.boards import MiniBoardFenWorker
 from src.gui.import_workspace.model import (
     COL_BOARD,
     COL_DETAILS,
@@ -34,18 +32,19 @@ def _batch(saved_first: bool = True) -> GameBatch:
     return GameBatch.from_pgn_index(index, saved_keys, "games.pgn")
 
 
-def test_summarize_pgn_returns_the_final_position():
+def test_extract_pgn_metadata_returns_the_final_position():
     pgn = (
         '[Event "One"]\n[White "Alice"]\n[Black "Bob"]\n[Result "1-0"]\n\n'
         "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0"
     )
 
-    summary = summarize_pgn(pgn)
+    metadata = extract_pgn_metadata(pgn)
 
-    assert summary.move_count == 3
-    assert summary.last_fen is not None
-    assert summary.last_move_uci == "a7a6"
-    board = chess.Board(summary.last_fen)
+    assert metadata is not None
+    assert metadata.move_count == 3
+    assert metadata.last_fen is not None
+    assert metadata.last_move_uci == "a7a6"
+    board = chess.Board(metadata.last_fen)
     assert board.piece_at(chess.B5) is not None
 
 

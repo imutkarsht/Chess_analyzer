@@ -11,8 +11,8 @@ from PyQt6.QtCore import (
 )
 
 from src.backend.storage.game_identity import normalize_date
-from src.gui.dialogs.load_game.helpers import format_display_date
 from src.gui.import_workspace.batch import GameCandidate
+from src.utils.date_utils import format_display_date
 
 COL_CHECK = 0
 COL_BOARD = 1

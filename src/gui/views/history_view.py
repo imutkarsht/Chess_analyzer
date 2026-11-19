@@ -29,23 +29,24 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    GameListWidget,
     Label,
     TextRole,
+    ToastHandle,
+    ToastManager,
+    confirm_dialog,
 )
-from src.gui.components.feedback.toast import ToastHandle, ToastManager
-from src.gui.components.lists.game_list_widget import GameListWidget
 from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
-from src.gui.utils.gui_utils import create_button
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.history_batch import (
     BatchQueueCard,
     BatchSelectionBar,
     UpNextEntry,
-    format_clock,
 )
 from src.gui.views.history_filter_bar import HistoryFilterBar
+from src.utils.format_utils import format_clock
 from src.utils.logger import logger
 
 
@@ -312,10 +313,17 @@ class HistoryView(QWidget):
         header_layout.addWidget(self.btn_batch)
 
         # Action Buttons in Top Header (Import, Export, Clear, Refresh)
-        self.btn_import = self._create_icon_button("Import", "fa5s.file-import", self.import_games)
+        self.btn_import = Button(
+            "Import",
+            ButtonVariant.FILLED,
+            icon="fa5s.file-import",
+            on_click=self.import_games,
+        )
         header_layout.addWidget(self.btn_import)
 
-        self.btn_export = self._create_icon_button("Export", "fa5s.file-export", None)
+        self.btn_export = Button(
+            "Export", ButtonVariant.FILLED, icon="fa5s.file-export"
+        )
         self.export_menu = QMenu(self)
         self.export_menu.setStyleSheet(Styles.get_menu_style())
         self.export_csv_action = self.export_menu.addAction("Export CSV")
@@ -334,17 +342,15 @@ class HistoryView(QWidget):
         self.btn_cancel_export.setVisible(False)
         header_layout.addWidget(self.btn_cancel_export)
 
-        self.btn_clear = self._create_icon_button(
+        self.btn_clear = Button(
             "Delete all games",
-            "fa5s.trash-alt",
-            self.clear_history,
-            danger=True,
+            ButtonVariant.DANGER,
+            icon="fa5s.trash-alt",
+            on_click=self.clear_history,
         )
         header_layout.addWidget(self.btn_clear)
 
-        self.btn_refresh = create_button(
-            "Refresh", style="secondary", on_click=self.load_history, icon_name="fa5s.sync-alt"
-        )
+        self.btn_refresh = Button('Refresh', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=self.load_history)
         header_layout.addWidget(self.btn_refresh)
 
         history_page_layout.addWidget(self.header_bar)
@@ -458,16 +464,6 @@ class HistoryView(QWidget):
     def _on_import_games_added(self, inserted: int, _skipped: int) -> None:
         if inserted:
             self.games_imported.emit(inserted)
-
-    def _create_icon_button(self, text, icon_name, callback=None, danger=False):
-        """Create a Button with a themed icon."""
-        return Button(
-            text,
-            ButtonVariant.FILLED,
-            icon=icon_name,
-            danger=danger,
-            on_click=callback,
-        )
 
     def _refresh_export_menu_icons(self):
         """Retint the export menu icons from the live palette."""
@@ -625,8 +621,6 @@ class HistoryView(QWidget):
                 resume += 1
             else:
                 analyze += 1
-
-        from src.gui.utils.gui_utils import confirm_dialog
 
         noun = "game" if len(valid_ids) == 1 else "games"
         message = (
@@ -816,7 +810,9 @@ class HistoryView(QWidget):
         else:
             parts = [f"Batch analysis · {processed}/{total} · {percent}%"]
             if self._batch_eta is not None:
-                parts.append(f"ETA ~{format_clock(self._batch_eta)}")
+                parts.append(
+                    f"ETA ~{format_clock(self._batch_eta, pad_minutes=True, round_seconds=True)}"
+                )
             text = " · ".join(parts)
         self.batch_collapsed_bar.setText(text)
 
@@ -1104,8 +1100,6 @@ class HistoryView(QWidget):
             )
             return
 
-        from src.gui.utils.gui_utils import confirm_dialog
-
         if not confirm_dialog(
             self,
             "Delete Game",
@@ -1188,8 +1182,6 @@ class HistoryView(QWidget):
                 self, "Pause or cancel the running batch before deleting all games."
             )
             return
-
-        from src.gui.utils.gui_utils import confirm_dialog
 
         if confirm_dialog(
             self,

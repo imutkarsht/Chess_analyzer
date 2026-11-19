@@ -7,6 +7,19 @@ from PyQt6.QtMultimedia import QSoundEffect
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
 
+CLASSIFICATION_ICONS = {
+    "Brilliant": "brilliant.svg",
+    "Great": "great_find.svg",
+    "Best": "best_v2.svg",
+    "Excellent": "excellent.svg",
+    "Good": "good.svg",
+    "Book": "book.svg",
+    "Inaccuracy": "inaccuracy.svg",
+    "Mistake": "mistake.svg",
+    "Miss": "missed_win.svg",
+    "Blunder": "blunder.svg",
+}
+
 
 class ResourceManager:
     _instance = None
@@ -52,18 +65,7 @@ class ResourceManager:
         self._sound_index = {}        # name -> next pool index (round-robin)
 
         # Mappings
-        self.icon_map = {
-            "Brilliant": "brilliant.svg",
-            "Great": "great_find.svg",
-            "Best": "best_v2.svg",
-            "Excellent": "excellent.svg",
-            "Good": "good.svg",
-            "Book": "book.svg",
-            "Inaccuracy": "inaccuracy.svg",
-            "Mistake": "mistake.svg",
-            "Miss": "missed_win.svg",
-            "Blunder": "blunder.svg",
-        }
+        self.icon_map = CLASSIFICATION_ICONS
 
         self.sound_map = {
             "move": "move.wav",

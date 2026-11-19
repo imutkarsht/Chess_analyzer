@@ -40,6 +40,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.utils.format_utils import format_clock
 
 
 @dataclass(frozen=True)
@@ -151,7 +152,7 @@ class _QueueRow(QWidget):
         layout.addWidget(moves)
 
         self.eta_label = Label(
-            f"~{format_clock(entry.eta_seconds)}"
+            f"~{format_clock(entry.eta_seconds, pad_minutes=True, round_seconds=True)}"
             if entry.eta_seconds is not None
             else "—",
             role=TextRole.MICRO,
@@ -188,7 +189,9 @@ class _QueueRow(QWidget):
 
     def set_eta(self, eta_seconds: float | None) -> None:
         self.eta_label.setText(
-            f"~{format_clock(eta_seconds)}" if eta_seconds is not None else "—"
+            f"~{format_clock(eta_seconds, pad_minutes=True, round_seconds=True)}"
+            if eta_seconds is not None
+            else "—"
         )
 
     def mousePressEvent(self, event):
@@ -726,9 +729,11 @@ class BatchQueueCard(QFrame):
         total = max(0, getattr(self, "_summary_total", 0))
         processed = min(getattr(self, "_summary_processed", 0), total)
         self.progress_value.setText(f"{processed} / {total}")
-        self.elapsed_value.setText(format_clock(self._elapsed_seconds))
+        self.elapsed_value.setText(
+            format_clock(self._elapsed_seconds, pad_minutes=True, round_seconds=True)
+        )
         self.eta_value.setText(
-            f"~{format_clock(self._eta_seconds)}"
+            f"~{format_clock(self._eta_seconds, pad_minutes=True, round_seconds=True)}"
             if self._eta_seconds is not None
             else "—"
         )
@@ -758,9 +763,13 @@ class BatchQueueCard(QFrame):
 
         parts = []
         if self._game_elapsed_seconds > 0:
-            parts.append(f"Game elapsed {format_clock(self._game_elapsed_seconds)}")
+            parts.append(
+                f"Game elapsed {format_clock(self._game_elapsed_seconds, pad_minutes=True, round_seconds=True)}"
+            )
         if self._game_eta_seconds is not None:
-            parts.append(f"Left ~{format_clock(self._game_eta_seconds)}")
+            parts.append(
+                f"Left ~{format_clock(self._game_eta_seconds, pad_minutes=True, round_seconds=True)}"
+            )
         if current > 0 and self._game_elapsed_seconds > 0:
             speed = current / max(0.001, self._game_elapsed_seconds)
             parts.append(f"Speed {speed:.1f} moves/s")
@@ -844,10 +853,4 @@ def _summary_text(summary) -> str:
     return "  ·  ".join(parts) if parts else "No games processed."
 
 
-def format_clock(seconds: float) -> str:
-    total = int(max(0, round(seconds)))
-    hours, remainder = divmod(total, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    if hours:
-        return f"{hours}:{minutes:02d}:{seconds:02d}"
-    return f"{minutes:02d}:{seconds:02d}"
+

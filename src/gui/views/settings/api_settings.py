@@ -3,8 +3,7 @@ API Configuration Settings group component.
 """
 import time
 
-from PyQt6.QtCore import QThread, QUrl, pyqtSignal
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -23,17 +22,18 @@ from src.gui.components import (
     Select,
     TextRole,
     TextTone,
+    ToastManager,
+    confirm_dialog,
+    show_error_dialog,
 )
-from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import show_error_dialog
+from src.gui.utils.links import open_url
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.settings.components import (
     CONTROL_DEFAULT,
     CONTROL_WIDE,
     SettingsForm,
 )
-from src.gui.views.settings.helpers import create_icon_button
 
 
 def test_llm_sync(profile: dict, tuning: tuple | None = None) -> tuple:
@@ -156,20 +156,17 @@ class ApiSettings(QGroupBox):
         self.llm_add_btn.setAccessibleName("Add LLM profile")
 
         self.llm_del_btn = Button(
-            variant=ButtonVariant.FILLED,
+            variant=ButtonVariant.DANGER,
             size=ButtonSize.SM,
             icon="fa5s.minus",
             icon_position="only",
-            danger=True,
             tooltip="Delete profile",
             on_click=self._delete_llm_profile,
             parent=self,
         )
         self.llm_del_btn.setAccessibleName("Delete LLM profile")
 
-        self.llm_set_active_btn = create_icon_button(
-            "Set active", "fa5s.star", self._on_set_active, self
-        )
+        self.llm_set_active_btn = Button('Set active', ButtonVariant.FILLED, icon='fa5s.star', on_click=self._on_set_active, parent=self)
         self.llm_set_active_btn.setToolTip(
             "Use this profile for AI Coach and game reports."
         )
@@ -269,9 +266,7 @@ class ApiSettings(QGroupBox):
 
         # --- Test connection ---
         act_row = QHBoxLayout()
-        self.llm_test_btn = create_icon_button(
-            "Test connection", "fa5s.plug", self._test_llm_profile, self
-        )
+        self.llm_test_btn = Button('Test connection', ButtonVariant.FILLED, icon='fa5s.plug', on_click=self._test_llm_profile, parent=self)
         self.llm_test_btn.setAccessibleName("Test LLM connection")
         act_row.addWidget(self.llm_test_btn)
         act_row.addStretch()
@@ -477,7 +472,7 @@ class ApiSettings(QGroupBox):
 
     def _open_provider_help(self) -> None:
         if self._help_url:
-            QDesktopServices.openUrl(QUrl(self._help_url))
+            open_url(self._help_url)
 
     # ------------------------------------------------------------------
     # Profile actions
@@ -515,7 +510,6 @@ class ApiSettings(QGroupBox):
         if not (0 <= idx < len(profiles)):
             return
         name = profiles[idx].get("name", "")
-        from src.gui.utils.gui_utils import confirm_dialog
         if not confirm_dialog(self, "Delete Profile",
                               f'Delete profile "{name}"?',
                               confirm_label="Delete"):

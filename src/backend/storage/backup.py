@@ -11,9 +11,9 @@ import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 
 from src.backend.storage import migrations
+from src.backend.storage.db_connection import count_rows, get_readonly_connection
 from src.backend.storage.schema_constants import CURRENT_SCHEMA_VERSION
 from src.utils.logger import logger
 from src.utils.path_utils import get_user_data_dir
@@ -66,20 +66,6 @@ def default_backup_path() -> str:
     return os.path.join(_default_backup_dir(), default_backup_name())
 
 
-def _readonly_connection(path: str) -> sqlite3.Connection:
-    uri = f"{Path(path).resolve().as_uri()}?mode=ro"
-    conn = sqlite3.connect(uri, uri=True, timeout=5.0)
-    conn.execute("PRAGMA busy_timeout=2000")
-    return conn
-
-
-def _count(conn: sqlite3.Connection, table: str) -> int:
-    try:
-        return int(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-    except sqlite3.Error:
-        return 0
-
-
 def _validate_game_history(conn: sqlite3.Connection) -> None:
     """Require a real game-history table, not just a same-named one."""
     try:
@@ -122,8 +108,7 @@ def inspect_backup(path: str) -> BackupSummary:
         raise BackupValidationError("The selected file is not a SQLite database.")
 
     try:
-        conn = _readonly_connection(path)
-        try:
+        with get_readonly_connection(path) as conn:
             integrity = conn.execute("PRAGMA integrity_check").fetchone()
             if not integrity or integrity[0] != "ok":
                 reason = integrity[0] if integrity else "unknown error"
@@ -145,11 +130,9 @@ def inspect_backup(path: str) -> BackupSummary:
                 ) from e
             _validate_game_history(conn)
 
-            games = _count(conn, "games")
-            analyses = _count(conn, "analysis")
-            explanations = _count(conn, "move_explanations")
-        finally:
-            conn.close()
+            games = count_rows(conn, "games")
+            analyses = count_rows(conn, "analysis")
+            explanations = count_rows(conn, "move_explanations")
     except BackupValidationError:
         raise
     except sqlite3.Error as e:

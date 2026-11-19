@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.analysis.chess_utils import is_chess960_variant, requires_chess960
 from src.gui.board import MiniBoardConfig, MiniBoardWidget
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.icon_label import IconLabel
@@ -26,16 +27,15 @@ from src.gui.components.display.rich_text import RichTextLabel
 from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
+from src.gui.utils.assets import asset_path, icon_path, tick_icon_path
+from src.gui.utils.icons import HAS_QTAWESOME
+from src.gui.utils.result_ui import result_tone as tone_for_result
 from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
-from src.utils.time_control import format_time_control
+from src.utils.time_control import classify_time_control, format_time_control
 
 try:
     import qtawesome as qta
-
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
     logger.warning("qtawesome not installed. Using text fallbacks for icons.")
 
 
@@ -111,8 +111,12 @@ class GameListItemWidget(QWidget):
         if source_icon:
             card_layout.addWidget(source_icon)
 
-        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
-            game.metadata.time_control
+        speed_cat = getattr(
+            game.metadata, "speed_category", None
+        ) or classify_time_control(
+            game.metadata.time_control,
+            default="Blitz",
+            empty_default="Classical",
         )
         formatted_tc = format_time_control(game.metadata.time_control)
         tc_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc else speed_cat
@@ -183,7 +187,9 @@ class GameListItemWidget(QWidget):
         card_layout.addWidget(op_lbl, stretch=1)
 
         # 4. Result Badge
-        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_tone = tone_for_result(
+            result_text, self._user_color(game.metadata, usernames)
+        )
         result_label = StatusBadge(
             result_text,
             result_tone,
@@ -301,7 +307,9 @@ class GameListItemWidget(QWidget):
         header_layout.addStretch()
 
         # Result badge
-        result_tone = self._get_result_tone(result_text, game.metadata, usernames)
+        result_tone = tone_for_result(
+            result_text, self._user_color(game.metadata, usernames)
+        )
         result_label = StatusBadge(
             result_text,
             result_tone,
@@ -330,9 +338,9 @@ class GameListItemWidget(QWidget):
             opening_layout.setSpacing(6)
 
             book_icon = IconLabel(size=14)
-            icon_path = get_resource_path("assets/images/book.svg")
-            if os.path.exists(icon_path):
-                book_icon.set_icon(QIcon(icon_path))
+            book_path = asset_path("assets/images/book.svg")
+            if os.path.exists(book_path):
+                book_icon.set_icon(QIcon(book_path))
             elif HAS_QTAWESOME:
                 book_icon.set_icon("fa5s.book-open")
             opening_layout.addWidget(book_icon)
@@ -354,8 +362,12 @@ class GameListItemWidget(QWidget):
         meta_layout.setSpacing(12)
 
         # Speed Category Badge
-        speed_cat = getattr(game.metadata, "speed_category", None) or self._classify_time_control(
-            game.metadata.time_control
+        speed_cat = getattr(
+            game.metadata, "speed_category", None
+        ) or classify_time_control(
+            game.metadata.time_control,
+            default="Blitz",
+            empty_default="Classical",
         )
         formatted_tc = format_time_control(game.metadata.time_control)
         speed_display = (
@@ -513,10 +525,9 @@ class GameListItemWidget(QWidget):
                 checkbox.setAccessibleName(
                     f"Select {self._game.metadata.white} vs {self._game.metadata.black}"
                 )
-                tick_path = get_resource_path("assets/images/tick.svg").replace(
-                    "\\", "/"
+                checkbox.setStyleSheet(
+                    Styles.get_settings_checkbox_style(tick_icon_path())
                 )
-                checkbox.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
                 self._selection_checkbox = checkbox
                 self._card_layout.insertWidget(0, checkbox)
             self._selection_checkbox.show()
@@ -638,11 +649,10 @@ class GameListItemWidget(QWidget):
         else:
             src_name = "file"
 
-        filename = f"{src_name}.png"
-        icon_path = get_resource_path(os.path.join("assets", "icons", filename))
+        source_icon = icon_path(f"{src_name}.png")
 
-        if os.path.exists(icon_path):
-            lbl.set_icon(QPixmap(icon_path))
+        if os.path.exists(source_icon):
+            lbl.set_icon(QPixmap(source_icon))
             return lbl
 
         if HAS_QTAWESOME:
@@ -659,9 +669,9 @@ class GameListItemWidget(QWidget):
     def _create_winner_crown(self):
         lbl = IconLabel(size=16)
 
-        icon_path = get_resource_path(os.path.join("assets", "images", "winner_crown.svg"))
-        if os.path.exists(icon_path):
-            lbl.set_icon(QPixmap(icon_path))
+        crown_path = asset_path("assets/images/winner_crown.svg")
+        if os.path.exists(crown_path):
+            lbl.set_icon(QPixmap(crown_path))
             return lbl
 
         if HAS_QTAWESOME:
@@ -682,9 +692,9 @@ class GameListItemWidget(QWidget):
 
         icon_lbl = IconLabel(size=14)
         if isinstance(icon, str) and icon.endswith(".svg"):
-            icon_path = get_resource_path(icon)
-            if os.path.exists(icon_path):
-                icon_lbl.set_icon(QPixmap(icon_path))
+            meta_icon = asset_path(icon)
+            if os.path.exists(meta_icon):
+                icon_lbl.set_icon(QPixmap(meta_icon))
             elif HAS_QTAWESOME:
                 icon_lbl.set_icon("fa5s.clock")
         elif isinstance(icon, str) and HAS_QTAWESOME:
@@ -699,112 +709,34 @@ class GameListItemWidget(QWidget):
 
         return container
 
-    def _get_result_tone(self, result_text, metadata, usernames) -> TextTone:
-        if not usernames:
-            if result_text == "1-0":
-                return TextTone.RESULT_WIN
-            elif result_text == "0-1":
-                return TextTone.RESULT_LOSS
-            return TextTone.RESULT_DRAW
-
-        user_is_white = metadata.white.lower() in [u.lower() for u in usernames]
-        user_is_black = metadata.black.lower() in [u.lower() for u in usernames]
-
-        if result_text == "1-0":
-            return TextTone.RESULT_WIN if user_is_white else TextTone.RESULT_LOSS
-        if result_text == "0-1":
-            return TextTone.RESULT_WIN if user_is_black else TextTone.RESULT_LOSS
-        return TextTone.RESULT_DRAW
-
     def _get_time_control_icon(self, time_control):
-        tc_type = self._classify_time_control(time_control)
+        tc_type = classify_time_control(
+            time_control,
+            default="Blitz",
+            empty_default="Classical",
+        )
         if tc_type == "Daily":
             return "assets/images/classical.svg"
+        if tc_type == "UltraBullet":
+            return "assets/images/bullet.svg"
         return f"assets/images/{tc_type}.svg"
-
-    def _classify_time_control(self, time_control):
-        if not time_control or time_control in ("-", "?", "*", ""):
-            return "Classical"
-
-        tc = time_control.strip()
-        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
-        if slash_match:
-            try:
-                moves = int(slash_match.group(1))
-                seconds = int(slash_match.group(2))
-                if seconds >= 86400 or (moves == 1 and seconds >= 3600):
-                    return "Daily"
-                elif seconds >= 1800:
-                    return "Classical"
-                elif seconds >= 600:
-                    return "Rapid"
-                else:
-                    return "Blitz"
-            except ValueError:
-                pass
-
-        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
-        if match:
-            try:
-                base_seconds = int(match.group(1))
-                increment = int(match.group(2)) if match.group(2) else 0
-                total_time = base_seconds + 40 * increment
-
-                if total_time < 30:
-                    return "UltraBullet"
-                elif total_time < 180:
-                    return "Bullet"
-                elif total_time < 600:
-                    return "Blitz"
-                elif total_time < 1800:
-                    return "Rapid"
-                elif total_time >= 86400:
-                    return "Daily"
-                else:
-                    return "Classical"
-            except ValueError:
-                pass
-
-        tc_lower = tc.lower()
-        if "ultrabullet" in tc_lower:
-            return "UltraBullet"
-        elif "bullet" in tc_lower:
-            return "Bullet"
-        elif "blitz" in tc_lower:
-            return "Blitz"
-        elif "rapid" in tc_lower:
-            return "Rapid"
-        elif any(k in tc_lower for k in ("daily", "correspondence")):
-            return "Daily"
-        elif "classical" in tc_lower:
-            return "Classical"
-
-        return "Blitz"
 
     def _is_chess960(self, game) -> bool:
         if getattr(game.metadata, "chess960", False):
             return True
         headers = getattr(game.metadata, "headers", {}) or {}
-        variant = headers.get("Variant", "").lower()
-        if any(k in variant for k in ("960", "fischer", "random", "frc")):
+        if is_chess960_variant(headers.get("Variant")):
             return True
 
         for key in ("Event", "Site"):
-            val = headers.get(key, "").lower()
-            if "960" in val or "frc" in val or "fischer" in val:
+            if is_chess960_variant(headers.get(key)):
                 return True
 
         # A custom starting position is not automatically Chess960. Only a
         # file-letter castling field (``A``-``H``/``a``-``h``) marks the variant;
         # Chess.com also exports ordinary non-standard setups with ordinary
         # ``KQkq`` castling rights.
-        fen = game.metadata.starting_fen
-        if not fen:
-            return False
-        parts = fen.split()
-        if len(parts) < 3:
-            return False
-        return any(piece not in "KQkq-" for piece in parts[2])
+        return requires_chess960(game.metadata.starting_fen)
 
     def _get_termination_icon(self, termination):
         term_lower = str(termination).lower()

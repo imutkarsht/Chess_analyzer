@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QHBoxLayout
 from src.gui.components import LegendList, SegmentedControl, StatusBadge, TextTone
 from src.gui.metrics.charts import create_donut_figure, fig_to_canvas
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import resolve_asset
+from src.gui.utils.assets import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
 
 

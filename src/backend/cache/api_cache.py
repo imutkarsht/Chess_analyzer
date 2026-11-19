@@ -1,115 +1,100 @@
 import datetime
-import io
+import hashlib
 import time
 from collections.abc import Callable
 
-import chess.pgn
-
+from src.backend.api.chess_com_api import ChessComAPI
+from src.backend.api.lichess_api import LichessAPI
 from src.backend.models.game_info import GameInfo
+from src.backend.storage.cache_time import cache_is_fresh
 from src.backend.storage.game_history import GameHistoryManager
-from src.utils.time_control import classify_time_control
-
-
-def parse_pgn_headers(
-    pgn: str,
-    default_white="?",
-    default_black="?",
-    default_result="*",
-    default_date_str="????.??.??",
-    default_white_elo=None,
-    default_black_elo=None,
-    default_time_class=None,
-    default_opening=None,
-):
-    white = default_white
-    black = default_black
-    result = default_result
-    date_str = default_date_str
-    white_elo = default_white_elo
-    black_elo = default_black_elo
-    time_class = default_time_class
-    opening = default_opening
-    move_count = None
-
-    try:
-        game = chess.pgn.read_game(io.StringIO(pgn))
-        if game:
-            h = game.headers
-            h_white = h.get("White")
-            if h_white and h_white != "?":
-                white = h_white
-
-            h_black = h.get("Black")
-            if h_black and h_black != "?":
-                black = h_black
-
-            h_result = h.get("Result")
-            if h_result and h_result != "*":
-                result = h_result
-
-            h_date = h.get("Date")
-            if h_date and h_date != "????.??.??":
-                date_str = h_date
-            if date_str and "." in date_str:
-                date_str = date_str.replace(".", "-")
-
-            h_w_elo = h.get("WhiteElo")
-            if h_w_elo and h_w_elo != "?":
-                white_elo = h_w_elo
-
-            h_b_elo = h.get("BlackElo")
-            if h_b_elo and h_b_elo != "?":
-                black_elo = h_b_elo
-
-            h_time_control = h.get("TimeControl")
-            if h_time_control and h_time_control not in ("?", "-"):
-                classified = classify_time_control(h_time_control)
-                if classified != "Unknown":
-                    time_class = classified
-
-            if not time_class:
-                h_event = h.get("Event")
-                if h_event and h_event not in ["?", "Lichess Game", "Chess.com Game"]:
-                    time_class = h_event
-
-            h_opening = h.get("Opening")
-            if h_opening and h_opening != "?":
-                opening = h_opening
-
-            node = game
-            cnt = 0
-            while node.variations:
-                node = node.variation(0)
-                cnt += 1
-            move_count = (cnt + 1) // 2
-    except Exception:
-        pass
-
-    return white, black, result, date_str, white_elo, black_elo, time_class, opening, move_count
-
-
-def _cache_is_fresh(games: list[GameInfo], ttl_seconds: float) -> bool:
-    """True when at least one cached row was written within ``ttl_seconds``.
-
-    Today's results change while the day is still running, so a cache hit for
-    today must be short-lived. Historical dates are immutable and can stay
-    cached indefinitely.
-    """
-    now = time.time()
-    for game in games:
-        raw = getattr(game, "cached_at", None)
-        if not raw:
-            continue
-        try:
-            written = time.mktime(time.strptime(raw, "%Y-%m-%d %H:%M:%S"))
-        except (TypeError, ValueError):
-            continue
-        if now - written <= ttl_seconds:
-            return True
-    return False
-
+from src.backend.storage.pgn_metadata import parse_pgn_headers
 
 _TODAY_CACHE_TTL_SECONDS = 5 * 60
+
+
+def _game_id_from_url(source: str, url: str, pgn: str) -> str:
+    if source == "lichess":
+        game_id = LichessAPI().extract_game_id(url) or url.split("/")[-1]
+    else:
+        game_id = ChessComAPI.extract_game_id(url) or url.split("/")[-1]
+    if not game_id:
+        game_id = hashlib.md5(pgn.encode("utf-8")).hexdigest()
+    return game_id
+
+
+def _to_game_info(
+    source: str,
+    raw_game: dict,
+    default_date: str,
+) -> GameInfo | None:
+    pgn = raw_game.get("pgn", "")
+    if not pgn:
+        return None
+
+    url = raw_game.get("url", "")
+    game_id = _game_id_from_url(source, url, pgn)
+    white_data = raw_game.get("white", {})
+    black_data = raw_game.get("black", {})
+
+    default_white = (
+        white_data.get("username") if isinstance(white_data, dict) else white_data
+    )
+    default_black = (
+        black_data.get("username") if isinstance(black_data, dict) else black_data
+    )
+    default_white_elo = (
+        str(white_data.get("rating"))
+        if isinstance(white_data, dict) and white_data.get("rating")
+        else None
+    )
+    default_black_elo = (
+        str(black_data.get("rating"))
+        if isinstance(black_data, dict) and black_data.get("rating")
+        else None
+    )
+
+    (
+        white,
+        black,
+        result,
+        game_date,
+        white_elo,
+        black_elo,
+        time_class,
+        opening,
+        move_count,
+    ) = parse_pgn_headers(
+        pgn,
+        default_white,
+        default_black,
+        "*",
+        default_date,
+        default_white_elo,
+        default_black_elo,
+        raw_game.get("time_class") or raw_game.get("time_control"),
+        raw_game.get("opening"),
+    )
+
+    if white_elo is not None:
+        white_elo = str(white_elo)
+    if black_elo is not None:
+        black_elo = str(black_elo)
+
+    return GameInfo(
+        game_id=game_id,
+        source=source,
+        white=white or "?",
+        black=black or "?",
+        result=result,
+        date=game_date,
+        pgn=pgn,
+        white_elo=white_elo,
+        black_elo=black_elo,
+        time_class=time_class,
+        move_count=move_count,
+        opening=opening,
+    )
 
 
 class ApiGameCache:
@@ -180,7 +165,7 @@ class ApiGameCache:
         cached_games = self.history_manager.get_cached_games_for_date(source, date_str, username)
         if cached_games and (
             date < datetime.date.today()
-            or _cache_is_fresh(cached_games, _TODAY_CACHE_TTL_SECONDS)
+            or cache_is_fresh(cached_games, _TODAY_CACHE_TTL_SECONDS)
         ):
             return cached_games
 
@@ -189,70 +174,10 @@ class ApiGameCache:
             return []
 
         game_infos = []
-
-        for g in raw_games:
-            pgn = g.get("pgn", "")
-            if not pgn:
-                continue
-
-            url = g.get("url", "")
-            game_id = ""
-            if source == "lichess":
-                from src.backend.api.lichess_api import LichessAPI
-
-                game_id = LichessAPI().extract_game_id(url) or url.split("/")[-1]
-            else:
-                from src.backend.api.chess_com_api import ChessComAPI
-
-                game_id = ChessComAPI.extract_game_id(url) or url.split("/")[-1]
-
-            if not game_id:
-                import hashlib
-
-                game_id = hashlib.md5(pgn.encode("utf-8")).hexdigest()
-
-            w_data = g.get("white", {})
-            b_data = g.get("black", {})
-
-            default_white = w_data.get("username") if isinstance(w_data, dict) else w_data
-            default_black = b_data.get("username") if isinstance(b_data, dict) else b_data
-            default_white_elo = str(w_data.get("rating")) if isinstance(w_data, dict) and w_data.get("rating") else None
-            default_black_elo = str(b_data.get("rating")) if isinstance(b_data, dict) and b_data.get("rating") else None
-            default_time_class = g.get("time_class") or g.get("time_control")
-            default_opening = g.get("opening")
-
-            white, black, result, g_date, white_elo, black_elo, time_class, opening, move_count = parse_pgn_headers(
-                pgn,
-                default_white,
-                default_black,
-                "*",
-                date_str,
-                default_white_elo,
-                default_black_elo,
-                default_time_class,
-                default_opening,
-            )
-
-            if white_elo is not None:
-                white_elo = str(white_elo)
-            if black_elo is not None:
-                black_elo = str(black_elo)
-
-            info = GameInfo(
-                game_id=game_id,
-                source=source,
-                white=white or "?",
-                black=black or "?",
-                result=result,
-                date=g_date,
-                pgn=pgn,
-                white_elo=white_elo,
-                black_elo=black_elo,
-                time_class=time_class,
-                move_count=move_count,
-                opening=opening,
-            )
-            game_infos.append(info)
+        for raw_game in raw_games:
+            info = _to_game_info(source, raw_game, date_str)
+            if info is not None:
+                game_infos.append(info)
 
         if game_infos:
             self.history_manager.save_cached_games_bulk(game_infos)
@@ -271,72 +196,12 @@ class ApiGameCache:
         if not raw_games:
             return []
 
+        default_date = time.strftime("%Y-%m-%d")
         game_infos = []
-
-        for g in raw_games:
-            pgn = g.get("pgn", "")
-            if not pgn:
-                continue
-
-            url = g.get("url", "")
-            game_id = ""
-            if source == "lichess":
-                from src.backend.api.lichess_api import LichessAPI
-
-                game_id = LichessAPI().extract_game_id(url) or url.split("/")[-1]
-            else:
-                from src.backend.api.chess_com_api import ChessComAPI
-
-                game_id = ChessComAPI.extract_game_id(url) or url.split("/")[-1]
-
-            if not game_id:
-                import hashlib
-
-                game_id = hashlib.md5(pgn.encode("utf-8")).hexdigest()
-
-            w_data = g.get("white", {})
-            b_data = g.get("black", {})
-
-            default_white = w_data.get("username") if isinstance(w_data, dict) else w_data
-            default_black = b_data.get("username") if isinstance(b_data, dict) else b_data
-            default_white_elo = str(w_data.get("rating")) if isinstance(w_data, dict) and w_data.get("rating") else None
-            default_black_elo = str(b_data.get("rating")) if isinstance(b_data, dict) and b_data.get("rating") else None
-            default_time_class = g.get("time_class") or g.get("time_control")
-            default_opening = g.get("opening")
-            default_date = time.strftime("%Y-%m-%d")
-
-            white, black, result, g_date, white_elo, black_elo, time_class, opening, move_count = parse_pgn_headers(
-                pgn,
-                default_white,
-                default_black,
-                "*",
-                default_date,
-                default_white_elo,
-                default_black_elo,
-                default_time_class,
-                default_opening,
-            )
-
-            if white_elo is not None:
-                white_elo = str(white_elo)
-            if black_elo is not None:
-                black_elo = str(black_elo)
-
-            info = GameInfo(
-                game_id=game_id,
-                source=source,
-                white=white or "?",
-                black=black or "?",
-                result=result,
-                date=g_date,
-                pgn=pgn,
-                white_elo=white_elo,
-                black_elo=black_elo,
-                time_class=time_class,
-                move_count=move_count,
-                opening=opening,
-            )
-            game_infos.append(info)
+        for raw_game in raw_games:
+            info = _to_game_info(source, raw_game, default_date)
+            if info is not None:
+                game_infos.append(info)
 
         if game_infos:
             self.history_manager.save_cached_games_bulk(game_infos)

@@ -212,7 +212,7 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 
   | Use | Instead of |
   | --- | --- |
-  | `Button` / `create_button` | `QPushButton`, `QToolButton`, local button QSS |
+  | `Button` | `QPushButton`, `QToolButton`, local button QSS, `create_button` / `create_icon_button` wrappers |
   | `Input` / `TextArea` | `QLineEdit`, `QTextEdit` |
   | `Select` | `QComboBox`, `create_combobox` |
   | `Tabs` | ad-hoc `QTabBar` styling |
@@ -227,6 +227,34 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
   change. Capture palette tokens inside a refresh method, not at construction.
 - Dashboard cards must use `MetricCard`'s
   `new_content()` / `clear_content()` / `show_empty()` lifecycle.
+
+### Shared utilities
+
+Before adding a private helper, check the canonical module:
+
+| Concern | Canonical home |
+| --- | --- |
+| Clock, eval, count, bytes, percent, duration | `src/utils/format_utils.py` |
+| Time-control parsing/formatting/classification | `src/utils/time_control.py` |
+| Display dates and cache ages | `src/utils/date_utils.py` |
+| Error-text detection, initials, country flags | `src/utils/text_utils.py` |
+| FEN keys, canonical FEN, Chess960 detection | `src/backend/analysis/chess_utils.py` |
+| LLM clock-data summaries | `src/backend/analysis/metrics/time_stats.py` |
+| PGN headers and mainline metadata | `src/backend/storage/pgn_metadata.py` |
+| Cache timestamps and TTLs | `src/backend/storage/cache_time.py` |
+| DB connections, read-only access, row counts | `src/backend/storage/db_connection.py` |
+| Tactics summary enrichment | `src/backend/analysis/tactics/enrichment.py` |
+| Streaming downloads and GitHub releases | `src/backend/api/download.py`, `src/backend/api/github_releases.py` |
+| GUI asset/icon paths | `src/gui/utils/assets.py` |
+| External URLs and local paths | `src/gui/utils/links.py` |
+| Result labels and tones | `src/gui/utils/result_ui.py` |
+| Layout clearing | `src/gui/utils/layout.py` |
+| Themed dialogs and dialog launchers | `src/gui/components/dialogs.py` |
+| Motif metadata and classification tones | `src/gui/tactics_meta.py` |
+| Lazy metric sub-view rendering | `src/gui/views/metrics/lazy_view.py` |
+
+- Do not add per-widget formatters or wrapper factories when a canonical helper exists.
+- Add the new function to the canonical module and unit-test its branches there.
 
 ### Settings
 

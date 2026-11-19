@@ -9,36 +9,23 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
 from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout
+from src.gui.utils.layout import clear_layout
+from src.gui.views.metrics.lazy_view import LazyRenderView
 from src.gui.views.metrics.time.panels import NoClockBanner, StatPanel
 
 
-class TroubleView(QWidget):
+class TroubleView(LazyRenderView):
     """Error rates under time pressure versus normal clock."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setStyleSheet("background: transparent;")
-        self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(12)
+        super().__init__(parent, spacing=12)
         self._time_data: dict = {}
         self._has_clock = False
-        self._dirty = True
 
     def set_data(self, time_data: dict, has_clock: bool) -> None:
         self._time_data = time_data or {}
         self._has_clock = has_clock
         self._dirty = True
-
-    def mark_dirty(self) -> None:
-        self._dirty = True
-
-    def ensure_rendered(self) -> None:
-        if not self._dirty:
-            return
-        self._render()
-        self._dirty = False
 
     def _render(self) -> None:
         clear_layout(self._layout)

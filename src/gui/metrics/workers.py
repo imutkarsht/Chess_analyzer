@@ -114,21 +114,6 @@ class StatsWorker(QThread):
         finally:
             self.done.emit()
 
-    def _get_user_color(self, game: dict[str, Any]) -> str:
-        """Compatibility shim delegating to MetricsAggregator."""
-        return MetricsAggregator.get_user_color(game, self.usernames)
-
-    def _matches_filters(self, game: dict[str, Any], user_color: str) -> bool:
-        """Compatibility shim delegating to MetricsAggregator."""
-        return MetricsAggregator.matches_filters(
-            game,
-            user_color,
-            color_filter=self.color_filter,
-            format_filter=self.format_filter,
-            source_filter=self.source_filter,
-            date_filter=self.date_filter,
-        )
-
     def _calculate_stats(
         self, games: list[dict[str, Any]] | None = None
     ) -> dict[str, Any] | None:

@@ -16,8 +16,9 @@ import chess.pgn
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from src.backend.analysis.chess_utils import position_key, requires_chess960
 from src.backend.analysis.engine import resolve_engine_path
-from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
+from src.backend.analysis.opening_db import OpeningDB
 from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.gui.analysis.move_list_view import MoveListEntry
 from src.gui.engine_lines import LiveEngineSession
@@ -155,10 +156,7 @@ class ExplorerView(
 
     def load_fen(self, fen):
         """Loads a starting position into the explorer."""
-        castling = fen.split()[2]
-        self.is_chess960 = castling != "-" and any(
-            c not in "KQkq" for c in castling
-        )
+        self.is_chess960 = requires_chess960(fen)
         self.starting_fen = fen
         try:
             test_board = chess.Board(fen, chess960=self.is_chess960)
@@ -339,7 +337,7 @@ class ExplorerView(
             )
 
         # Instant book check by UCI to avoid SAN ambiguity.
-        node_id = self.opening_db.get_node_by_fen(_normalize_fen(fen_before))
+        node_id = self.opening_db.get_node_by_fen(position_key(fen_before))
         if self._is_book_move(node_id, move.uci(), fen_before) and self.classify_enabled:
             self.move_list_view.set_classification(
                 self.pending_classification_index, "Book"

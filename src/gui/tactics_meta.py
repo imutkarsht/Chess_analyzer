@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.gui.theme.typography import TextTone
+
 
 @dataclass(frozen=True)
 class MotifMeta:
@@ -139,4 +141,18 @@ def motif_meta(motif: str) -> MotifMeta:
     return MOTIF_META.get(motif, _DEFAULT)
 
 
-__all__ = ["MOTIF_META", "TACTICAL_MOTIF_KEYS", "MotifMeta", "motif_meta"]
+def classification_tone(classification: str) -> TextTone:
+    """Semantic text tone for a move classification."""
+    try:
+        return TextTone(classification.lower())
+    except ValueError:
+        return TextTone.PRIMARY
+
+
+__all__ = [
+    "MOTIF_META",
+    "TACTICAL_MOTIF_KEYS",
+    "MotifMeta",
+    "classification_tone",
+    "motif_meta",
+]

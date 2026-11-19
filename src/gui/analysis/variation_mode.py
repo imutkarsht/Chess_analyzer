@@ -10,12 +10,9 @@ from __future__ import annotations
 import chess
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from src.backend.analysis.variation_tree import (
-    RecordStatus,
-    VariationNode,
-    VariationTree,
-    canonical_fen,
-)
+from src.backend.analysis.chess_utils import canonical_fen
+from src.backend.analysis.variation_tree import RecordStatus, VariationTree
+from src.utils.format_utils import format_eval
 from src.utils.logger import logger
 
 
@@ -347,7 +344,17 @@ class VariationMode(QObject):
             self._best_san,
         )
         if self._best_uci:
-            self.graph.set_ghost(self._best_san, self._eval_text(self.tree.active_node))
+            node = self.tree.active_node
+            self.graph.set_ghost(
+                self._best_san,
+                format_eval(
+                    node.eval_cp,
+                    node.eval_mate,
+                    mate_style="signed",
+                    decimals=2,
+                    none_text="",
+                ),
+            )
 
     def _context_text(self) -> str:
         source = self._root_label or "this position"
@@ -358,7 +365,19 @@ class VariationMode(QObject):
         self._best_uci = uci
         self._best_san = san
         self.board_widget.set_best_move(uci)
-        self.graph.set_ghost(san, self._eval_text(self.tree.active_node) if self.tree else None)
+        node = self.tree.active_node if self.tree else None
+        self.graph.set_ghost(
+            san,
+            format_eval(
+                node.eval_cp,
+                node.eval_mate,
+                mate_style="signed",
+                decimals=2,
+                none_text="",
+            )
+            if node
+            else None,
+        )
 
     # ------------------------------------------------------------------ engine results
     def _on_lines_updated(self, lines: list, fen: str) -> None:
@@ -389,20 +408,16 @@ class VariationMode(QObject):
         if cp is not None or mate is not None:
             self.tree.cache_eval(node, cp, mate, top.depth)
             self.board_widget.eval_bar.set_eval(cp, mate)
-            eval_text = self._eval_text(node)
+            eval_text = format_eval(
+                node.eval_cp,
+                node.eval_mate,
+                mate_style="signed",
+                decimals=2,
+                none_text="",
+            )
             if eval_text:
                 self.graph.update_node_eval(node.node_id, eval_text)
         self._set_ghost(uci if san else None, san)
-
-    @staticmethod
-    def _eval_text(node: VariationNode | None) -> str:
-        if node is None:
-            return ""
-        if node.eval_mate is not None:
-            return f"{'+' if node.eval_mate > 0 else '-'}M{abs(node.eval_mate)}"
-        if node.eval_cp is not None:
-            return f"{node.eval_cp / 100:+.2f}"
-        return ""
 
     @staticmethod
     def _legal_uci(tree: VariationTree, uci: str | None) -> str | None:

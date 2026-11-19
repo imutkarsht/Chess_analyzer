@@ -2,8 +2,8 @@
 
 import os
 
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QIcon
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -12,7 +12,6 @@ from PyQt6.QtWidgets import (
 )
 
 from src.constants import (
-    APP_LOGO_PATH,
     APP_VERSION,
     AUTHOR_EMAIL,
     AUTHOR_LINKEDIN_URL,
@@ -32,8 +31,9 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.utils.assets import app_logo_path
+from src.gui.utils.links import open_url
 from src.gui.views.settings.background_card import BackgroundTaskCard
-from src.utils.path_utils import get_resource_path
 
 LINK_COLUMNS = 4
 
@@ -72,7 +72,7 @@ class LinksSettings(BackgroundTaskCard):
         brand_layout.setSpacing(16)
 
         self.logo_label = IconLabel(size=64)
-        logo_path = get_resource_path(APP_LOGO_PATH)
+        logo_path = app_logo_path()
         if os.path.exists(logo_path):
             self.logo_label.set_icon(QIcon(logo_path))
         brand_layout.addWidget(self.logo_label, 0, Qt.AlignmentFlag.AlignTop)
@@ -231,7 +231,7 @@ class LinksSettings(BackgroundTaskCard):
     # Actions
     # ------------------------------------------------------------------
     def _open(self, url: str):
-        QDesktopServices.openUrl(QUrl(url))
+        open_url(url)
 
     def open_website(self):
         self._open(WEBSITE_URL)

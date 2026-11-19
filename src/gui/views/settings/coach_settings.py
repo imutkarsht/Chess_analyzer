@@ -4,13 +4,13 @@ from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
+from src.gui.utils.assets import tick_icon_path
 from src.gui.views.settings.components import (
     CONTROL_NARROW,
     SettingsBinder,
     SettingsForm,
     make_select,
 )
-from src.utils.path_utils import get_resource_path
 
 
 class CoachSettings(QGroupBox):
@@ -76,7 +76,7 @@ class CoachSettings(QGroupBox):
         self.form.refresh_styles()
         self.temperature_input.refresh_styles()
         self.max_tokens_input.refresh_styles()
-        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        tick_path = tick_icon_path()
         self.explain_trivial_checkbox.setStyleSheet(
             Styles.get_settings_checkbox_style(tick_path)
         )

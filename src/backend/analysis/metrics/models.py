@@ -13,8 +13,8 @@ from typing import Any
 from src.backend.analysis.metrics.constants import QUALITY_NAMES
 from src.backend.analysis.metrics.termination import classify_termination
 from src.backend.analysis.tactics import TACTICS_VERSION, analyze_game_tactics
-from src.backend.storage.pgn_parser import PGNParser
 from src.utils.logger import logger
+from src.utils.time_control import classify_time_control
 
 
 class Outcome(StrEnum):
@@ -91,7 +91,11 @@ class GameRecord:
         else:
             speed = (game.get("speed_category") or "").strip()
             if not speed:
-                speed = PGNParser.detect_speed_category(game.get("time_control"), game.get("event"))
+                speed = classify_time_control(
+                    game.get("time_control"),
+                    game.get("event"),
+                    default="Blitz",
+                )
             if not speed:
                 speed = "Other"
 

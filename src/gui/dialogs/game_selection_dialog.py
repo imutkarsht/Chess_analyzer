@@ -8,9 +8,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.gui.components import Label, TextRole
+from src.gui.components import Button, ButtonVariant, Label, TextRole
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import create_button
 
 
 class GameSelectionDialog(QDialog):
@@ -74,10 +73,10 @@ class GameSelectionDialog(QDialog):
         btn_layout.setSpacing(12)
         btn_layout.addStretch()
 
-        self.btn_cancel = create_button("Cancel", style="secondary", on_click=self.reject)
+        self.btn_cancel = Button('Cancel', ButtonVariant.FILLED, on_click=self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
-        self.btn_load = create_button("Load Game", style="primary", on_click=self.accept_selection)
+        self.btn_load = Button('Load Game', ButtonVariant.PRIMARY, on_click=self.accept_selection)
         btn_layout.addWidget(self.btn_load)
 
         layout.addLayout(btn_layout)

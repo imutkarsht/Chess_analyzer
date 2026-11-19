@@ -9,8 +9,8 @@ from __future__ import annotations
 import os
 import sqlite3
 from dataclasses import dataclass
-from pathlib import Path
 
+from src.backend.storage.db_connection import count_rows, get_readonly_connection
 from src.backend.storage.schema_constants import DATA_TABLES
 from src.utils.logger import logger
 from src.utils.path_utils import get_user_data_dir
@@ -45,19 +45,6 @@ def _file_size(path: str) -> int:
         return 0
 
 
-def _count_rows(conn: sqlite3.Connection, table: str) -> int:
-    """Count a table, treating a missing table as empty.
-
-    Older databases predate some cache tables, so a missing table must not
-    turn the whole report into an error.
-    """
-    try:
-        cursor = conn.execute(f"SELECT COUNT(*) FROM {table}")
-        return int(cursor.fetchone()[0])
-    except sqlite3.Error:
-        return 0
-
-
 def collect_storage_stats(
     db_path: str | None = None,
     openings_path: str | None = None,
@@ -72,16 +59,9 @@ def collect_storage_stats(
     counts = dict.fromkeys(DATA_TABLES, 0)
     try:
         # Read-only URI: opening a missing file must not create an empty DB.
-        uri = f"{Path(db_path).resolve().as_uri()}?mode=ro"
-        conn = sqlite3.connect(uri, uri=True, timeout=5.0)
-        try:
-            # WAL readers need a shared lock; this keeps a concurrent analysis
-            # from blocking the page for long.
-            conn.execute("PRAGMA busy_timeout=2000")
+        with get_readonly_connection(db_path) as conn:
             for table in DATA_TABLES:
-                counts[table] = _count_rows(conn, table)
-        finally:
-            conn.close()
+                counts[table] = count_rows(conn, table)
     except sqlite3.Error as e:
         logger.debug(f"Could not read storage stats: {e}")
 

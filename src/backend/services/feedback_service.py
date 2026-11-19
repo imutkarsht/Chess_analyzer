@@ -82,35 +82,22 @@ class FeedbackService:
     def _record_submission(cls, action_type: str):
         cls._last_submission_times[action_type] = time.time()
 
-    @staticmethod
-    def submit_review(
-        rating: int,
-        comment: str = "",
-        username: str = "",
-        platform: str | None = None,
-        app_version: str | None = None,
-        timeout: int = 10,
+    @classmethod
+    def _post_feedback(
+        cls,
+        url: str,
+        payload: dict[str, Any],
+        action_type: str,
+        *,
+        log_label: str,
+        success_message: str,
+        timeout_message: str,
+        timeout: int,
     ) -> tuple[bool, str, dict[str, Any]]:
-        """
-        Submit star rating & review.
-        Returns (success: bool, user_message: str, response_data: dict).
-        """
-        cooldown_err = FeedbackService._check_cooldown("review")
-        if cooldown_err:
-            return False, cooldown_err, {}
-
-        payload = {
-            "rating": int(rating),
-            "comment": (comment.strip()[:2000]) if comment else "",
-            "userName": (username.strip()[:80]) if username else "",
-            "platform": platform or get_platform_name(),
-            "appVersion": app_version or get_formatted_version(),
-        }
-
         try:
-            logger.info(f"FeedbackService: Submitting review (rating={rating}) to {FEEDBACK_REVIEWS_URL}")
+            logger.info(f"FeedbackService: Submitting {log_label} to {url}")
             resp = requests.post(
-                FEEDBACK_REVIEWS_URL,
+                url,
                 json=payload,
                 headers={"Content-Type": "application/json"},
                 timeout=timeout,
@@ -122,27 +109,79 @@ class FeedbackService:
                 data = {"raw": resp.text}
 
             if resp.status_code in (200, 201):
-                FeedbackService._record_submission("review")
-                msg = data.get("message", "Review submitted successfully! Thank you for your feedback.")
-                logger.info(f"FeedbackService: Review submitted successfully: {msg}")
+                cls._record_submission(action_type)
+                msg = data.get("message", success_message)
+                logger.info(
+                    f"FeedbackService: {log_label.capitalize()} submitted successfully: {msg}"
+                )
                 return True, msg, data
-            else:
-                err_msg = data.get("message") or data.get("error") or f"Server returned code {resp.status_code}"
-                logger.warning(f"FeedbackService: Review submission returned error: {err_msg}")
-                return False, err_msg, data
+
+            err_msg = (
+                data.get("message")
+                or data.get("error")
+                or f"Server returned code {resp.status_code}"
+            )
+            logger.warning(
+                f"FeedbackService: {log_label.capitalize()} returned error: {err_msg}"
+            )
+            return False, err_msg, data
 
         except requests.exceptions.Timeout:
-            logger.error("FeedbackService: Review submission timed out.")
-            return False, "Connection timed out. Please check your internet connection and try again.", {}
+            logger.error(f"FeedbackService: {log_label.capitalize()} timed out.")
+            return False, timeout_message, {}
         except requests.exceptions.RequestException as e:
-            logger.error(f"FeedbackService: Network error submitting review: {e}")
+            logger.error(f"FeedbackService: Network error submitting {log_label}: {e}")
             return False, f"Could not connect to server: {e}", {}
         except Exception as e:
-            logger.error(f"FeedbackService: Unexpected error submitting review: {e}")
+            logger.error(
+                f"FeedbackService: Unexpected error submitting {log_label}: {e}"
+            )
             return False, f"An unexpected error occurred: {e}", {}
 
-    @staticmethod
+    @classmethod
+    def submit_review(
+        cls,
+        rating: int,
+        comment: str = "",
+        username: str = "",
+        platform: str | None = None,
+        app_version: str | None = None,
+        timeout: int = 10,
+    ) -> tuple[bool, str, dict[str, Any]]:
+        """
+        Submit star rating & review.
+        Returns (success: bool, user_message: str, response_data: dict).
+        """
+        cooldown_err = cls._check_cooldown("review")
+        if cooldown_err:
+            return False, cooldown_err, {}
+
+        payload = {
+            "rating": int(rating),
+            "comment": (comment.strip()[:2000]) if comment else "",
+            "userName": (username.strip()[:80]) if username else "",
+            "platform": platform or get_platform_name(),
+            "appVersion": app_version or get_formatted_version(),
+        }
+
+        return cls._post_feedback(
+            FEEDBACK_REVIEWS_URL,
+            payload,
+            "review",
+            log_label="review",
+            success_message=(
+                "Review submitted successfully! Thank you for your feedback."
+            ),
+            timeout_message=(
+                "Connection timed out. Please check your internet connection "
+                "and try again."
+            ),
+            timeout=timeout,
+        )
+
+    @classmethod
     def submit_bug_report(
+        cls,
         title: str,
         message: str,
         name: str = "",
@@ -156,12 +195,9 @@ class FeedbackService:
         Submit a bug report.
         Returns (success: bool, user_message: str, response_data: dict).
         """
-        cooldown_err = FeedbackService._check_cooldown("bug")
+        cooldown_err = cls._check_cooldown("bug")
         if cooldown_err:
             return False, cooldown_err, {}
-
-        # Ensure logs string is not exceeding 1000 chars
-        truncated_logs = logs[:1000] if logs else ""
 
         payload = {
             "type": "bug",
@@ -171,45 +207,26 @@ class FeedbackService:
             "email": (email.strip()[:150]) if email else "",
             "platform": platform or get_platform_name(),
             "appVersion": app_version or get_formatted_version(),
-            "logs": truncated_logs,
+            "logs": logs[:1000] if logs else "",
         }
 
-        try:
-            logger.info(f"FeedbackService: Submitting bug report to {FEEDBACK_URL}")
-            resp = requests.post(
-                FEEDBACK_URL,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=timeout,
-            )
+        return cls._post_feedback(
+            FEEDBACK_URL,
+            payload,
+            "bug",
+            log_label="bug report",
+            success_message=(
+                "Bug report logged successfully. Thank you for helping us fix issues!"
+            ),
+            timeout_message=(
+                "Connection timed out. Please check your internet connection."
+            ),
+            timeout=timeout,
+        )
 
-            try:
-                data = resp.json()
-            except Exception:
-                data = {"raw": resp.text}
-
-            if resp.status_code in (200, 201):
-                FeedbackService._record_submission("bug")
-                msg = data.get("message", "Bug report logged successfully. Thank you for helping us fix issues!")
-                logger.info(f"FeedbackService: Bug report logged: {msg}")
-                return True, msg, data
-            else:
-                err_msg = data.get("message") or data.get("error") or f"Server returned code {resp.status_code}"
-                logger.warning(f"FeedbackService: Bug report returned error: {err_msg}")
-                return False, err_msg, data
-
-        except requests.exceptions.Timeout:
-            logger.error("FeedbackService: Bug report timed out.")
-            return False, "Connection timed out. Please check your internet connection.", {}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"FeedbackService: Network error submitting bug report: {e}")
-            return False, f"Could not connect to server: {e}", {}
-        except Exception as e:
-            logger.error(f"FeedbackService: Unexpected error submitting bug report: {e}")
-            return False, f"An unexpected error occurred: {e}", {}
-
-    @staticmethod
+    @classmethod
     def submit_feature_request(
+        cls,
         title: str,
         message: str,
         name: str = "",
@@ -222,7 +239,7 @@ class FeedbackService:
         Submit a feature request.
         Returns (success: bool, user_message: str, response_data: dict).
         """
-        cooldown_err = FeedbackService._check_cooldown("feature")
+        cooldown_err = cls._check_cooldown("feature")
         if cooldown_err:
             return False, cooldown_err, {}
 
@@ -236,39 +253,19 @@ class FeedbackService:
             "appVersion": app_version or get_formatted_version(),
         }
 
-        try:
-            logger.info(f"FeedbackService: Submitting feature request to {FEEDBACK_URL}")
-            resp = requests.post(
-                FEEDBACK_URL,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=timeout,
-            )
-
-            try:
-                data = resp.json()
-            except Exception:
-                data = {"raw": resp.text}
-
-            if resp.status_code in (200, 201):
-                FeedbackService._record_submission("feature")
-                msg = data.get("message", "Feature request submitted successfully. Thank you for your suggestion!")
-                logger.info(f"FeedbackService: Feature request logged: {msg}")
-                return True, msg, data
-            else:
-                err_msg = data.get("message") or data.get("error") or f"Server returned code {resp.status_code}"
-                logger.warning(f"FeedbackService: Feature request returned error: {err_msg}")
-                return False, err_msg, data
-
-        except requests.exceptions.Timeout:
-            logger.error("FeedbackService: Feature request timed out.")
-            return False, "Connection timed out. Please check your internet connection.", {}
-        except requests.exceptions.RequestException as e:
-            logger.error(f"FeedbackService: Network error submitting feature request: {e}")
-            return False, f"Could not connect to server: {e}", {}
-        except Exception as e:
-            logger.error(f"FeedbackService: Unexpected error submitting feature request: {e}")
-            return False, f"An unexpected error occurred: {e}", {}
+        return cls._post_feedback(
+            FEEDBACK_URL,
+            payload,
+            "feature",
+            log_label="feature request",
+            success_message=(
+                "Feature request submitted successfully. Thank you for your suggestion!"
+            ),
+            timeout_message=(
+                "Connection timed out. Please check your internet connection."
+            ),
+            timeout=timeout,
+        )
 
     @staticmethod
     def fetch_community_reviews(limit: int = 5, timeout: int = 5) -> tuple[bool, dict[str, Any]]:

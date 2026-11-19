@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QDialog, QHBoxLayout, QMessageBox, QVBoxLayout
+from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout
 
 from src.backend.analysis.batch import reconcile_batch
 from src.backend.models.analysis_batch import (
@@ -26,9 +26,15 @@ from src.backend.models.analysis_batch import (
 )
 from src.gui.analysis.batch_analysis_worker import BatchAnalysisWorker
 from src.gui.analysis.coordinator import AnalysisCoordinator
-from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Label,
+    TextRole,
+    TextTone,
+    confirm_dialog,
+)
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import confirm_dialog
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.history_batch import UpNextEntry
 from src.utils.logger import logger
@@ -113,25 +119,19 @@ class BatchAnalysisMixin:
                 if coordinator.batch_running
                 else "An analysis is already running. Stop it before starting a batch."
             )
-            QMessageBox.warning(self, "Analysis in Progress", message)
+            self.show_toast(message, "warning")
             return
         if self._batch_worker is not None:
-            QMessageBox.warning(
-                self, "Analysis in Progress", "The previous batch is still finishing."
-            )
+            self.show_toast("The previous batch is still finishing.", "warning")
             return
         if getattr(self, "worker", None) is not None and self.worker.isRunning():
-            QMessageBox.warning(
-                self, "Analysis in Progress", "An analysis is already running."
-            )
+            self.show_toast("An analysis is already running.", "warning")
             return
 
         existing = self.history_manager.get_analysis_batch()
         if existing is not None:
             if existing.state == BATCH_RUNNING:
-                QMessageBox.warning(
-                    self, "Batch in Progress", "A batch analysis is already running."
-                )
+                self.show_toast("A batch analysis is already running.", "warning")
                 return
             if existing.state == BATCH_PAUSED and existing.actionable_items():
                 choice = self._resolve_paused_batch_conflict()
@@ -179,9 +179,7 @@ class BatchAnalysisMixin:
         if not coordinator.begin_batch(
             [item.game_id for item in items], total=batch.total
         ):
-            QMessageBox.warning(
-                self, "Analysis in Progress", "An analysis is already running."
-            )
+            self.show_toast("An analysis is already running.", "warning")
             return
 
         self.history_view.on_batch_started(batch)
@@ -190,21 +188,16 @@ class BatchAnalysisMixin:
     def _resume_batch(self) -> None:
         coordinator = self.analysis_coordinator
         if not coordinator.can_start_batch():
-            QMessageBox.warning(
-                self,
-                "Analysis in Progress",
+            self.show_toast(
                 "An analysis is already running. Finish it before resuming the batch.",
+                "warning",
             )
             return
         if self._batch_worker is not None:
-            QMessageBox.warning(
-                self, "Analysis in Progress", "The previous batch is still finishing."
-            )
+            self.show_toast("The previous batch is still finishing.", "warning")
             return
         if getattr(self, "worker", None) is not None and self.worker.isRunning():
-            QMessageBox.warning(
-                self, "Analysis in Progress", "An analysis is already running."
-            )
+            self.show_toast("An analysis is already running.", "warning")
             return
         batch = self.history_manager.get_analysis_batch()
         if batch is None or batch.state != BATCH_PAUSED:
@@ -224,9 +217,7 @@ class BatchAnalysisMixin:
         if not coordinator.begin_batch(
             [item.game_id for item in batch.actionable_items()], total=batch.total
         ):
-            QMessageBox.warning(
-                self, "Analysis in Progress", "An analysis is already running."
-            )
+            self.show_toast("An analysis is already running.", "warning")
             return
         self.history_view.on_batch_started(batch)
         self._start_batch_worker(batch)

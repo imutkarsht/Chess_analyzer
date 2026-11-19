@@ -7,10 +7,13 @@ from dataclasses import dataclass
 
 import chess.pgn
 
+from src.backend.analysis.chess_utils import requires_chess960
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
+from src.backend.storage.pgn_metadata import metadata_from_headers
 from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import MAX_PGN_FILE_BYTES, MAX_PGN_GAMES
 from src.utils.logger import logger
+from src.utils.time_control import classify_time_control
 
 # Matches [%clk H:MM:SS(.s)?] — chess.com style clock comments.
 # The colon-separated hours/minutes/seconds format with optional decimal
@@ -155,24 +158,25 @@ def _summary_from_headers(
     index: int,
     move_count: int | None,
 ) -> PGNGameSummary:
+    meta = metadata_from_headers(headers)
     return PGNGameSummary(
         index=index,
         start=start,
         end=end,
-        white=headers.get("White", "?"),
-        black=headers.get("Black", "?"),
-        date=headers.get("Date", "?"),
-        result=headers.get("Result", "*"),
-        time_control=headers.get("TimeControl", ""),
-        white_elo=headers.get("WhiteElo"),
-        black_elo=headers.get("BlackElo"),
-        event=headers.get("Event", "?"),
-        opening=headers.get("Opening"),
-        eco=headers.get("ECO"),
-        termination=headers.get("Termination"),
-        variant=headers.get("Variant"),
-        white_rating_diff=headers.get("WhiteRatingDiff"),
-        black_rating_diff=headers.get("BlackRatingDiff"),
+        white=meta.white,
+        black=meta.black,
+        date=meta.date,
+        result=meta.result,
+        time_control=meta.time_control,
+        white_elo=meta.white_elo,
+        black_elo=meta.black_elo,
+        event=meta.event,
+        opening=meta.opening,
+        eco=meta.eco,
+        termination=meta.termination,
+        variant=meta.variant,
+        white_rating_diff=meta.white_rating_diff,
+        black_rating_diff=meta.black_rating_diff,
         move_count=move_count,
     )
 
@@ -337,23 +341,24 @@ class PGNParser:
     @staticmethod
     def _metadata_from_game(game: chess.pgn.Game) -> tuple[GameMetadata, dict[str, str]]:
         headers = dict(game.headers)
+        meta = metadata_from_headers(headers)
         metadata = GameMetadata(
-            white=headers.get("White", "?"),
-            black=headers.get("Black", "?"),
-            event=headers.get("Event", "?"),
-            date=headers.get("Date", "?"),
-            result=headers.get("Result", "*"),
+            white=meta.white,
+            black=meta.black,
+            event=meta.event,
+            date=meta.date,
+            result=meta.result,
             headers=headers,
-            white_elo=headers.get("WhiteElo"),
-            black_elo=headers.get("BlackElo"),
-            time_control=headers.get("TimeControl"),
-            eco=headers.get("ECO"),
-            termination=headers.get("Termination"),
-            opening=headers.get("Opening"),  # Some sites provide this
-            starting_fen=headers.get("FEN"),  # If started from position
+            white_elo=meta.white_elo,
+            black_elo=meta.black_elo,
+            time_control=meta.time_control or None,
+            eco=meta.eco,
+            termination=meta.termination,
+            opening=meta.opening,
+            starting_fen=meta.starting_fen,
         )
 
-        site = headers.get("Site", "").lower()
+        site = (headers.get("Site") or "").lower()
         if "chess.com" in site:
             metadata.source = "chesscom"
         elif "lichess.org" in site:
@@ -369,13 +374,7 @@ class PGNParser:
         # in the FEN header.  python-chess does not do this automatically when
         # no Variant header is present.
         if not metadata.chess960:
-            setup_fen = headers.get("FEN", "")
-            if setup_fen:
-                fen_parts = setup_fen.split(" ")
-                if len(fen_parts) >= 3:
-                    castling = fen_parts[2]
-                    if any(c not in "KQkq-" for c in castling):
-                        metadata.chess960 = True
+            metadata.chess960 = requires_chess960(meta.starting_fen)
         metadata.speed_category = PGNParser.detect_speed_category(
             metadata.time_control, metadata.event
         )
@@ -525,61 +524,6 @@ class PGNParser:
     @staticmethod
     def detect_speed_category(time_control: str | None, event: str | None) -> str:
         """Classify game into UltraBullet, Bullet, Blitz, Rapid, Classical, or Daily."""
-        tc = (time_control or "").strip()
-
-        # Handle slash notation: e.g. "1/259200" (Daily) or "40/7200" (Classical)
-        slash_match = re.match(r"^(\d+)/(\d+)$", tc)
-        if slash_match:
-            try:
-                moves_count = int(slash_match.group(1))
-                sec_count = int(slash_match.group(2))
-                if sec_count >= 86400 or (moves_count == 1 and sec_count >= 3600):
-                    return "Daily"
-                elif sec_count >= 1800:
-                    return "Classical"
-                elif sec_count >= 600:
-                    return "Rapid"
-                else:
-                    return "Blitz"
-            except ValueError:
-                pass
-
-        match = re.match(r"^(\d+)(?:\+(\d+))?$", tc)
-        if match:
-            try:
-                base_sec = int(match.group(1))
-                inc_sec = int(match.group(2)) if match.group(2) else 0
-                total_sec = base_sec + 40 * inc_sec
-                if total_sec < 30:
-                    return "UltraBullet"
-                elif total_sec < 180:
-                    return "Bullet"
-                elif total_sec < 600:
-                    return "Blitz"
-                elif total_sec < 1800:
-                    return "Rapid"
-                elif total_sec >= 86400:
-                    return "Daily"
-                else:
-                    return "Classical"
-            except ValueError:
-                pass
-
-        evt_lower = (event or "").lower()
-        tc_lower = tc.lower()
-        if "ultrabullet" in evt_lower or "ultrabullet" in tc_lower:
-            return "UltraBullet"
-        elif "bullet" in evt_lower or "bullet" in tc_lower:
-            return "Bullet"
-        elif "blitz" in evt_lower or "blitz" in tc_lower:
-            return "Blitz"
-        elif "rapid" in evt_lower or "rapid" in tc_lower:
-            return "Rapid"
-        elif any(k in evt_lower or k in tc_lower for k in ("daily", "correspondence")):
-            return "Daily"
-        elif "classical" in evt_lower or "classical" in tc_lower:
-            return "Classical"
-
-        return "Blitz"
+        return classify_time_control(time_control, event, default="Blitz")
 
     _detect_speed_category = detect_speed_category

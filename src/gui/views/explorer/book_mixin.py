@@ -5,7 +5,7 @@ from PyQt6.QtGui import QPainter, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QHBoxLayout, QLayout
 
-from src.backend.analysis.opening_db import _normalize_fen
+from src.backend.analysis.chess_utils import position_key
 from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.views.explorer.book_row import BookRowWidget
@@ -238,7 +238,7 @@ class ExplorerBookMixin:
                 move = board.parse_san(san)
                 child_board = board.copy()
                 child_board.push(move)
-                child_fen = _normalize_fen(child_board.fen())
+                child_fen = position_key(child_board.fen())
 
                 move_name = ""
                 child_node_id = self.opening_db.get_node_by_fen(child_fen)
@@ -260,7 +260,7 @@ class ExplorerBookMixin:
     def _draw_local_book_fallback(self) -> None:
         """Show the local book after the online request failed or returned nothing."""
         node_id = self.opening_db.get_node_by_fen(
-            _normalize_fen(self.board_widget.board.fen())
+            position_key(self.board_widget.board.fen())
         )
         self._draw_local_book(node_id)
         if self._current_book_count:

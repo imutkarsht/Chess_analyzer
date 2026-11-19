@@ -32,12 +32,12 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.styles import Styles
+from src.gui.utils.icons import HAS_QTAWESOME
 
 try:
     import qtawesome as qta
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
+    qta = None
 
 _ACTIVE_STYLES = ("underline", "accent", "filled", "outline")
 _MIXED_PAGE_MODES = (

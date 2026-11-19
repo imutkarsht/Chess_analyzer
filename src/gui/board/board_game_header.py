@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout
 
 from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
+from src.gui.utils.result_ui import result_tone
 from src.utils.config import ConfigManager
 
 
@@ -86,9 +87,7 @@ class BoardGameHeader(QFrame):
         if result not in ("1-0", "0-1"):
             return TextTone.ACCENT
 
-        white_won = result == "1-0"
-        user_won = (white_won and side == "white") or (not white_won and side == "black")
-        return TextTone.RESULT_WIN if user_won else TextTone.BLUNDER
+        return result_tone(result, side)
 
     def refresh_styles(self) -> None:
         self.setStyleSheet(Styles.get_board_game_header_style())

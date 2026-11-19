@@ -21,15 +21,20 @@ from PyQt6.QtSvg import QSvgRenderer
 
 from src.backend.storage.models import GameAnalysis
 from src.constants import (
-    APP_LOGO_PATH,
     APP_VERSION,
     DEFAULT_BOARD_THEME,
     WEBSITE_URL,
 )
 from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
 from src.gui.styles import Styles
+from src.gui.utils.assets import app_logo_path
+from src.gui.utils.result_ui import (
+    result_display,
+    result_text,
+    termination_suffix,
+)
 from src.utils.config import ConfigManager
-from src.utils.path_utils import get_resource_path
+from src.utils.format_utils import format_count, format_percent
 from src.utils.time_control import format_time_control
 
 _CLASSIFICATIONS = (
@@ -96,20 +101,20 @@ class ShareReportRenderer:
         white = game.summary["white"]
         black = game.summary["black"]
         opening = _opening_context(metadata.eco, metadata.opening)
-        termination = _termination_suffix(metadata.termination_mode)
+        termination = termination_suffix(metadata.termination_mode)
         white_name = _display_value(metadata.white, "White")
         black_name = _display_value(metadata.black, "Black")
         lines = [
             f"# Game Report: {white_name} vs {black_name}",
             "",
-            f"- **Result:** {_result_text(metadata.result)}{f' · {termination}' if termination else ''}",
+            f"- **Result:** {result_text(metadata.result)}{f' · {termination}' if termination else ''}",
             f"- **Date:** {_display_value(metadata.date, 'Unknown')}",
             f"- **Time control:** {format_time_control(metadata.time_control) or 'Unknown'}",
             f"- **Opening:** {opening}",
             (
                 "- **Accuracy:** "
-                f"White {_format_percent(white.get('accuracy'))}; "
-                f"Black {_format_percent(black.get('accuracy'))}"
+                f"White {format_percent(white.get('accuracy'))}; "
+                f"Black {format_percent(black.get('accuracy'))}"
             ),
             (
                 "- **ACPL:** "
@@ -120,8 +125,12 @@ class ShareReportRenderer:
             "**Move classifications**",
         ]
         for classification in _CLASSIFICATIONS:
-            white_count = _format_count(white.get(classification, 0))
-            black_count = _format_count(black.get(classification, 0))
+            white_count = format_count(
+                white.get(classification, 0), none_text="0", thousands=False
+            )
+            black_count = format_count(
+                black.get(classification, 0), none_text="0", thousands=False
+            )
             lines.append(
                 f"- {classification}: White {white_count}, Black {black_count}"
             )
@@ -164,7 +173,7 @@ class ShareReportRenderer:
     @classmethod
     def _draw_matchup(cls, painter: QPainter, game: GameAnalysis) -> None:
         metadata = game.metadata
-        logo_path = get_resource_path(APP_LOGO_PATH)
+        logo_path = app_logo_path()
         renderer = QSvgRenderer(logo_path)
         if renderer.isValid():
             # Render the complete vector logo directly at badge size instead of
@@ -231,7 +240,7 @@ class ShareReportRenderer:
         cls._draw_text(
             painter,
             QRectF(478, 121, 244, 22),
-            _result_display(metadata.result, metadata.termination_mode),
+            result_display(metadata.result, metadata.termination_mode),
             11,
             Styles.COLOR_TEXT_SECONDARY,
             QFont.Weight.DemiBold,
@@ -326,7 +335,7 @@ class ShareReportRenderer:
         cls._draw_text(
             painter,
             QRectF(center_x - 38, center_y - 15, 76, 30),
-            _format_percent(value),
+            format_percent(value),
             16,
             Styles.COLOR_TEXT_PRIMARY,
             QFont.Weight.Bold,
@@ -480,7 +489,7 @@ class ShareReportRenderer:
             cls._draw_text(
                 painter,
                 QRectF(542, y, 95, 20),
-                _format_count(white.get(name, 0)),
+                format_count(white.get(name, 0), none_text="0", thousands=False),
                 12,
                 Styles.COLOR_TEXT_PRIMARY,
                 QFont.Weight.Bold,
@@ -489,7 +498,7 @@ class ShareReportRenderer:
             cls._draw_text(
                 painter,
                 QRectF(668, y, 95, 20),
-                _format_count(black.get(name, 0)),
+                format_count(black.get(name, 0), none_text="0", thousands=False),
                 12,
                 Styles.COLOR_TEXT_PRIMARY,
                 QFont.Weight.Bold,
@@ -619,33 +628,11 @@ def _opening_context(eco: str | None, opening: str | None) -> str:
     return " · ".join(parts) if parts else "Opening unavailable"
 
 
-def _termination_suffix(mode: str | None) -> str:
-    if mode == "resignation":
-        return "by resignation"
-    if mode in {"timeout", "timeout_insufficient"}:
-        return "by timeout"
-    return ""
-
-
-def _result_display(result: str | None, termination_mode: str | None) -> str:
-    outcome = _result_text(result).upper()
-    suffix = _termination_suffix(termination_mode)
-    return f"{outcome} · {suffix.upper()}" if suffix else outcome
-
-
 def _display_value(value, fallback: str) -> str:
     if value is None:
         return fallback
     text = str(value).strip()
     return text if text and text not in {"?", "*", "-"} else fallback
-
-
-def _result_text(result: str | None) -> str:
-    return {
-        "1-0": "White wins",
-        "0-1": "Black wins",
-        "1/2-1/2": "Draw",
-    }.get(result, "In progress")
 
 
 def _finite_number(value) -> float | None:
@@ -658,18 +645,8 @@ def _finite_number(value) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def _format_percent(value) -> str:
-    number = _finite_number(value)
-    return f"{number:.1f}%" if number is not None else "--"
-
-
 def _format_number(value) -> str:
     number = _finite_number(value)
     if number is None:
         return "--"
     return str(round(number)) if number.is_integer() else f"{number:.1f}"
-
-
-def _format_count(value) -> str:
-    number = _finite_number(value)
-    return str(max(0, int(number))) if number is not None else "0"

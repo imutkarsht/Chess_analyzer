@@ -4,8 +4,8 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.styles import Styles
+from src.gui.utils.assets import tick_icon_path
 from src.gui.views.settings.components import RadioChoice, SettingsBinder, SettingsForm, make_select
-from src.utils.path_utils import get_resource_path
 
 
 class WindowLayoutSettings(QGroupBox):
@@ -70,7 +70,7 @@ class WindowLayoutSettings(QGroupBox):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
         self.sidebar_choice.refresh_styles()
-        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        tick_path = tick_icon_path()
         self.remember_window_checkbox.setStyleSheet(
             Styles.get_settings_checkbox_style(tick_path)
         )

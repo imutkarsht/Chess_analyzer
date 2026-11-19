@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QVBoxLayout, QWidg
 
 from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
+from src.utils.format_utils import format_duration
 
 # Every classified move keeps its badge. Only decisive/problem moves get colour
 # and weight; routine classes (Book/Best/Excellent/Good) stay neutral so a page
@@ -137,7 +138,7 @@ class MoveCellWidget(QWidget):
         self._last_max_seconds = float(max_seconds) if max_seconds is not None else 30.0
 
         if self._show_time and time_spent_val is not None and time_spent_val > 0:
-            time_str = self._format_time(time_spent_val)
+            time_str = format_duration(time_spent_val)
             self._time_label.setText(time_str)
             self._time_label.setVisible(not self._compact)
 
@@ -288,16 +289,6 @@ class MoveCellWidget(QWidget):
     def _rgba(hex_color: str, alpha: float) -> str:
         color = QColor(hex_color)
         return f"rgba({color.red()}, {color.green()}, {color.blue()}, {alpha:.2f})"
-
-    @staticmethod
-    def _format_time(seconds: float) -> str:
-        if seconds >= 3600:
-            return f"{seconds / 3600:.1f}h"
-        if seconds >= 60:
-            return f"{seconds / 60:.1f}m"
-        if seconds >= 10:
-            return f"{seconds:.0f}s"
-        return f"{seconds:.1f}s"
 
     def _bar_colour(self, ratio: float) -> str:
         """Neutral ramp: length carries the time, colour stays out of the

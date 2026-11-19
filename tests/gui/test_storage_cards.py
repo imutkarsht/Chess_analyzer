@@ -10,8 +10,8 @@ from src.gui.views.settings import backup_settings, danger_settings, maintenance
 from src.gui.views.settings.backup_settings import BackupSettings
 from src.gui.views.settings.danger_settings import DangerSettings
 from src.gui.views.settings.maintenance_settings import MaintenanceSettings
-from src.gui.views.settings.storage_actions import format_bytes
 from src.gui.views.settings.storage_settings import StorageSettings
+from src.utils.format_utils import format_bytes
 
 
 @pytest.mark.parametrize(

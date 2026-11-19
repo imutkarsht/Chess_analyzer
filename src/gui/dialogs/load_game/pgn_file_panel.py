@@ -15,8 +15,8 @@ from src.gui.components import (
     Label,
     TextRole,
     TextTone,
+    ToastManager,
 )
-from src.gui.components.feedback.toast import ToastManager
 from src.gui.dialogs.load_game.drop_zone import DropZone
 from src.gui.dialogs.load_game.pgn_worker import PgnIndexWorker
 from src.gui.import_workspace import GameBatch

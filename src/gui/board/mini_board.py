@@ -11,15 +11,11 @@ from PyQt6.QtGui import QPainter, QPixmap, QPixmapCache
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
+from src.backend.analysis.chess_utils import requires_chess960
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.config import ConfigManager
-
-
-def _requires_chess960(fen: str) -> bool:
-    fields = fen.split(" ")
-    return len(fields) > 2 and any(c not in "KQkq-" for c in fields[2])
 
 
 @dataclass(frozen=True)
@@ -85,7 +81,7 @@ def _display_position(
     fen: str, config: MiniBoardConfig
 ) -> tuple[chess.Board, chess.Move | None]:
     board = chess.Board(
-        fen, chess960=config.chess960 or _requires_chess960(fen)
+        fen, chess960=config.chess960 or requires_chess960(fen)
     )
     last_move = _last_move(board, config)
     if last_move is not None and config.fen_before_move:

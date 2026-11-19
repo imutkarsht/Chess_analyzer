@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from src.backend.storage.cache_time import resolve_ttl_seconds
 from src.backend.storage.db_connection import get_db_connection
 from src.constants import DEFAULT_PROFILE_CACHE_TTL_HOURS, PROFILE_CACHE_MAX_AGE_DAYS
 from src.utils.logger import logger
@@ -57,12 +58,9 @@ class ProfileCacheRepo:
         hours = ConfigManager().get(
             "profile_cache_ttl_hours", DEFAULT_PROFILE_CACHE_TTL_HOURS
         )
-        if hours is None:
-            return None
-        try:
-            return max(1, int(hours)) * 3600.0
-        except (TypeError, ValueError):
-            return DEFAULT_PROFILE_CACHE_TTL_HOURS * 3600.0
+        return resolve_ttl_seconds(
+            hours, DEFAULT_PROFILE_CACHE_TTL_HOURS * 3600.0
+        )
 
     @staticmethod
     def _key(platform: str, username: str) -> tuple[str, str]:

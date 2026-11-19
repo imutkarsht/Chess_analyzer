@@ -12,7 +12,6 @@ from typing import Any
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDialog,
     QFrame,
     QHBoxLayout,
     QScrollArea,
@@ -27,15 +26,17 @@ from src.gui.components import (
     ButtonSize,
     ButtonVariant,
     Label,
+    PulsingSkeleton,
     RichTextLabel,
     StatusBadge,
     TextRole,
     TextTone,
+    open_llm_settings,
+    show_error_dialog,
 )
-from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import clear_layout, create_button, show_error_dialog
+from src.gui.utils.layout import clear_layout
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.metrics.base_card import MetricCard
 
@@ -185,12 +186,7 @@ class AICoachCard(MetricCard):
 
         vbox.addSpacing(10)
 
-        btn_analyze = create_button(
-            "Generate Coach Insights",
-            style="primary",
-            on_click=self._generate_insights,
-            icon_name="fa5s.robot",
-        )
+        btn_analyze = Button('Generate Coach Insights', ButtonVariant.PRIMARY, icon='fa5s.robot', on_click=self._generate_insights)
         btn_analyze.setFixedWidth(220)
         btn_analyze.setFixedHeight(38)
         btn_analyze.setEnabled(total > 0)
@@ -301,7 +297,7 @@ class AICoachCard(MetricCard):
             btn_cfg = Button(
                 "Configure LLM in Settings",
                 ButtonVariant.PRIMARY,
-                on_click=self._open_settings,
+                on_click=lambda: open_llm_settings(self),
             )
             btn_row.addWidget(btn_cfg)
         else:
@@ -320,16 +316,6 @@ class AICoachCard(MetricCard):
 
         vbox.addLayout(btn_row)
         self.insights_layout.addWidget(err_frame)
-
-    def _open_settings(self):
-        from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
-
-        dlg = LlmNotConfiguredDialog(self)
-        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
-            window = self.window()
-            if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
-                window.sidebar.set_active(4)
-                window.switch_page(4)
 
     def _populate_insights(self, insight_text: str):
         self.current_insights = insight_text

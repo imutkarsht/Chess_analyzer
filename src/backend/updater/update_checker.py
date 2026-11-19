@@ -15,6 +15,7 @@ import requests
 from packaging import version
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.backend.api.github_releases import fetch_release
 from src.constants import APP_VERSION, GITHUB_RELEASES_API, PLATFORM_RULES
 from src.utils.logger import logger
 
@@ -95,13 +96,7 @@ class UpdateChecker:
     def check_for_updates() -> UpdateInfo:
         """Fetch the latest GitHub release and return an UpdateInfo."""
         try:
-            headers = {
-                "Accept": "application/vnd.github.v3+json",
-                "User-Agent": "ChessAnalyzerPro",
-            }
-            response = requests.get(GITHUB_RELEASES_API, headers=headers, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+            data = fetch_release(GITHUB_RELEASES_API, timeout=10)
 
             # Strip leading "V" / "v" from the tag name
             tag_name = data.get("tag_name", "")

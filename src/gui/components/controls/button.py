@@ -21,12 +21,12 @@ from PyQt6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.utils.icons import HAS_QTAWESOME
 
 try:
     import qtawesome as qta
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
+    qta = None
 
 
 class ButtonVariant(StrEnum):
@@ -229,7 +229,12 @@ class Button(QPushButton):
         self._apply_icon()
 
     def _on_theme_changed(self, *_args) -> None:
-        self.refresh_styles()
+        try:
+            self.refresh_styles()
+        except RuntimeError:
+            # Qt may still deliver a queued theme signal after the C++ widget
+            # has been deleted; there is nothing left to restyle.
+            pass
 
     # ------------------------------------------------------------------
     # Icons and spinner
@@ -253,14 +258,26 @@ class Button(QPushButton):
     def _apply_icon(self) -> None:
         if self._loading:
             return
-        self.setIconSize(QSize(self._icon_pixel_size(), self._icon_pixel_size()))
+        side = self._icon_pixel_size()
+        gap = 0 if self._icon_position == "only" else max(3, side // 4)
+        self.setIconSize(QSize(side + gap, side))
         spec = self._icon_spec
         if isinstance(spec, QIcon):
-            self.setIcon(spec)
+            icon = spec
         elif isinstance(spec, str) and HAS_QTAWESOME:
-            self.setIcon(qta.icon(spec, color=self._icon_color()))
+            icon = qta.icon(spec, color=self._icon_color())
         else:
-            self.setIcon(QIcon())
+            icon = QIcon()
+        if gap and not icon.isNull():
+            # Qt hardcodes a tight icon/text gap; a transparent strip on the
+            # icon keeps the label readable without per-widget QSS overrides.
+            pixmap = QPixmap(side + gap, side)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            icon.paint(painter, 0, 0, side, side)
+            painter.end()
+            icon = QIcon(pixmap)
+        self.setIcon(icon)
 
     def _spinner_icon(self) -> QIcon:
         side = self._icon_pixel_size()

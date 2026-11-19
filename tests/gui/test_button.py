@@ -36,7 +36,7 @@ def test_central_buttons_are_not_restyled_or_reiconed_manually():
     """Button owns its QSS/icon; callers must use refresh_styles/set_icon_spec."""
     repo_root = Path(__file__).resolve().parents[2]
     gui_root = repo_root / "src" / "gui"
-    factories = {"Button", "create_button", "create_icon_button"}
+    factories = {"Button"}
     overrides = {"setStyleSheet", "setIcon", "setIconSize"}
     offenders = []
 

@@ -5,14 +5,12 @@ from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.styles import Styles
+from src.gui.utils.icons import HAS_QTAWESOME
 
 try:
     import qtawesome as qta
-
-    HAS_QTAWESOME = True
 except ImportError:  # pragma: no cover - exercised only on broken installs
     qta = None
-    HAS_QTAWESOME = False
 
 
 class MoveControls(QWidget):

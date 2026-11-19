@@ -6,23 +6,14 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from src.backend.analysis.chess_utils import is_chess960_variant
 from src.backend.models.game_info import GameInfo
 from src.backend.storage.game_identity import game_identity_key
+from src.backend.storage.pgn_metadata import PgnMetadata, extract_pgn_metadata
 from src.backend.storage.pgn_parser import PGNIndex
-from src.gui.import_workspace.boards import summarize_pgn
 from src.utils.time_control import classify_time_control
 
 _TIME_CONTROL_RE = re.compile(r'\[TimeControl "([^"]+)"\]')
-_NAMED_TIME_CLASSES = {
-    "ultrabullet": "UltraBullet",
-    "ultra bullet": "UltraBullet",
-    "bullet": "Bullet",
-    "blitz": "Blitz",
-    "rapid": "Rapid",
-    "classical": "Classical",
-    "daily": "Daily",
-    "correspondence": "Daily",
-}
 
 _GENERIC_EVENTS = {
     "rated blitz game",
@@ -50,13 +41,7 @@ def _resolve_time_class(raw: str | None, pgn: str | None) -> str:
         if classified != "Unknown":
             return classified
 
-    value = (raw or "").strip()
-    named = _NAMED_TIME_CLASSES.get(value.casefold())
-    if named:
-        return named
-    if value.casefold() in ("live chess", "standard"):
-        return "Unknown"
-    return value if value and value not in ("?", "-") else "Unknown"
+    return classify_time_control(raw)
 
 
 @dataclass
@@ -100,8 +85,7 @@ class GameCandidate:
 
     @property
     def is_chess960(self) -> bool:
-        variant = (self.variant or "").casefold()
-        return any(token in variant for token in ("960", "fischer", "frc"))
+        return is_chess960_variant(self.variant)
 
     @property
     def search_blob(self) -> str:
@@ -138,7 +122,7 @@ class GameBatch:
     ) -> GameBatch:
         candidates = []
         for position, info in enumerate(infos):
-            summary = summarize_pgn(info.pgn)
+            summary = extract_pgn_metadata(info.pgn) or PgnMetadata()
             candidates.append(
                 GameCandidate(
                     candidate_id=position,

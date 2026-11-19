@@ -5,10 +5,7 @@ import sqlite3
 
 import chess
 
-
-def _normalize_fen(fen: str) -> str:
-    """Strip halfmove clock and fullmove number — keep position-only key."""
-    return " ".join(fen.split()[:4])
+from src.backend.analysis.chess_utils import position_key
 
 
 class OpeningDB:
@@ -128,7 +125,7 @@ class OpeningDB:
     def _insert_variation(self, board: chess.Board, eco: str, name: str, pgn_str: str):
         """Insert one opening variation into the tree."""
         board.reset()
-        root_fen = _normalize_fen(board.fen())
+        root_fen = position_key(board.fen())
         prev_id = self._get_or_create_node(root_fen)
 
         # Attach root opening for the starting position (covers all ECOs at root)
@@ -140,7 +137,7 @@ class OpeningDB:
                 board.push_san(san)
             except Exception:
                 break
-            cur_fen = _normalize_fen(board.fen())
+            cur_fen = position_key(board.fen())
             cur_id = self._get_or_create_node(cur_fen)
             self._upsert_edge(prev_id, cur_id, san)
             self._upsert_node_opening(cur_id, eco, name)

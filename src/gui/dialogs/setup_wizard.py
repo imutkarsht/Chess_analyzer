@@ -1,7 +1,6 @@
 import os
 import subprocess
 import sys
-from importlib.util import find_spec
 
 from PyQt6.QtCore import QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -31,10 +30,9 @@ from src.gui.dialogs.wizard.wizard_pages import (
 )
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
+from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
-
-HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 
 class StockfishDownloadWorker(QThread):

@@ -6,7 +6,6 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -16,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.game_report import build_game_report
+from src.backend.analysis.metrics.time_stats import format_time_stats_for_llm
 from src.backend.analysis.tactics import TACTICS_VERSION, analyze_game_tactics
 from src.backend.analysis.tactics.insight import MoveInsight, build_move_insight
 from src.backend.analysis.tactics.report import (
@@ -40,31 +40,31 @@ from src.gui.components import (
     Button,
     ButtonVariant,
     CircularAccuracyWidget,
+    GraphWidget,
     IconLabel,
     Label,
+    PulsingSkeleton,
     RichTextLabel,
     Tabs,
     TabVariant,
     TextArea,
     TextRole,
     TextTone,
+    ToastManager,
+    open_llm_settings,
+    show_error_dialog,
 )
-from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
-from src.gui.components.feedback.toast import ToastManager
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
 from src.gui.resources import ResourceManager
 from src.gui.share import ShareReportDialog, ShareReportRenderer
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import (
-    clear_layout,
-    format_time_stats_for_llm,
-    is_error_message,
-    show_error_dialog,
-)
+from src.gui.tactics_meta import classification_tone
+from src.gui.utils.assets import tick_icon_path
+from src.gui.utils.layout import clear_layout
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
+from src.utils.text_utils import is_error_message
 
 # Tabs that only make sense once the game has analysis results.
 _TABS_REQUIRING_ANALYSIS = (1, 2, 3)
@@ -625,13 +625,6 @@ class AnalysisPanel(QWidget):
 
         return Styles.COLOR_TEXT_PRIMARY
 
-    @staticmethod
-    def _classification_tone(name: str) -> TextTone:
-        try:
-            return TextTone(name.lower())
-        except ValueError:
-            return TextTone.PRIMARY
-
     def _user_side(self) -> str | None:
         """Which colour the configured Chess.com/Lichess username played."""
         if not self.current_game:
@@ -703,7 +696,7 @@ class AnalysisPanel(QWidget):
                 type_name,
                 role=TextRole.CAPTION,
                 weight=700,
-                tone=self._classification_tone(type_name),
+                tone=classification_tone(type_name),
             )
             self.stats_layout.addWidget(lbl_type, i + 1, 0)
 
@@ -712,7 +705,7 @@ class AnalysisPanel(QWidget):
                 str(val_w),
                 role=TextRole.BODY,
                 weight=700,
-                tone=self._classification_tone(type_name),
+                tone=classification_tone(type_name),
             )
             lbl_val_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.stats_layout.addWidget(lbl_val_w, i + 1, 1)
@@ -729,27 +722,16 @@ class AnalysisPanel(QWidget):
                 str(val_b),
                 role=TextRole.BODY,
                 weight=700,
-                tone=self._classification_tone(type_name),
+                tone=classification_tone(type_name),
             )
             lbl_val_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.stats_layout.addWidget(lbl_val_b, i + 1, 3)
-
-    def _clear_layout(self, layout):
-        # Legacy method for backward compatibility - uses shared utility
-        clear_layout(layout)
 
     def generate_ai_summary(self):
         if not self.current_game:
             return
         if not self.groq_service.client:
-            from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
-
-            dlg = LlmNotConfiguredDialog(self)
-            if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
-                window = self.window()
-                if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
-                    window.sidebar.set_active(4)
-                    window.switch_page(4)
+            open_llm_settings(self)
             return
         self._set_summary_loading(True)
         logger.info("Starting AI summary generation...")
@@ -777,7 +759,6 @@ class AnalysisPanel(QWidget):
         """Create the Matplotlib-backed graph on first game load."""
         if self.graph_widget is not None:
             return
-        from src.gui.components.display.graph_widget import GraphWidget
 
         graph = GraphWidget()
         graph.setSizePolicy(
@@ -835,7 +816,7 @@ class AnalysisPanel(QWidget):
             self._update_summary(self.current_game.summary)
 
     def _apply_toggle_style(self):
-        tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
+        tick_path = tick_icon_path()
         cb_style = Styles.get_checkbox_style(tick_path)
         if hasattr(self, "toggle_checkbox"):
             self.toggle_checkbox.setStyleSheet(cb_style)
@@ -860,14 +841,7 @@ class AnalysisPanel(QWidget):
                 _BTN_REGENERATE_SUMMARY if previous else _BTN_GENERATE_SUMMARY
             )
             if "not configured" in summary.lower():
-                from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
-
-                dlg = LlmNotConfiguredDialog(self)
-                if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
-                    window = self.window()
-                    if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
-                        window.sidebar.set_active(4)
-                        window.switch_page(4)
+                open_llm_settings(self)
             else:
                 show_error_dialog(
                     self,
@@ -994,7 +968,7 @@ class AnalysisPanel(QWidget):
         if self._coach_insight is None:
             return
         if not self.groq_service.client:
-            self._show_llm_not_configured()
+            open_llm_settings(self)
             return
         # Debounce so rapid clicking or move-hopping fires a single request.
         self._coach_debounce.start(EXPLANATION_DEBOUNCE_MS)
@@ -1096,16 +1070,6 @@ class AnalysisPanel(QWidget):
     def _is_chess960(self) -> bool:
         meta = getattr(self.current_game, "metadata", None)
         return bool(getattr(meta, "chess960", False))
-
-    def _show_llm_not_configured(self) -> None:
-        from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
-
-        dlg = LlmNotConfiguredDialog(self)
-        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
-            window = self.window()
-            if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
-                window.sidebar.set_active(4)
-                window.switch_page(4)
 
     def _toast(self, message: str) -> None:
         ToastManager.info(self, message)

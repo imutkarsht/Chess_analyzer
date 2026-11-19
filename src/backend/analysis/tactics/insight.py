@@ -39,6 +39,7 @@ from src.constants import (
     SACRIFICIAL_CLASSIFICATIONS,
     SOUND_CLASSIFICATIONS,
 )
+from src.utils.format_utils import format_eval
 from src.utils.logger import logger
 
 # How many plies of the opponent's best line to quote (kept short so the LLM
@@ -209,14 +210,6 @@ def move_prefix(move_number: int, side: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _fmt_eval(cp: int | None, mate: int | None) -> str:
-    if mate is not None:
-        return f"M{mate}" if mate > 0 else f"-M{abs(mate)}"
-    if cp is None:
-        return "?"
-    return f"{cp / 100:+.2f}"
-
-
 def _side_of_ply(ply: int) -> str:
     """
     Map a ply to the side that played it.
@@ -288,8 +281,12 @@ def build_move_insight(
     # Display strings stay White-perspective: the Coach card must agree with
     # the eval bar, move list and game report (positive = White is better).
     # Win chances are converted once, here, to the player's own view.
-    eval_before = _fmt_eval(move.eval_before_cp, move.eval_before_mate)
-    eval_after = _fmt_eval(move.eval_after_cp, move.eval_after_mate)
+    eval_before = format_eval(
+        move.eval_before_cp, move.eval_before_mate, mate_style="M", decimals=2, none_text="?"
+    )
+    eval_after = format_eval(
+        move.eval_after_cp, move.eval_after_mate, mate_style="M", decimals=2, none_text="?"
+    )
     player_mate_before = _user_signed(move.eval_before_mate, is_user_white)
     player_mate_after = _user_signed(move.eval_after_mate, is_user_white)
     wp_before = to_user_wp(move.win_chance_before, is_user_white)
@@ -629,7 +626,7 @@ def _pv_eval_white(pv: dict[str, Any] | None, white_to_move: bool) -> str | None
     if not white_to_move:
         cp = -cp if cp is not None else None
         mate = -mate if mate is not None else None
-    return _fmt_eval(cp, mate)
+    return format_eval(cp, mate, mate_style="M", decimals=2, none_text="?")
 
 
 # ---------------------------------------------------------------------------

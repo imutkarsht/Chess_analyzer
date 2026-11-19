@@ -9,7 +9,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QPixmap
 
-from src.utils.path_utils import get_resource_path
+from src.gui.utils.assets import resolve_asset
 
 try:
     import qtawesome as qta
@@ -18,18 +18,9 @@ except ImportError:  # pragma: no cover - QtAwesome ships with the app
     qta = None
     HAS_QTAWESOME = False
 
-_ASSET_DIRS = ("assets/icons", "assets/images", "assets")
-
-
 def _resolve_icon_path(name: str) -> Path | None:
-    path = Path(name)
-    if path.is_absolute() and path.exists():
-        return path
-    for directory in _ASSET_DIRS:
-        candidate = Path(get_resource_path(str(Path(directory) / name)))
-        if candidate.exists():
-            return candidate
-    return None
+    resolved = resolve_asset(name)
+    return Path(resolved) if resolved else None
 
 
 @lru_cache(maxsize=256)

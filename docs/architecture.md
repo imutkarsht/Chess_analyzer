@@ -721,6 +721,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | Qt-free backend | No PyQt6 imports under `src/backend`, `src/utils`, `src/config` | `Analyzer` returns data, never widgets | Importing `pyqtSignal` in a repo |
 | Component facade | Import shared widgets from `src.gui.components` only | `from src.gui.components import Button, Select` | Importing `components.controls.button` |
 | One widget per control | Never construct raw `QPushButton`, `QLineEdit`, `QComboBox`, or use `QLabel` for plain text | `Button`, `Input`, `Select`, `Tabs`, `Label` | Local QSS strings in a view |
+| No button factories | Construct `Button` directly with a variant/size | `Button("Save", ButtonVariant.FILLED, icon="fa5s.save")` | `create_button(...)` / `create_icon_button(...)` |
 | One style generator | Each control's look comes from a `Styles.get_*_qss()` generator | `Styles.get_button_qss` | Hex colours or per-widget stylesheets |
 | Live theming | Per-widget styles are rebuilt on theme/accent change | `_refresh_historic_bar_styles()` | Capturing palette colours at construction |
 | Settings schema | Defaults, types and validation live in `settings_schema.py` | `SettingSpec("board_theme", …)` | Ad-hoc `config.get("x", default)` in widgets |
@@ -753,6 +754,33 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
   objects.
 - Compatibility shims (`storage_card.py`, `time_management_card.py`) exist for
   import stability; add new code to the real module, not the shim.
+
+### Shared utility homes
+
+| Concern | Canonical module |
+| --- | --- |
+| Clock, eval, count, bytes, percent, duration | `src/utils/format_utils.py` |
+| Time-control parsing, formatting, classification | `src/utils/time_control.py` |
+| Display dates and cache ages | `src/utils/date_utils.py` |
+| Error-text detection, initials, country flags | `src/utils/text_utils.py` |
+| FEN keys, canonical FEN, Chess960 detection | `src/backend/analysis/chess_utils.py` |
+| LLM clock-data summaries | `src/backend/analysis/metrics/time_stats.py` |
+| PGN headers and mainline metadata | `src/backend/storage/pgn_metadata.py` |
+| Cache timestamps and TTLs | `src/backend/storage/cache_time.py` |
+| DB connections, read-only access, row counts | `src/backend/storage/db_connection.py` |
+| Tactics summary enrichment | `src/backend/analysis/tactics/enrichment.py` |
+| Streaming downloads and GitHub releases | `src/backend/api/download.py`, `src/backend/api/github_releases.py` |
+| GUI asset/icon paths | `src/gui/utils/assets.py` |
+| External URLs and local paths | `src/gui/utils/links.py` |
+| Result labels and tones | `src/gui/utils/result_ui.py` |
+| Layout clearing | `src/gui/utils/layout.py` |
+| Themed dialogs and dialog launchers | `src/gui/components/dialogs.py` |
+| Motif metadata and classification tones | `src/gui/tactics_meta.py` |
+| Lazy metric sub-view rendering | `src/gui/views/metrics/lazy_view.py` |
+| Board SVG rect/use primitives | `src/gui/board/svg_board.py` |
+
+Add new helpers to the canonical module and test their branches there. Do not
+create per-widget formatters or wrapper factories.
 
 ---
 

@@ -11,9 +11,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.components import Label, TextRole, TextTone
-from src.gui.components.controls.select import Select, SelectOption
-from src.gui.components.feedback.toast import ToastManager
+from src.gui.components import (
+    Label,
+    Select,
+    SelectOption,
+    TextRole,
+    TextTone,
+    ToastManager,
+)
 from src.gui.styles import Styles
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.settings.background_worker import BackgroundTaskWorker
@@ -184,12 +189,7 @@ class EngineSettings(QGroupBox):
 
     def _set_validation(self, text: str, color: str) -> None:
         self.validation_label.setText(text)
-        tone = {
-            Styles.COLOR_BEST: TextTone.BEST,
-            Styles.COLOR_MISTAKE: TextTone.MISTAKE,
-            Styles.COLOR_BLUNDER: TextTone.BLUNDER,
-        }.get(color, TextTone.SECONDARY)
-        self.validation_label.set_tone(tone)
+        self.validation_label.set_tone(Styles.get_tone_for_color(color))
         self.validation_label.setVisible(True)
 
     def browse_engine(self):

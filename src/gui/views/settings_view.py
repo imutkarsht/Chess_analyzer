@@ -26,8 +26,8 @@ from src.gui.components import (
     InputVariant,
     Label,
     TextRole,
+    ToastManager,
 )
-from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.views.settings import (
     ApiSettings,

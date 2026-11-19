@@ -1,9 +1,8 @@
 import datetime
-import io
 import json
 from dataclasses import dataclass
 
-import chess.pgn
+from src.backend.storage.pgn_metadata import extract_pgn_metadata
 
 
 @dataclass
@@ -95,22 +94,13 @@ class GameInfo:
         # Opening
         opening = (data.get("opening") or {}).get("name")
 
-        # Move count estimation
+        # Move count and opening fallback from the PGN.
         move_count = None
-        if pgn:
-            try:
-                game = chess.pgn.read_game(io.StringIO(pgn))
-                if game:
-                    node = game
-                    cnt = 0
-                    while node.variations:
-                        node = node.variation(0)
-                        cnt += 1
-                    move_count = (cnt + 1) // 2
-                    if not opening:
-                        opening = game.headers.get("Opening")
-            except Exception:
-                pass
+        metadata = extract_pgn_metadata(pgn)
+        if metadata is not None:
+            move_count = metadata.move_count
+            if not opening:
+                opening = metadata.opening
 
         return cls(
             game_id=data.get("id", ""),

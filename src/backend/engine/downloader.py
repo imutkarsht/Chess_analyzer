@@ -10,8 +10,8 @@ import zipfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-import requests
-
+from src.backend.api.download import download_to_file
+from src.backend.api.github_releases import fetch_release_assets
 from src.utils.logger import logger
 
 GITHUB_API = "https://api.github.com/repos/official-stockfish/Stockfish/releases/latest"
@@ -135,17 +135,15 @@ def get_expected_asset_name() -> str:
 # ---------------------------------------------------------------------------
 
 def _fetch_assets(api_url: str) -> list[ReleaseAsset]:
-    headers = {"User-Agent": _USER_AGENT, "Accept": "application/vnd.github+json"}
-    resp = requests.get(api_url, headers=headers, timeout=15)
-    resp.raise_for_status()
-    data = resp.json()
     assets = []
-    for asset in data.get("assets", []):
-        assets.append(ReleaseAsset(
-            name=asset["name"],
-            url=asset["browser_download_url"],
-            size=asset.get("size", 0),
-        ))
+    for asset in fetch_release_assets(api_url, timeout=15):
+        assets.append(
+            ReleaseAsset(
+                name=asset["name"],
+                url=asset["browser_download_url"],
+                size=asset.get("size", 0),
+            )
+        )
     return assets
 
 
@@ -351,19 +349,13 @@ def _download_one(
 
     try:
         logger.info("Downloading Stockfish from %s", url)
-        headers = {"User-Agent": _USER_AGENT}
-        resp = requests.get(url, headers=headers, stream=True, timeout=30)
-        resp.raise_for_status()
-
-        total = int(resp.headers.get("content-length", 0))
-        downloaded = 0
-        with open(tmp_path, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if progress_callback and total:
-                        progress_callback(downloaded, total)
+        download_to_file(
+            url,
+            tmp_path,
+            progress=progress_callback,
+            chunk_size=8192,
+            headers={"User-Agent": _USER_AGENT},
+        )
 
         _extract_archive(tmp_path, staging)
         binary = _find_binary(staging)

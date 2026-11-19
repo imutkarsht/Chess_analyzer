@@ -6,10 +6,9 @@ from PyQt6.QtWidgets import QVBoxLayout
 
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.game_history import GameHistoryManager
+from src.gui.components import Button, ButtonVariant, confirm_dialog
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import confirm_dialog
 from src.gui.views.settings.components import SettingsForm
-from src.gui.views.settings.helpers import create_icon_button
 from src.gui.views.settings.storage_actions import close_analyzer_cache, ensure_idle
 from src.gui.views.settings.storage_card import StorageCard
 from src.utils.logger import logger
@@ -50,9 +49,7 @@ class MaintenanceSettings(StorageCard):
         self.form = SettingsForm(self)
         outer.addWidget(self.form)
 
-        self.clear_cache_btn = create_icon_button(
-            "Clear Cache", "fa5s.broom", self.clear_cache, self
-        )
+        self.clear_cache_btn = Button('Clear Cache', ButtonVariant.FILLED, icon='fa5s.broom', on_click=self.clear_cache, parent=self)
         self.form.add_row(
             "Analysis cache",
             self.clear_cache_btn,
@@ -60,9 +57,7 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.clear_explanations_btn = create_icon_button(
-            "Clear Explanations", "fa5s.comment-slash", self.clear_explanations, self
-        )
+        self.clear_explanations_btn = Button('Clear Explanations', ButtonVariant.FILLED, icon='fa5s.comment-slash', on_click=self.clear_explanations, parent=self)
         self.form.add_row(
             "Explanation cache",
             self.clear_explanations_btn,
@@ -70,9 +65,7 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.clear_api_cache_btn = create_icon_button(
-            "Clear API Cache", "fa5s.cloud-download-alt", self.clear_api_cache, self
-        )
+        self.clear_api_cache_btn = Button('Clear API Cache', ButtonVariant.FILLED, icon='fa5s.cloud-download-alt', on_click=self.clear_api_cache, parent=self)
         self.form.add_row(
             "API cache",
             self.clear_api_cache_btn,
@@ -80,9 +73,7 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.clear_explorer_cache_btn = create_icon_button(
-            "Clear Explorer Cache", "fa5s.globe", self.clear_explorer_cache, self
-        )
+        self.clear_explorer_cache_btn = Button('Clear Explorer Cache', ButtonVariant.FILLED, icon='fa5s.globe', on_click=self.clear_explorer_cache, parent=self)
         self.form.add_row(
             "Explorer cache",
             self.clear_explorer_cache_btn,
@@ -90,9 +81,7 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.optimize_db_btn = create_icon_button(
-            "Optimize DB", "fa5s.tools", self.optimize_db, self
-        )
+        self.optimize_db_btn = Button('Optimize DB', ButtonVariant.FILLED, icon='fa5s.tools', on_click=self.optimize_db, parent=self)
         self.form.add_row(
             "Database",
             self.optimize_db_btn,
@@ -100,9 +89,7 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.rebuild_index_btn = create_icon_button(
-            "Rebuild Index", "fa5s.sync-alt", self.rebuild_index, self
-        )
+        self.rebuild_index_btn = Button('Rebuild Index', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=self.rebuild_index, parent=self)
         self.form.add_row(
             "Opening index",
             self.rebuild_index_btn,

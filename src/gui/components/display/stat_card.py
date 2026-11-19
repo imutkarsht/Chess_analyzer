@@ -13,7 +13,7 @@ from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
-from src.gui.utils.gui_utils import resolve_asset  # Use shared utility
+from src.gui.utils.assets import resolve_asset
 
 
 class StatCard(QFrame):
@@ -75,19 +75,7 @@ class StatCard(QFrame):
         layout.addSpacing(4)
 
         # Value - Large, bold, eye-catching
-        value_tone = TextTone.PRIMARY
-        if color == Styles.COLOR_ACCENT:
-            value_tone = TextTone.ACCENT
-        elif color == Styles.COLOR_BEST:
-            value_tone = TextTone.BEST
-        elif color == Styles.COLOR_BLUNDER:
-            value_tone = TextTone.BLUNDER
-        elif color == Styles.COLOR_MISTAKE:
-            value_tone = TextTone.MISTAKE
-        elif color == Styles.COLOR_TEXT_SECONDARY:
-            value_tone = TextTone.SECONDARY
-        elif color == Styles.COLOR_TEXT_MUTED:
-            value_tone = TextTone.MUTED
+        value_tone = Styles.get_tone_for_color(color)
 
         self.lbl_value = Label(
             str(value),
@@ -187,15 +175,7 @@ class SimpleStatCard(QFrame):
         self.lbl_title = Label(title, role=TextRole.CAPTION, tone=TextTone.SECONDARY)
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        value_tone = TextTone.PRIMARY
-        if color == Styles.COLOR_ACCENT:
-            value_tone = TextTone.ACCENT
-        elif color == Styles.COLOR_BEST:
-            value_tone = TextTone.BEST
-        elif color == Styles.COLOR_BLUNDER:
-            value_tone = TextTone.BLUNDER
-        elif color == Styles.COLOR_MISTAKE:
-            value_tone = TextTone.MISTAKE
+        value_tone = Styles.get_tone_for_color(color)
 
         self.lbl_value = Label(
             str(value),

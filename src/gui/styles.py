@@ -398,12 +398,13 @@ class Styles(metaclass=_StylesMeta):
             checked = (p.accent_subtle, p.text_primary, "transparent")
             disabled_bg = "transparent"
         elif variant == "danger":
-            bg, fg, border = "transparent", danger_color, danger_color
-            # Keep a tinted hover (not a red fill) so the red icon stays visible.
-            hover = (p.surface_light, danger_color, danger_color)
+            # Neutral resting surface keeps destructive actions from shouting;
+            # the red label/icon carries the intent and the border reddens on hover.
+            bg, fg, border = p.surface_light, danger_color, p.border
+            hover = (p.surface, danger_color, danger_color)
             pressed = (p.accent_subtle, danger_color, danger_color)
             checked = (p.accent_subtle, danger_color, danger_color)
-            disabled_bg = "transparent"
+            disabled_bg = p.surface_light
         elif variant == "segment":
             # Compact chip used inside SegmentedControl. The checked state is a
             # raised card; unchecked chips stay quiet until hover.
@@ -941,6 +942,14 @@ class Styles(metaclass=_StylesMeta):
             TextTone.ENGINE_BUSY: cls.COLOR_ENGINE_BUSY,
         }
         return colors[tone]
+
+    @classmethod
+    def get_tone_for_color(cls, color: str) -> TextTone:
+        """Resolve a palette colour back to its semantic text tone."""
+        for tone in TextTone:
+            if cls.get_tone_color(tone) == color:
+                return tone
+        return TextTone.PRIMARY
 
     @classmethod
     def get_typography_qss(cls) -> str:

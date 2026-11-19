@@ -3,10 +3,9 @@
 from PyQt6.QtWidgets import QVBoxLayout
 
 from src.backend.storage.game_history import GameHistoryManager
+from src.gui.components import Button, ButtonVariant, confirm_dialog
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import confirm_dialog
 from src.gui.views.settings.components import SettingsForm
-from src.gui.views.settings.helpers import create_icon_button
 from src.gui.views.settings.storage_actions import (
     close_analyzer_cache,
     ensure_idle,
@@ -29,9 +28,7 @@ class DangerSettings(StorageCard):
         self.form = SettingsForm(self)
         outer.addWidget(self.form)
 
-        self.clear_data_btn = create_icon_button(
-            "Reset All Data", "fa5s.trash-alt", self.reset_all_data, self, danger=True
-        )
+        self.clear_data_btn = Button('Reset All Data', ButtonVariant.DANGER, icon='fa5s.trash-alt', on_click=self.reset_all_data, parent=self)
         self.clear_data_btn.setMaximumWidth(200)
         self.form.add_row(
             "All local data",

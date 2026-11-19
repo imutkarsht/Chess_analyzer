@@ -2,9 +2,9 @@
 
 import chess
 
+from src.backend.analysis.chess_utils import position_key
 from src.backend.analysis.math_utils import get_win_probability
 from src.backend.analysis.move_classifier import classify_move
-from src.backend.analysis.opening_db import _normalize_fen
 from src.gui.styles import Styles
 from src.gui.views.explorer.types import ClassificationContext
 from src.utils.logger import logger
@@ -236,7 +236,7 @@ class ExplorerEngineMixin:
         ]
 
         # Check book status first (UCI avoids SAN ambiguity).
-        norm_fen = _normalize_fen(fen_before)
+        norm_fen = position_key(fen_before)
         node_id = self.opening_db.get_node_by_fen(norm_fen)
         if self._is_book_move(node_id, move_obj.uci(), fen_before):
             self.move_list_view.set_classification(

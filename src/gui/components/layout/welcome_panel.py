@@ -4,8 +4,8 @@ Displayed on the right half of the main window when no game is loaded.
 """
 import os
 
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QDesktopServices, QIcon
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -16,19 +16,20 @@ from PyQt6.QtWidgets import (
 
 from src.constants import (
     ABOUT_URL,
-    APP_LOGO_PATH,
     APP_VERSION,
     GITHUB_REPO_URL,
     WEBSITE_URL,
 )
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.dialogs import open_feedback_dialog
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
-from src.utils.path_utils import get_resource_path
+from src.gui.utils.assets import app_logo_path
+from src.gui.utils.links import open_url
 
 
 class WelcomePanel(QFrame):
@@ -79,7 +80,7 @@ class WelcomePanel(QFrame):
 
         # ── Logo ──────────────────────────────────────────────────────────
         self.logo_label = IconLabel(size=72)
-        logo_path = get_resource_path(APP_LOGO_PATH)
+        logo_path = app_logo_path()
         if os.path.exists(logo_path):
             self.logo_label.set_icon(QIcon(logo_path))
         card_layout.addWidget(
@@ -178,8 +179,16 @@ class WelcomePanel(QFrame):
         links.addStretch(1)
 
         util_specs = [
-            ("Report Issue", "fa5s.bug", self._open_report_issue),
-            ("Suggest Feature", "fa5s.lightbulb", self._open_suggest_feature),
+            (
+                "Report Issue",
+                "fa5s.bug",
+                lambda: open_feedback_dialog(self, initial_tab="bug"),
+            ),
+            (
+                "Suggest Feature",
+                "fa5s.lightbulb",
+                lambda: open_feedback_dialog(self, initial_tab="feature"),
+            ),
             ("About", "fa5s.info-circle", self._open_about),
             ("Website", "fa5s.globe", self._open_website),
         ]
@@ -226,7 +235,7 @@ class WelcomePanel(QFrame):
 
     # ── Action callbacks ──────────────────────────────────────────────────
     def _open_github(self) -> None:
-        QDesktopServices.openUrl(QUrl(GITHUB_REPO_URL))
+        open_url(GITHUB_REPO_URL)
 
     def _open_review(self) -> None:
         from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
@@ -234,20 +243,8 @@ class WelcomePanel(QFrame):
         dialog = ReviewPromptDialog(self, games_count=0)
         dialog.exec()
 
-    def _open_report_issue(self) -> None:
-        from src.gui.dialogs.feedback_dialog import FeedbackDialog
-
-        dialog = FeedbackDialog(self, initial_tab="bug")
-        dialog.exec()
-
-    def _open_suggest_feature(self) -> None:
-        from src.gui.dialogs.feedback_dialog import FeedbackDialog
-
-        dialog = FeedbackDialog(self, initial_tab="feature")
-        dialog.exec()
-
     def _open_about(self) -> None:
-        QDesktopServices.openUrl(QUrl(ABOUT_URL))
+        open_url(ABOUT_URL)
 
     def _open_website(self) -> None:
-        QDesktopServices.openUrl(QUrl(WEBSITE_URL))
+        open_url(WEBSITE_URL)

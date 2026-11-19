@@ -22,14 +22,13 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.theme.motion import Motion
+from src.gui.utils.icons import HAS_QTAWESOME
 from src.gui.utils.smooth_scroll import SmoothScroll
 
 try:
     import qtawesome as qta
-
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
+    qta = None
 
 
 _KEY_ROLE = Qt.ItemDataRole.UserRole

@@ -5,7 +5,7 @@ from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, invalidate_engine_cache, resolve_engine_path
 from src.constants import ANALYSIS_UI_FLUSH_MS
 from src.gui.analysis.analysis_worker import AnalysisWorker
-from src.gui.components.feedback.toast import ToastManager
+from src.gui.components import ToastManager
 from src.gui.dialogs.engine_error_dialog import EngineNotFoundDialog
 from src.gui.dialogs.feedback_dialog import FeedbackDialog
 from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
@@ -41,7 +41,7 @@ class AnalysisMixin:
         self._exit_variation()
 
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
-            QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
+            self.show_toast("An analysis is already running.", "warning")
             return
 
         if not self._ensure_engine_ready():
@@ -53,9 +53,7 @@ class AnalysisMixin:
         if coordinator is not None and not coordinator.begin_single(
             getattr(self.current_game, "game_id", None)
         ):
-            QMessageBox.warning(
-                self, "Analysis in Progress", "An analysis is already running."
-            )
+            self.show_toast("An analysis is already running.", "warning")
             return
 
         logger.info("Starting analysis (resume=%s)...", resume)

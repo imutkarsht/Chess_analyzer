@@ -30,14 +30,13 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.utils.icons import HAS_QTAWESOME
+from src.utils.format_utils import format_eval
 
 try:
     import qtawesome as qta
-
-    HAS_QTAWESOME = True
 except ImportError:  # pragma: no cover - exercised only on broken installs
     qta = None
-    HAS_QTAWESOME = False
 
 COL_W = 58
 LANE_H = 30
@@ -542,7 +541,13 @@ class VariationGraph(QFrame):
 
         for branch in self.tree.branches:
             tip = branch.tip
-            text = self._eval_text(tip.eval_cp, tip.eval_mate)
+            text = format_eval(
+                tip.eval_cp,
+                tip.eval_mate,
+                mate_style="signed",
+                decimals=2,
+                none_text="",
+            )
             label = StatusBadge(
                 text or "--",
                 TextTone.SECONDARY,
@@ -686,14 +691,6 @@ class VariationGraph(QFrame):
         x = PAD_X + node.ply * COL_W
         y = PAD_Y + node.lane * LANE_H
         self.scroll.ensureVisible(x, y, 40, 18)
-
-    @staticmethod
-    def _eval_text(cp: int | None, mate: int | None) -> str:
-        if mate is not None:
-            return f"{'+' if mate > 0 else '-'}M{abs(mate)}"
-        if cp is None:
-            return ""
-        return f"{cp / 100:+.2f}"
 
     def _commit_rename(self) -> None:
         editor = self._rename_edit

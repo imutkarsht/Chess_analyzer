@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import QDialog, QGridLayout, QSizePolicy, QWidget
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.board.eval_bar import EvalBarWidget
 from src.gui.board.promotion_dialog import PromotionDialog
+from src.gui.board.svg_board import add_svg_rect, add_svg_use
 from src.gui.components import IconLabel
 from src.gui.styles import Styles
 from src.utils.logger import logger
@@ -891,31 +892,18 @@ class Board(QWidget):
             is_light = (file_idx + rank_idx) % 2 == 1
             fill_color = colors["light"] if is_light else colors["dark"]
 
-            ET.SubElement(
-                svg,
-                "rect",
-                {
-                    "x": str(x),
-                    "y": str(y),
-                    "width": str(SQUARE_SIZE),
-                    "height": str(SQUARE_SIZE),
-                    "fill": fill_color,
-                },
-            )
+            add_svg_rect(svg, x, y, SQUARE_SIZE, SQUARE_SIZE, fill_color)
 
             # Highlight last move squares
             if last_move and square in (last_from, last_to):
-                ET.SubElement(
+                add_svg_rect(
                     svg,
-                    "rect",
-                    {
-                        "x": str(x),
-                        "y": str(y),
-                        "width": str(SQUARE_SIZE),
-                        "height": str(SQUARE_SIZE),
-                        "fill": Styles.COLOR_BOARD_HIGHLIGHT,
-                        "opacity": "0.35",
-                    },
+                    x,
+                    y,
+                    SQUARE_SIZE,
+                    SQUARE_SIZE,
+                    Styles.COLOR_BOARD_HIGHLIGHT,
+                    opacity="0.35",
                 )
 
         # Draw coordinates
@@ -955,13 +943,7 @@ class Board(QWidget):
 
                 color_name = "white" if piece.color else "black"
                 piece_type_name = chess.PIECE_NAMES[piece.piece_type]
-                href = f"#{color_name}-{piece_type_name}"
-
-                ET.SubElement(
-                    svg,
-                    "use",
-                    {"href": href, "xlink:href": href, "transform": f"translate({x}, {y})"},
-                )
+                add_svg_use(svg, f"#{color_name}-{piece_type_name}", x, y)
 
         # Analysis mode: wash the board out slightly, then keep the arrow vivid
         # on top so the suggested move still reads at a glance.

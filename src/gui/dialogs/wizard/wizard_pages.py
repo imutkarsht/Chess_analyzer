@@ -1,5 +1,4 @@
 import os
-from importlib.util import find_spec
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon
@@ -12,7 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.constants import APP_LOGO_PATH, DEFAULT_BOARD_THEME, PROVIDERS
+from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
 from src.gui.components import (
     Button,
     ButtonSize,
@@ -27,9 +26,8 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.utils.path_utils import get_resource_path
-
-HAS_QTAWESOME = find_spec("qtawesome") is not None
+from src.gui.utils.assets import app_logo_path
+from src.gui.utils.icons import HAS_QTAWESOME
 
 
 def build_gatekeeper_page(wizard) -> QWidget:
@@ -65,7 +63,7 @@ def build_welcome_page(wizard) -> QWidget:
 
     layout.addStretch(1)
 
-    logo_path = get_resource_path(APP_LOGO_PATH)
+    logo_path = app_logo_path()
     if os.path.exists(logo_path):
         logo_label = IconLabel(QIcon(logo_path), size=110)
         layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignCenter)

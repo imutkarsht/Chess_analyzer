@@ -24,13 +24,13 @@ from src.gui.components import (
     IconLabel,
     Input,
     Label,
+    StarRatingWidget,
     Tabs,
     TabVariant,
     TextArea,
     TextRole,
     TextTone,
 )
-from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 

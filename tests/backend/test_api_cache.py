@@ -5,8 +5,9 @@ import hashlib
 
 from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
-from src.backend.cache.api_cache import ApiGameCache, parse_pgn_headers
+from src.backend.cache.api_cache import ApiGameCache
 from src.backend.models.game_info import GameInfo
+from src.backend.storage.pgn_metadata import parse_pgn_headers
 
 FULL_PGN = """[White "Alice"]
 [Black "Bob"]
@@ -88,7 +89,10 @@ def test_parse_pgn_headers_ignores_placeholder_values():
 
 
 def test_parse_pgn_headers_survives_malformed_pgn(mocker):
-    mocker.patch("src.backend.cache.api_cache.chess.pgn.read_game", side_effect=ValueError)
+    mocker.patch(
+        "src.backend.storage.pgn_metadata.chess.pgn.read_game",
+        side_effect=ValueError,
+    )
     result = parse_pgn_headers('[White "unterminated', default_white="Fallback")
 
     assert result[0] == "Fallback"

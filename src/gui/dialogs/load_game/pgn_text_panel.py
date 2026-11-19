@@ -15,8 +15,8 @@ from src.gui.components import (
     TextArea,
     TextRole,
     TextTone,
+    ToastManager,
 )
-from src.gui.components.feedback.toast import ToastManager
 from src.gui.dialogs.load_game.pgn_worker import PgnIndexWorker
 from src.gui.import_workspace import GameBatch
 from src.gui.utils.worker_registry import register_worker, remove_worker

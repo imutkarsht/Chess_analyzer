@@ -1,8 +1,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QWidget
 
-from src.gui.components import Label, TextRole
-from src.gui.components.feedback.empty_state import EmptyState
+from src.gui.components import EmptyState, Label, TextRole
 from src.gui.styles import Styles
 
 

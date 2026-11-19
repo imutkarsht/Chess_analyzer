@@ -3,8 +3,9 @@ import os
 
 import chess
 
+from src.backend.analysis.chess_utils import position_key
 from src.backend.analysis.local_book import LocalBookManager
-from src.backend.analysis.opening_db import OpeningDB, _normalize_fen
+from src.backend.analysis.opening_db import OpeningDB
 
 SAMPLE_TSV = """eco	name	pgn
 B20	Sicilian Defense	1. e4 c5
@@ -46,7 +47,7 @@ def _make_db(tmp_path) -> OpeningDB:
 class TestOpeningDB:
     def test_import_builds_tree(self, tmp_path):
         db = _make_db(tmp_path)
-        root_fen = _normalize_fen(chess.Board().fen())
+        root_fen = position_key(chess.Board().fen())
         root_id = db.get_node_by_fen(root_fen)
         assert root_id is not None
         children = db.get_children(root_id)
@@ -55,7 +56,7 @@ class TestOpeningDB:
     def test_import_is_idempotent(self, tmp_path):
         db = _make_db(tmp_path)
         db.initialize(str(tmp_path))
-        root_fen = _normalize_fen(chess.Board().fen())
+        root_fen = position_key(chess.Board().fen())
         children1 = db.get_children(db.get_node_by_fen(root_fen))
         children2 = db.get_children(db.get_node_by_fen(root_fen))
         assert children1 == children2
@@ -67,7 +68,7 @@ class TestOpeningDB:
         board.push_san("c5")
         board.push_san("Nf3")
         board.push_san("d6")
-        fen = _normalize_fen(board.fen())
+        fen = position_key(board.fen())
         node_id = db.get_node_by_fen(fen)
         assert node_id is not None
         openings = db.get_openings_at_node(node_id)
@@ -79,7 +80,7 @@ class TestOpeningDB:
         board = chess.Board()
         for san in ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "a6"]:
             board.push_san(san)
-        fen = _normalize_fen(board.fen())
+        fen = position_key(board.fen())
         node_id = db.get_node_by_fen(fen)
         assert node_id is not None
         openings = db.get_openings_at_node(node_id)
@@ -90,7 +91,7 @@ class TestOpeningDB:
         db = _make_db(tmp_path)
         board = chess.Board()
         board.push_san("a3")
-        fen = _normalize_fen(board.fen())
+        fen = position_key(board.fen())
         assert db.get_node_by_fen(fen) is None
 
     def test_children_of_node(self, tmp_path):
@@ -98,7 +99,7 @@ class TestOpeningDB:
         board = chess.Board()
         board.push_san("e4")
         board.push_san("c5")
-        fen = _normalize_fen(board.fen())
+        fen = position_key(board.fen())
         node_id = db.get_node_by_fen(fen)
         children = db.get_children(node_id)
         assert "f4" in children  # Grand Prix Attack
@@ -198,7 +199,7 @@ class TestLocalBookManager:
         board.push_san("c5")
         board.push_san("Nf3")
         board.push_san("Nc6")
-        fen = _normalize_fen(board.fen())
+        fen = position_key(board.fen())
         node_id = db.get_node_by_fen(fen)
         assert node_id is not None
         openings = db.get_openings_at_node(node_id)
@@ -215,8 +216,8 @@ def test_book_result_dataclass():
     assert r.current_eco == "B90"
 
 
-def test_normalize_fen():
+def test_position_key():
     fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
-    norm = _normalize_fen(fen)
+    norm = position_key(fen)
     assert norm == "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"
     assert len(norm.split()) == 4

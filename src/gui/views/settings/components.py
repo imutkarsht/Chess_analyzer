@@ -23,12 +23,20 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SettingSpec, get_spec
-from src.gui.components import Label, TextRole, TextTone
-from src.gui.components.controls.input import DecimalInput, Input, NumberInput
-from src.gui.components.controls.select import Select, SelectOption
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    DecimalInput,
+    Input,
+    Label,
+    NumberInput,
+    Select,
+    SelectOption,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
-from src.gui.views.settings.helpers import create_icon_button
-from src.utils.path_utils import get_resource_path
+from src.gui.utils.assets import tick_icon_path
 
 # Central size tokens for settings controls.
 CONTROL_NARROW = 120
@@ -43,10 +51,6 @@ _UNSET = object()
 
 # Returned by widget readers when a value cannot be parsed.
 _INVALID = object()
-
-
-def _tick_path() -> str:
-    return get_resource_path("assets/images/tick.svg").replace("\\", "/")
 
 
 class SettingsForm(QWidget):
@@ -161,7 +165,7 @@ def make_select(max_width: int = CONTROL_DEFAULT) -> Select:
 
 def make_checkbox(text: str, max_width: int | None = None) -> QCheckBox:
     box = QCheckBox(text)
-    box.setStyleSheet(Styles.get_settings_checkbox_style(_tick_path()))
+    box.setStyleSheet(Styles.get_settings_checkbox_style(tick_icon_path()))
     box.setCursor(Qt.CursorShape.PointingHandCursor)
     if max_width is not None:
         box.setMaximumWidth(max_width)
@@ -494,18 +498,14 @@ class PathField(QWidget):
         self.line_edit.setMinimumWidth(min(320, input_width))
         layout.addWidget(self.line_edit, 1)
 
-        self.browse_btn = create_icon_button(
-            "Browse", "fa5s.folder-open", browse_callback, self
-        )
+        self.browse_btn = Button('Browse', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=browse_callback, parent=self)
         self.browse_btn.setMaximumWidth(120)
         self.browse_btn.setMinimumWidth(110)
         layout.addWidget(self.browse_btn)
 
         self.clear_btn = None
         if clear_callback is not None:
-            self.clear_btn = create_icon_button(
-                "Clear", "fa5s.times", clear_callback, self
-            )
+            self.clear_btn = Button('Clear', ButtonVariant.FILLED, icon='fa5s.times', on_click=clear_callback, parent=self)
             self.clear_btn.setMaximumWidth(100)
             self.clear_btn.setMinimumWidth(90)
             layout.addWidget(self.clear_btn)

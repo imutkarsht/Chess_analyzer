@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
 from src.backend.storage.models import GameAnalysis, GameMetadata
 from src.gui.main_window import MainWindow
@@ -116,7 +116,9 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert window.btn_load.isVisible()
 
     warning_called = []
-    monkeypatch.setattr(QMessageBox, "warning", lambda *args, **kwargs: warning_called.append(True))
+    monkeypatch.setattr(
+        window, "show_toast", lambda *args, **kwargs: warning_called.append(True)
+    )
     window.load_game_from_history(game_other)
     assert len(warning_called) == 1
     assert window.current_game.game_id == "active_1"

@@ -28,9 +28,9 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
-import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.backend.api.download import DownloadCancelled, download_to_file
 from src.utils.logger import logger
 
 # ---------------------------------------------------------------------------
@@ -66,29 +66,23 @@ class DownloadWorker(QThread):
         """Signal the worker to abort cleanly."""
         self._cancelled = True
 
+    def _on_progress(self, downloaded: int, total: int) -> None:
+        if total > 0:
+            self.progress.emit(min(100, int(downloaded * 100 / total)))
+
     def run(self):
         try:
             logger.info(f"Downloading update: {self.url} → {self.dest_path}")
-            headers = {"User-Agent": "ChessAnalyzerPro"}
-            with requests.get(self.url, headers=headers, stream=True, timeout=30) as resp:
-                resp.raise_for_status()
-                total_size = int(resp.headers.get("content-length", 0))
-                downloaded = 0
-                chunk_size = 64 * 1024
-
-                with open(self.dest_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=chunk_size):
-                        if self._cancelled:
-                            raise RuntimeError("Download cancelled by user")
-                        if chunk:
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            if total_size > 0:
-                                pct = min(100, int(downloaded * 100 / total_size))
-                                self.progress.emit(pct)
+            download_to_file(
+                self.url,
+                self.dest_path,
+                progress=self._on_progress,
+                should_cancel=lambda: self._cancelled,
+                headers={"User-Agent": "ChessAnalyzerPro"},
+            )
 
             if self._cancelled:
-                raise RuntimeError("Download cancelled by user")
+                raise DownloadCancelled("Download cancelled by user")
 
             self.progress.emit(100)
             logger.info("Download complete")

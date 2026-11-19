@@ -12,17 +12,16 @@ from src.backend.storage.backup import (
     inspect_backup,
     restore_backup,
 )
+from src.gui.components import Button, ButtonVariant, confirm_dialog
 from src.gui.styles import Styles
-from src.gui.utils.gui_utils import confirm_dialog
 from src.gui.views.settings.components import SettingsForm
-from src.gui.views.settings.helpers import create_icon_button
 from src.gui.views.settings.storage_actions import (
     close_analyzer_cache,
     ensure_idle,
-    format_bytes,
     refresh_after_data_change,
 )
 from src.gui.views.settings.storage_card import StorageCard
+from src.utils.format_utils import format_bytes
 
 
 class BackupSettings(StorageCard):
@@ -39,9 +38,7 @@ class BackupSettings(StorageCard):
         self.form = SettingsForm(self)
         outer.addWidget(self.form)
 
-        self.backup_btn = create_icon_button(
-            "Back Up Now...", "fa5s.save", self.backup_now, self
-        )
+        self.backup_btn = Button('Back Up Now...', ButtonVariant.FILLED, icon='fa5s.save', on_click=self.backup_now, parent=self)
         self.form.add_row(
             "Backup",
             self.backup_btn,
@@ -49,9 +46,7 @@ class BackupSettings(StorageCard):
             width=None,
         )
 
-        self.restore_btn = create_icon_button(
-            "Restore From Backup...", "fa5s.upload", self.restore_from_backup, self, danger=True
-        )
+        self.restore_btn = Button('Restore From Backup...', ButtonVariant.DANGER, icon='fa5s.upload', on_click=self.restore_from_backup, parent=self)
         self.form.add_row(
             "Restore",
             self.restore_btn,

@@ -14,29 +14,32 @@ from PyQt6.QtWidgets import (
 )
 
 from src.backend.analysis.analyzer import Analyzer
+from src.backend.analysis.chess_utils import position_key
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
-from src.constants import APP_LOGO_PATH
 from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation_graph import VariationGraph
 from src.gui.analysis.variation_mode import VariationMode
 from src.gui.board import Board, BoardConfig, BoardGameHeader, BoardPanel
 from src.gui.components import (
     BadgeVariant,
+    Button,
+    ButtonVariant,
+    FadedStackedWidget,
     Label,
+    LoadingOverlay,
     RichTextLabel,
+    Sidebar,
     StatusBadge,
     TextRole,
     TextTone,
+    ToastManager,
+    TourManager,
+    TourOverlay,
+    WelcomePanel,
+    confirm_dialog,
 )
-from src.gui.components.feedback.loading_widget import LoadingOverlay
-from src.gui.components.feedback.toast import ToastManager
-from src.gui.components.layout.sidebar import Sidebar
-from src.gui.components.layout.tour_manager import TourManager
-from src.gui.components.layout.tour_overlay import TourOverlay
-from src.gui.components.layout.transition_stack import FadedStackedWidget
-from src.gui.components.layout.welcome_panel import WelcomePanel
 from src.gui.main_window.analysis_mixin import AnalysisMixin
 from src.gui.main_window.batch_mixin import BatchAnalysisMixin
 from src.gui.main_window.game_loading_mixin import GameLoadingMixin
@@ -49,13 +52,12 @@ from src.gui.main_window.variation_mixin import VariationMixin
 from src.gui.resources import ResourceManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.utils.gui_utils import create_button
+from src.gui.utils.assets import app_logo_path
 from src.gui.views import HistoryView, SettingsView
 from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
 from src.gui.views.explorer import ExplorerView
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
-from src.utils.path_utils import get_resource_path
 
 
 def _stop_thread(thread, timeout: int | None = None, signals: tuple = ()):
@@ -124,7 +126,7 @@ class MainWindow(
         self._restore_window_state()
 
         # Set Window Icon
-        icon_path = get_resource_path(APP_LOGO_PATH)
+        icon_path = app_logo_path()
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
@@ -298,8 +300,6 @@ class MainWindow(
             getattr(self, "worker", None) and self.worker.isRunning()
         )
         if batch_running or single_running:
-            from src.gui.utils.gui_utils import confirm_dialog
-
             message = (
                 "A batch analysis is still running. If you exit now, the current "
                 "game will be saved as paused and the batch will be paused. You can "
@@ -535,32 +535,17 @@ class MainWindow(
         header_layout.addStretch()
 
         # Explore Button
-        self.btn_explore = create_button(
-            "Explore from here",
-            style="secondary",
-            on_click=self.explore_current_position,
-            icon_name="fa5s.compass",
-        )
+        self.btn_explore = Button('Explore from here', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self.explore_current_position)
         self.btn_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         header_layout.addWidget(self.btn_explore)
 
         # Load Game Button
-        self.btn_load = create_button(
-            "Load Game",
-            style="secondary",
-            on_click=lambda: self.open_load_dialog(),
-            icon_name="fa5s.folder-open",
-        )
+        self.btn_load = Button('Load Game', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=lambda: self.open_load_dialog())
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         header_layout.addWidget(self.btn_load)
 
         # Analyze Game Button
-        self.btn_analyze = create_button(
-            "Analyze Game",
-            style="primary",
-            on_click=lambda: self.start_analysis(),
-            icon_name="fa5s.play",
-        )
+        self.btn_analyze = Button('Analyze Game', ButtonVariant.PRIMARY, icon='fa5s.play', on_click=lambda: self.start_analysis())
         header_layout.addWidget(self.btn_analyze)
 
         main_layout.addWidget(self.analysis_header_bar)
@@ -627,22 +612,12 @@ class MainWindow(
         hero_actions.setSpacing(10)
         hero_actions.addStretch(1)
 
-        self.btn_hero_load = create_button(
-            "Load Game",
-            style="primary",
-            on_click=lambda: self.open_load_dialog(),
-            icon_name="fa5s.folder-open",
-        )
+        self.btn_hero_load = Button('Load Game', ButtonVariant.PRIMARY, icon='fa5s.folder-open', on_click=lambda: self.open_load_dialog())
         self.btn_hero_load.setFixedSize(140, 38)
         self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         hero_actions.addWidget(self.btn_hero_load)
 
-        self.btn_hero_paste = create_button(
-            "Paste PGN",
-            style="secondary",
-            on_click=self.paste_pgn_from_clipboard,
-            icon_name="fa5s.paste",
-        )
+        self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='fa5s.paste', on_click=self.paste_pgn_from_clipboard)
         self.btn_hero_paste.setFixedSize(130, 38)
         self.btn_hero_paste.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hero_paste.setToolTip("Load PGN text from the clipboard")
@@ -735,33 +710,18 @@ class MainWindow(
         hib_top.insertWidget(1, self._hib_turn)
 
         hib_top.addStretch()
-        self.btn_hib_reveal = create_button(
-            "Reveal",
-            style="ghost",
-            on_click=self._reveal_historic_move,
-            icon_name="fa5s.eye",
-        )
+        self.btn_hib_reveal = Button('Reveal', ButtonVariant.GHOST, icon='fa5s.eye', on_click=self._reveal_historic_move)
         self.btn_hib_reveal.setFixedHeight(30)
         self.btn_hib_reveal.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hib_reveal.setToolTip("Play the famous move on the board")
         hib_top.addWidget(self.btn_hib_reveal)
-        self.btn_hib_explore = create_button(
-            "Explore Position",
-            style="secondary",
-            on_click=self._explore_historic_position,
-            icon_name="fa5s.compass",
-        )
+        self.btn_hib_explore = Button('Explore Position', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self._explore_historic_position)
         self.btn_hib_explore.setFixedHeight(30)
         self.btn_hib_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hib_explore.setToolTip("Open this position in the Opening Explorer")
         self.btn_hib_explore.hide()
         hib_top.addWidget(self.btn_hib_explore)
-        self._btn_shuffle = create_button(
-            "Next Gem",
-            style="secondary",
-            on_click=self._load_random_historic_position,
-            icon_name="fa5s.random",
-        )
+        self._btn_shuffle = Button('Next Gem', ButtonVariant.FILLED, icon='fa5s.random', on_click=self._load_random_historic_position)
         self._btn_shuffle.setFixedHeight(30)
         self._btn_shuffle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         hib_top.addWidget(self._btn_shuffle)
@@ -966,8 +926,8 @@ class MainWindow(
             ref_board = chess.Board(pos.fen)
             ref_move = ref_board.parse_san(pos.famous_move)
             ref_board.push(ref_move)
-            # Compare piece placement, active color, castling, en-passant (first 4 FEN fields)
-            if new_fen.split()[:4] == ref_board.fen().split()[:4]:
+            # Compare piece placement, active color, castling, en-passant.
+            if position_key(new_fen) == position_key(ref_board.fen()):
                 self._historic_move_found = True
                 self._celebrate_historic_move(pos)
         except Exception as e:

@@ -66,6 +66,42 @@ class LichessAPI(BaseChessAPI):
             headers["Authorization"] = f"Bearer {token}"
         return headers
 
+    @staticmethod
+    def _normalize_game_data(game_data: dict) -> dict:
+        """Normalize one Lichess NDJSON game to the Chess.com-style UI shape."""
+        players = game_data.get("players") or {}
+        white_player = players.get("white") or {}
+        black_player = players.get("black") or {}
+        return {
+            "white": {
+                "username": (white_player.get("user") or {}).get("name", "?"),
+                "rating": white_player.get("rating", "?"),
+                "result": _result_for_side(game_data, "white"),
+            },
+            "black": {
+                "username": (black_player.get("user") or {}).get("name", "?"),
+                "rating": black_player.get("rating", "?"),
+                "result": _result_for_side(game_data, "black"),
+            },
+            "time_class": game_data.get("speed", "standard"),
+            "end_time": int(game_data.get("createdAt", 0) / 1000),
+            "pgn": game_data.get("pgn", ""),
+            "url": f"https://lichess.org/{game_data.get('id')}",
+        }
+
+    @classmethod
+    def _normalize_games(cls, response) -> list[dict]:
+        games = []
+        for raw_line in response.iter_lines():
+            if not raw_line.strip():
+                continue
+            try:
+                game_data = json.loads(raw_line.decode("utf-8").strip())
+            except json.JSONDecodeError:
+                continue
+            games.append(cls._normalize_game_data(game_data))
+        return games
+
     def get_user_games(self, username: str, max_games: int = 20) -> list[dict]:
         """
         Fetches last N games from Lichess and returns JSON (NDJSON parsed)
@@ -89,46 +125,7 @@ class LichessAPI(BaseChessAPI):
             if not response:
                 return []
 
-            games = []
-            for raw_line in response.iter_lines():
-                if raw_line.strip():
-                    line = raw_line.decode("utf-8").strip()
-                    try:
-                        game_data = json.loads(line)
-
-                        # Normalize to match Chess.com format expected by UI
-                        normalized_game = {
-                            "white": {
-                                "username": game_data.get("players", {})
-                                .get("white", {})
-                                .get("user", {})
-                                .get("name", "?"),
-                                "rating": game_data.get("players", {})
-                                .get("white", {})
-                                .get("rating", "?"),
-                                "result": _result_for_side(game_data, "white"),
-                            },
-                            "black": {
-                                "username": game_data.get("players", {})
-                                .get("black", {})
-                                .get("user", {})
-                                .get("name", "?"),
-                                "rating": game_data.get("players", {})
-                                .get("black", {})
-                                .get("rating", "?"),
-                                "result": _result_for_side(game_data, "black"),
-                            },
-                            "time_class": game_data.get("speed", "standard"),
-                            "end_time": int(
-                                game_data.get("createdAt", 0) / 1000
-                            ),  # Convert ms to seconds
-                            "pgn": game_data.get("pgn", ""),
-                            "url": f"https://lichess.org/{game_data.get('id')}",
-                        }
-
-                        games.append(normalized_game)
-                    except json.JSONDecodeError:
-                        continue
+            games = self._normalize_games(response)
             logger.info(
                 "Successfully fetched %d games for user '%s' from Lichess", len(games), username
             )
@@ -163,42 +160,7 @@ class LichessAPI(BaseChessAPI):
             if not response:
                 return []
 
-            games = []
-            for raw_line in response.iter_lines():
-                if raw_line.strip():
-                    line = raw_line.decode("utf-8").strip()
-                    try:
-                        game_data = json.loads(line)
-                        normalized_game = {
-                            "white": {
-                                "username": game_data.get("players", {})
-                                .get("white", {})
-                                .get("user", {})
-                                .get("name", "?"),
-                                "rating": game_data.get("players", {})
-                                .get("white", {})
-                                .get("rating", "?"),
-                                "result": _result_for_side(game_data, "white"),
-                            },
-                            "black": {
-                                "username": game_data.get("players", {})
-                                .get("black", {})
-                                .get("user", {})
-                                .get("name", "?"),
-                                "rating": game_data.get("players", {})
-                                .get("black", {})
-                                .get("rating", "?"),
-                                "result": _result_for_side(game_data, "black"),
-                            },
-                            "time_class": game_data.get("speed", "standard"),
-                            "end_time": int(game_data.get("createdAt", 0) / 1000),
-                            "pgn": game_data.get("pgn", ""),
-                            "url": f"https://lichess.org/{game_data.get('id')}",
-                        }
-                        games.append(normalized_game)
-                    except json.JSONDecodeError:
-                        continue
-            return games
+            return self._normalize_games(response)
 
         except Exception as e:
             BaseChessAPI._log_api_error("Lichess", "get_user_games_by_date", e)

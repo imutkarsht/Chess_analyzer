@@ -12,33 +12,13 @@ from collections import Counter
 import chess.pgn
 
 from src.backend.analysis.tactics.constants import TACTICS_VERSION
+from src.backend.analysis.tactics.enrichment import enrich_summary_with_tactics
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.models import MoveAnalysis
 from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
 from src.backend.storage.schema_constants import CURRENT_SCHEMA_VERSION
 from src.backend.storage.termination_detector import TerminationDetector
 from src.utils.logger import logger
-
-
-def _enrich_summary_with_tactics(
-    summary_dict: dict,
-    moves_data: list[dict],
-    result: str,
-    speed_category: str = "Blitz",
-) -> tuple[dict, dict, dict]:
-    from src.backend.analysis.tactics import analyze_game_tactics
-
-    tactics_w = analyze_game_tactics(moves_data, "white", result, speed_category=speed_category)
-    tactics_b = analyze_game_tactics(moves_data, "black", result, speed_category=speed_category)
-
-    if "white" not in summary_dict or not isinstance(summary_dict["white"], dict):
-        summary_dict["white"] = {}
-    if "black" not in summary_dict or not isinstance(summary_dict["black"], dict):
-        summary_dict["black"] = {}
-
-    summary_dict["white"]["tactics"] = tactics_w
-    summary_dict["black"]["tactics"] = tactics_b
-    return summary_dict, tactics_w, tactics_b
 
 
 def _create_pre_migration_backup(conn: sqlite3.Connection, db_path: str) -> None:
@@ -505,7 +485,7 @@ def _backfill_legacy_tactics(cursor: sqlite3.Cursor) -> None:
                 moves_data = json.loads(m_json)
                 s_cat = speed or "Blitz"
                 raw_summary = json.loads(s_json) if s_json else {}
-                s_dict, tactics_w, tactics_b = _enrich_summary_with_tactics(
+                s_dict, tactics_w, tactics_b = enrich_summary_with_tactics(
                     raw_summary, moves_data, res, speed_category=s_cat
                 )
 

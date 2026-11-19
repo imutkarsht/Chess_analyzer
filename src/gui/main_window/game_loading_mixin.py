@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
+from PyQt6.QtWidgets import QApplication, QDialog
 
 from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
 from src.constants import MAX_PGN_TEXT_CHARS, PAGE_ANALYSIS, PAGE_HISTORY
@@ -27,10 +27,10 @@ class GameLoadingMixin:
                 self.switch_page(0)
                 return
             else:
-                QMessageBox.warning(
-                    self,
-                    "Analysis in Progress",
-                    "An analysis is currently in progress for another game. Please stop the ongoing analysis first.",
+                self.show_toast(
+                    "An analysis is currently in progress for another game. "
+                    "Please stop the ongoing analysis first.",
+                    "warning",
                 )
                 return
 
@@ -46,10 +46,9 @@ class GameLoadingMixin:
             and coordinator.batch_running
             and action != "view_analysis"
         ):
-            QMessageBox.warning(
-                self,
-                "Batch Analysis Running",
+            self.show_toast(
                 "Pause or cancel the batch from History before analyzing another game.",
+                "warning",
             )
             return
 
@@ -65,10 +64,10 @@ class GameLoadingMixin:
             return
 
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
-            QMessageBox.warning(
-                self,
-                "Analysis in Progress",
-                "An analysis is currently in progress for another game. Please stop the ongoing analysis first.",
+            self.show_toast(
+                "An analysis is currently in progress for another game. "
+                "Please stop the ongoing analysis first.",
+                "warning",
             )
             return
 
@@ -167,8 +166,9 @@ class GameLoadingMixin:
             logger.error("Failed to parse PGN: %s", exc)
             game = None
         if game is None:
-            QMessageBox.warning(
-                self, "Error", "Could not read this game.\nThe PGN data may be empty or corrupted."
+            self.show_toast(
+                "Could not read this game. The PGN data may be empty or corrupted.",
+                "error",
             )
             return False
 
@@ -203,7 +203,7 @@ class GameLoadingMixin:
                     game.metadata.chess960 = parsed.metadata.chess960
             except Exception as e:
                 logger.error(f"Failed to parse PGN for history game: {e}")
-                QMessageBox.warning(self, "Error", "Failed to load game moves.")
+                self.show_toast("Failed to load game moves.", "error")
                 return
 
         # Metadata Enrichment from source data if available

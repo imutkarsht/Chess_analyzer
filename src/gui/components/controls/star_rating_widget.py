@@ -8,12 +8,12 @@ from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
+from src.gui.utils.icons import HAS_QTAWESOME
 
 try:
     import qtawesome as qta
-    HAS_QTAWESOME = True
 except ImportError:
-    HAS_QTAWESOME = False
+    qta = None
 
 STAR_LABELS = {
     0: "Select a rating",
