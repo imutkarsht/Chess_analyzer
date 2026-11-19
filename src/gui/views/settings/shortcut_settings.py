@@ -5,10 +5,9 @@ from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.constants import SHORTCUT_PRESET_LABELS
 from src.gui.components import Label, TextRole, TextTone
-
-from ...styles import Styles
-from .components import SettingsBinder, SettingsForm, make_select
-from .helpers import create_icon_button
+from src.gui.styles import Styles
+from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
+from src.gui.views.settings.helpers import create_icon_button
 
 
 class ShortcutSettings(QGroupBox):

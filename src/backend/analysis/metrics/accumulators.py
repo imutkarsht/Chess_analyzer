@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .constants import (
+from src.backend.analysis.metrics.constants import (
     ADVANTAGE_DRILLS,
     ADVANTAGE_KEYS,
     COLORS,
@@ -22,7 +22,7 @@ from .constants import (
     QUALITY_PACE_KEYS,
     TERM_TYPES,
 )
-from .models import GameRecord
+from src.backend.analysis.metrics.models import GameRecord
 
 
 def pct(num: float | int, denom: float | int) -> float:

@@ -33,9 +33,7 @@ from src.backend.updater.updater import (
     get_download_destination,
     install_and_quit,
 )
-
-from ...utils.logger import logger  # src/gui/dialogs/ → src/utils/
-from ..components import (
+from src.gui.components import (
     Button,
     ButtonVariant,
     IconLabel,
@@ -45,7 +43,8 @@ from ..components import (
     TextRole,
     TextTone,
 )
-from ..styles import Styles
+from src.gui.styles import Styles
+from src.utils.logger import logger  # src/gui/dialogs/ → src/utils/
 
 # ---------------------------------------------------------------------------
 # Footer page indices inside QStackedWidget

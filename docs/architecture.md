@@ -398,7 +398,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `utils/config.py` | JSON config persistence and shared singleton | `ConfigManager` |
 | `utils/logger.py` | Logging setup, rotation and token redaction | `logger`, `SensitiveDataFilter` |
 | `utils/path_utils.py` | Resource and user-data paths (no Qt) | `get_resource_path`, `get_user_data_dir` |
-| `utils/resources.py` | Image, icon and sound loading | `ResourceManager` |
 | `utils/secrets.py` | OS credential store with migration and fallback | `SecretStore` |
 
 ### `src/gui/main_window`
@@ -696,6 +695,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `theme/motion.py` | Durations, easings, animation helpers | `Motion`, `MotionDuration` |
 | `theme/system.py` | OS theme/accent detection | `OSThemeWatcher` |
 | `styles.py` | QSS generators for every control | `Styles` |
+| `resources.py` | Image, icon and sound loading (Qt-dependent, so lives in the GUI layer) | `ResourceManager` |
 | `tactics_meta.py` | Shared motif labels, icons, descriptions and colour attributes | `MOTIF_META`, `motif_meta` |
 | `utils/debounce.py` | Single-shot debouncer | `Debouncer` |
 | `utils/gui_utils.py` | Widget factories and GUI helpers | `create_button` |
@@ -845,7 +845,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 - Backend: `tests/backend/`, fake engine/HTTP, `tmp_path` for storage.
 - GUI: `tests/gui/` with `pytest-qt`; run workers synchronously.
 - Never use `time.sleep`/`QTest.qWait`; wait on conditions.
-- Keep the full suite under 20 seconds.
 
 ---
 

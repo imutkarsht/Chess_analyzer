@@ -2,17 +2,17 @@
 
 from PyQt6.QtWidgets import QVBoxLayout
 
-from ....backend.storage.game_history import GameHistoryManager
-from ...styles import Styles
-from ...utils.gui_utils import confirm_dialog
-from .components import SettingsForm
-from .helpers import create_icon_button
-from .storage_actions import (
+from src.backend.storage.game_history import GameHistoryManager
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import confirm_dialog
+from src.gui.views.settings.components import SettingsForm
+from src.gui.views.settings.helpers import create_icon_button
+from src.gui.views.settings.storage_actions import (
     close_analyzer_cache,
     ensure_idle,
     refresh_after_data_change,
 )
-from .storage_card import StorageCard
+from src.gui.views.settings.storage_card import StorageCard
 
 
 class DangerSettings(StorageCard):

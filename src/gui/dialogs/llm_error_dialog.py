@@ -5,8 +5,8 @@ offering Configure Now and Skip actions.
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout
 
-from ..components import Button, ButtonVariant, Label, TextRole, TextTone
-from ..styles import Styles
+from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
+from src.gui.styles import Styles
 
 
 class LlmNotConfiguredDialog(QDialog):

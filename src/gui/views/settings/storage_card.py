@@ -3,7 +3,7 @@
 The base class is now generic because network cards use the same task runner.
 """
 
-from .background_card import BackgroundTaskCard
+from src.gui.views.settings.background_card import BackgroundTaskCard
 
 StorageCard = BackgroundTaskCard
 

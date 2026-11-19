@@ -8,7 +8,7 @@ proprietary Chess.com badge designs this project used to ship.
 
 Every helper below returns a complete, self-contained SVG string. The
 high-level ``write_all()`` writes the file set expected by
-``src/utils/resources.py`` and ``src/gui/board/board_widget.py``.
+``src/gui/resources.py`` and ``src/gui/board/board_widget.py``.
 
 Run as a script to regenerate every icon in ``assets/images/``.
 """

@@ -322,7 +322,7 @@ class AICoachCard(MetricCard):
         self.insights_layout.addWidget(err_frame)
 
     def _open_settings(self):
-        from ...dialogs.llm_error_dialog import LlmNotConfiguredDialog
+        from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
 
         dlg = LlmNotConfiguredDialog(self)
         if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():

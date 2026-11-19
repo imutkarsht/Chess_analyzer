@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.gui.components.display.label import Label
 from src.gui.theme.typography import TextRole, TextTone
-
-from ..display.label import Label
 
 
 class FormField(QWidget):

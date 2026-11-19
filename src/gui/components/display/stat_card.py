@@ -8,13 +8,12 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout
 
+from src.gui.components.display.icon_label import IconLabel
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.gui_utils import resolve_asset  # Use shared utility
-
-from .icon_label import IconLabel
-from .label import Label
 
 
 class StatCard(QFrame):

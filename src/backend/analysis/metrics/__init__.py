@@ -4,7 +4,7 @@ Metrics package for game statistics aggregation, filtering, and performance doss
 
 from __future__ import annotations
 
-from .accumulators import (
+from src.backend.analysis.metrics.accumulators import (
     AdvantageStats,
     ClockStats,
     ColorStats,
@@ -15,9 +15,13 @@ from .accumulators import (
     StatsAccumulator,
     pct,
 )
-from .aggregator import MetricsAggregator, calculate_stats, get_drill_down_items
-from .coach_dossier import build_coach_dossier
-from .constants import (
+from src.backend.analysis.metrics.aggregator import (
+    MetricsAggregator,
+    calculate_stats,
+    get_drill_down_items,
+)
+from src.backend.analysis.metrics.coach_dossier import build_coach_dossier
+from src.backend.analysis.metrics.constants import (
     ADVANTAGE_DRILLS,
     ADVANTAGE_KEYS,
     COLORS,
@@ -33,9 +37,9 @@ from .constants import (
     TERM_TYPES,
     VALID_DATE_FILTERS,
 )
-from .filters import filter_games, get_user_color, matches_filters
-from .models import GameRecord, Outcome, outcome_for
-from .termination import classify_termination
+from src.backend.analysis.metrics.filters import filter_games, get_user_color, matches_filters
+from src.backend.analysis.metrics.models import GameRecord, Outcome, outcome_for
+from src.backend.analysis.metrics.termination import classify_termination
 
 __all__ = [
     "ADVANTAGE_DRILLS",

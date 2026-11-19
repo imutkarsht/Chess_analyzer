@@ -1,12 +1,12 @@
 """
 Load game dialog panels and components.
 """
-from .api_worker import ApiWorker, register_worker, remove_worker
-from .drop_zone import DropZone
-from .helpers import classify_time_control, game_row, icon_path
-from .online_fetch_panel import OnlineFetchPanel
-from .pgn_file_panel import PgnFilePanel
-from .pgn_text_panel import PgnTextPanel
+from src.gui.dialogs.load_game.api_worker import ApiWorker, register_worker, remove_worker
+from src.gui.dialogs.load_game.drop_zone import DropZone
+from src.gui.dialogs.load_game.helpers import classify_time_control, game_row, icon_path
+from src.gui.dialogs.load_game.online_fetch_panel import OnlineFetchPanel
+from src.gui.dialogs.load_game.pgn_file_panel import PgnFilePanel
+from src.gui.dialogs.load_game.pgn_text_panel import PgnTextPanel
 
 __all__ = [
     'DropZone',

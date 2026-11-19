@@ -9,7 +9,7 @@ HAS_QTAWESOME = find_spec("qtawesome") is not None
 
 def create_icon_button(text, icon_name, callback, parent=None, danger=False, primary=False):
     """Create the central Button with a themed icon."""
-    from ...components import Button, ButtonVariant
+    from src.gui.components import Button, ButtonVariant
 
     variant = (
         ButtonVariant.DANGER

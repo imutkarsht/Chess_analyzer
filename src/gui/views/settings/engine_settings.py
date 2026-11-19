@@ -11,14 +11,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ...components import Label, TextRole, TextTone
-from ...components.controls.select import Select, SelectOption
-from ...components.feedback.toast import ToastManager
-from ...styles import Styles
-from ...utils.worker_registry import register_worker, remove_worker
-from .background_worker import BackgroundTaskWorker
-from .components import PathField, SettingsBinder, SettingsForm
-from .modern_widgets import ModernSliderCounter
+from src.gui.components import Label, TextRole, TextTone
+from src.gui.components.controls.select import Select, SelectOption
+from src.gui.components.feedback.toast import ToastManager
+from src.gui.styles import Styles
+from src.gui.utils.worker_registry import register_worker, remove_worker
+from src.gui.views.settings.background_worker import BackgroundTaskWorker
+from src.gui.views.settings.components import PathField, SettingsBinder, SettingsForm
+from src.gui.views.settings.modern_widgets import ModernSliderCounter
 
 
 def _probe_engine_binary(path: str) -> tuple[bool, str]:

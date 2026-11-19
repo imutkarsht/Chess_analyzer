@@ -5,9 +5,8 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 
 from src.constants import DEFAULT_BOARD_THEME
-
-from .palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
-from .system import OSThemeWatcher, get_system_accent
+from src.gui.theme.palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
+from src.gui.theme.system import OSThemeWatcher, get_system_accent
 
 
 @dataclass

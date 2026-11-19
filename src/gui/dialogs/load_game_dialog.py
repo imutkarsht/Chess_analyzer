@@ -26,10 +26,9 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.gui.dialogs.load_game import OnlineFetchPanel, PgnFilePanel, PgnTextPanel
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
-
-from .load_game import OnlineFetchPanel, PgnFilePanel, PgnTextPanel
 
 __all__ = [
     "LoadGameDialog",

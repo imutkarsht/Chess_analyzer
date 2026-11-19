@@ -46,6 +46,7 @@ from src.gui.main_window.theme_mixin import ThemeMixin
 from src.gui.main_window.tour_mixin import TourMixin
 from src.gui.main_window.update_mixin import UpdateMixin
 from src.gui.main_window.variation_mixin import VariationMixin
+from src.gui.resources import ResourceManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.utils.gui_utils import create_button
@@ -55,7 +56,6 @@ from src.gui.views.explorer import ExplorerView
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
-from src.utils.resources import ResourceManager
 
 
 def _stop_thread(thread, timeout: int | None = None, signals: tuple = ()):

@@ -7,12 +7,11 @@ from urllib.parse import quote
 import requests
 from dotenv import load_dotenv
 
+from src.backend.api.base_api import ApiStatus, BaseChessAPI, ProfileResult
+from src.backend.api.import_limits import clamp_games_limit, current_token
 from src.constants import LICHESS_ACCOUNT_URL, LICHESS_BASE_URL, LICHESS_USER_URL
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
-
-from .base_api import ApiStatus, BaseChessAPI, ProfileResult
-from .import_limits import clamp_games_limit, current_token
 
 
 def _result_for_side(game_data: dict, side: str) -> str:

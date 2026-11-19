@@ -4,10 +4,9 @@ from urllib.parse import quote
 
 import requests
 
+from src.backend.api.base_api import BaseChessAPI, ProfileResult
 from src.constants import CHESSCOM_BASE_URL, CHESSCOM_HEADERS
 from src.utils.logger import logger
-
-from .base_api import BaseChessAPI, ProfileResult
 
 
 class ChessComAPI(BaseChessAPI):

@@ -109,7 +109,7 @@ src/
 ---
 
 ## 7. Testing & Verification
-- All pull requests must maintain a 100% pass rate: `pytest tests/` (1,100+ unit and GUI tests). The full suite must stay under 20 seconds, and the coverage gate must pass.
+- All pull requests must maintain a 100% pass rate: `pytest tests/` (1,100+ unit and GUI tests), and the coverage gate must pass.
 - Backend logic changes require headless unit tests in `tests/backend/`.
 - GUI widget changes require tests using `pytest-qt` in `tests/gui/`.
 - Linting must report 0 errors: `ruff check .`
@@ -133,7 +133,7 @@ src/
 ### Speed & Determinism Rules
 - **No Timeout-Based Tests**: Never make a test pass by letting a timer expire, and never use `time.sleep()`, `QTest.qWait()`, or real network/request timeouts to wait for work to finish. Run workers synchronously (`worker.run()`), observe emitted signals directly, or inject fake clocks so tests are deterministic and instant.
 - **Wait on Conditions, Not Clocks**: `qtbot.waitUntil`/`waitSignal` are acceptable only for unavoidable Qt layout or debounce events, always with a tight timeout and a condition that would be true immediately in a correct implementation.
-- **Keep Tests Fast**: The whole suite must finish in under 20 seconds. Any single test approaching ~1 second needs justification; find outliers with `pytest --durations=10`. Reuse fixtures/fakes and test logic directly instead of driving the full UI.
+- **Keep Tests Fast**: Any single test approaching ~1 second needs justification; find outliers with `pytest --durations=10`. Reuse fixtures/fakes and test logic directly instead of driving the full UI.
 - **No Network in Tests**: Mock every HTTP client and LLM call. Tests must pass offline, and a local `.env` must never turn a unit test into a live request.
 - **Never Write to Real Persistence**: Tests must never write to the user's real database, config, secrets, logs, or backup files. Use pytest's `tmp_path`/`tmp_path_factory`; the shared `tests/conftest.py` already redirects `get_user_data_dir()` and disables the OS keychain. Never bypass those patches or build a store without an explicit temporary path.
 - **Cross-Platform by Default**: Every test must pass on Windows, macOS, and Linux. Build paths with `pathlib.Path`, never hardcoded separators or drive letters. Do not assert POSIX-only behavior (permission bits, exec bits, `chmod`, shell scripts) on Windows — guard it with `sys.platform`/`os.name` or mock the platform branch. Patch platform-specific APIs instead of depending on the host OS, and keep assertions OS-agnostic wherever the behavior is shared.

@@ -27,8 +27,8 @@ from functools import lru_cache
 import chess
 from defusedxml.ElementTree import parse as safe_parse
 
-from ...utils.logger import logger
-from ...utils.path_utils import get_resource_path, get_user_data_dir
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path, get_user_data_dir
 
 PIECE_ASSETS_DIR = "assets/pieces"
 USER_THEMES_DIR_NAME = "themes"
@@ -586,7 +586,7 @@ def get_piece_theme_names() -> list:
 
 
 def get_current_theme_name() -> str:
-    from ...utils.config import ConfigManager
+    from src.utils.config import ConfigManager
     return ConfigManager().get("piece_theme", "Standard")
 
 

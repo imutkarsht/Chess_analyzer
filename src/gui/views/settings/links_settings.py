@@ -22,9 +22,7 @@ from src.constants import (
     NOTICES_URL,
     WEBSITE_URL,
 )
-from src.utils.path_utils import get_resource_path
-
-from ...components import (
+from src.gui.components import (
     Button,
     ButtonVariant,
     IconLabel,
@@ -33,8 +31,9 @@ from ...components import (
     TextRole,
     TextTone,
 )
-from ...styles import Styles
-from .background_card import BackgroundTaskCard
+from src.gui.styles import Styles
+from src.gui.views.settings.background_card import BackgroundTaskCard
+from src.utils.path_utils import get_resource_path
 
 LINK_COLUMNS = 4
 
@@ -288,7 +287,7 @@ class LinksSettings(BackgroundTaskCard):
     def _on_update_checked(self, update_info, app_version: str) -> None:
         self._reset_update_button()
         if update_info.available:
-            from ...dialogs import UpdateNotificationDialog
+            from src.gui.dialogs import UpdateNotificationDialog
 
             UpdateNotificationDialog(update_info, self).exec()
         else:

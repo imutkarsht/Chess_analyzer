@@ -27,9 +27,8 @@ from src.gui.components import Label, TextRole, TextTone
 from src.gui.components.controls.input import DecimalInput, Input, NumberInput
 from src.gui.components.controls.select import Select, SelectOption
 from src.gui.styles import Styles
+from src.gui.views.settings.helpers import create_icon_button
 from src.utils.path_utils import get_resource_path
-
-from .helpers import create_icon_button
 
 # Central size tokens for settings controls.
 CONTROL_NARROW = 120

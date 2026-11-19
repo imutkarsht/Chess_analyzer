@@ -4,21 +4,21 @@ import os
 
 from PyQt6.QtWidgets import QVBoxLayout
 
-from ....backend.storage.cache import AnalysisCache
-from ....backend.storage.game_history import GameHistoryManager
-from ....utils.logger import logger
-from ....utils.path_utils import get_resource_path, get_user_data_dir
-from ...styles import Styles
-from ...utils.gui_utils import confirm_dialog
-from .components import SettingsForm
-from .helpers import create_icon_button
-from .storage_actions import close_analyzer_cache, ensure_idle
-from .storage_card import StorageCard
+from src.backend.storage.cache import AnalysisCache
+from src.backend.storage.game_history import GameHistoryManager
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import confirm_dialog
+from src.gui.views.settings.components import SettingsForm
+from src.gui.views.settings.helpers import create_icon_button
+from src.gui.views.settings.storage_actions import close_analyzer_cache, ensure_idle
+from src.gui.views.settings.storage_card import StorageCard
+from src.utils.logger import logger
+from src.utils.path_utils import get_resource_path, get_user_data_dir
 
 
 def rebuild_opening_index() -> str:
     """Delete and regenerate the derived opening index from bundled data."""
-    from ....backend.analysis.opening_db import OpeningDB
+    from src.backend.analysis.opening_db import OpeningDB
 
     db_path = os.path.join(get_user_data_dir(), "openings.db")
     for suffix in ("", "-wal", "-shm"):

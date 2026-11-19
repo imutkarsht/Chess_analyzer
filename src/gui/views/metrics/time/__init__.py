@@ -1,5 +1,5 @@
 """Time & Clock Analytics package."""
 
-from .time_card import TimeManagementCard
+from src.gui.views.metrics.time.time_card import TimeManagementCard
 
 __all__ = ["TimeManagementCard"]

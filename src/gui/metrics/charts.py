@@ -7,7 +7,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 from PyQt6.QtGui import QImage, QPixmap
 
-from ..styles import Styles
+from src.gui.styles import Styles
 
 
 def create_donut_figure(

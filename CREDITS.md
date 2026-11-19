@@ -82,7 +82,7 @@ icon pack.
 
 ### Move Classification Icons
 
-Used by [`src/utils/resources.py`](src/utils/resources.py) (`ResourceManager.icon_map`) and
+Used by [`src/gui/resources.py`](src/gui/resources.py) (`ResourceManager.icon_map`) and
 displayed in the move list and board overlay:
 
 | File | Classification |

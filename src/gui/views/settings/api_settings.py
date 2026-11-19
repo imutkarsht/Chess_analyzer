@@ -28,13 +28,12 @@ from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import show_error_dialog
 from src.gui.utils.worker_registry import register_worker, remove_worker
-
-from .components import (
+from src.gui.views.settings.components import (
     CONTROL_DEFAULT,
     CONTROL_WIDE,
     SettingsForm,
 )
-from .helpers import create_icon_button
+from src.gui.views.settings.helpers import create_icon_button
 
 
 def test_llm_sync(profile: dict, tuning: tuple | None = None) -> tuple:
@@ -589,7 +588,7 @@ class ApiSettings(QGroupBox):
                         details,
                     )
                 except Exception as exc:
-                    from ....utils.logger import logger
+                    from src.utils.logger import logger
                     logger.error(f"Failed to show error dialog: {exc}")
                     logger.error(f"Original error: {details}")
 

@@ -3,15 +3,14 @@
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.components import Label, TextRole, TextTone
-from src.utils.path_utils import get_resource_path
-
-from ...styles import Styles
-from .components import (
+from src.gui.styles import Styles
+from src.gui.views.settings.components import (
     CONTROL_NARROW,
     SettingsBinder,
     SettingsForm,
     make_select,
 )
+from src.utils.path_utils import get_resource_path
 
 
 class CoachSettings(QGroupBox):

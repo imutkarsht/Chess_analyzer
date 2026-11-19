@@ -14,16 +14,16 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from ...backend.analysis.engine import invalidate_engine_cache, resolve_engine_path
-from ...backend.engine.downloader import (
+from src.backend.analysis.engine import invalidate_engine_cache, resolve_engine_path
+from src.backend.engine.downloader import (
     download_and_extract,
     get_download_candidates,
     try_package_manager_install,
 )
-from ...utils.logger import logger
-from ...utils.path_utils import get_engine_data_dir
-from ..components import Button, ButtonVariant, Label, TextRole, TextTone
-from ..styles import Styles
+from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
+from src.gui.styles import Styles
+from src.utils.logger import logger
+from src.utils.path_utils import get_engine_data_dir
 
 
 class EngineNotFoundDialog(QDialog):

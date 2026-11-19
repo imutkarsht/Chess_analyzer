@@ -44,7 +44,7 @@ class MotifCtx:
     def move_san(self) -> str | None:
         try:
             return self.before.san(self.move)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 - move may not be playable on this position
             return None
 
 

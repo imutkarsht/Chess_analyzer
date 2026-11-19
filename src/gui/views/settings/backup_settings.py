@@ -4,7 +4,7 @@ import time
 
 from PyQt6.QtWidgets import QFileDialog, QVBoxLayout
 
-from ....backend.storage.backup import (
+from src.backend.storage.backup import (
     BackupError,
     BackupSummary,
     create_backup,
@@ -12,17 +12,17 @@ from ....backend.storage.backup import (
     inspect_backup,
     restore_backup,
 )
-from ...styles import Styles
-from ...utils.gui_utils import confirm_dialog
-from .components import SettingsForm
-from .helpers import create_icon_button
-from .storage_actions import (
+from src.gui.styles import Styles
+from src.gui.utils.gui_utils import confirm_dialog
+from src.gui.views.settings.components import SettingsForm
+from src.gui.views.settings.helpers import create_icon_button
+from src.gui.views.settings.storage_actions import (
     close_analyzer_cache,
     ensure_idle,
     format_bytes,
     refresh_after_data_change,
 )
-from .storage_card import StorageCard
+from src.gui.views.settings.storage_card import StorageCard
 
 
 class BackupSettings(StorageCard):

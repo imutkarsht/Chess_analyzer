@@ -1,9 +1,9 @@
-from .manager import ELEVATIONS, Elevation, ThemeManager
-from .motion import Motion, MotionDuration, MotionEasing
-from .palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
-from .system import OSThemeWatcher, get_system_accent
-from .tokens import Radius, Spacing, TypeScale
-from .typography import (
+from src.gui.theme.manager import ELEVATIONS, Elevation, ThemeManager
+from src.gui.theme.motion import Motion, MotionDuration, MotionEasing
+from src.gui.theme.palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
+from src.gui.theme.system import OSThemeWatcher, get_system_accent
+from src.gui.theme.tokens import Radius, Spacing, TypeScale
+from src.gui.theme.typography import (
     ALLOWED_SIZES,
     ALLOWED_WEIGHTS,
     MONO_FAMILIES,

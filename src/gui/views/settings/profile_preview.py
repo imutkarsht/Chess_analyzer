@@ -38,9 +38,8 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.views.settings.background_worker import BackgroundTaskWorker
 from src.utils.logger import logger
-
-from .background_worker import BackgroundTaskWorker
 
 AVATAR_SIZE = 56
 ACTIVE_PROFILE_WORKERS: set[BackgroundTaskWorker] = set()

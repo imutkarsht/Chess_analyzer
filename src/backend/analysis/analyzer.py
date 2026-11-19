@@ -7,6 +7,18 @@ from typing import Any
 import chess
 import chess.engine
 
+from src.backend.analysis.engine import EngineManager
+from src.backend.analysis.local_book import BookResult, LocalBookManager
+from src.backend.analysis.math_utils import (
+    aggregate_accuracy,
+    apply_accuracy_floor,
+    calculate_move_accuracy,
+    get_cp,
+    get_win_probability,
+)
+from src.backend.analysis.move_classifier import classify_move
+from src.backend.analysis.opening_db import OpeningDB
+from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.models import GameAnalysis, MoveAnalysis
@@ -14,19 +26,6 @@ from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path, get_user_data_dir
-
-from .engine import EngineManager
-from .local_book import BookResult, LocalBookManager
-from .math_utils import (
-    aggregate_accuracy,
-    apply_accuracy_floor,
-    calculate_move_accuracy,
-    get_cp,
-    get_win_probability,
-)
-from .move_classifier import classify_move
-from .opening_db import OpeningDB
-from .polyglot_book import PolyglotBookManager
 
 
 class Analyzer:

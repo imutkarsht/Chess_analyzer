@@ -87,6 +87,7 @@ select = [
     "I",   # isort (import sorting)
     "UP",  # pyupgrade (Python 3.10+ modern syntax)
     "B",   # flake8-bugbear (common pitfalls)
+    "TID", # flake8-tidy-imports (package-boundary safe imports)
     "SIM", # flake8-simplify
 ]
 ignore = [
@@ -99,6 +100,9 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
 
 [tool.ruff.format]
 quote-style = "double"

@@ -5,9 +5,9 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import QFrame, QVBoxLayout
 
-from ...components import IconLabel, Label, TextRole, TextTone
-from ...styles import Styles
-from ...theme import ThemeManager
+from src.gui.components import IconLabel, Label, TextRole, TextTone
+from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 
 try:
     import qtawesome as qta

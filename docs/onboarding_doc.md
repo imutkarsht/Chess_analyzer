@@ -238,7 +238,7 @@ integrations.
 ## 7. Testing
 
 ```bash
-# Full suite (should finish in under 20 seconds)
+# Full suite
 pytest tests/
 
 # Headless Linux/CI

@@ -141,7 +141,7 @@ def setup_logging(custom_level: int | None = None) -> logging.Logger:
 
     # Rotating file handler
     try:
-        from .path_utils import get_user_data_dir
+        from src.utils.path_utils import get_user_data_dir
 
         app_dir = get_user_data_dir()
         os.makedirs(app_dir, exist_ok=True)

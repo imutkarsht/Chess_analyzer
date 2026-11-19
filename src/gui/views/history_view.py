@@ -39,15 +39,14 @@ from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
 from src.gui.utils.gui_utils import create_button
 from src.gui.utils.worker_registry import register_worker, remove_worker
-from src.utils.logger import logger
-
-from .history_batch import (
+from src.gui.views.history_batch import (
     BatchQueueCard,
     BatchSelectionBar,
     UpNextEntry,
     format_clock,
 )
-from .history_filter_bar import HistoryFilterBar
+from src.gui.views.history_filter_bar import HistoryFilterBar
+from src.utils.logger import logger
 
 
 class GameImportWorker(QThread):

@@ -4,8 +4,8 @@ Modern, custom UI widgets for the settings panel.
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QSlider, QWidget
 
-from ...components import Button, ButtonSize, ButtonVariant, Label, TextRole
-from ...styles import Styles
+from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole
+from src.gui.styles import Styles
 
 
 class ModernSliderCounter(QWidget):

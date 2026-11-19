@@ -29,9 +29,7 @@ from src.gui.components import (
 )
 from src.gui.components.feedback.toast import ToastManager
 from src.gui.styles import Styles
-from src.utils.config import ConfigManager
-
-from .settings import (
+from src.gui.views.settings import (
     ApiSettings,
     BackupSettings,
     BoardPiecesSettings,
@@ -52,6 +50,7 @@ from .settings import (
     ThemeAccentSettings,
     WindowLayoutSettings,
 )
+from src.utils.config import ConfigManager
 
 
 class _CurrentPageStack(QStackedWidget):
@@ -681,7 +680,7 @@ class SettingsView(QWidget):
         self.config_manager.save_config()
 
         # Emit signals for UI and engine updates
-        from ...utils.logger import logger
+        from src.utils.logger import logger
         path_changed = self._applied_engine_path != path
         threads_changed = self._applied_engine_threads != threads
         hash_changed = self._applied_engine_hash != hash_mb

@@ -3,9 +3,8 @@ import os
 import chess
 import chess.polyglot
 
+from src.backend.analysis.local_book import BookResult
 from src.utils.logger import logger
-
-from .local_book import BookResult
 
 
 class PolyglotBookManager:

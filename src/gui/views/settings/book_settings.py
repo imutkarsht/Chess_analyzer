@@ -4,9 +4,9 @@ import os
 
 from PyQt6.QtWidgets import QFileDialog, QGroupBox, QVBoxLayout
 
-from ...components import Label, TextRole, TextTone
-from ...styles import Styles
-from .components import PathField, SettingsBinder, SettingsForm
+from src.gui.components import Label, TextRole, TextTone
+from src.gui.styles import Styles
+from src.gui.views.settings.components import PathField, SettingsBinder, SettingsForm
 
 
 class BookSettings(QGroupBox):
