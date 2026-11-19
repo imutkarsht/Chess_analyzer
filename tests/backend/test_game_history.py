@@ -1,5 +1,6 @@
 import pytest
 
+from src.backend.storage.cache_time import parse_cached_at
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.models import GameAnalysis, GameMetadata
 
@@ -437,7 +438,7 @@ def test_explorer_cache_ttl_epoch_storage_and_prune(temp_db):
             "SELECT cached_at FROM explorer_cache WHERE fen = ?", (fen,)
         ).fetchone()
     assert float(row[0]) > 0
-    assert isinstance(manager._parse_cached_at_to_epoch(row[0]), float)
+    assert isinstance(parse_cached_at(row[0]), float)
 
     # Expiry is detected and the row removed, whatever the stored representation.
     old_epoch = time.time() - 200_000.0

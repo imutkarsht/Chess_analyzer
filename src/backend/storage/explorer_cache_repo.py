@@ -4,8 +4,8 @@ Repository for opening explorer cache persistence and pruning.
 
 import sqlite3
 import time
-from typing import Any
 
+from src.backend.storage.cache_time import parse_cached_at, resolve_ttl_seconds
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.schema_constants import EXPLORER_CACHE_TTL_SECONDS
 from src.constants import DEFAULT_EXPLORER_CACHE_TTL_HOURS
@@ -35,27 +35,7 @@ class ExplorerCacheRepo:
         hours = ConfigManager().get(
             "explorer_cache_ttl_hours", DEFAULT_EXPLORER_CACHE_TTL_HOURS
         )
-        if hours is None:
-            return None
-        try:
-            return max(1, int(hours)) * 3600.0
-        except (TypeError, ValueError):
-            return EXPLORER_CACHE_TTL_SECONDS
-
-    @staticmethod
-    def _parse_cached_at_to_epoch(cached_at: Any) -> float:
-        if isinstance(cached_at, (int, float)):
-            return float(cached_at)
-        try:
-            return float(cached_at)
-        except (ValueError, TypeError):
-            pass
-        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
-            try:
-                return time.mktime(time.strptime(str(cached_at), fmt))
-            except Exception:
-                pass
-        return 0.0
+        return resolve_ttl_seconds(hours, EXPLORER_CACHE_TTL_SECONDS)
 
     def save_explorer_cache(self, fen: str, response_json: str) -> None:
         """Saves a Lichess explorer response json for a given FEN."""
@@ -100,7 +80,7 @@ class ExplorerCacheRepo:
                 expired = [
                     fen
                     for fen, cached_at in rows
-                    if self._parse_cached_at_to_epoch(cached_at) < cutoff
+                    if parse_cached_at(cached_at) < cutoff
                 ]
                 if expired:
                     cur.executemany(
@@ -139,7 +119,7 @@ class ExplorerCacheRepo:
                     response_json, cached_at = row
                     if ttl_seconds is None:
                         return response_json
-                    cached_epoch = self._parse_cached_at_to_epoch(cached_at)
+                    cached_epoch = parse_cached_at(cached_at)
                     if time.time() - cached_epoch < ttl_seconds:
                         return response_json
                     else:

@@ -3,53 +3,30 @@ Repository for caching games fetched from external chess APIs (Chess.com, Liches
 """
 
 import sqlite3
-import time
 from typing import Any
 
+from src.backend.storage.cache_time import now_iso
 from src.backend.storage.db_connection import get_db_connection
-from src.backend.storage.schema_constants import INSERT_API_CACHE_SQL
+from src.backend.storage.schema_constants import (
+    API_CACHE_COLUMNS,
+    INSERT_API_CACHE_SQL,
+)
 from src.utils.logger import logger
 
 
 def _info_to_cache_row(info: Any, default_cached_at: str | None = None) -> tuple:
-    cached_at = (
-        getattr(info, "cached_at", None) or default_cached_at or time.strftime("%Y-%m-%d %H:%M:%S")
-    )
-    return (
-        getattr(info, "game_id", ""),
-        getattr(info, "source", ""),
-        getattr(info, "white", ""),
-        getattr(info, "black", ""),
-        getattr(info, "result", "*"),
-        getattr(info, "date", ""),
-        getattr(info, "pgn", ""),
-        getattr(info, "white_elo", None),
-        getattr(info, "black_elo", None),
-        getattr(info, "time_class", None),
-        getattr(info, "move_count", None),
-        getattr(info, "opening", None),
-        cached_at,
-    )
+    row = info.to_dict()
+    row["id"] = row.pop("game_id")
+    row["cached_at"] = row.get("cached_at") or default_cached_at or now_iso()
+    return tuple(row[column] for column in API_CACHE_COLUMNS)
 
 
 def _row_to_game_info(d: dict[str, Any]) -> Any:
     from src.backend.models.game_info import GameInfo
 
-    return GameInfo(
-        game_id=d["id"],
-        source=d["source"],
-        white=d["white"],
-        black=d["black"],
-        result=d["result"],
-        date=d["date"],
-        pgn=d["pgn"],
-        white_elo=d.get("white_elo"),
-        black_elo=d.get("black_elo"),
-        time_class=d.get("time_class"),
-        move_count=d.get("move_count"),
-        opening=d.get("opening"),
-        cached_at=d.get("cached_at"),
-    )
+    row = dict(d)
+    row["game_id"] = row.get("id", "")
+    return GameInfo.from_dict(row)
 
 
 class ApiCacheRepo:
@@ -72,7 +49,7 @@ class ApiCacheRepo:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                now_str = time.strftime("%Y-%m-%d %H:%M:%S")
+                now_str = now_iso()
                 rows = [_info_to_cache_row(g, default_cached_at=now_str) for g in games]
                 cursor.executemany(INSERT_API_CACHE_SQL, rows)
                 conn.commit()

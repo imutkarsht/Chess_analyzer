@@ -11,6 +11,7 @@ from collections import Counter
 from collections.abc import Iterator
 from typing import Any
 
+from src.backend.analysis.tactics.enrichment import enrich_summary_with_tactics
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.game_identity import game_identity_key
 from src.backend.storage.game_query import GameQuery, build_filters, build_order_by
@@ -109,31 +110,6 @@ def _normalize_analysis_status(
     return "completed"
 
 
-def _enrich_summary_with_tactics(
-    summary_dict: dict[str, Any],
-    moves_data: list[dict[str, Any]],
-    result: str,
-    speed_category: str = "Blitz",
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """
-    Computes tactics for white and black, and attaches them to summary_dict.
-    Returns (summary_dict, tactics_white, tactics_black).
-    """
-    from src.backend.analysis.tactics import analyze_game_tactics
-
-    tactics_w = analyze_game_tactics(moves_data, "white", result, speed_category=speed_category)
-    tactics_b = analyze_game_tactics(moves_data, "black", result, speed_category=speed_category)
-
-    if "white" not in summary_dict or not isinstance(summary_dict["white"], dict):
-        summary_dict["white"] = {}
-    if "black" not in summary_dict or not isinstance(summary_dict["black"], dict):
-        summary_dict["black"] = {}
-
-    summary_dict["white"]["tactics"] = tactics_w
-    summary_dict["black"]["tactics"] = tactics_b
-    return summary_dict, tactics_w, tactics_b
-
-
 class GamesRepo:
     """Manages persistence, retrieval, and hydration of analyzed games."""
 
@@ -215,7 +191,7 @@ class GamesRepo:
         summary_dict["analyzed_moves"] = game_analysis.analyzed_moves_count
         summary_dict["total_moves"] = move_count or 0
 
-        summary_dict, tactics_white, tactics_black = _enrich_summary_with_tactics(
+        summary_dict, tactics_white, tactics_black = enrich_summary_with_tactics(
             summary_dict,
             moves_data,
             game_analysis.metadata.result,
@@ -356,7 +332,7 @@ class GamesRepo:
             try:
                 moves_data = json.loads(moves_json)
                 if moves_data:
-                    summary_dict, _, _ = _enrich_summary_with_tactics(
+                    summary_dict, _, _ = enrich_summary_with_tactics(
                         summary_dict, moves_data, result, speed_category=speed_category or "Blitz"
                     )
                     summary_json = json.dumps(summary_dict)

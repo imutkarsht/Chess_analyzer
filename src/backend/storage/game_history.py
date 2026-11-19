@@ -11,22 +11,11 @@ from typing import Any
 from src.backend.models.analysis_batch import AnalysisBatch, AnalysisBatchItem
 from src.backend.storage import migrations
 from src.backend.storage.analysis_batch_repo import AnalysisBatchRepo
-from src.backend.storage.api_cache_repo import (
-    ApiCacheRepo,
-    _info_to_cache_row,
-    _row_to_game_info,
-)
+from src.backend.storage.api_cache_repo import ApiCacheRepo
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.explorer_cache_repo import ExplorerCacheRepo
 from src.backend.storage.game_query import GameQuery
-from src.backend.storage.games_repo import (
-    GamesRepo,
-    _enrich_summary_with_tactics,
-    _make_game_id,
-    _to_float,
-    _to_int,
-    _to_int_or_none,
-)
+from src.backend.storage.games_repo import GamesRepo
 from src.backend.storage.models import GameAnalysis
 from src.backend.storage.profile_cache_repo import (
     CachedProfile,
@@ -51,13 +40,6 @@ __all__ = [
     "GAME_CSV_COLUMNS",
     "LIGHT_GAME_COLUMNS",
     "GameHistoryManager",
-    "_to_float",
-    "_to_int",
-    "_to_int_or_none",
-    "_make_game_id",
-    "_enrich_summary_with_tactics",
-    "_info_to_cache_row",
-    "_row_to_game_info",
 ]
 
 
@@ -399,6 +381,4 @@ class GameHistoryManager:
             logger.error("Failed to clear all data: %s", e)
             raise
 
-    @staticmethod
-    def _parse_cached_at_to_epoch(cached_at: Any) -> float:
-        return ExplorerCacheRepo._parse_cached_at_to_epoch(cached_at)
+

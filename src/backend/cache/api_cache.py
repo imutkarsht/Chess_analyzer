@@ -6,30 +6,9 @@ from collections.abc import Callable
 from src.backend.api.chess_com_api import ChessComAPI
 from src.backend.api.lichess_api import LichessAPI
 from src.backend.models.game_info import GameInfo
+from src.backend.storage.cache_time import cache_is_fresh
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.pgn_metadata import parse_pgn_headers
-
-
-def _cache_is_fresh(games: list[GameInfo], ttl_seconds: float) -> bool:
-    """True when at least one cached row was written within ``ttl_seconds``.
-
-    Today's results change while the day is still running, so a cache hit for
-    today must be short-lived. Historical dates are immutable and can stay
-    cached indefinitely.
-    """
-    now = time.time()
-    for game in games:
-        raw = getattr(game, "cached_at", None)
-        if not raw:
-            continue
-        try:
-            written = time.mktime(time.strptime(raw, "%Y-%m-%d %H:%M:%S"))
-        except (TypeError, ValueError):
-            continue
-        if now - written <= ttl_seconds:
-            return True
-    return False
-
 
 _TODAY_CACHE_TTL_SECONDS = 5 * 60
 
@@ -186,7 +165,7 @@ class ApiGameCache:
         cached_games = self.history_manager.get_cached_games_for_date(source, date_str, username)
         if cached_games and (
             date < datetime.date.today()
-            or _cache_is_fresh(cached_games, _TODAY_CACHE_TTL_SECONDS)
+            or cache_is_fresh(cached_games, _TODAY_CACHE_TTL_SECONDS)
         ):
             return cached_games
 
