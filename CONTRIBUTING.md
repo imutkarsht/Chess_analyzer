@@ -236,7 +236,10 @@ Before adding a private helper, check the canonical module:
 | --- | --- |
 | Clock, eval, count, bytes, percent, duration | `src/utils/format_utils.py` |
 | Time-control parsing/formatting/classification | `src/utils/time_control.py` |
+| Display dates and cache ages | `src/utils/date_utils.py` |
+| Error-text detection, initials, country flags | `src/utils/text_utils.py` |
 | FEN keys, canonical FEN, Chess960 detection | `src/backend/analysis/chess_utils.py` |
+| LLM clock-data summaries | `src/backend/analysis/metrics/time_stats.py` |
 | PGN headers and mainline metadata | `src/backend/storage/pgn_metadata.py` |
 | Cache timestamps and TTLs | `src/backend/storage/cache_time.py` |
 | DB connections, read-only access, row counts | `src/backend/storage/db_connection.py` |
@@ -245,6 +248,9 @@ Before adding a private helper, check the canonical module:
 | GUI asset/icon paths | `src/gui/utils/assets.py` |
 | External URLs and local paths | `src/gui/utils/links.py` |
 | Result labels and tones | `src/gui/utils/result_ui.py` |
+| Layout clearing | `src/gui/utils/layout.py` |
+| Themed dialogs and dialog launchers | `src/gui/components/dialogs.py` |
+| Motif metadata and classification tones | `src/gui/tactics_meta.py` |
 | Lazy metric sub-view rendering | `src/gui/views/metrics/lazy_view.py` |
 
 - Do not add per-widget formatters or wrapper factories when a canonical helper exists.

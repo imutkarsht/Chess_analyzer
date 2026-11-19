@@ -76,11 +76,17 @@ src/
 - **Shared utilities**: extend the canonical modules before adding a private helper:
   - `src/utils/format_utils.py` — clock, eval, count, bytes, percent, duration
   - `src/utils/time_control.py` — parse/format/classify time controls
+  - `src/utils/date_utils.py` — display dates and cache ages
+  - `src/utils/text_utils.py` — error-text detection, initials, country flags
   - `src/backend/analysis/chess_utils.py` — FEN keys, canonical FEN, Chess960
+  - `src/backend/analysis/metrics/time_stats.py` — LLM clock-data summaries
   - `src/backend/storage/pgn_metadata.py` — PGN headers and mainline metadata
   - `src/backend/storage/cache_time.py` — cache timestamps and TTLs
   - `src/backend/storage/db_connection.py` — connections, read-only access, row counts
   - `src/gui/utils/assets.py`, `links.py`, `result_ui.py` — GUI asset, link, and result helpers
+  - `src/gui/utils/layout.py` — layout clearing
+  - `src/gui/components/dialogs.py` — themed dialogs and dialog launchers
+  - `src/gui/tactics_meta.py` — motif metadata and classification tones
   - `src/gui/views/metrics/lazy_view.py` — lazy metric sub-view rendering
 
 ---
