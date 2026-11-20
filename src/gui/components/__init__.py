@@ -2,6 +2,7 @@
 Shared GUI components module.
 """
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.controls.checkbox import Checkbox, CheckboxVariant
 from src.gui.components.controls.date_picker import DatePicker
 from src.gui.components.controls.filter_chip import FilterChip
 from src.gui.components.controls.form_field import FormField
@@ -90,6 +91,8 @@ __all__ = [
     'ButtonSize',
     'ButtonVariant',
     'BadgeVariant',
+    'Checkbox',
+    'CheckboxVariant',
     'ChipLabel',
     'ClockLabel',
     'ColorLabel',

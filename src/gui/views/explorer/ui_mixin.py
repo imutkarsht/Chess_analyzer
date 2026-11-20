@@ -2,7 +2,6 @@
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QFrame,
     QHBoxLayout,
     QScrollArea,
@@ -19,6 +18,8 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    Checkbox,
+    CheckboxVariant,
     Label,
     RichTextLabel,
     TextRole,
@@ -161,26 +162,22 @@ class ExplorerUiMixin:
         toggles_layout.setContentsMargins(0, 0, 0, 4)
         toggles_layout.setSpacing(8)
 
-        self.chk_classify = QCheckBox("Classify Moves")
+        self.chk_classify = Checkbox("Classify Moves", CheckboxVariant.COMPACT)
         self.chk_classify.setChecked(self.classify_enabled)
         self.chk_classify.toggled.connect(self.on_classify_toggled)
 
-        self.chk_legal = QCheckBox("Legal Moves")
+        self.chk_legal = Checkbox("Legal Moves", CheckboxVariant.COMPACT)
         self.chk_legal.setChecked(True)
         self.chk_legal.toggled.connect(self.on_legal_moves_toggled)
 
-        self.chk_engine = QCheckBox("Engine Lines")
+        self.chk_engine = Checkbox("Engine Lines", CheckboxVariant.COMPACT)
         self.chk_engine.setChecked(False)
         self.chk_engine.toggled.connect(self.on_engine_toggled)
 
-        self.chk_cache = QCheckBox("Use Cache")
+        self.chk_cache = Checkbox("Use Cache", CheckboxVariant.COMPACT)
         self.chk_cache.setChecked(True)
 
         for chk in (self.chk_classify, self.chk_legal, self.chk_engine, self.chk_cache):
-            chk.setStyleSheet(
-                f"font-size: 12px; font-weight: 500; color: {Styles.COLOR_TEXT_SECONDARY};"
-            )
-            chk.setCursor(Qt.CursorShape.PointingHandCursor)
             toggles_layout.addWidget(chk)
 
         right_layout.addLayout(toggles_layout)

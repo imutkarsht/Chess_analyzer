@@ -3,7 +3,6 @@
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.styles import Styles
-from src.gui.utils.assets import tick_icon_path
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
 from src.gui.views.settings.modern_widgets import ModernSliderCounter
 
@@ -61,7 +60,3 @@ class LiveAnalysisSettings(QGroupBox):
         self.form.refresh_styles()
         self.live_time_input.refresh_styles()
         self.live_multi_pv_input.refresh_styles()
-        tick_path = tick_icon_path()
-        self.engine_lines_checkbox.setStyleSheet(
-            Styles.get_settings_checkbox_style(tick_path)
-        )

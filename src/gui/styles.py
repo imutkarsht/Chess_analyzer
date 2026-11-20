@@ -1620,11 +1620,26 @@ class Styles(metaclass=_StylesMeta):
         so toggles read as one control in every card.
         """
         p = ThemeManager.palette()
+        return cls._flat_checkbox_style(
+            tick_path, text_color=p.text_primary, font_size=13
+        )
+
+    @classmethod
+    def get_compact_checkbox_style(cls, tick_path):
+        """Dense flat checkbox used by Explorer and feedback panels."""
+        p = ThemeManager.palette()
+        return cls._flat_checkbox_style(
+            tick_path, text_color=p.text_secondary, font_size=12
+        )
+
+    @classmethod
+    def _flat_checkbox_style(cls, tick_path, *, text_color: str, font_size: int):
+        p = ThemeManager.palette()
         return f"""
             QCheckBox {{
-                color: {p.text_primary};
+                color: {text_color};
                 font-weight: 500;
-                font-size: 13px;
+                font-size: {font_size}px;
                 background: transparent;
                 border: none;
                 padding: 0px;

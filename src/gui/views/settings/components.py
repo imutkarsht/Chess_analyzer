@@ -11,7 +11,6 @@ from collections.abc import Callable
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QButtonGroup,
-    QCheckBox,
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
@@ -26,6 +25,8 @@ from src.config.settings_schema import SettingSpec, get_spec
 from src.gui.components import (
     Button,
     ButtonVariant,
+    Checkbox,
+    CheckboxVariant,
     DecimalInput,
     Input,
     Label,
@@ -36,7 +37,6 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.gui.utils.assets import tick_icon_path
 
 # Central size tokens for settings controls.
 CONTROL_NARROW = 120
@@ -161,15 +161,6 @@ def make_select(max_width: int = CONTROL_DEFAULT) -> Select:
     select = Select(min_width=max_width)
     select.setMaximumWidth(max_width)
     return select
-
-
-def make_checkbox(text: str, max_width: int | None = None) -> QCheckBox:
-    box = QCheckBox(text)
-    box.setStyleSheet(Styles.get_settings_checkbox_style(tick_icon_path()))
-    box.setCursor(Qt.CursorShape.PointingHandCursor)
-    if max_width is not None:
-        box.setMaximumWidth(max_width)
-    return box
 
 
 def make_line_edit(placeholder: str = "", max_width: int = CONTROL_DEFAULT) -> Input:
@@ -325,7 +316,7 @@ class SettingsBinder(QObject):
 
     def _make_widget(self, spec: SettingSpec, choices):
         if spec.kind == "bool":
-            return make_checkbox("")
+            return Checkbox("", CheckboxVariant.FLAT)
         if spec.kind == "choice":
             select = make_select(CONTROL_DEFAULT)
             self._populate_select(
@@ -400,7 +391,7 @@ class SettingsBinder(QObject):
             raw = widget.settingValue()
         elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
             raw = widget.value()
-        elif spec.kind == "bool" and isinstance(widget, QCheckBox):
+        elif spec.kind == "bool" and isinstance(widget, Checkbox):
             raw = widget.isChecked()
         else:
             raw = widget.text().strip()

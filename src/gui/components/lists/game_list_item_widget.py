@@ -11,7 +11,6 @@ import chess
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QFrame,
     QHBoxLayout,
     QVBoxLayout,
@@ -21,13 +20,14 @@ from PyQt6.QtWidgets import (
 from src.backend.analysis.chess_utils import is_chess960_variant, requires_chess960
 from src.gui.board import MiniBoardConfig, MiniBoardWidget
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.controls.checkbox import Checkbox, CheckboxVariant
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.display.rich_text import RichTextLabel
 from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
-from src.gui.utils.assets import asset_path, icon_path, tick_icon_path
+from src.gui.utils.assets import asset_path, icon_path
 from src.gui.utils.icons import HAS_QTAWESOME
 from src.gui.utils.result_ui import result_tone as tone_for_result
 from src.utils.logger import logger
@@ -64,7 +64,7 @@ class GameListItemWidget(QWidget):
         self.view_mode = view_mode
         self._is_analyzing = is_analyzing
         self._selection_mode = False
-        self._selection_checkbox: QCheckBox | None = None
+        self._selection_checkbox: Checkbox | None = None
         self._status_badge = None
         self._action_button = None
         self._delete_button = None
@@ -517,16 +517,12 @@ class GameListItemWidget(QWidget):
         self._selection_mode = bool(enabled)
         if enabled:
             if self._selection_checkbox is None:
-                checkbox = QCheckBox()
-                checkbox.setAttribute(
-                    Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+                checkbox = Checkbox(
+                    variant=CheckboxVariant.FLAT,
+                    visual_only=True,
                 )
-                checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
                 checkbox.setAccessibleName(
                     f"Select {self._game.metadata.white} vs {self._game.metadata.black}"
-                )
-                checkbox.setStyleSheet(
-                    Styles.get_settings_checkbox_style(tick_icon_path())
                 )
                 self._selection_checkbox = checkbox
                 self._card_layout.insertWidget(0, checkbox)
