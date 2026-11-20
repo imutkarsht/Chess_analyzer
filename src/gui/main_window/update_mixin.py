@@ -2,8 +2,8 @@ from datetime import datetime
 
 from PyQt6.QtCore import QTimer
 
-from src.backend.updater.update_checker import UpdateCheckerWorker
 from src.gui.dialogs import UpdateNotificationDialog
+from src.workers import UpdateCheckerWorker
 
 
 class UpdateMixin:

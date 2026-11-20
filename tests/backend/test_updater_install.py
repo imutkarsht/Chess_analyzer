@@ -7,16 +7,9 @@ import pytest
 import requests
 
 from src.backend.updater import updater
-from src.backend.updater.update_checker import (
-    UpdateChecker,
-    UpdateCheckerWorker,
-    _pick_asset,
-)
-from src.backend.updater.updater import (
-    DownloadWorker,
-    get_download_destination,
-    install_and_quit,
-)
+from src.backend.updater.update_checker import UpdateChecker, _pick_asset
+from src.backend.updater.updater import get_download_destination, install_and_quit
+from src.workers import DownloadWorker, UpdateCheckerWorker
 
 
 class TestDownloadWorker:

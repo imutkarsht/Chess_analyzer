@@ -27,7 +27,6 @@ from PyQt6.QtWidgets import (
 
 from src.backend.updater.updater import (
     PLATFORM,
-    DownloadWorker,
     get_download_destination,
     install_and_quit,
 )
@@ -46,6 +45,7 @@ from src.gui.components import (
 from src.gui.styles import Styles
 from src.gui.utils.links import open_path, open_url
 from src.utils.logger import logger  # src/gui/dialogs/ → src/utils/
+from src.workers import DownloadWorker
 
 # ---------------------------------------------------------------------------
 # Footer page indices inside QStackedWidget

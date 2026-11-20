@@ -13,7 +13,6 @@ import sys
 
 import requests
 from packaging import version
-from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.backend.api.github_releases import fetch_release
 from src.constants import APP_VERSION, GITHUB_RELEASES_API, PLATFORM_RULES
@@ -149,21 +148,4 @@ class UpdateChecker:
             return UpdateInfo(available=False)
 
 
-class UpdateCheckerWorker(QThread):
-    """Background worker — runs UpdateChecker without blocking the UI."""
 
-    update_checked = pyqtSignal(object)  # Emits UpdateInfo
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._is_cancelled = False
-
-    def cancel(self):
-        self._is_cancelled = True
-
-    def run(self):
-        if self._is_cancelled:
-            return
-        result = UpdateChecker.check_for_updates()
-        if not self._is_cancelled:
-            self.update_checked.emit(result)
