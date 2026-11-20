@@ -348,10 +348,23 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `cache/api_cache.py` | Legacy in-memory/DB cache facade used by API clients | `ApiGameCache` |
 | `engine/downloader.py` | Stockfish release discovery, download and validation | `ReleaseAsset`, `StockfishDownloader` |
 | `models/game_info.py` | Lightweight game summary passed between API and UI | `GameInfo` |
-| `services/feedback_service.py` | Sends reviews, bug reports and suggestions | `FeedbackService`, `FeedbackWorker` |
+| `services/feedback_service.py` | Sends reviews, bug reports and suggestions | `FeedbackService` |
 | `services/groq_service.py` | Provider-agnostic OpenAI-compatible LLM client | `GroqService` |
-| `updater/update_checker.py` | GitHub release check and version comparison | `UpdateChecker`, `UpdateCheckerWorker` |
-| `updater/updater.py` | Platform-aware download and installer dispatch | `DownloadWorker` |
+| `updater/update_checker.py` | GitHub release check and version comparison | `UpdateChecker` |
+| `updater/updater.py` | Platform-aware download and installer dispatch | `get_download_destination`, `install_and_quit` |
+
+### `src/workers`
+
+<details>
+<summary>Qt worker threads used by the GUI layer</summary>
+
+| File | Purpose | Key symbols |
+| --- | --- | --- |
+| `update_worker.py` | In-app update download | `DownloadWorker` |
+| `update_checker_worker.py` | Background release check | `UpdateCheckerWorker` |
+| `feedback_worker.py` | Feedback/review submission | `FeedbackWorker` |
+
+</details>
 
 ### `src/backend/storage`
 

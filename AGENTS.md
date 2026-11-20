@@ -52,6 +52,7 @@ src/
 │   ├── services/           # GroqService (OpenAI-compatible), feedback service
 │   ├── storage/            # Repos, migrations, models, PGN parser, backup, caches
 │   └── updater/            # GitHub release checker & platform installers
+├── workers/                # Qt worker threads used by the GUI layer
 ├── gui/                    # PyQt6 presentation layer. Zero business logic computation.
 │   ├── main_window/        # MainWindow + navigation/analysis/loading/theme/tour/update/variation/status mixins
 │   ├── views/              # Pages: analysis, explorer, history, metrics/, settings/

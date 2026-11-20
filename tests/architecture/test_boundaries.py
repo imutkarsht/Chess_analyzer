@@ -4,8 +4,6 @@
 import ast
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[2]
 FORBIDDEN = ("PyQt6", "src.gui")
 
@@ -45,7 +43,6 @@ def test_utils_does_not_import_gui():
     assert not violations, "src/utils must stay Qt-free:\n" + "\n".join(violations)
 
 
-@pytest.mark.xfail(strict=True, reason="Wave 3: move QThread workers to src/workers/")
 def test_backend_does_not_import_gui():
     violations = _violations("backend")
     assert not violations, (
