@@ -16,9 +16,12 @@ from src.gui.components.controls.input import (
     TextArea,
     TextAreaVariant,
 )
+from src.gui.components.controls.path_field import PathField
+from src.gui.components.controls.radio_group import RadioChoice
 from src.gui.components.controls.segmented_bar import SegmentedBar
 from src.gui.components.controls.segmented_control import SegmentedControl
 from src.gui.components.controls.select import Select, SelectOption, SelectSize
+from src.gui.components.controls.slider_counter import SliderCounter
 from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.components.controls.tabs import TabAppearance, Tabs, TabVariant
 from src.gui.components.dialogs import (
@@ -120,6 +123,9 @@ __all__ = [
     'TextArea',
     'TextAreaVariant',
     'TEXT_INPUT_TYPES',
+    'PathField',
+    'RadioChoice',
+    'SliderCounter',
     'LegendList',
     'LoadingOverlay',
     'MiniBar',

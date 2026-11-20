@@ -3,9 +3,9 @@
 from PyQt6.QtWidgets import QVBoxLayout
 
 from src.backend.storage.cache import AnalysisCache
+from src.gui.components import SliderCounter
 from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
-from src.gui.views.settings.modern_widgets import ModernSliderCounter
 from src.gui.views.settings.storage_card import StorageCard
 
 EXPLORER_TTL_CHOICES = [
@@ -50,7 +50,7 @@ class RetentionSettings(StorageCard):
             width=180,
         )
 
-        self.analysis_cap_input = ModernSliderCounter(
+        self.analysis_cap_input = SliderCounter(
             10_000,
             1_000_000,
             step=10_000,

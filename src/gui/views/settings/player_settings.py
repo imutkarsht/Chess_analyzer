@@ -17,6 +17,7 @@ from src.gui.components import (
     CheckboxVariant,
     Input,
     Label,
+    SliderCounter,
     TextRole,
     TextTone,
 )
@@ -29,7 +30,6 @@ from src.gui.views.settings.components import (
     make_line_edit,
     make_select,
 )
-from src.gui.views.settings.modern_widgets import ModernSliderCounter
 from src.gui.views.settings.profile_preview import ProfilePreview
 
 
@@ -292,7 +292,7 @@ class ImportNetworkCard(QGroupBox):
         outer.addWidget(self.form)
         self.binder = SettingsBinder(self.config_manager, self.form, self)
 
-        self.games_limit_input = ModernSliderCounter(
+        self.games_limit_input = SliderCounter(
             1,
             max_games_limit(self._token_provider()),
             step=1,

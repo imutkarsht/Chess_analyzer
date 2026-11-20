@@ -3,8 +3,9 @@
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
+from src.gui.components import RadioChoice
 from src.gui.styles import Styles
-from src.gui.views.settings.components import RadioChoice, SettingsBinder, SettingsForm, make_select
+from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
 
 
 class WindowLayoutSettings(QGroupBox):

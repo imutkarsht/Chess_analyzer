@@ -1700,6 +1700,32 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_slider_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: {p.border};
+                border-radius: 3px;
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {p.accent};
+                border-radius: 3px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {p.text_primary};
+                width: 16px;
+                height: 16px;
+                margin-top: -5px;
+                margin-bottom: -5px;
+                border-radius: 8px;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: {p.accent_hover};
+            }}
+        """
+
+    @classmethod
     def get_group_box_style(cls):
         p = ThemeManager.palette()
         return f"""
