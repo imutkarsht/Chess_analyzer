@@ -18,9 +18,9 @@ from src.gui.components import (
     ToastManager,
 )
 from src.gui.dialogs.load_game.drop_zone import DropZone
-from src.gui.dialogs.load_game.pgn_worker import PgnIndexWorker
 from src.gui.import_workspace import GameBatch
 from src.gui.utils.worker_registry import register_worker, remove_worker
+from src.workers.imports import PgnIndexWorker
 
 
 class PgnFilePanel(QWidget):

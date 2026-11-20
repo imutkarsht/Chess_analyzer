@@ -16,7 +16,6 @@ from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components import EmptyState, ToastManager
 from src.gui.import_workspace.action_bar import ImportActionBar
 from src.gui.import_workspace.batch import GameBatch, GameCandidate
-from src.gui.import_workspace.boards import MiniBoardFenWorker, MiniBoardPosition
 from src.gui.import_workspace.delegates import (
     BoardDelegate,
     CheckboxDelegate,
@@ -39,6 +38,7 @@ from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
+from src.workers.imports import MiniBoardFenWorker, MiniBoardPosition
 
 _ROWS_WITH_BOARDS = 80
 _ROWS_COMPACT = 44

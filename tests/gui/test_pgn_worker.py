@@ -1,6 +1,6 @@
 """Background PGN indexing worker behaviour."""
 
-from src.gui.dialogs.load_game.pgn_worker import PgnIndexWorker
+from src.workers.imports import PgnIndexWorker
 
 
 def test_worker_indexes_file_synchronously(qapp, tmp_path):

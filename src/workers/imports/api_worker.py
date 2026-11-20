@@ -2,10 +2,9 @@
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.logger import logger
 
-__all__ = ["ApiWorker", "register_worker", "remove_worker"]
+__all__ = ["ApiWorker"]
 
 
 class ApiWorker(QThread):
