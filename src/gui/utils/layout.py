@@ -15,9 +15,11 @@ def clear_layout(layout: QLayout | None) -> None:
         item = layout.takeAt(0)
         widget = item.widget()
         if widget:
-            # Hide immediately: deleteLater can leave the old widget painted
-            # above its replacement until the event loop processes the delete.
+            # Hide and detach immediately: deleteLater alone leaves the old
+            # widget as a child until the event loop runs, which can duplicate
+            # rows during synchronous refresh/test paths and paint stale UI.
             widget.hide()
+            widget.setParent(None)
             widget.deleteLater()
         elif item.layout():
             clear_layout(item.layout())
