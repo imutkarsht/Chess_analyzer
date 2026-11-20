@@ -23,8 +23,8 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.gui.utils.worker_registry import register_worker, remove_worker
-from src.gui.views.settings.background_worker import BackgroundTaskWorker
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
+from src.workers.settings import BackgroundTaskWorker
 
 
 def _probe_engine_binary(path: str) -> tuple[bool, str]:

@@ -12,10 +12,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.backend.models.import_candidates import GameBatch, GameCandidate
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components import EmptyState, ToastManager
 from src.gui.import_workspace.action_bar import ImportActionBar
-from src.gui.import_workspace.batch import GameBatch, GameCandidate
 from src.gui.import_workspace.delegates import (
     BoardDelegate,
     CheckboxDelegate,
@@ -33,12 +33,11 @@ from src.gui.import_workspace.model import (
     GameImportTableModel,
 )
 from src.gui.import_workspace.toolbar import ImportToolbar
-from src.gui.import_workspace.worker import GameImportWorker
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
-from src.workers.imports import MiniBoardFenWorker, MiniBoardPosition
+from src.workers.imports import BulkGameImportWorker, MiniBoardFenWorker, MiniBoardPosition
 
 _ROWS_WITH_BOARDS = 80
 _ROWS_COMPACT = 44
@@ -56,7 +55,7 @@ class GameImportView(QWidget):
         self._batch: GameBatch | None = None
         self._config = ConfigManager()
         self._history_manager = GameHistoryManager()
-        self._import_worker: GameImportWorker | None = None
+        self._import_worker: BulkGameImportWorker | None = None
         self._fen_worker: MiniBoardFenWorker | None = None
         self._fen_token = 0
         self._fen_queued = False
@@ -441,7 +440,7 @@ class GameImportView(QWidget):
         self.btn_clear_filters.setEnabled(False)
         self.table.setEnabled(False)
 
-        worker = GameImportWorker(checked, self._history_manager)
+        worker = BulkGameImportWorker(checked, self._history_manager)
         self._import_worker = worker
         worker.progress.connect(self.action_bar.update_progress)
         worker.completed.connect(self._on_import_completed)

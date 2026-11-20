@@ -1,6 +1,6 @@
 """Backward-compatible alias for the generic background task worker."""
 
-from src.gui.views.settings.background_worker import BackgroundTaskWorker
+from src.workers.settings import BackgroundTaskWorker
 
 StorageTaskWorker = BackgroundTaskWorker
 

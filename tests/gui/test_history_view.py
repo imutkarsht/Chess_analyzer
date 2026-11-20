@@ -1,5 +1,5 @@
 """
-Tests for HistoryView, GameImportWorker, and CSV export/import fidelity.
+Tests for HistoryView, CsvImportWorker, and CSV export/import fidelity.
 """
 
 import csv
@@ -23,10 +23,9 @@ from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.board import MiniBoardWidget
 from src.gui.components.lists.game_list_item_widget import GameListItemWidget
 from src.gui.views.history_view import (
-    AnnotatedPGNExportWorker,
-    GameImportWorker,
     HistoryView,
 )
+from src.workers.history import AnnotatedPGNExportWorker, CsvImportWorker
 
 
 def test_annotated_pgn_export_worker_exports_history_off_thread(tmp_path, qtbot):
@@ -216,7 +215,8 @@ def test_annotated_pgn_export_cancellation_removes_temporary_output(
     worker.cancelled.connect(lambda count, skipped: cancelled.append((count, skipped)))
     monkeypatch.setattr(AnnotatedPGNExportWorker, "_YIELD_EVERY", 1)
     monkeypatch.setattr(
-        "src.gui.views.history_view.time.sleep", lambda _seconds: worker.request_cancel()
+        "src.workers.history.annotated_pgn_export_worker.time.sleep",
+        lambda _seconds: worker.request_cancel(),
     )
 
     worker.run()
@@ -235,7 +235,7 @@ class _StubToast:
 
 
 def test_game_import_worker_execution(tmp_path, qtbot):
-    """Test that GameImportWorker parses CSV in background and bulk saves without error."""
+    """Test that CsvImportWorker parses CSV in background and bulk saves without error."""
     db_path = str(tmp_path / "test_import.db")
     manager = GameHistoryManager(db_path)
 
@@ -292,7 +292,7 @@ def test_game_import_worker_execution(tmp_path, qtbot):
         for r in rows:
             writer.writerow(r)
 
-    worker = GameImportWorker(manager, str(csv_file))
+    worker = CsvImportWorker(manager, str(csv_file))
 
     with qtbot.waitSignal(worker.finished, timeout=5000) as blocker:
         worker.start()

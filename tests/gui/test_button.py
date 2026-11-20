@@ -62,6 +62,21 @@ def test_no_raw_form_controls_outside_the_central_components():
     assert offenders == []
 
 
+def test_no_qthread_subclasses_outside_the_workers_package():
+    repo_root = Path(__file__).resolve().parents[2]
+    gui_root = repo_root / "src" / "gui"
+    offenders = []
+    for path in gui_root.rglob("*.py"):
+        relative = path.relative_to(repo_root).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            if any(ast.unparse(base).endswith("QThread") for base in node.bases):
+                offenders.append(f"{relative}:{node.name}")
+    assert offenders == []
+
+
 def test_no_raw_message_boxes_outside_the_shared_dialogs():
     repo_root = Path(__file__).resolve().parents[2]
     gui_root = repo_root / "src" / "gui"
