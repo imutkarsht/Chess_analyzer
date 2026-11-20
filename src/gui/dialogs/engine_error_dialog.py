@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QDialog,
     QFileDialog,
     QHBoxLayout,
-    QProgressBar,
     QVBoxLayout,
 )
 
@@ -20,7 +19,14 @@ from src.backend.engine.downloader import (
     get_download_candidates,
     try_package_manager_install,
 )
-from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Label,
+    ProgressBar,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
@@ -63,9 +69,8 @@ class EngineNotFoundDialog(QDialog):
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)
 
-        self._progress = QProgressBar()
+        self._progress = ProgressBar()
         self._progress.setVisible(False)
-        self._progress.setStyleSheet(Styles.get_progress_bar_style())
         layout.addWidget(self._progress)
 
         self._status = Label("", role=TextRole.CAPTION, tone=TextTone.SECONDARY)

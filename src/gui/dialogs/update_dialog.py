@@ -19,7 +19,6 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
-    QProgressBar,
     QStackedWidget,
     QTextBrowser,
     QVBoxLayout,
@@ -37,6 +36,8 @@ from src.gui.components import (
     ButtonVariant,
     IconLabel,
     Label,
+    ProgressBar,
+    ProgressBarVariant,
     RichTextLabel,
     StatusBadge,
     TextRole,
@@ -311,22 +312,8 @@ class UpdateNotificationDialog(QDialog):
         top_row.addWidget(self._lbl_pct)
         layout.addLayout(top_row)
 
-        self._progress_bar = QProgressBar()
-        self._progress_bar.setRange(0, 100)
+        self._progress_bar = ProgressBar(variant=ProgressBarVariant.THIN)
         self._progress_bar.setValue(0)
-        self._progress_bar.setTextVisible(False)
-        self._progress_bar.setFixedHeight(6)
-        self._progress_bar.setStyleSheet(f"""
-            QProgressBar {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: none;
-                border-radius: 3px;
-            }}
-            QProgressBar::chunk {{
-                background-color: {Styles.COLOR_ACCENT};
-                border-radius: 3px;
-            }}
-        """)
         layout.addWidget(self._progress_bar)
 
         btn_cancel = Button("Cancel", ButtonVariant.FILLED, on_click=self._cancel_download)

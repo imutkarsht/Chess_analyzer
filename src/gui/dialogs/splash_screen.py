@@ -2,10 +2,16 @@ import os
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication, QProgressBar, QSplashScreen, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QApplication, QSplashScreen, QVBoxLayout, QWidget
 
-from src.gui.components import IconLabel, Label, TextRole, TextTone
-from src.gui.styles import Styles
+from src.gui.components import (
+    IconLabel,
+    Label,
+    ProgressBar,
+    ProgressBarVariant,
+    TextRole,
+    TextTone,
+)
 from src.gui.theme import ThemeManager
 
 
@@ -68,23 +74,7 @@ class SplashScreen(QSplashScreen):
         layout.addWidget(self.status_label)
 
         # Progress Bar
-        self.progress_bar = QProgressBar()
-        accent_color = Styles.COLOR_ACCENT
-        self.progress_bar.setStyleSheet(f"""
-            QProgressBar {{
-                border: none;
-                background-color: {p.border};
-                height: 6px;
-                border-radius: 3px;
-                text-align: center;
-            }}
-            QProgressBar::chunk {{
-                background-color: {accent_color};
-                border-radius: 3px;
-            }}
-        """)
-        self.progress_bar.setTextVisible(False)
-        self.progress_bar.setRange(0, 100)
+        self.progress_bar = ProgressBar(variant=ProgressBarVariant.THIN)
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 

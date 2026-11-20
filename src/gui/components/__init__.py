@@ -41,6 +41,7 @@ from src.gui.components.display.stat_card import SimpleStatCard, StatCard
 from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.components.feedback.engine_score_badge import EngineScoreBadge
 from src.gui.components.feedback.loading_widget import LoadingOverlay
+from src.gui.components.feedback.progress_bar import ProgressBar, ProgressBarVariant
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.status_badge import BadgeVariant, StatusBadge
 from src.gui.components.feedback.toast import (
@@ -128,6 +129,8 @@ __all__ = [
     'PaginationSize',
     'PaginationState',
     'PaginationStyle',
+    'ProgressBar',
+    'ProgressBarVariant',
     'SegmentedBar',
     'SegmentedControl',
     'Select',
