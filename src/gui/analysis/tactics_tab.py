@@ -33,6 +33,7 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.gui.tactics_meta import classification_tone, motif_meta
+from src.gui.utils.layout import clear_layout
 
 _PIECE_ICONS: dict[str, str] = {
     "pawn": "fa5s.chess-pawn",
@@ -406,16 +407,7 @@ class TacticsTab(QWidget):
         self.side_label.setToolTip(text)
 
     def _clear_content(self) -> None:
-        self._clear_layout(self.content_layout)
-
-    @staticmethod
-    def _clear_layout(layout: QVBoxLayout | QHBoxLayout) -> None:
-        while layout.count():
-            item = layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.setParent(None)
-                widget.deleteLater()
+        clear_layout(self.content_layout)
 
 
 def _row_icon(entry: GameTacticEntry) -> str:

@@ -1,11 +1,11 @@
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QDialog, QMessageBox
+from PyQt6.QtWidgets import QDialog
 
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, invalidate_engine_cache, resolve_engine_path
 from src.constants import ANALYSIS_UI_FLUSH_MS
 from src.gui.analysis.analysis_worker import AnalysisWorker
-from src.gui.components import ToastManager
+from src.gui.components import ToastManager, show_error_dialog
 from src.gui.dialogs.engine_error_dialog import EngineNotFoundDialog
 from src.gui.dialogs.feedback_dialog import FeedbackDialog
 from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
@@ -549,18 +549,7 @@ class AnalysisMixin:
             self.history_view.set_analyzing_game_id(None)
             self.history_view.load_history()
 
-        # Show error dialog with quick option to report bug
-        msg_box = QMessageBox(self)
-        msg_box.setIcon(QMessageBox.Icon.Critical)
-        msg_box.setWindowTitle("Analysis Error")
-        msg_box.setText("An error occurred during engine analysis.")
-        msg_box.setInformativeText(str(error_msg))
-        report_btn = msg_box.addButton("Report Issue", QMessageBox.ButtonRole.ActionRole)
-        close_btn = msg_box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
-        msg_box.setDefaultButton(close_btn)
-        msg_box.exec()
-
-        if msg_box.clickedButton() == report_btn:
+        def report_issue() -> None:
             dialog = FeedbackDialog(
                 self,
                 initial_tab="bug",
@@ -568,6 +557,15 @@ class AnalysisMixin:
                 initial_message=f"Analysis failed with error:\n{error_msg}",
             )
             dialog.exec()
+
+        show_error_dialog(
+            self,
+            "Analysis Error",
+            f"An error occurred during engine analysis.\n\n{error_msg}",
+            action_label="Report Issue",
+            on_action=report_issue,
+            close_label="Close",
+        )
         if self.current_game and hasattr(self, "_sync_paused_batch"):
             self._sync_paused_batch(self.current_game.game_id)
 
