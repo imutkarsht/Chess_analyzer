@@ -2,10 +2,9 @@
 
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
+from src.gui.components import SliderCounter
 from src.gui.styles import Styles
-from src.gui.utils.assets import tick_icon_path
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
-from src.gui.views.settings.modern_widgets import ModernSliderCounter
 
 # The engine also receives a depth limit, so "No cap" means depth-only.
 TIME_CAP_CHOICES = [
@@ -51,7 +50,7 @@ class FullAnalysisSettings(QGroupBox):
             width=150,
         )
 
-        self.multi_pv_input = ModernSliderCounter(1, 5, step=1, parent=self)
+        self.multi_pv_input = SliderCounter(1, 5, step=1, parent=self)
         self.multi_pv_input.setMaximumWidth(220)
         self.binder.add(
             "multi_pv",
@@ -75,7 +74,3 @@ class FullAnalysisSettings(QGroupBox):
         self.setStyleSheet(Styles.get_group_box_style())
         self.form.refresh_styles()
         self.multi_pv_input.refresh_styles()
-        tick_path = tick_icon_path()
-        self.cache_checkbox.setStyleSheet(
-            Styles.get_settings_checkbox_style(tick_path)
-        )

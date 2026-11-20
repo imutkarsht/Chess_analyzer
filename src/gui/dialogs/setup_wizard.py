@@ -259,8 +259,6 @@ class SetupWizard(QDialog):
             self.sf_download_btn.refresh_styles()
         if hasattr(self, "get_started_btn"):
             self.get_started_btn.refresh_styles()
-        if hasattr(self, "sf_progress"):
-            self.sf_progress.setStyleSheet(Styles.get_progress_bar_style())
 
         if hasattr(self, "sf_icon_label") and (self._download_worker is None or not self._download_worker.isRunning()):
             self._detect_stockfish()

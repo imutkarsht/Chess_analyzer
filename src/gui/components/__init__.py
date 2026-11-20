@@ -2,6 +2,7 @@
 Shared GUI components module.
 """
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.controls.checkbox import Checkbox, CheckboxVariant
 from src.gui.components.controls.date_picker import DatePicker
 from src.gui.components.controls.filter_chip import FilterChip
 from src.gui.components.controls.form_field import FormField
@@ -15,9 +16,12 @@ from src.gui.components.controls.input import (
     TextArea,
     TextAreaVariant,
 )
+from src.gui.components.controls.path_field import PathField
+from src.gui.components.controls.radio_group import RadioChoice
 from src.gui.components.controls.segmented_bar import SegmentedBar
 from src.gui.components.controls.segmented_control import SegmentedControl
 from src.gui.components.controls.select import Select, SelectOption, SelectSize
+from src.gui.components.controls.slider_counter import SliderCounter
 from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.components.controls.tabs import TabAppearance, Tabs, TabVariant
 from src.gui.components.dialogs import (
@@ -40,6 +44,7 @@ from src.gui.components.display.stat_card import SimpleStatCard, StatCard
 from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.components.feedback.engine_score_badge import EngineScoreBadge
 from src.gui.components.feedback.loading_widget import LoadingOverlay
+from src.gui.components.feedback.progress_bar import ProgressBar, ProgressBarVariant
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.status_badge import BadgeVariant, StatusBadge
 from src.gui.components.feedback.toast import (
@@ -58,6 +63,7 @@ from src.gui.components.layout.tour_overlay import TourOverlay
 from src.gui.components.layout.transition_stack import FadedStackedWidget
 from src.gui.components.layout.welcome_panel import WelcomePanel
 from src.gui.components.lists.legend_list import LegendList
+from src.gui.components.lists.list_view import ListView
 from src.gui.components.lists.pagination_bar import (
     PaginationBar,
     PaginationSize,
@@ -90,6 +96,8 @@ __all__ = [
     'ButtonSize',
     'ButtonVariant',
     'BadgeVariant',
+    'Checkbox',
+    'CheckboxVariant',
     'ChipLabel',
     'ClockLabel',
     'ColorLabel',
@@ -116,7 +124,11 @@ __all__ = [
     'TextArea',
     'TextAreaVariant',
     'TEXT_INPUT_TYPES',
+    'PathField',
+    'RadioChoice',
+    'SliderCounter',
     'LegendList',
+    'ListView',
     'LoadingOverlay',
     'MiniBar',
     'open_feedback_dialog',
@@ -125,6 +137,8 @@ __all__ = [
     'PaginationSize',
     'PaginationState',
     'PaginationStyle',
+    'ProgressBar',
+    'ProgressBarVariant',
     'SegmentedBar',
     'SegmentedControl',
     'Select',

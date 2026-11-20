@@ -10,13 +10,9 @@ from collections.abc import Callable
 
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QButtonGroup,
-    QCheckBox,
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
-    QRadioButton,
-    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -24,8 +20,8 @@ from PyQt6.QtWidgets import (
 
 from src.config.settings_schema import SettingSpec, get_spec
 from src.gui.components import (
-    Button,
-    ButtonVariant,
+    Checkbox,
+    CheckboxVariant,
     DecimalInput,
     Input,
     Label,
@@ -36,7 +32,6 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.gui.utils.assets import tick_icon_path
 
 # Central size tokens for settings controls.
 CONTROL_NARROW = 120
@@ -163,15 +158,6 @@ def make_select(max_width: int = CONTROL_DEFAULT) -> Select:
     return select
 
 
-def make_checkbox(text: str, max_width: int | None = None) -> QCheckBox:
-    box = QCheckBox(text)
-    box.setStyleSheet(Styles.get_settings_checkbox_style(tick_icon_path()))
-    box.setCursor(Qt.CursorShape.PointingHandCursor)
-    if max_width is not None:
-        box.setMaximumWidth(max_width)
-    return box
-
-
 def make_line_edit(placeholder: str = "", max_width: int = CONTROL_DEFAULT) -> Input:
     """Settings-row text field: one central Input, no local styling."""
     edit = Input(placeholder=placeholder)
@@ -187,75 +173,6 @@ def make_double_spin(
     maximum: float = 100.0, minimum: float = 0.0, step: float = 0.1, suffix: str = ""
 ) -> DecimalInput:
     return DecimalInput(minimum, maximum, step, suffix, width=140)
-
-
-class RadioChoice(QWidget):
-    """Horizontal radio group bound to a single setting value.
-
-    Implements the binder widget protocol (``valueChanged`` +
-    ``settingValue``/``setSettingValue``) so radio groups need no special
-    casing in :class:`SettingsBinder`. ``valueChanged`` fires only on user
-    interaction, never on programmatic ``setValue``.
-    """
-
-    valueChanged = pyqtSignal(object)
-
-    def __init__(self, choices, *, trailing: QWidget | None = None, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet(Styles.get_transparent_style())
-        self._values: dict[QRadioButton, object] = {}
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
-
-        self._group = QButtonGroup(self)
-        for value, label in choices:
-            radio = QRadioButton(label)
-            self._group.addButton(radio)
-            self._values[radio] = value
-            layout.addWidget(radio)
-
-        if trailing is not None:
-            layout.addWidget(trailing)
-
-        layout.addStretch(1)
-        self._group.buttonClicked.connect(self._on_button_clicked)
-        self.refresh_styles()
-
-    def _on_button_clicked(self, button: QRadioButton) -> None:
-        self.valueChanged.emit(self._values[button])
-
-    def radios(self) -> list[QRadioButton]:
-        return list(self._values)
-
-    def value(self):
-        for radio, value in self._values.items():
-            if radio.isChecked():
-                return value
-        return None
-
-    def setValue(self, value) -> None:
-        """Select the radio for ``value`` without emitting ``valueChanged``."""
-        for radio, candidate in self._values.items():
-            if candidate == value:
-                radio.setChecked(True)
-                return
-        first = next(iter(self._values), None)
-        if first is not None:
-            first.setChecked(True)
-
-    # -- Binder widget protocol -------------------------------------------
-    def settingValue(self):
-        return self.value()
-
-    def setSettingValue(self, value) -> None:
-        self.setValue(value)
-
-    def refresh_styles(self) -> None:
-        style = Styles.get_radio_group_style()
-        for radio in self._values:
-            radio.setStyleSheet(style)
 
 
 class SettingsBinder(QObject):
@@ -325,7 +242,7 @@ class SettingsBinder(QObject):
 
     def _make_widget(self, spec: SettingSpec, choices):
         if spec.kind == "bool":
-            return make_checkbox("")
+            return Checkbox("", CheckboxVariant.FLAT)
         if spec.kind == "choice":
             select = make_select(CONTROL_DEFAULT)
             self._populate_select(
@@ -400,7 +317,7 @@ class SettingsBinder(QObject):
             raw = widget.settingValue()
         elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
             raw = widget.value()
-        elif spec.kind == "bool" and isinstance(widget, QCheckBox):
+        elif spec.kind == "bool" and isinstance(widget, Checkbox):
             raw = widget.isChecked()
         else:
             raw = widget.text().strip()
@@ -474,56 +391,3 @@ class SettingsBinder(QObject):
 
     def set_advanced_visible(self, visible: bool) -> None:
         self.form.set_advanced_visible(visible)
-
-
-class PathField(QWidget):
-    """Path input with optional Browse/Clear actions at a fixed compact width."""
-
-    def __init__(
-        self,
-        placeholder: str = "",
-        *,
-        browse_callback=None,
-        clear_callback=None,
-        parent=None,
-        input_width: int = CONTROL_WIDE,
-    ):
-        super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
-
-        self.line_edit = make_line_edit(placeholder, input_width)
-        self.line_edit.setMinimumWidth(min(320, input_width))
-        layout.addWidget(self.line_edit, 1)
-
-        self.browse_btn = Button('Browse', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=browse_callback, parent=self)
-        self.browse_btn.setMaximumWidth(120)
-        self.browse_btn.setMinimumWidth(110)
-        layout.addWidget(self.browse_btn)
-
-        self.clear_btn = None
-        if clear_callback is not None:
-            self.clear_btn = Button('Clear', ButtonVariant.FILLED, icon='fa5s.times', on_click=clear_callback, parent=self)
-            self.clear_btn.setMaximumWidth(100)
-            self.clear_btn.setMinimumWidth(90)
-            layout.addWidget(self.clear_btn)
-
-        layout.addStretch(1)
-
-    def text(self) -> str:
-        return self.line_edit.text()
-
-    def setText(self, text: str) -> None:
-        self.line_edit.setText(text)
-
-    def clear(self) -> None:
-        self.line_edit.clear()
-
-    @property
-    def editingFinished(self):
-        return self.line_edit.editingFinished
-
-    def setPlaceholderText(self, text: str) -> None:
-        self.line_edit.setPlaceholderText(text)

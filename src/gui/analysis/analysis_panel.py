@@ -39,6 +39,7 @@ from src.gui.analysis.tactics_tab import TacticsTab
 from src.gui.components import (
     Button,
     ButtonVariant,
+    Checkbox,
     CircularAccuracyWidget,
     GraphWidget,
     IconLabel,
@@ -59,7 +60,6 @@ from src.gui.resources import ResourceManager
 from src.gui.share import ShareReportDialog, ShareReportRenderer
 from src.gui.styles import Styles
 from src.gui.tactics_meta import classification_tone
-from src.gui.utils.assets import tick_icon_path
 from src.gui.utils.layout import clear_layout
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
@@ -147,23 +147,18 @@ class AnalysisPanel(QWidget):
         toggles_layout.setContentsMargins(0, 6, 0, 6)
         toggles_layout.setSpacing(10)
 
-        from PyQt6.QtWidgets import QCheckBox
-
-        self.toggle_checkbox = QCheckBox("Engine Lines")
+        self.toggle_checkbox = Checkbox("Engine Lines")
         self.toggle_checkbox.setChecked(
             bool(self.config_manager.get("engine_lines_enabled", False))
         )
-        self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         toggles_layout.addWidget(self.toggle_checkbox)
 
-        self.cache_checkbox = QCheckBox("Use Cache")
+        self.cache_checkbox = Checkbox("Use Cache")
         self.cache_checkbox.setChecked(bool(self.config_manager.get("use_cache", True)))
-        self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         toggles_layout.addWidget(self.cache_checkbox)
         toggles_layout.addStretch()
         self.eval_layout.addLayout(toggles_layout)
-        self._apply_toggle_style()
 
         # Analysis Lines
         self.lines_widget = EngineLinesWidget(
@@ -795,8 +790,6 @@ class AnalysisPanel(QWidget):
         if self.graph_widget is not None:
             self.graph_widget.refresh_styles()
 
-        self._apply_toggle_style()
-
         if hasattr(self, "tabs"):
             self.tabs.refresh_styles()
 
@@ -814,14 +807,6 @@ class AnalysisPanel(QWidget):
 
         if self.current_game:
             self._update_summary(self.current_game.summary)
-
-    def _apply_toggle_style(self):
-        tick_path = tick_icon_path()
-        cb_style = Styles.get_checkbox_style(tick_path)
-        if hasattr(self, "toggle_checkbox"):
-            self.toggle_checkbox.setStyleSheet(cb_style)
-        if hasattr(self, "cache_checkbox"):
-            self.cache_checkbox.setStyleSheet(cb_style)
 
     def _apply_tabs_style(self):
         """Regenerates the tab stylesheet from the active theme."""

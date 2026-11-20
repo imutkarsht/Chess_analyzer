@@ -1,14 +1,20 @@
-"""
-Modern, custom UI widgets for the settings panel.
-"""
+# SPDX-License-Identifier: GPL-3.0-only
+"""Slider with a compact minus/value/plus counter."""
+
+from __future__ import annotations
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QSlider, QWidget
 
-from src.gui.components import Button, ButtonSize, ButtonVariant, Label, TextRole
+from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
+from src.gui.components.display.label import Label
 from src.gui.styles import Styles
+from src.gui.theme.typography import TextRole
 
 
-class ModernSliderCounter(QWidget):
+class SliderCounter(QWidget):
+    """Horizontal slider paired with decrement/increment controls."""
+
     editingFinished = pyqtSignal()
 
     def __init__(
@@ -39,26 +45,28 @@ class ModernSliderCounter(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
-        # QSlider
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setMinimum(round(self.min_val * self._scale))
         self.slider.setMaximum(round(self.max_val * self._scale))
         self.slider.setSingleStep(round(self.step * self._scale))
         layout.addWidget(self.slider, stretch=1)
 
-        # Counter layout: [-] [Value] [+]
         counter_layout = QHBoxLayout()
         counter_layout.setSpacing(4)
         counter_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.minus_btn = Button("−", ButtonVariant.FILLED, ButtonSize.SM, on_click=self.decrement)
+        self.minus_btn = Button(
+            "−", ButtonVariant.FILLED, ButtonSize.SM, on_click=self.decrement
+        )
         self.minus_btn.setFixedSize(26, 26)
 
         self.value_label = Label("0", role=TextRole.BODY, weight=700)
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.value_label.setFixedWidth(40)
 
-        self.plus_btn = Button("+", ButtonVariant.FILLED, ButtonSize.SM, on_click=self.increment)
+        self.plus_btn = Button(
+            "+", ButtonVariant.FILLED, ButtonSize.SM, on_click=self.increment
+        )
         self.plus_btn.setFixedSize(26, 26)
 
         counter_layout.addWidget(self.minus_btn)
@@ -67,7 +75,6 @@ class ModernSliderCounter(QWidget):
 
         layout.addLayout(counter_layout)
 
-        # Signals
         self.slider.valueChanged.connect(self._on_slider_changed)
         self.minus_btn.clicked.connect(self.editingFinished.emit)
         self.plus_btn.clicked.connect(self.editingFinished.emit)
@@ -119,42 +126,15 @@ class ModernSliderCounter(QWidget):
         val = getattr(self, "_raw_value", self.slider.value() / self._scale)
         if self.is_float:
             return f"{val:.1f}"
-        else:
-            return str(int(val))
+        return str(int(val))
 
     def setText(self, val_str: str):
         self.setValue(val_str)
 
-    def setMaximumWidth(self, w: int):
-        super().setMaximumWidth(w)
-
     def refresh_styles(self):
-        slider_style = f"""
-            QSlider::groove:horizontal {{
-                height: 6px;
-                background: {Styles.COLOR_BORDER};
-                border-radius: 3px;
-            }}
-            QSlider::sub-page:horizontal {{
-                background: {Styles.COLOR_ACCENT};
-                border-radius: 3px;
-            }}
-            QSlider::handle:horizontal {{
-                background: {Styles.COLOR_TEXT_PRIMARY};
-                width: 16px;
-                height: 16px;
-                margin-top: -5px;
-                margin-bottom: -5px;
-                border-radius: 8px;
-            }}
-            QSlider::handle:horizontal:hover {{
-                background: {Styles.COLOR_ACCENT_HOVER};
-            }}
-        """
-        self.slider.setStyleSheet(slider_style)
-
+        self.slider.setStyleSheet(Styles.get_slider_style())
         self.minus_btn.refresh_styles()
         self.plus_btn.refresh_styles()
 
 
-
+__all__ = ["SliderCounter"]

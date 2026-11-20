@@ -308,6 +308,7 @@ def download_and_extract(
     progress_callback: Callable[[int, int], None] | None = None,
     validate: bool = True,
     fallback_urls: list[str] | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> str:
     """Download a Stockfish archive, extract it, and return the binary path.
 
@@ -317,6 +318,7 @@ def download_and_extract(
         progress_callback: Optional callback(bytes_downloaded, total_bytes).
         validate: If True, run a UCI handshake before declaring success.
         fallback_urls: Additional URLs tried in order if ``url`` fails.
+        should_cancel: Optional predicate checked between download chunks.
 
     Returns:
         Absolute path to the extracted Stockfish binary.
@@ -327,7 +329,9 @@ def download_and_extract(
     errors: list[str] = []
     for candidate in urls:
         try:
-            return _download_one(candidate, dest_dir, progress_callback, validate)
+            return _download_one(
+                candidate, dest_dir, progress_callback, validate, should_cancel
+            )
         except Exception as e:  # try the next candidate
             logger.warning("Stockfish download attempt failed (%s): %s", candidate, e)
             errors.append(f"{candidate}: {e}")
@@ -342,6 +346,7 @@ def _download_one(
     dest_dir: str,
     progress_callback: Callable[[int, int], None] | None,
     validate: bool,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> str:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".download") as tmp:
         tmp_path = tmp.name
@@ -353,6 +358,7 @@ def _download_one(
             url,
             tmp_path,
             progress=progress_callback,
+            should_cancel=should_cancel,
             chunk_size=8192,
             headers={"User-Agent": _USER_AGENT},
         )

@@ -1620,11 +1620,26 @@ class Styles(metaclass=_StylesMeta):
         so toggles read as one control in every card.
         """
         p = ThemeManager.palette()
+        return cls._flat_checkbox_style(
+            tick_path, text_color=p.text_primary, font_size=13
+        )
+
+    @classmethod
+    def get_compact_checkbox_style(cls, tick_path):
+        """Dense flat checkbox used by Explorer and feedback panels."""
+        p = ThemeManager.palette()
+        return cls._flat_checkbox_style(
+            tick_path, text_color=p.text_secondary, font_size=12
+        )
+
+    @classmethod
+    def _flat_checkbox_style(cls, tick_path, *, text_color: str, font_size: int):
+        p = ThemeManager.palette()
         return f"""
             QCheckBox {{
-                color: {p.text_primary};
+                color: {text_color};
                 font-weight: 500;
-                font-size: 13px;
+                font-size: {font_size}px;
                 background: transparent;
                 border: none;
                 padding: 0px;
@@ -1685,6 +1700,61 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_slider_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QSlider::groove:horizontal {{
+                height: 6px;
+                background: {p.border};
+                border-radius: 3px;
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {p.accent};
+                border-radius: 3px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {p.text_primary};
+                width: 16px;
+                height: 16px;
+                margin-top: -5px;
+                margin-bottom: -5px;
+                border-radius: 8px;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: {p.accent_hover};
+            }}
+        """
+
+    @classmethod
+    def get_nav_list_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QListWidget {{
+                background: transparent;
+                border: none;
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 11px 14px;
+                margin: 1px 0;
+                border-radius: 8px;
+                color: {p.text_secondary};
+                font-size: 15px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+            }}
+            QListWidget::item:selected {{
+                background-color: {p.surface_light};
+                color: {p.accent};
+                border-left: 2px solid {p.accent};
+                font-weight: 600;
+            }}
+        """
+
+    @classmethod
     def get_group_box_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -1723,6 +1793,22 @@ class Styles(metaclass=_StylesMeta):
                 font-size: 12px;
                 font-weight: bold;
                 min-height: 22px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {p.accent};
+                border-radius: 3px;
+            }}
+        """
+
+    @classmethod
+    def get_thin_progress_bar_style(cls):
+        """Slim accent-only bar for update and splash progress."""
+        p = ThemeManager.palette()
+        return f"""
+            QProgressBar {{
+                border: none;
+                border-radius: 3px;
+                background-color: {p.surface_light};
             }}
             QProgressBar::chunk {{
                 background-color: {p.accent};

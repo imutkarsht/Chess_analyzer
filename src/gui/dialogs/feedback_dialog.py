@@ -4,7 +4,6 @@ Clean, modern design matching Chess Analyzer Pro standards.
 """
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QDialog,
     QHBoxLayout,
     QStackedWidget,
@@ -21,6 +20,8 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    Checkbox,
+    CheckboxVariant,
     IconLabel,
     Input,
     Label,
@@ -284,21 +285,11 @@ class FeedbackDialog(QDialog):
 
         # Diagnostic logs row
         log_header_layout = QHBoxLayout()
-        self.cb_include_logs = QCheckBox("Attach diagnostic log excerpt (recommended)")
+        self.cb_include_logs = Checkbox(
+            "Attach diagnostic log excerpt (recommended)",
+            CheckboxVariant.COMPACT,
+        )
         self.cb_include_logs.setChecked(True)
-        self.cb_include_logs.setStyleSheet(f"""
-            QCheckBox {{
-                background: transparent;
-                border: none;
-                padding: 0px;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 12px;
-                font-weight: 500;
-            }}
-            QCheckBox:hover {{
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """)
         log_header_layout.addWidget(self.cb_include_logs)
 
         log_header_layout.addStretch()

@@ -28,7 +28,6 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
-from src.gui.utils.assets import tick_icon_path
 from src.gui.views.settings.board_preview import (
     BoardThemePreview,
     board_swatch,
@@ -300,16 +299,6 @@ class BoardPiecesSettings(QGroupBox):
         self.form.refresh_styles()
         self._apply_button_styles()
         self._sync_theme_selection()
-        tick_path = tick_icon_path()
-        for checkbox in (
-            self.coordinates_checkbox,
-            self.classification_checkbox,
-            self.best_move_arrow_checkbox,
-            self.last_move_checkbox,
-            self.eval_bar_checkbox,
-            self.wheel_navigation_checkbox,
-        ):
-            checkbox.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
 
     def _apply_styles(self) -> None:
         self.tabs.refresh_styles()

@@ -476,9 +476,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `components.py` | Settings form, rows, path field, binder | `SettingsForm`, `SettingsBinder`, `PathField` |
-| `helpers.py` | Small settings helpers | — |
-| `modern_widgets.py` | Custom settings controls | `ModernSliderCounter` |
+| `components.py` | Settings form, rows, and binder | `SettingsForm`, `SettingsBinder` |
 | `background_card.py` | Base card for off-thread settings work | `BackgroundTaskCard` |
 | `background_worker.py` | Generic settings background worker | `BackgroundTaskWorker` |
 | `engine_settings.py` | Engine path and parameters | `EngineSettings` |
@@ -563,9 +561,13 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `button.py` | The only button widget | `Button`, `ButtonVariant`, `ButtonSize` |
+| `checkbox.py` | The only checkbox widget | `Checkbox`, `CheckboxVariant` |
 | `filter_chip.py` | Removable filter token with separate open/remove actions | `FilterChip` |
 | `input.py` | Input, text area, numeric editors | `Input`, `TextArea`, `InputVariant` |
+| `path_field.py` | Path input with Browse/Clear actions | `PathField` |
+| `radio_group.py` | Horizontal radio group bound to a value | `RadioChoice` |
 | `select.py` | The only dropdown | `Select`, `SelectOption` |
+| `slider_counter.py` | Slider with minus/value/plus counter | `SliderCounter` |
 | `tabs.py` | Underline/segmented tabs with page switching, enable/tooltip support | `Tabs`, `TabVariant` |
 | `date_picker.py` | Outlined date picker with calendar popup | `DatePicker` |
 | `form_field.py` | Label + control + helper/error | `FormField` |
@@ -605,6 +607,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `status_badge.py` | Header/status pill with soft, outline, solid and quiet variants | `StatusBadge`, `BadgeVariant` |
 | `engine_score_badge.py` | Engine-line score pill with evaluation-driven fill | `EngineScoreBadge` |
 | `loading_widget.py` | Full-window loading overlay | `LoadingOverlay` |
+| `progress_bar.py` | Labelled and thin progress bars | `ProgressBar`, `ProgressBarVariant` |
 | `pulsing_skeleton.py` | AI-writing skeleton | `PulsingSkeleton` |
 
 </details>
@@ -631,6 +634,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- |
 | `game_list_widget.py` | Paged, append-only game list | `GameListWidget` |
 | `game_list_item_widget.py` | Detailed/compact game card | `GameListItemWidget` |
+| `list_view.py` | Themed navigation list | `ListView` |
 | `pagination_bar.py` | Shared paging model and bar | `PaginationBar`, `PaginationState` |
 | `legend_list.py` | Chart legends | `LegendList` |
 | `sortable_item_list.py` | Drag-and-drop reorder list | `SortableItemList` |
@@ -659,8 +663,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `review_prompt_dialog.py` | In-app review prompt | `ReviewPromptDialog` |
 | `shortcut_help_dialog.py` | Shortcut cheat sheet | `ShortcutHelpDialog` |
 | `engine_error_dialog.py` | Missing/broken engine guidance | `EngineNotFoundDialog` |
+| `engine_download_worker.py` | Off-thread Stockfish download for the engine dialog | `EngineDownloadWorker` |
 | `llm_error_dialog.py` | Unconfigured LLM guidance | `LlmNotConfiguredDialog` |
-| `game_selection_dialog.py` | Multi-game selection | `GameSelectionDialog` |
 | `update_dialog.py` | Release notes and download | `UpdateNotificationDialog` |
 | `splash_screen.py` | Branded startup splash | `SplashScreen` |
 
@@ -720,7 +724,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- | --- |
 | Qt-free backend | No PyQt6 imports under `src/backend`, `src/utils`, `src/config` | `Analyzer` returns data, never widgets | Importing `pyqtSignal` in a repo |
 | Component facade | Import shared widgets from `src.gui.components` only | `from src.gui.components import Button, Select` | Importing `components.controls.button` |
-| One widget per control | Never construct raw `QPushButton`, `QLineEdit`, `QComboBox`, or use `QLabel` for plain text | `Button`, `Input`, `Select`, `Tabs`, `Label` | Local QSS strings in a view |
+| One widget per control | Never construct raw `QPushButton`, `QLineEdit`, `QComboBox`, `QCheckBox`, `QProgressBar`, or `QListWidget`, or use `QLabel` for plain text | `Button`, `Input`, `Select`, `Checkbox`, `ProgressBar`, `ListView`, `Label` | Local QSS strings in a view |
 | No button factories | Construct `Button` directly with a variant/size | `Button("Save", ButtonVariant.FILLED, icon="fa5s.save")` | `create_button(...)` / `create_icon_button(...)` |
 | One style generator | Each control's look comes from a `Styles.get_*_qss()` generator | `Styles.get_button_qss` | Hex colours or per-widget stylesheets |
 | Live theming | Per-widget styles are rebuilt on theme/accent change | `_refresh_historic_bar_styles()` | Capturing palette colours at construction |

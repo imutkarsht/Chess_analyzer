@@ -10,18 +10,26 @@ from src.backend.api.import_limits import (
 from src.backend.api.import_limits import (
     current_token as configured_token,
 )
-from src.gui.components import Button, ButtonVariant, Input, Label, TextRole, TextTone
+from src.gui.components import (
+    Button,
+    ButtonVariant,
+    Checkbox,
+    CheckboxVariant,
+    Input,
+    Label,
+    SliderCounter,
+    TextRole,
+    TextTone,
+)
 from src.gui.styles import Styles
 from src.gui.views.settings.background_card import BackgroundTaskCard
 from src.gui.views.settings.components import (
     CONTROL_WIDE,
     SettingsBinder,
     SettingsForm,
-    make_checkbox,
     make_line_edit,
     make_select,
 )
-from src.gui.views.settings.modern_widgets import ModernSliderCounter
 from src.gui.views.settings.profile_preview import ProfilePreview
 
 
@@ -174,7 +182,10 @@ class LichessCard(_ProfileCard):
 
         self.explorer_checkbox = self.binder.add(
             "lichess_explorer_enabled",
-            make_checkbox("Use the online Lichess opening explorer (token)"),
+            Checkbox(
+                "Use the online Lichess opening explorer (token)",
+                CheckboxVariant.FLAT,
+            ),
             width=None,
             inline_hint=False,
         )
@@ -281,7 +292,7 @@ class ImportNetworkCard(QGroupBox):
         outer.addWidget(self.form)
         self.binder = SettingsBinder(self.config_manager, self.form, self)
 
-        self.games_limit_input = ModernSliderCounter(
+        self.games_limit_input = SliderCounter(
             1,
             max_games_limit(self._token_provider()),
             step=1,

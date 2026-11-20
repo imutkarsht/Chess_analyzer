@@ -13,8 +13,10 @@ from PyQt6.QtWidgets import (
 
 from src.gui.components import (
     Label,
+    PathField,
     Select,
     SelectOption,
+    SliderCounter,
     TextRole,
     TextTone,
     ToastManager,
@@ -22,8 +24,7 @@ from src.gui.components import (
 from src.gui.styles import Styles
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.settings.background_worker import BackgroundTaskWorker
-from src.gui.views.settings.components import PathField, SettingsBinder, SettingsForm
-from src.gui.views.settings.modern_widgets import ModernSliderCounter
+from src.gui.views.settings.components import SettingsBinder, SettingsForm
 
 
 def _probe_engine_binary(path: str) -> tuple[bool, str]:
@@ -114,7 +115,7 @@ class EngineSettings(QGroupBox):
     def _add_threads_row(self):
         max_threads = os.cpu_count() or 1
         recommended = min(max_threads, 4)
-        self.threads_input = ModernSliderCounter(1, max_threads, step=1, parent=self)
+        self.threads_input = SliderCounter(1, max_threads, step=1, parent=self)
         self.threads_input.setMaximumWidth(220)
         self.binder.add(
             "engine_threads",

@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
-    QProgressBar,
     QVBoxLayout,
     QWidget,
 )
@@ -21,6 +20,7 @@ from src.gui.components import (
     InputSize,
     Label,
     LinkLabel,
+    ProgressBar,
     Select,
     TextRole,
     TextTone,
@@ -353,8 +353,7 @@ def build_stockfish_page(wizard) -> QWidget:
     wizard.sf_progress_desc.setVisible(False)
     card_layout.addWidget(wizard.sf_progress_desc)
 
-    wizard.sf_progress = QProgressBar()
-    wizard.sf_progress.setStyleSheet(Styles.get_progress_bar_style())
+    wizard.sf_progress = ProgressBar()
     wizard.sf_progress.setVisible(False)
     card_layout.addWidget(wizard.sf_progress)
 

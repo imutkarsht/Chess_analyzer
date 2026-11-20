@@ -76,8 +76,22 @@ def confirm_dialog(
     return dialog.exec() == QDialog.DialogCode.Accepted
 
 
-def show_error_dialog(parent, title: str, message: str, details: str = "") -> None:
-    """Show a modal error dialog with selectable/copyable details."""
+def show_error_dialog(
+    parent,
+    title: str,
+    message: str,
+    details: str = "",
+    *,
+    action_label: str | None = None,
+    on_action=None,
+    close_label: str = "OK",
+) -> None:
+    """Show a modal error dialog with selectable/copyable details.
+
+    ``action_label`` adds one optional action button (for example
+    "Report Issue"). ``on_action`` runs after the dialog closes when that
+    button was clicked.
+    """
     try:
         if parent is not None and not isinstance(parent, QObject):
             parent = None
@@ -89,6 +103,7 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
     except Exception:
         box = QMessageBox()
 
+    clicked_action = False
     try:
         box.setIcon(QMessageBox.Icon.Critical)
         box.setWindowTitle(title)
@@ -106,10 +121,24 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
         except Exception:
             pass
 
-        box.setStandardButtons(QMessageBox.StandardButton.Ok)
-        box.exec()
+        if action_label:
+            close_button = box.addButton(QMessageBox.StandardButton.Ok)
+            close_button.setText(close_label)
+            action_button = box.addButton(
+                action_label, QMessageBox.ButtonRole.ActionRole
+            )
+            box.setDefaultButton(close_button)
+            box.exec()
+            clicked_action = box.clickedButton() is action_button
+        else:
+            box.setStandardButtons(QMessageBox.StandardButton.Ok)
+            box.exec()
     except Exception:
         logger.error("show_error_dialog failed: %s", traceback.format_exc())
+        return
+
+    if clicked_action and on_action is not None:
+        on_action()
 
 
 def open_llm_settings(parent) -> None:

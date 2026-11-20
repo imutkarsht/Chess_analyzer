@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QListWidget,
     QListWidgetItem,
     QScrollArea,
     QStackedWidget,
@@ -25,6 +24,7 @@ from src.gui.components import (
     InputSize,
     InputVariant,
     Label,
+    ListView,
     TextRole,
     ToastManager,
 )
@@ -144,10 +144,7 @@ class SettingsView(QWidget):
         self.search_input.textChanged.connect(self._filter_categories)
         rail_layout.addWidget(self.search_input)
 
-        self.category_list = QListWidget()
-        self.category_list.setFrameShape(QFrame.Shape.NoFrame)
-        self.category_list.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.category_list.setSpacing(2)
+        self.category_list = ListView()
         rail_layout.addWidget(self.category_list, 1)
         content_layout.addWidget(rail)
 
@@ -244,7 +241,6 @@ class SettingsView(QWidget):
         self._search_index = self._build_search_index()
         self._populate_categories()
         self.category_list.currentRowChanged.connect(self._on_category_row_changed)
-        self._style_category_rail()
 
         # Connections
         for card in (self.theme_accent_settings, self.board_pieces_settings):
@@ -564,33 +560,6 @@ class SettingsView(QWidget):
                 self.category_list.setCurrentRow(row)
                 return
 
-    def _style_category_rail(self) -> None:
-        self.category_list.setStyleSheet(f"""
-            QListWidget {{
-                background: transparent;
-                border: none;
-                outline: none;
-            }}
-            QListWidget::item {{
-                padding: 11px 14px;
-                margin: 1px 0;
-                border-radius: 8px;
-                color: {Styles.COLOR_TEXT_SECONDARY};
-                font-size: 15px;
-                font-weight: 500;
-            }}
-            QListWidget::item:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-            QListWidget::item:selected {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                color: {Styles.COLOR_ACCENT};
-                border-left: 2px solid {Styles.COLOR_ACCENT};
-                font-weight: 600;
-            }}
-        """)
-
     def _create_save_button(self):
         btn = Button(
             "Save Settings",
@@ -758,8 +727,6 @@ class SettingsView(QWidget):
             Styles.apply_background(self.scroll_area)
         if hasattr(self, 'content_container'):
             Styles.apply_background(self.content_container)
-        if hasattr(self, 'category_list'):
-            self._style_category_rail()
         if hasattr(self, 'settings_panel'):
             self.settings_panel.setStyleSheet(self._panel_style())
         if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
