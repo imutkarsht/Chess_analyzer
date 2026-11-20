@@ -1,9 +1,6 @@
 """
 API Configuration Settings group component.
 """
-import time
-
-from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -34,6 +31,7 @@ from src.gui.views.settings.components import (
     CONTROL_WIDE,
     SettingsForm,
 )
+from src.workers import LLMProfileTestWorker
 
 
 def test_llm_sync(profile: dict, tuning: tuple | None = None) -> tuple:
@@ -525,20 +523,6 @@ class ApiSettings(QGroupBox):
     # Connection test
     # ------------------------------------------------------------------
     def _test_llm_profile(self) -> None:
-        class _TestWorker(QThread):
-            done = pyqtSignal(bool, str, str, float)
-
-            def __init__(self, profile: dict, tuning: tuple, parent=None):
-                super().__init__(parent)
-                self._profile = profile
-                self._tuning = tuning
-
-            def run(self):
-                start = time.perf_counter()
-                ok, short, full = test_llm_sync(self._profile, self._tuning)
-                elapsed_ms = (time.perf_counter() - start) * 1000
-                self.done.emit(ok, short, full, elapsed_ms)
-
         profile = self._current_profile_dict()
         model = profile.get("model") or "default model"
         tuning = explanation_tuning(self.config_manager)
@@ -552,7 +536,7 @@ class ApiSettings(QGroupBox):
             previous_toast.dismiss()
         self._test_toast = ToastManager.loading(self, f"Testing {model}…")
 
-        worker = _TestWorker(profile, tuning)
+        worker = LLMProfileTestWorker(profile, tuning, test_llm_sync)
         self._test_worker = worker
         register_worker(worker)
         worker.finished.connect(lambda w=worker: remove_worker(w))
