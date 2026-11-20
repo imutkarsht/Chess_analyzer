@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.services.feedback_service import FeedbackService, FeedbackWorker
+from src.backend.services.feedback_service import FeedbackService
 from src.constants import REVIEW_SNOOZE_INTERVAL
 from src.gui.components import (
     Button,
@@ -25,6 +25,7 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
+from src.workers import FeedbackWorker
 
 
 class ReviewPromptDialog(QDialog):

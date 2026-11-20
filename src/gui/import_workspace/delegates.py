@@ -6,8 +6,8 @@ from PyQt6.QtCore import QEvent, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QHeaderView, QStyledItemDelegate
 
+from src.backend.models.import_candidates import GameCandidate
 from src.gui.board import MiniBoardConfig, render_mini_board_pixmap
-from src.gui.import_workspace.batch import GameCandidate
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextTone
 

@@ -8,8 +8,8 @@ from PyQt6.QtCore import QTimer
 from src.backend.analysis.chess_utils import position_key
 from src.backend.api.import_limits import current_token
 from src.backend.storage.game_history import GameHistoryManager
-from src.gui.views.explorer.lichess_worker import LichessExplorerWorker
 from src.utils.logger import logger
+from src.workers.imports import LichessExplorerWorker
 
 
 class ExplorerOnlineMixin:

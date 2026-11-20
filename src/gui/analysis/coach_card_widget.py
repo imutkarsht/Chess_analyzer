@@ -4,7 +4,7 @@ Coach card: the per-move explanation surface in the Analysis panel's Coach tab.
 The card is presentation only. It renders the deterministic offline summary
 immediately, offers an "Ask Coach" action, and renders a validated narrative
 when the owner hands one over. All LLM work belongs to
-:class:`~src.gui.analysis.coach_worker.ExplainMoveWorker`.
+:class:`~src.workers.analysis.coach_worker.ExplainMoveWorker`.
 """
 
 from __future__ import annotations

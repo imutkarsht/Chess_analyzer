@@ -10,8 +10,8 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 
+from src.backend.models.import_candidates import GameCandidate
 from src.backend.storage.game_identity import normalize_date
-from src.gui.import_workspace.batch import GameCandidate
 from src.utils.date_utils import format_display_date
 
 COL_CHECK = 0

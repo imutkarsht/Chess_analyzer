@@ -8,7 +8,6 @@ from src.backend.storage.game_identity import game_identity_key
 from src.backend.storage.pgn_metadata import extract_pgn_metadata
 from src.backend.storage.pgn_parser import PGNParser
 from src.gui.import_workspace import GameBatch, GameImportView
-from src.gui.import_workspace.boards import MiniBoardFenWorker
 from src.gui.import_workspace.model import (
     COL_BOARD,
     COL_DETAILS,
@@ -16,6 +15,7 @@ from src.gui.import_workspace.model import (
     COL_TERMINATION,
 )
 from src.gui.views.history_view import HistoryView
+from src.workers.imports import MiniBoardFenWorker
 
 
 def _batch(saved_first: bool = True) -> GameBatch:

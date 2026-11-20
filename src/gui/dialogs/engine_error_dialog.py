@@ -22,9 +22,9 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.dialogs.engine_download_worker import EngineDownloadWorker
 from src.gui.styles import Styles
 from src.utils.path_utils import get_engine_data_dir
+from src.workers import EngineDownloadWorker
 
 
 class EngineNotFoundDialog(QDialog):

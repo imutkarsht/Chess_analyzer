@@ -27,7 +27,6 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.metrics.drill_down_view import DrillDownView
-from src.gui.metrics.workers import StatsWorker
 from src.gui.styles import Styles
 from src.gui.utils.layout import clear_layout
 from src.gui.utils.worker_registry import register_worker, remove_worker
@@ -46,6 +45,7 @@ from src.gui.views.metrics.openings_list_card import OpeningsListCard
 from src.gui.views.metrics.phase_performance_card import PhasePerformanceCard
 from src.gui.views.metrics.tactical_themes_card import TacticalThemesCard
 from src.gui.views.metrics.time_management_card import TimeManagementCard
+from src.workers.metrics import StatsWorker
 
 
 class MetricsWidget(QWidget):

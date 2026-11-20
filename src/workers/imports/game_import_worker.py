@@ -2,13 +2,13 @@
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.backend.models.import_candidates import GameCandidate
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.pgn_parser import PGNParser
-from src.gui.import_workspace.batch import GameCandidate
 from src.utils.logger import logger
 
 
-class GameImportWorker(QThread):
+class BulkGameImportWorker(QThread):
     """Parse selected games as lightweight stubs and insert them in batches."""
 
     progress = pyqtSignal(int, int)  # (done, total)

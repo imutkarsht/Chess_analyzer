@@ -16,7 +16,7 @@ from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.models import GameMetadata, MoveAnalysis
 from src.constants import EXPLANATION_PROMPT_VERSION
-from src.gui.analysis.coach_worker import ExplainMoveWorker, RequestLimiter
+from src.workers.analysis import ExplainMoveWorker, RequestLimiter
 
 LEGAL = ["e4", "e5", "Nf3", "Nc6", "Bc4", "d6", "Nc3", "Bg4", "Nxe5", "Bxd1"]
 MODEL = "openai/gpt-oss-120b"
