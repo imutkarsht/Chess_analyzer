@@ -660,7 +660,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `shortcut_help_dialog.py` | Shortcut cheat sheet | `ShortcutHelpDialog` |
 | `engine_error_dialog.py` | Missing/broken engine guidance | `EngineNotFoundDialog` |
 | `llm_error_dialog.py` | Unconfigured LLM guidance | `LlmNotConfiguredDialog` |
-| `game_selection_dialog.py` | Multi-game selection | `GameSelectionDialog` |
 | `update_dialog.py` | Release notes and download | `UpdateNotificationDialog` |
 | `splash_screen.py` | Branded startup splash | `SplashScreen` |
 

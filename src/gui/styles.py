@@ -1726,6 +1726,35 @@ class Styles(metaclass=_StylesMeta):
         """
 
     @classmethod
+    def get_nav_list_style(cls):
+        p = ThemeManager.palette()
+        return f"""
+            QListWidget {{
+                background: transparent;
+                border: none;
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 11px 14px;
+                margin: 1px 0;
+                border-radius: 8px;
+                color: {p.text_secondary};
+                font-size: 15px;
+                font-weight: 500;
+            }}
+            QListWidget::item:hover {{
+                background-color: {p.surface_light};
+                color: {p.text_primary};
+            }}
+            QListWidget::item:selected {{
+                background-color: {p.surface_light};
+                color: {p.accent};
+                border-left: 2px solid {p.accent};
+                font-weight: 600;
+            }}
+        """
+
+    @classmethod
     def get_group_box_style(cls):
         p = ThemeManager.palette()
         return f"""

@@ -63,6 +63,7 @@ from src.gui.components.layout.tour_overlay import TourOverlay
 from src.gui.components.layout.transition_stack import FadedStackedWidget
 from src.gui.components.layout.welcome_panel import WelcomePanel
 from src.gui.components.lists.legend_list import LegendList
+from src.gui.components.lists.list_view import ListView
 from src.gui.components.lists.pagination_bar import (
     PaginationBar,
     PaginationSize,
@@ -127,6 +128,7 @@ __all__ = [
     'RadioChoice',
     'SliderCounter',
     'LegendList',
+    'ListView',
     'LoadingOverlay',
     'MiniBar',
     'open_feedback_dialog',
