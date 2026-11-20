@@ -213,13 +213,23 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
   | Use | Instead of |
   | --- | --- |
   | `Button` | `QPushButton`, `QToolButton`, local button QSS, `create_button` / `create_icon_button` wrappers |
+  | `Checkbox` | `QCheckBox`, local checkbox QSS |
   | `Input` / `TextArea` | `QLineEdit`, `QTextEdit` |
   | `Select` | `QComboBox`, `create_combobox` |
+  | `PathField` | one-off path input + Browse/Clear rows |
+  | `RadioChoice` | raw `QRadioButton` groups |
+  | `SliderCounter` | raw `QSlider` + counter rows |
+  | `ProgressBar` | `QProgressBar`, local progress QSS |
+  | `ListView` | raw `QListWidget` navigation rails |
   | `Tabs` | ad-hoc `QTabBar` styling |
   | `DatePicker` | platform date widgets |
   | `ToastManager` | `QMessageBox` for transient feedback |
   | `PaginationBar` | hand-rolled prev/next rows |
   | `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `LegendList` | per-card reimplementations |
+
+  Documented exceptions: board swatches, theme cards, star rating, variation
+  graph nodes, the move-cell variation badge, pixmap `QLabel`s, the toast
+  hairline progress bar, and the domain-specific move table.
 
 - Control looks come from a **`Styles.get_*_qss()` generator**. Do not add
   widget-local QSS or hex colors.

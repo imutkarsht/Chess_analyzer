@@ -32,6 +32,49 @@ def test_no_raw_push_or_tool_buttons_outside_the_central_component():
     assert offenders == []
 
 
+RAW_FORM_CONTROLS = (
+    "QCheckBox(",
+    "QProgressBar(",
+    "QRadioButton(",
+    "QSlider(",
+    "QListWidget(",
+    "QComboBox(",
+    "QLineEdit(",
+    "QSpinBox(",
+    "QDoubleSpinBox(",
+    "QDateEdit(",
+    "QTabWidget(",
+)
+
+
+def test_no_raw_form_controls_outside_the_central_components():
+    repo_root = Path(__file__).resolve().parents[2]
+    gui_root = repo_root / "src" / "gui"
+    offenders = []
+    for path in gui_root.rglob("*.py"):
+        relative = path.relative_to(repo_root).as_posix()
+        if relative.startswith("src/gui/components/"):
+            continue
+        text = path.read_text(encoding="utf-8")
+        for constructor in RAW_FORM_CONTROLS:
+            if constructor in text:
+                offenders.append(f"{relative}: {constructor[:-1]}")
+    assert offenders == []
+
+
+def test_no_raw_message_boxes_outside_the_shared_dialogs():
+    repo_root = Path(__file__).resolve().parents[2]
+    gui_root = repo_root / "src" / "gui"
+    offenders = []
+    for path in gui_root.rglob("*.py"):
+        relative = path.relative_to(repo_root).as_posix()
+        if relative == "src/gui/components/dialogs.py":
+            continue
+        if "QMessageBox" in path.read_text(encoding="utf-8"):
+            offenders.append(relative)
+    assert offenders == []
+
+
 def test_central_buttons_are_not_restyled_or_reiconed_manually():
     """Button owns its QSS/icon; callers must use refresh_styles/set_icon_spec."""
     repo_root = Path(__file__).resolve().parents[2]
