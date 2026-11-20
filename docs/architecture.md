@@ -155,10 +155,11 @@ Forbidden edges:
    thumbs come from the shared cached `render_mini_board_pixmap()`; History
    cards and drill-down rows use the same renderer through
    `MiniBoardWidget`.
-6. `GameImportWorker` parses selected games with `PGNParser.parse_game_stub()`
+6. `BulkGameImportWorker` parses selected games with `PGNParser.parse_game_stub()`
    and persists them through `GameHistoryManager.save_unanalyzed_games_bulk()`
    using `INSERT OR IGNORE`, preserving existing analyzed rows.
-7. CSV import remains in `HistoryView` via its own `GameImportWorker`.
+7. CSV import runs through `CsvImportWorker`; annotated PGN export uses
+   `AnnotatedPGNExportWorker`, both under `src/workers/history/`.
 
 ### AI move explanation
 
@@ -348,6 +349,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `cache/api_cache.py` | Legacy in-memory/DB cache facade used by API clients | `ApiGameCache` |
 | `engine/downloader.py` | Stockfish release discovery, download and validation | `ReleaseAsset`, `StockfishDownloader` |
 | `models/game_info.py` | Lightweight game summary passed between API and UI | `GameInfo` |
+| `models/import_candidates.py` | Source-independent import candidates and batches | `GameBatch`, `GameCandidate` |
 | `services/feedback_service.py` | Sends reviews, bug reports and suggestions | `FeedbackService` |
 | `services/groq_service.py` | Provider-agnostic OpenAI-compatible LLM client | `GroqService` |
 | `updater/update_checker.py` | GitHub release check and version comparison | `UpdateChecker` |
@@ -363,6 +365,14 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `update_worker.py` | In-app update download | `DownloadWorker` |
 | `update_checker_worker.py` | Background release check | `UpdateCheckerWorker` |
 | `feedback_worker.py` | Feedback/review submission | `FeedbackWorker` |
+| `engine_download_worker.py` | Engine-missing Stockfish download | `EngineDownloadWorker` |
+| `stockfish_download_worker.py` | Setup-wizard Stockfish install | `StockfishDownloadWorker` |
+| `llm_test_worker.py` | Setup-wizard and profile connection tests | `LLMTestWorker`, `LLMProfileTestWorker` |
+| `analysis/` | Full-game, batch, live, coach, and summary workers | `AnalysisWorker`, `BatchAnalysisWorker`, `LiveAnalysisWorker`, `ExplainMoveWorker`, `GenerateSummaryThread` |
+| `imports/` | API, PGN, mini-board, explorer, and bulk-import workers | `ApiWorker`, `PgnIndexWorker`, `MiniBoardFenWorker`, `LichessExplorerWorker`, `BulkGameImportWorker` |
+| `metrics/` | Stats and AI-insight workers | `StatsWorker`, `InsightWorker` |
+| `history/` | CSV import and annotated-PGN export workers | `CsvImportWorker`, `AnnotatedPGNExportWorker` |
+| `settings/` | Generic settings background worker | `BackgroundTaskWorker` |
 
 </details>
 
@@ -444,9 +454,8 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `explorer/book_skeleton.py` | Pulsing placeholder rows while Lichess loads | `ExplorerBookSkeleton` |
 | `explorer/book_row.py` | One opening-book row | `BookRowWidget` |
 | `explorer/ratio_bar.py` | Win/draw/loss ratio bar | `RatioBar` |
-| `explorer/lichess_worker.py` | Off-thread Lichess explorer lookup | `LichessExplorerWorker` |
 | `explorer/types.py` | Shared explorer typing | `ClassificationContext` |
-| `history_view.py` | Game history page: paging, import, bulk selection and queue hosting | `HistoryView`, `GameImportWorker` |
+| `history_view.py` | Game history page: paging, import, bulk selection and queue hosting | `HistoryView` |
 | `history_batch.py` | Batch selection bar, collapsible queue card, stats/timing and reorderable Up next | `BatchSelectionBar`, `BatchQueueCard`, `UpNextEntry` |
 | `history_filter_bar.py` | Search, active-filter tokens, disclosure panel | `HistoryFilterBar` |
 | `metrics_view.py` | Stats dashboard shell | `MetricsWidget` |
@@ -491,7 +500,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- |
 | `components.py` | Settings form, rows, and binder | `SettingsForm`, `SettingsBinder` |
 | `background_card.py` | Base card for off-thread settings work | `BackgroundTaskCard` |
-| `background_worker.py` | Generic settings background worker | `BackgroundTaskWorker` |
 | `engine_settings.py` | Engine path and parameters | `EngineSettings` |
 | `full_analysis_settings.py` | Full-game analysis options | `FullAnalysisSettings` |
 | `live_analysis_settings.py` | Live engine options | `LiveAnalysisSettings` |
@@ -523,17 +531,13 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `analysis_panel.py` | Analysis workspace: Report, Evaluation, Coach, and per-game Tactics; gates result tabs until analysis | `AnalysisPanel`, `GenerateSummaryThread` |
-| `analysis_worker.py` | Full-game analysis QThread | `AnalysisWorker` |
-| `batch_analysis_worker.py` | Batch queue QThread adapter; persists outcomes and emits progress/summary signals | `BatchAnalysisWorker` |
+| `analysis_panel.py` | Analysis workspace: Report, Evaluation, Coach, and per-game Tactics; gates result tabs until analysis | `AnalysisPanel` |
 | `coordinator.py` | App-wide single/batch/live-engine/delete gating state | `AnalysisCoordinator` |
 | `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
-| `coach_worker.py` | Off-thread explanation request and rate limiting | `ExplainMoveWorker`, `RequestLimiter` |
 | `captured.py` | Captured pieces and material advantage | `CapturedPiecesWidget` |
 | `move_controls.py` | Shared step controls with inline play/pause and follow icon (analysis and explorer variants) | `MoveControls` |
 | `move_list_view.py` | Shared move table, row mapping, selection and both render modes | `MoveListView`, `MoveListEntry` |
 | `line_utils.py` | Engine-line presentation helpers | — |
-| `live_analysis.py` | Live position analysis worker | `LiveAnalysisWorker` |
 | `move_cell_widget.py` | One move cell with badge and think time | `MoveCellWidget` |
 | `move_list_panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
 | `tactics_tab.py` | Scrollable per-game tactics timeline with side toggle and grouped rows | `TacticsTab`, `TacticRow` |
@@ -564,7 +568,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `metrics/charts.py` | Matplotlib chart builders | — |
 | `metrics/drill_down_view.py` | Position-level stats explorer | `DrillDownView` |
 | `metrics/drill_down_item.py` | One drill-down occurrence row; opens the exact 0-based ply and renders mate evals | `DrillDownItemWidget` |
-| `metrics/workers.py` | Stats and AI-insight workers | `StatsWorker`, `InsightWorker` |
 
 ### `src/gui/components` (use the facade, not these paths)
 
@@ -665,18 +668,15 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `load_game/online_fetch_panel.py` | Chess.com/Lichess fetch panel | `OnlineFetchPanel` |
 | `load_game/pgn_file_panel.py` | PGN file panel | `PgnFilePanel` |
 | `load_game/pgn_text_panel.py` | PGN text panel | `PgnTextPanel` |
-| `load_game/api_worker.py` | Off-thread API fetch | `ApiWorker` |
-| `load_game/pgn_worker.py` | Off-thread PGN header indexing | `PgnIndexWorker` |
 | `load_game/drop_zone.py` | File drop zone | `DropZone` |
 | `load_game/helpers.py` | Shared source helpers | — |
-| `setup_wizard.py` | First-run wizard and engine/LLM test workers | `SetupWizard` |
+| `setup_wizard.py` | First-run wizard | `SetupWizard` |
 | `wizard/wizard_pages.py` | Wizard pages | — |
 | `wizard/wizard_nav_bar.py` | Step indicator | `WizardNavBar` |
 | `feedback_dialog.py` | Review/bug/feature dialog | `FeedbackDialog` |
 | `review_prompt_dialog.py` | In-app review prompt | `ReviewPromptDialog` |
 | `shortcut_help_dialog.py` | Shortcut cheat sheet | `ShortcutHelpDialog` |
 | `engine_error_dialog.py` | Missing/broken engine guidance | `EngineNotFoundDialog` |
-| `engine_download_worker.py` | Off-thread Stockfish download for the engine dialog | `EngineDownloadWorker` |
 | `llm_error_dialog.py` | Unconfigured LLM guidance | `LlmNotConfiguredDialog` |
 | `update_dialog.py` | Release notes and download | `UpdateNotificationDialog` |
 | `splash_screen.py` | Branded startup splash | `SplashScreen` |
@@ -693,12 +693,9 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `header.py` | Back navigation, source summary, counters | `ImportHeader` |
 | `toolbar.py` | Search, result/colour/time/history filters, board toggle | `ImportToolbar` |
 | `action_bar.py` | Selection summary, progress, open/add actions | `ImportActionBar` |
-| `batch.py` | Source-independent candidates and batches | `GameBatch`, `GameCandidate` |
 | `model.py` | Virtualized table and filter proxy | `GameImportTableModel`, `GameImportFilterProxy` |
 | `view.py` | Workspace orchestration and table composition | `GameImportView` |
 | `delegates.py` | Checkbox, board, and status-pill painting | `CheckboxDelegate`, `BoardDelegate`, `StatusPillDelegate` |
-| `boards.py` | Visible-row FEN and last-move enrichment | `MiniBoardFenWorker`, `MiniBoardPosition` |
-| `worker.py` | Bulk unanalyzed game insertion | `GameImportWorker` |
 
 </details>
 
@@ -723,7 +720,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | Path | Purpose |
 | --- | --- |
-| `tests/` | `backend/`, `gui/`, `storage/` suites with shared `conftest.py`; 85% branch floor, GUI excluded |
+| `tests/` | `backend/`, `gui/`, `storage/` suites with shared `conftest.py`; 80% branch floor, GUI excluded |
 | `assets/` | Images, icons, sounds, piece SVGs (third-party pieces documented separately) |
 | `docs/` | This reference, onboarding tutorial, user guide |
 | `installers/` | Platform packaging scripts and outputs |

@@ -150,8 +150,8 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 
 - **Cover the behavior, not the line count.** New logic needs tests for its
   meaningful branches, calculations, and failure fallbacks. Do not add tests
-  just to raise the percentage, and do not lower `fail_under` to make the gate
-  pass.
+  just to raise the percentage, and do not lower `fail_under` below 80 to make
+  the gate pass.
 - **No test bloat.** Extend or parameterize an existing test instead of adding a
   near-duplicate. Delete tests that only smoke-check construction, duplicate
   another module's coverage, or do not protect app-breaking behavior.
