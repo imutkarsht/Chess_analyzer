@@ -9,7 +9,6 @@ import time
 from typing import Any
 
 import requests
-from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.constants import (
     APP_VERSION,
@@ -284,24 +283,4 @@ class FeedbackService:
             return False, {}
 
 
-class FeedbackWorker(QThread):
-    """
-    QThread worker to submit feedback / reviews asynchronously without
-    blocking the PyQt GUI event loop.
-    """
 
-    finished = pyqtSignal(bool, str, dict)  # success, message, data
-
-    def __init__(self, target_callable, *args, **kwargs):
-        super().__init__()
-        self._callable = target_callable
-        self._args = args
-        self._kwargs = kwargs
-
-    def run(self):
-        try:
-            success, msg, data = self._callable(*self._args, **self._kwargs)
-            self.finished.emit(success, msg, data)
-        except Exception as e:
-            logger.error(f"FeedbackWorker exception: {e}")
-            self.finished.emit(False, f"Error: {e}", {})

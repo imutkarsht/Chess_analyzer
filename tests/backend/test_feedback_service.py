@@ -5,12 +5,12 @@ import requests
 
 from src.backend.services.feedback_service import (
     FeedbackService,
-    FeedbackWorker,
     get_formatted_version,
     get_platform_name,
     get_recent_logs,
 )
 from src.constants import FEEDBACK_REVIEWS_URL, FEEDBACK_URL
+from src.workers import FeedbackWorker
 
 
 @pytest.fixture(autouse=True)

@@ -11,11 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.services.feedback_service import (
-    FeedbackService,
-    FeedbackWorker,
-    get_recent_logs,
-)
+from src.backend.services.feedback_service import FeedbackService, get_recent_logs
 from src.gui.components import (
     Button,
     ButtonSize,
@@ -34,6 +30,7 @@ from src.gui.components import (
 )
 from src.gui.styles import Styles
 from src.utils.config import ConfigManager
+from src.workers import FeedbackWorker
 
 
 class FeedbackDialog(QDialog):
