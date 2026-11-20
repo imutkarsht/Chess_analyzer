@@ -18,7 +18,7 @@ from src.backend.models.analysis_batch import (
 )
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
-from src.gui.analysis.batch_analysis_worker import BatchAnalysisWorker
+from src.workers.analysis import BatchAnalysisWorker
 
 
 def _game(game_id: str, status: str) -> GameAnalysis:

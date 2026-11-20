@@ -21,8 +21,8 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from src.backend.analysis.engine_line import EngineLine
 from src.constants import DEFAULT_MULTI_PV
-from src.gui.analysis.live_analysis import LiveAnalysisWorker
 from src.utils.logger import logger
+from src.workers.analysis import LiveAnalysisWorker
 
 
 class LiveEngineSession(QObject):

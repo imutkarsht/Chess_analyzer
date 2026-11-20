@@ -7,12 +7,12 @@ from unittest.mock import MagicMock
 from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
-from src.gui.metrics.workers import StatsWorker
 from src.gui.views.metrics.card_registry import (
     DEFAULT_CARD_ORDER,
     normalise_card_order,
 )
 from src.gui.views.metrics_view import MetricsWidget
+from src.workers.metrics import StatsWorker
 
 
 def test_metrics_view_setup_required(qapp, qtbot):

@@ -10,7 +10,7 @@ from typing import Any
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from src.backend.analysis.metrics_aggregator import MetricsAggregator
+from src.backend.analysis.metrics import calculate_stats
 from src.utils.logger import logger
 
 
@@ -48,7 +48,7 @@ class InsightWorker(QThread):
 
 
 class StatsWorker(QThread):
-    """Worker thread bridging MetricsAggregator to PyQt signals.
+    """Worker thread bridging metrics aggregation to PyQt signals.
 
     The worker can either receive an in-memory list (tests/small callers) or a
     loader callable that queries the database inside ``run``. The loader path
@@ -117,8 +117,8 @@ class StatsWorker(QThread):
     def _calculate_stats(
         self, games: list[dict[str, Any]] | None = None
     ) -> dict[str, Any] | None:
-        """Compatibility shim delegating to MetricsAggregator."""
-        return MetricsAggregator.calculate_stats(
+        """Delegate to the canonical metrics aggregation function."""
+        return calculate_stats(
             games=self.games if games is None else games,
             usernames=self.usernames,
             color_filter=self.color_filter,

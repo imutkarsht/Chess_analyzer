@@ -34,11 +34,11 @@ from src.gui.components import (
     open_llm_settings,
     show_error_dialog,
 )
-from src.gui.metrics.workers import InsightWorker
 from src.gui.styles import Styles
 from src.gui.utils.layout import clear_layout
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.metrics.base_card import MetricCard
+from src.workers.metrics import InsightWorker
 
 
 class AICoachCard(MetricCard):

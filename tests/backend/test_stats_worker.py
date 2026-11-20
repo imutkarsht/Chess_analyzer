@@ -6,7 +6,7 @@ import json
 import time
 
 from src.backend.analysis.metrics_aggregator import MetricsAggregator
-from src.gui.metrics.workers import StatsWorker
+from src.workers.metrics import StatsWorker
 
 
 def make_dummy_game(
