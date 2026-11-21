@@ -28,13 +28,19 @@ from src.backend.storage.schema_constants import (
 from src.utils.logger import logger
 
 _GENERIC_TERMINATIONS = {"", "normal", "unknown", "?"}
-_FALLBACK_TERMINATION_MODES = {"resignation", "agreed_draw", "unterminated"}
+_BOARD_TERMINAL_MODES = {
+    "checkmate",
+    "stalemate",
+    "insufficient_material",
+    "threefold_repetition",
+    "fifty_moves",
+}
 
 
 def _canonical_termination(mode: str, description: str, stored: str | None) -> str:
-    """Keep source-specific fallback wording, but never stale board results."""
+    """Keep source-specific wording unless the board proves a terminal result."""
     text = (stored or "").strip()
-    if mode in _FALLBACK_TERMINATION_MODES and text.lower() not in _GENERIC_TERMINATIONS:
+    if mode not in _BOARD_TERMINAL_MODES and text.lower() not in _GENERIC_TERMINATIONS:
         return text
     return description
 

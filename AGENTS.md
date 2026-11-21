@@ -47,6 +47,7 @@ src/
 │   │   └── variation_tree.py
 │   ├── api/                # Chess.com & Lichess REST clients (rate-limited, timeout-protected)
 │   ├── cache/              # API response cache facade
+│   ├── domain/             # Shared domain rules (termination classification)
 │   ├── engine/             # Stockfish downloader & binary validator
 │   ├── models/             # Lightweight cross-layer models (GameInfo)
 │   ├── services/           # GroqService (OpenAI-compatible), feedback service

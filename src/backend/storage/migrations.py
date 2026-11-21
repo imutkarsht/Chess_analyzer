@@ -246,7 +246,14 @@ def _backfill_termination_mode(cursor: sqlite3.Cursor) -> None:
             stored_term = (term or "").strip()
             clean_term = desc
             if (
-                mode in ("resignation", "agreed_draw", "unterminated")
+                mode
+                not in (
+                    "checkmate",
+                    "stalemate",
+                    "insufficient_material",
+                    "threefold_repetition",
+                    "fifty_moves",
+                )
                 and stored_term.lower() not in ("", "normal", "unknown", "?")
             ):
                 clean_term = stored_term
