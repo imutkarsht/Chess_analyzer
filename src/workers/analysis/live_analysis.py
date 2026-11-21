@@ -16,7 +16,6 @@ from src.backend.analysis.engine_line import line_from_engine_info
 from src.constants import (
     DEFAULT_ANALYSIS_DEPTH,
     DEFAULT_ENGINE_HASH_MB,
-    DEFAULT_ENGINE_THREADS,
     DEFAULT_LIVE_ANALYSIS_TIME,
     DEFAULT_LIVE_MULTI_PV,
 )
@@ -63,7 +62,7 @@ class LiveAnalysisWorker(QThread):
     def _live_time(self) -> float:
         if self.config_manager is not None:
             try:
-                return float(self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME))
+                return float(self.config_manager.live_analysis_time)
             except (TypeError, ValueError):
                 pass
         return DEFAULT_LIVE_ANALYSIS_TIME
@@ -71,9 +70,7 @@ class LiveAnalysisWorker(QThread):
     def _live_multi_pv(self) -> int:
         if self.config_manager is not None:
             try:
-                value = int(
-                    self.config_manager.get("live_multi_pv", DEFAULT_LIVE_MULTI_PV)
-                )
+                value = int(self.config_manager.live_multi_pv)
                 if value >= 1:
                     return value
             except (TypeError, ValueError):
@@ -83,7 +80,7 @@ class LiveAnalysisWorker(QThread):
     def _live_depth(self) -> int:
         if self.config_manager is not None:
             try:
-                return int(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH))
+                return int(self.config_manager.analysis_depth)
             except (TypeError, ValueError):
                 pass
         return DEFAULT_ANALYSIS_DEPTH
@@ -91,7 +88,7 @@ class LiveAnalysisWorker(QThread):
     def _threads(self) -> int:
         if self.config_manager is not None:
             try:
-                return int(self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS))
+                return int(self.config_manager.engine_threads)
             except (TypeError, ValueError):
                 pass
         return 1
@@ -99,7 +96,7 @@ class LiveAnalysisWorker(QThread):
     def _hash(self) -> int:
         if self.config_manager is not None:
             try:
-                return int(self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB))
+                return int(self.config_manager.engine_hash)
             except (TypeError, ValueError):
                 pass
         return DEFAULT_ENGINE_HASH_MB

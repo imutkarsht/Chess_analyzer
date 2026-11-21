@@ -293,6 +293,119 @@ class ConfigManager:
         )
 
     # ------------------------------------------------------------------
+    # Engine / analysis accessors
+    # ------------------------------------------------------------------
+    @property
+    def engine_path(self) -> str:
+        return str(self.get("engine_path", self._setting_default("engine_path")) or "")
+
+    @property
+    def polyglot_book_path(self) -> str:
+        return str(
+            self.get("polyglot_book_path", self._setting_default("polyglot_book_path"))
+            or ""
+        )
+
+    @property
+    def engine_threads(self) -> int:
+        return self.get_int("engine_threads", int(self._setting_default("engine_threads")))
+
+    @property
+    def engine_hash(self) -> int:
+        return self.get_int("engine_hash", int(self._setting_default("engine_hash")))
+
+    @property
+    def analysis_depth(self) -> int:
+        return self.get_int(
+            "analysis_depth", int(self._setting_default("analysis_depth"))
+        )
+
+    @property
+    def multi_pv(self) -> int:
+        return self.get_int("multi_pv", int(self._setting_default("multi_pv")))
+
+    @property
+    def time_per_move(self) -> float | None:
+        value = self.get("time_per_move", self._setting_default("time_per_move"))
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            fallback = self._setting_default("time_per_move")
+            return float(fallback) if fallback is not None else None
+
+    @property
+    def use_cache(self) -> bool:
+        return self.get_bool("use_cache", bool(self._setting_default("use_cache")))
+
+    @property
+    def engine_lines_enabled(self) -> bool:
+        return self.get_bool(
+            "engine_lines_enabled", bool(self._setting_default("engine_lines_enabled"))
+        )
+
+    @property
+    def live_analysis_time(self) -> float:
+        return self.get_float(
+            "live_analysis_time", float(self._setting_default("live_analysis_time"))
+        )
+
+    @property
+    def live_multi_pv(self) -> int:
+        return self.get_int(
+            "live_multi_pv", int(self._setting_default("live_multi_pv"))
+        )
+
+    @property
+    def coach_persona(self) -> str:
+        return self.get_choice(
+            "coach_persona", str(self._setting_default("coach_persona"))
+        )
+
+    @property
+    def explain_llm_for_trivial_moves(self) -> bool:
+        return self.get_bool(
+            "explain_llm_for_trivial_moves",
+            bool(self._setting_default("explain_llm_for_trivial_moves")),
+        )
+
+    @property
+    def explain_cache_ttl_days(self) -> int | None:
+        return self._nullable_int("explain_cache_ttl_days")
+
+    @property
+    def analysis_cache_max_entries(self) -> int:
+        return self.get_int(
+            "analysis_cache_max_entries",
+            int(self._setting_default("analysis_cache_max_entries")),
+        )
+
+    @property
+    def explorer_cache_ttl_hours(self) -> int | None:
+        return self._nullable_int("explorer_cache_ttl_hours")
+
+    @property
+    def profile_cache_ttl_hours(self) -> int | None:
+        return self._nullable_int("profile_cache_ttl_hours")
+
+    @property
+    def api_games_limit(self) -> int:
+        return self.get_int(
+            "api_games_limit", int(self._setting_default("api_games_limit"))
+        )
+
+    def _nullable_int(self, key: str) -> int | None:
+        value = self.get(key, self._setting_default(key))
+        if value is None:
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            fallback = self._setting_default(key)
+            return int(fallback) if fallback is not None else None
+
+    # ------------------------------------------------------------------
     # Public accessors
     # ------------------------------------------------------------------
     def reload_config(self):

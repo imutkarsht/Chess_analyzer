@@ -23,7 +23,6 @@ from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.models import GameAnalysis, MoveAnalysis
-from src.constants import DEFAULT_ANALYSIS_DEPTH, DEFAULT_MULTI_PV
 from src.utils.config import ConfigManager
 from src.utils.format_utils import format_eval
 from src.utils.logger import logger
@@ -46,22 +45,22 @@ class Analyzer:
         except FileNotFoundError:
             logger.warning(f"Opening TSV files not found in {tsv_dir}; book detection disabled")
         self.local_book = LocalBookManager(self._opening_db)
-        polyglot_path = self.config_manager.get("polyglot_book_path", "")
+        polyglot_path = self.config_manager.polyglot_book_path
         self.polyglot_book = PolyglotBookManager(polyglot_path)
         if just_populated:
             logger.info(f"Opening book populated: {db_path}")
         self.config = {
-            "time_per_move": self.config_manager.get("time_per_move", 1.0),
-            "depth": self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH),
+            "time_per_move": self.config_manager.time_per_move,
+            "depth": self.config_manager.analysis_depth,
             # multi_pv is read from user config (default 1) so the same
             # default applies to the Game Analysis tab.  See issue #5:
             # the previous hard-coded 3 was identified as a primary cause
             # of laptop overheating because evaluating 3 PVs roughly
             # triples the search tree.
-            "multi_pv": self.config_manager.get("multi_pv", DEFAULT_MULTI_PV),
+            "multi_pv": self.config_manager.multi_pv,
             # The eval-panel checkbox writes this key too, so a saved preference
             # survives restarts instead of silently reverting to True.
-            "use_cache": bool(self.config_manager.get("use_cache", True)),
+            "use_cache": self.config_manager.use_cache,
         }
 
     def close(self):
@@ -188,13 +187,13 @@ class Analyzer:
         Returns the raw summary counts/stats.
         """
         # Refresh configuration from global settings before starting
-        self.config["time_per_move"] = self.config_manager.get("time_per_move", 1.0)
-        self.config["depth"] = self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)
-        self.config["multi_pv"] = self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)
-        self.config["use_cache"] = bool(self.config_manager.get("use_cache", True))
+        self.config["time_per_move"] = self.config_manager.time_per_move
+        self.config["depth"] = self.config_manager.analysis_depth
+        self.config["multi_pv"] = self.config_manager.multi_pv
+        self.config["use_cache"] = self.config_manager.use_cache
 
         # Update Polyglot book path from settings if changed
-        new_polyglot_path = self.config_manager.get("polyglot_book_path", "")
+        new_polyglot_path = self.config_manager.polyglot_book_path
         self.polyglot_book.set_book_path(new_polyglot_path)
 
         # Reset local and polyglot books for sequential matching

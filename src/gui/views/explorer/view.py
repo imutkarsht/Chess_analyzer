@@ -41,8 +41,8 @@ class ExplorerView(
     def __init__(self, config_manager, parent=None):
         super().__init__(parent)
         self.config_manager = config_manager
-        engine_path = resolve_engine_path(self.config_manager) or self.config_manager.get(
-            "engine_path", "stockfish"
+        engine_path = (
+            resolve_engine_path(self.config_manager) or self.config_manager.engine_path
         )
         self.session = LiveEngineSession(
             engine_path,
@@ -94,7 +94,7 @@ class ExplorerView(
         self.opening_db.connect()
 
         # Polyglot book (loaded from config, optional — opened lazily)
-        polyglot_path = self.config_manager.get("polyglot_book_path", "")
+        polyglot_path = self.config_manager.polyglot_book_path
         self.polyglot_manager = PolyglotBookManager(
             polyglot_path if polyglot_path else None
         )

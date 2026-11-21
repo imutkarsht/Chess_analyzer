@@ -114,7 +114,7 @@ class MainWindow(
             position=self.config_manager.get_choice("toast_position", "top_right")
         )
         resolved = resolve_engine_path(self.config_manager)
-        self.engine_path = resolved or self.config_manager.get("engine_path", "stockfish")
+        self.engine_path = resolved or self.config_manager.engine_path
         self.analyzer = Analyzer(
             EngineManager(self.engine_path, config_manager=self.config_manager)
         )

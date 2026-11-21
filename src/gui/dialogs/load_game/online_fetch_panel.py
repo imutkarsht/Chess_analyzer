@@ -513,7 +513,7 @@ class OnlineFetchPanel(QWidget):
         platform = self.platform_selector.value()
         if mode == "recent":
             limit = clamp_games_limit(
-                self.config_manager.get("api_games_limit", 20),
+                self.config_manager.api_games_limit,
                 current_token(self.config_manager),
             )
             self.username_field.set_description(
@@ -611,7 +611,7 @@ class OnlineFetchPanel(QWidget):
         self._show_state(_STATE_LOADING)
 
         limit = clamp_games_limit(
-            self.config_manager.get("api_games_limit", 20),
+            self.config_manager.api_games_limit,
             current_token(self.config_manager),
         )
 

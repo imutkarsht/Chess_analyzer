@@ -605,8 +605,8 @@ class AnalysisMixin:
         """Mirror the settings-page analysis shortcuts into the live panel."""
         if not hasattr(self, "analysis_panel"):
             return
-        use_cache = bool(self.config_manager.get("use_cache", True))
-        engine_lines = bool(self.config_manager.get("engine_lines_enabled", False))
+        use_cache = self.config_manager.use_cache
+        engine_lines = self.config_manager.engine_lines_enabled
         if getattr(self, "analyzer", None):
             self.analyzer.config["use_cache"] = use_cache
         for checkbox, value in (

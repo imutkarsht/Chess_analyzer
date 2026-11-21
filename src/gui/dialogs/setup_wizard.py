@@ -160,7 +160,7 @@ class SetupWizard(QDialog):
             QTimer.singleShot(150, self._run_gatekeeper)
         elif index == 6:
             parts = []
-            engine = self.settings.get("engine_path") or self.config_manager.get("engine_path")
+            engine = self.settings.get("engine_path") or self.config_manager.engine_path
             if engine and engine != "stockfish":
                 parts.append(f"✓ Chess Engine: {os.path.basename(engine)}")
             else:

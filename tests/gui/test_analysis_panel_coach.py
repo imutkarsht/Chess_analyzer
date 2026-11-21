@@ -39,6 +39,14 @@ class _StubConfig:
     def save_config(self):
         pass
 
+    @property
+    def coach_persona(self):
+        return self.data.get("coach_persona", "classic")
+
+    @property
+    def explain_llm_for_trivial_moves(self):
+        return self.data.get("explain_llm_for_trivial_moves", False)
+
 
 class _StubService:
     """A configured look-alike; the actual request is never made in these tests."""

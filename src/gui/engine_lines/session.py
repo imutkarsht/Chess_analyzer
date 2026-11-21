@@ -20,7 +20,7 @@ from __future__ import annotations
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from src.backend.analysis.engine_line import EngineLine
-from src.constants import DEFAULT_MULTI_PV
+from src.constants import DEFAULT_LIVE_MULTI_PV
 from src.utils.logger import logger
 from src.workers.analysis import LiveAnalysisWorker
 
@@ -291,12 +291,12 @@ class LiveEngineSession(QObject):
     def _multi_pv(self) -> int:
         if self._config is not None:
             try:
-                value = int(self._config.get("multi_pv", DEFAULT_MULTI_PV))
+                value = int(self._config.live_multi_pv)
                 if value >= 1:
                     return value
             except (TypeError, ValueError):
                 pass
-        return DEFAULT_MULTI_PV
+        return DEFAULT_LIVE_MULTI_PV
 
     def _set_state(self, state: str) -> None:
         if state == self._state:

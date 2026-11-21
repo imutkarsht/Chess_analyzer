@@ -28,7 +28,6 @@ from src.backend.services.groq_service import (
 from src.backend.storage.cache import AnalysisCache
 from src.constants import (
     DEFAULT_COACH_PERSONA,
-    EXPLANATION_CACHE_TTL_DAYS,
     EXPLANATION_MAX_PER_MINUTE,
     EXPLANATION_MIN_INTERVAL_S,
     EXPLANATION_PROMPT_VERSION,
@@ -132,7 +131,7 @@ class ExplainMoveWorker(QThread):
         self._persona = normalize_coach_persona(persona)
         self._model = model_name or getattr(service, "model_name", "") or "unknown"
         self._force = force
-        self._ttl_days = ConfigManager().get("explain_cache_ttl_days", EXPLANATION_CACHE_TTL_DAYS)
+        self._ttl_days = ConfigManager().explain_cache_ttl_days
         self._cancelled = False
 
     def cancel(self) -> None:

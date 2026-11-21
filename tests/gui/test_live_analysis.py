@@ -1,4 +1,5 @@
 """Tests for the LiveAnalysisWorker thread control loop and configuration handling."""
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.workers.analysis import LiveAnalysisWorker
@@ -46,12 +47,13 @@ def test_live_worker_defaults_when_no_config(mocker):
 
 def test_live_limit_bounds_the_search_by_time(mocker):
     """Live searches must honour live_analysis_time, not run to depth 26."""
-    cm = mocker.Mock()
-    cm.get.side_effect = lambda key, default=None: {
-        "live_analysis_time": 1.0,
-        "analysis_depth": 20,
-        "live_multi_pv": 2,
-    }.get(key, default)
+    cm = SimpleNamespace(
+        live_analysis_time=1.0,
+        analysis_depth=20,
+        live_multi_pv=2,
+        engine_threads=1,
+        engine_hash=128,
+    )
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
 
     limit = worker._live_limit()
@@ -74,11 +76,13 @@ def test_live_limit_defaults_without_config(mocker):
 def test_live_worker_reads_config(mocker):
     """When a config_manager is provided, the worker honours its values."""
     mocker.patch("chess.engine.SimpleEngine.popen_uci")
-    cm = mocker.Mock()
-    cm.get.side_effect = lambda key, default=None: {
-        "live_analysis_time": 5.0,
-        "live_multi_pv": 3,
-    }.get(key, default)
+    cm = SimpleNamespace(
+        live_analysis_time=5.0,
+        live_multi_pv=3,
+        analysis_depth=18,
+        engine_threads=1,
+        engine_hash=128,
+    )
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
     assert worker._live_time() == 5.0
     assert worker._live_multi_pv() == 3
@@ -87,11 +91,13 @@ def test_live_worker_reads_config(mocker):
 def test_live_worker_falls_back_safely_on_garbage_config(mocker):
     """Bad config values (wrong type, non-positive) must not crash."""
     mocker.patch("chess.engine.SimpleEngine.popen_uci")
-    cm = mocker.Mock()
-    cm.get.side_effect = lambda key, default=None: {
-        "live_analysis_time": "not-a-number",
-        "live_multi_pv": 0,  # invalid (< 1) — should be rejected
-    }.get(key, default)
+    cm = SimpleNamespace(
+        live_analysis_time="not-a-number",
+        live_multi_pv=0,  # invalid (< 1) — should be rejected
+        analysis_depth=18,
+        engine_threads=1,
+        engine_hash=128,
+    )
     worker = LiveAnalysisWorker("/fake/stockfish", config_manager=cm)
     assert worker._live_time() == 0.5
     assert worker._live_multi_pv() == 2
