@@ -809,8 +809,8 @@ class HistoryView(QWidget):
         if not self.config_manager:
             self.usernames = []
             return
-        chesscom = self.config_manager.get("chesscom_username", "")
-        lichess = self.config_manager.get("lichess_username", "")
+        chesscom = self.config_manager.chesscom_username
+        lichess = self.config_manager.lichess_username
         self.usernames = [u for u in [chesscom, lichess] if u]
 
     def _fetch_page(self, query: GameQuery) -> list:

@@ -302,11 +302,7 @@ class GameImportView(QWidget):
             )
 
     def _configure_result_filter(self, candidates: list[GameCandidate]) -> None:
-        usernames = {
-            str(self._config.get(key, "")).strip().casefold()
-            for key in ("chesscom_username", "lichess_username")
-        }
-        usernames.discard("")
+        usernames = set(self._config.player_usernames)
         perspective = bool(usernames) and any(
             self._involves_username(candidate, usernames)
             for candidate in candidates

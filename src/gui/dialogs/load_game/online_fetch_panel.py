@@ -477,8 +477,12 @@ class OnlineFetchPanel(QWidget):
     # Form state
     # ------------------------------------------------------------------
     def _on_platform_changed(self, platform: str) -> None:
-        key = "chesscom_username" if platform == "chesscom" else "lichess_username"
-        self.username_input.setText(self.config_manager.get(key, ""))
+        username = (
+            self.config_manager.chesscom_username
+            if platform == "chesscom"
+            else self.config_manager.lichess_username
+        )
+        self.username_input.setText(username)
         self._update_fields_visibility()
 
     def _on_mode_changed(self, mode: str) -> None:

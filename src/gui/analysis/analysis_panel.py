@@ -622,11 +622,7 @@ class AnalysisPanel(QWidget):
         if not self.current_game:
             return None
         meta = self.current_game.metadata
-        usernames = {
-            str(self.config_manager.get(key, "") or "").lower()
-            for key in ("chesscom_username", "lichess_username")
-        }
-        usernames.discard("")
+        usernames = set(self.config_manager.player_usernames)
         if (meta.white or "").lower() in usernames:
             return "white"
         if (meta.black or "").lower() in usernames:

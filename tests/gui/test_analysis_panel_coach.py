@@ -47,6 +47,10 @@ class _StubConfig:
     def explain_llm_for_trivial_moves(self):
         return self.data.get("explain_llm_for_trivial_moves", False)
 
+    @property
+    def player_usernames(self):
+        return ()
+
 
 class _StubService:
     """A configured look-alike; the actual request is never made in these tests."""

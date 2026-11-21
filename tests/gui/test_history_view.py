@@ -662,8 +662,8 @@ def test_history_view_filters_analysis_status_and_ownership(tmp_path, qtbot):
     )
 
     class _Prefs:
-        def get(self, key, default=""):
-            return "PlayerA" if key == "chesscom_username" else default
+        chesscom_username = "PlayerA"
+        lichess_username = ""
 
         @property
         def history_view_mode(self):

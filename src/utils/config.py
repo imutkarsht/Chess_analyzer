@@ -293,6 +293,105 @@ class ConfigManager:
         )
 
     # ------------------------------------------------------------------
+    # Accounts / prompts accessors
+    # ------------------------------------------------------------------
+    @property
+    def chesscom_username(self) -> str:
+        return str(
+            self.get("chesscom_username", self._setting_default("chesscom_username"))
+            or ""
+        )
+
+    @property
+    def lichess_username(self) -> str:
+        return str(
+            self.get("lichess_username", self._setting_default("lichess_username")) or ""
+        )
+
+    @property
+    def player_usernames(self) -> tuple[str, ...]:
+        """Configured usernames, stripped and casefolded for comparison."""
+        names = (self.chesscom_username, self.lichess_username)
+        return tuple(name.strip().casefold() for name in names if name.strip())
+
+    @property
+    def lichess_token(self) -> str:
+        return str(
+            self.get("lichess_token", self._setting_default("lichess_token")) or ""
+        )
+
+    @property
+    def lichess_explorer_enabled(self) -> bool:
+        return self.get_bool(
+            "lichess_explorer_enabled",
+            bool(self._setting_default("lichess_explorer_enabled")),
+        )
+
+    @property
+    def llm_profiles(self) -> list[dict]:
+        value = self.get("llm_profiles", self._setting_default("llm_profiles") or [])
+        return value if isinstance(value, list) else []
+
+    @property
+    def llm_active_profile(self) -> str:
+        return str(
+            self.get("llm_active_profile", self._setting_default("llm_active_profile"))
+            or ""
+        )
+
+    @property
+    def explain_temperature(self) -> float:
+        return self.get_float(
+            "explain_temperature", float(self._setting_default("explain_temperature"))
+        )
+
+    @property
+    def explain_max_tokens(self) -> int:
+        return self.get_int(
+            "explain_max_tokens", int(self._setting_default("explain_max_tokens"))
+        )
+
+    @property
+    def explain_reasoning_effort(self) -> str:
+        return self.get_choice(
+            "explain_reasoning_effort",
+            str(self._setting_default("explain_reasoning_effort") or ""),
+        )
+
+    @property
+    def last_update_check(self) -> str:
+        return str(
+            self.get("last_update_check", self._setting_default("last_update_check"))
+            or ""
+        )
+
+    @property
+    def games_analyzed_count(self) -> int:
+        return self.get_int(
+            "games_analyzed_count", int(self._setting_default("games_analyzed_count"))
+        )
+
+    @property
+    def review_submitted(self) -> bool:
+        return self.get_bool(
+            "review_submitted", bool(self._setting_default("review_submitted"))
+        )
+
+    @property
+    def review_prompt_dismissed(self) -> bool:
+        return self.get_bool(
+            "review_prompt_dismissed",
+            bool(self._setting_default("review_prompt_dismissed")),
+        )
+
+    @property
+    def review_next_prompt_count(self) -> int:
+        return self.get_int(
+            "review_next_prompt_count",
+            int(self._setting_default("review_next_prompt_count")),
+        )
+
+    # ------------------------------------------------------------------
     # Engine / analysis accessors
     # ------------------------------------------------------------------
     @property

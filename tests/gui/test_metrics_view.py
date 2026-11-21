@@ -19,6 +19,8 @@ def test_metrics_view_setup_required(qapp, qtbot):
     """Test setup required view is shown when no usernames are configured."""
     mock_config = MagicMock()
     mock_config.metrics_card_order = []
+    mock_config.chesscom_username = ""
+    mock_config.lichess_username = ""
     mock_config.get.return_value = ""
 
     mock_history = MagicMock()
@@ -34,6 +36,8 @@ def test_metrics_view_filter_toolbar(qapp, qtbot):
     """Test filter toolbar controls and reset functionality."""
     mock_config = MagicMock()
     mock_config.metrics_card_order = []
+    mock_config.chesscom_username = "UserA"
+    mock_config.lichess_username = ""
     mock_config.get.side_effect = lambda key, default="": "UserA" if "username" in key else default
 
     mock_history = MagicMock()
@@ -69,6 +73,8 @@ def test_metrics_view_shows_skeleton_while_loading(qapp, qtbot, monkeypatch):
 
     mock_config = MagicMock()
     mock_config.metrics_card_order = []
+    mock_config.chesscom_username = "PlayerA"
+    mock_config.lichess_username = ""
     mock_config.get.return_value = "PlayerA"
 
     mock_history = MagicMock()
@@ -450,6 +456,8 @@ def test_metrics_widget_brilliancy_selection_signal(qapp, qtbot):
     """Test clicking a brilliancy row in MetricsWidget emits game_selected with GameAnalysis and move_index."""
     mock_config = MagicMock()
     mock_config.metrics_card_order = []
+    mock_config.chesscom_username = "TestUser"
+    mock_config.lichess_username = ""
     mock_config.get.return_value = "TestUser"
 
     mock_game = MagicMock()
@@ -595,6 +603,8 @@ def test_metrics_widget_includes_advantage_and_ai_coach(qapp, qtbot):
     """Test MetricsWidget creates and renders AdvantageConversionCard and AICoachCard."""
     mock_config = MagicMock()
     mock_config.metrics_card_order = []
+    mock_config.chesscom_username = "PlayerA"
+    mock_config.lichess_username = ""
     mock_config.get.return_value = "PlayerA"
 
     mock_history = MagicMock()
@@ -643,6 +653,8 @@ def test_dashboard_applies_saved_chart_order(qapp, qtbot):
     mock_config.metrics_card_order = []
     saved_order = ["ai_coach", "removed_card", "accuracy_trend"]
     mock_config.metrics_card_order = saved_order
+    mock_config.chesscom_username = "PlayerA"
+    mock_config.lichess_username = ""
 
     def _get(key, default=None):
         if key == "metrics_card_order":
@@ -687,6 +699,8 @@ def test_metrics_widget_smart_invalidation_and_filter_cache(qapp, qtbot):
     """Test that MetricsWidget dirty flag avoids redundant recalculations and caches filter states."""
     mock_config = MagicMock()
     mock_config.metrics_card_order = []
+    mock_config.chesscom_username = "PlayerA"
+    mock_config.lichess_username = ""
     mock_config.get.return_value = "PlayerA"
 
     mock_history = MagicMock()

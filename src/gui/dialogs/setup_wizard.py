@@ -173,8 +173,8 @@ class SetupWizard(QDialog):
             else:
                 parts.append("✓ AI Coach: Skipped (configure anytime in Settings)")
 
-            cc = self.settings.get("chesscom_username") or self.config_manager.get("chesscom_username")
-            li = self.settings.get("lichess_username") or self.config_manager.get("lichess_username")
+            cc = self.settings.get("chesscom_username") or self.config_manager.chesscom_username
+            li = self.settings.get("lichess_username") or self.config_manager.lichess_username
             accounts = []
             if cc:
                 accounts.append("Chess.com")
@@ -249,9 +249,9 @@ class SetupWizard(QDialog):
                 }
 
     def _populate_from_config(self):
-        self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
-        self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
-        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.chesscom_input.setText(self.config_manager.chesscom_username)
+        self.lichess_input.setText(self.config_manager.lichess_username)
+        self.lichess_token_input.setText(self.config_manager.lichess_token)
 
         # Pre-populate appearance preferences
         saved_board_theme = self.config_manager.board_theme
@@ -276,7 +276,7 @@ class SetupWizard(QDialog):
         # Pre-populate active LLM profile if configured
         active_prof = self.config_manager.get_active_profile()
         if not active_prof:
-            profiles = self.config_manager.get("llm_profiles", [])
+            profiles = self.config_manager.llm_profiles
             if profiles:
                 active_prof = profiles[0]
 
@@ -509,7 +509,7 @@ class SetupWizard(QDialog):
 
         if "llm_profile" in self.settings:
             prof = self.settings["llm_profile"]
-            profiles = cfg.get("llm_profiles", [])
+            profiles = cfg.llm_profiles
             # Update existing matching provider or append new profile
             existing = next((p for p in profiles if p.get("provider", "").lower() == prof["provider"].lower()), None)
             if existing:

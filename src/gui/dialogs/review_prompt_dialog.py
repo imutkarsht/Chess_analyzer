@@ -124,9 +124,8 @@ class ReviewPromptDialog(QDialog):
         name_group.addWidget(name_lbl)
 
         default_user = (
-            self.config_manager.get("chesscom_username", "")
-            or self.config_manager.get("lichess_username", "")
-            or ""
+            self.config_manager.chesscom_username
+            or self.config_manager.lichess_username
         )
         self.name_input = Input(default_user, "e.g. Grandmaster99")
         name_group.addWidget(self.name_input)
@@ -250,7 +249,7 @@ class ReviewPromptDialog(QDialog):
             self.status_lbl.show()
 
     def _on_remind_later(self):
-        current_count = self.config_manager.get("games_analyzed_count", 0)
+        current_count = self.config_manager.games_analyzed_count
         self.config_manager.set("review_next_prompt_count", current_count + REVIEW_SNOOZE_INTERVAL)
         self.reject()
 

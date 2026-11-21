@@ -28,6 +28,14 @@ class _Config:
             return self.token
         return default
 
+    @property
+    def lichess_explorer_enabled(self):
+        return self.enabled
+
+    @property
+    def lichess_token(self):
+        return self.token
+
 
 def _gate(config, offline_until: float = 0.0) -> bool:
     view = SimpleNamespace(
