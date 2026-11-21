@@ -44,6 +44,7 @@ class TestConfigManager:
             assert manager.board_theme == "Brown"
             assert manager.piece_theme == "Standard"
             assert manager.theme_mode == "system"
+            assert manager.toast_position == "top_right"
             assert manager.sidebar_start_collapsed is False
             assert manager.sound_volume == 50
             assert manager.history_view_mode == "compact"

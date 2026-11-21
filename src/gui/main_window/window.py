@@ -110,9 +110,7 @@ class MainWindow(
         self._analysis_progress_final = False
         self._replay_advancing = False
         self.config_manager = ConfigManager()
-        ToastManager.configure(
-            position=self.config_manager.get_choice("toast_position", "top_right")
-        )
+        ToastManager.configure(position=self.config_manager.toast_position)
         resolved = resolve_engine_path(self.config_manager)
         self.engine_path = resolved or self.config_manager.engine_path
         self.analyzer = Analyzer(

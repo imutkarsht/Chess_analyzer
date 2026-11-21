@@ -148,9 +148,10 @@ widget-local QSS. Use:
 ### Settings
 
 Add settings to `src/config/settings_schema.py` (default, type, validation,
-`apply="live"` if it should take effect immediately). Build the control in
-`src/gui/views/settings/` with `SettingsForm`/`SettingsBinder`. Credentials go
-through `SecretStore`, never plaintext JSON.
+`apply="live"` if it should take effect immediately). Add a typed `ConfigManager`
+property when widgets or backend code read the value directly, then build the
+control in `src/gui/views/settings/` with `SettingsForm`/`SettingsBinder`.
+Credentials go through `SecretStore`, never plaintext JSON.
 
 ### Background work
 

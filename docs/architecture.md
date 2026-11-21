@@ -747,7 +747,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | No button factories | Construct `Button` directly with a variant/size | `Button("Save", ButtonVariant.FILLED, icon="fa5s.save")` | `create_button(...)` / `create_icon_button(...)` |
 | One style generator | Each control's look comes from a `Styles.get_*_qss()` generator | `Styles.get_button_qss` | Hex colours or per-widget stylesheets |
 | Live theming | Per-widget styles are rebuilt on theme/accent change | `_refresh_historic_bar_styles()` | Capturing palette colours at construction |
-| Settings schema | Defaults, types and validation live in `settings_schema.py` | `SettingSpec("board_theme", …)` | Ad-hoc `config.get("x", default)` in widgets |
+| Settings schema | Defaults, types and validation live in `settings_schema.py`; read values through typed `ConfigManager` properties | `SettingSpec("board_theme", …)`, `config_manager.board_theme` | Ad-hoc `config.get("x", default)` in call sites |
 | Off-thread work | QThread subclasses + signals; never block the event loop | `AnalysisWorker`, `ApiWorker`, `ExplainMoveWorker` | Network/engine calls in a slot |
 | Worker lifetime | Cancel, disconnect and delete workers on close | `MainWindow.closeEvent()` | Orphaned threads on dialog close |
 | Domain before storage | Repositories persist; domain services compute | Tactics computed in `backend/analysis/tactics` | SQL that classifies moves |
@@ -838,10 +838,12 @@ create per-widget formatters or wrapper factories.
 
 1. Add a `SettingSpec` to `src/config/settings_schema.py` (default, type,
    validation, `apply="live"` when it should apply immediately).
-2. Add the control to the relevant card in `src/gui/views/settings/` using
+2. Add a typed `ConfigManager` property when widgets or backend code read the
+   value directly; keep raw `get("key", default)` calls out of call sites.
+3. Add the control to the relevant card in `src/gui/views/settings/` using
    `SettingsForm`/`SettingsBinder`.
-3. Handle the “live” case in `SettingsView` + `MainWindow` (theme, board, engine).
-4. Add a test for persistence and the live-apply branch.
+4. Handle the “live” case in `SettingsView` + `MainWindow` (theme, board, engine).
+5. Add a test for persistence and the live-apply branch.
 
 ### Add a shared component
 

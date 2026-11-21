@@ -232,6 +232,12 @@ class ConfigManager:
         return self.get_choice("accent_mode", str(self._setting_default("accent_mode")))
 
     @property
+    def toast_position(self) -> str:
+        return self.get_choice(
+            "toast_position", str(self._setting_default("toast_position"))
+        )
+
+    @property
     def sidebar_start_collapsed(self) -> bool:
         return self.get_bool(
             "sidebar_start_collapsed",
