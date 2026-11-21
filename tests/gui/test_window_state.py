@@ -29,6 +29,14 @@ class _FakeConfig:
     def set(self, key, value):
         self.data[key] = value
 
+    @property
+    def remember_window_geometry(self):
+        return self.data.get("remember_window_geometry", True)
+
+    @property
+    def window_state(self):
+        return self.data.get("window_state") or {}
+
 
 @pytest.fixture
 def isolated_config(tmp_path, monkeypatch):

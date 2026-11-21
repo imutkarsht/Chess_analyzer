@@ -25,6 +25,10 @@ class _FakeConfig:
     def get(self, key, default=None):
         return self.values.get(key, default)
 
+    @property
+    def llm_active_profile(self):
+        return self.values.get("llm_active_profile", "")
+
 
 def _profiles():
     return [

@@ -22,7 +22,7 @@ class DashboardLayoutSettings(QGroupBox):
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
         self._order = normalise_card_order(
-            self.config_manager.get("metrics_card_order", [])
+            self.config_manager.metrics_card_order
         )
         self.setup_ui()
 
@@ -89,7 +89,7 @@ class DashboardLayoutSettings(QGroupBox):
     # ------------------------------------------------------------------
     def reload_from_config(self) -> None:
         self._order = normalise_card_order(
-            self.config_manager.get("metrics_card_order", [])
+            self.config_manager.metrics_card_order
         )
         self._populate()
 

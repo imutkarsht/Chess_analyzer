@@ -42,7 +42,7 @@ class MoveListPanel(QWidget):
         self.session.lines_changed.connect(self._on_session_lines)
 
         self.engine_lines_enabled = (
-            bool(config_manager.get("engine_lines_enabled", False))
+            config_manager.engine_lines_enabled
             if config_manager is not None
             else False
         )

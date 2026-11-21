@@ -8,7 +8,6 @@ from src.backend.analysis.navigation import find_critical_move
 from src.backend.storage.pgn_parser import looks_like_pgn
 from src.constants import (
     CRITICAL_CLASSIFICATIONS,
-    DEFAULT_SHORTCUT_PRESET,
     PAGE_ANALYSIS,
     PAGE_EXPLORER,
     PAGE_NAMES,
@@ -175,7 +174,7 @@ class NavigationMixin:
         shortcut_card = self.settings_view.shortcut_settings
         sm.bindings_changed.connect(lambda: shortcut_card.set_bindings(sm.get_bindings()))
         shortcut_card.preset_changed.connect(sm.apply_preset)
-        sm.apply_preset(self.config_manager.get("shortcut_preset", DEFAULT_SHORTCUT_PRESET))
+        sm.apply_preset(self.config_manager.shortcut_preset)
 
     def _go_to_page(self, index: int):
         self.sidebar.set_active(index)

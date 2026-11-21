@@ -273,7 +273,7 @@ class FeedbackDialog(QDialog):
             tone=TextTone.SECONDARY,
         )
         v2.addWidget(lbl_name)
-        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
+        default_user = self.config_manager.chesscom_username or self.config_manager.lichess_username
         self.bug_name_input = Input(default_user, "Player handle or name")
         v2.addWidget(self.bug_name_input)
         meta_layout.addLayout(v2)
@@ -371,7 +371,7 @@ class FeedbackDialog(QDialog):
             tone=TextTone.SECONDARY,
         )
         v2.addWidget(lbl_name)
-        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
+        default_user = self.config_manager.chesscom_username or self.config_manager.lichess_username
         self.feat_name_input = Input(default_user, "Player handle or name")
         v2.addWidget(self.feat_name_input)
         meta_layout.addLayout(v2)
@@ -392,7 +392,7 @@ class FeedbackDialog(QDialog):
         lbl_name = Label("Your Name:", role=TextRole.BODY, weight=600)
         layout.addWidget(lbl_name)
 
-        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
+        default_user = self.config_manager.chesscom_username or self.config_manager.lichess_username
         self.review_name_input = Input(default_user, "e.g. Grandmaster99")
         layout.addWidget(self.review_name_input)
 

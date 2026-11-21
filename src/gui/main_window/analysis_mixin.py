@@ -511,12 +511,12 @@ class AnalysisMixin:
             self.history_view.refresh_game(getattr(game, "game_id", None))
 
         # Track analyzed games count and check for in-app review prompt
-        count = self.config_manager.get("games_analyzed_count", 0) + 1
+        count = self.config_manager.games_analyzed_count + 1
         self.config_manager.set("games_analyzed_count", count)
 
-        next_prompt = self.config_manager.get("review_next_prompt_count", 3)
-        reviewed = self.config_manager.get("review_submitted", False)
-        dismissed = self.config_manager.get("review_prompt_dismissed", False)
+        next_prompt = self.config_manager.review_next_prompt_count
+        reviewed = self.config_manager.review_submitted
+        dismissed = self.config_manager.review_prompt_dismissed
 
         if count >= next_prompt and not reviewed and not dismissed:
             QTimer.singleShot(1500, lambda: self._prompt_review_if_active(count))
@@ -605,8 +605,8 @@ class AnalysisMixin:
         """Mirror the settings-page analysis shortcuts into the live panel."""
         if not hasattr(self, "analysis_panel"):
             return
-        use_cache = bool(self.config_manager.get("use_cache", True))
-        engine_lines = bool(self.config_manager.get("engine_lines_enabled", False))
+        use_cache = self.config_manager.use_cache
+        engine_lines = self.config_manager.engine_lines_enabled
         if getattr(self, "analyzer", None):
             self.analyzer.config["use_cache"] = use_cache
         for checkbox, value in (

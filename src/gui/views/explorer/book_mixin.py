@@ -179,7 +179,7 @@ class ExplorerBookMixin:
 
         # Polyglot has higher priority than the SQLite ECO tree.
         polyglot_used = False
-        current_path = self.config_manager.get("polyglot_book_path", "")
+        current_path = self.config_manager.polyglot_book_path
         if current_path != (self.polyglot_manager.book_path or ""):
             self.polyglot_manager.set_book_path(current_path if current_path else None)
         if self.polyglot_manager.is_available():

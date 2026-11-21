@@ -43,25 +43,27 @@ def test_clamp_games_limit_bounds_arbitrary_input(value, token, expected):
     assert clamp_games_limit(value, token) == expected
 
 
-def test_current_token_prefers_config(mocker):
-    config = mocker.Mock()
-    config.get.return_value = "  lip_config  "
+class _Config:
+    def __init__(self, token: str = "", broken: bool = False):
+        self._token = token
+        self._broken = broken
 
-    assert current_token(config) == "lip_config"
-    config.get.assert_called_once_with("lichess_token", "")
+    @property
+    def lichess_token(self) -> str:
+        if self._broken:
+            raise RuntimeError("config unavailable")
+        return self._token
 
 
-def test_current_token_falls_back_to_environment(mocker, monkeypatch):
+def test_current_token_prefers_config():
+    assert current_token(_Config("  lip_config  ")) == "lip_config"
+
+
+def test_current_token_falls_back_to_environment(monkeypatch):
     monkeypatch.setenv("LICHESS_TOKEN", "lip_env")
-    config = mocker.Mock()
-    config.get.return_value = ""
-
-    assert current_token(config) == "lip_env"
+    assert current_token(_Config("")) == "lip_env"
 
 
-def test_current_token_ignores_broken_config(mocker, monkeypatch):
+def test_current_token_ignores_broken_config(monkeypatch):
     monkeypatch.setenv("LICHESS_TOKEN", "lip_env")
-    config = mocker.Mock()
-    config.get.side_effect = RuntimeError("config unavailable")
-
-    assert current_token(config) == "lip_env"
+    assert current_token(_Config(broken=True)) == "lip_env"

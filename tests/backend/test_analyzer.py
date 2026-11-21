@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import chess
 import pytest
 
@@ -419,14 +421,13 @@ def test_analyze_positions_refreshes_analysis_prefs_from_config(mocker, mock_eng
     engine_manager = EngineManager("dummy_path")
     engine_manager.engine = mock_engine
     analyzer = Analyzer(engine_manager)
-    analyzer.config_manager = mocker.Mock()
-    analyzer.config_manager.get.side_effect = lambda key, default=None: {
-        "time_per_move": None,
-        "analysis_depth": 20,
-        "multi_pv": 1,
-        "use_cache": False,
-        "polyglot_book_path": "",
-    }.get(key, default)
+    analyzer.config_manager = SimpleNamespace(
+        time_per_move=None,
+        analysis_depth=20,
+        multi_pv=1,
+        use_cache=False,
+        polyglot_book_path="",
+    )
 
     mocker.patch.object(analyzer, "_get_position_analysis", return_value=[])
     mocker.patch.object(analyzer, "_analyze_final_position", return_value=None)

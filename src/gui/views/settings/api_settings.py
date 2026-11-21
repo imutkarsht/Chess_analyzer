@@ -302,7 +302,7 @@ class ApiSettings(QGroupBox):
         self.llm_profile_combo.blockSignals(True)
         self.llm_profile_combo.clear()
         profiles = self.config_manager.get_profiles()
-        active_name = self.config_manager.get("llm_active_profile", "")
+        active_name = self.config_manager.llm_active_profile
         select_idx = 0
         for i, p in enumerate(profiles):
             name = p.get("name", f"Profile {i+1}")
@@ -430,7 +430,7 @@ class ApiSettings(QGroupBox):
             return False
 
         profiles[idx] = profile
-        active = self.config_manager.get("llm_active_profile", "")
+        active = self.config_manager.llm_active_profile
         if active == old_name:
             active = new_name
         if activate:
@@ -449,7 +449,7 @@ class ApiSettings(QGroupBox):
         self._persist_current_profile(activate=True)
 
     def _update_active_label(self) -> None:
-        active = self.config_manager.get("llm_active_profile", "")
+        active = self.config_manager.llm_active_profile
         if active:
             self.llm_active_label.setText(f'Active profile: "{active}"')
         else:
@@ -513,7 +513,7 @@ class ApiSettings(QGroupBox):
                               confirm_label="Delete"):
             return
         profiles.pop(idx)
-        active = self.config_manager.get("llm_active_profile", "")
+        active = self.config_manager.llm_active_profile
         if active == name:
             active = profiles[0]["name"]
         self.config_manager.set_profiles(profiles, active_name=active)

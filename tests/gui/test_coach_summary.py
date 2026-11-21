@@ -21,6 +21,14 @@ class _StubConfig:
     def get(self, key, default=None):
         return self.data.get(key, default)
 
+    @property
+    def player_usernames(self):
+        names = (
+            self.data.get("chesscom_username", ""),
+            self.data.get("lichess_username", ""),
+        )
+        return tuple(name.strip().casefold() for name in names if name.strip())
+
 
 class _StubService:
     client = object()

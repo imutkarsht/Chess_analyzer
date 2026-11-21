@@ -57,13 +57,7 @@ class BoardGameHeader(QFrame):
         self.refresh_styles()
 
     def _saved_usernames(self) -> set[str]:
-        config = ConfigManager()
-        names = {
-            str(config.get("chesscom_username", "") or "").strip().casefold(),
-            str(config.get("lichess_username", "") or "").strip().casefold(),
-        }
-        names.discard("")
-        return names
+        return set(ConfigManager().player_usernames)
 
     def _user_side(self) -> str | None:
         """Which side the saved username played, if either name matches."""

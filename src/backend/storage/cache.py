@@ -185,9 +185,7 @@ class AnalysisCache:
             return max(
                 1_000,
                 int(
-                    ConfigManager().get(
-                        "analysis_cache_max_entries", DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES
-                    )
+                    ConfigManager().analysis_cache_max_entries
                 ),
             )
         except (TypeError, ValueError):

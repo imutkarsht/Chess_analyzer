@@ -3,8 +3,6 @@
 The overlay's pixel positioning is cosmetic; the state machine and the
 seen-page migration are what suppress a broken or repeated onboarding tour.
 """
-from unittest.mock import MagicMock
-
 from PyQt6.QtWidgets import QWidget
 
 from src.gui.components.layout.tour_manager import TourManager, TourStep
@@ -39,14 +37,26 @@ def test_tour_manager_step_lifecycle():
     assert mgr.active is False
 
 
+class _Store:
+    def __init__(self):
+        self.data = {}
+
+    def get(self, key, default=None):
+        return self.data.get(key, default)
+
+    def set(self, key, value):
+        self.data[key] = value
+
+    @property
+    def tour_seen_pages(self):
+        return self.data.get("tour_seen_pages", {})
+
+
 def test_tour_manager_seen_state():
     """TourManager marks and checks seen pages via ConfigManager."""
-    mock_config = MagicMock()
-    mock_store = {}
-    mock_config.get.side_effect = lambda key, default=None: mock_store.get(key, default or {})
-    mock_config.set.side_effect = lambda key, val: mock_store.update({key: val})
+    store = _Store()
 
-    mgr = TourManager(config_manager=mock_config)
+    mgr = TourManager(config_manager=store)
     assert mgr.has_seen_tour("landing") is False
 
     mgr.mark_seen("landing")
@@ -59,6 +69,6 @@ def test_tour_manager_seen_state():
     assert mgr.has_seen_tour("metrics_drill_down") is True
 
     # Legacy numeric migration: legacy "1" maps to "explorer"
-    mock_store["tour_seen_pages"] = {"1": True}
+    store.data["tour_seen_pages"] = {"1": True}
     assert mgr.has_seen_tour("explorer") is True
     assert mgr.has_seen_tour(1) is True

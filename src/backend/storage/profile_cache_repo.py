@@ -55,9 +55,7 @@ class ProfileCacheRepo:
 
         from src.utils.config import ConfigManager
 
-        hours = ConfigManager().get(
-            "profile_cache_ttl_hours", DEFAULT_PROFILE_CACHE_TTL_HOURS
-        )
+        hours = ConfigManager().profile_cache_ttl_hours
         return resolve_ttl_seconds(
             hours, DEFAULT_PROFILE_CACHE_TTL_HOURS * 3600.0
         )

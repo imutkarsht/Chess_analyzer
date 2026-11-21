@@ -305,7 +305,7 @@ class HistoryView(QWidget):
         """Apply the Appearance default layout without overriding a manual toggle."""
         mode = "compact"
         if self.config_manager:
-            mode = self.config_manager.get("history_view_mode", "compact")
+            mode = self.config_manager.history_view_mode
         if mode not in ("compact", "detailed"):
             mode = "compact"
         self.game_list.set_view_mode(mode)
@@ -809,8 +809,8 @@ class HistoryView(QWidget):
         if not self.config_manager:
             self.usernames = []
             return
-        chesscom = self.config_manager.get("chesscom_username", "")
-        lichess = self.config_manager.get("lichess_username", "")
+        chesscom = self.config_manager.chesscom_username
+        lichess = self.config_manager.lichess_username
         self.usernames = [u for u in [chesscom, lichess] if u]
 
     def _fetch_page(self, query: GameQuery) -> list:

@@ -194,7 +194,7 @@ class GameImportView(QWidget):
             lambda *_args: self._fen_timer.start()
         )
         self._apply_board_visibility(
-            bool(self._config.get("import_show_boards", True))
+            self._config.import_show_boards
         )
         self.refresh_styles()
 
@@ -302,11 +302,7 @@ class GameImportView(QWidget):
             )
 
     def _configure_result_filter(self, candidates: list[GameCandidate]) -> None:
-        usernames = {
-            str(self._config.get(key, "")).strip().casefold()
-            for key in ("chesscom_username", "lichess_username")
-        }
-        usernames.discard("")
+        usernames = set(self._config.player_usernames)
         perspective = bool(usernames) and any(
             self._involves_username(candidate, usernames)
             for candidate in candidates

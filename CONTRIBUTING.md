@@ -270,7 +270,10 @@ Before adding a private helper, check the canonical module:
 
 - Add every setting to `src/config/settings_schema.py` (default, type,
   validation, `apply="live"` when it should take effect immediately). Do not
-  scatter `config.get("key", default)` fallbacks through widgets.
+  scatter `config.get("key", default)` fallbacks through call sites.
+- Read settings through typed `ConfigManager` properties (for example,
+  `config_manager.board_theme`). Raw key access belongs in `SettingsBinder`,
+  config migrations, and secret/profile storage.
 - Settings cards live in `src/gui/views/settings/` and use the shared
   `SettingsForm` / `SettingsBinder` components.
 - Credentials go through `SecretStore` (OS credential store), never plaintext

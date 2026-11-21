@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
 )
 
 from src.config.settings_schema import SETTINGS
-from src.constants import DEFAULT_ENGINE_HASH_MB, DEFAULT_ENGINE_THREADS
 from src.gui.components import (
     Button,
     ButtonVariant,
@@ -108,7 +107,7 @@ class SettingsView(QWidget):
         header_layout.addStretch()
 
         # Mode toggle
-        self._mode = self.config_manager.get("settings_mode", "basic")
+        self._mode = self.config_manager.settings_mode
         self.mode_toggle_btn = self._create_mode_toggle()
         header_layout.addWidget(self.mode_toggle_btn)
         header_layout.addSpacing(12)
@@ -322,13 +321,9 @@ class SettingsView(QWidget):
         # Engine values last applied to the running analyzer. Binder-driven
         # cards persist on edit, so Save compares against what the engine
         # actually uses instead of "config vs widget".
-        self._applied_engine_path = self.config_manager.get("engine_path", "")
-        self._applied_engine_threads = self.config_manager.get_int(
-            "engine_threads", DEFAULT_ENGINE_THREADS
-        )
-        self._applied_engine_hash = self.config_manager.get_int(
-            "engine_hash", DEFAULT_ENGINE_HASH_MB
-        )
+        self._applied_engine_path = self.config_manager.engine_path
+        self._applied_engine_threads = self.config_manager.engine_threads
+        self._applied_engine_hash = self.config_manager.engine_hash
 
         self._apply_mode()
 

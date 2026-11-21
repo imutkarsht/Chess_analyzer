@@ -6,9 +6,9 @@ from src.gui.engine_lines import LiveEngineSession
 FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
 
 
-def _session(mocker):
+def _session(mocker, config=None):
     worker_cls = mocker.patch("src.gui.engine_lines.session.LiveAnalysisWorker")
-    session = LiveEngineSession("/fake/stockfish", throttle_ms=0)
+    session = LiveEngineSession("/fake/stockfish", config_manager=config, throttle_ms=0)
     worker = worker_cls.return_value
     worker.isRunning.return_value = False
 
@@ -106,3 +106,20 @@ def test_unchanged_lines_are_not_re_emitted(mocker):
     slots["info_ready"]({"seq": 1, "line": line})
 
     assert len(emitted) == 1
+
+
+def test_rendered_line_count_follows_the_live_engine_lines_setting(mocker):
+    class _Config:
+        live_multi_pv = 3
+
+    session, _worker, slots = _session(mocker, config=_Config())
+    emitted = []
+    session.lines_changed.connect(emitted.append)
+    session.request(FEN)
+
+    for rank in (1, 2, 3):
+        slots["info_ready"](
+            {"seq": 1, "line": EngineLine(rank=rank, cp=30, pv_uci=("e7e5",))}
+        )
+
+    assert [line.rank for line in emitted[-1]] == [1, 2, 3]

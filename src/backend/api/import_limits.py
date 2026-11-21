@@ -28,7 +28,7 @@ def clamp_games_limit(value: object, token: str | None) -> int:
 def current_token(config_manager) -> str:
     """Resolve the configured Lichess token, falling back to the environment."""
     try:
-        token = config_manager.get("lichess_token", "") or ""
+        token = config_manager.lichess_token
     except Exception:
         token = ""
     return (token or os.getenv("LICHESS_TOKEN", "") or "").strip()

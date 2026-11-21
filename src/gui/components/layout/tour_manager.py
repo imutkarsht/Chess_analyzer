@@ -73,7 +73,7 @@ class TourManager:
     def has_seen_tour(self, key: str | int) -> bool:
         if self.config_manager is None:
             return True
-        seen = self.config_manager.get("tour_seen_pages", {})
+        seen = self.config_manager.tour_seen_pages
         str_key = str(key)
         if seen.get(str_key, False):
             return True
@@ -92,7 +92,7 @@ class TourManager:
     def mark_seen(self, key: str | int) -> None:
         if self.config_manager is None:
             return
-        seen = self.config_manager.get("tour_seen_pages", {})
+        seen = self.config_manager.tour_seen_pages
         str_key = str(key)
         actual_key = LEGACY_TOUR_MAP.get(str_key, str_key)
         seen[actual_key] = True

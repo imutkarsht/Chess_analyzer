@@ -7,7 +7,14 @@ from src.backend.services.groq_service import (
     clean_explanation_text,
     validate_explanation,
 )
-from src.constants import COACH_PERSONAS, DEFAULT_COACH_PERSONA, PROVIDERS
+from src.constants import (
+    COACH_PERSONAS,
+    DEFAULT_COACH_PERSONA,
+    EXPLANATION_MAX_TOKENS,
+    EXPLANATION_REASONING_EFFORT,
+    EXPLANATION_TEMPERATURE,
+    PROVIDERS,
+)
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -44,6 +51,15 @@ def fake_config(monkeypatch):
             "current", _FakeProfile(provider="groq", api_key="", model="")
         )
         cfg.get.side_effect = lambda key, default=None: settings.get(key, default)
+        cfg.explain_temperature = settings.get(
+            "explain_temperature", EXPLANATION_TEMPERATURE
+        )
+        cfg.explain_max_tokens = settings.get(
+            "explain_max_tokens", EXPLANATION_MAX_TOKENS
+        )
+        cfg.explain_reasoning_effort = settings.get(
+            "explain_reasoning_effort", EXPLANATION_REASONING_EFFORT
+        )
         return cfg
 
     monkeypatch.setattr("src.backend.services.groq_service.ConfigManager", _factory)

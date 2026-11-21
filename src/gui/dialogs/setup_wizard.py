@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.engine import invalidate_engine_cache, resolve_engine_path
 from src.backend.engine.downloader import probe_engine_binary
-from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
+from src.constants import PROVIDERS
 from src.gui.components import TextTone
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
 from src.gui.dialogs.wizard.wizard_pages import (
@@ -160,7 +160,7 @@ class SetupWizard(QDialog):
             QTimer.singleShot(150, self._run_gatekeeper)
         elif index == 6:
             parts = []
-            engine = self.settings.get("engine_path") or self.config_manager.get("engine_path")
+            engine = self.settings.get("engine_path") or self.config_manager.engine_path
             if engine and engine != "stockfish":
                 parts.append(f"✓ Chess Engine: {os.path.basename(engine)}")
             else:
@@ -173,8 +173,8 @@ class SetupWizard(QDialog):
             else:
                 parts.append("✓ AI Coach: Skipped (configure anytime in Settings)")
 
-            cc = self.settings.get("chesscom_username") or self.config_manager.get("chesscom_username")
-            li = self.settings.get("lichess_username") or self.config_manager.get("lichess_username")
+            cc = self.settings.get("chesscom_username") or self.config_manager.chesscom_username
+            li = self.settings.get("lichess_username") or self.config_manager.lichess_username
             accounts = []
             if cc:
                 accounts.append("Chess.com")
@@ -249,24 +249,24 @@ class SetupWizard(QDialog):
                 }
 
     def _populate_from_config(self):
-        self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
-        self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
-        self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
+        self.chesscom_input.setText(self.config_manager.chesscom_username)
+        self.lichess_input.setText(self.config_manager.lichess_username)
+        self.lichess_token_input.setText(self.config_manager.lichess_token)
 
         # Pre-populate appearance preferences
-        saved_board_theme = self.config_manager.get("board_theme", DEFAULT_BOARD_THEME)
+        saved_board_theme = self.config_manager.board_theme
         if hasattr(self, "wizard_theme_combo"):
             self.wizard_theme_combo.setCurrentText(saved_board_theme)
 
-        saved_theme_mode = self.config_manager.get("theme_mode", "system")
+        saved_theme_mode = self.config_manager.theme_mode
         if hasattr(self, "wizard_theme_mode_combo"):
             for i in range(self.wizard_theme_mode_combo.count()):
                 if self.wizard_theme_mode_combo.itemData(i) == saved_theme_mode:
                     self.wizard_theme_mode_combo.setCurrentIndex(i)
                     break
 
-        saved_accent = self.config_manager.get("accent_color")
-        saved_accent_mode = self.config_manager.get("accent_mode", "system")
+        saved_accent = self.config_manager.accent_color
+        saved_accent_mode = self.config_manager.accent_mode
         from src.gui.dialogs.wizard.wizard_pages import _apply_accent
         if saved_accent_mode == "custom" and saved_accent:
             _apply_accent(self, saved_accent, mode="custom")
@@ -276,7 +276,7 @@ class SetupWizard(QDialog):
         # Pre-populate active LLM profile if configured
         active_prof = self.config_manager.get_active_profile()
         if not active_prof:
-            profiles = self.config_manager.get("llm_profiles", [])
+            profiles = self.config_manager.llm_profiles
             if profiles:
                 active_prof = profiles[0]
 
@@ -509,7 +509,7 @@ class SetupWizard(QDialog):
 
         if "llm_profile" in self.settings:
             prof = self.settings["llm_profile"]
-            profiles = cfg.get("llm_profiles", [])
+            profiles = cfg.llm_profiles
             # Update existing matching provider or append new profile
             existing = next((p for p in profiles if p.get("provider", "").lower() == prof["provider"].lower()), None)
             if existing:

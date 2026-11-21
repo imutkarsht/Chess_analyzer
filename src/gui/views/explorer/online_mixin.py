@@ -48,7 +48,7 @@ class ExplorerOnlineMixin:
 
     def _explorer_enabled(self) -> bool:
         try:
-            return bool(self.config_manager.get("lichess_explorer_enabled", True))
+            return self.config_manager.lichess_explorer_enabled
         except Exception:
             return True
 

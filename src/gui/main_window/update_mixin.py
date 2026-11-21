@@ -11,7 +11,7 @@ class UpdateMixin:
 
     def check_for_updates(self):
         """Start background update check after a delay (max once per day)."""
-        last_check = self.config_manager.get("last_update_check", "")
+        last_check = self.config_manager.last_update_check
         today = datetime.now().strftime("%Y-%m-%d")
 
         if last_check == today:

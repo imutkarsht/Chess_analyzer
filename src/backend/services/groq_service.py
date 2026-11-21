@@ -263,15 +263,15 @@ def explanation_tuning(cfg=None) -> tuple[float, int, str]:
     """
     cfg = cfg or ConfigManager()
     try:
-        temperature = float(cfg.get("explain_temperature", EXPLANATION_TEMPERATURE))
+        temperature = float(cfg.explain_temperature)
     except (TypeError, ValueError):
         temperature = EXPLANATION_TEMPERATURE
     try:
-        max_tokens = int(cfg.get("explain_max_tokens", EXPLANATION_MAX_TOKENS))
+        max_tokens = int(cfg.explain_max_tokens)
     except (TypeError, ValueError):
         max_tokens = EXPLANATION_MAX_TOKENS
 
-    effort = cfg.get("explain_reasoning_effort", EXPLANATION_REASONING_EFFORT) or ""
+    effort = cfg.explain_reasoning_effort or ""
     if effort not in {"", "low", "medium", "high"}:
         effort = EXPLANATION_REASONING_EFFORT
 

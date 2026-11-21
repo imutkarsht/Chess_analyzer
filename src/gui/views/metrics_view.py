@@ -290,8 +290,8 @@ class MetricsWidget(QWidget):
 
         clear_layout(self.content_layout)
 
-        chesscom = self.config_manager.get("chesscom_username", "")
-        lichess = self.config_manager.get("lichess_username", "")
+        chesscom = self.config_manager.chesscom_username
+        lichess = self.config_manager.lichess_username
         self.usernames = [u for u in [chesscom, lichess] if u]
 
         if not self.usernames:
@@ -583,7 +583,7 @@ class MetricsWidget(QWidget):
         )
 
         self.card_order = normalise_card_order(
-            self.config_manager.get("metrics_card_order", [])
+            self.config_manager.metrics_card_order
         )
         self._chart_cards: dict[str, QWidget] = {}
         for key in self.card_order:
@@ -673,7 +673,7 @@ class MetricsWidget(QWidget):
         if not self.current_stats:
             return
         order = normalise_card_order(
-            self.config_manager.get("metrics_card_order", [])
+            self.config_manager.metrics_card_order
         )
         if order == self.card_order:
             return

@@ -25,7 +25,6 @@ from src.backend.services.groq_service import GroqService
 from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
 from src.backend.storage.cache import AnalysisCache
 from src.constants import (
-    DEFAULT_COACH_PERSONA,
     EXPLANATION_DEBOUNCE_MS,
     EXPLANATION_PROMPT_VERSION,
     normalize_coach_persona,
@@ -147,12 +146,12 @@ class AnalysisPanel(QWidget):
 
         self.toggle_checkbox = Checkbox("Engine Lines")
         self.toggle_checkbox.setChecked(
-            bool(self.config_manager.get("engine_lines_enabled", False))
+            self.config_manager.engine_lines_enabled
         )
         toggles_layout.addWidget(self.toggle_checkbox)
 
         self.cache_checkbox = Checkbox("Use Cache")
-        self.cache_checkbox.setChecked(bool(self.config_manager.get("use_cache", True)))
+        self.cache_checkbox.setChecked(self.config_manager.use_cache)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         toggles_layout.addWidget(self.cache_checkbox)
         toggles_layout.addStretch()
@@ -623,11 +622,7 @@ class AnalysisPanel(QWidget):
         if not self.current_game:
             return None
         meta = self.current_game.metadata
-        usernames = {
-            str(self.config_manager.get(key, "") or "").lower()
-            for key in ("chesscom_username", "lichess_username")
-        }
-        usernames.discard("")
+        usernames = set(self.config_manager.player_usernames)
         if (meta.white or "").lower() in usernames:
             return "white"
         if (meta.black or "").lower() in usernames:
@@ -929,7 +924,7 @@ class AnalysisPanel(QWidget):
         """The axes that make a retained explanation valid for the current settings."""
         return (
             normalize_coach_persona(
-                self.config_manager.get("coach_persona", DEFAULT_COACH_PERSONA)
+                self.config_manager.coach_persona
             ),
             self.groq_service.model_name,
             self.groq_service._lang_code(),
@@ -944,7 +939,7 @@ class AnalysisPanel(QWidget):
             self.coach_card.show_cached(stored[1])
 
     def _allow_trivial_explanations(self) -> bool:
-        return bool(self.config_manager.get("explain_llm_for_trivial_moves", False))
+        return self.config_manager.explain_llm_for_trivial_moves
 
     def _on_coach_ask_requested(self) -> None:
         self._ensure_coach_insight()
@@ -978,7 +973,7 @@ class AnalysisPanel(QWidget):
             lang_code=self.groq_service._lang_code(),
             model_name=self.groq_service.model_name,
             persona=normalize_coach_persona(
-                self.config_manager.get("coach_persona", DEFAULT_COACH_PERSONA)
+                self.config_manager.coach_persona
             ),
         )
         worker.finished.connect(self._on_coach_finished)

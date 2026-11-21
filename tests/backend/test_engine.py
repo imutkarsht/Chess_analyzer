@@ -73,6 +73,20 @@ def test_apply_settings_from_config_without_manager_is_noop():
 
 # ── resolve_engine_path ─────────────────────────────────────────────────
 
+
+class _Config:
+    """Minimal typed ConfigManager stand-in for engine tests."""
+
+    def __init__(self, engine_path="", engine_threads=1, engine_hash=128):
+        self.engine_path = engine_path
+        self.engine_threads = engine_threads
+        self.engine_hash = engine_hash
+        self.config = {"engine_path": engine_path}
+        self.saved = 0
+
+    def save_config(self):
+        self.saved += 1
+
 class TestValidateEnginePath:
     def test_none_or_empty_returns_false(self):
         assert _validate_engine_path("") is False
@@ -107,8 +121,7 @@ class TestResolveEnginePath:
 
     def test_priority1_config_path(self, mocker):
         """Config path that exists is returned first."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = "/usr/local/bin/stockfish"
+        mock_cfg = _Config(engine_path="/usr/local/bin/stockfish")
 
         mocker.patch("shutil.which", return_value=None)
         mocker.patch("os.path.isfile", return_value=True)
@@ -116,12 +129,10 @@ class TestResolveEnginePath:
 
         result = resolve_engine_path(mock_cfg)
         assert result == "/usr/local/bin/stockfish"
-        mock_cfg.get.assert_called_with("engine_path", "")
 
     def test_priority1_config_path_which_resolves(self, mocker):
         """If config path is a bare name, shutil.which resolves it."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = "stockfish"
+        mock_cfg = _Config(engine_path="stockfish")
 
         mocker.patch("shutil.which", return_value="/opt/homebrew/bin/stockfish")
         mocker.patch("os.path.isfile", return_value=True)
@@ -132,8 +143,7 @@ class TestResolveEnginePath:
 
     def test_priority1_skips_when_config_empty(self, mocker):
         """Empty config path falls through to PATH lookup."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = ""
+        mock_cfg = _Config(engine_path="")
 
         mocker.patch("shutil.which", return_value=None)
         mocker.patch("os.path.isfile", return_value=False)
@@ -148,8 +158,7 @@ class TestResolveEnginePath:
 
     def test_priority1_skips_when_config_path_invalid(self, mocker):
         """Config path that doesn't exist falls through."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = "/usr/local/bin/stockfish"
+        mock_cfg = _Config(engine_path="/usr/local/bin/stockfish")
 
         mocker.patch("shutil.which", return_value=None)
         mocker.patch("os.path.isfile", return_value=False)
@@ -159,8 +168,7 @@ class TestResolveEnginePath:
 
     def test_priority2_path_lookup(self, mocker):
         """shutil.which result is returned before common paths."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = ""
+        mock_cfg = _Config(engine_path="")
 
         mocker.patch("shutil.which", return_value="/usr/bin/stockfish")
         mocker.patch("os.path.isfile", return_value=True)
@@ -171,8 +179,7 @@ class TestResolveEnginePath:
 
     def test_priority2_path_lookup_second_place(self, mocker):
         """shutil.which returning None -> skip to common paths."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = ""
+        mock_cfg = _Config(engine_path="")
 
         mocker.patch("shutil.which", return_value=None)
         mocker.patch("os.path.isfile", return_value=True)
@@ -187,8 +194,7 @@ class TestResolveEnginePath:
 
     def test_priority3_common_paths_checked(self, mocker):
         """Common paths are checked after PATH."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = ""
+        mock_cfg = _Config(engine_path="")
 
         def which_side_effect(cmd, **kw):
             return None
@@ -211,8 +217,7 @@ class TestResolveEnginePath:
 
     def test_priority4_downloaded_dir(self, mocker):
         """Previously-downloaded binary in engine data dir is found."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = ""
+        mock_cfg = _Config(engine_path="")
 
         engine_data_dir = "/tmp/engine_data"
         mocker.patch("shutil.which", return_value=None)
@@ -229,8 +234,7 @@ class TestResolveEnginePath:
 
     def test_all_priorities_fail_returns_none(self, mocker):
         """When nothing is found, returns None."""
-        mock_cfg = mocker.Mock()
-        mock_cfg.get.return_value = ""
+        mock_cfg = _Config(engine_path="")
 
         mocker.patch("shutil.which", return_value=None)
         mocker.patch("src.backend.analysis.engine.get_stockfish_common_paths",
@@ -449,8 +453,7 @@ class TestEngineLifecycle:
         assert manager.engine is not None
 
     def test_apply_settings_from_config_reloads_values(self, mocker):
-        config = mocker.Mock()
-        config.get.side_effect = [3, 256]
+        config = _Config(engine_threads=3, engine_hash=256)
         manager = EngineManager("/fake/stockfish")
         manager.config_manager = config
         manager.engine = mocker.Mock()
@@ -461,8 +464,7 @@ class TestEngineLifecycle:
         assert manager.options["Hash"] == 256
 
     def test_options_from_config_uses_configured_values(self, mocker):
-        config = mocker.Mock()
-        config.get.side_effect = [4, 512]
+        config = _Config(engine_threads=4, engine_hash=512)
 
         assert options_from_config(config) == {"Threads": 4, "Hash": 512}
 
@@ -535,16 +537,29 @@ class TestGetBestMove:
 
 class TestResolveFallbackConfig:
     def test_stale_config_is_updated_to_working_path(self, mocker):
-        config = mocker.Mock()
-        config.get.side_effect = ["", "/stale/stockfish"]
-        config.config = {"engine_path": "/stale/stockfish"}
+        class _StaleConfig(_Config):
+            def __init__(self):
+                super().__init__(engine_path="")
+                self.config["engine_path"] = "/stale/stockfish"
+                self._reads = 0
+
+            @property
+            def engine_path(self):
+                self._reads += 1
+                return "" if self._reads == 1 else self.config["engine_path"]
+
+            @engine_path.setter
+            def engine_path(self, _value):
+                pass
+
+        config = _StaleConfig()
         mocker.patch("shutil.which", return_value="/usr/bin/stockfish")
         mocker.patch("os.path.isfile", return_value=True)
         mocker.patch("os.access", return_value=True)
 
         assert resolve_engine_path(config) == "/usr/bin/stockfish"
 
-        config.save_config.assert_called_once()
+        assert config.saved == 1
         assert config.config["engine_path"] == "/usr/bin/stockfish"
 
     def test_resolution_is_cached_between_calls(self, mocker):
@@ -558,8 +573,7 @@ class TestResolveFallbackConfig:
         which.assert_called_once()
 
     def test_deep_probe_rejects_binary_that_fails_handshake(self, mocker):
-        config = mocker.Mock()
-        config.get.return_value = "/broken/stockfish"
+        config = _Config(engine_path="/broken/stockfish")
         mocker.patch("os.path.isfile", return_value=True)
         mocker.patch("os.access", return_value=True)
         mocker.patch("shutil.which", return_value=None)

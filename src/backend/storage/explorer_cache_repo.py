@@ -8,7 +8,6 @@ import time
 from src.backend.storage.cache_time import parse_cached_at, resolve_ttl_seconds
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.schema_constants import EXPLORER_CACHE_TTL_SECONDS
-from src.constants import DEFAULT_EXPLORER_CACHE_TTL_HOURS
 from src.utils.logger import logger
 
 # Distinguishes "use the user setting" from an explicit None ("never expire").
@@ -32,9 +31,7 @@ class ExplorerCacheRepo:
 
         from src.utils.config import ConfigManager
 
-        hours = ConfigManager().get(
-            "explorer_cache_ttl_hours", DEFAULT_EXPLORER_CACHE_TTL_HOURS
-        )
+        hours = ConfigManager().explorer_cache_ttl_hours
         return resolve_ttl_seconds(hours, EXPLORER_CACHE_TTL_SECONDS)
 
     def save_explorer_cache(self, fen: str, response_json: str) -> None:

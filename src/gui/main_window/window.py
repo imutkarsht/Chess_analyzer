@@ -110,11 +110,9 @@ class MainWindow(
         self._analysis_progress_final = False
         self._replay_advancing = False
         self.config_manager = ConfigManager()
-        ToastManager.configure(
-            position=self.config_manager.get_choice("toast_position", "top_right")
-        )
+        ToastManager.configure(position=self.config_manager.toast_position)
         resolved = resolve_engine_path(self.config_manager)
-        self.engine_path = resolved or self.config_manager.get("engine_path", "stockfish")
+        self.engine_path = resolved or self.config_manager.engine_path
         self.analyzer = Analyzer(
             EngineManager(self.engine_path, config_manager=self.config_manager)
         )
@@ -133,11 +131,11 @@ class MainWindow(
         # Initialize ThemeManager
         self._theme_manager = ThemeManager(parent=self)
 
-        saved_theme_mode = self.config_manager.get("theme_mode", "system")
+        saved_theme_mode = self.config_manager.theme_mode
         ThemeManager.set_theme_mode(saved_theme_mode)
 
-        saved_accent = self.config_manager.get("accent_color")
-        saved_accent_mode = self.config_manager.get("accent_mode", "system")
+        saved_accent = self.config_manager.accent_color
+        saved_accent_mode = self.config_manager.accent_mode
         if saved_accent_mode == "system":
             ThemeManager.set_accent_mode("system")
         elif saved_accent:
@@ -224,9 +222,9 @@ class MainWindow(
 
     def _restore_window_state(self):
         """Restore the main window's last-known position and size."""
-        if not self.config_manager.get("remember_window_geometry", True):
+        if not self.config_manager.remember_window_geometry:
             return
-        state = self.config_manager.get("window_state") or {}
+        state = self.config_manager.window_state
         try:
             x = state.get("x")
             y = state.get("y")
@@ -261,7 +259,7 @@ class MainWindow(
 
     def _save_window_state(self):
         """Persist the current window geometry to the user config."""
-        if not self.config_manager.get("remember_window_geometry", True):
+        if not self.config_manager.remember_window_geometry:
             return
         frame = self.frameGeometry()
         self.config_manager.set(

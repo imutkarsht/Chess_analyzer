@@ -41,6 +41,29 @@ class TestConfigManager:
             assert manager.get("explain_reasoning_effort") == ""
             assert manager.get("history_view_mode") == "compact"
             assert manager.get("metrics_card_order") == []
+            assert manager.board_theme == "Brown"
+            assert manager.piece_theme == "Standard"
+            assert manager.theme_mode == "system"
+            assert manager.toast_position == "top_right"
+            assert manager.sidebar_start_collapsed is False
+            assert manager.sound_volume == 50
+            assert manager.history_view_mode == "compact"
+            assert manager.import_show_boards is True
+            assert manager.chesscom_username == ""
+            assert manager.lichess_username == ""
+            assert manager.player_usernames == ()
+            assert manager.lichess_token == ""
+            assert manager.lichess_explorer_enabled is True
+            assert manager.llm_active_profile == "Groq"
+            assert [p["name"] for p in manager.llm_profiles] == ["Groq"]
+            assert manager.explain_temperature == 0.3
+            assert manager.explain_max_tokens == 1024
+            assert manager.explain_reasoning_effort == ""
+            assert manager.last_update_check == ""
+            assert manager.games_analyzed_count == 0
+            assert manager.review_submitted is False
+            assert manager.review_prompt_dismissed is False
+            assert manager.review_next_prompt_count == 3
 
     def test_get_nonexistent_key(self, tmp_path):
         """Test getting a key that doesn't exist returns default."""

@@ -54,7 +54,7 @@ class WindowLayoutSettings(QGroupBox):
     def sync_sidebar_pref(self):
         """Re-read the saved sidebar preference into the radio group."""
         self.sidebar_choice.setValue(
-            bool(self.config_manager.get("sidebar_start_collapsed", False))
+            self.config_manager.sidebar_start_collapsed
         )
 
     # ------------------------------------------------------------------

@@ -30,9 +30,7 @@ def options_from_config(config_manager=None) -> dict[str, Any]:
     """
     if config_manager is None:
         return engine_options(DEFAULT_ENGINE_THREADS, DEFAULT_ENGINE_HASH_MB)
-    threads = config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS)
-    hash_mb = config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)
-    return engine_options(threads, hash_mb)
+    return engine_options(config_manager.engine_threads, config_manager.engine_hash)
 
 
 def _validate_engine_path(path: str) -> bool:
@@ -57,7 +55,7 @@ def _save_fallback_to_config(config_manager, resolved_path: str) -> None:
     working fallback so the Settings UI stays in sync."""
     if config_manager is None:
         return
-    current = config_manager.get("engine_path", "")
+    current = config_manager.engine_path
     if current and current != resolved_path:
         logger.info(
             "resolve_engine_path: updating config from '%s' to fallback '%s'",
@@ -110,7 +108,7 @@ def resolve_engine_path(config_manager=None, deep_probe: bool = False) -> str | 
 
     # Priority 1 – explicit user setting
     if config_manager is not None:
-        cfg_path = config_manager.get("engine_path", "")
+        cfg_path = config_manager.engine_path
         if cfg_path:
             resolved = shutil.which(cfg_path) or cfg_path
             if _accept(resolved):
@@ -238,8 +236,8 @@ class EngineManager:
         if self.config_manager is None:
             return
         self.apply_settings(
-            threads=self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS),
-            hash_mb=self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB),
+            threads=self.config_manager.engine_threads,
+            hash_mb=self.config_manager.engine_hash,
         )
 
     def recheck_engine_path(self, config_manager=None) -> bool:
