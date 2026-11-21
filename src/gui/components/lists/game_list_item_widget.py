@@ -399,9 +399,9 @@ class GameListItemWidget(QWidget):
         term_desc = getattr(game.metadata, "termination_description", None)
         term_mode = getattr(game.metadata, "termination_mode", None)
         if not term_desc or term_desc.lower() == "normal":
-            from src.backend.storage.termination_detector import TerminationDetector
+            from src.backend.domain.termination import detect_termination
 
-            term_mode, term_desc = TerminationDetector.detect_termination(
+            term_mode, term_desc = detect_termination(
                 headers={
                     "Result": game.metadata.result,
                     "White": game.metadata.white,

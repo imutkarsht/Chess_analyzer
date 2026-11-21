@@ -1,8 +1,8 @@
 import pytest
 
+from src.backend.domain.termination import detect_termination
 from src.backend.storage.models import MoveAnalysis
 from src.backend.storage.pgn_parser import PGNParser
-from src.backend.storage.termination_detector import TerminationDetector
 
 
 def test_detect_checkmate_via_board():
@@ -23,7 +23,7 @@ def test_detect_stalemate_via_board():
     # Note: 1... h5 from that FEN is stalemate if illegal or no moves; let's test a clean stalemate FEN setup
     headers = {"Result": "1/2-1/2", "White": "Player1", "Black": "Player2"}
     # FEN where black has no moves and is not in check
-    mode, desc = TerminationDetector.detect_termination(headers, [], starting_fen="k7/1R6/1K6/8/8/8/8/8 b - - 0 1")
+    mode, desc = detect_termination(headers, [], starting_fen="k7/1R6/1K6/8/8/8/8/8 b - - 0 1")
     assert mode == "stalemate"
     assert desc == "Drawn by stalemate"
 
@@ -35,7 +35,7 @@ def test_detect_chesscom_resignation_header():
         "Black": "Bob",
         "Termination": "Alice won by resignation"
     }
-    mode, desc = TerminationDetector.detect_termination(headers, [])
+    mode, desc = detect_termination(headers, [])
     assert mode == "resignation"
     assert desc == "Alice won by resignation"
 
@@ -47,7 +47,7 @@ def test_detect_lichess_time_forfeit():
         "Black": "Bob",
         "Termination": "Time forfeit"
     }
-    mode, desc = TerminationDetector.detect_termination(headers, [])
+    mode, desc = detect_termination(headers, [])
     assert mode == "timeout"
     assert desc == "Bob won on time"
 
@@ -59,7 +59,7 @@ def test_detect_abandonment():
         "Black": "Bob",
         "Termination": "Alice won - game abandoned"
     }
-    mode, desc = TerminationDetector.detect_termination(headers, [])
+    mode, desc = detect_termination(headers, [])
     assert mode == "abandonment"
     assert desc == "Alice won - game abandoned"
 
@@ -70,7 +70,7 @@ def test_detect_headerless_resignation_fallback():
         "White": "Alice",
         "Black": "Bob"
     }
-    mode, desc = TerminationDetector.detect_termination(headers, [])
+    mode, desc = detect_termination(headers, [])
     assert mode == "resignation"
     assert desc == "Alice won by resignation"
 
@@ -81,7 +81,7 @@ def test_detect_headerless_agreed_draw_fallback():
         "White": "Alice",
         "Black": "Bob"
     }
-    mode, desc = TerminationDetector.detect_termination(headers, [])
+    mode, desc = detect_termination(headers, [])
     assert mode == "agreed_draw"
     assert desc == "Drawn by agreement"
 
@@ -111,7 +111,7 @@ def test_termination_header_keywords(
         "Termination": termination,
     }
 
-    assert TerminationDetector.detect_termination(headers, []) == (
+    assert detect_termination(headers, []) == (
         expected_mode,
         expected_desc,
     )
@@ -120,7 +120,7 @@ def test_termination_header_keywords(
 def test_insufficient_material_is_detected_from_the_board():
     headers = {"Result": "1/2-1/2", "White": "Alice", "Black": "Bob"}
 
-    mode, desc = TerminationDetector.detect_termination(
+    mode, desc = detect_termination(
         headers, [], starting_fen="k7/8/8/8/8/8/8/K6k w - - 0 1"
     )
 
@@ -166,7 +166,7 @@ def test_zero_clock_fallback_detects_timeout(result, ply, winner):
         )
     ]
 
-    mode, desc = TerminationDetector.detect_termination(headers, moves)
+    mode, desc = detect_termination(headers, moves)
 
     assert mode == "timeout"
     assert desc == f"{winner} won on time"

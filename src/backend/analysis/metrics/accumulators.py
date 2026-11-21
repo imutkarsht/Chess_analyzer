@@ -430,10 +430,7 @@ class StatsAccumulator:
             f_entry.losses += 1
 
         term_mode_raw = (rec.raw_game.get("termination_mode") or "").strip().lower()
-        term_raw = (rec.raw_game.get("termination") or "").lower()
-        if rec.is_loss and (
-            rec.term_type == "Time" or term_mode_raw == "timeout" or "time" in term_raw
-        ):
+        if rec.is_loss and (rec.term_type == "Time" or term_mode_raw == "timeout"):
             f_entry.time_losses += 1
 
         # 4. Accuracy & Move Quality

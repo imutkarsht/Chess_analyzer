@@ -271,7 +271,17 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `opening_db.py` | SQLite ECO opening database lookups | `OpeningDB` |
 | `polyglot_book.py` | Polyglot `.bin` opening-book reader | `PolyglotBookManager` |
 | `variation_tree.py` | Persistent FEN-keyed variation tree and record models | `VariationNode`, `VariationBranch` |
-| `metrics_aggregator.py` | Compatibility re-export of the metrics package | `MetricsAggregator` |
+
+</details>
+
+#### `src/backend/domain`
+
+<details>
+<summary>Domain rules shared by storage and presentation</summary>
+
+| File | Purpose | Key symbols |
+| --- | --- | --- |
+| `termination.py` | Board/header/clock/result termination detection and human-readable reasons | `detect_termination` |
 
 </details>
 
@@ -282,13 +292,13 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `aggregator.py` | Orchestrates metric collection across games | `MetricsAggregator` |
+| `aggregator.py` | Orchestrates metric collection across games | `calculate_stats`, `get_drill_down_items` |
 | `accumulators.py` | Colour, format, opening and clock accumulators | `ColorStats`, `FormatStats`, `OpeningStats`, `ClockStats` |
 | `coach_dossier.py` | Formats aggregated facts for AI Coach prompts | `build_coach_dossier` |
 | `constants.py` | Thresholds and shared metric constants | — |
 | `filters.py` | Game filtering and player-colour resolution | `filter_games` |
 | `models.py` | Typed metric records | `Outcome`, `GameRecord` |
-| `termination.py` | Termination classification for charts | `classify_termination` |
+| `termination.py` | Projects the canonical termination mode into chart buckets | `classify_termination` |
 
 </details>
 
@@ -398,7 +408,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `cache.py` | Position-level analysis cache | `AnalysisCache` |
 | `pgn_parser.py` | PGN file/text parsing, header indexing, and meaningful move-less records | `PGNParser` |
 | `historic_games.py` | Curated historic positions for the landing puzzle | `HistoricPosition` |
-| `termination_detector.py` | Board/header/clock/result termination detection and human-readable reasons | `TerminationDetector` |
 | `stats.py` | Read-only storage usage report | `StorageStats` |
 | `backup.py` | Validated backup/restore with safety copy | `BackupSummary`, `BackupError` |
 
@@ -406,12 +415,12 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 #### Termination and clocks
 
-- `TerminationDetector.detect_termination()` checks physical board states first, then explicit PGN termination headers, then zero-clock fallbacks, then the result. Header-only checkmates, stalemates, and forfeits no longer fall through to “resignation”.
-- `PGNParser` keeps move-less games when they carry meaningful headers (no-show forfeits, timeout-vs-insufficient draws) and still skips arbitrary non-PGN text.
-- Schema version 8 adds the persisted batch-analysis queue (`analysis_batches`, `analysis_batch_items`, including active elapsed seconds). Version 7 recomputes stored termination modes from PGN headers, so History and Metrics use the same reason.
-- History rows read the stored termination description from light rows; they do not need the full move list.
+- `backend/domain/termination.py` — `detect_termination()` checks physical board states first, then explicit PGN termination headers, then zero-clock fallbacks, then the result. Header-only checkmates, stalemates, and forfeits no longer fall through to “resignation”.
+- PGN `Opening`/`ECO` headers are the canonical opening source; API and local-book values only fill missing metadata.
+- Schema version 9 normalizes stored termination and opening metadata from PGN headers. Version 8 adds the persisted batch-analysis queue (`analysis_batches`, `analysis_batch_items`, including active elapsed seconds).
+- History rows use the recomputed termination description, so they agree with the analysis panel; they do not need the full move list for display.
 - `compute_clock_times()` infers `0:00` for the side to move at a terminal `timeout` or `timeout_insufficient` position, because PGNs omit the flag-fall clock.
-- `backend/analysis/metrics/termination.py` maps the stored mode into the dashboard’s Checkmate/Resignation/Time/Abandon/Draw buckets.
+- `backend/analysis/metrics/termination.py` only projects the stored canonical mode into the dashboard’s Checkmate/Resignation/Time/Abandon/Draw buckets.
 
 ### `src/config` and `src/utils`
 

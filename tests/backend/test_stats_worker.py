@@ -5,7 +5,11 @@ Unit tests for StatsWorker filtering and statistical aggregation.
 import json
 import time
 
-from src.backend.analysis.metrics_aggregator import MetricsAggregator
+from src.backend.analysis.metrics import (
+    build_coach_dossier,
+    calculate_stats,
+    get_drill_down_items,
+)
 from src.workers.metrics import StatsWorker
 
 
@@ -59,7 +63,7 @@ def test_stats_exclude_unanalyzed_games():
         ),
     )
 
-    stats = MetricsAggregator.calculate_stats(
+    stats = calculate_stats(
         [analyzed, unanalyzed], ["PlayerA"]
     )
 
@@ -86,7 +90,7 @@ def test_stats_worker_loader_runs_in_worker_and_cancellation_discards_result():
     cancelled.run()
 
     assert cancelled_results == []
-    assert MetricsAggregator.calculate_stats(
+    assert calculate_stats(
         games, ["PlayerA"], should_cancel=lambda: True
     ) is None
 
@@ -333,12 +337,10 @@ def test_stats_worker_advantage_conversion_and_rates():
     assert adv["comeback_rate"] == 100.0  # 1 of 1
 
 
-def test_metrics_aggregator_build_coach_dossier():
+def test_build_coach_dossier():
     """Test generating a structured coaching dossier from aggregated stats."""
-    from src.backend.analysis.metrics_aggregator import MetricsAggregator
-
     # 1. Empty stats
-    empty_dossier = MetricsAggregator.build_coach_dossier({"total": 0})
+    empty_dossier = build_coach_dossier({"total": 0})
     assert "No analyzed games available" in empty_dossier
 
     # 2. Populated stats
@@ -396,7 +398,7 @@ def test_metrics_aggregator_build_coach_dossier():
         },
     }
 
-    dossier = MetricsAggregator.build_coach_dossier(sample_stats)
+    dossier = build_coach_dossier(sample_stats)
     assert "STUDENT CHESS PERFORMANCE DOSSIER" in dossier
     assert "Overall Win Rate: 60.0%" in dossier
     assert "Average Accuracy: 82.5%" in dossier
@@ -406,8 +408,8 @@ def test_metrics_aggregator_build_coach_dossier():
     assert "Pieces Lost: 2" in dossier
 
 
-def test_metrics_aggregator_drill_down():
-    """Test that MetricsAggregator indexes occurrences for drill-down exploration."""
+def test_metrics_drill_down():
+    """Test that metrics aggregation indexes occurrences for drill-down exploration."""
     moves = [
         {
             "ply": 1,
@@ -450,11 +452,11 @@ def test_metrics_aggregator_drill_down():
         "moves_json": json.dumps(moves),
     }
 
-    stats = MetricsAggregator.calculate_stats([game], ["Hero"])
+    stats = calculate_stats([game], ["Hero"])
     assert "drill_down" in stats
 
     # Blunders drill-down
-    blunders = MetricsAggregator.get_drill_down_items(stats, "blunders")
+    blunders = get_drill_down_items(stats, "blunders")
     assert len(blunders) == 1
     b = blunders[0]
     assert b["game_id"] == "drill_game_1"
@@ -465,9 +467,9 @@ def test_metrics_aggregator_drill_down():
     assert b["eval_drop"] == 250
 
     # Hung piece drill-down
-    hung_all = MetricsAggregator.get_drill_down_items(stats, "hung_pieces")
+    hung_all = get_drill_down_items(stats, "hung_pieces")
     assert len(hung_all) == 1
-    hung_bishops = MetricsAggregator.get_drill_down_items(stats, "hung_pieces", "bishop")
+    hung_bishops = get_drill_down_items(stats, "hung_pieces", "bishop")
     assert len(hung_bishops) == 1
     hb = hung_bishops[0]
     assert hb["piece_name"] == "bishop"
@@ -475,7 +477,7 @@ def test_metrics_aggregator_drill_down():
     assert hb["game_id"] == "drill_game_1"
 
     # Openings drill-down for Game 1
-    vant_games = MetricsAggregator.get_drill_down_items(stats, "openings", "Van't Kruijs Opening")
+    vant_games = get_drill_down_items(stats, "openings", "Van't Kruijs Opening")
     assert len(vant_games) == 1
     assert vant_games[0]["game_id"] == "drill_game_1"
     assert vant_games[0]["is_game"] is True
@@ -491,15 +493,15 @@ def test_metrics_aggregator_drill_down():
         "opening": "Sicilian Defense",
         "summary_json": json.dumps({"white": {"accuracy": 92.0, "Blunder": 0}}),
     }
-    stats2 = MetricsAggregator.calculate_stats([game, clean_game], ["Hero"])
-    clean_list = MetricsAggregator.get_drill_down_items(stats2, "clean_games")
+    stats2 = calculate_stats([game, clean_game], ["Hero"])
+    clean_list = get_drill_down_items(stats2, "clean_games")
     assert len(clean_list) == 1
     assert clean_list[0]["game_id"] == "drill_game_2"
     assert clean_list[0]["classification"] == "Clean Game"
     assert clean_list[0]["is_game"] is True
 
     # Case-insensitive opening lookup
-    sicilian_games = MetricsAggregator.get_drill_down_items(stats2, "openings", "sicilian defense")
+    sicilian_games = get_drill_down_items(stats2, "openings", "sicilian defense")
     assert len(sicilian_games) == 1
     assert sicilian_games[0]["game_id"] == "drill_game_2"
 
@@ -524,11 +526,11 @@ def test_drill_down_items_capping():
             }
         )
 
-    stats = MetricsAggregator.calculate_stats(many_games, ["Hero"])
-    clean_list = MetricsAggregator.get_drill_down_items(stats, "clean_games")
+    stats = calculate_stats(many_games, ["Hero"])
+    clean_list = get_drill_down_items(stats, "clean_games")
     # Clean games drill-down list should be capped at MAX_DRILL_DOWN_ITEMS
     assert len(clean_list) == MAX_DRILL_DOWN_ITEMS
     # But clean games summary counter aggregates all games
     assert stats["clean_games"] == MAX_DRILL_DOWN_ITEMS + 100
-    italian_games = MetricsAggregator.get_drill_down_items(stats, "openings", "italian game")
+    italian_games = get_drill_down_items(stats, "openings", "italian game")
     assert len(italian_games) == MAX_DRILL_DOWN_ITEMS

@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from src.backend.analysis.metrics.accumulators import StatsAccumulator
-from src.backend.analysis.metrics.filters import filter_games, get_user_color, matches_filters
+from src.backend.analysis.metrics.filters import filter_games
 from src.backend.analysis.metrics.models import GameRecord
 
 
@@ -94,12 +94,3 @@ def get_drill_down_items(
                 all_items.extend(v)
         return all_items
     return []
-
-
-class MetricsAggregator:
-    """Aggregates game records into comprehensive statistical insights (OOP interface)."""
-
-    get_user_color = staticmethod(get_user_color)
-    matches_filters = staticmethod(matches_filters)
-    calculate_stats = staticmethod(calculate_stats)
-    get_drill_down_items = staticmethod(get_drill_down_items)
