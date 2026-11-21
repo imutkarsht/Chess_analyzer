@@ -314,9 +314,11 @@ class _HistoryConfig:
         self.mode = mode
 
     def get(self, key, default=None):
-        if key == "history_view_mode":
-            return self.mode
         return default
+
+    @property
+    def history_view_mode(self):
+        return self.mode
 
 
 def test_history_view_applies_configured_default_layout(qapp, qtbot):
@@ -662,6 +664,10 @@ def test_history_view_filters_analysis_status_and_ownership(tmp_path, qtbot):
     class _Prefs:
         def get(self, key, default=""):
             return "PlayerA" if key == "chesscom_username" else default
+
+        @property
+        def history_view_mode(self):
+            return "compact"
 
     view = HistoryView(config_manager=_Prefs())
     qtbot.addWidget(view)

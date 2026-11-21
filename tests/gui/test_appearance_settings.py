@@ -37,6 +37,18 @@ class _FakeConfig:
     def set(self, key, value):
         self.config[key] = value
 
+    @property
+    def board_theme(self):
+        return self.config["board_theme"]
+
+    @property
+    def piece_theme(self):
+        return self.config["piece_theme"]
+
+    @property
+    def sidebar_start_collapsed(self):
+        return self.config["sidebar_start_collapsed"]
+
 
 def test_board_display_toggles_reflect_saved_config(qapp):
     config = _FakeConfig(

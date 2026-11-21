@@ -17,6 +17,10 @@ class _FakeConfig:
     def set(self, key, value):
         self.config[key] = value
 
+    @property
+    def sidebar_start_collapsed(self):
+        return self.config["sidebar_start_collapsed"]
+
 
 @pytest.mark.parametrize(
     ("collapsed", "expected_width", "has_labels"),

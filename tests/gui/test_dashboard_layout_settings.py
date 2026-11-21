@@ -14,6 +14,10 @@ class _FakeConfig:
     def set(self, key, value):
         self.config[key] = value
 
+    @property
+    def metrics_card_order(self):
+        return self.config["metrics_card_order"]
+
 
 def test_default_order_and_unknown_keys(qapp):
     widget = DashboardLayoutSettings(
