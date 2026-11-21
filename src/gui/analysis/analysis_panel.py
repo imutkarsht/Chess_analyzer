@@ -20,10 +20,10 @@ from src.backend.analysis.tactics.report import (
     GameTacticsReport,
     build_game_tactics_report,
 )
+from src.backend.domain.termination import detect_termination
 from src.backend.services.groq_service import GroqService
 from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
 from src.backend.storage.cache import AnalysisCache
-from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import (
     DEFAULT_COACH_PERSONA,
     EXPLANATION_DEBOUNCE_MS,
@@ -451,7 +451,7 @@ class AnalysisPanel(QWidget):
             b_name = meta.black or "Black"
 
             # Result Header
-            term_mode, term_desc = TerminationDetector.detect_termination(
+            term_mode, term_desc = detect_termination(
                 headers={
                     "Result": meta.result,
                     "White": w_name,

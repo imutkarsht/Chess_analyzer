@@ -91,16 +91,17 @@ class GameInfo:
         # PGN
         pgn = data.get("pgn", "")
 
-        # Opening
-        opening = (data.get("opening") or {}).get("name")
+        # Opening: PGN headers are the same source the analyzer and History
+        # display, so prefer them when the API opening disagrees.
+        api_opening = (data.get("opening") or {}).get("name")
 
         # Move count and opening fallback from the PGN.
         move_count = None
+        opening = api_opening
         metadata = extract_pgn_metadata(pgn)
         if metadata is not None:
             move_count = metadata.move_count
-            if not opening:
-                opening = metadata.opening
+            opening = metadata.opening or api_opening
 
         return cls(
             game_id=data.get("id", ""),

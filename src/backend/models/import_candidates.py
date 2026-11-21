@@ -133,7 +133,7 @@ class GameBatch:
                     result=info.result,
                     time_class=_resolve_time_class(info.time_class, info.pgn),
                     event=_meaningful_event(summary.event),
-                    opening=info.opening or summary.opening,
+                    opening=summary.opening or info.opening,
                     white_elo=info.white_elo,
                     black_elo=info.black_elo,
                     move_count=(

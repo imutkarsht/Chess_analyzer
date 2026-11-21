@@ -27,6 +27,17 @@ from src.backend.storage.schema_constants import (
 )
 from src.utils.logger import logger
 
+_GENERIC_TERMINATIONS = {"", "normal", "unknown", "?"}
+_FALLBACK_TERMINATION_MODES = {"resignation", "agreed_draw", "unterminated"}
+
+
+def _canonical_termination(mode: str, description: str, stored: str | None) -> str:
+    """Keep source-specific fallback wording, but never stale board results."""
+    text = (stored or "").strip()
+    if mode in _FALLBACK_TERMINATION_MODES and text.lower() not in _GENERIC_TERMINATIONS:
+        return text
+    return description
+
 
 def _to_float(val: Any) -> float | None:
     try:
@@ -207,26 +218,33 @@ class GamesRepo:
         w_counts = Counter(b.get("classification") for b in tactics_white.get("brilliancies", []))
         b_counts = Counter(b.get("classification") for b in tactics_black.get("brilliancies", []))
 
-        if (
-            not game_analysis.metadata.termination_mode
-            or not game_analysis.metadata.termination_description
-        ):
-            from src.backend.storage.termination_detector import TerminationDetector
+        from src.backend.domain.termination import detect_termination
 
-            term_mode, term_desc = TerminationDetector.detect_termination(
-                headers=game_analysis.metadata.headers,
-                moves=game_analysis.moves,
-                starting_fen=game_analysis.metadata.starting_fen,
-                chess960=game_analysis.metadata.chess960,
-            )
-            game_analysis.metadata.termination_mode = term_mode
-            game_analysis.metadata.termination_description = term_desc
+        headers = dict(game_analysis.metadata.headers or {})
+        generic_header = (headers.get("Termination") or "").strip().lower() in (
+            "",
+            "normal",
+            "unknown",
+            "?",
+        )
+        stored_term = (game_analysis.metadata.termination or "").strip()
+        if generic_header and stored_term.lower() not in ("", "normal", "unknown", "?"):
+            headers["Termination"] = stored_term
+        headers.setdefault("Result", game_analysis.metadata.result)
+        headers.setdefault("White", game_analysis.metadata.white)
+        headers.setdefault("Black", game_analysis.metadata.black)
 
-        if (
-            not game_analysis.metadata.termination
-            or game_analysis.metadata.termination.strip().lower() in ("", "normal", "unknown")
-        ):
-            game_analysis.metadata.termination = game_analysis.metadata.termination_description
+        term_mode, term_desc = detect_termination(
+            headers=headers,
+            moves=game_analysis.moves,
+            starting_fen=game_analysis.metadata.starting_fen,
+            chess960=game_analysis.metadata.chess960,
+        )
+        game_analysis.metadata.termination_mode = term_mode
+        game_analysis.metadata.termination_description = term_desc
+        game_analysis.metadata.termination = _canonical_termination(
+            term_mode, term_desc, game_analysis.metadata.termination
+        )
 
         save_ts = timestamp if timestamp is not None else time.time()
 
@@ -827,9 +845,9 @@ class GamesRepo:
         return self.row_to_game_analysis(row_dict)
 
     def row_to_game_analysis(self, g_dict: dict[str, Any]) -> GameAnalysis:
+        from src.backend.domain.termination import detect_termination
         from src.backend.storage.models import GameMetadata, MoveAnalysis
         from src.backend.storage.pgn_parser import PGNParser
-        from src.backend.storage.termination_detector import TerminationDetector
 
         stored_speed = g_dict.get("speed_category")
         stored_term = g_dict.get("termination")
@@ -886,7 +904,7 @@ class GamesRepo:
 
         # The detector is the canonical History description. Keep the raw
         # PGN/API header for export unless it is empty or generic.
-        term_mode, term_desc = TerminationDetector.detect_termination(
+        term_mode, term_desc = detect_termination(
             headers={
                 "Result": metadata.result,
                 "White": metadata.white,
@@ -898,12 +916,9 @@ class GamesRepo:
             chess960=metadata.chess960,
         )
         metadata.termination_mode = term_mode
-        if (
-            not metadata.termination
-            or metadata.termination.strip().lower()
-            in ("", "normal", "unknown")
-        ):
-            metadata.termination = term_desc
+        metadata.termination = _canonical_termination(
+            term_mode, term_desc, metadata.termination
+        )
         metadata.termination_description = term_desc
 
         return GameAnalysis(

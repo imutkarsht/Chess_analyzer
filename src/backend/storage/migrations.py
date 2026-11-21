@@ -13,11 +13,11 @@ import chess.pgn
 
 from src.backend.analysis.tactics.constants import TACTICS_VERSION
 from src.backend.analysis.tactics.enrichment import enrich_summary_with_tactics
+from src.backend.domain.termination import detect_termination
 from src.backend.storage.db_connection import get_db_connection
 from src.backend.storage.models import MoveAnalysis
 from src.backend.storage.pgn_parser import normalize_lichess_site_for_id
 from src.backend.storage.schema_constants import CURRENT_SCHEMA_VERSION
-from src.backend.storage.termination_detector import TerminationDetector
 from src.utils.logger import logger
 
 
@@ -163,28 +163,33 @@ def _fen_after_last_move(move: dict) -> str | None:
 
 
 def _backfill_termination_mode(cursor: sqlite3.Cursor) -> None:
-    """Recompute stored termination modes from the authoritative PGN headers.
+    """Recompute termination and opening metadata from the PGN.
 
-    Older databases were backfilled when lightweight rows had no moves. A
-    "won by checkmate" header then fell through to the resignation default, so
-    the History list showed the wrong reason even though the PGN was correct.
+    Older databases could keep a stale fallback description ("won by
+    resignation") even after the PGN's final move proved checkmate. They could
+    also keep an API/local-book opening that disagreed with the PGN headers.
+    The PGN is the shared source used by the analysis panel and History.
     """
     cursor.execute(
-        "SELECT id, result, termination, pgn, starting_fen, chess960 FROM games"
+        "SELECT id, result, termination, pgn, starting_fen, chess960, "
+        "opening, eco FROM games"
     )
     rows_to_migrate = cursor.fetchall()
     if not rows_to_migrate:
         return
 
     updated = 0
-    for gid, res, term, pgn_str, s_fen, is_960 in rows_to_migrate:
+    for gid, res, term, pgn_str, s_fen, is_960, stored_opening, stored_eco in rows_to_migrate:
         try:
             headers: dict[str, str] = {
                 "Result": res or "*",
                 "Termination": term or "",
             }
             moves: list[MoveAnalysis] = []
-            header_term = ""
+            header_term = (term or "").strip().lower()
+            pgn_opening = stored_opening
+            pgn_eco = stored_eco
+
             if pgn_str:
                 try:
                     parsed_headers = chess.pgn.read_headers(io.StringIO(pgn_str))
@@ -193,53 +198,72 @@ def _backfill_termination_mode(cursor: sqlite3.Cursor) -> None:
                 if parsed_headers:
                     headers = dict(parsed_headers)
                     header_term = str(headers.get("Termination", "")).strip().lower()
+                    pgn_opening = headers.get("Opening") or stored_opening
+                    pgn_eco = headers.get("ECO") or stored_eco
 
-                # Generic headers carry no reason: replay the game so the board
-                # state can identify mate, stalemate, repetition, etc.
-                if header_term in ("", "normal", "unknown", "?"):
-                    game = chess.pgn.read_game(io.StringIO(pgn_str))
-                    if game:
-                        headers = dict(game.headers)
-                        moves = [
-                            MoveAnalysis(
-                                move_number=ply_idx // 2 + 1,
-                                ply=ply_idx + 1,
-                                san=node.san(),
-                                uci=node.move.uci(),
-                                fen_before="",
-                            )
-                            for ply_idx, node in enumerate(game.mainline())
-                        ]
+                    # Keep a specific stored reason when the PGN uses the
+                    # generic "Normal" marker; the board still wins first.
+                    stored_term = (term or "").strip()
+                    if (
+                        header_term in ("", "normal", "unknown", "?")
+                        and stored_term.lower()
+                        not in ("", "normal", "unknown", "?")
+                    ):
+                        headers["Termination"] = stored_term
+
+                    # Generic headers carry no reason: replay the game so the
+                    # board state can identify mate, stalemate, repetition, etc.
+                    if header_term in ("", "normal", "unknown", "?"):
+                        game = chess.pgn.read_game(io.StringIO(pgn_str))
+                        if game:
+                            headers = dict(game.headers)
+                            if headers.get("Termination", "").strip().lower() in (
+                                "",
+                                "normal",
+                                "unknown",
+                                "?",
+                            ):
+                                headers["Termination"] = stored_term
+                            moves = [
+                                MoveAnalysis(
+                                    move_number=ply_idx // 2 + 1,
+                                    ply=ply_idx + 1,
+                                    san=node.san(),
+                                    uci=node.move.uci(),
+                                    fen_before="",
+                                )
+                                for ply_idx, node in enumerate(game.mainline())
+                            ]
 
             headers.setdefault("Result", res or "*")
             headers.setdefault("Termination", term or "")
-            mode, desc = TerminationDetector.detect_termination(
+            mode, desc = detect_termination(
                 headers=headers,
                 moves=moves,
                 starting_fen=s_fen,
                 chess960=bool(is_960),
             )
-            generic_term = not term or term.strip().lower() in (
-                "",
-                "normal",
-                "unknown",
-                "?",
-            )
-            clean_term = (
-                desc
-                if generic_term or header_term in ("", "normal", "unknown", "?")
-                else term
-            )
+            stored_term = (term or "").strip()
+            clean_term = desc
+            if (
+                mode in ("resignation", "agreed_draw", "unterminated")
+                and stored_term.lower() not in ("", "normal", "unknown", "?")
+            ):
+                clean_term = stored_term
             cursor.execute(
-                "UPDATE games SET termination_mode = ?, termination = ? WHERE id = ?",
-                (mode, clean_term, gid),
+                "UPDATE games SET termination_mode = ?, termination = ?, "
+                "opening = ?, eco = ? WHERE id = ?",
+                (mode, clean_term, pgn_opening, pgn_eco, gid),
             )
             updated += 1
         except Exception as e:
             logger.error("Failed to backfill termination for game %s: %s", gid, e)
 
     if updated:
-        logger.info("Migrating DB: recomputed termination for %d games", updated)
+        logger.info(
+            "Migrating DB: normalized termination and opening for %d games",
+            updated,
+        )
 
 
 def _game_richness(

@@ -1006,9 +1006,12 @@ class Analyzer:
             move.opening_name = sqlite_result.current_opening or ""
 
             summary_counts[side]["Book"] += 1
-            if sqlite_result.current_opening:
+            # PGN headers are the canonical opening source. Only fill in
+            # missing metadata from the local book so analysis cannot replace
+            # a correct imported ECO/name with a transposition match.
+            if sqlite_result.current_opening and not game_analysis.metadata.opening:
                 game_analysis.metadata.opening = sqlite_result.current_opening
-            if sqlite_result.current_eco:
+            if sqlite_result.current_eco and not game_analysis.metadata.eco:
                 game_analysis.metadata.eco = sqlite_result.current_eco
 
         return is_book

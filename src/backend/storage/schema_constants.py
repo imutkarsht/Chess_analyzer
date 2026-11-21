@@ -81,9 +81,10 @@ _API_CACHE_COLS_SQL: str = ", ".join(API_CACHE_COLUMNS)
 _API_CACHE_PLACEHOLDERS_SQL: str = ", ".join(["?"] * len(API_CACHE_COLUMNS))
 INSERT_API_CACHE_SQL: str = f"INSERT OR REPLACE INTO api_game_cache ({_API_CACHE_COLS_SQL}) VALUES ({_API_CACHE_PLACEHOLDERS_SQL})"
 
-# v8 adds the persisted batch-analysis queue. The tables are created
-# unconditionally during init so a database already stamped v7 heals too.
-CURRENT_SCHEMA_VERSION: int = 8
+# v9 normalizes stored termination/opening metadata from PGN headers.
+# The tables are still created unconditionally during init so older databases
+# heal even when their version stamp is missing.
+CURRENT_SCHEMA_VERSION: int = 9
 EXPLORER_CACHE_TTL_SECONDS: float = DEFAULT_EXPLORER_CACHE_TTL_HOURS * 3600.0
 
 # Every table that stores user or cache data. The clear-all path and the

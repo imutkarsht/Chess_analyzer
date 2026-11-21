@@ -8,9 +8,9 @@ from dataclasses import dataclass
 import chess.pgn
 
 from src.backend.analysis.chess_utils import requires_chess960
+from src.backend.domain.termination import detect_termination
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.backend.storage.pgn_metadata import metadata_from_headers
-from src.backend.storage.termination_detector import TerminationDetector
 from src.constants import MAX_PGN_FILE_BYTES, MAX_PGN_GAMES
 from src.utils.logger import logger
 from src.utils.time_control import classify_time_control
@@ -497,7 +497,7 @@ class PGNParser:
             board.push(move)
 
         # Detect termination mode and human-readable description
-        term_mode, term_desc = TerminationDetector.detect_termination(
+        term_mode, term_desc = detect_termination(
             headers=headers,
             moves=moves,
             starting_fen=metadata.starting_fen,
