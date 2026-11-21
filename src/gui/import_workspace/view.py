@@ -194,7 +194,7 @@ class GameImportView(QWidget):
             lambda *_args: self._fen_timer.start()
         )
         self._apply_board_visibility(
-            bool(self._config.get("import_show_boards", True))
+            self._config.import_show_boards
         )
         self.refresh_styles()
 

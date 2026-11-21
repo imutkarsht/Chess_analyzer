@@ -22,7 +22,6 @@ from PyQt6.QtSvg import QSvgRenderer
 from src.backend.storage.models import GameAnalysis
 from src.constants import (
     APP_VERSION,
-    DEFAULT_BOARD_THEME,
     WEBSITE_URL,
 )
 from src.gui.board.mini_board import MiniBoardConfig, render_mini_board_pixmap
@@ -518,7 +517,7 @@ class ShareReportRenderer:
         )
         metadata = game.metadata
         fen = _final_fen(game)
-        board_theme = ConfigManager().get("board_theme", DEFAULT_BOARD_THEME)
+        board_theme = ConfigManager().board_theme
         last_move = (
             game.moves[-1].uci
             if game.moves and isinstance(game.moves[-1].uci, str)

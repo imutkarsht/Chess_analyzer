@@ -409,6 +409,17 @@ def _specs() -> tuple[SettingSpec, ...]:
             ui=False,
         ),
         SettingSpec(
+            "import_show_boards",
+            "Appearance",
+            "Game History",
+            "Import board thumbnails",
+            "Show mini-board thumbnails in the game import workspace.",
+            "bool",
+            True,
+            tier="internal",
+            ui=False,
+        ),
+        SettingSpec(
             "window_state",
             "Appearance",
             "Window & Layout",

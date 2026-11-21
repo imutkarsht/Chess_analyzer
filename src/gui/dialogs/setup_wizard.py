@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.engine import invalidate_engine_cache, resolve_engine_path
 from src.backend.engine.downloader import probe_engine_binary
-from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
+from src.constants import PROVIDERS
 from src.gui.components import TextTone
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
 from src.gui.dialogs.wizard.wizard_pages import (
@@ -254,19 +254,19 @@ class SetupWizard(QDialog):
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
 
         # Pre-populate appearance preferences
-        saved_board_theme = self.config_manager.get("board_theme", DEFAULT_BOARD_THEME)
+        saved_board_theme = self.config_manager.board_theme
         if hasattr(self, "wizard_theme_combo"):
             self.wizard_theme_combo.setCurrentText(saved_board_theme)
 
-        saved_theme_mode = self.config_manager.get("theme_mode", "system")
+        saved_theme_mode = self.config_manager.theme_mode
         if hasattr(self, "wizard_theme_mode_combo"):
             for i in range(self.wizard_theme_mode_combo.count()):
                 if self.wizard_theme_mode_combo.itemData(i) == saved_theme_mode:
                     self.wizard_theme_mode_combo.setCurrentIndex(i)
                     break
 
-        saved_accent = self.config_manager.get("accent_color")
-        saved_accent_mode = self.config_manager.get("accent_mode", "system")
+        saved_accent = self.config_manager.accent_color
+        saved_accent_mode = self.config_manager.accent_mode
         from src.gui.dialogs.wizard.wizard_pages import _apply_accent
         if saved_accent_mode == "custom" and saved_accent:
             _apply_accent(self, saved_accent, mode="custom")

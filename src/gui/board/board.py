@@ -19,7 +19,6 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QDialog, QGridLayout, QSizePolicy, QWidget
 
-from src.constants import DEFAULT_BOARD_THEME
 from src.gui.board.eval_bar import EvalBarWidget
 from src.gui.board.promotion_dialog import PromotionDialog
 from src.gui.board.svg_board import add_svg_rect, add_svg_use
@@ -517,9 +516,7 @@ class Board(QWidget):
         from src.utils.config import ConfigManager
 
         config = ConfigManager()
-        theme_name = self.config.board_theme or config.get(
-            "board_theme", DEFAULT_BOARD_THEME
-        )
+        theme_name = self.config.board_theme or config.board_theme
         colors = Styles.get_board_colors(theme_name)
         file_idx = chess.square_file(square)
         rank_idx = chess.square_rank(square)
@@ -803,10 +800,8 @@ class Board(QWidget):
         self._resolve_display_preferences()
         self._apply_eval_bar_visibility()
         config = ConfigManager()
-        board_theme_name = self.config.board_theme or config.get(
-            "board_theme", DEFAULT_BOARD_THEME
-        )
-        piece_theme_name = self.config.piece_theme or config.get("piece_theme", "Standard")
+        board_theme_name = self.config.board_theme or config.board_theme
+        piece_theme_name = self.config.piece_theme or config.piece_theme
         colors = Styles.get_board_colors(board_theme_name)
 
         # Get the piece definitions for the selected theme.

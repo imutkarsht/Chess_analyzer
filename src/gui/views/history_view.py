@@ -305,7 +305,7 @@ class HistoryView(QWidget):
         """Apply the Appearance default layout without overriding a manual toggle."""
         mode = "compact"
         if self.config_manager:
-            mode = self.config_manager.get("history_view_mode", "compact")
+            mode = self.config_manager.history_view_mode
         if mode not in ("compact", "detailed"):
             mode = "compact"
         self.game_list.set_view_mode(mode)

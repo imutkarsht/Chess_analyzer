@@ -587,7 +587,7 @@ def get_piece_theme_names() -> list:
 
 def get_current_theme_name() -> str:
     from src.utils.config import ConfigManager
-    return ConfigManager().get("piece_theme", "Standard")
+    return ConfigManager().piece_theme
 
 
 def clear_theme_cache() -> None:

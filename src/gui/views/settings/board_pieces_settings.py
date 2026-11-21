@@ -138,7 +138,7 @@ class BoardPiecesSettings(QGroupBox):
         self.piece_group = QButtonGroup(self)
         self.piece_group.setExclusive(True)
         self.piece_buttons = {}
-        board_theme = self.config_manager.get("board_theme", DEFAULT_BOARD_THEME)
+        board_theme = self.config_manager.board_theme
         for name in get_piece_theme_names():
             button = QToolButton()
             button.setCheckable(True)
@@ -217,13 +217,13 @@ class BoardPiecesSettings(QGroupBox):
         self.theme_refreshed.emit()
 
     def _sync_theme_selection(self) -> None:
-        board_theme = self.config_manager.get("board_theme", DEFAULT_BOARD_THEME)
+        board_theme = self.config_manager.board_theme
         if board_theme not in self.board_buttons:
             board_theme = DEFAULT_BOARD_THEME
         for name, button in self.board_buttons.items():
             button.setChecked(name == board_theme)
 
-        piece_theme = self.config_manager.get("piece_theme", "Standard")
+        piece_theme = self.config_manager.piece_theme
         if piece_theme not in self.piece_buttons:
             piece_theme = "Standard"
         for name, button in self.piece_buttons.items():

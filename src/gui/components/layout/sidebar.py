@@ -49,7 +49,7 @@ class Sidebar(QFrame):
         super().__init__()
         self.setObjectName("Sidebar")
         self._config = config_manager or ConfigManager()
-        self._start_collapsed = bool(self._config.get("sidebar_start_collapsed", False))
+        self._start_collapsed = self._config.sidebar_start_collapsed
         self._auto_expand_on_nav = not self._start_collapsed
         self._collapsed = self._start_collapsed
         self._labels_visible = not self._collapsed
@@ -251,7 +251,7 @@ class Sidebar(QFrame):
 
     def apply_preferences(self):
         """Re-read the configured default and reflect it immediately."""
-        self._start_collapsed = bool(self._config.get("sidebar_start_collapsed", False))
+        self._start_collapsed = self._config.sidebar_start_collapsed
         self._auto_expand_on_nav = not self._start_collapsed
         if self._start_collapsed != self._collapsed:
             self._set_collapsed(self._start_collapsed)

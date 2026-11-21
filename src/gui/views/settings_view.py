@@ -108,7 +108,7 @@ class SettingsView(QWidget):
         header_layout.addStretch()
 
         # Mode toggle
-        self._mode = self.config_manager.get("settings_mode", "basic")
+        self._mode = self.config_manager.settings_mode
         self.mode_toggle_btn = self._create_mode_toggle()
         header_layout.addWidget(self.mode_toggle_btn)
         header_layout.addSpacing(12)

@@ -204,6 +204,95 @@ class ConfigManager:
         self.save_config()
 
     # ------------------------------------------------------------------
+    # Typed accessors
+    # ------------------------------------------------------------------
+    def _setting_default(self, key: str):
+        spec = get_spec(key)
+        return spec.default if spec is not None else None
+
+    @property
+    def board_theme(self) -> str:
+        return self.get_choice("board_theme", str(self._setting_default("board_theme")))
+
+    @property
+    def piece_theme(self) -> str:
+        return self.get_choice("piece_theme", str(self._setting_default("piece_theme")))
+
+    @property
+    def theme_mode(self) -> str:
+        return self.get_choice("theme_mode", str(self._setting_default("theme_mode")))
+
+    @property
+    def accent_color(self) -> str:
+        value = self.get("accent_color", self._setting_default("accent_color"))
+        return str(value or "")
+
+    @property
+    def accent_mode(self) -> str:
+        return self.get_choice("accent_mode", str(self._setting_default("accent_mode")))
+
+    @property
+    def sidebar_start_collapsed(self) -> bool:
+        return self.get_bool(
+            "sidebar_start_collapsed",
+            bool(self._setting_default("sidebar_start_collapsed")),
+        )
+
+    @property
+    def remember_window_geometry(self) -> bool:
+        return self.get_bool(
+            "remember_window_geometry",
+            bool(self._setting_default("remember_window_geometry")),
+        )
+
+    @property
+    def window_state(self) -> dict:
+        value = self.get("window_state", self._setting_default("window_state") or {})
+        return deepcopy(value) if isinstance(value, dict) else {}
+
+    @property
+    def sound_enabled(self) -> bool:
+        return self.get_bool("sound_enabled", bool(self._setting_default("sound_enabled")))
+
+    @property
+    def sound_volume(self) -> int:
+        return self.get_int("sound_volume", int(self._setting_default("sound_volume")))
+
+    @property
+    def settings_mode(self) -> str:
+        return self.get_choice("settings_mode", str(self._setting_default("settings_mode")))
+
+    @property
+    def history_view_mode(self) -> str:
+        return self.get_choice(
+            "history_view_mode", str(self._setting_default("history_view_mode"))
+        )
+
+    @property
+    def metrics_card_order(self) -> list:
+        value = self.get(
+            "metrics_card_order", self._setting_default("metrics_card_order") or []
+        )
+        return deepcopy(value) if isinstance(value, list) else []
+
+    @property
+    def shortcut_preset(self) -> str:
+        return self.get_choice(
+            "shortcut_preset", str(self._setting_default("shortcut_preset"))
+        )
+
+    @property
+    def tour_seen_pages(self) -> dict:
+        value = self.get("tour_seen_pages", self._setting_default("tour_seen_pages") or {})
+        return deepcopy(value) if isinstance(value, dict) else {}
+
+    @property
+    def import_show_boards(self) -> bool:
+        return self.get_bool(
+            "import_show_boards", bool(self._setting_default("import_show_boards"))
+        )
+
+    # ------------------------------------------------------------------
     # Public accessors
     # ------------------------------------------------------------------
     def reload_config(self):

@@ -41,6 +41,13 @@ class TestConfigManager:
             assert manager.get("explain_reasoning_effort") == ""
             assert manager.get("history_view_mode") == "compact"
             assert manager.get("metrics_card_order") == []
+            assert manager.board_theme == "Brown"
+            assert manager.piece_theme == "Standard"
+            assert manager.theme_mode == "system"
+            assert manager.sidebar_start_collapsed is False
+            assert manager.sound_volume == 50
+            assert manager.history_view_mode == "compact"
+            assert manager.import_show_boards is True
 
     def test_get_nonexistent_key(self, tmp_path):
         """Test getting a key that doesn't exist returns default."""

@@ -126,7 +126,7 @@ class ResourceManager:
         """
         from src.utils.config import ConfigManager
         config = ConfigManager()
-        if not config.get("sound_enabled", True):
+        if not config.sound_enabled:
             return
 
         pool = self.sounds.get(name)
@@ -137,7 +137,7 @@ class ResourceManager:
         self._sound_index[name] = (idx + 1) % len(pool)
         # Read per play so volume changes apply without rebuilding the pool.
         try:
-            volume = int(config.get("sound_volume", 50))
+            volume = config.sound_volume
         except (TypeError, ValueError):
             volume = 50
         effect.setVolume(max(0.0, min(1.0, volume / 100.0)))

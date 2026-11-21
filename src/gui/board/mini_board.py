@@ -12,7 +12,6 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
 
 from src.backend.analysis.chess_utils import requires_chess960
-from src.constants import DEFAULT_BOARD_THEME
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.config import ConfigManager
@@ -45,9 +44,7 @@ class MiniBoardConfig:
 
 
 def _theme_name(config: MiniBoardConfig) -> str:
-    return config.board_theme or ConfigManager().get(
-        "board_theme", DEFAULT_BOARD_THEME
-    )
+    return config.board_theme or ConfigManager().board_theme
 
 
 def _resolved_colors(config: MiniBoardConfig) -> tuple[str, str]:
