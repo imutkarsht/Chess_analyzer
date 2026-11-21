@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.analysis.metrics_aggregator import MetricsAggregator
+from src.backend.analysis.metrics import build_coach_dossier
 from src.gui.components import (
     Button,
     ButtonSize,
@@ -232,7 +232,7 @@ class AICoachCard(MetricCard):
         self._show_loading_skeleton()
 
         # Build clean high-density coach dossier
-        dossier_text = MetricsAggregator.build_coach_dossier(self.stats)
+        dossier_text = build_coach_dossier(self.stats)
 
         if self.worker is not None and self.worker.isRunning():
             try:

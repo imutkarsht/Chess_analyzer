@@ -16,7 +16,6 @@ from src.backend.analysis.metrics.accumulators import (
     pct,
 )
 from src.backend.analysis.metrics.aggregator import (
-    MetricsAggregator,
     calculate_stats,
     get_drill_down_items,
 )
@@ -62,7 +61,6 @@ __all__ = [
     "FormatStats",
     "GameRecord",
     "HangingStats",
-    "MetricsAggregator",
     "OpeningStats",
     "Outcome",
     "PhaseStats",

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.analysis.metrics_aggregator import MetricsAggregator
+from src.backend.analysis.metrics import get_drill_down_items
 from src.backend.services.groq_service import GroqService
 from src.gui.components import (
     Button,
@@ -708,7 +708,7 @@ class MetricsWidget(QWidget):
         if not self.current_stats:
             return
 
-        items = MetricsAggregator.get_drill_down_items(self.current_stats, category, subcategory)
+        items = get_drill_down_items(self.current_stats, category, subcategory)
 
         title = custom_title or self._get_drill_down_title(category, subcategory)
         if category in ("clean_games", "openings"):
