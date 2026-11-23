@@ -4,6 +4,7 @@ import chess
 import pytest
 
 from src.backend.analysis.analyzer import Analyzer
+from src.backend.analysis.chess_utils import is_chess960_metadata
 from src.backend.analysis.engine import EngineManager
 from src.backend.analysis.local_book import BookResult
 from src.backend.analysis.math_utils import (
@@ -542,3 +543,9 @@ def test_chess960_game_enables_engine_mode(mocker, mock_engine):
     analyzer._analyze_positions(game)
 
     set_chess960.assert_called_once_with(True)
+
+
+def test_is_chess960_metadata_reads_the_model_flag():
+    assert is_chess960_metadata(GameMetadata(chess960=True)) is True
+    assert is_chess960_metadata(GameMetadata()) is False
+    assert is_chess960_metadata(None) is False

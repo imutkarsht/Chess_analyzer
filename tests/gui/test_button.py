@@ -10,8 +10,8 @@ from src.gui.components import Button, ButtonSize, ButtonVariant
 
 # Purpose-built widgets that are not buttons (swatches, star rating, graph nodes).
 RAW_BUTTON_ALLOWLIST = {
-    "src/gui/analysis/move_cell_widget.py",
-    "src/gui/analysis/variation_graph.py",
+    "src/gui/analysis/moves/cell.py",
+    "src/gui/analysis/variation/graph.py",
     "src/gui/components/controls/star_rating_widget.py",
     "src/gui/views/settings/board_pieces_settings.py",
 }

@@ -1049,6 +1049,11 @@ class Styles(metaclass=_StylesMeta):
     def get_transparent_style(cls):
         return "border: none; background: transparent;"
 
+    @classmethod
+    def get_transparent_background_style(cls):
+        """Transparent fill without stripping a widget's own border."""
+        return "background: transparent;"
+
     # ═══════════════════════════════════════════════════════════════
     #  CARDS / FRAMES / DIALOG SURFACES
     # ═══════════════════════════════════════════════════════════════

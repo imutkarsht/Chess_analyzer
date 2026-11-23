@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy
 
+from src.constants import CLASSIFICATION_ORDER
 from src.gui.components import LegendList
 from src.gui.resources import CLASSIFICATION_ICONS
 from src.gui.styles import Styles
@@ -20,26 +21,13 @@ class MoveQualityCard(MetricCard):
     def set_stats(self, stats):
         counts = stats.get("detailed_quality_counts") or stats.get("quality_counts", {})
 
-        order = [
-            "Brilliant",
-            "Great",
-            "Best",
-            "Excellent",
-            "Good",
-            "Book",
-            "Inaccuracy",
-            "Mistake",
-            "Miss",
-            "Blunder",
-        ]
-
         color_map = {
             "Brilliant": Styles.COLOR_BRILLIANT,
             "Great": Styles.COLOR_GREAT,
             "Best": Styles.COLOR_BEST,
             "Excellent": Styles.COLOR_BEST,
             "Good": Styles.COLOR_GOOD,
-            "Book": "#d5a47e",
+            "Book": Styles.COLOR_BOOK,
             "Inaccuracy": Styles.COLOR_INACCURACY,
             "Mistake": Styles.COLOR_MISTAKE,
             "Miss": Styles.COLOR_MISS,
@@ -49,12 +37,12 @@ class MoveQualityCard(MetricCard):
         labels = []
         sizes = []
         colors = []
-        for k in order:
+        for k in CLASSIFICATION_ORDER:
             v = counts.get(k, 0)
             if v > 0:
                 labels.append(k)
                 sizes.append(v)
-                colors.append(color_map.get(k, "#888888"))
+                colors.append(color_map.get(k, Styles.COLOR_TEXT_MUTED))
 
         total_moves = sum(sizes)
 
@@ -107,7 +95,7 @@ class MoveQualityCard(MetricCard):
         # Custom Legend Sidebar
         legend = LegendList(spacing=6)
 
-        for k in order:
+        for k in CLASSIFICATION_ORDER:
             v = counts.get(k, 0)
             if v == 0:
                 continue

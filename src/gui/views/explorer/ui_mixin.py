@@ -11,8 +11,8 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.analysis.captured import CapturedPiecesWidget
-from src.gui.analysis.move_controls import MoveControls
-from src.gui.analysis.move_list_view import MoveListView
+from src.gui.analysis.moves.controls import MoveControls
+from src.gui.analysis.moves.view import MoveListView
 from src.gui.board import Board, BoardConfig
 from src.gui.components import (
     Button,

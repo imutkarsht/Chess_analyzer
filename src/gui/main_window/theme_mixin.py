@@ -68,8 +68,10 @@ class ThemeMixin:
         if self.metrics_view is not None and hasattr(self.metrics_view, "groq_service"):
             self.metrics_view.groq_service = GroqService()
             logger.info("LLM service in metrics_view refreshed.")
-        if hasattr(self, "analysis_panel") and hasattr(self.analysis_panel, "groq_service"):
-            self.analysis_panel.groq_service = GroqService()
+        if hasattr(self, "analysis_panel") and hasattr(
+            self.analysis_panel, "set_llm_service"
+        ):
+            self.analysis_panel.set_llm_service(GroqService())
             logger.info("LLM service in analysis_panel refreshed.")
 
     def on_usernames_changed(self):

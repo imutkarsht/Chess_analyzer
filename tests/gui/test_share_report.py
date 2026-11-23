@@ -163,29 +163,30 @@ def test_report_handles_malformed_final_position_data(qapp):
 
 def test_analysis_panel_share_action_tracks_analysis_availability(qapp):
     panel = AnalysisPanel()
+    share = panel.report_tab.share_report_button
     try:
-        assert not panel.share_report_button.isEnabled()
+        assert not share.isEnabled()
 
         panel.current_game = GameAnalysis(game_id="unanalysed", metadata=GameMetadata())
         panel.refresh()
-        assert not panel.share_report_button.isEnabled()
+        assert not share.isEnabled()
 
         panel.current_game = _game()
         panel.refresh()
-        assert panel.share_report_button.isEnabled()
-        assert panel.share_report_button.accessibleName() == "Share Report"
-        assert panel.share_report_button.height() == 34
+        assert share.isEnabled()
+        assert share.accessibleName() == "Share Report"
+        assert share.height() == 34
 
         panel.current_game = _game()
         panel.current_game.summary["analysis_status"] = "paused"
         panel.refresh()
-        assert not panel.share_report_button.isEnabled()
+        assert not share.isEnabled()
 
         panel.current_game = _game()
         for move in panel.current_game.moves:
             move.classification = ""
         panel.refresh()
-        assert not panel.share_report_button.isEnabled()
+        assert not share.isEnabled()
     finally:
         panel.deleteLater()
 
@@ -198,14 +199,15 @@ def test_panel_surfaces_report_render_failures(qapp, monkeypatch):
         raise ValueError("invalid report data")
 
     monkeypatch.setattr(
-        "src.gui.analysis.analysis_panel.ShareReportDialog", fail_to_construct
+        "src.gui.analysis.tabs.report_tab.ShareReportDialog", fail_to_construct
     )
     monkeypatch.setattr(
         ToastManager, "error", lambda _widget, message: errors.append(message)
     )
     try:
         panel.current_game = _game()
-        panel.open_share_report()
+        panel.report_tab.render(panel.current_game, None)
+        panel.report_tab.open_share_report()
         assert errors == ["Could not render the game report."]
     finally:
         panel.deleteLater()

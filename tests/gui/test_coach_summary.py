@@ -61,60 +61,70 @@ class _StubStore:
 
 @pytest.fixture
 def panel(qapp, monkeypatch):
-    monkeypatch.setattr("src.gui.analysis.analysis_panel.GenerateSummaryThread", _StubSummaryThread)
+    monkeypatch.setattr(
+        "src.gui.analysis.coach.summary.GenerateSummaryThread", _StubSummaryThread
+    )
     _StubSummaryThread.created.clear()
     widget = AnalysisPanel()
     widget.config_manager = _StubConfig(lichess_username="Bob")
-    widget.groq_service = _StubService()
-    widget.current_game = GameAnalysis(
+    game = GameAnalysis(
         game_id="report",
         metadata=GameMetadata(white="Alice", black="Bob", result="1-0"),
     )
+    widget.current_game = game
+    widget.coach_tab.set_llm_service(_StubService())
+    widget.coach_tab.summary_panel.set_context(game, widget._user_side())
     yield widget
     widget.deleteLater()
 
 
 def test_the_summary_lives_in_the_coach_tab_below_the_move_card(panel):
-    layout = panel.ai_summary_layout
+    summary = panel.coach_tab.summary_panel
+    layout = summary.ai_summary_layout
 
-    assert panel.ai_summary_frame.parent() is panel.coach_tab
-    assert layout.indexOf(panel.btn_generate_summary) > layout.indexOf(panel.txt_ai_summary)
-    assert layout.indexOf(panel.btn_generate_summary) == layout.count() - 1
+    assert summary.parent() is panel.coach_tab
+    assert layout.indexOf(summary.btn_generate_summary) > layout.indexOf(summary.txt_ai_summary)
+    assert layout.indexOf(summary.btn_generate_summary) == layout.count() - 1
 
 
 def test_generating_swaps_the_summary_for_the_pulsing_placeholder(panel):
-    panel.generate_ai_summary()
+    panel.coach_tab.summary_panel.generate_ai_summary()
 
-    assert panel.ai_summary_skeleton.isHidden() is False
-    assert panel.ai_summary_skeleton.is_animating() is True
-    assert panel.txt_ai_summary.isHidden() is True
-    assert panel.btn_generate_summary.isEnabled() is False
+    summary = panel.coach_tab.summary_panel
+    assert summary.ai_summary_skeleton.isHidden() is False
+    assert summary.ai_summary_skeleton.is_animating() is True
+    assert summary.txt_ai_summary.isHidden() is True
+    assert summary.btn_generate_summary.isEnabled() is False
     assert _StubSummaryThread.created[0].user_side == "black"
 
 
 def test_a_failed_generation_keeps_the_previous_report(panel, monkeypatch):
-    monkeypatch.setattr("src.gui.analysis.analysis_panel.show_error_dialog", lambda *a: None)
+    monkeypatch.setattr(
+        "src.gui.analysis.coach.summary.show_error_dialog", lambda *a: None
+    )
+    summary = panel.coach_tab.summary_panel
     panel.current_game.ai_summary = "Game Comment: Old\n\nSummary:\nOld report."
-    panel.generate_ai_summary()
+    summary.generate_ai_summary()
 
-    panel.on_summary_generated("Error: upstream timeout")
+    summary.on_summary_generated("Error: upstream timeout")
 
-    assert panel.ai_summary_skeleton.isHidden() is True
-    assert panel.ai_summary_skeleton.is_animating() is False
-    assert panel.txt_ai_summary.toPlainText() == "Game Comment: Old\n\nSummary:\nOld report."
-    assert panel.btn_generate_summary.isEnabled() is True
-    assert "Regenerate" in panel.btn_generate_summary.text()
+    assert summary.ai_summary_skeleton.isHidden() is True
+    assert summary.ai_summary_skeleton.is_animating() is False
+    assert summary.txt_ai_summary.toPlainText() == "Game Comment: Old\n\nSummary:\nOld report."
+    assert summary.btn_generate_summary.isEnabled() is True
+    assert "Regenerate" in summary.btn_generate_summary.text()
 
 
 def test_a_finished_report_is_shown_and_stored(panel):
     store = _StubStore()
     panel.history_manager = store
-    panel.generate_ai_summary()
+    summary = panel.coach_tab.summary_panel
+    summary.generate_ai_summary()
 
-    panel.on_summary_generated("Game Comment: Sharp\n\nSummary:\nA clean conversion.")
+    summary.on_summary_generated("Game Comment: Sharp\n\nSummary:\nA clean conversion.")
 
-    assert panel.ai_summary_skeleton.isHidden() is True
-    assert panel.txt_ai_summary.isHidden() is False
-    assert "A clean conversion." in panel.txt_ai_summary.toPlainText()
-    assert "Regenerate" in panel.btn_generate_summary.text()
+    assert summary.ai_summary_skeleton.isHidden() is True
+    assert summary.txt_ai_summary.isHidden() is False
+    assert "A clean conversion." in summary.txt_ai_summary.toPlainText()
+    assert "Regenerate" in summary.btn_generate_summary.text()
     assert store.saved == [("report", panel.current_game.ai_summary)]

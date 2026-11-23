@@ -2,6 +2,7 @@
 
 from PyQt6.QtWidgets import QFrame, QHBoxLayout
 
+from src.backend.analysis.metrics.filters import resolve_user_side
 from src.gui.components import Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.utils.result_ui import result_tone
@@ -61,14 +62,9 @@ class BoardGameHeader(QFrame):
 
     def _user_side(self) -> str | None:
         """Which side the saved username played, if either name matches."""
-        usernames = self._saved_usernames()
-        if not usernames:
-            return None
-        if self._white_name.strip().casefold() in usernames:
-            return "white"
-        if self._black_name.strip().casefold() in usernames:
-            return "black"
-        return None
+        return resolve_user_side(
+            self._white_name, self._black_name, self._saved_usernames()
+        )
 
     def _result_tone(self) -> TextTone:
         """Result tone from the saved player's POV, accent when unknown."""

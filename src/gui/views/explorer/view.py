@@ -20,7 +20,7 @@ from src.backend.analysis.chess_utils import position_key, requires_chess960
 from src.backend.analysis.engine import resolve_engine_path
 from src.backend.analysis.opening_db import OpeningDB
 from src.backend.analysis.polyglot_book import PolyglotBookManager
-from src.gui.analysis.move_list_view import MoveListEntry
+from src.gui.analysis.moves.view import MoveListEntry
 from src.gui.engine_lines import LiveEngineSession
 from src.gui.styles import Styles
 from src.gui.views.explorer.book_mixin import ExplorerBookMixin

@@ -1,6 +1,6 @@
 """Shared navigation toolbar behaviour for both page variants."""
 
-from src.gui.analysis.move_controls import MoveControls
+from src.gui.analysis.moves.controls import MoveControls
 
 
 def test_analysis_variant_exposes_flip_and_emits_signals(qapp):

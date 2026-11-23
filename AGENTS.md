@@ -57,7 +57,7 @@ src/
 ├── gui/                    # PyQt6 presentation layer. Zero business logic computation.
 │   ├── main_window/        # MainWindow + navigation/analysis/loading/theme/tour/update/variation/status mixins
 │   ├── views/              # Pages: analysis, explorer, history, metrics/, settings/
-│   ├── analysis/           # AnalysisPanel, MoveListPanel, coach, variations, live engine
+│   ├── analysis/           # tabs/, coach/, moves/, variation/; analysis panel + shared widgets
 │   ├── board/              # Board (SVG pieces, arrows), BoardPanel, EvalBar
 │   ├── components/         # controls/ display/ feedback/ layout/ lists/ (+ one public facade)
 │   ├── dialogs/            # load_game/, wizard/, feedback, errors, updates
@@ -73,6 +73,7 @@ src/
 - Shared utilities (`src/utils/`) must never import GUI modules.
 - External network clients must be accessed through explicit backend service interfaces.
 - GUI components are imported from the `src.gui.components` facade, never from a subpackage path, so grouping can change without touching call sites.
+- Analysis panel composition lives in `src/gui/analysis/tabs/`; shared move, board, and variation widgets stay in their feature packages because Explorer and MainWindow reuse them.
 - Settings are added through `src/config/settings_schema.py`; widgets do not invent defaults.
 - Per-widget styles are rebuilt on theme/accent change; no palette colour is captured at construction.
 - **Shared utilities**: extend the canonical modules before adding a private helper:

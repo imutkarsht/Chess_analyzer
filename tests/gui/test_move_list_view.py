@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import Qt
 
-from src.gui.analysis.move_list_view import MoveListEntry, MoveListView
+from src.gui.analysis.moves.view import MoveListEntry, MoveListView
 
 
 def test_explorer_variant_renders_plain_items_and_pending(qapp):
