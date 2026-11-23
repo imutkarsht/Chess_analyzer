@@ -101,12 +101,7 @@ class MainWindow(
         self.games = []
         self.current_game = None
         self._drop_highlight_active = False
-        self._analysis_follow = False
         self._sidebar_animating = False
-        self._latest_analyzed_index = -1
-        self._pending_analysis_updates = {}
-        self._pending_analysis_progress = None
-        self._analysis_progress_final = False
         self._replay_advancing = False
         self.config_manager = ConfigManager()
         ToastManager.configure(position=self.config_manager.toast_position)
@@ -281,9 +276,6 @@ class MainWindow(
         # Apply any queued analysis payload before widgets go away.
         try:
             self._flush_analysis_updates()
-            timer = getattr(self, "_analysis_ui_timer", None)
-            if timer is not None:
-                timer.stop()
         except Exception as e:  # pragma: no cover - defensive
             logger.debug(f"Failed to flush analysis UI on close: {e}")
 
@@ -330,11 +322,10 @@ class MainWindow(
             except Exception as e:
                 logger.error(f"Failed to stop explorer live session: {e}")
 
-        # Stop full analysis worker if it is running
-        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
+        # Stop the full-analysis controller (timer + worker)
+        if hasattr(self, "analysis_controller"):
             try:
-                self.worker.stop()
-                self.worker.wait()
+                self.analysis_controller.shutdown()
             except Exception as e:
                 logger.error(f"Failed to stop full analysis worker: {e}")
 
