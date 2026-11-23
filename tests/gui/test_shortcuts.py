@@ -61,7 +61,7 @@ def shared_window(qapp, tmp_path_factory):
         win.show()
 
         game = PGNParser.parse_pgn_text(PGN)[0]
-        win.load_game(game)
+        win.game_loading_controller.load_game(game)
         win.test_game = win.current_game
         yield win
 
@@ -77,11 +77,11 @@ def window(shared_window, qtbot):
     win._replay_timer.stop()
     win._replay_timer.setInterval(REPLAY_INTERVAL_MS)
     win._replay_advancing = False
-    win._analysis_follow = False
-    win._latest_analyzed_index = -1
-    win._pending_analysis_updates = {}
-    win._pending_analysis_progress = None
-    win._analysis_progress_final = False
+    win.analysis_controller._analysis_follow = False
+    win.analysis_controller._latest_analyzed_index = -1
+    win.analysis_controller._pending_analysis_updates = {}
+    win.analysis_controller._pending_analysis_progress = None
+    win.analysis_controller._analysis_progress_final = False
     timer = getattr(win, "_analysis_ui_timer", None)
     if timer is not None:
         timer.stop()
@@ -269,43 +269,43 @@ def test_manual_navigation_stops_replay(window):
 
 
 def test_manual_navigation_detaches_analysis_follow(window):
-    window._set_analysis_follow(True)
+    window.analysis_controller._set_analysis_follow(True)
     assert window.btn_follow.isChecked() is True
 
     window.on_move_selected(0)
 
-    assert window._analysis_follow is False
+    assert window.analysis_controller._analysis_follow is False
     assert window.btn_follow.isChecked() is False
 
 
 def test_follow_toggle_reengages_and_jumps_to_latest(window):
     window.on_move_selected(0)
-    window._set_analysis_follow(False)
-    window._latest_analyzed_index = 4
+    window.analysis_controller._set_analysis_follow(False)
+    window.analysis_controller._latest_analyzed_index = 4
     window.btn_follow.show()
 
     window.btn_follow.click()
 
-    assert window._analysis_follow is True
+    assert window.analysis_controller._analysis_follow is True
     assert index(window) == 4
 
 
 def test_finish_position_follows_only_while_follow_is_active(window):
     window.on_move_selected(2)
-    window._latest_analyzed_index = 5
-    window._set_analysis_follow(False)
-    assert window._prepare_analysis_end(window.current_game) == 2
+    window.analysis_controller._latest_analyzed_index = 5
+    window.analysis_controller._set_analysis_follow(False)
+    assert window.analysis_controller._prepare_analysis_end(window.current_game) == 2
 
-    window._set_analysis_follow(True)
-    assert window._prepare_analysis_end(window.current_game) == 5
+    window.analysis_controller._set_analysis_follow(True)
+    assert window.analysis_controller._prepare_analysis_end(window.current_game) == 5
 
 
 def test_analysis_burst_coalesces_board_and_graph_updates(window, monkeypatch):
-    window._analysis_follow = True
-    window._latest_analyzed_index = -1
-    window._pending_analysis_updates = {}
+    window.analysis_controller._analysis_follow = True
+    window.analysis_controller._latest_analyzed_index = -1
+    window.analysis_controller._pending_analysis_updates = {}
     if getattr(window, "_analysis_ui_timer", None) is not None:
-        window._analysis_ui_timer.stop()
+        window.analysis_controller._analysis_ui_timer.stop()
 
     board_updates = []
     graph_updates = []
@@ -319,14 +319,14 @@ def test_analysis_burst_coalesces_board_and_graph_updates(window, monkeypatch):
     )
 
     for move_index in range(len(window.current_game.moves)):
-        window.on_move_analyzed(
+        window.analysis_controller.on_move_analyzed(
             move_index, {"classification": "Best", "eval_after_cp": 10}
         )
 
     assert board_updates == []
     assert graph_updates == []
 
-    window._flush_analysis_updates()
+    window.analysis_controller._flush_analysis_updates()
 
     assert board_updates == [len(window.current_game.moves) - 1]
     assert len(graph_updates) == 1
@@ -335,11 +335,11 @@ def test_analysis_burst_coalesces_board_and_graph_updates(window, monkeypatch):
 def test_finish_flushes_queued_move_data_first(window):
     move = window.current_game.moves[0]
     move.classification = None
-    window.on_move_analyzed(
+    window.analysis_controller.on_move_analyzed(
         0, {"classification": "Blunder", "eval_after_cp": 120}
     )
 
-    window._prepare_analysis_end(window.current_game)
+    window.analysis_controller._prepare_analysis_end(window.current_game)
 
     assert move.classification == "Blunder"
     assert move.eval_after_cp == 120

@@ -9,11 +9,12 @@ from src.backend.models.analysis_batch import (
     AnalysisBatchItem,
     BatchSummary,
 )
-from src.gui.main_window.batch_mixin import BatchAnalysisMixin
+from src.gui.app.batch_controller import BatchController
 
 
-class _TimingHost(BatchAnalysisMixin):
+class _TimingController(BatchController):
     def __init__(self):
+        super().__init__()
         self._batch_summary = BatchSummary(total=3, completed=1, pending=2)
         self._batch_snapshot = AnalysisBatch(
             items=[
@@ -22,10 +23,12 @@ class _TimingHost(BatchAnalysisMixin):
                 AnalysisBatchItem("later", 3, outcome=OUTCOME_PENDING),
             ]
         )
-        self.analysis_coordinator = SimpleNamespace(
-            batch_running=True, active_position=2
+        self.host = SimpleNamespace(
+            analysis_coordinator=SimpleNamespace(
+                batch_running=True, active_position=2
+            ),
+            history_view=SimpleNamespace(set_batch_timing=self._capture),
         )
-        self.history_view = SimpleNamespace(set_batch_timing=self._capture)
         self.ticks = []
 
     def _capture(self, elapsed, eta):
@@ -41,12 +44,12 @@ class _TimingHost(BatchAnalysisMixin):
         raise AssertionError("timer must not query the batch queue")
 
 
-def test_eta_tick_uses_cached_snapshot_without_database():
-    host = _TimingHost()
+def test_eta_tick_uses_cached_snapshot_without_database(qapp):
+    controller = _TimingController()
 
-    host._tick_batch_timing()
+    controller._tick_batch_timing()
 
-    assert len(host.ticks) == 1
-    elapsed, eta = host.ticks[0]
+    assert len(controller.ticks) == 1
+    elapsed, eta = controller.ticks[0]
     assert elapsed == 10.0
     assert eta is not None and eta >= 5.0

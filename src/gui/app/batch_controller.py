@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
-"""MainWindow orchestration for the persisted History batch queue."""
+"""Persisted History batch queue: lifecycle, gating, timing, and recovery."""
 
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout
 
 from src.backend.analysis.batch import reconcile_batch
@@ -39,12 +40,24 @@ from src.gui.views.history_batch import UpNextEntry
 from src.utils.logger import logger
 from src.workers.analysis import BatchAnalysisWorker
 
+if TYPE_CHECKING:
+    from src.gui.main_window.window import MainWindow
 
-class BatchAnalysisMixin:
+
+class BatchController(QObject):
     """Own the batch queue lifecycle, gating, and History/Metrics refresh."""
 
-    def _init_batch_analysis(self) -> None:
-        self.analysis_coordinator = AnalysisCoordinator()
+    batch_started = pyqtSignal(object)
+    batch_paused = pyqtSignal()
+    batch_completed = pyqtSignal()
+    batch_cancelled = pyqtSignal()
+    batch_failed = pyqtSignal(str)
+    batch_state_changed = pyqtSignal(str)
+    batch_progress = pyqtSignal(int, int)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.host: MainWindow | None = None
         self._batch_worker: BatchAnalysisWorker | None = None
         self._batch_closing = False
         self._batch_active_label = ""
@@ -59,48 +72,61 @@ class BatchAnalysisMixin:
         self._batch_eta_timer = QTimer(self)
         self._batch_eta_timer.setInterval(1000)
         self._batch_eta_timer.timeout.connect(self._tick_batch_timing)
-        self.history_view.batch_analysis_requested.connect(self.start_batch_analysis)
-        self.history_view.batch_control_requested.connect(self._on_batch_control)
-        self.history_view.batch_reorder_requested.connect(self._on_batch_reorder)
-        self.history_view.batch_remove_requested.connect(self._on_batch_remove)
-        self.history_view.batch_up_next_refresh_requested.connect(
+        self._initialized = False
+
+    def attach(self, host: MainWindow) -> None:
+        self.host = host
+        self.setParent(host)
+
+    def init(self) -> None:
+        """Wire History signals and recover any persisted queue."""
+        if self._initialized:
+            return
+        self._initialized = True
+        self.host.analysis_coordinator = AnalysisCoordinator()
+        self.host.history_view.batch_analysis_requested.connect(
+            self.start_batch_analysis
+        )
+        self.host.history_view.batch_control_requested.connect(self._on_batch_control)
+        self.host.history_view.batch_reorder_requested.connect(self._on_batch_reorder)
+        self.host.history_view.batch_remove_requested.connect(self._on_batch_remove)
+        self.host.history_view.batch_up_next_refresh_requested.connect(
             self._refresh_up_next
         )
-        self.history_view.history_cleared.connect(self._on_batch_history_cleared)
+        self.host.history_view.history_cleared.connect(self._on_batch_history_cleared)
         self._recover_persisted_batch()
 
-    # ------------------------------------------------------------------
-    # Startup recovery
-    # ------------------------------------------------------------------
+    def shutdown(self) -> None:
+        self._stop_batch_for_exit()
 
     def _recover_persisted_batch(self) -> None:
         try:
-            if self.history_manager.pause_interrupted_analysis_batch():
+            if self.host.history_manager.pause_interrupted_analysis_batch():
                 logger.info("Recovered a running batch as paused")
-            batch = self.history_manager.get_analysis_batch()
+            batch = self.host.history_manager.get_analysis_batch()
             if batch is None:
                 return
             if batch.total == 0:
-                self.history_manager.delete_analysis_batch()
+                self.host.history_manager.delete_analysis_batch()
                 return
             if batch.state in (BATCH_RUNNING, BATCH_PAUSED):
                 batch = reconcile_batch(batch, self._batch_statuses(batch))
-                self.history_manager.save_analysis_batch_items(batch.items)
+                self.host.history_manager.save_analysis_batch_items(batch.items)
                 if not batch.actionable_items():
                     batch.state = BATCH_COMPLETED
-                    self.history_manager.set_analysis_batch_state(BATCH_COMPLETED)
+                    self.host.history_manager.set_analysis_batch_state(BATCH_COMPLETED)
                 else:
                     batch.state = BATCH_PAUSED
-                    self.history_manager.set_analysis_batch_state(BATCH_PAUSED)
+                    self.host.history_manager.set_analysis_batch_state(BATCH_PAUSED)
             self._batch_elapsed_base = max(0.0, float(batch.elapsed_seconds or 0.0))
             self._batch_session_started_at = None
             self._set_batch_snapshot(batch)
-            self.analysis_coordinator.restore_batch(
+            self.host.analysis_coordinator.restore_batch(
                 batch.state,
                 batch.total,
                 {item.game_id for item in batch.actionable_items()},
             )
-            self.history_view.set_batch_queue(batch)
+            self.host.history_view.set_batch_queue(batch)
             self._load_up_next_cache(batch)
             self._refresh_up_next()
         except Exception as e:
@@ -112,26 +138,26 @@ class BatchAnalysisMixin:
 
     def start_batch_analysis(self, game_ids) -> None:
         ids = list(dict.fromkeys(game_ids or []))
-        coordinator = self.analysis_coordinator
+        coordinator = self.host.analysis_coordinator
         if not coordinator.can_start_batch():
             message = (
                 "A batch analysis is already running."
                 if coordinator.batch_running
                 else "An analysis is already running. Stop it before starting a batch."
             )
-            self.show_toast(message, "warning")
+            self.host.show_toast(message, "warning")
             return
         if self._batch_worker is not None:
-            self.show_toast("The previous batch is still finishing.", "warning")
+            self.host.show_toast("The previous batch is still finishing.", "warning")
             return
-        if getattr(self, "worker", None) is not None and self.worker.isRunning():
-            self.show_toast("An analysis is already running.", "warning")
+        if self.host.analysis_controller.is_running:
+            self.host.show_toast("An analysis is already running.", "warning")
             return
 
-        existing = self.history_manager.get_analysis_batch()
+        existing = self.host.history_manager.get_analysis_batch()
         if existing is not None:
             if existing.state == BATCH_RUNNING:
-                self.show_toast("A batch analysis is already running.", "warning")
+                self.host.show_toast("A batch analysis is already running.", "warning")
                 return
             if existing.state == BATCH_PAUSED and existing.actionable_items():
                 choice = self._resolve_paused_batch_conflict()
@@ -140,24 +166,24 @@ class BatchAnalysisMixin:
                     return
                 if choice == "cancel":
                     return
-            self.history_manager.delete_analysis_batch()
-            self.history_view.hide_batch_queue()
+            self.host.history_manager.delete_analysis_batch()
+            self.host.history_view.hide_batch_queue()
 
         if not ids:
             return
-        if not self._ensure_engine_ready():
+        if not self.host.analysis_controller._ensure_engine_ready():
             return
 
         try:
-            rows = self.history_manager.fetch_game_rows_by_ids(ids)
+            rows = self.host.history_manager.fetch_game_rows_by_ids(ids)
         except Exception as e:
             logger.error("Failed to prepare batch rows: %s", e)
-            self.show_toast(f"Could not prepare batch: {e}", "error")
+            self.host.show_toast(f"Could not prepare batch: {e}", "error")
             return
         by_id = {row["id"]: row for row in rows}
         valid_ids = [game_id for game_id in ids if game_id in by_id]
         if not valid_ids:
-            self.show_toast("Those games are no longer in History.", "warning")
+            self.host.show_toast("Those games are no longer in History.", "warning")
             return
 
         items = [
@@ -170,58 +196,62 @@ class BatchAnalysisMixin:
         ]
         batch = AnalysisBatch(state=BATCH_RUNNING, items=items)
         try:
-            batch = self.history_manager.save_analysis_batch(batch)
+            batch = self.host.history_manager.save_analysis_batch(batch)
         except Exception as e:
             logger.error("Failed to create batch queue: %s", e)
-            self.show_toast(f"Could not create batch queue: {e}", "error")
+            self.host.show_toast(f"Could not create batch queue: {e}", "error")
             return
 
         if not coordinator.begin_batch(
             [item.game_id for item in items], total=batch.total
         ):
-            self.show_toast("An analysis is already running.", "warning")
+            self.host.show_toast("An analysis is already running.", "warning")
             return
 
-        self.history_view.on_batch_started(batch)
+        self.host.history_view.on_batch_started(batch)
         self._start_batch_worker(batch)
+        self.batch_started.emit(batch)
+        self.batch_state_changed.emit(BATCH_RUNNING)
 
     def _resume_batch(self) -> None:
-        coordinator = self.analysis_coordinator
+        coordinator = self.host.analysis_coordinator
         if not coordinator.can_start_batch():
-            self.show_toast(
+            self.host.show_toast(
                 "An analysis is already running. Finish it before resuming the batch.",
                 "warning",
             )
             return
         if self._batch_worker is not None:
-            self.show_toast("The previous batch is still finishing.", "warning")
+            self.host.show_toast("The previous batch is still finishing.", "warning")
             return
-        if getattr(self, "worker", None) is not None and self.worker.isRunning():
-            self.show_toast("An analysis is already running.", "warning")
+        if self.host.analysis_controller.is_running:
+            self.host.show_toast("An analysis is already running.", "warning")
             return
-        batch = self.history_manager.get_analysis_batch()
+        batch = self.host.history_manager.get_analysis_batch()
         if batch is None or batch.state != BATCH_PAUSED:
             return
         batch = reconcile_batch(batch, self._batch_statuses(batch))
-        self.history_manager.save_analysis_batch_items(batch.items)
+        self.host.history_manager.save_analysis_batch_items(batch.items)
         if not batch.actionable_items():
             batch.state = BATCH_COMPLETED
-            self.history_manager.set_analysis_batch_state(BATCH_COMPLETED)
-            self.history_view.refresh_batch_queue()
+            self.host.history_manager.set_analysis_batch_state(BATCH_COMPLETED)
+            self.host.history_view.refresh_batch_queue()
             return
-        if not self._ensure_engine_ready():
+        if not self.host.analysis_controller._ensure_engine_ready():
             return
 
         batch.state = BATCH_RUNNING
-        self.history_manager.set_analysis_batch_state(BATCH_RUNNING)
+        self.host.history_manager.set_analysis_batch_state(BATCH_RUNNING)
         if not coordinator.begin_batch(
             [item.game_id for item in batch.actionable_items()], total=batch.total
         ):
-            self.show_toast("An analysis is already running.", "warning")
+            self.host.show_toast("An analysis is already running.", "warning")
             return
-        self.history_view.on_batch_started(batch)
+        self.host.history_view.on_batch_started(batch)
         self._start_batch_worker(batch)
-        self._set_status("Resuming batch analysis", "progress")
+        self.host._set_status("Resuming batch analysis", "progress")
+        self.batch_started.emit(batch)
+        self.batch_state_changed.emit(BATCH_RUNNING)
 
     def _start_batch_worker(self, batch: AnalysisBatch) -> None:
         if self._batch_worker is not None and self._batch_worker.isRunning():
@@ -230,7 +260,7 @@ class BatchAnalysisMixin:
         self._load_up_next_cache(batch)
         self._refresh_up_next()
         worker = BatchAnalysisWorker(
-            self.analyzer, batch, self.history_manager, parent=self
+            self.host.analyzer, batch, self.host.history_manager, parent=self.host
         )
         worker.game_started.connect(self._on_batch_game_started)
         worker.game_progress.connect(self._on_batch_game_progress)
@@ -247,15 +277,15 @@ class BatchAnalysisMixin:
         self._batch_game_started_at = None
         self._batch_current_move = 0
         self._batch_current_total = 0
-        self.history_view.set_batch_timing(self._batch_total_elapsed(), None)
+        self.host.history_view.set_batch_timing(self._batch_total_elapsed(), None)
         self._batch_eta_timer.start()
         register_worker(worker)
 
-        self._stop_replay()
-        self._exit_variation()
+        self.host._stop_replay()
+        self.host._exit_variation()
         self._set_batch_engine_lock(True)
-        self._set_engine_state("calculating", "Starting...")
-        self._set_status("Starting batch analysis...", "progress")
+        self.host._set_engine_state("calculating", "Starting...")
+        self.host._set_status("Starting batch analysis...", "progress")
         worker.start()
 
     # ------------------------------------------------------------------
@@ -274,13 +304,13 @@ class BatchAnalysisMixin:
         batch = self._current_batch()
         queued = {item.game_id for item in (batch.pending_items() if batch else [])}
         queued.discard(game_id)
-        self.analysis_coordinator.set_batch_runtime(
+        self.host.analysis_coordinator.set_batch_runtime(
             game_id, position, total, queued_game_ids=queued
         )
         self._batch_up_next_cache.pop(game_id, None)
-        self.history_view.remove_batch_up_next(game_id)
+        self.host.history_view.remove_batch_up_next(game_id)
         self._refresh_up_next()
-        self.history_view.set_batch_active(
+        self.host.history_view.set_batch_active(
             game_id,
             label,
             position,
@@ -288,17 +318,17 @@ class BatchAnalysisMixin:
             queued,
             batch=batch,
             total_moves=self._batch_current_total,
-            depth=self.analyzer.config.get("depth"),
+            depth=self.host.analyzer.config.get("depth"),
         )
-        self._set_engine_state("calculating", f"{position}/{total}")
-        self._set_status(f"Batch {position}/{total} · {label}", "progress")
-        self._update_analyze_button(running=False)
+        self.host._set_engine_state("calculating", f"{position}/{total}")
+        self.host._set_status(f"Batch {position}/{total} · {label}", "progress")
+        self.host.analysis_controller._update_analyze_button(running=False)
         self._tick_batch_timing()
 
     def _on_batch_game_progress(self, game_id, current, total_moves) -> None:
         if self._batch_closing:
             return
-        if self.analysis_coordinator.active_game_id != game_id:
+        if self.host.analysis_coordinator.active_game_id != game_id:
             return
         self._batch_current_move = max(0, int(current))
         self._batch_current_total = max(0, int(total_moves))
@@ -307,10 +337,11 @@ class BatchAnalysisMixin:
             if self._batch_game_started_at is not None
             else 0.0
         )
-        self.history_view.update_batch_move_progress(
+        self.host.history_view.update_batch_move_progress(
             current, total_moves, self._current_game_eta(), game_elapsed
         )
         self._tick_batch_timing()
+        self.batch_progress.emit(current, total_moves)
 
     def _on_batch_game_outcome(self, game_id, _outcome, error) -> None:
         if self._batch_closing:
@@ -318,31 +349,31 @@ class BatchAnalysisMixin:
         if error:
             logger.warning("Batch game %s failed: %s", game_id, error)
         self._persist_batch_elapsed()
-        if game_id == self.analysis_coordinator.active_game_id:
+        if game_id == self.host.analysis_coordinator.active_game_id:
             self._batch_game_started_at = None
             self._batch_current_move = 0
-        self.history_view.refresh_game(game_id)
+        self.host.history_view.refresh_game(game_id)
         self._batch_up_next_cache.pop(game_id, None)
-        self.history_view.remove_batch_up_next(game_id)
+        self.host.history_view.remove_batch_up_next(game_id)
         batch = self._current_batch()
         self._set_batch_snapshot(batch)
         if batch is not None:
             queued = {item.game_id for item in batch.pending_items()}
-            queued.discard(self.analysis_coordinator.active_game_id)
-            self.analysis_coordinator.set_batch_runtime(
-                self.analysis_coordinator.active_game_id,
-                self.analysis_coordinator.active_position,
-                self.analysis_coordinator.batch_total,
+            queued.discard(self.host.analysis_coordinator.active_game_id)
+            self.host.analysis_coordinator.set_batch_runtime(
+                self.host.analysis_coordinator.active_game_id,
+                self.host.analysis_coordinator.active_position,
+                self.host.analysis_coordinator.batch_total,
                 queued_game_ids=queued,
             )
-            self.history_view.set_batch_queue(
+            self.host.history_view.set_batch_queue(
                 batch,
                 active_label=self._batch_active_label,
-                position=self.analysis_coordinator.active_position,
+                position=self.host.analysis_coordinator.active_position,
             )
         self._refresh_up_next()
-        if self.metrics_view is not None:
-            self.metrics_view.mark_dirty()
+        if self.host.metrics_view is not None:
+            self.host.metrics_view.mark_dirty()
 
     def _on_batch_paused(self, _summary) -> None:
         if self._batch_closing:
@@ -372,25 +403,34 @@ class BatchAnalysisMixin:
         self._batch_session_started_at = None
         self._batch_game_started_at = None
         self._batch_current_move = 0
-        self.analysis_coordinator.end_batch(state)
+        self.host.analysis_coordinator.end_batch(state)
         self._batch_active_label = ""
-        self.history_view.set_batch_timing(elapsed, None)
+        self.host.history_view.set_batch_timing(elapsed, None)
         if self._batch_worker is None or not self._batch_worker.isRunning():
             self._set_batch_engine_lock(False)
-        self.history_view.set_batch_running(False)
-        self.history_view.load_history()
-        self.history_view.refresh_batch_queue()
+        self.host.history_view.set_batch_running(False)
+        self.host.history_view.load_history()
+        self.host.history_view.refresh_batch_queue()
         self._refresh_batch_snapshot()
         self._refresh_up_next()
-        self._set_engine_state("ready")
-        self._set_status(message, kind)
-        self._update_analyze_button(running=False)
-        if self.metrics_view is not None:
-            self.metrics_view.mark_dirty()
-            if self.stack.currentIndex() == 3:
-                self.metrics_view.refresh(force=True)
+        self.host._set_engine_state("ready")
+        self.host._set_status(message, kind)
+        self.host.analysis_controller._update_analyze_button(running=False)
+        if self.host.metrics_view is not None:
+            self.host.metrics_view.mark_dirty()
+            if self.host.stack.currentIndex() == 3:
+                self.host.metrics_view.refresh(force=True)
         if state == BATCH_FAILED:
-            self.show_toast(message, "error")
+            self.host.show_toast(message, "error")
+        self.batch_state_changed.emit(state)
+        if state == BATCH_PAUSED:
+            self.batch_paused.emit()
+        elif state == BATCH_CANCELLED:
+            self.batch_cancelled.emit()
+        elif state == BATCH_COMPLETED:
+            self.batch_completed.emit()
+        elif state == BATCH_FAILED:
+            self.batch_failed.emit(message)
 
     # ------------------------------------------------------------------
     # Controls
@@ -401,9 +441,9 @@ class BatchAnalysisMixin:
             return
         if action == "pause":
             if self._batch_worker is not None and self._batch_worker.isRunning():
-                self.history_view.batch_queue_card.btn_pause.setEnabled(False)
-                self.history_view.batch_queue_card.btn_pause.setText("Pausing…")
-                self._set_status("Pausing batch...", "warning")
+                self.host.history_view.batch_queue_card.btn_pause.setEnabled(False)
+                self.host.history_view.batch_queue_card.btn_pause.setText("Pausing…")
+                self.host._set_status("Pausing batch...", "warning")
                 self._batch_worker.pause()
             return
         if action == "resume":
@@ -422,21 +462,21 @@ class BatchAnalysisMixin:
         worker = self._batch_worker
         if worker is not None and worker.isRunning():
             if not confirm_dialog(
-                self,
+                self.host,
                 "Cancel Batch",
                 "Cancel this batch? The current game's partial analysis will be saved, "
                 "and remaining games will not be analyzed.",
                 confirm_label="Cancel batch",
             ):
                 return
-            self.history_view.batch_queue_card.btn_cancel.setEnabled(False)
-            self._set_status("Cancelling batch...", "warning")
+            self.host.history_view.batch_queue_card.btn_cancel.setEnabled(False)
+            self.host._set_status("Cancelling batch...", "warning")
             worker.cancel()
             return
         if batch.state != BATCH_PAUSED:
             return
         if not confirm_dialog(
-            self,
+            self.host,
             "Discard Paused Batch",
             "Discard this paused batch? Partial analysis stays in History, and "
             "remaining games will not be analyzed.",
@@ -449,8 +489,8 @@ class BatchAnalysisMixin:
             else item
             for item in batch.items
         ]
-        self.history_manager.save_analysis_batch_items(items)
-        self.history_manager.set_analysis_batch_state(BATCH_CANCELLED)
+        self.host.history_manager.save_analysis_batch_items(items)
+        self.host.history_manager.set_analysis_batch_state(BATCH_CANCELLED)
         self._finish_batch_state(BATCH_CANCELLED, "Batch cancelled", "info")
 
     def _dismiss_batch(self) -> None:
@@ -458,15 +498,15 @@ class BatchAnalysisMixin:
         if batch is None or batch.state == BATCH_RUNNING:
             return
         self._batch_eta_timer.stop()
-        self.history_manager.delete_analysis_batch()
-        self.history_view.hide_batch_queue()
-        self.analysis_coordinator.reset()
+        self.host.history_manager.delete_analysis_batch()
+        self.host.history_view.hide_batch_queue()
+        self.host.analysis_coordinator.reset()
         self._set_batch_snapshot(None)
         self._batch_up_next_cache.clear()
         self._batch_elapsed_base = 0.0
         self._batch_session_started_at = None
         self._batch_game_started_at = None
-        self._update_analyze_button(running=False)
+        self.host.analysis_controller._update_analyze_button(running=False)
 
     # ------------------------------------------------------------------
     # External single-analysis sync
@@ -478,19 +518,19 @@ class BatchAnalysisMixin:
             return
         try:
             batch = reconcile_batch(batch, self._batch_statuses(batch))
-            self.history_manager.save_analysis_batch_items(batch.items)
+            self.host.history_manager.save_analysis_batch_items(batch.items)
             if not batch.actionable_items():
                 batch.state = BATCH_COMPLETED
-                self.history_manager.set_analysis_batch_state(BATCH_COMPLETED)
+                self.host.history_manager.set_analysis_batch_state(BATCH_COMPLETED)
             self._set_batch_snapshot(batch)
-            self.analysis_coordinator.restore_batch(
+            self.host.analysis_coordinator.restore_batch(
                 batch.state,
                 batch.total,
                 {item.game_id for item in batch.actionable_items()},
             )
-            self.history_view.refresh_batch_queue()
+            self.host.history_view.refresh_batch_queue()
             if game_id:
-                self.history_view.refresh_game(game_id)
+                self.host.history_view.refresh_game(game_id)
         except Exception as e:
             logger.error("Failed to sync paused batch: %s", e)
 
@@ -502,8 +542,8 @@ class BatchAnalysisMixin:
         if self._batch_closing:
             return
         if (
-            self.history_manager.reorder_analysis_batch_items(
-                list(game_ids), active_game_id=self.analysis_coordinator.active_game_id
+            self.host.history_manager.reorder_analysis_batch_items(
+                list(game_ids), active_game_id=self.host.analysis_coordinator.active_game_id
             )
             is False
         ):
@@ -513,13 +553,13 @@ class BatchAnalysisMixin:
     def _on_batch_remove(self, game_id: str) -> None:
         if self._batch_closing:
             return
-        if game_id == self.analysis_coordinator.active_game_id:
+        if game_id == self.host.analysis_coordinator.active_game_id:
             return
-        self.history_manager.remove_analysis_batch_item(game_id)
+        self.host.history_manager.remove_analysis_batch_item(game_id)
         self._batch_up_next_cache.pop(game_id, None)
         batch = self._refresh_batch_snapshot()
         if batch is not None:
-            self.history_view.set_batch_queue(
+            self.host.history_view.set_batch_queue(
                 batch, active_label=self._batch_active_label
             )
         self._refresh_up_next()
@@ -546,7 +586,7 @@ class BatchAnalysisMixin:
         if not missing:
             return
         try:
-            rows = self.history_manager.fetch_game_rows_by_ids(missing)
+            rows = self.host.history_manager.fetch_game_rows_by_ids(missing)
         except Exception as e:  # pragma: no cover - defensive
             logger.debug("Failed to load Up next rows: %s", e)
             return
@@ -571,16 +611,16 @@ class BatchAnalysisMixin:
             batch = self._refresh_batch_snapshot()
         if batch is None or batch.state not in (BATCH_RUNNING, BATCH_PAUSED):
             self._batch_up_next_cache.clear()
-            self.history_view.set_batch_up_next([])
+            self.host.history_view.set_batch_up_next([])
             return
-        active_id = self.analysis_coordinator.active_game_id
+        active_id = self.host.analysis_coordinator.active_game_id
         pending = [
             item
             for item in batch.items
             if item.outcome == OUTCOME_PENDING and item.game_id != active_id
         ]
         if not pending:
-            self.history_view.set_batch_up_next([])
+            self.host.history_view.set_batch_up_next([])
             return
         self._ensure_up_next_cache(batch, [item.game_id for item in pending])
         seconds_per_move = self._estimated_seconds_per_move()
@@ -598,7 +638,7 @@ class BatchAnalysisMixin:
                     number=int(item.position),
                 )
             )
-        self.history_view.set_batch_up_next(entries)
+        self.host.history_view.set_batch_up_next(entries)
 
     def _estimated_seconds_per_move(self) -> float:
         if self._batch_current_move > 0 and self._batch_game_started_at is not None:
@@ -606,7 +646,7 @@ class BatchAnalysisMixin:
             if elapsed > 0:
                 return elapsed / self._batch_current_move
         try:
-            return float(self.analyzer.config.get("time_per_move") or 1.0)
+            return float(self.host.analyzer.config.get("time_per_move") or 1.0)
         except (TypeError, ValueError):
             return 1.0
 
@@ -620,12 +660,12 @@ class BatchAnalysisMixin:
         self._batch_eta_timer.stop()
         self._set_batch_snapshot(None)
         self._batch_up_next_cache.clear()
-        self.analysis_coordinator.reset()
+        self.host.analysis_coordinator.reset()
 
     def _batch_statuses(self, batch: AnalysisBatch) -> dict[str, str | None]:
         game_ids = [item.game_id for item in batch.items]
         try:
-            rows = self.history_manager.fetch_game_rows_by_ids(game_ids)
+            rows = self.host.history_manager.fetch_game_rows_by_ids(game_ids)
         except Exception as e:  # pragma: no cover - defensive
             logger.debug("Failed to load batch statuses: %s", e)
             rows = []
@@ -641,12 +681,12 @@ class BatchAnalysisMixin:
             else:
                 legacy_ids.append(game_id)
         for game_id in legacy_ids:
-            statuses[game_id] = self.history_manager.get_game_analysis_status(game_id)
+            statuses[game_id] = self.host.history_manager.get_game_analysis_status(game_id)
         return statuses
 
     def _current_batch(self) -> AnalysisBatch | None:
         try:
-            return self.history_manager.get_analysis_batch()
+            return self.host.history_manager.get_analysis_batch()
         except Exception as e:
             logger.debug("Failed to load batch queue: %s", e)
             return None
@@ -661,14 +701,14 @@ class BatchAnalysisMixin:
         return batch
 
     def _set_batch_engine_lock(self, locked: bool) -> None:
-        if hasattr(self, "move_list_panel"):
-            self.move_list_panel.set_analysis_locked(locked)
-        if hasattr(self, "explorer_view"):
-            self.explorer_view.set_analysis_locked(locked)
-        if hasattr(self, "analysis_panel"):
-            self.analysis_panel.toggle_checkbox.setEnabled(not locked)
-        if hasattr(self, "btn_analyze"):
-            self._update_analyze_button(running=False)
+        if hasattr(self.host, "move_list_panel"):
+            self.host.move_list_panel.set_analysis_locked(locked)
+        if hasattr(self.host, "explorer_view"):
+            self.host.explorer_view.set_analysis_locked(locked)
+        if hasattr(self.host, "analysis_panel"):
+            self.host.analysis_panel.toggle_checkbox.setEnabled(not locked)
+        if hasattr(self.host, "btn_analyze"):
+            self.host.analysis_controller._update_analyze_button(running=False)
 
     def _batch_total_elapsed(self) -> float:
         if self._batch_session_started_at is None:
@@ -694,7 +734,7 @@ class BatchAnalysisMixin:
         return remaining * seconds_per_move
 
     def _estimate_batch_eta(self) -> float | None:
-        if not self.analysis_coordinator.batch_running:
+        if not self.host.analysis_coordinator.batch_running:
             return None
         current_eta = self._current_game_eta()
         if current_eta is None:
@@ -702,7 +742,7 @@ class BatchAnalysisMixin:
         summary = self._batch_summary
         if summary is None or self._batch_snapshot is None:
             return None
-        position = self.analysis_coordinator.active_position or (summary.processed + 1)
+        position = self.host.analysis_coordinator.active_position or (summary.processed + 1)
         future_games = sum(
             1
             for item in self._batch_snapshot.items
@@ -722,15 +762,15 @@ class BatchAnalysisMixin:
         return current_eta + future_games * average_game
 
     def _tick_batch_timing(self) -> None:
-        if not self.analysis_coordinator.batch_running:
+        if not self.host.analysis_coordinator.batch_running:
             return
-        self.history_view.set_batch_timing(
+        self.host.history_view.set_batch_timing(
             self._batch_total_elapsed(), self._estimate_batch_eta()
         )
 
     def _persist_batch_elapsed(self, seconds: float | None = None) -> None:
         try:
-            self.history_manager.set_analysis_batch_elapsed(
+            self.host.history_manager.set_analysis_batch_elapsed(
                 self._batch_total_elapsed() if seconds is None else seconds
             )
         except Exception as e:  # pragma: no cover - defensive
@@ -744,6 +784,8 @@ class BatchAnalysisMixin:
         remove_worker(worker)
 
     def _stop_batch_for_exit(self) -> None:
+        if self._batch_closing:
+            return
         self._batch_closing = True
         self._batch_eta_timer.stop()
         worker = self._batch_worker
@@ -754,7 +796,7 @@ class BatchAnalysisMixin:
             if worker.isRunning():
                 logger.info(
                     "Pausing batch before exit (active game: %s, elapsed %.1fs)",
-                    self.analysis_coordinator.active_game_id,
+                    self.host.analysis_coordinator.active_game_id,
                     self._batch_total_elapsed(),
                 )
                 worker.pause()
@@ -766,12 +808,12 @@ class BatchAnalysisMixin:
         self._batch_session_started_at = None
         self._batch_worker = None
         try:
-            self.analyzer.engine_manager.stop_engine()
+            self.host.analyzer.engine_manager.stop_engine()
         except Exception as e:  # pragma: no cover - defensive
             logger.debug("Failed to stop engine on exit: %s", e)
 
     def _resolve_paused_batch_conflict(self) -> str:
-        dlg = QDialog(self)
+        dlg = QDialog(self.host)
         dlg.setWindowTitle("Batch Already Paused")
         dlg.setModal(True)
         dlg.setMinimumWidth(430)

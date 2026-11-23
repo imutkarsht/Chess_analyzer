@@ -28,7 +28,11 @@ read [AGENTS.md](../AGENTS.md).
 ```mermaid
 flowchart TD
     main[main.py] --> window[MainWindow<br/>gui/main_window/window.py]
-    window --> mixins[MainWindow mixins<br/>navigation · analysis · loading · theme · tour · update · variation · status]
+    window --> mixins[MainWindow mixins<br/>navigation · variation · theme · tour · update · status]
+    window --> controllers[Workflow controllers<br/>gui/app]
+    controllers --> analysisController[AnalysisController]
+    controllers --> batchController[BatchController]
+    controllers --> loadingController[GameLoadingController]
     window --> sidebar[Sidebar]
     window --> stack[FadedStackedWidget]
 
@@ -125,9 +129,9 @@ Forbidden edges:
 
 ### Full game analysis
 
-1. `GameLoadingMixin.load_game()` accepts a `GameAnalysis` and hands it to
-   `MainWindow.setup_analysis_page()` widgets.
-2. `AnalysisMixin.start_analysis()` spawns `AnalysisWorker`, which drives
+1. `GameLoadingController.load_game()` accepts a `GameAnalysis` and hands it
+   to `MainWindow.setup_analysis_page()` widgets.
+2. `AnalysisController.start_analysis()` spawns `AnalysisWorker`, which drives
    `Analyzer.analyze_game()`.
 3. `Analyzer` calls `EngineManager` per position, caches results through
    `AnalysisCache`, and converts every score to White's perspective in
@@ -223,7 +227,7 @@ Forbidden edges:
 1. History bulk mode pins `GameQuery(batchable_only=True)` and keeps a
    game-ID selection set in `HistoryView`; search/filter changes clear it,
    while paging and sorting preserve it.
-2. `BatchAnalysisMixin` creates one persisted `AnalysisBatch`, resolves the
+2. `BatchController` creates one persisted `AnalysisBatch`, resolves the
    engine, and starts one `BatchAnalysisWorker` QThread.
 3. `BatchAnalysisRunner` (Qt-free) walks the queue sequentially and calls the
    existing `Analyzer.analyze_game()` once per game. The analyzer stops its
@@ -437,15 +441,21 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `utils/path_utils.py` | Resource and user-data paths (no Qt) | `get_resource_path`, `get_user_data_dir` |
 | `utils/secrets.py` | OS credential store with migration and fallback | `SecretStore` |
 
+### `src/gui/app`
+
+| File | Purpose | Key symbols |
+| --- | --- | --- |
+| `controller.py` | Lifecycle contract for window workflow controllers (`attach` / `shutdown`) | `PageController` |
+| `analysis_controller.py` | Single-game run, worker callbacks, follow state, coalesced UI flushing | `AnalysisController` |
+| `batch_controller.py` | Persisted batch queue lifecycle, timing/ETA, recovery, History sync | `BatchController` |
+| `game_loading_controller.py` | Game ingestion, history hydration, dialog/paste/drop, PGN indexing | `GameLoadingController` |
+
 ### `src/gui/main_window`
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `window.py` | Window composition, splitter layout, landing board, shutdown | `MainWindow` |
+| `window.py` | Layout host, controller construction/signal wiring, landing board, shutdown | `MainWindow` |
 | `navigation_mixin.py` | Page switching, move stepping, replay/follow ownership, wheel routing, shortcuts glue | `NavigationMixin` |
-| `analysis_mixin.py` | Full-analysis lifecycle, coalesced UI flushing and follow state | `AnalysisMixin` |
-| `batch_mixin.py` | Batch queue orchestration, timing/ETA cache, reorder/remove, gating and exit handling | `BatchAnalysisMixin` |
-| `game_loading_mixin.py` | Loading, staging and analysing games | `GameLoadingMixin` |
 | `variation_mixin.py` | Variation-mode request handling | `VariationMixin` |
 | `theme_mixin.py` | Palette application and theme refresh fan-out | `ThemeMixin` |
 | `status_bar_mixin.py` | Engine pill, status messages, spinner, toasts | `StatusBarMixin` |
@@ -733,6 +743,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `utils/debounce.py` | Single-shot debouncer | `Debouncer` |
 | `utils/gui_utils.py` | Widget factories and GUI helpers | `create_button` |
 | `utils/shortcut_manager.py` | Central shortcut registry and presets | `ShortcutManager`, `ShortcutAction` |
+| `utils/clock.py` | White/Black clock values from a move list | `compute_clock_times` |
 | `utils/smooth_scroll.py` | Shared smooth wheel scrolling | `SmoothScrollRouter` |
 
 ### Repository-level folders
@@ -915,6 +926,10 @@ create per-widget formatters or wrapper factories.
 
 | I want to change… | Go to |
 | --- | --- |
+| Controller lifecycle contract | `gui/app/controller.py` |
+| Single-game analysis lifecycle | `gui/app/analysis_controller.py` |
+| Batch queue lifecycle | `gui/app/batch_controller.py` |
+| Game loading/ingestion | `gui/app/game_loading_controller.py` |
 | Move classification thresholds | `backend/analysis/move_classifier.py` |
 | Accuracy or win-probability maths | `backend/analysis/math_utils.py` |
 | Engine options, path, lifecycle | `backend/analysis/engine.py` |

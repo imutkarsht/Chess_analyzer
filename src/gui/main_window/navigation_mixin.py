@@ -15,67 +15,38 @@ from src.constants import (
 )
 from src.gui.components import TEXT_INPUT_TYPES, Select
 from src.gui.dialogs import ShortcutHelpDialog
+from src.gui.utils.clock import compute_clock_times
 from src.gui.utils.shortcut_manager import ShortcutManager
-
-
-def compute_clock_times(
-    moves,
-    index: int = -1,
-    termination_mode: str | None = None,
-) -> tuple[float | None, float | None]:
-    """Calculate White and Black clock values at a given move index.
-
-    Uses enumerate for linear lookup rather than moves.index(m).
-    """
-    has_clocks = any(m.time_left is not None for m in moves) if moves else False
-    if not has_clocks:
-        return None, None
-
-    white_time = None
-    black_time = None
-
-    # Find the latest clock values at or before index
-    if index >= 0:
-        for i in range(index, -1, -1):
-            if i % 2 == 0 and moves[i].time_left is not None:
-                white_time = moves[i].time_left
-                break
-        for i in range(index, -1, -1):
-            if i % 2 == 1 and moves[i].time_left is not None:
-                black_time = moves[i].time_left
-                break
-
-    # Fall back to starting times if no move has been played yet on that side
-    if white_time is None:
-        for idx, m in enumerate(moves):
-            if m.time_left is not None and idx % 2 == 0:
-                white_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
-                break
-    if black_time is None:
-        for idx, m in enumerate(moves):
-            if m.time_left is not None and idx % 2 == 1:
-                black_time = m.time_left + (m.time_spent if m.time_spent is not None else 0.0)
-                break
-
-    # PGNs omit the flag-fall clock because the losing side never moved again.
-    # On the terminal position, show the side to move at 0:00 instead of their
-    # last recorded clock.
-    if (
-        termination_mode in ("timeout", "timeout_insufficient")
-        and moves
-        and index == len(moves) - 1
-    ):
-        side_to_move = (moves[-1].ply + 1) % 2
-        if side_to_move == 0:
-            white_time = 0.0
-        else:
-            black_time = 0.0
-
-    return white_time, black_time
 
 
 class NavigationMixin:
     """Board move navigation, shortcuts, clipboard paste, and keyboard routing."""
+
+    def on_history_changed(self, *_):
+        if self.metrics_view is not None:
+            self.metrics_view.mark_dirty()
+            if self.stack.currentIndex() == 3:
+                self.metrics_view.refresh(force=True)
+
+    def explore_current_position(self):
+        """Switches to the Explorer tab and loads the current board position."""
+        if not self.current_game:
+            self._set_status("Load a game first before exploring", "warning")
+            return
+        if hasattr(self, "variation") and self.variation.is_active:
+            self.variation.exit()
+        if hasattr(self, "board_widget"):
+            self.sidebar.set_active(1)
+            self.switch_page(1)
+
+            moves = self.current_game.moves if self.current_game else None
+            self.explorer_view.load_board_state(
+                self.board_widget.board,
+                moves,
+                chess960=self.current_game.metadata.chess960,
+                starting_fen=self.current_game.metadata.starting_fen,
+                move_index=self.board_widget.current_move_index,
+            )
 
     def _setup_shortcuts(self):
         sm = ShortcutManager(self)
@@ -86,7 +57,7 @@ class NavigationMixin:
             "open_game",
             "Open / load game",
             "Ctrl+O",
-            lambda: QTimer.singleShot(0, lambda: self.open_load_dialog(0)),
+            lambda: QTimer.singleShot(0, lambda: self.game_loading_controller.open_load_dialog(0)),
             category="File",
         )
         sm.register(
@@ -224,7 +195,7 @@ class NavigationMixin:
 
         # Replay owns the board while it runs; following the analysis would
         # fight it for the selection every time a new move arrives.
-        self._set_analysis_follow(False)
+        self.analysis_controller._set_analysis_follow(False)
 
         # Restart from the beginning when the game is already at its last move.
         if self.board_widget.current_move_index >= len(game.moves) - 1:
@@ -278,7 +249,7 @@ class NavigationMixin:
         if getattr(self, "_replay_advancing", False):
             return
         self._stop_replay()
-        self._set_analysis_follow(False)
+        self.analysis_controller._set_analysis_follow(False)
 
     @staticmethod
     def _editing_text() -> bool:
@@ -307,7 +278,7 @@ class NavigationMixin:
         if isinstance(focus_widget, TEXT_INPUT_TYPES):
             focus_widget.selectAll()
             return
-        self.start_analysis()
+        self.analysis_controller.start_analysis()
 
     def _handle_flip_shortcut(self):
         if self._editing_text():
@@ -325,7 +296,7 @@ class NavigationMixin:
 
         text = QApplication.clipboard().text().strip()
         if looks_like_pgn(text):
-            QTimer.singleShot(0, lambda: self.open_load_dialog(initial_source=1, initial_text=text))
+            QTimer.singleShot(0, lambda: self.game_loading_controller.open_load_dialog(initial_source=1, initial_text=text))
 
     def _nav_prev(self):
         variation = getattr(self, "variation", None)

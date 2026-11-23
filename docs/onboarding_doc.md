@@ -95,7 +95,8 @@ main.py → src/gui (presentation) → src/backend (domain) → SQLite / Stockfi
 
 | Area | Files |
 | --- | --- |
-| Window composition | `src/gui/main_window/window.py` + mixins |
+| Window composition | `src/gui/main_window/window.py` + controllers |
+| Analysis/batch/loading workflows | `src/gui/app/` controllers |
 | Analysis pipeline | `src/backend/analysis/analyzer.py`, `engine.py`, `src/workers/analysis/analysis_worker.py` |
 | Move classification | `src/backend/analysis/move_classifier.py` |
 | AI Coach | `src/backend/analysis/tactics/insight.py`, `services/groq_service.py`, `src/workers/analysis/coach_worker.py`, `src/gui/analysis/coach/` |
@@ -108,6 +109,9 @@ main.py → src/gui (presentation) → src/backend (domain) → SQLite / Stockfi
 
 For every module's purpose and the allowed dependency edges, see
 [architecture.md](architecture.md#2-system-overview).
+
+Workflow state lives in `src/gui/app/` controllers. `MainWindow` builds the
+layout, connects controller signals, and keeps only the QWidget drag/drop hooks.
 
 ---
 

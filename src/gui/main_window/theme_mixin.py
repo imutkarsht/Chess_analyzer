@@ -123,7 +123,7 @@ class ThemeMixin:
 
         # Header Buttons
         if hasattr(self, "btn_analyze"):
-            self.btn_analyze.set_danger(getattr(self, "_full_analysis_running", False))
+            self.btn_analyze.set_danger(self.analysis_controller._full_analysis_running)
             self.btn_analyze.refresh_styles()
         if hasattr(self, "btn_explore"):
             self.btn_explore.refresh_styles()
