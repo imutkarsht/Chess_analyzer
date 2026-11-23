@@ -22,19 +22,8 @@ from src.backend.analysis.tactics.explanation import (
 )
 from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.storage.models import GameAnalysis, GameMetadata
+from src.constants import CLASSIFICATION_ORDER
 
-_CLASS_ORDER = (
-    "Brilliant",
-    "Great",
-    "Best",
-    "Excellent",
-    "Good",
-    "Book",
-    "Inaccuracy",
-    "Mistake",
-    "Miss",
-    "Blunder",
-)
 _PHASES = ("opening", "middlegame", "endgame")
 _MAX_KEY_MOMENTS = 6
 _MAX_BRILLIANCIES = 3
@@ -255,7 +244,7 @@ def _side_lines(
 
     quality = [
         f"{classification} {data[classification]}"
-        for classification in _CLASS_ORDER
+        for classification in CLASSIFICATION_ORDER
         if data.get(classification)
     ]
     if quality:

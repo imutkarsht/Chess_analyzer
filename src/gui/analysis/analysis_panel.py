@@ -10,6 +10,7 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.backend.analysis.metrics.filters import resolve_user_side
 from src.backend.analysis.tactics import TACTICS_VERSION, analyze_game_tactics
 from src.backend.analysis.tactics.report import (
     GameTacticsReport,
@@ -260,12 +261,9 @@ class AnalysisPanel(QWidget):
         if not self.current_game:
             return None
         meta = self.current_game.metadata
-        usernames = set(self.config_manager.player_usernames)
-        if (meta.white or "").lower() in usernames:
-            return "white"
-        if (meta.black or "").lower() in usernames:
-            return "black"
-        return None
+        return resolve_user_side(
+            meta.white, meta.black, self.config_manager.player_usernames
+        )
 
     # ------------------------------------------------------------------
     # Theme / lifecycle

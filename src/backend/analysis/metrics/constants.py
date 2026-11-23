@@ -4,22 +4,14 @@ Constants for metrics aggregation, performance tracking, and coach reporting.
 
 from __future__ import annotations
 
+from src.constants import CLASSIFICATION_ORDER
+
 PHASES: tuple[str, ...] = ("opening", "middlegame", "endgame")
 COLORS: tuple[str, ...] = ("white", "black")
 PIECE_NAMES: tuple[str, ...] = ("pawn", "knight", "bishop", "rook", "queen")
 
-QUALITY_NAMES: tuple[str, ...] = (
-    "Brilliant",
-    "Great",
-    "Best",
-    "Excellent",
-    "Good",
-    "Inaccuracy",
-    "Mistake",
-    "Blunder",
-    "Miss",
-    "Book",
-)
+# Metric buckets use the same display order as reports and charts.
+QUALITY_NAMES: tuple[str, ...] = CLASSIFICATION_ORDER
 
 QUALITY_PACE_KEYS: tuple[str, ...] = ("best", "blunder", "other")
 

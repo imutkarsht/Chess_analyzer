@@ -23,6 +23,7 @@ from src.backend.analysis.polyglot_book import PolyglotBookManager
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.models import GameAnalysis, MoveAnalysis
+from src.constants import CLASSIFICATION_ORDER, zero_classification_counts
 from src.utils.config import ConfigManager
 from src.utils.format_utils import format_eval
 from src.utils.logger import logger
@@ -268,32 +269,14 @@ class Analyzer:
         # Initialize stats container
         summary_counts = {
             "white": {
-                "Brilliant": 0,
-                "Great": 0,
-                "Best": 0,
-                "Excellent": 0,
-                "Good": 0,
-                "Inaccuracy": 0,
-                "Mistake": 0,
-                "Blunder": 0,
-                "Miss": 0,
-                "Book": 0,
+                **zero_classification_counts(),
                 "acpl": 0,
                 "move_count": 0,
                 "accuracies": [],
                 "win_percents": [],
             },
             "black": {
-                "Brilliant": 0,
-                "Great": 0,
-                "Best": 0,
-                "Excellent": 0,
-                "Good": 0,
-                "Inaccuracy": 0,
-                "Mistake": 0,
-                "Blunder": 0,
-                "Miss": 0,
-                "Book": 0,
+                **zero_classification_counts(),
                 "acpl": 0,
                 "move_count": 0,
                 "accuracies": [],
@@ -385,30 +368,8 @@ class Analyzer:
                     )
 
                     dummy_counts = {
-                        "white": {
-                            "Brilliant": 0,
-                            "Great": 0,
-                            "Best": 0,
-                            "Excellent": 0,
-                            "Good": 0,
-                            "Inaccuracy": 0,
-                            "Mistake": 0,
-                            "Blunder": 0,
-                            "Miss": 0,
-                            "Book": 0,
-                        },
-                        "black": {
-                            "Brilliant": 0,
-                            "Great": 0,
-                            "Best": 0,
-                            "Excellent": 0,
-                            "Good": 0,
-                            "Inaccuracy": 0,
-                            "Mistake": 0,
-                            "Blunder": 0,
-                            "Miss": 0,
-                            "Book": 0,
-                        },
+                        "white": zero_classification_counts(),
+                        "black": zero_classification_counts(),
                     }
                     self._check_book_move(prev_move, prev_side, dummy_counts, game_analysis)
 
@@ -480,30 +441,8 @@ class Analyzer:
             )
 
             dummy_counts = {
-                "white": {
-                    "Brilliant": 0,
-                    "Great": 0,
-                    "Best": 0,
-                    "Excellent": 0,
-                    "Good": 0,
-                    "Inaccuracy": 0,
-                    "Mistake": 0,
-                    "Blunder": 0,
-                    "Miss": 0,
-                    "Book": 0,
-                },
-                "black": {
-                    "Brilliant": 0,
-                    "Great": 0,
-                    "Best": 0,
-                    "Excellent": 0,
-                    "Good": 0,
-                    "Inaccuracy": 0,
-                    "Mistake": 0,
-                    "Blunder": 0,
-                    "Miss": 0,
-                    "Book": 0,
-                },
+                "white": zero_classification_counts(),
+                "black": zero_classification_counts(),
             }
             self._check_book_move(last_move, last_side, dummy_counts, game_analysis)
 
@@ -549,18 +488,7 @@ class Analyzer:
 
             # Build compact classification string
             classes = []
-            for cls in [
-                "Brilliant",
-                "Great",
-                "Best",
-                "Excellent",
-                "Good",
-                "Book",
-                "Inaccuracy",
-                "Mistake",
-                "Miss",
-                "Blunder",
-            ]:
+            for cls in CLASSIFICATION_ORDER:
                 count = s.get(cls, 0)
                 if count > 0:
                     classes.append(f"{cls}:{count}")

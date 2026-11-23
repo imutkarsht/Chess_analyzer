@@ -271,7 +271,7 @@ class TacticsTab(QWidget):
         )
 
         self.content = QWidget()
-        self.content.setStyleSheet("background: transparent;")
+        self.content.setStyleSheet(Styles.get_transparent_background_style())
         self.content_layout = QVBoxLayout(self.content)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(8)

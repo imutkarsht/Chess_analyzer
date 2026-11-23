@@ -8,6 +8,7 @@ import chess
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.backend.analysis.chess_utils import is_chess960_metadata
 from src.gui.analysis.line_utils import lines_for_index
 from src.gui.analysis.moves.view import MoveListEntry, MoveListView
 from src.gui.engine_lines import LiveEngineSession
@@ -80,7 +81,7 @@ class MoveListPanel(QWidget):
         self.current_game = game_analysis
         self._variation_counts = {}
         self._selected_index = None
-        self.is_chess960 = bool(getattr(game_analysis.metadata, "chess960", False))
+        self.is_chess960 = is_chess960_metadata(game_analysis.metadata)
         moves = game_analysis.moves or []
         self.starting_fen = (
             getattr(game_analysis.metadata, "starting_fen", None)

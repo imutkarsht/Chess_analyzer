@@ -145,7 +145,7 @@ class _VariationCanvas(QWidget):
         self.tree: VariationTree | None = None
         self.active_branch_id: int | None = None
         self.pills: dict[int, QPushButton] = {}
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet(Styles.get_transparent_background_style())
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.setToolTip("Drag to pan · scroll vertically · Shift-scroll horizontally")
 

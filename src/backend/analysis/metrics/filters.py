@@ -8,7 +8,7 @@ from __future__ import annotations
 import datetime
 import json
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from src.backend.analysis.metrics.constants import VALID_DATE_FILTERS
@@ -79,22 +79,36 @@ def _within_date(date_filter: str, ts: float | None, now: float | None = None) -
     return False
 
 
+def resolve_user_side(
+    white: str | None,
+    black: str | None,
+    usernames: Iterable[str],
+) -> str | None:
+    """
+    Determine whether the tracked user was playing White or Black.
+
+    Names are stripped and casefolded on both sides so PGN headers and saved
+    usernames agree regardless of spacing or case. Returns ``'white'``,
+    ``'black'``, or ``None`` when neither side matches.
+    """
+    normalized = {
+        str(name).strip().casefold() for name in usernames if str(name).strip()
+    }
+    white_name = (white or "").strip().casefold()
+    if white_name and white_name in normalized:
+        return "white"
+    black_name = (black or "").strip().casefold()
+    if black_name and black_name in normalized:
+        return "black"
+    return None
+
+
 def get_user_color(
     game: dict[str, Any],
     usernames: list[str] | set[str] | frozenset[str],
 ) -> str | None:
-    """
-    Determine whether the tracked user was playing White or Black.
-    Returns 'white', 'black', or None if neither side matches.
-    """
-    usernames_lower = {u.lower() for u in usernames}
-    white = (game.get("white") or "").lower()
-    if white in usernames_lower:
-        return "white"
-    black = (game.get("black") or "").lower()
-    if black in usernames_lower:
-        return "black"
-    return None
+    """Resolve the tracked user's side from a flat game record."""
+    return resolve_user_side(game.get("white"), game.get("black"), usernames)
 
 
 def is_analyzed_game(game: dict[str, Any]) -> bool:

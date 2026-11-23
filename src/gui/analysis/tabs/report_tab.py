@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.domain.termination import detect_termination
 from src.backend.storage.annotated_pgn import AnnotatedPGNExporter
+from src.constants import CLASSIFICATION_ORDER
 from src.gui.components import (
     Button,
     ButtonVariant,
@@ -38,22 +39,9 @@ from src.utils.logger import logger
 class ReportTab(QWidget):
     """Deterministic post-game report built from the analyzer's own findings."""
 
-    _CLASSIFICATIONS = (
-        "Brilliant",
-        "Great",
-        "Best",
-        "Excellent",
-        "Good",
-        "Book",
-        "Inaccuracy",
-        "Mistake",
-        "Miss",
-        "Blunder",
-    )
-
     def __init__(self) -> None:
         super().__init__()
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet(Styles.get_transparent_background_style())
         self.resource_manager = ResourceManager()
         self.current_game = None
 
@@ -250,7 +238,7 @@ class ReportTab(QWidget):
         lbl_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.stats_layout.addWidget(lbl_b, 0, 3)
 
-        for i, type_name in enumerate(self._CLASSIFICATIONS):
+        for i, type_name in enumerate(CLASSIFICATION_ORDER):
             color = Styles.get_class_color(type_name)
             bg_tint = f"{color}15"
 

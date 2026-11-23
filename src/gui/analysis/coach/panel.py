@@ -6,6 +6,7 @@ from __future__ import annotations
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.backend.analysis.chess_utils import is_chess960_metadata
 from src.backend.analysis.tactics.insight import MoveInsight, build_move_insight
 from src.backend.services.groq_service import GroqService
 from src.backend.storage.cache import AnalysisCache
@@ -123,7 +124,7 @@ class CoachPanel(QWidget):
                 moves,
                 self._selected_index,
                 metadata=meta,
-                chess960=bool(getattr(meta, "chess960", False)),
+                chess960=is_chess960_metadata(meta),
             )
         except Exception as e:
             logger.error(
@@ -265,8 +266,7 @@ class CoachPanel(QWidget):
             self.variation_requested.emit(played.fen_before, best_uci)
 
     def _is_chess960(self) -> bool:
-        meta = getattr(self.current_game, "metadata", None)
-        return bool(getattr(meta, "chess960", False))
+        return is_chess960_metadata(getattr(self.current_game, "metadata", None))
 
     def _toast(self, message: str) -> None:
         ToastManager.info(self, message)

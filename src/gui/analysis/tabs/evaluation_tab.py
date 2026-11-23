@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from src.gui.components import Checkbox, GraphWidget
 from src.gui.engine_lines import EngineLinesConfig, EngineLinesWidget
+from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 
 
@@ -20,7 +21,7 @@ class EvaluationTab(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet(Styles.get_transparent_background_style())
         self.config_manager = ConfigManager()
         self.graph_widget: GraphWidget | None = None
         self._lines_fen: str | None = None

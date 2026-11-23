@@ -244,6 +244,27 @@ SACRIFICIAL_CLASSIFICATIONS = frozenset({"Brilliant", "Great"})
 PROBLEM_CLASSIFICATIONS = frozenset({"Inaccuracy", "Mistake", "Miss", "Blunder"})
 LLM_WORTHY_CLASSIFICATIONS = SACRIFICIAL_CLASSIFICATIONS | PROBLEM_CLASSIFICATIONS
 
+# Ordered buckets shared by reports, charts, and the deterministic fact builder.
+# Keep this the only ordered list: zero-count maps derive from it so a new
+# classification cannot drift between the backend and the GUI.
+CLASSIFICATION_ORDER: tuple[str, ...] = (
+    "Brilliant",
+    "Great",
+    "Best",
+    "Excellent",
+    "Good",
+    "Book",
+    "Inaccuracy",
+    "Mistake",
+    "Miss",
+    "Blunder",
+)
+
+
+def zero_classification_counts() -> dict[str, int]:
+    """A fresh classification -> 0 mapping in display order."""
+    return dict.fromkeys(CLASSIFICATION_ORDER, 0)
+
 # ---------------------------------------------------------------------------
 # Local data retention
 # ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ from src.backend.analysis.metrics.filters import (
     filter_games,
     get_user_color,
     matches_filters,
+    resolve_user_side,
 )
 
 NOW = datetime.datetime(2024, 6, 15, 12, 0, tzinfo=datetime.timezone.utc).timestamp()
@@ -42,6 +43,20 @@ def test_get_user_color_is_case_insensitive():
     assert get_user_color({"white": "Carol", "black": "Bob"}, usernames) == "black"
     assert get_user_color({"white": "Carol", "black": "Dave"}, usernames) is None
     assert get_user_color({}, usernames) is None
+
+
+@pytest.mark.parametrize(
+    ("white", "black", "expected"),
+    [
+        (" Alice ", "Bob", "white"),
+        ("Carol", " BOB ", "black"),
+        ("Carol", "Dave", None),
+        ("", "", None),
+        (None, None, None),
+    ],
+)
+def test_resolve_user_side_normalizes_case_and_whitespace(white, black, expected):
+    assert resolve_user_side(white, black, {"alice", "bob"}) == expected
 
 
 def test_matches_filters_rejects_missing_user_identity():

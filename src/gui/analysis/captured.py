@@ -264,7 +264,7 @@ class CapturedPiecesWidget(QFrame):
         if seconds <= 20.0:
             self.clock_label.refresh_styles(
                 background=Styles.COLOR_BLUNDER,
-                foreground="#FFFFFF",
+                foreground=Styles.COLOR_ON_ACCENT,
                 border=Styles.COLOR_BLUNDER,
             )
         else:

@@ -30,3 +30,8 @@ def is_chess960_variant(variant: str | None) -> bool:
     """True for the common variant names used by Chess960/Fischer Random."""
     value = (variant or "").casefold()
     return any(token in value for token in ("960", "fischer", "frc", "random"))
+
+
+def is_chess960_metadata(metadata: object) -> bool:
+    """True when a game metadata record is flagged as Chess960."""
+    return bool(getattr(metadata, "chess960", False))
