@@ -64,7 +64,7 @@ src/
 │   ├── dialogs/            # load_game/, wizard/, feedback, errors, updates
 │   ├── engine_lines/       # Shared live session + engine-lines widget
 │   ├── metrics/            # Drill-down view and chart helpers
-│   ├── theme/ & styles.py  # Palettes, tokens, motion, and QSS generators (Styles.COLOR_*)
+│   ├── theme/ & styles/    # Palettes, tokens, motion, and QSS mixins (Styles.COLOR_*)
 │   └── utils/              # Debounce, shortcuts, smooth scroll, widget factories
 └── utils/                  # logger, config, paths, resources, secrets (Zero Qt)
 ```
@@ -99,7 +99,7 @@ src/
 ## 5. Coding Standards
 - **Typing**: Python 3.10+ modern syntax required: use `X | None` (never `Optional[X]`), `list[T]`, `dict[K, V]`.
 - **Logging**: Use `from src.utils.logger import logger`. **Never use `print()`**. Sensitive tokens (`sk-...`, `gsk_...`, Bearer) are automatically redacted.
-- **Styling**: **Never hardcode hex colors** in widget files. Use `Styles.COLOR_*` and generator helpers from `src/gui/styles.py`.
+- **Styling**: **Never hardcode hex colors** in widget files. Use `Styles.COLOR_*` and generator helpers from `src/gui/styles/`.
 - **Components**: Use the shared components from `src.gui.components` for every control: `Button`, `Checkbox`, `Input`/`TextArea`, `Select`, `PathField`, `RadioChoice`, `SliderCounter`, `ProgressBar`, `Tabs`, `DatePicker`, `ListView`, `Toast`, `PaginationBar`, `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `SegmentedBar`. Construct `Button` directly with a variant/size instead of `QPushButton`/`QToolButton`/`QLineEdit`/`QComboBox`/`QCheckBox`/`QProgressBar` or widget QSS. Do not reintroduce `create_button` / `create_icon_button` wrapper factories. The only exceptions are documented specials: board swatches, theme cards, star rating, variation graph nodes, the move-cell variation badge, pixmap `QLabel`s, the toast hairline progress bar, and the domain-specific move table.
 - **Theming**: Every per-widget stylesheet must be regenerated on theme/accent change. Use `Styles.COLOR_*` and generator helpers; never capture palette values at construction.
 - **Settings**: Add fields to `src/config/settings_schema.py` with a default, type, validation, and `apply="live"` when appropriate. Add a typed `ConfigManager` property when widgets or backend code read the value directly. Do not scatter `config.get("key", default)` fallbacks through call sites; raw key access belongs in `SettingsBinder`, config migrations, and secret/profile storage. Credentials go through `SecretStore`.

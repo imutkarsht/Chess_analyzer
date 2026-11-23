@@ -195,7 +195,7 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 - Follow **PEP 8** for Python formatting.
 - All public functions must have **type hints** using modern Python 3.10+ syntax (`X | None`, `list[T]`, `dict[K, V]`).
 - Use `from src.utils.logger import logger` — **never** use `print()` for internal messages.
-- Never hardcode colors in widget files — use `Styles.COLOR_*` constants from `src/gui/styles.py`.
+- Never hardcode colors in widget files — use `Styles.COLOR_*` constants from `src/gui/styles/`.
 - Write meaningful commit messages (we loosely follow [Conventional Commits](https://www.conventionalcommits.org/)):
   - `feat:` for new features
   - `fix:` for bug fixes

@@ -120,7 +120,7 @@ Forbidden edges:
 | `src/gui/dialogs` | Modal flows (load game, wizard, feedback, errors, updates) |
 | `src/gui/import_workspace` | Searchable multi-game import table hosted by History |
 | `src/gui/theme` | Palettes, tokens, motion, OS theme detection |
-| `src/gui/styles.py` | One QSS generator per control, driven by the live palette |
+| `src/gui/styles/` | QSS mixins by responsibility, composed into the public `Styles` facade |
 | `src/utils` | Config, logging, paths, resources, secrets |
 
 ---
@@ -728,7 +728,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 </details>
 
-### `src/gui/theme`, `styles.py`, `utils`
+### `src/gui/theme`, `styles/`, `utils`
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
@@ -737,7 +737,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `theme/tokens.py` | Spacing, radius and type scale | `Spacing`, `Radius`, `TypeScale` |
 | `theme/motion.py` | Durations, easings, animation helpers | `Motion`, `MotionDuration` |
 | `theme/system.py` | OS theme/accent detection | `OSThemeWatcher` |
-| `styles.py` | QSS generators for every control | `Styles` |
+| `styles/` | QSS mixins by responsibility; `__init__.py` composes the public `Styles` | `Styles` |
 | `resources.py` | Image, icon and sound loading (Qt-dependent, so lives in the GUI layer) | `ResourceManager` |
 | `tactics_meta.py` | Shared motif labels, icons, descriptions and colour attributes | `MOTIF_META`, `motif_meta` |
 | `utils/debounce.py` | Single-shot debouncer | `Debouncer` |
@@ -745,6 +745,24 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | `utils/shortcut_manager.py` | Central shortcut registry and presets | `ShortcutManager`, `ShortcutAction` |
 | `utils/clock.py` | White/Black clock values from a move list | `compute_clock_times` |
 | `utils/smooth_scroll.py` | Shared smooth wheel scrolling | `SmoothScrollRouter` |
+
+#### `src/gui/styles`
+
+| File | Responsibility |
+| --- | --- |
+| `__init__.py` | Compose the public `Styles` class from the mixins |
+| `_base.py` | Palette metaclass (`COLOR_*`) and shared constants |
+| `_tokens.py` | Accuracy, classification, board-color, and accent helpers |
+| `_typography.py` | Tone mapping, typography QSS, and its style-revision cache |
+| `_buttons.py` | Button variants and sizes |
+| `_inputs.py` | Inputs, textareas, selects, and date pickers |
+| `_surfaces.py` | Global theme, cards, frames, dialogs, badges, transparent helpers |
+| `_tables.py` | Explorer/import/batch/move-list/game-card tables |
+| `_navigation.py` | Tabs, sidebar, menus, scroll areas, splitters, dividers |
+| `_controls.py` | Checkboxes, radios, sliders, theme cards, group boxes |
+| `_progress.py` | Progress and think-time bars |
+| `_feedback.py` | Toasts, engine lines, engine-score badges |
+| `_pages.py` | Analysis board chrome, variation graph, captured pieces, clocks |
 
 ### Repository-level folders
 
@@ -944,7 +962,7 @@ create per-widget formatters or wrapper factories.
 | Settings defaults | `config/settings_schema.py` |
 | Settings card layout | `gui/views/settings/` |
 | Colours, palettes, board themes | `gui/theme/palette.py` |
-| Control styling | `gui/styles.py` |
+| Control styling | `gui/styles/` |
 | Button/input/select behaviour | `gui/components/controls/` |
 | Sidebar/navigation | `components/layout/sidebar.py`, `main_window/navigation_mixin.py` |
 | Status bar | `main_window/status_bar_mixin.py` |
