@@ -339,11 +339,12 @@ class MainWindow(
             except Exception as e:
                 logger.error(f"Failed to stop full analysis worker: {e}")
 
-        # Stop AI Coach summary thread if running
+        # Stop the AI summary/coach workers owned by the analysis tabs
         if hasattr(self, "analysis_panel") and self.analysis_panel:
-            st = getattr(self.analysis_panel, "summary_thread", None)
-            if st is not None:
-                _stop_thread(st, signals=(getattr(st, "finished", None),))
+            try:
+                self.analysis_panel.shutdown()
+            except Exception as e:
+                logger.error(f"Failed to stop analysis panel workers: {e}")
 
         # Stop metrics workers if running
         if hasattr(self, "metrics_view") and self.metrics_view:

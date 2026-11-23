@@ -6,7 +6,7 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt
 
 from src.backend.analysis.tactics.report import GameTacticEntry, GameTacticsReport
-from src.gui.analysis.tactics_tab import TacticRow, TacticsTab
+from src.gui.analysis.tabs.tactics_tab import TacticRow, TacticsTab
 from src.gui.components import EmptyState, Label
 
 
