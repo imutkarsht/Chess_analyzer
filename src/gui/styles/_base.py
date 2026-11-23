@@ -174,3 +174,50 @@ class _StylesMeta(type):
     @property
     def BOARD_THEMES(cls):
         return BOARD_THEMES
+
+    # ═══════════════════════════════════════════════════════════════
+    #  COMPONENT COLORS
+    # ═══════════════════════════════════════════════════════════════
+    @property
+    def COLOR_EVAL_BAR_BG(cls):
+        return ThemeManager.palette().eval_bar_background
+
+    @property
+    def COLOR_EVAL_BAR_FG(cls):
+        return ThemeManager.palette().eval_bar_foreground
+
+    @property
+    def COLOR_GRAPH_GRID(cls):
+        return ThemeManager.palette().graph_grid
+
+    @property
+    def COLOR_GRAPH_PIN(cls):
+        return ThemeManager.palette().graph_pin
+
+    @property
+    def COLOR_STAR_ACTIVE(cls):
+        return ThemeManager.palette().star_active
+
+    @property
+    def COLOR_STAR_INACTIVE(cls):
+        return ThemeManager.palette().star_inactive
+
+    @property
+    def COLOR_STAR_ACTIVE_SUBTLE(cls):
+        return ThemeManager.palette().star_active_subtle
+
+    @property
+    def COLOR_CROWN(cls):
+        return ThemeManager.palette().crown
+
+    @property
+    def COLOR_BOARD_DIM(cls):
+        return ThemeManager.palette().board_dim
+
+    @property
+    def COLOR_MOVE_DOT_ON_DARK(cls):
+        return ThemeManager.palette().move_dot_on_dark
+
+    @property
+    def COLOR_MOVE_DOT_ON_LIGHT(cls):
+        return ThemeManager.palette().move_dot_on_light

@@ -525,8 +525,8 @@ class Board(QWidget):
         sq_color = QColor(square_hex)
         # Dark square → white dot; light square → black dot for maximum contrast.
         if sq_color.lightness() < 128:
-            return "rgba(255,255,255,0.90)"
-        return "rgba(0,0,0,0.85)"
+            return Styles.COLOR_MOVE_DOT_ON_DARK
+        return Styles.COLOR_MOVE_DOT_ON_LIGHT
 
     # ------------------------------------------------------------------ Historic / Free Position
     def load_fen(self, fen: str, flipped: bool | None = None, *, chess960: bool | None = None):
@@ -951,7 +951,7 @@ class Board(QWidget):
                     "y": str(MARGIN),
                     "width": str(BOARD_SIZE),
                     "height": str(BOARD_SIZE),
-                    "fill": "#000000",
+                    "fill": Styles.COLOR_BOARD_DIM,
                     "opacity": "0.10",
                 },
             )

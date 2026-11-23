@@ -93,15 +93,15 @@ class AICoachCard(MetricCard):
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setStyleSheet("""
-            QScrollArea { background: transparent; border: none; }
-            QScrollBar:vertical {
+        self.scroll.setStyleSheet(f"""
+            QScrollArea {{ background: transparent; border: none; }}
+            QScrollBar:vertical {{
                 background: transparent; width: 6px; margin: 0;
-            }
-            QScrollBar::handle:vertical {
-                background: rgba(255,255,255,0.15); border-radius: 3px; min-height: 20px;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+            }}
+            QScrollBar::handle:vertical {{
+                background: {Styles.COLOR_BORDER}; border-radius: 3px; min-height: 20px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
         """)
 
         self.insights_container = QWidget()

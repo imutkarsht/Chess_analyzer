@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.constants import DEFAULT_BOARD_THEME, PROVIDERS
+from src.constants import DEFAULT_ACCENT, DEFAULT_BOARD_THEME, PROVIDERS
 from src.gui.components import (
     Button,
     ButtonSize,
@@ -243,7 +243,7 @@ def build_appearance_page(wizard) -> QWidget:
     card_layout.addLayout(accent_row)
     layout.addWidget(card)
 
-    wizard.wizard_accent_color = "#FF9500"
+    wizard.wizard_accent_color = DEFAULT_ACCENT
     wizard.wizard_accent_mode = "system"
     _apply_accent_button_style(wizard, wizard.wizard_accent_color, wizard.wizard_accent_mode)
     layout.addStretch()
@@ -270,7 +270,7 @@ def _pick_accent_color(wizard):
 def _reset_accent_color(wizard):
     from src.gui.theme import ThemeManager
     ThemeManager.set_accent_mode("system")
-    detected = ThemeManager.accent() or "#FF9500"
+    detected = ThemeManager.accent() or DEFAULT_ACCENT
     _apply_accent(wizard, detected, mode="system")
 
 

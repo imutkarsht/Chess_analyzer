@@ -672,7 +672,7 @@ class GameListItemWidget(QWidget):
 
         if HAS_QTAWESOME:
             lbl.set_icon("fa5s.crown")
-            lbl.set_color("#EAB308")
+            lbl.set_color(Styles.COLOR_CROWN)
             return lbl
 
         lbl.set_icon(None)

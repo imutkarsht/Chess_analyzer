@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from src.constants import DEFAULT_BOARD_THEME
 from src.gui.theme import ThemeManager
+from src.gui.theme.palette import TERMINATION_COLORS, TERMINATION_FALLBACK_COLOR
 
 
 class _TokensMixin:
@@ -39,3 +40,13 @@ class _TokensMixin:
     @classmethod
     def get_board_colors(cls, theme_name=DEFAULT_BOARD_THEME):
         return ThemeManager.get_board_colors(theme_name)
+
+    @classmethod
+    def get_termination_color(cls, name: str) -> str:
+        if name == "Checkmate":
+            return cls.COLOR_BEST
+        if name == "Resignation":
+            return cls.COLOR_ACCENT
+        if name == "Abandon":
+            return cls.COLOR_BLUNDER
+        return TERMINATION_COLORS.get(name, TERMINATION_FALLBACK_COLOR)
