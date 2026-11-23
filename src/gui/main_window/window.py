@@ -20,6 +20,9 @@ from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
 from src.gui.analysis import CapturedPiecesWidget, MoveControls
 from src.gui.analysis.variation import VariationGraph, VariationMode
+from src.gui.app.analysis_controller import AnalysisController
+from src.gui.app.batch_controller import BatchController
+from src.gui.app.game_loading_controller import GameLoadingController
 from src.gui.board import Board, BoardConfig, BoardGameHeader, BoardPanel
 from src.gui.components import (
     BadgeVariant,
@@ -39,9 +42,6 @@ from src.gui.components import (
     WelcomePanel,
     confirm_dialog,
 )
-from src.gui.main_window.analysis_mixin import AnalysisMixin
-from src.gui.main_window.batch_mixin import BatchAnalysisMixin
-from src.gui.main_window.game_loading_mixin import GameLoadingMixin
 from src.gui.main_window.navigation_mixin import NavigationMixin
 from src.gui.main_window.status_bar_mixin import StatusBarMixin
 from src.gui.main_window.theme_mixin import ThemeMixin
@@ -76,9 +76,6 @@ def _stop_thread(thread, timeout: int | None = None, signals: tuple = ()):
 
 class MainWindow(
     NavigationMixin,
-    AnalysisMixin,
-    BatchAnalysisMixin,
-    GameLoadingMixin,
     VariationMixin,
     StatusBarMixin,
     ThemeMixin,
@@ -86,7 +83,7 @@ class MainWindow(
     UpdateMixin,
     QMainWindow,
 ):
-    """Main application window composed of domain mixins."""
+    """Main application window: layout host and controller signal bus."""
 
     # Emitted with the new ply index (-1 = start position) whenever the
     # analysis board moves, whether from a click, a button or a shortcut.
@@ -94,6 +91,12 @@ class MainWindow(
 
     def __init__(self):
         super().__init__()
+        self.analysis_controller = AnalysisController()
+        self.analysis_controller.attach(self)
+        self.batch_controller = BatchController()
+        self.batch_controller.attach(self)
+        self.game_loading_controller = GameLoadingController()
+        self.game_loading_controller.attach(self)
         self.setWindowTitle("Chess Analyzer Pro")
         self._apply_default_window_size()
 
@@ -216,6 +219,15 @@ class MainWindow(
         game_id = getattr(game, "game_id", None) if game else None
         self.batch_controller._sync_paused_batch(game_id)
 
+    def dragEnterEvent(self, event):
+        self.game_loading_controller.handle_drag_enter(event)
+
+    def dragLeaveEvent(self, event):
+        self.game_loading_controller.handle_drag_leave(event)
+
+    def dropEvent(self, event):
+        self.game_loading_controller.handle_drop(event)
+
     def _apply_default_window_size(self):
         """Pick a first-launch size from the user's actual screen."""
         screen = QGuiApplication.primaryScreen()
@@ -289,7 +301,7 @@ class MainWindow(
 
         # Apply any queued analysis payload before widgets go away.
         try:
-            self._flush_analysis_updates()
+            self.analysis_controller._flush_analysis_updates()
         except Exception as e:  # pragma: no cover - defensive
             logger.debug(f"Failed to flush analysis UI on close: {e}")
 
@@ -430,7 +442,9 @@ class MainWindow(
         # Sidebar
         self.sidebar = Sidebar(self.config_manager)
         self.sidebar.page_changed.connect(self.switch_page)
-        self.sidebar.animation_changed.connect(self._on_sidebar_animation_changed)
+        self.sidebar.animation_changed.connect(
+            self.analysis_controller._on_sidebar_animation_changed
+        )
         main_layout.addWidget(self.sidebar)
 
         # Stacked Widget for Pages
@@ -448,13 +462,17 @@ class MainWindow(
 
         # --- Page 2: History View ---
         self.history_view = HistoryView(self.config_manager)
-        self.history_view.game_selected.connect(self.load_game_from_history)
-        self.history_view.game_action_requested.connect(self.on_game_action_requested)
+        self.history_view.game_selected.connect(
+            self.game_loading_controller.load_game_from_history
+        )
+        self.history_view.game_action_requested.connect(
+            self.game_loading_controller.on_game_action_requested
+        )
         self.history_view.game_deleted.connect(self.on_history_changed)
         self.history_view.games_imported.connect(self.on_history_changed)
         self.history_view.history_cleared.connect(self.on_history_changed)
         self.history_view.open_imported_game.connect(
-            self._on_imported_game_requested
+            self.game_loading_controller._on_imported_game_requested
         )
         self.stack.addWidget(self.history_view)
 
@@ -474,7 +492,9 @@ class MainWindow(
         self.settings_view.appearance_prefs_changed.connect(
             self.history_view.apply_default_view_mode
         )
-        self.settings_view.analysis_prefs_changed.connect(self.sync_analysis_prefs)
+        self.settings_view.analysis_prefs_changed.connect(
+            self.analysis_controller.sync_analysis_prefs
+        )
         self.stack.addWidget(self.settings_view)
 
         self.sidebar.set_active(0)
@@ -496,7 +516,9 @@ class MainWindow(
         view.request_settings.connect(
             lambda: (self.sidebar.set_active(4), self.switch_page(4))
         )
-        view.game_selected.connect(self.load_game_from_metrics)
+        view.game_selected.connect(
+            self.game_loading_controller.load_game_from_metrics
+        )
         view.drill_down_opened.connect(self._on_drill_down_opened)
         view.drill_down_closed.connect(self._on_drill_down_closed)
         if hasattr(self, "settings_view") and self.settings_view is not None:
@@ -555,12 +577,12 @@ class MainWindow(
         header_layout.addWidget(self.btn_explore)
 
         # Load Game Button
-        self.btn_load = Button('Load Game', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=lambda: self.open_load_dialog())
+        self.btn_load = Button('Load Game', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         header_layout.addWidget(self.btn_load)
 
         # Analyze Game Button
-        self.btn_analyze = Button('Analyze Game', ButtonVariant.PRIMARY, icon='fa5s.play', on_click=lambda: self.start_analysis())
+        self.btn_analyze = Button('Analyze Game', ButtonVariant.PRIMARY, icon='fa5s.play', on_click=lambda: self.analysis_controller.start_analysis())
         header_layout.addWidget(self.btn_analyze)
 
         main_layout.addWidget(self.analysis_header_bar)
@@ -627,12 +649,12 @@ class MainWindow(
         hero_actions.setSpacing(10)
         hero_actions.addStretch(1)
 
-        self.btn_hero_load = Button('Load Game', ButtonVariant.PRIMARY, icon='fa5s.folder-open', on_click=lambda: self.open_load_dialog())
+        self.btn_hero_load = Button('Load Game', ButtonVariant.PRIMARY, icon='fa5s.folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
         self.btn_hero_load.setFixedSize(140, 38)
         self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         hero_actions.addWidget(self.btn_hero_load)
 
-        self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='fa5s.paste', on_click=self.paste_pgn_from_clipboard)
+        self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='fa5s.paste', on_click=self.game_loading_controller.paste_pgn_from_clipboard)
         self.btn_hero_paste.setFixedSize(130, 38)
         self.btn_hero_paste.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hero_paste.setToolTip("Load PGN text from the clipboard")
@@ -693,7 +715,9 @@ class MainWindow(
         # The follow control lives with the playback chrome; keep the historical
         # `btn_follow` alias so analysis mixin state helpers stay page-agnostic.
         self.btn_follow = self.controls.btn_follow
-        self.controls.follow_toggled.connect(self._on_follow_toggled)
+        self.controls.follow_toggled.connect(
+            self.analysis_controller._on_follow_toggled
+        )
         self.move_list_panel.move_list.state_changed.connect(
             self.controls.set_navigation_state
         )
@@ -786,13 +810,15 @@ class MainWindow(
         self.analysis_panel.setMinimumWidth(300)
         if self.analysis_panel.layout:
             self.analysis_panel.layout.setContentsMargins(5, 5, 5, 5)
-        self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
+        self.analysis_panel.cache_toggled.connect(
+            self.analysis_controller.on_cache_toggled
+        )
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
         self.analysis_panel.toggle_checkbox.toggled.connect(
             self.move_list_panel.set_engine_lines_enabled
         )
         self.analysis_panel.toggle_checkbox.toggled.connect(
-            self.on_engine_lines_toggled
+            self.analysis_controller.on_engine_lines_toggled
         )
 
         # Variation mode: makes the main board playable for "Show best move",
@@ -820,7 +846,9 @@ class MainWindow(
         splitter.setStretchFactor(2, 30)
         splitter.setStretchFactor(3, 0)
 
-        self._update_analysis_view_mode(has_game=self.current_game is not None)
+        self.game_loading_controller._update_analysis_view_mode(
+            has_game=self.current_game is not None
+        )
 
     def showEvent(self, event):
         super().showEvent(event)

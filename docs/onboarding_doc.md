@@ -95,7 +95,7 @@ main.py → src/gui (presentation) → src/backend (domain) → SQLite / Stockfi
 
 | Area | Files |
 | --- | --- |
-| Window composition | `src/gui/main_window/window.py` + mixins |
+| Window composition | `src/gui/main_window/window.py` + controllers |
 | Analysis/batch/loading workflows | `src/gui/app/` controllers |
 | Analysis pipeline | `src/backend/analysis/analyzer.py`, `engine.py`, `src/workers/analysis/analysis_worker.py` |
 | Move classification | `src/backend/analysis/move_classifier.py` |
@@ -111,8 +111,7 @@ For every module's purpose and the allowed dependency edges, see
 [architecture.md](architecture.md#2-system-overview).
 
 Workflow state lives in `src/gui/app/` controllers. `MainWindow` builds the
-layout and connects controller signals; `analysis_mixin`, `batch_mixin`, and
-`game_loading_mixin` are compatibility adapters during the migration.
+layout, connects controller signals, and keeps only the QWidget drag/drop hooks.
 
 ---
 

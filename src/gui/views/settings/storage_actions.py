@@ -90,7 +90,10 @@ def reset_analysis_workspace(window) -> None:
         if hasattr(board, "set_eval_bar_visible"):
             board.set_eval_bar_visible(False)
 
-    if hasattr(window, "_update_analysis_view_mode"):
+    loading = getattr(window, "game_loading_controller", None)
+    if loading is not None:
+        loading._update_analysis_view_mode(False)
+    elif hasattr(window, "_update_analysis_view_mode"):
         window._update_analysis_view_mode(False)
 
 

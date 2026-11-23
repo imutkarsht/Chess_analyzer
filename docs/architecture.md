@@ -28,7 +28,11 @@ read [AGENTS.md](../AGENTS.md).
 ```mermaid
 flowchart TD
     main[main.py] --> window[MainWindow<br/>gui/main_window/window.py]
-    window --> mixins[MainWindow mixins<br/>navigation · analysis · loading · theme · tour · update · variation · status]
+    window --> mixins[MainWindow mixins<br/>navigation · variation · theme · tour · update · status]
+    window --> controllers[Workflow controllers<br/>gui/app]
+    controllers --> analysisController[AnalysisController]
+    controllers --> batchController[BatchController]
+    controllers --> loadingController[GameLoadingController]
     window --> sidebar[Sidebar]
     window --> stack[FadedStackedWidget]
 
@@ -125,9 +129,9 @@ Forbidden edges:
 
 ### Full game analysis
 
-1. `GameLoadingMixin.load_game()` accepts a `GameAnalysis` and hands it to
-   `MainWindow.setup_analysis_page()` widgets.
-2. `AnalysisMixin.start_analysis()` spawns `AnalysisWorker`, which drives
+1. `GameLoadingController.load_game()` accepts a `GameAnalysis` and hands it
+   to `MainWindow.setup_analysis_page()` widgets.
+2. `AnalysisController.start_analysis()` spawns `AnalysisWorker`, which drives
    `Analyzer.analyze_game()`.
 3. `Analyzer` calls `EngineManager` per position, caches results through
    `AnalysisCache`, and converts every score to White's perspective in
@@ -223,7 +227,7 @@ Forbidden edges:
 1. History bulk mode pins `GameQuery(batchable_only=True)` and keeps a
    game-ID selection set in `HistoryView`; search/filter changes clear it,
    while paging and sorting preserve it.
-2. `BatchAnalysisMixin` creates one persisted `AnalysisBatch`, resolves the
+2. `BatchController` creates one persisted `AnalysisBatch`, resolves the
    engine, and starts one `BatchAnalysisWorker` QThread.
 3. `BatchAnalysisRunner` (Qt-free) walks the queue sequentially and calls the
    existing `Analyzer.analyze_game()` once per game. The analyzer stops its
@@ -452,9 +456,6 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- |
 | `window.py` | Layout host, controller construction/signal wiring, landing board, shutdown | `MainWindow` |
 | `navigation_mixin.py` | Page switching, move stepping, replay/follow ownership, wheel routing, shortcuts glue | `NavigationMixin` |
-| `analysis_mixin.py` | Adapter exposing `AnalysisController` while call sites migrate | `AnalysisMixin` |
-| `batch_mixin.py` | Adapter exposing `BatchController` | `BatchAnalysisMixin` |
-| `game_loading_mixin.py` | Adapter exposing `GameLoadingController` plus QWidget drag/drop hooks | `GameLoadingMixin` |
 | `variation_mixin.py` | Variation-mode request handling | `VariationMixin` |
 | `theme_mixin.py` | Palette application and theme refresh fan-out | `ThemeMixin` |
 | `status_bar_mixin.py` | Engine pill, status messages, spinner, toasts | `StatusBarMixin` |

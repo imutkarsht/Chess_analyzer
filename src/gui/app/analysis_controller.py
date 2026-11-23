@@ -626,3 +626,40 @@ class AnalysisController(QObject):
             close_label="Close",
         )
         self.analysis_failed.emit(error_msg)
+
+    # ------------------------------------------------------------------
+    # Analysis preferences
+    # ------------------------------------------------------------------
+
+    def on_cache_toggled(self, checked) -> None:
+        self.host.config_manager.set("use_cache", bool(checked))
+        if getattr(self.host, "analyzer", None):
+            self.host.analyzer.config["use_cache"] = bool(checked)
+        if hasattr(self.host, "settings_view"):
+            self.host.settings_view.sync_analysis_shortcuts()
+
+    def on_engine_lines_toggled(self, checked) -> None:
+        self.host.config_manager.set("engine_lines_enabled", bool(checked))
+        if hasattr(self.host, "settings_view"):
+            self.host.settings_view.sync_analysis_shortcuts()
+
+    def sync_analysis_prefs(self) -> None:
+        """Mirror the settings-page analysis shortcuts into the live panel."""
+        if not hasattr(self.host, "analysis_panel"):
+            return
+        use_cache = self.host.config_manager.use_cache
+        engine_lines = self.host.config_manager.engine_lines_enabled
+        if getattr(self.host, "analyzer", None):
+            self.host.analyzer.config["use_cache"] = use_cache
+        for checkbox, value in (
+            (self.host.analysis_panel.cache_checkbox, use_cache),
+            (self.host.analysis_panel.toggle_checkbox, engine_lines),
+        ):
+            checkbox.blockSignals(True)
+            checkbox.setChecked(value)
+            checkbox.blockSignals(False)
+        if (
+            hasattr(self.host, "move_list_panel")
+            and self.host.move_list_panel.engine_lines_enabled != engine_lines
+        ):
+            self.host.move_list_panel.set_engine_lines_enabled(engine_lines)

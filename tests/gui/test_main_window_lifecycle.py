@@ -68,10 +68,10 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
         ThemeManager.set_mode(previous_mode)
 
     # Dragging a PGN highlights the hero card as the drop target.
-    window._set_drop_highlight(True)
+    window.game_loading_controller._set_drop_highlight(True)
     assert window.lbl_hero_hint.text() == "Drop to load game"
     assert window.lbl_hero_keys.isHidden()
-    window._set_drop_highlight(False)
+    window.game_loading_controller._set_drop_highlight(False)
     assert window.lbl_hero_hint.text() == window._hero_hint_default
     assert not window.lbl_hero_keys.isHidden()
 
@@ -101,7 +101,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     game_other = GameAnalysis(game_id="other_2", metadata=meta, moves=[])
 
     # Loading a game expands to 3-column analysis workspace
-    window.load_game(game_active)
+    window.game_loading_controller.load_game(game_active)
     assert not window.left_widget.isHidden()
     assert not window.analysis_panel.isHidden()
     assert not window.analysis_header_bar.isHidden()
@@ -110,7 +110,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert not window.btn_analyze.isHidden()
     assert not window.board_widget.eval_bar.isHidden()
 
-    window.load_game_from_history(game_active)
+    window.game_loading_controller.load_game_from_history(game_active)
     QApplication.processEvents()
     assert window.stack.currentIndex() == 0
     assert window.btn_load.isVisible()
@@ -119,7 +119,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     monkeypatch.setattr(
         window, "show_toast", lambda *args, **kwargs: warning_called.append(True)
     )
-    window.load_game_from_history(game_other)
+    window.game_loading_controller.load_game_from_history(game_other)
     assert len(warning_called) == 1
     assert window.current_game.game_id == "active_1"
 
