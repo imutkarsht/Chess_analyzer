@@ -32,6 +32,10 @@ class AnalysisMixin:
     def stop_analysis(self):
         self.analysis_controller.stop_analysis()
 
+    def _ensure_engine_ready(self) -> bool:
+        """Batch analysis shares the same engine readiness gate."""
+        return self.analysis_controller._ensure_engine_ready()
+
     def on_analysis_progress(self, current, total):
         self.analysis_controller.on_analysis_progress(current, total)
 

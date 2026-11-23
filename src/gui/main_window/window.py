@@ -329,6 +329,13 @@ class MainWindow(
             except Exception as e:
                 logger.error(f"Failed to stop full analysis worker: {e}")
 
+        # Stop a dropped-PGN indexing worker
+        if hasattr(self, "game_loading_controller"):
+            try:
+                self.game_loading_controller.shutdown()
+            except Exception as e:
+                logger.error(f"Failed to stop PGN index worker: {e}")
+
         # Stop the AI summary/coach workers owned by the analysis tabs
         if hasattr(self, "analysis_panel") and self.analysis_panel:
             try:

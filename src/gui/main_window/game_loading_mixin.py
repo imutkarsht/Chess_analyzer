@@ -1,494 +1,67 @@
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QApplication, QDialog
+# SPDX-License-Identifier: GPL-3.0-only
+"""MainWindow adapter for the game-loading controller.
 
-from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
-from src.constants import MAX_PGN_TEXT_CHARS, PAGE_ANALYSIS, PAGE_HISTORY
-from src.gui.dialogs.load_game_dialog import LoadGameDialog
-from src.gui.main_window.navigation_mixin import compute_clock_times
-from src.gui.styles import Styles
-from src.gui.theme.typography import TextTone
-from src.gui.utils.worker_registry import (
-    register_worker,
-    remove_worker,
-)
-from src.utils.logger import logger
-from src.workers.imports import PgnIndexWorker
+The workflow lives in ``src.gui.app.game_loading_controller``. This mixin keeps
+the window surface and the QWidget drag/drop overrides as thin delegates.
+"""
+
+from __future__ import annotations
+
+from src.gui.app.game_loading_controller import GameLoadingController
 
 
 class GameLoadingMixin:
-    """Game ingestion, PGN parsing, history loading, and drag-and-drop support."""
+    """Thin window adapter around :class:`GameLoadingController`."""
+
+    @property
+    def game_loading_controller(self) -> GameLoadingController:
+        controller = getattr(self, "_game_loading_controller", None)
+        if controller is None:
+            controller = GameLoadingController()
+            controller.attach(self)
+            self._game_loading_controller = controller
+        return controller
+
+    # ------------------------------------------------------------------
+    # Lifecycle delegates
+    # ------------------------------------------------------------------
 
     def load_game_from_history(self, game):
-        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
-            if self.current_game and getattr(game, "game_id", None) == getattr(
-                self.current_game, "game_id", None
-            ):
-                self.sidebar.set_active(0)
-                self.switch_page(0)
-                return
-            else:
-                self.show_toast(
-                    "An analysis is currently in progress for another game. "
-                    "Please stop the ongoing analysis first.",
-                    "warning",
-                )
-                return
-
-        self.load_game(game, from_history=True)
-        self.sidebar.set_active(0)  # Switch to Analyze tab
-        self.switch_page(0)
+        self.game_loading_controller.load_game_from_history(game)
 
     def on_game_action_requested(self, game, action: str):
-        """Handle action button requests from game cards ('reanalyze', 'resume', 'analyze', 'view_analysis')."""
-        coordinator = getattr(self, "analysis_coordinator", None)
-        if (
-            coordinator is not None
-            and coordinator.batch_running
-            and action != "view_analysis"
-        ):
-            self.show_toast(
-                "Pause or cancel the batch from History before analyzing another game.",
-                "warning",
-            )
-            return
-
-        if action == "view_analysis" or (
-            hasattr(self, "worker")
-            and self.worker
-            and self.worker.isRunning()
-            and self.current_game
-            and getattr(game, "game_id", None) == getattr(self.current_game, "game_id", None)
-        ):
-            self.sidebar.set_active(0)
-            self.switch_page(0)
-            return
-
-        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
-            self.show_toast(
-                "An analysis is currently in progress for another game. "
-                "Please stop the ongoing analysis first.",
-                "warning",
-            )
-            return
-
-        self.load_game_from_history(game)
-        if action == "resume":
-            self.start_analysis(resume=True)
-        elif action in ("reanalyze", "analyze"):
-            self.start_analysis(resume=False)
+        self.game_loading_controller.on_game_action_requested(game, action)
 
     def load_game_from_metrics(self, game, move_index: int = -1):
-        target = game
-        if isinstance(game, str):
-            game = self.history_manager.get_game_analysis(game)
-        if not game:
-            logger.warning(f"Could not load game from metrics: {target}")
-            return
-        self.load_game(game, from_history=True)
-        self.sidebar.set_active(0)  # Switch to Analyze tab
-        self.switch_page(0)
-        if move_index >= 0:
-            self.on_move_selected(move_index)
-
-    def _update_analysis_view_mode(self, has_game: bool):
-        """Toggle between Hero focus landing (no game) and 3-column analysis workspace (game loaded)."""
-        if hasattr(self, "analysis_header_bar"):
-            self.analysis_header_bar.setVisible(has_game)
-        if hasattr(self, "left_widget"):
-            self.left_widget.setVisible(has_game)
-        if hasattr(self, "analysis_panel"):
-            self.analysis_panel.setVisible(has_game)
-        if hasattr(self, "welcome_panel"):
-            self.welcome_panel.setVisible(not has_game)
-        if hasattr(self, "captured_black"):
-            self.captured_black.setVisible(has_game)
-        if hasattr(self, "captured_white"):
-            self.captured_white.setVisible(has_game)
-        if hasattr(self, "controls"):
-            self.controls.setVisible(has_game)
-        if hasattr(self, "empty_state_cta"):
-            self.empty_state_cta.setVisible(not has_game)
-        if hasattr(self, "historic_info_bar"):
-            self.historic_info_bar.setVisible(not has_game)
-        if hasattr(self, "game_info_label"):
-            self.game_info_label.setVisible(has_game)
-        if hasattr(self, "btn_explore"):
-            self.btn_explore.setVisible(has_game)
-        if hasattr(self, "btn_analyze"):
-            self.btn_analyze.setVisible(has_game)
-        if hasattr(self, "btn_follow"):
-            self.btn_follow.setVisible(False)
-
-        # Eval bar is only shown during game playback / analysis, and only
-        # when the user has not disabled it in Appearance settings.
-        if hasattr(self, "board_widget") and hasattr(self.board_widget, "set_eval_bar_visible"):
-            self.board_widget.set_eval_bar_visible(has_game)
-            if hasattr(self.board_widget, "_enforce_square_board"):
-                self.board_widget._enforce_square_board()
-
-        if hasattr(self, "splitter"):
-            total_w = self.splitter.width()
-            if total_w < 500:
-                # The splitter has not been laid out yet; use the real window
-                # width minus the sidebar instead of a fixed design width.
-                sidebar_w = self.sidebar.width() if hasattr(self, "sidebar") else 0
-                total_w = max(self.width() - sidebar_w, 1)
-            if has_game:
-                left_w = int(total_w * 0.25)
-                center_w = int(total_w * 0.45)
-                right_w = total_w - left_w - center_w
-                self.splitter.setSizes([left_w, center_w, right_w, 0])
-                self.splitter.setStretchFactor(0, 25)
-                self.splitter.setStretchFactor(1, 45)
-                self.splitter.setStretchFactor(2, 30)
-                self.splitter.setStretchFactor(3, 0)
-            else:
-                left_w = int(total_w * 0.60)
-                right_w = total_w - left_w
-                self.splitter.setSizes([0, left_w, 0, right_w])
-                self.splitter.setStretchFactor(0, 0)
-                self.splitter.setStretchFactor(1, 6)
-                self.splitter.setStretchFactor(2, 0)
-                self.splitter.setStretchFactor(3, 4)
-
-        if hasattr(self, "_update_game_info_placement"):
-            self._update_game_info_placement()
-
-    def _parse_and_load_game(self, pgn_text, source_data=None, status_msg=""):
-        """
-        Parse the first valid game, attach source data, and load it.
-        Returns True on success, False on failure.
-        """
-        logger.debug("Parsing first game from %d PGN chars", len(pgn_text))
-        try:
-            game = PGNParser.parse_first_game(pgn_text)
-        except Exception as exc:
-            logger.error("Failed to parse PGN: %s", exc)
-            game = None
-        if game is None:
-            self.show_toast(
-                "Could not read this game. The PGN data may be empty or corrupted.",
-                "error",
-            )
-            return False
-
-        if source_data:
-            game.source_data = source_data
-        self.games = [game]
-        self.load_game(game)
-        if status_msg:
-            self._set_status(status_msg, "success")
-        return True
+        self.game_loading_controller.load_game_from_metrics(game, move_index)
 
     def load_game(self, game, from_history: bool = False):
-        # A new game must never inherit the previous game's open variation.
-        self._exit_variation()
-        if hasattr(self, "variation"):
-            self.variation.reset_session()
-
-        # History cards carry no moves/pgn by design; hydrate the one game being
-        # opened rather than the whole list.
-        if from_history and not game.moves and getattr(game, "game_id", None):
-            full = self.history_manager.get_game_analysis(game.game_id)
-            if full is not None:
-                game = full
-
-        # If game has no moves but has PGN content (loaded from history), parse it
-        if not game.moves and game.pgn_content:
-            try:
-                parsed_games = PGNParser.parse_pgn_text(game.pgn_content)
-                if parsed_games:
-                    parsed = parsed_games[0]
-                    game.moves = parsed.moves
-                    game.metadata.chess960 = parsed.metadata.chess960
-            except Exception as e:
-                logger.error(f"Failed to parse PGN for history game: {e}")
-                self.show_toast("Failed to load game moves.", "error")
-                return
-
-        # Metadata Enrichment from source data if available
-        if hasattr(game, "source_data") and game.source_data:
-            self.enrich_game_metadata(game, game.source_data)
-
-        # If this game already exists in history and has more analyzed moves, hydrate from history
-        if getattr(game, "game_id", None):
-            existing = self.history_manager.get_game_analysis(game.game_id)
-            if existing and existing.analyzed_moves_count > game.analyzed_moves_count:
-                game = existing
-
-        # Persist newly imported game to history immediately (only if not already from history and has moves)
-        if (
-            not from_history
-            and getattr(game, "pgn_content", None)
-            and getattr(game, "moves", None)
-            and len(game.moves) > 0
-        ):
-            try:
-                self.history_manager.save_game(game, game.pgn_content)
-                if hasattr(self, "history_view"):
-                    # New row belongs at the top of the active result set.
-                    self.history_view.apply_filters()
-            except Exception as e:
-                logger.debug(f"Failed to auto-save loaded game to history: {e}")
-
-        self._stop_replay()
-        self.current_game = game
-        self._update_analysis_view_mode(has_game=True)
-        # Clear historic landing state so the move detector doesn't fire during game playback
-        self._current_historic = None
-        self._historic_move_found = False
-
-        white = game.metadata.white
-        black = game.metadata.black
-        result = game.metadata.result
-        w_elo = game.metadata.white_elo or game.metadata.headers.get("WhiteElo", "?")
-        b_elo = game.metadata.black_elo or game.metadata.headers.get("BlackElo", "?")
-
-        info_text = f"{white} ({w_elo}) vs {black} ({b_elo})  [{result}]"
-        self.game_info_label.setText(info_text)
-        if hasattr(self, "board_game_header"):
-            self.board_game_header.set_info(white, w_elo, black, b_elo, result)
-        logger.info(f"Loaded game: {white} vs {black} [{result}], {len(game.moves)} moves")
-
-        self.board_widget.load_game(game)
-        self._position_captured_pieces()
-        self.move_list_panel.set_game(game)
-        self.analysis_panel.set_game(game)
-        if hasattr(self, "_refresh_variation_badges"):
-            self._refresh_variation_badges()
-        self.captured_white.update_captured(None)
-        self.captured_black.update_captured(None)
-
-        # Initialize clocks using linear enumerate lookup (Fix 3)
-        white_time, black_time = compute_clock_times(game.moves, index=-1)
-        self.captured_white.update_clock(white_time)
-        self.captured_black.update_clock(black_time)
-
-        # Wire graph click → board navigation.
-        if getattr(self.analysis_panel, "graph_widget", None) is not None:
-            try:
-                self.analysis_panel.graph_widget.move_clicked.disconnect(
-                    self.on_move_selected
-                )
-            except (RuntimeError, TypeError):
-                pass
-            self.analysis_panel.graph_widget.move_clicked.connect(self.on_move_selected)
-
-        # Navigate to final position if game already has analysis data
-        if game.moves and any(m.classification for m in game.moves):
-            self.on_move_selected(len(game.moves) - 1)
-
-        self._update_analyze_button(running=False)
-        logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
-        self.resource_manager.play_sound("notify")
-
-        # Auto-start tour if user has not seen the analysis workspace tour yet
-        if (
-            hasattr(self, "tour_manager")
-            and not self.tour_manager.has_seen_tour("analysis")
-            and self.stack.currentIndex() == 0
-        ):
-            QTimer.singleShot(400, lambda: self._auto_start_tour(0))
-
-    def enrich_game_metadata(self, game, source_data):
-        """
-        Enriches game metadata with information from API source data
-        if the PGN parsing yielded missing or placeholder values.
-        """
-        md = game.metadata
-
-        def get_rating(data, color):
-            if color in data and isinstance(data[color], dict):
-                return data[color].get("rating")
-            flat_key = f"{color}_rating"
-            if flat_key in data:
-                return data[flat_key]
-            return None
-
-        # White Elo
-        if not md.white_elo or md.white_elo == "?" or md.white_elo == "None":
-            r = get_rating(source_data, "white")
-            if r:
-                md.white_elo = str(r)
-                md.headers["WhiteElo"] = str(r)
-
-        # Black Elo
-        if not md.black_elo or md.black_elo == "?" or md.black_elo == "None":
-            r = get_rating(source_data, "black")
-            if r:
-                md.black_elo = str(r)
-                md.headers["BlackElo"] = str(r)
-
-        # Update source
-        if not getattr(md, "source", None) or md.source == "file":
-            if "url" in source_data and "chess.com" in source_data["url"]:
-                md.source = "chesscom"
-            elif (
-                "url" in source_data
-                and "lichess.org" in source_data["url"]
-                or "white_rating" in source_data
-            ):
-                md.source = "lichess"
+        self.game_loading_controller.load_game(game, from_history)
 
     def open_load_dialog(self, initial_source: int = 0, initial_text: str = None):
-        """Open the unified Load Game dialog."""
-        from src.constants import SRC_PGN_TEXT
-
-        dialog = LoadGameDialog(self, initial_source=initial_source)
-        try:
-            if initial_text and initial_source == SRC_PGN_TEXT:
-                panel = dialog._pgn_text_panel
-                if panel.load_initial_text(initial_text):
-                    panel._parse()
-
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                if dialog._navigate_to_settings:
-                    self.sidebar.set_active(4)
-                    QTimer.singleShot(0, lambda: self.switch_page(4))
-                elif getattr(dialog, "_pending_batch", None):
-                    self._open_import_batch(dialog._pending_batch)
-        finally:
-            dialog.deleteLater()
-
-    def _open_import_batch(self, batch) -> None:
-        """Single game goes to Analysis; a multi-game batch opens History import."""
-        candidates = getattr(batch, "candidates", [])
-        if not candidates:
-            return
-        if len(candidates) == 1:
-            candidate = candidates[0]
-            self.sidebar.set_active(PAGE_ANALYSIS)
-            self.switch_page(PAGE_ANALYSIS)
-            self._parse_and_load_game(
-                candidate.pgn_text(),
-                source_data=candidate.source_data,
-                status_msg="Game loaded.",
-            )
-            return
-
-        self.sidebar.set_active(PAGE_HISTORY)
-        self.history_view.show_import_workspace(batch)
-        self.switch_page(PAGE_HISTORY)
-
-    def _on_imported_game_requested(self, pgn_text: str, source_data) -> None:
-        """Open a game chosen in the History import workspace."""
-        if hasattr(self, "history_view"):
-            self.history_view.close_import_workspace()
-        self.sidebar.set_active(PAGE_ANALYSIS)
-        self.switch_page(PAGE_ANALYSIS)
-        self._parse_and_load_game(
-            pgn_text,
-            source_data=source_data,
-            status_msg="Game loaded.",
-        )
+        self.game_loading_controller.open_load_dialog(initial_source, initial_text)
 
     def paste_pgn_from_clipboard(self):
-        """Landing quick action: load clipboard PGN, or open the dialog on its PGN tab."""
-        text = QApplication.clipboard().text()
-        if len(text) > MAX_PGN_TEXT_CHARS:
-            self._set_status(
-                "PGN text is too large to paste. Open it as a file instead.",
-                "warning",
-            )
-            return
-        text = text.strip()
-        if looks_like_pgn(text):
-            self._parse_and_load_game(text, status_msg="Game loaded from clipboard.")
-            return
-        self.open_load_dialog(initial_source=1, initial_text=text or None)
+        self.game_loading_controller.paste_pgn_from_clipboard()
+
+    def _update_analysis_view_mode(self, has_game: bool):
+        self.game_loading_controller._update_analysis_view_mode(has_game)
 
     def _set_drop_highlight(self, active: bool):
-        """Show the hero card as a drop target while a valid drag is in progress."""
-        self._drop_highlight_active = active
-        if hasattr(self, "empty_state_cta"):
-            self.empty_state_cta.setStyleSheet(Styles.get_empty_state_cta_style(active))
-        if hasattr(self, "lbl_hero_hint"):
-            self.lbl_hero_hint.setText(
-                "Drop to load game" if active else self._hero_hint_default
-            )
-            self.lbl_hero_hint.set_tone(
-                TextTone.ACCENT if active else TextTone.SECONDARY
-            )
-        if hasattr(self, "lbl_hero_keys"):
-            self.lbl_hero_keys.setVisible(not active)
+        self.game_loading_controller._set_drop_highlight(active)
+
+    def _on_imported_game_requested(self, pgn_text: str, source_data) -> None:
+        self.game_loading_controller._on_imported_game_requested(pgn_text, source_data)
+
+    # ------------------------------------------------------------------
+    # QWidget drag/drop hooks (must stay on the window)
+    # ------------------------------------------------------------------
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                if url.toLocalFile().lower().endswith((".pgn", ".txt")):
-                    self._set_drop_highlight(True)
-                    event.acceptProposedAction()
-                    return
-        elif event.mimeData().hasText():
-            text = event.mimeData().text()
-            if len(text) <= MAX_PGN_TEXT_CHARS and looks_like_pgn(text):
-                self._set_drop_highlight(True)
-                event.acceptProposedAction()
-                return
-        event.ignore()
+        self.game_loading_controller.handle_drag_enter(event)
 
     def dragLeaveEvent(self, event):
-        self._set_drop_highlight(False)
-        event.accept()
+        self.game_loading_controller.handle_drag_leave(event)
 
     def dropEvent(self, event):
-        self._set_drop_highlight(False)
-        if event.mimeData().hasUrls():
-            for url in event.mimeData().urls():
-                file_path = url.toLocalFile()
-                if file_path.lower().endswith((".pgn", ".txt")):
-                    self._load_dropped_pgn(file_path)
-                    event.acceptProposedAction()
-                    return
-        elif event.mimeData().hasText():
-            text = event.mimeData().text()
-            if len(text) > MAX_PGN_TEXT_CHARS:
-                self._set_status(
-                    "PGN text is too large. Open it as a file instead.",
-                    "warning",
-                )
-                event.ignore()
-                return
-            if self._parse_and_load_game(
-                text.strip(), status_msg="Game loaded from dropped text"
-            ):
-                event.acceptProposedAction()
-                return
-        event.ignore()
-
-    def _load_dropped_pgn(self, file_path: str) -> None:
-        """Index a dropped file off-thread and load its first game."""
-        previous = getattr(self, "_pgn_drop_worker", None)
-        if previous is not None and previous.isRunning():
-            previous.cancel()
-
-        worker = PgnIndexWorker(path=file_path)
-        self._pgn_drop_worker = worker
-        self._set_status("Loading PGN file…", "info")
-        worker.completed.connect(
-            lambda result, w=worker: self._on_dropped_pgn_indexed(result, w)
-        )
-        worker.failed.connect(lambda message: self._set_status(message, "error"))
-        worker.cancelled.connect(
-            lambda: self._set_status("PGN load cancelled", "info")
-        )
-        worker.finished.connect(
-            lambda w=worker: self._release_drop_worker(w)
-        )
-        register_worker(worker)
-        worker.start()
-
-    def _release_drop_worker(self, worker: PgnIndexWorker) -> None:
-        if getattr(self, "_pgn_drop_worker", None) is worker:
-            self._pgn_drop_worker = None
-        remove_worker(worker)
-
-    def _on_dropped_pgn_indexed(self, index, worker: PgnIndexWorker) -> None:
-        if getattr(self, "_pgn_drop_worker", None) is not worker:
-            return
-        if not index.games:
-            self._set_status("No valid games found in this file.", "warning")
-            return
-        self._parse_and_load_game(
-            index.game_text(0), status_msg="Game loaded from file"
-        )
+        self.game_loading_controller.handle_drop(event)
