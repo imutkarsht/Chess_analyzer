@@ -62,7 +62,7 @@ class _StubStore:
 @pytest.fixture
 def panel(qapp, monkeypatch):
     monkeypatch.setattr(
-        "src.gui.analysis.summary_panel.GenerateSummaryThread", _StubSummaryThread
+        "src.gui.analysis.coach.summary.GenerateSummaryThread", _StubSummaryThread
     )
     _StubSummaryThread.created.clear()
     widget = AnalysisPanel()
@@ -100,7 +100,7 @@ def test_generating_swaps_the_summary_for_the_pulsing_placeholder(panel):
 
 def test_a_failed_generation_keeps_the_previous_report(panel, monkeypatch):
     monkeypatch.setattr(
-        "src.gui.analysis.summary_panel.show_error_dialog", lambda *a: None
+        "src.gui.analysis.coach.summary.show_error_dialog", lambda *a: None
     )
     summary = panel.coach_tab.summary_panel
     panel.current_game.ai_summary = "Game Comment: Old\n\nSummary:\nOld report."

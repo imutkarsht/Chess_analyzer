@@ -14,7 +14,7 @@ from src.constants import (
     EXPLANATION_PROMPT_VERSION,
     normalize_coach_persona,
 )
-from src.gui.analysis.coach_card_widget import CoachCardWidget
+from src.gui.analysis.coach.card import CoachCardWidget
 from src.gui.analysis.line_utils import lines_for_move
 from src.gui.components import ToastManager, open_llm_settings
 from src.gui.utils.worker_registry import register_worker, remove_worker

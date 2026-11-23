@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.analysis.move_cell_widget import MoveCellWidget
+from src.gui.analysis.moves.cell import MoveCellWidget
 from src.gui.resources import ResourceManager
 from src.gui.styles import Styles
 

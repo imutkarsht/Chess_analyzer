@@ -19,8 +19,7 @@ from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.storage.game_history import GameHistoryManager
 from src.backend.storage.historic_games import get_random_historic_position
 from src.gui.analysis import CapturedPiecesWidget, MoveControls
-from src.gui.analysis.variation_graph import VariationGraph
-from src.gui.analysis.variation_mode import VariationMode
+from src.gui.analysis.variation import VariationGraph, VariationMode
 from src.gui.board import Board, BoardConfig, BoardGameHeader, BoardPanel
 from src.gui.components import (
     BadgeVariant,

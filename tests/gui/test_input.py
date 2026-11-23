@@ -12,7 +12,7 @@ from src.gui.components import Input, TextArea
 RAW_INPUT_ALLOWLIST = {
     "src/gui/components/controls/input.py",
     "src/gui/components/controls/date_picker.py",
-    "src/gui/analysis/variation_graph.py",
+    "src/gui/analysis/variation/graph.py",
 }
 
 _RAW_CLASSES = {"QLineEdit", "QTextEdit", "QPlainTextEdit", "QSpinBox", "QDoubleSpinBox"}

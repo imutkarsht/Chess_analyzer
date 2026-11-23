@@ -7,8 +7,8 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QFrame, QVBoxLayout, QWidget
 
 from src.backend.services.groq_service import GroqService
-from src.gui.analysis.coach_panel import CoachPanel
-from src.gui.analysis.summary_panel import SummaryPanel
+from src.gui.analysis.coach.panel import CoachPanel
+from src.gui.analysis.coach.summary import SummaryPanel
 from src.gui.styles import Styles
 
 

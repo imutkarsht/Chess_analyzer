@@ -4,8 +4,7 @@ import chess
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from src.backend.analysis.engine_line import EngineLine
-from src.gui.analysis.variation_graph import VariationGraph
-from src.gui.analysis.variation_mode import VariationMode
+from src.gui.analysis.variation import VariationGraph, VariationMode
 from src.gui.board import Board
 
 AFTER_E4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"

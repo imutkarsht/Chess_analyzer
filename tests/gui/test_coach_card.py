@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from src.backend.analysis.tactics.insight import build_move_insight
 from src.backend.storage.models import GameMetadata, MoveAnalysis
-from src.gui.analysis.coach_card_widget import CoachCardWidget, CoachState, is_llm_worthy
+from src.gui.analysis.coach.card import CoachCardWidget, CoachState, is_llm_worthy
 
 LEGAL = ["e4", "e5", "Nf3", "Nc6", "Bc4", "d6", "Nc3", "Bg4", "Nxe5", "Bxd1"]
 

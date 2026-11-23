@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from src.gui.analysis.line_utils import lines_for_index
-from src.gui.analysis.move_list_view import MoveListEntry, MoveListView
+from src.gui.analysis.moves.view import MoveListEntry, MoveListView
 from src.gui.engine_lines import LiveEngineSession
 from src.gui.styles import Styles
 from src.utils.logger import logger

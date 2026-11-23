@@ -5,7 +5,7 @@ import pytest
 from PyQt6 import sip
 
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
-from src.gui.analysis.move_list_panel import MoveListPanel
+from src.gui.analysis.moves.panel import MoveListPanel
 
 
 def _line(pv: list[str], san: str, score: str, depth: int = 26) -> dict:
@@ -27,7 +27,7 @@ def _game(*lines: dict, san: str = "Qxe7#") -> GameAnalysis:
 
 
 def _panel(qtbot, mocker) -> MoveListPanel:
-    mocker.patch("src.gui.analysis.move_list_panel.LiveEngineSession")
+    mocker.patch("src.gui.analysis.moves.panel.LiveEngineSession")
     panel = MoveListPanel()
     qtbot.addWidget(panel)
     return panel

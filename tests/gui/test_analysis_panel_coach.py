@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import QDialog
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
 from src.gui.analysis.analysis_panel import AnalysisPanel
-from src.gui.analysis.coach_card_widget import CoachState
+from src.gui.analysis.coach.card import CoachState
 from src.gui.analysis.line_utils import lines_for_move
 
 LEGAL_PATH = ["e4", "e5", "Nf3", "Nc6", "Bc4", "d6", "Nc3", "Bg4", "Nxe5", "Bxd1"]
@@ -177,7 +177,7 @@ class TestAskGate:
 
     def test_dispatch_uses_the_current_seq_and_shows_loading(self, panel, monkeypatch):
         monkeypatch.setattr(
-            "src.gui.analysis.coach_panel.ExplainMoveWorker", _StubWorker
+            "src.gui.analysis.coach.panel.ExplainMoveWorker", _StubWorker
         )
         coach = panel.coach_tab.coach_panel
         coach.config_manager.set("coach_persona", "socratic")
@@ -196,7 +196,7 @@ class TestAskGate:
 
     def test_rate_limiter_trips_before_a_worker_is_created(self, panel, monkeypatch):
         monkeypatch.setattr(
-            "src.gui.analysis.coach_panel.ExplainMoveWorker", _StubWorker
+            "src.gui.analysis.coach.panel.ExplainMoveWorker", _StubWorker
         )
         coach = panel.coach_tab.coach_panel
         toasts = []
