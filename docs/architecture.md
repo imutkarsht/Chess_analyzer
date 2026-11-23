@@ -2,7 +2,7 @@
 
 Canonical reference for the Chess Analyzer Pro codebase: layers, runtime flows,
 every source file's purpose, the patterns we follow, and where to make common
-changes. It describes the v2.6.1 layout.
+changes. It describes the v2.7.0 layout.
 
 **Audience:** new contributors, maintainers, and AI agents working in the repo.
 For setup and a first change, read [onboarding_doc.md](onboarding_doc.md); for
@@ -45,7 +45,12 @@ flowchart TD
     analysis --> variation[VariationMode]
     analysis --> engineLines[EngineLinesWidget]
 
-    analysisPanel --> coach[CoachCardWidget]
+    analysisPanel --> evalTab[EvaluationTab]
+    analysisPanel --> reportTab[ReportTab]
+    analysisPanel --> coachTab[CoachTab]
+    analysisPanel --> tacticsTab[TacticsTab]
+    coachTab --> coach[CoachCardWidget]
+    coachTab --> summary[SummaryPanel]
     coach --> coachWorker[ExplainMoveWorker]
     coachWorker --> llm[GroqService<br/>OpenAI-compatible]
 
@@ -105,7 +110,7 @@ Forbidden edges:
 | `src/config` | Single-source settings metadata and defaults (Qt-free) |
 | `src/gui/main_window` | Window composition and cross-cutting mixins |
 | `src/gui/views` | Full pages and their sub-widgets |
-| `src/gui/analysis` | Analysis board, move list, coach, variations, live engine |
+| `src/gui/analysis` | Analysis workspace tabs, move list, coach, variation, live engine |
 | `src/gui/share` | Model-rendered game report cards and export dialog |
 | `src/gui/components` | Shared component library, grouped by responsibility |
 | `src/gui/dialogs` | Modal flows (load game, wizard, feedback, errors, updates) |
@@ -540,18 +545,23 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 
 | File | Purpose | Key symbols |
 | --- | --- | --- |
-| `analysis_panel.py` | Analysis workspace: Report, Evaluation, Coach, and per-game Tactics; gates result tabs until analysis | `AnalysisPanel` |
-| `coordinator.py` | App-wide single/batch/live-engine/delete gating state | `AnalysisCoordinator` |
-| `coach_card_widget.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
+| `analysis_panel.py` | Tab container: builds the four tabs, gates result tabs, routes signals, and builds per-game tactics reports | `AnalysisPanel` |
+| `tabs/evaluation_tab.py` | Evaluation graph, engine-line toggles, and displayed lines | `EvaluationTab` |
+| `tabs/report_tab.py` | Game outcome, accuracy gauges, classification table, PGN export, and share report | `ReportTab` |
+| `tabs/coach_tab.py` | Composes the per-move coach panel and the full-game AI summary | `CoachTab` |
+| `tabs/tactics_tab.py` | Scrollable per-game tactics timeline with side toggle and grouped rows | `TacticsTab`, `TacticRow` |
+| `coach/card.py` | Per-move explanation surface | `CoachCardWidget`, `CoachState` |
+| `coach/panel.py` | Coach selection, debounce/rate limit, worker, narratives, and explanation cache | `CoachPanel` |
+| `coach/summary.py` | Full-game AI summary generation and persistence | `SummaryPanel` |
+| `moves/panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
+| `moves/view.py` | Shared move table, row mapping, selection, and both render modes | `MoveListView`, `MoveListEntry` |
+| `moves/cell.py` | One move cell with badge and think time | `MoveCellWidget` |
+| `moves/controls.py` | Shared step controls with inline play/pause and follow icon (analysis and explorer variants) | `MoveControls` |
+| `variation/graph.py` | Git-style branch strip | `VariationGraph` |
+| `variation/mode.py` | Board state machine for variation trees | `VariationMode` |
 | `captured.py` | Captured pieces and material advantage | `CapturedPiecesWidget` |
-| `move_controls.py` | Shared step controls with inline play/pause and follow icon (analysis and explorer variants) | `MoveControls` |
-| `move_list_view.py` | Shared move table, row mapping, selection and both render modes | `MoveListView`, `MoveListEntry` |
+| `coordinator.py` | App-wide single/batch/live-engine/delete gating state | `AnalysisCoordinator` |
 | `line_utils.py` | Engine-line presentation helpers | — |
-| `move_cell_widget.py` | One move cell with badge and think time | `MoveCellWidget` |
-| `move_list_panel.py` | Game-domain wrapper around the shared move table | `MoveListPanel` |
-| `tactics_tab.py` | Scrollable per-game tactics timeline with side toggle and grouped rows | `TacticsTab`, `TacticRow` |
-| `variation_graph.py` | Git-style branch strip | `VariationGraph` |
-| `variation_mode.py` | Board state machine for variation trees | `VariationMode` |
 
 ### `src/gui/share`
 
@@ -867,7 +877,7 @@ create per-widget formatters or wrapper factories.
 2. Extend `MoveAnalysis`/`GameAnalysis` with serialisation on the model.
 3. If persisted, update `GAME_COLUMNS` and migrations.
 4. Surface it through signals from `AnalysisWorker`/`Analyzer`.
-5. Render it in `AnalysisPanel`/`MoveListPanel` with existing components.
+5. Render it in the owning tab under `gui/analysis/tabs/` or `gui/analysis/moves/` with existing components.
 
 ### Add an AI fact or provider behaviour
 
@@ -909,8 +919,10 @@ create per-widget formatters or wrapper factories.
 | Accuracy or win-probability maths | `backend/analysis/math_utils.py` |
 | Engine options, path, lifecycle | `backend/analysis/engine.py` |
 | AI Coach explanation prompt/facts | `backend/analysis/tactics/insight.py`, `services/groq_service.py` |
-| Full-game AI summary | `backend/analysis/game_report.py`, `analysis_panel.py` |
-| Variation behaviour | `backend/analysis/variation_tree.py`, `gui/analysis/variation_mode.py` |
+| Coach request lifecycle | `gui/analysis/coach/panel.py` |
+| Full-game AI summary | `backend/analysis/game_report.py`, `gui/analysis/tabs/coach_tab.py`, `gui/analysis/coach/summary.py` |
+| Analysis tab layout | `gui/analysis/tabs/` |
+| Variation behaviour | `backend/analysis/variation_tree.py`, `gui/analysis/variation/mode.py` |
 | Metrics calculations | `backend/analysis/metrics/` |
 | Metrics dashboard layout | `gui/views/metrics/`, `card_registry.py` |
 | History paging/filters | `gui/views/history_view.py`, `backend/storage/game_query.py` |
@@ -938,5 +950,5 @@ create per-widget formatters or wrapper factories.
   [onboarding_doc.md](onboarding_doc.md) and the relevant recipe here.
 - **Do not duplicate this file.** README, AGENTS, CONTRIBUTING and onboarding
   link here for trees and file purposes; they keep only what is unique to them.
-- This document describes the **v2.6.1** layout; update the version note when the
+- This document describes the **v2.7.0** layout; update the version note when the
   structure changes materially.

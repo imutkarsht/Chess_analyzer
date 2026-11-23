@@ -96,10 +96,10 @@ main.py → src/gui (presentation) → src/backend (domain) → SQLite / Stockfi
 | Area | Files |
 | --- | --- |
 | Window composition | `src/gui/main_window/window.py` + mixins |
-| Analysis pipeline | `src/backend/analysis/analyzer.py`, `engine.py`, `gui/analysis/analysis_worker.py` |
+| Analysis pipeline | `src/backend/analysis/analyzer.py`, `engine.py`, `src/workers/analysis/analysis_worker.py` |
 | Move classification | `src/backend/analysis/move_classifier.py` |
-| AI Coach | `src/backend/analysis/tactics/insight.py`, `services/groq_service.py`, `gui/analysis/coach_worker.py` |
-| Variations | `src/backend/analysis/variation_tree.py`, `gui/analysis/variation_mode.py` |
+| AI Coach | `src/backend/analysis/tactics/insight.py`, `services/groq_service.py`, `src/workers/analysis/coach_worker.py`, `src/gui/analysis/coach/` |
+| Variations | `src/backend/analysis/variation_tree.py`, `src/gui/analysis/variation/mode.py` |
 | Settings | `src/config/settings_schema.py`, `gui/views/settings/` |
 | History | `src/gui/views/history_view.py`, `backend/storage/games_repo.py` |
 | Metrics | `src/backend/analysis/metrics/`, `gui/views/metrics/` |
@@ -173,11 +173,11 @@ clean up workers on close.
 
 ### Scenario B: Add a column to the Move List
 
-**Files:** `src/gui/analysis/move_list_panel.py`,
-`src/gui/analysis/move_cell_widget.py`
+**Files:** `src/gui/analysis/moves/view.py`,
+`src/gui/analysis/moves/cell.py`
 
-1. Update the table columns/headers in `move_list_panel.py`.
-2. Render the new value in the cell widget.
+1. Update the table columns/headers in `moves/view.py`.
+2. Render the new value in `moves/cell.py` (the game-domain wrapper is `moves/panel.py`).
 3. Add a GUI test.
 
 ### Scenario C: Change the app's colour theme

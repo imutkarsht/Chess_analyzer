@@ -312,5 +312,5 @@ not break:
 | New shared component or setting | `docs/architecture.md` + `docs/onboarding_doc.md` |
 | Workflow or standards | `CONTRIBUTING.md` / `AGENTS.md` |
 
-Refinements to work introduced during the unreleased 2.6.1 cycle belong in the
+Refinements to work introduced during the unreleased 2.7.0 cycle belong in the
 feature bullet they extend, not as new “Bug Fixes” or “Improvements” entries.
