@@ -92,7 +92,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     # Guard ongoing analysis: clicking active game returns to page 0; other game is blocked
     mock_worker = MagicMock()
     mock_worker.isRunning.return_value = True
-    window.worker = mock_worker
+    window.analysis_controller.worker = mock_worker
 
     meta = GameMetadata(
         white="W", black="B", result="1-0", date="2024.01.01", event="E", headers={}
@@ -123,5 +123,5 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert len(warning_called) == 1
     assert window.current_game.game_id == "active_1"
 
-    window.worker = None
+    window.analysis_controller.worker = None
     window.close()

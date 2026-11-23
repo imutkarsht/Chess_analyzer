@@ -48,6 +48,10 @@ class AnalysisController(QObject):
         self.host = host
         self.setParent(host)
 
+    @property
+    def is_running(self) -> bool:
+        return self.worker is not None and self.worker.isRunning()
+
     def shutdown(self) -> None:
         timer, self._analysis_ui_timer = self._analysis_ui_timer, None
         if timer is not None:
@@ -541,8 +545,6 @@ class AnalysisController(QObject):
         if hasattr(self.host, "history_view"):
             self.host.history_view.set_analyzing_game_id(None)
             self.host.history_view.refresh_game(getattr(game, "game_id", None))
-        if hasattr(self.host, "_sync_paused_batch"):
-            self.host._sync_paused_batch(getattr(game, "game_id", None))
         self.analysis_cancelled.emit(game)
 
     def on_analysis_finished(self, game):
@@ -577,8 +579,6 @@ class AnalysisController(QObject):
 
         if count >= next_prompt and not reviewed and not dismissed:
             QTimer.singleShot(1500, lambda: self._prompt_review_if_active(count))
-        if hasattr(self.host, "_sync_paused_batch"):
-            self.host._sync_paused_batch(getattr(game, "game_id", None))
         self.analysis_completed.emit(game)
 
     def _prompt_review_if_active(self, count: int):
@@ -625,6 +625,4 @@ class AnalysisController(QObject):
             on_action=report_issue,
             close_label="Close",
         )
-        if self.host.current_game and hasattr(self.host, "_sync_paused_batch"):
-            self.host._sync_paused_batch(self.host.current_game.game_id)
         self.analysis_failed.emit(error_msg)

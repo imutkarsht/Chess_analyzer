@@ -52,7 +52,7 @@ class GameLoadingController(QObject):
             remove_worker(worker)
 
     def load_game_from_history(self, game):
-        if hasattr(self.host, "worker") and self.host.worker and self.host.worker.isRunning():
+        if self.host.analysis_controller.is_running:
             if self.host.current_game and getattr(game, "game_id", None) == getattr(
                 self.host.current_game, "game_id", None
             ):
@@ -86,9 +86,7 @@ class GameLoadingController(QObject):
             return
 
         if action == "view_analysis" or (
-            hasattr(self.host, "worker")
-            and self.host.worker
-            and self.host.worker.isRunning()
+            self.host.analysis_controller.is_running
             and self.host.current_game
             and getattr(game, "game_id", None) == getattr(self.host.current_game, "game_id", None)
         ):
@@ -96,7 +94,7 @@ class GameLoadingController(QObject):
             self.host.switch_page(0)
             return
 
-        if hasattr(self.host, "worker") and self.host.worker and self.host.worker.isRunning():
+        if self.host.analysis_controller.is_running:
             self.host.show_toast(
                 "An analysis is currently in progress for another game. "
                 "Please stop the ongoing analysis first.",
@@ -106,9 +104,9 @@ class GameLoadingController(QObject):
 
         self.load_game_from_history(game)
         if action == "resume":
-            self.host.start_analysis(resume=True)
+            self.host.analysis_controller.start_analysis(resume=True)
         elif action in ("reanalyze", "analyze"):
-            self.host.start_analysis(resume=False)
+            self.host.analysis_controller.start_analysis(resume=False)
 
     def load_game_from_metrics(self, game, move_index: int = -1):
         target = game
@@ -313,7 +311,7 @@ class GameLoadingController(QObject):
         if game.moves and any(m.classification for m in game.moves):
             self.host.on_move_selected(len(game.moves) - 1)
 
-        self.host._update_analyze_button(running=False)
+        self.host.analysis_controller._update_analyze_button(running=False)
         logger.info(f"Game loaded: {game.metadata.white} vs {game.metadata.black}")
         self.host.resource_manager.play_sound("notify")
 

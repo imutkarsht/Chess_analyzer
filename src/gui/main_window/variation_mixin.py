@@ -14,7 +14,7 @@ class VariationMixin:
     def _on_variation_requested(self, fen: str, uci: str) -> None:
         if not self.current_game:
             return
-        if getattr(self, "_full_analysis_running", False):
+        if self.analysis_controller._full_analysis_running:
             self._set_status("Finish the running analysis before exploring variations", "warning")
             return
 
@@ -59,7 +59,7 @@ class VariationMixin:
         """Open the Coach line and animate it move-by-move on the board."""
         if not self.current_game or not uci_moves:
             return
-        if getattr(self, "_full_analysis_running", False):
+        if self.analysis_controller._full_analysis_running:
             self._set_status("Finish the running analysis before replaying a line", "warning")
             return
         chess960 = bool(getattr(self.current_game.metadata, "chess960", False))
@@ -161,7 +161,7 @@ class VariationMixin:
         """Reopen a saved tree from the move-list branch badge."""
         if not self.current_game:
             return
-        if getattr(self, "_full_analysis_running", False):
+        if self.analysis_controller._full_analysis_running:
             self._set_status("Finish the running analysis before exploring variations", "warning")
             return
         positions = self._game_position_fens()

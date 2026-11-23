@@ -19,10 +19,7 @@ class TourMixin:
         if index == 2 and hasattr(self, "history_view"):
             analyzing_id = (
                 self.current_game.game_id
-                if hasattr(self, "worker")
-                and self.worker
-                and self.worker.isRunning()
-                and self.current_game
+                if self.analysis_controller.is_running and self.current_game
                 else None
             )
             self.history_view.set_analyzing_game_id(analyzing_id)

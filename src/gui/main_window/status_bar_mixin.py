@@ -40,12 +40,12 @@ class StatusBarMixin:
 
     def _on_live_thinking_started(self):
         """Live engine started computing — show Calculating unless an analysis owns it."""
-        if not getattr(self, "_full_analysis_running", False) and not self._is_batch_running():
+        if not self.analysis_controller._full_analysis_running and not self._is_batch_running():
             self._set_engine_state("calculating")
 
     def _on_live_thinking_stopped(self):
         """Live engine finished computing — revert unless an analysis owns it."""
-        if not getattr(self, "_full_analysis_running", False) and not self._is_batch_running():
+        if not self.analysis_controller._full_analysis_running and not self._is_batch_running():
             self._set_engine_state("ready")
 
     def _on_live_engine_state(self, state: str):

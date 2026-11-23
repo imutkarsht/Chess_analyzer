@@ -189,7 +189,8 @@ class MainWindow(
         self._spinner_timer.timeout.connect(self._tick_spinner)
 
         self._refresh_engine_status()
-        self._init_batch_analysis()
+        self.batch_controller.init()
+        self._wire_controllers()
 
         # Overlay
         self.loading_overlay = LoadingOverlay(self)
@@ -201,6 +202,19 @@ class MainWindow(
     # ------------------------------------------------------------------
     # Window geometry persistence
     # ------------------------------------------------------------------
+
+    def _wire_controllers(self) -> None:
+        """Connect controller events instead of calling across window mixins."""
+        analysis = self.analysis_controller
+        analysis.analysis_completed.connect(self._sync_batch_after_analysis)
+        analysis.analysis_cancelled.connect(self._sync_batch_after_analysis)
+        analysis.analysis_failed.connect(
+            lambda _error: self._sync_batch_after_analysis(self.current_game)
+        )
+
+    def _sync_batch_after_analysis(self, game) -> None:
+        game_id = getattr(game, "game_id", None) if game else None
+        self.batch_controller._sync_paused_batch(game_id)
 
     def _apply_default_window_size(self):
         """Pick a first-launch size from the user's actual screen."""
@@ -279,15 +293,13 @@ class MainWindow(
         except Exception as e:  # pragma: no cover - defensive
             logger.debug(f"Failed to flush analysis UI on close: {e}")
 
-        batch_worker = getattr(self, "_batch_worker", None)
+        batch_worker = self.batch_controller._batch_worker
         coordinator = getattr(self, "analysis_coordinator", None)
         batch_running = bool(
             batch_worker is not None
             or (coordinator is not None and coordinator.batch_running)
         )
-        single_running = bool(
-            getattr(self, "worker", None) and self.worker.isRunning()
-        )
+        single_running = self.analysis_controller.is_running
         if batch_running or single_running:
             message = (
                 "A batch analysis is still running. If you exit now, the current "
@@ -306,7 +318,7 @@ class MainWindow(
                 event.ignore()
                 return
             if batch_running:
-                self._stop_batch_for_exit()
+                self.batch_controller._stop_batch_for_exit()
 
         # Stop the shared live-engine sessions cleanly
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
@@ -335,6 +347,13 @@ class MainWindow(
                 self.game_loading_controller.shutdown()
             except Exception as e:
                 logger.error(f"Failed to stop PGN index worker: {e}")
+
+        # Stop batch timing/worker state that did not go through the exit prompt
+        if hasattr(self, "batch_controller"):
+            try:
+                self.batch_controller.shutdown()
+            except Exception as e:
+                logger.error(f"Failed to stop batch controller: {e}")
 
         # Stop the AI summary/coach workers owned by the analysis tabs
         if hasattr(self, "analysis_panel") and self.analysis_panel:

@@ -32,10 +32,6 @@ class AnalysisMixin:
     def stop_analysis(self):
         self.analysis_controller.stop_analysis()
 
-    def _ensure_engine_ready(self) -> bool:
-        """Batch analysis shares the same engine readiness gate."""
-        return self.analysis_controller._ensure_engine_ready()
-
     def on_analysis_progress(self, current, total):
         self.analysis_controller.on_analysis_progress(current, total)
 
@@ -60,9 +56,6 @@ class AnalysisMixin:
     def _flush_analysis_updates(self, *, force: bool = False) -> None:
         self.analysis_controller._flush_analysis_updates(force=force)
 
-    def _update_analyze_button(self, running: bool) -> None:
-        self.analysis_controller._update_analyze_button(running)
-
     def _on_sidebar_animation_changed(self, active: bool) -> None:
         self.analysis_controller._on_sidebar_animation_changed(active)
 
@@ -73,72 +66,8 @@ class AnalysisMixin:
     # State proxies (kept until call sites move to the controller)
     # ------------------------------------------------------------------
 
-    @property
-    def worker(self):
-        return self.analysis_controller.worker
-
-    @worker.setter
-    def worker(self, value):
-        self.analysis_controller.worker = value
-
-    @property
-    def _full_analysis_running(self) -> bool:
-        return self.analysis_controller._full_analysis_running
-
-    @_full_analysis_running.setter
-    def _full_analysis_running(self, value: bool) -> None:
-        self.analysis_controller._full_analysis_running = value
-
-    @property
-    def _analysis_follow(self) -> bool:
-        return self.analysis_controller._analysis_follow
-
-    @_analysis_follow.setter
-    def _analysis_follow(self, value: bool) -> None:
-        self.analysis_controller._analysis_follow = value
-
-    @property
-    def _latest_analyzed_index(self) -> int:
-        return self.analysis_controller._latest_analyzed_index
-
-    @_latest_analyzed_index.setter
-    def _latest_analyzed_index(self, value: int) -> None:
-        self.analysis_controller._latest_analyzed_index = value
-
-    @property
-    def _pending_analysis_updates(self) -> dict:
-        return self.analysis_controller._pending_analysis_updates
-
-    @_pending_analysis_updates.setter
-    def _pending_analysis_updates(self, value: dict) -> None:
-        self.analysis_controller._pending_analysis_updates = value
-
-    @property
-    def _pending_analysis_progress(self):
-        return self.analysis_controller._pending_analysis_progress
-
-    @_pending_analysis_progress.setter
-    def _pending_analysis_progress(self, value) -> None:
-        self.analysis_controller._pending_analysis_progress = value
-
-    @property
-    def _analysis_progress_final(self) -> bool:
-        return self.analysis_controller._analysis_progress_final
-
-    @_analysis_progress_final.setter
-    def _analysis_progress_final(self, value: bool) -> None:
-        self.analysis_controller._analysis_progress_final = value
-
-    @property
-    def _analysis_ui_timer(self):
-        return self.analysis_controller._analysis_ui_timer
-
-    @property
-    def _analysis_toast(self):
-        return self.analysis_controller._analysis_toast
-
     # ------------------------------------------------------------------
-    # Window-level handlers that stay outside the controller
+    # Lifecycle delegates
     # ------------------------------------------------------------------
 
     def on_history_changed(self, *_):

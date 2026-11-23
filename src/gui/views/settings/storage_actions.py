@@ -20,8 +20,14 @@ __all__ = [
 
 
 def analysis_is_running(window) -> bool:
+    analysis = getattr(window, "analysis_controller", None)
+    if analysis is not None and analysis.is_running:
+        return True
     worker = getattr(window, "worker", None)
     if worker is not None and worker.isRunning():
+        return True
+    batch = getattr(window, "batch_controller", None)
+    if batch is not None and batch._batch_worker is not None:
         return True
     if getattr(window, "_batch_worker", None) is not None:
         return True
@@ -90,17 +96,23 @@ def reset_analysis_workspace(window) -> None:
 
 def refresh_after_data_change(window) -> None:
     """Reload every view that reads the database after a reset or restore."""
-    timer = getattr(window, "_batch_eta_timer", None)
-    if timer is not None:
-        timer.stop()
+    batch = getattr(window, "batch_controller", None)
+    if batch is not None:
+        batch._batch_eta_timer.stop()
+        batch._set_batch_snapshot(None)
+        batch._batch_up_next_cache.clear()
+    else:
+        timer = getattr(window, "_batch_eta_timer", None)
+        if timer is not None:
+            timer.stop()
+        if hasattr(window, "_set_batch_snapshot"):
+            window._set_batch_snapshot(None)
+        cache = getattr(window, "_batch_up_next_cache", None)
+        if cache is not None:
+            cache.clear()
     coordinator = getattr(window, "analysis_coordinator", None)
     if coordinator is not None:
         coordinator.reset()
-    if hasattr(window, "_set_batch_snapshot"):
-        window._set_batch_snapshot(None)
-    cache = getattr(window, "_batch_up_next_cache", None)
-    if cache is not None:
-        cache.clear()
 
     history_view = getattr(window, "history_view", None)
     if history_view is not None:
