@@ -24,10 +24,6 @@ STAR_LABELS = {
     5: "Loved it! 🎉"
 }
 
-STAR_COLOR_ACTIVE = "#FFB800"
-STAR_COLOR_INACTIVE = "#4B5563"
-
-
 class StarRatingWidget(QWidget):
     rating_changed = pyqtSignal(int)
 
@@ -58,16 +54,16 @@ class StarRatingWidget(QWidget):
             btn = QPushButton()
             btn.setFixedSize(self._star_size + 12, self._star_size + 12)
             btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-            btn.setStyleSheet("""
-                QPushButton {
+            btn.setStyleSheet(f"""
+                QPushButton {{
                     background: transparent;
                     border: none;
                     padding: 0px;
-                }
-                QPushButton:hover {
-                    background: rgba(255, 184, 0, 0.1);
+                }}
+                QPushButton:hover {{
+                    background: {Styles.COLOR_STAR_ACTIVE_SUBTLE};
                     border-radius: 6px;
-                }
+                }}
             """)
             btn.setProperty("star_index", i)
             btn.clicked.connect(lambda checked, idx=i: self._on_star_clicked(idx))
@@ -113,7 +109,9 @@ class StarRatingWidget(QWidget):
 
         for i, btn in enumerate(self._star_buttons, 1):
             is_lit = (i <= active_stars)
-            color = STAR_COLOR_ACTIVE if is_lit else STAR_COLOR_INACTIVE
+            color = (
+                Styles.COLOR_STAR_ACTIVE if is_lit else Styles.COLOR_STAR_INACTIVE
+            )
 
             if HAS_QTAWESOME:
                 btn.setIcon(qta.icon("fa5s.star", color=color))

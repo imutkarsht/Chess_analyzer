@@ -38,7 +38,7 @@ class RatioBar(QWidget):
         font.setPixelSize(9)
         font.setBold(True)
         painter.setFont(font)
-        painter.setPen(QColor("#FFFFFF"))
+        painter.setPen(QColor(Styles.COLOR_ON_ACCENT))
 
         x = bounds.left()
         for pct, color in self._segments:

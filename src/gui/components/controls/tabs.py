@@ -106,7 +106,7 @@ class Tabs(QWidget):
 
         Tabs(TabVariant.UNDERLINE)
         Tabs(TabVariant.SEGMENTED, track=False, active_style="outline")
-        Tabs(TabVariant.SEGMENTED, accent="#4CACEB", font_size=12)
+        Tabs(TabVariant.SEGMENTED, accent=Styles.COLOR_ACCENT, font_size=12)
 
     Pass a widget to :meth:`add_tab` to let the component switch pages, or add
     every tab without a widget to keep it a bar-only control.

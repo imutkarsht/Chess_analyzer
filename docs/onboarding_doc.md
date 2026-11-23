@@ -60,7 +60,7 @@ Chess_analyzer/
 │   │   ├── metrics/            # Drill-down and chart helpers
 │   │   ├── theme/              # Palettes, tokens, motion, OS detection
 │   │   ├── utils/              # Debounce, shortcuts, smooth scroll, factories
-│   │   └── styles.py           # QSS generators driven by the live palette
+│   │   └── styles/             # QSS mixins driven by the live palette
 │   └── utils/                  # logger, config, paths, resources, secrets
 ├── tests/                      # backend/, gui/, storage/ suites
 ├── docs/                       # architecture.md, this guide, user guide
@@ -105,7 +105,7 @@ main.py → src/gui (presentation) → src/backend (domain) → SQLite / Stockfi
 | History | `src/gui/views/history_view.py`, `backend/storage/games_repo.py` |
 | Metrics | `src/backend/analysis/metrics/`, `gui/views/metrics/` |
 | Shared components | `src/gui/components/` (import via the facade) |
-| Styling/theming | `src/gui/theme/`, `src/gui/styles.py` |
+| Styling/theming | `src/gui/theme/`, `src/gui/styles/` |
 
 For every module's purpose and the allowed dependency edges, see
 [architecture.md](architecture.md#2-system-overview).
@@ -186,7 +186,7 @@ clean up workers on close.
 
 ### Scenario C: Change the app's colour theme
 
-**Files:** `src/gui/theme/palette.py`, `src/gui/styles.py`
+**Files:** `src/gui/theme/palette.py`, `src/gui/styles/`
 
 1. Edit the `LIGHT`/`DARK` palettes (or `BOARD_THEMES`).
 2. QSS generators read the palette automatically.

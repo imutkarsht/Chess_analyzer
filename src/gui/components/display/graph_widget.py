@@ -172,11 +172,11 @@ class GraphWidget(QWidget):
         self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
         self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
 
-        self.ax.grid(True, color='#444', linestyle=':', alpha=0.3)
+        self.ax.grid(True, color=Styles.COLOR_GRAPH_GRID, linestyle=':', alpha=0.3)
 
         self.ax.set_title("Evaluation", color=Styles.COLOR_TEXT_PRIMARY, fontsize=11, fontweight='600', pad=8)
 
-        MOVE_PIN_COLOR = "#00E5FF" # Vibrant Electric Cyan
+        MOVE_PIN_COLOR = Styles.COLOR_GRAPH_PIN
         self.current_move_line = self.ax.axvline(x=-1, color=MOVE_PIN_COLOR, linewidth=2.0, linestyle='--', alpha=0.95, zorder=5)
         self.current_move_line.set_visible(False)
 
@@ -262,7 +262,7 @@ class GraphWidget(QWidget):
             if getattr(line, '_is_zero_line', False):
                 line.set_color(Styles.COLOR_BORDER)
         if hasattr(self, 'current_move_line') and self.current_move_line is not None:
-            self.current_move_line.set_color("#00E5FF")
+            self.current_move_line.set_color(Styles.COLOR_GRAPH_PIN)
         if hasattr(self, 'annot') and self.annot is not None:
             self.annot.get_bbox_patch().set_facecolor(Styles.COLOR_SURFACE_LIGHT)
             self.annot.get_bbox_patch().set_edgecolor(Styles.COLOR_BORDER)

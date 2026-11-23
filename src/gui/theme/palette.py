@@ -27,6 +27,19 @@ class ThemePalette:
         "#BF5AF2",
     )
 
+    # Component colours that are independent of the classification palette.
+    eval_bar_background: str = "#404040"
+    eval_bar_foreground: str = "#FFFFFF"
+    graph_grid: str = "#444444"
+    graph_pin: str = "#00E5FF"
+    star_active: str = "#FFB800"
+    star_inactive: str = "#4B5563"
+    star_active_subtle: str = "rgba(255, 184, 0, 0.1)"
+    crown: str = "#EAB308"
+    board_dim: str = "#000000"
+    move_dot_on_dark: str = "rgba(255,255,255,0.90)"
+    move_dot_on_light: str = "rgba(0,0,0,0.85)"
+
     def with_accent(self, hex_color: str) -> "ThemePalette":
         r = int(hex_color[1:3], 16)
         g = int(hex_color[3:5], 16)
@@ -50,6 +63,17 @@ class ThemePalette:
             piece_black=self.piece_black,
             board_highlight=self.board_highlight,
             branch_colors=self.branch_colors,
+            eval_bar_background=self.eval_bar_background,
+            eval_bar_foreground=self.eval_bar_foreground,
+            graph_grid=self.graph_grid,
+            graph_pin=self.graph_pin,
+            star_active=self.star_active,
+            star_inactive=self.star_inactive,
+            star_active_subtle=self.star_active_subtle,
+            crown=self.crown,
+            board_dim=self.board_dim,
+            move_dot_on_dark=self.move_dot_on_dark,
+            move_dot_on_light=self.move_dot_on_light,
         )
 
 
@@ -105,6 +129,18 @@ CLASSIFICATION_COLORS = {
     "Miss": "#FF5252",
     "Book": "#B8956E",
 }
+
+TERMINATION_COLORS = {
+    "Time": "#E67E22",
+    "Draw": "#888888",
+    "3-Fold Repetition": "#3498DB",
+    "Agreement": "#1ABC9C",
+    "Stalemate": "#9B59B6",
+    "Insufficient vs Timeout": "#E67E22",
+    "Insufficient Material": "#F1C40F",
+    "50-Move Rule": "#95A5A6",
+}
+TERMINATION_FALLBACK_COLOR = "#888888"
 
 BOARD_THEMES = {
     "Green": {"dark": "#769656", "light": "#EEEED2"},

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.engine import invalidate_engine_cache, resolve_engine_path
 from src.backend.engine.downloader import probe_engine_binary
-from src.constants import PROVIDERS
+from src.constants import DEFAULT_ACCENT, PROVIDERS
 from src.gui.components import TextTone
 from src.gui.dialogs.wizard.wizard_nav_bar import WizardNavBar
 from src.gui.dialogs.wizard.wizard_pages import (
@@ -101,7 +101,7 @@ class SetupWizard(QDialog):
         self.nav_bar.update(self.current_page)
 
         if hasattr(self, "wizard_accent_btn"):
-            accent_col = getattr(self, "wizard_accent_color", "#FF9500")
+            accent_col = getattr(self, "wizard_accent_color", DEFAULT_ACCENT)
             accent_mode = getattr(self, "wizard_accent_mode", "system")
             from src.gui.dialogs.wizard.wizard_pages import _apply_accent_button_style
             _apply_accent_button_style(self, accent_col, accent_mode)
@@ -228,7 +228,7 @@ class SetupWizard(QDialog):
                 self.settings["board_theme"] = self.wizard_theme_combo.currentText()
             if hasattr(self, "wizard_theme_mode_combo"):
                 self.settings["theme_mode"] = self.wizard_theme_mode_combo.currentData() or "system"
-            self.settings["accent_color"] = getattr(self, "wizard_accent_color", "#FF9500")
+            self.settings["accent_color"] = getattr(self, "wizard_accent_color", DEFAULT_ACCENT)
             self.settings["accent_mode"] = getattr(self, "wizard_accent_mode", "system")
         elif idx == 5:
             prov_idx = self.llm_provider_combo.currentIndex()
@@ -271,7 +271,7 @@ class SetupWizard(QDialog):
         if saved_accent_mode == "custom" and saved_accent:
             _apply_accent(self, saved_accent, mode="custom")
         else:
-            _apply_accent(self, "#FF9500", mode="system")
+            _apply_accent(self, DEFAULT_ACCENT, mode="system")
 
         # Pre-populate active LLM profile if configured
         active_prof = self.config_manager.get_active_profile()
@@ -537,7 +537,7 @@ class SetupWizard(QDialog):
         accent_mode = self.settings.get("accent_mode", getattr(self, "wizard_accent_mode", "system"))
         cfg.set("accent_mode", accent_mode)
         if accent_mode == "custom":
-            accent_col = self.settings.get("accent_color", getattr(self, "wizard_accent_color", "#FF9500"))
+            accent_col = self.settings.get("accent_color", getattr(self, "wizard_accent_color", DEFAULT_ACCENT))
             cfg.set("accent_color", accent_col)
             Styles.set_accent_color(accent_col)
         else:

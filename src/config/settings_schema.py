@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from src.constants import (
     COACH_PERSONAS,
+    DEFAULT_ACCENT,
     DEFAULT_ANALYSIS_CACHE_MAX_ENTRIES,
     DEFAULT_ANALYSIS_DEPTH,
     DEFAULT_BOARD_THEME,
@@ -235,7 +236,7 @@ def _specs() -> tuple[SettingSpec, ...]:
             "Accent colour",
             "Custom accent colour in #RRGGBB form.",
             "text",
-            "#FF9500",
+            DEFAULT_ACCENT,
             apply="live",
         ),
         SettingSpec(

@@ -4,7 +4,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 
-from src.constants import DEFAULT_BOARD_THEME
+from src.constants import DEFAULT_ACCENT, DEFAULT_BOARD_THEME
 from src.gui.theme.palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
 from src.gui.theme.system import OSThemeWatcher, get_system_accent
 from src.gui.utils.assets import tick_icon_path
@@ -35,7 +35,7 @@ class ThemeManager(QObject):
     _current_mode: str = "dark"
     _theme_mode: str = "system"  # "system" | "dark" | "light"
     _palette: ThemePalette = DARK
-    _accent: str = "#FF9500"
+    _accent: str = DEFAULT_ACCENT
     _accent_mode: str = "system"  # "system" | "manual"
     _style_revision: int = 0
     _os_watcher: OSThemeWatcher | None = None

@@ -2,6 +2,8 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QWidget
 
+from src.gui.styles import Styles
+
 
 class EvalBarWidget(QWidget):
     def __init__(self):
@@ -62,7 +64,7 @@ class EvalBarWidget(QWidget):
         height = self.height()
 
         # Background (Black/Dark Grey)
-        painter.fillRect(0, 0, width, height, QColor("#404040"))
+        painter.fillRect(0, 0, width, height, QColor(Styles.COLOR_EVAL_BAR_BG))
 
         # Calculate White's height percentage
         white_pct = 0.5
@@ -84,10 +86,10 @@ class EvalBarWidget(QWidget):
         white_top = height - white_height
 
         # Draw Black part (top)
-        painter.fillRect(0, 0, width, int(white_top), QColor("#404040"))
+        painter.fillRect(0, 0, width, int(white_top), QColor(Styles.COLOR_EVAL_BAR_BG))
 
         # Draw White part (bottom)
-        painter.fillRect(0, int(white_top), width, int(white_height), QColor("#FFFFFF"))
+        painter.fillRect(0, int(white_top), width, int(white_height), QColor(Styles.COLOR_EVAL_BAR_FG))
 
         # Draw numeric label if space permits
         if height > 50:
@@ -106,9 +108,9 @@ class EvalBarWidget(QWidget):
             # Keep the label on the winning side's fill: dark text on the
             # white (bottom) area, light text on the dark (top) area.
             if white_pct > 0.5:
-                painter.setPen(QColor("#404040"))
+                painter.setPen(QColor(Styles.COLOR_EVAL_BAR_BG))
             else:
-                painter.setPen(QColor("#FFFFFF"))
+                painter.setPen(QColor(Styles.COLOR_EVAL_BAR_FG))
             x, y, w, h = self._label_rect()
             painter.drawText(
                 x,

@@ -55,6 +55,7 @@ MATPLOTLIB_DPI = 100
 # Default board theme for new installs. A warm wood tone sits better next to
 # the app's neutral surfaces than the flat grey/green defaults.
 DEFAULT_BOARD_THEME = "Brown"
+DEFAULT_ACCENT = "#FF9500"
 
 # Platform Rules for Updater
 PLATFORM_RULES = {

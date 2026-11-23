@@ -106,7 +106,7 @@ class ThemeMixin:
         palette.setColor(QPalette.ColorRole.BrightText, QColor(p.accent))
         palette.setColor(QPalette.ColorRole.Link, QColor(p.accent))
         palette.setColor(QPalette.ColorRole.Highlight, QColor(p.accent))
-        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor(Styles.COLOR_ON_ACCENT))
         QApplication.setPalette(palette)
 
     def _on_theme_changed(self, mode: str):

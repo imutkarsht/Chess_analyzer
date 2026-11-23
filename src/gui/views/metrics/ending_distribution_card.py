@@ -67,17 +67,20 @@ class EndingDistributionCard(MetricCard):
             center_suffix = ""
 
         type_colors = {
-            "Checkmate": Styles.COLOR_BEST,
-            "Resignation": Styles.COLOR_ACCENT,
-            "Time": "#e67e22",
-            "Abandon": Styles.COLOR_BLUNDER,
-            "Draw": "#888888",
-            "3-Fold Repetition": "#3498db",
-            "Agreement": "#1abc9c",
-            "Stalemate": "#9b59b6",
-            "Insufficient vs Timeout": "#e67e22",
-            "Insufficient Material": "#f1c40f",
-            "50-Move Rule": "#95a5a6",
+            key: Styles.get_termination_color(key)
+            for key in (
+                "Checkmate",
+                "Resignation",
+                "Time",
+                "Abandon",
+                "Draw",
+                "3-Fold Repetition",
+                "Agreement",
+                "Stalemate",
+                "Insufficient vs Timeout",
+                "Insufficient Material",
+                "50-Move Rule",
+            )
         }
 
         icon_map = {
@@ -103,7 +106,7 @@ class EndingDistributionCard(MetricCard):
             if v > 0:
                 labels.append(k)
                 sizes.append(v)
-                colors.append(type_colors.get(k, "#888888"))
+                colors.append(type_colors.get(k, Styles.get_termination_color("")))
 
         total_endings = sum(sizes)
         center_text = f"{total_endings}\n{center_suffix}".strip() if total_endings > 0 else ""
@@ -157,7 +160,7 @@ class EndingDistributionCard(MetricCard):
                         import qtawesome as qta
 
                         pixmap = qta.icon(
-                            qta_icon_map[k], color=type_colors.get(k, "#ffffff")
+                            qta_icon_map[k], color=type_colors.get(k, Styles.COLOR_ON_ACCENT)
                         ).pixmap(16, 16)
                     except Exception:
                         pixmap = None
@@ -166,7 +169,7 @@ class EndingDistributionCard(MetricCard):
                 legend.add_row(
                     k,
                     f"{v} ({pct:.0f}%)",
-                    type_colors.get(k, "#888888"),
+                    type_colors.get(k, Styles.get_termination_color("")),
                     pixmap,
                 )
 
