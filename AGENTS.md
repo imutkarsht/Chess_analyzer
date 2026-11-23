@@ -55,6 +55,7 @@ src/
 │   └── updater/            # GitHub release checker & platform installers
 ├── workers/                # Qt worker threads used by the GUI layer
 ├── gui/                    # PyQt6 presentation layer. Zero business logic computation.
+│   ├── app/                # Page controllers: analysis, batch, game loading
 │   ├── main_window/        # MainWindow + navigation/analysis/loading/theme/tour/update/variation/status mixins
 │   ├── views/              # Pages: analysis, explorer, history, metrics/, settings/
 │   ├── analysis/           # tabs/, coach/, moves/, variation/; analysis panel + shared widgets
@@ -74,6 +75,7 @@ src/
 - External network clients must be accessed through explicit backend service interfaces.
 - GUI components are imported from the `src.gui.components` facade, never from a subpackage path, so grouping can change without touching call sites.
 - Analysis panel composition lives in `src/gui/analysis/tabs/`; shared move, board, and variation widgets stay in their feature packages because Explorer and MainWindow reuse them.
+- Window workflows live in `src/gui/app/`; `MainWindow` composes controllers and connects their signals. The analysis/batch/loading mixins are adapters during migration, not workflow owners.
 - Settings are added through `src/config/settings_schema.py`; widgets do not invent defaults.
 - Per-widget styles are rebuilt on theme/accent change; no palette colour is captured at construction.
 - **Shared utilities**: extend the canonical modules before adding a private helper:
