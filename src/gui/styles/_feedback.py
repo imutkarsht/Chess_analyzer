@@ -69,33 +69,6 @@ class _FeedbackMixin:
             "loading": cls.COLOR_ACCENT,
         }.get(variant, cls.COLOR_TEXT_PRIMARY)
 
-    @classmethod
-    def get_engine_lines_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QFrame#EngineLinesPanel {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 10px;
-            }}
-            QWidget#EngineLineRow {{
-                background-color: transparent;
-                border: none;
-                border-radius: 6px;
-            }}
-            QWidget#EngineLineRow:hover {{
-                background-color: {p.surface_light};
-            }}
-            QWidget#EngineLineRow QLabel {{
-                border: none;
-                background: transparent;
-            }}
-            QLabel#EngineLinesEmpty {{
-                color: {p.text_muted};
-                font-size: 12px;
-            }}
-        """
-
     @staticmethod
     def _blend_hex(color_a, color_b, ratio):
         """Linear blend between two ``#RRGGBB`` colours (ratio 0..1)."""

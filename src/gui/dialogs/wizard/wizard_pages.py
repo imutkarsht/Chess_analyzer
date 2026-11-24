@@ -663,7 +663,7 @@ def build_done_page(wizard) -> QWidget:
             if i < len(valid_items) - 1:
                 divider = QWidget()
                 divider.setFixedHeight(1)
-                divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
+                divider.setObjectName("ReportDivider")
                 wizard._done_card_layout.addWidget(divider)
 
     wizard._on_done_show = _on_done_show

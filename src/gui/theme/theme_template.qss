@@ -968,7 +968,7 @@ QFrame#MetricsHeaderBar,
 QFrame#SettingsHeaderBar,
 QFrame#ExplorerHeaderBar,
 QFrame#ImportHeader,
-QFrame#DrillDownHeaderBar {{
+QFrame#DrillDownHeader {{
     background-color: {BACKGROUND};
     border-bottom: 1px solid {BORDER};
 }}
@@ -978,7 +978,7 @@ QFrame#MetricsHeaderBar QLabel,
 QFrame#SettingsHeaderBar QLabel,
 QFrame#ExplorerHeaderBar QLabel,
 QFrame#ImportHeader QLabel,
-QFrame#DrillDownHeaderBar QLabel {{
+QFrame#DrillDownHeader QLabel {{
     background: transparent;
     border: none;
 }}
@@ -1152,6 +1152,24 @@ QFrame#TacticsTopPill {{
     border-radius: 6px;
 }}
 
+QFrame#TacticRow {{
+    background: transparent;
+    border: 1px solid transparent;
+    border-left: 2px solid transparent;
+    border-radius: 6px;
+}}
+QFrame#TacticRow:hover {{
+    background-color: {SURFACE_LIGHT};
+}}
+QFrame#TacticRow[active="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-left: 2px solid {ACCENT};
+}}
+QFrame#TacticRow:focus {{
+    border: 1px solid {ACCENT};
+    border-left: 2px solid {ACCENT};
+}}
+
 QWidget#TacticsRow:hover {{
     background-color: {SURFACE_LIGHT};
     border-radius: 6px;
@@ -1178,8 +1196,17 @@ QWidget#AdvantageStat QLabel {{
     border: none;
 }}
 
-QFrame#to_pill,
-QFrame#dq_card,
+QFrame#to_pill {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QFrame#dq_card {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 10px 12px;
+}}
 QFrame#CoachErrorFrame {{
     background-color: {SURFACE_LIGHT};
     border: 1px solid {BORDER};
@@ -1187,9 +1214,17 @@ QFrame#CoachErrorFrame {{
 }}
 
 QFrame#DrillDownCard {{
-    background-color: {SURFACE_LIGHT};
+    background-color: {SURFACE_CARD};
     border: 1px solid {BORDER};
-    border-radius: 8px;
+    border-radius: 10px;
+}}
+QFrame#DrillDownCard:hover {{
+    background-color: {SURFACE};
+    border-color: {ACCENT};
+}}
+QFrame#DrillDownSeparator {{
+    background-color: {BORDER};
+    border: none;
 }}
 
 QFrame#ProfilePreview {{
@@ -1205,11 +1240,16 @@ QFrame#ProfilePreview QLabel {{
 QFrame#PhaseIconTile,
 QFrame#IconTile,
 QFrame#StatPanel,
-QFrame#NoClockBanner,
-QFrame#TimeTroubleBanner {{
+QFrame#NoClockBanner {{
     background-color: {SURFACE};
     border: 1px solid {BORDER};
     border-radius: 8px;
+}}
+QFrame#TimeTroubleBanner {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 10px 12px;
 }}
 
 /* Import Workspace */
@@ -1825,6 +1865,32 @@ QWidget#LoadGameTabsBar {{
     border-bottom: 1px solid {BORDER};
     background: transparent;
 }}
+QFrame#FetchCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+QFrame#InlineState {{
+    background: transparent;
+    border: none;
+}}
+QFrame#DatePickerPopup {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 14px;
+}}
+QLabel#DatePickerWeekday {{
+    color: {TEXT_MUTED};
+    background: transparent;
+    font-size: 11px;
+    font-weight: 600;
+}}
+QLabel#DatePickerYear {{
+    color: {TEXT_PRIMARY};
+    background: transparent;
+    font-size: 16px;
+    font-weight: 600;
+}}
 QTextBrowser#changelogText,
 QTextEdit#changelogText {{
     background-color: {SURFACE_LIGHT};
@@ -1840,6 +1906,14 @@ QFrame#ShortcutRow {{
 }}
 QFrame#ShortcutRow:hover {{
     border-color: {ACCENT};
+}}
+QFrame#TourBubble {{
+    background-color: {SURFACE};
+    border: 2px solid {ACCENT};
+    border-radius: 14px;
+}}
+QFrame#TourBubble QLabel {{
+    background: transparent;
 }}
 
 /* === Historic Bar === */

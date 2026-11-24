@@ -154,31 +154,10 @@ class TacticRow(QFrame):
         self.style().polish(self)
 
     def refresh_styles(self) -> None:
+        """Row states are global; only the motif tint is instance data."""
         color = _row_color(self.entry)
         self.setStyleSheet(
-            f"""
-            QFrame#TacticRow {{
-                background: transparent;
-                border: 1px solid transparent;
-                border-left: 2px solid transparent;
-                border-radius: 6px;
-            }}
-            QFrame#TacticRow:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QFrame#TacticRow[active="true"] {{
-                background-color: {Styles.COLOR_ACCENT_SUBTLE};
-                border-left: 2px solid {Styles.COLOR_ACCENT};
-            }}
-            QFrame#TacticRow:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-                border-left: 2px solid {Styles.COLOR_ACCENT};
-            }}
-            QFrame#TacticIcon {{
-                background-color: {color}15;
-                border-radius: 6px;
-            }}
-            """
+            f"QFrame#TacticIcon {{ background-color: {color}15; border-radius: 6px; }}"
         )
 
     def mousePressEvent(self, event: QMouseEvent) -> None:

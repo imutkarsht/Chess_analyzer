@@ -116,14 +116,7 @@ class TroubleView(LazyRenderView):
         timeouts: int,
     ) -> QFrame:
         banner = QFrame()
-        banner.setStyleSheet(
-            f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 8px;
-            padding: 10px 12px;
-            """
-        )
+        banner.setObjectName("TimeTroubleBanner")
         layout = QHBoxLayout(banner)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(12)
@@ -182,13 +175,6 @@ class TroubleView(LazyRenderView):
 
         pill = QFrame()
         pill.setObjectName("to_pill")
-        pill.setStyleSheet(f"""
-            QFrame#to_pill {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-            }}
-        """)
         pill_layout = QVBoxLayout(pill)
         pill_layout.setContentsMargins(12, 6, 12, 6)
         pill_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)

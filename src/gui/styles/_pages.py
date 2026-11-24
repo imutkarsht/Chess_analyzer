@@ -3,40 +3,8 @@
 
 from __future__ import annotations
 
-from src.gui.theme import ThemeManager
-
 
 class _PagesMixin:
-    @classmethod
-    def get_board_controls_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QWidget#BoardControls {{
-                background: transparent;
-                border: none;
-                border-top: 1px solid {p.border};
-            }}
-        """
-
-    @classmethod
-    def get_variation_badge_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QToolButton {{
-                background-color: {p.accent_subtle};
-                color: {p.accent};
-                border: 1px solid {p.accent};
-                border-radius: 5px;
-                font-size: 10px;
-                font-weight: 700;
-                padding: 0px;
-            }}
-            QToolButton:hover {{
-                background-color: {p.accent};
-                color: #FFFFFF;
-            }}
-        """
-
     CAPTURED_PIECES_STYLE = """
         QLabel {
             font-size: 16px;

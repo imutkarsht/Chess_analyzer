@@ -27,26 +27,4 @@ class _InputMixin:
             }}
         """
 
-    @classmethod
-    def get_date_picker_popup_qss(cls) -> str:
-        """Panel, weekday, and year labels for the calendar popup."""
-        p = ThemeManager.palette()
-        return f"""
-            QFrame#DatePickerPopup {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 14px;
-            }}
-            QLabel#DatePickerWeekday {{
-                color: {p.text_muted};
-                background: transparent;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QLabel#DatePickerYear {{
-                color: {p.text_primary};
-                background: transparent;
-                font-size: 16px;
-                font-weight: 600;
-            }}
-        """
+
