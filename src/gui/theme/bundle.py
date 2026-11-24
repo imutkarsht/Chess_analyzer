@@ -12,6 +12,7 @@ Import direction: ``palette`` -> ``bundle`` -> ``bundles/*`` -> ``__init__``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from src.gui.theme.palette import (
@@ -44,6 +45,16 @@ class ThemeBundle:
     palette: ThemePalette
     # "dark" or "light"; selects the system rendering mode for native parts.
     mode: str = "dark"
+
+    # Optional accent-aware palette builder. When set, the manager calls it
+    # with the live accent colour on every activation/accent change instead of
+    # using ``palette.with_accent()``. This is what accent-tinted themes use.
+    palette_factory: Callable[[str], ThemePalette] | None = None
+
+    # Signature themes (e.g. Dracula) adopt their own accent on activation so
+    # they look like the original; the user can still override it afterwards
+    # from Appearance settings.
+    owns_accent: bool = False
 
     classification_colors: dict[str, str] = field(
         default_factory=_default_classification

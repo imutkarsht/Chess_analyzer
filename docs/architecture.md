@@ -734,7 +734,7 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | --- | --- | --- |
 | `theme/palette.py` | Light/dark palettes, classification colours, board themes | `LIGHT`, `DARK`, `BOARD_THEMES` |
 | `theme/bundle.py` | Complete theme definition (palette, mode, semantic colours, board themes, extra QSS) | `ThemeBundle` |
-| `theme/bundles/` | Built-in theme bundles (dark, light, OLED sample) registered at import | `DARK_BUNDLE`, `LIGHT_BUNDLE`, `OLED_BUNDLE` |
+| `theme/bundles/` | Built-in theme bundles (dark, light, tinted, dracula, OLED sample) registered at import | `DARK_BUNDLE`, `LIGHT_BUNDLE`, `TINTED_BUNDLE`, `DRACULA_BUNDLE`, `OLED_BUNDLE` |
 | `theme/theme_template.qss` | Single source of truth for static chrome (object names + dynamic properties) | — |
 | `theme/manager.py` | Active mode/accent/bundle, signals, one-shot stylesheet application | `ThemeManager` |
 | `theme/tokens.py` | Spacing, radius and type scale | `Spacing`, `Radius`, `TypeScale` |

@@ -1,7 +1,9 @@
 from src.gui.theme.bundle import ThemeBundle
 from src.gui.theme.bundles.dark import DARK_BUNDLE
+from src.gui.theme.bundles.dracula import DRACULA_BUNDLE
 from src.gui.theme.bundles.light import LIGHT_BUNDLE
 from src.gui.theme.bundles.oled import OLED_BUNDLE
+from src.gui.theme.bundles.tinted import TINTED_BUNDLE
 from src.gui.theme.manager import ELEVATIONS, Elevation, ThemeManager
 from src.gui.theme.motion import Motion, MotionDuration, MotionEasing
 from src.gui.theme.palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
@@ -17,7 +19,7 @@ from src.gui.theme.typography import (
     TextTone,
 )
 
-for _bundle in (DARK_BUNDLE, LIGHT_BUNDLE, OLED_BUNDLE):
+for _bundle in (DARK_BUNDLE, LIGHT_BUNDLE, TINTED_BUNDLE, DRACULA_BUNDLE, OLED_BUNDLE):
     ThemeManager.register_bundle(_bundle)
 
 __all__ = [

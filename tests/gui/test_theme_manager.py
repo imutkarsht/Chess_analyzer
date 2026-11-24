@@ -50,6 +50,48 @@ def test_theme_template_qss_path_exists():
     assert os.path.exists(qss_path)
 
 
+def test_dracula_bundle_palette_and_semantics(qapp, monkeypatch):
+    """Dracula applies its official palette and semantic colour remaps."""
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+
+    assert "dracula" in ThemeManager.registered_bundles()
+    try:
+        ThemeManager.set_bundle("dracula")
+        palette = ThemeManager.palette()
+        assert palette.background == "#282A36"
+        assert palette.surface == "#30323F"
+        assert palette.text_primary == "#F8F8F2"
+        # A signature theme adopts its own accent (classic Dracula purple).
+        assert palette.accent == "#BD93F9"
+        assert ThemeManager.accent() == "#BD93F9"
+        assert ThemeManager.get_class_color("Blunder") == "#FF5555"
+        assert ThemeManager.get_class_color("Miss") == "#FF79C6"
+        assert ThemeManager.get_class_color("Best") == "#50FA7B"
+    finally:
+        ThemeManager.set_theme_mode("dark")
+
+
+def test_tinted_bundle_derives_palette_from_accent(qapp, monkeypatch):
+    """The Tinted bundle rebuilds its surfaces from the live accent colour."""
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_theme_mode("tinted")
+        first_bg = ThemeManager.palette().background
+        assert first_bg != DARK.background
+
+        ThemeManager.set_accent("#E11D48")
+        second_bg = ThemeManager.palette().background
+        assert second_bg != first_bg
+        assert ThemeManager.palette().accent == "#E11D48"
+    finally:
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_accent(previous_accent)
+
+    assert ThemeManager.palette().background == DARK.background
+
+
 def test_registered_bundles_and_set_bundle_state(qapp, qtbot, monkeypatch):
     """A registered bundle drives palette, mode, class colours, and extra QSS."""
     from src.gui.theme.bundle import ThemeBundle

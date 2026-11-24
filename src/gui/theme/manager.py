@@ -127,6 +127,16 @@ class ThemeManager(QObject):
         return cls._bundles.get(cls._active_bundle_id)
 
     @classmethod
+    def _palette_for_bundle(cls, bundle: "ThemeBundle", accent: str) -> ThemePalette:
+        """Resolve a bundle palette, honouring accent-aware factories."""
+        if bundle.palette_factory is not None:
+            return bundle.palette_factory(accent)
+        if bundle.owns_accent and accent == bundle.palette.accent:
+            # Keep the signature accent ramp (hover/subtle) intact.
+            return bundle.palette
+        return bundle.palette.with_accent(accent)
+
+    @classmethod
     def set_bundle(cls, bundle_id: str) -> None:
         """Activate a registered bundle by id and emit ``theme_changed``."""
         bundle = cls._bundles.get(bundle_id)
@@ -138,7 +148,9 @@ class ThemeManager(QObject):
         cls._active_bundle_id = bundle_id
         cls._theme_mode = bundle_id
         cls._current_mode = bundle.mode
-        cls._palette = bundle.palette.with_accent(cls._accent)
+        if bundle.owns_accent:
+            cls._accent = bundle.palette.accent
+        cls._palette = cls._palette_for_bundle(bundle, cls._accent)
         cls._bump_style_revision()
         cls.apply_app_stylesheet()
         cls.instance().theme_changed.emit(bundle_id)
@@ -245,7 +257,7 @@ class ThemeManager(QObject):
         bundle = cls._bundles.get(mode)
         if bundle is not None:
             cls._active_bundle_id = mode
-            cls._palette = bundle.palette.with_accent(cls._accent)
+            cls._palette = cls._palette_for_bundle(bundle, cls._accent)
         else:
             cls._active_bundle_id = None
             cls._palette = (DARK if mode == "dark" else LIGHT).with_accent(cls._accent)
@@ -274,7 +286,11 @@ class ThemeManager(QObject):
                 DARK.accent if cls._current_mode == "dark" else LIGHT.accent
             )
         cls._accent = hex_color
-        cls._palette = cls._palette.with_accent(hex_color)
+        bundle = cls._active_bundle()
+        if bundle is not None:
+            cls._palette = cls._palette_for_bundle(bundle, hex_color)
+        else:
+            cls._palette = cls._palette.with_accent(hex_color)
         cls._bump_style_revision()
         cls.apply_app_stylesheet()
         instance = cls.instance()
