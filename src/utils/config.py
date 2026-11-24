@@ -559,7 +559,12 @@ class ConfigManager:
     def get_choice(self, key: str, default: str = "") -> str:
         spec = get_spec(key)
         value = str(self.get(key, default))
-        if spec and spec.choices and value not in {c.value for c in spec.choices}:
+        if (
+            spec
+            and spec.choices
+            and not spec.open_choice
+            and value not in {c.value for c in spec.choices}
+        ):
             return default
         return value
 
@@ -605,7 +610,11 @@ class ConfigManager:
                     number = min(float(spec.maximum), number)
                 return number
             if spec.kind == "choice":
-                if spec.choices and value not in {c.value for c in spec.choices}:
+                if (
+                    spec.choices
+                    and not spec.open_choice
+                    and value not in {c.value for c in spec.choices}
+                ):
                     raise ValueError(f"expected one of {[c.value for c in spec.choices]}")
                 return value
             if spec.kind in {"text", "path", "secret", "json"}:

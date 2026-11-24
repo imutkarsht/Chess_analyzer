@@ -53,6 +53,10 @@ class SettingSpec:
     tier: SettingTier = "basic"
     apply: ApplyMode = "save"
     choices: tuple[Choice, ...] = ()
+    # Open choices accept values that are not in ``choices`` (e.g. theme
+    # bundle ids registered at runtime by plugins) while still offering the
+    # listed options in the UI.
+    open_choice: bool = False
     minimum: float | None = None
     maximum: float | None = None
     step: float | None = None
@@ -217,6 +221,7 @@ def _specs() -> tuple[SettingSpec, ...]:
             "system",
             apply="live",
             choices=(Choice("system", "System"), Choice("light", "Light"), Choice("dark", "Dark")),
+            open_choice=True,
         ),
         SettingSpec(
             "accent_mode",
