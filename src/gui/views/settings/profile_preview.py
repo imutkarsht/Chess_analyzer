@@ -335,20 +335,6 @@ class ProfilePreview(QFrame):
         data_layout.addLayout(footer)
 
         self._data_widget.hide()
-        self.setStyleSheet(self._frame_style())
-
-    def _frame_style(self) -> str:
-        return f"""
-            QFrame#ProfilePreview {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 10px;
-            }}
-            QFrame#ProfilePreview QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """
 
     # -- state transitions ------------------------------------------------
     def show_idle(self) -> None:
@@ -557,7 +543,6 @@ class ProfilePreview(QFrame):
         self.refresh_btn.refresh_styles()
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(self._frame_style())
         self.retry_btn.refresh_styles()
         self._refresh_button_style()
         if self._last_load and self._data_widget.isVisible():

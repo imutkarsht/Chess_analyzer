@@ -24,7 +24,6 @@ from src.gui.dialogs.wizard.wizard_pages import (
     build_welcome_page,
 )
 from src.gui.styles import Styles
-from src.gui.theme import ThemeManager
 from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
@@ -48,7 +47,6 @@ class SetupWizard(QDialog):
         self.resize(self.WIZARD_WIDTH, self.WIZARD_HEIGHT)
 
         self._build_ui()
-        self.setStyleSheet(self._build_stylesheet())
         self._populate_from_config()
 
         # Gatekeeper skip check for non-macOS or non-frozen runs
@@ -78,25 +76,7 @@ class SetupWizard(QDialog):
         self.nav_bar.skip_btn.clicked.connect(self._on_skip)
         layout.addWidget(self.nav_bar)
 
-    def _build_stylesheet(self):
-        p = ThemeManager.palette()
-        return f"""
-            SetupWizard, QWidget#wizardPage, QStackedWidget#wizardStack {{
-                background-color: {p.background};
-            }}
-            QFrame#profileCard,
-            QFrame#appearanceCard,
-            QFrame#stockfishCard,
-            QFrame#llmCard,
-            QFrame#summaryCard {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 10px;
-            }}
-        """
-
     def refresh_accent(self):
-        self.setStyleSheet(self._build_stylesheet())
         self.nav_bar.refresh_theme()
         self.nav_bar.update(self.current_page)
 
@@ -105,24 +85,6 @@ class SetupWizard(QDialog):
             accent_mode = getattr(self, "wizard_accent_mode", "system")
             from src.gui.dialogs.wizard.wizard_pages import _apply_accent_button_style
             _apply_accent_button_style(self, accent_col, accent_mode)
-
-        if hasattr(self, "wizard_reset_accent_btn"):
-            self.wizard_reset_accent_btn.refresh_styles()
-
-        if hasattr(self, "done_btn"):
-            self.done_btn.refresh_styles()
-
-        if hasattr(self, "llm_test_btn"):
-            self.llm_test_btn.refresh_styles()
-
-        if hasattr(self, "sf_browse_btn"):
-            self.sf_browse_btn.refresh_styles()
-        if hasattr(self, "sf_cancel_btn"):
-            self.sf_cancel_btn.refresh_styles()
-        if hasattr(self, "sf_download_btn"):
-            self.sf_download_btn.refresh_styles()
-        if hasattr(self, "get_started_btn"):
-            self.get_started_btn.refresh_styles()
 
         if hasattr(self, "sf_icon_label") and (self._download_worker is None or not self._download_worker.isRunning()):
             self._detect_stockfish()

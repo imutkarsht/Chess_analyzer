@@ -98,7 +98,7 @@ class GameListItemWidget(QWidget):
 
     def _build_compact_ui(self, game, usernames, root_layout):
         """Build compact single-row list item layout (Lichess/Chess.com table style)."""
-        self.card_frame.setStyleSheet(Styles.get_game_card_style(border_radius=6, compact=True))
+        self.card_frame.setProperty("compact", True)
 
         card_layout = QHBoxLayout(self.card_frame)
         card_layout.setContentsMargins(12, 8, 12, 8)
@@ -248,7 +248,7 @@ class GameListItemWidget(QWidget):
 
     def _build_detailed_ui(self, game, usernames, root_layout):
         """Build detailed card layout with mini board thumbnail."""
-        self.card_frame.setStyleSheet(Styles.get_game_card_style())
+        self.card_frame.setProperty("compact", False)
 
         card_layout = QHBoxLayout(self.card_frame)
         card_layout.setContentsMargins(12, 10, 12, 10)
@@ -531,11 +531,7 @@ class GameListItemWidget(QWidget):
         else:
             if self._selection_checkbox is not None:
                 self._selection_checkbox.hide()
-            self.card_frame.setStyleSheet(
-                Styles.get_game_card_style(
-                    compact=self.view_mode == "compact", selected=False
-                )
-            )
+            self._apply_card_state(False)
         if self._action_button is not None:
             self._action_button.setVisible(not enabled)
         if self._delete_button is not None:
@@ -546,11 +542,14 @@ class GameListItemWidget(QWidget):
         selected = bool(selected)
         if self._selection_checkbox is not None:
             self._selection_checkbox.setChecked(selected)
-        self.card_frame.setStyleSheet(
-            Styles.get_game_card_style(
-                compact=self.view_mode == "compact", selected=selected
-            )
-        )
+        self._apply_card_state(selected)
+
+    def _apply_card_state(self, selected: bool) -> None:
+        """Card chrome is global; flip the selected property and repolish."""
+        self.card_frame.setProperty("selected", bool(selected))
+        style = self.card_frame.style()
+        style.unpolish(self.card_frame)
+        style.polish(self.card_frame)
 
     def set_batch_state(
         self,
@@ -772,7 +771,6 @@ class GameListItemWidget(QWidget):
         from PyQt6.QtWidgets import QMenu
 
         menu = QMenu(self)
-        menu.setStyleSheet(Styles.get_menu_style())
         act_delete = menu.addAction("🗑  Delete from history")
         chosen = menu.exec(event.globalPos())
         if chosen is act_delete:

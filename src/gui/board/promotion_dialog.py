@@ -7,7 +7,6 @@ from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QDialog, QHBoxLayout
 
 from src.gui.components import Button, ButtonVariant
-from src.gui.styles import Styles
 
 
 class PromotionDialog(QDialog):
@@ -20,7 +19,6 @@ class PromotionDialog(QDialog):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.selected_piece = None
 
-        self.setStyleSheet(Styles.get_dialog_surface_style())
 
         layout = QHBoxLayout(self)
         layout.setSpacing(8)

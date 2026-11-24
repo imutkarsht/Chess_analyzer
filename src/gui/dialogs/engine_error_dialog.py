@@ -22,7 +22,6 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.styles import Styles
 from src.utils.path_utils import get_engine_data_dir
 from src.workers import EngineDownloadWorker
 
@@ -32,12 +31,6 @@ class EngineNotFoundDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Engine Not Found")
         self.setFixedSize(520, 420)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """)
 
         self._result_action = None
         self._engine_path = None

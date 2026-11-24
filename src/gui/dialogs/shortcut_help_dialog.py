@@ -39,14 +39,6 @@ class ShortcutHelpDialog(QDialog):
         self.resize(760, 580)
         self.setMinimumSize(680, 480)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {Styles.COLOR_BACKGROUND};
-            }}
-            QLabel {{
-                background: transparent;
-            }}
-        """)
 
         self.setup_ui()
 
@@ -201,20 +193,6 @@ class ShortcutHelpDialog(QDialog):
         """Create a compact row with key badge and description."""
         row = QFrame()
         row.setObjectName("ShortcutRow")
-        row.setStyleSheet(f"""
-            QFrame#ShortcutRow {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-            }}
-            QFrame#ShortcutRow:hover {{
-                border-color: {Styles.COLOR_ACCENT};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QFrame QLabel {{
-                background: transparent;
-            }}
-        """)
 
         row_layout = QHBoxLayout(row)
         row_layout.setContentsMargins(10, 5, 10, 5)

@@ -39,22 +39,6 @@ class StatCard(QFrame):
             self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.setObjectName("StatCard")
-        # Modern card styling with subtle gradient
-        self.setStyleSheet(f"""
-            QFrame#StatCard {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            QFrame#StatCard:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QFrame#StatCard QLabel {{
-                border: none;
-                background: transparent;
-            }}
-        """)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 20, 24, 20)
@@ -99,22 +83,9 @@ class StatCard(QFrame):
         ThemeManager.apply_elevation(self, elevation=1)
 
     def refresh_styles(self):
-        """Re-apply styles with the updated accent color."""
-        self.setStyleSheet(f"""
-            QFrame#StatCard {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            QFrame#StatCard:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QFrame#StatCard QLabel {{
-                border: none;
-                background: transparent;
-            }}
-        """)
+        """Card chrome is global; repolish keeps the widget coherent."""
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def _add_icon(self, layout, icon):
         """Add icon to the header layout."""
@@ -158,16 +129,8 @@ class SimpleStatCard(QFrame):
     def __init__(self, title, value, color=None):
         super().__init__()
 
+        self.setObjectName("SimpleStatCard")
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 10px;
-            }}
-            QLabel {{ border: none; background: transparent; }}
-        """)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
@@ -192,13 +155,6 @@ class SimpleStatCard(QFrame):
         ThemeManager.apply_elevation(self, elevation=1)
 
     def refresh_styles(self):
-        """Re-apply styles with the updated accent color."""
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 10px;
-            }}
-            QLabel {{ border: none; background: transparent; }}
-        """)
+        """Card chrome is global; repolish keeps the widget coherent."""
+        self.style().unpolish(self)
+        self.style().polish(self)
