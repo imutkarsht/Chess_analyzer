@@ -266,9 +266,7 @@ class TacticsTab(QWidget):
         self.scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-        )
+        Styles.apply_transparent(self.scroll, borderless=False)
 
         self.content = QWidget()
         Styles.apply_transparent(self.content, borderless=False)
@@ -310,9 +308,7 @@ class TacticsTab(QWidget):
         self.content_layout.addWidget(EmptyState(message), 1)
 
     def refresh_styles(self) -> None:
-        self.scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-        )
+        """Re-render tactic rows for their data-driven colours."""
         if self._reports:
             self._render_current()
         else:

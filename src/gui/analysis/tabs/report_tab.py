@@ -104,8 +104,8 @@ class ReportTab(QWidget):
 
         # Subtle divider 1
         self.div1 = QFrame()
+        self.div1.setObjectName("ReportDivider")
         self.div1.setFrameShape(QFrame.Shape.HLine)
-        self.div1.setStyleSheet(Styles.get_divider_style())
         self.report_layout.addWidget(self.div1)
 
         # 2. Accuracy Gauges (Side by side White & Black)
@@ -125,7 +125,7 @@ class ReportTab(QWidget):
         # Subtle divider 2
         self.div2 = QFrame()
         self.div2.setFrameShape(QFrame.Shape.HLine)
-        self.div2.setStyleSheet(Styles.get_divider_style())
+        self.div2.setObjectName("ReportDivider")
         self.report_layout.addWidget(self.div2)
 
         # 3. Move Quality Classification Table
@@ -139,7 +139,7 @@ class ReportTab(QWidget):
         # Subtle divider 3
         self.div3 = QFrame()
         self.div3.setFrameShape(QFrame.Shape.HLine)
-        self.div3.setStyleSheet(Styles.get_divider_style())
+        self.div3.setObjectName("ReportDivider")
         self.report_layout.addWidget(self.div3)
 
         # Keep the Report tab top-aligned: the classification table is last.
@@ -361,14 +361,9 @@ class ReportTab(QWidget):
         return Styles.COLOR_TEXT_PRIMARY
 
     def refresh_styles(self) -> None:
-        self.report_card.setStyleSheet(
-            Styles.get_frame_style(object_name="ReportCard", hover_accent=False)
-        )
+        """Re-render data-driven content; card/divider chrome is global."""
         self.w_circular_acc.refresh_styles()
         self.b_circular_acc.refresh_styles()
-
-        for divider in (self.div1, self.div2, self.div3):
-            divider.setStyleSheet(Styles.get_divider_style())
 
         if self.current_game:
             self.update_summary(self.current_game.summary)

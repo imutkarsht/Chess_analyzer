@@ -40,7 +40,6 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.styles import Styles
 
 # The body is sized to its wrapped text: the tab has room to grow downwards, so
 # an explanation is shown in full instead of behind a scrollbar. The floor keeps
@@ -402,11 +401,8 @@ class CoachCardWidget(QFrame):
     # ------------------------------------------------------------------
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_frame_style(object_name="CoachCard", hover_accent=False))
-        self.body_edit.refresh_styles()
+        """Refresh data-driven bits; card chrome is owned by global QSS."""
         self._restyle_header()
-        for button in (self.btn_ask, self.btn_line, self.btn_best):
-            button.refresh_styles()
         self._layout_rows()  # the styles decide the badge/button widths
         self._fit_body()  # ...and the body font decides the line height
 

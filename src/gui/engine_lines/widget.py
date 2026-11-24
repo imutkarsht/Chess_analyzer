@@ -220,6 +220,7 @@ class EngineLinesWidget(QFrame):
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        Styles.apply_transparent(self._scroll, borderless=False)
         self._scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
@@ -255,8 +256,7 @@ class EngineLinesWidget(QFrame):
         root.addWidget(self._scroll)
 
     def _apply_styles(self) -> None:
-        self.setStyleSheet(Styles.get_engine_lines_style())
-        self._scroll.setStyleSheet(Styles.get_transparent_scroll_area_style())
+        """Panel chrome is global; rows repaint their data-driven badges."""
         for row in self._rows:
             row.refresh_styles()
 
