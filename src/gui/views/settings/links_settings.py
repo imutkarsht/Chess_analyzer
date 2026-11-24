@@ -223,7 +223,7 @@ class LinksSettings(BackgroundTaskCard):
     # Styling
     # ------------------------------------------------------------------
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         for button, _icon_name in self._link_icons:
             button.refresh_styles()
 

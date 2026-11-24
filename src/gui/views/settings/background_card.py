@@ -6,7 +6,6 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox
 
 from src.gui.components import ToastHandle, ToastManager
-from src.gui.styles import Styles
 from src.workers.settings import BackgroundTaskWorker
 
 # Workers are deliberately not parented to their card: Qt destroys children
@@ -35,7 +34,7 @@ class BackgroundTaskCard(QGroupBox):
         self._worker: BackgroundTaskWorker | None = None
         self._busy_widgets = []
         self._task_toast: ToastHandle | None = None
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
 
     def register_busy_widgets(self, *widgets) -> None:
         """Buttons disabled while a task is running."""

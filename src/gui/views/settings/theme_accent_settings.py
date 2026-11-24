@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import QColorDialog, QGroupBox, QVBoxLayout
 
 from src.config.settings_schema import get_spec
 from src.gui.components import Button, ButtonVariant, RadioChoice, ToastManager
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
 
@@ -19,7 +18,7 @@ class ThemeAccentSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Theme && Accent", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -119,7 +118,7 @@ class ThemeAccentSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.color_btn.refresh_styles()
         self.theme_mode_choice.refresh_styles()

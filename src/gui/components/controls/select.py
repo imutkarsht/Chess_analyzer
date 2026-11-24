@@ -312,7 +312,7 @@ class _SelectPopup(QFrame):
         super().keyPressEvent(event)
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_select_popup_style())
+        """Popup chrome is global; rows are custom-painted from live colours."""
         for row in self._rows:
             row.update()
 
@@ -694,7 +694,6 @@ class Select(QWidget):
     def _ensure_popup(self) -> _SelectPopup:
         if self._popup is None:
             self._popup = _SelectPopup()
-            self._popup.setStyleSheet(Styles.get_select_popup_style())
             self._popup.option_activated.connect(self._on_popup_selected)
             self._popup.dismissed.connect(self.hidePopup)
         return self._popup

@@ -1027,6 +1027,12 @@ QFrame#HangingDivider {{
     border: none;
 }}
 
+QFrame#SettingsPanel {{
+    background-color: {SURFACE};
+    border: none;
+    border-radius: 0px;
+}}
+
 /* Metric card chrome is defined above; its children inherit the card
    surface because they carry no background of their own. */
 
@@ -1287,6 +1293,37 @@ QLabel#EmptyState {{
     color: {TEXT_SECONDARY};
     font-size: 12px;
     padding: 40px 10px;
+    background: transparent;
+}}
+
+/* Select popup chrome (panel and rows are custom-painted by the component). */
+QFrame#SelectPopup QScrollArea {{
+    background: transparent;
+    border: none;
+}}
+QFrame#SelectPopup QWidget#SelectPopupContent {{
+    background: transparent;
+}}
+QFrame#SelectPopup QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 2px;
+    border-radius: 4px;
+}}
+QFrame#SelectPopup QScrollBar::handle:vertical {{
+    background-color: {BORDER_LIGHT};
+    min-height: 24px;
+    border-radius: 4px;
+}}
+QFrame#SelectPopup QScrollBar::handle:vertical:hover {{
+    background-color: {TEXT_MUTED};
+}}
+QFrame#SelectPopup QScrollBar::add-line:vertical,
+QFrame#SelectPopup QScrollBar::sub-line:vertical {{
+    height: 0px;
+}}
+QFrame#SelectPopup QScrollBar::add-page:vertical,
+QFrame#SelectPopup QScrollBar::sub-page:vertical {{
     background: transparent;
 }}
 

@@ -46,25 +46,3 @@ class _ControlsMixin:
             }}
         """
 
-    @classmethod
-    def get_group_box_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QGroupBox {{
-                font-size: 17px;
-                font-weight: 600;
-                color: {p.text_primary};
-                border: none;
-                border-radius: 0;
-                margin-top: 18px;
-                padding: 6px 0 0 0;
-                background-color: transparent;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 0px;
-                padding: 0 0 6px 0;
-                color: {p.text_primary};
-            }}
-        """

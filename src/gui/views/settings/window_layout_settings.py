@@ -4,7 +4,6 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.components import RadioChoice
-from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
 
 
@@ -17,7 +16,7 @@ class WindowLayoutSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Window && Layout", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -67,6 +66,6 @@ class WindowLayoutSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.sidebar_choice.refresh_styles()

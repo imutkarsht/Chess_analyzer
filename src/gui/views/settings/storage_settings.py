@@ -99,7 +99,7 @@ class StorageSettings(StorageCard):
         self.setVisible(True)
 
     def refresh_styles(self, *args, **kwargs) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.refresh_btn.refresh_styles()
         self.open_folder_btn.refresh_styles()

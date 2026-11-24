@@ -94,9 +94,9 @@ class SettingsView(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Header Bar Container
+        # Header Bar Container (chrome owned by the global template)
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
+        self.header_bar.setObjectName("SettingsHeaderBar")
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
 
@@ -151,7 +151,6 @@ class SettingsView(QWidget):
         # reads as a separate region from the navigation rail.
         self.settings_panel = QFrame()
         self.settings_panel.setObjectName("SettingsPanel")
-        self.settings_panel.setStyleSheet(self._panel_style())
         panel_layout = QVBoxLayout(self.settings_panel)
         panel_layout.setContentsMargins(28, 24, 28, 28)
         panel_layout.setSpacing(0)
@@ -346,21 +345,12 @@ class SettingsView(QWidget):
         self.retention_settings.reload_from_config()
         self.storage_settings.refresh_stats()
 
-    def _panel_style(self) -> str:
-        return f"""
-            QFrame#SettingsPanel {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: none;
-                border-radius: 0px;
-            }}
-        """
-
     @staticmethod
     def _section_divider() -> QFrame:
         """Single separator between cards, so every page divides groups the same way."""
         divider = QFrame()
+        divider.setObjectName("SettingsDivider")
         divider.setFrameShape(QFrame.Shape.HLine)
-        divider.setStyleSheet(Styles.get_divider_style())
         return divider
 
     def _sync_section_dividers(self) -> None:
@@ -715,19 +705,12 @@ class SettingsView(QWidget):
             ToastManager.success(self, "Settings saved successfully.")
 
     def refresh_styles(self):
-        """Re-applies styles to settings view components."""
-        if hasattr(self, 'header_bar'):
-            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-        if hasattr(self, 'scroll_area'):
-            Styles.apply_background(self.scroll_area)
-        if hasattr(self, 'content_container'):
-            Styles.apply_background(self.content_container)
-        if hasattr(self, 'settings_panel'):
-            self.settings_panel.setStyleSheet(self._panel_style())
-        if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
-            self.save_settings_btn.refresh_styles()
+        """Refresh the few state-dependent bits; chrome is global QSS.
+
+        Cards keep their own hooks until every child control is migrated
+        (tabs, profile preview, board swatches are still in progress).
+        """
         if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
-            self.mode_toggle_btn.refresh_styles()
             self._update_mode_toggle_text(self.mode_toggle_btn)
 
         cards = (

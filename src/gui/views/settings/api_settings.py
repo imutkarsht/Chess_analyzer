@@ -118,7 +118,7 @@ class ApiSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("API Configuration", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
 
         self._llm_providers = PROVIDERS
         self._loading_profile = False
@@ -588,7 +588,7 @@ class ApiSettings(QGroupBox):
             )
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         if hasattr(self, 'llm_add_btn'):
             self.llm_add_btn.refresh_styles()
         if hasattr(self, 'llm_del_btn'):
