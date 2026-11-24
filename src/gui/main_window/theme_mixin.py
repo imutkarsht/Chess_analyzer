@@ -6,7 +6,6 @@ from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.services.groq_service import GroqService
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.theme.typography import TextTone
 from src.utils.logger import logger
 
 
@@ -110,84 +109,141 @@ class ThemeMixin:
         QApplication.setPalette(palette)
 
     def _on_theme_changed(self, mode: str):
-        self.refresh_theme()
+        self._refresh_theme_safely()
 
     def _on_accent_changed(self, hex_color: str):
         self.config_manager.set("accent_color", hex_color)
-        self.refresh_theme()
+        self._refresh_theme_safely()
+
+    def _refresh_theme_safely(self) -> None:
+        """Run a theme refresh unless the window (or a child) is being deleted.
+
+        Theme signals are application-wide, so a closing window can still
+        receive one after parts of its widget tree are gone.
+        """
+        from PyQt6 import sip
+
+        if sip.isdeleted(self):
+            return
+        try:
+            self.refresh_theme()
+        except RuntimeError:
+            pass
 
     def refresh_theme(self):
-        """Re-applies the global central QSS theme and updates non-QSS canvas/board widgets."""
-        self._apply_palette()
-        ThemeManager.apply_app_stylesheet()
+        """Re-apply the central QSS theme and repaint non-QSS widgets.
 
-        # Header Buttons: each Button listens to theme/accent signals itself;
-        # only the destructive state of the analyze button needs re-syncing.
+        ``ThemeManager.set_mode`` / ``set_accent`` already apply the global
+        stylesheet before emitting their signals, so this method must not
+        apply it a second time — one parse of the central sheet is the single
+        largest cost of a theme switch.
+        """
+        self._apply_palette()
+
+        # Button state sync (not a theme concern, but cheap and must not drift)
         if hasattr(self, "btn_analyze"):
             self.btn_analyze.set_danger(self.analysis_controller._full_analysis_running)
 
-        # Page containers carry the appBackground property set at construction;
-        # the global QSS re-colours them on every theme apply without help here.
-        if hasattr(self, "lbl_hero_hint"):
-            self.lbl_hero_hint.set_tone(
-                TextTone.ACCENT
-                if getattr(self, "_drop_highlight_active", False)
-                else TextTone.SECONDARY
-            )
+        self._refresh_canvas_widgets()
+        self._refresh_data_widgets()
 
-        # Update Chess Boards (Graphics / QPainter)
+        # Force full style re-evaluation for all children (cheap; ~1ms)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+    def _refresh_canvas_widgets(self) -> None:
+        """Widgets that paint outside the style engine."""
+        # Chess boards (QPainter + SVG)
         if hasattr(self, "board_widget"):
             self.board_widget.refresh_settings()
         if hasattr(self, "explorer_view") and hasattr(self.explorer_view, "board_widget"):
             self.explorer_view.board_widget.refresh_settings()
 
-        # Refresh Matplotlib Evaluation Graphs & Custom Gauges
+        # Variation graph (custom QPainter nodes and accent pills)
+        if hasattr(self, "variation_graph"):
+            self.variation_graph.refresh_styles()
+
+        # Tour overlay accent glow
+        if hasattr(self, "tour_overlay"):
+            self.tour_overlay.refresh_accent()
+
+        # Sidebar icons depend on check state, not QSS
+        if hasattr(self, "sidebar"):
+            self.sidebar.apply_style()
+
+    def _refresh_data_widgets(self) -> None:
+        """Re-render data-derived colours for the visible page only.
+
+        Hidden pages are marked dirty and flushed when the user navigates to
+        them — rebuilding every chart and game card synchronously during the
+        theme switch is what made it feel like a multi-second freeze.
+        """
+        from src.constants import PAGE_ANALYSIS, PAGE_EXPLORER, PAGE_HISTORY, PAGE_METRICS
+
+        current = self.stack.currentIndex() if hasattr(self, "stack") else -1
+        dirty = self._dirty_theme_pages()
+
+        # Settings is cheap (mostly global QSS) and usually the visible page.
+        if hasattr(self, "settings_view"):
+            self.settings_view.refresh_styles()
+
+        if current == PAGE_ANALYSIS:
+            self._refresh_analysis_page()
+        else:
+            dirty.add(PAGE_ANALYSIS)
+
+        if hasattr(self, "explorer_view"):
+            if current == PAGE_EXPLORER:
+                self.explorer_view.refresh_styles()
+            else:
+                dirty.add(PAGE_EXPLORER)
+
+        if hasattr(self, "history_view") and current != PAGE_HISTORY:
+            # Navigation to History always calls load_history(), which
+            # rebuilds the cards with the live palette.
+            dirty.add(PAGE_HISTORY)
+
+        if self.metrics_view is not None:
+            if current == PAGE_METRICS:
+                self.metrics_view.refresh_styles()
+            else:
+                # Visits refetch when needs_refresh is set.
+                self.metrics_view.mark_dirty()
+
+    def _refresh_analysis_page(self) -> None:
+        """Data-driven widgets that live on the Analyze page."""
         if hasattr(self, "analysis_panel"):
             self.analysis_panel.refresh_styles()
         if hasattr(self, "move_list_panel"):
             self.move_list_panel.refresh_styles()
         if hasattr(self, "welcome_panel") and hasattr(self.welcome_panel, "refresh_styles"):
             self.welcome_panel.refresh_styles()
-        if hasattr(self, "history_view"):
-            self.history_view.refresh_styles()
-        if hasattr(self, "settings_view"):
-            self.settings_view.refresh_styles()
-        if self.metrics_view is not None:
-            if hasattr(self.metrics_view, "refresh_styles"):
-                self.metrics_view.refresh_styles()
-            else:
-                self.metrics_view.refresh()
-
-        # Update Captured Pieces
         for cp in ("captured_white", "captured_black"):
             if hasattr(self, cp):
-                w = getattr(self, cp)
-                if hasattr(w, "refresh_styles"):
-                    w.refresh_styles()
+                widget = getattr(self, cp)
+                if hasattr(widget, "refresh_styles"):
+                    widget.refresh_styles()
 
-        # Update Game Controls
-        if hasattr(self, "controls") and hasattr(self.controls, "refresh_styles"):
-            self.controls.refresh_styles()
-        if hasattr(self, "variation_graph"):
-            self.variation_graph.refresh_styles()
+    def _dirty_theme_pages(self) -> set[int]:
+        dirty = getattr(self, "_theme_dirty_pages", None)
+        if dirty is None:
+            dirty = set()
+            self._theme_dirty_pages = dirty
+        return dirty
 
-        # Update explorer view panels
-        if hasattr(self, "explorer_view"):
-            ev = self.explorer_view
-            if hasattr(ev, "refresh_styles"):
-                ev.refresh_styles()
-        # Update sidebar
-        if hasattr(self, "sidebar"):
-            self.sidebar.apply_style()
+    def _flush_theme_refresh(self, page_index: int) -> None:
+        """Refresh a page that was hidden during the last theme switch."""
+        from src.constants import PAGE_ANALYSIS, PAGE_EXPLORER
 
-        # Update tour overlay accent
-        if hasattr(self, "tour_overlay"):
-            self.tour_overlay.refresh_accent()
-
-        # Force full style re-evaluation for all children
-        self.style().unpolish(self)
-        self.style().polish(self)
-        self.update()
+        dirty = self._dirty_theme_pages()
+        if page_index not in dirty:
+            return
+        dirty.discard(page_index)
+        if page_index == PAGE_ANALYSIS:
+            self._refresh_analysis_page()
+        elif page_index == PAGE_EXPLORER and hasattr(self, "explorer_view"):
+            self.explorer_view.refresh_styles()
 
     def _apply_cta_drop_highlight(self, active: bool) -> None:
         """Toggle the hero CTA drop-target outline via a QSS property.

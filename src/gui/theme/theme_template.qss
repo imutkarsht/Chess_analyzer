@@ -1567,6 +1567,31 @@ QListWidget#NavList::item:selected {{
     font-weight: 600;
 }}
 
+QWidget#GameListHeaderBar {{
+    background-color: {SURFACE};
+    border-bottom: 1px solid {BORDER};
+}}
+QWidget#GameListHeaderBar QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QListWidget#GameList {{
+    background-color: {BACKGROUND};
+    border: none;
+    outline: none;
+}}
+QListWidget#GameList::item {{
+    background-color: {BACKGROUND};
+    border: none;
+    border-bottom: 1px solid {SURFACE_LIGHT};
+    padding: 0px;
+    margin: 0px;
+}}
+QListWidget#GameList::item:hover {{
+    background-color: {SURFACE};
+}}
+
 QLabel#EmptyState {{
     color: {TEXT_SECONDARY};
     font-size: 12px;
