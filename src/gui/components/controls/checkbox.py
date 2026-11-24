@@ -6,6 +6,9 @@ Three variants cover the app's existing visual languages:
 * ``DEFAULT`` - pill-shaped toggle beside analysis/explorer views
 * ``FLAT`` - borderless settings-row toggle
 * ``COMPACT`` - smaller flat toggle for dense panels and dialogs
+
+All styling lives in the global QSS matrix via the ``checkboxVariant``
+property; the component owns only variant state and theme refresh.
 """
 
 from __future__ import annotations
@@ -15,9 +18,7 @@ from enum import StrEnum
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QCheckBox, QWidget
 
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.utils.assets import tick_icon_path
 
 
 class CheckboxVariant(StrEnum):
@@ -67,13 +68,10 @@ class Checkbox(QCheckBox):
         self.refresh_styles()
 
     def refresh_styles(self) -> None:
-        tick_path = tick_icon_path()
-        if self._variant is CheckboxVariant.DEFAULT:
-            self.setStyleSheet(Styles.get_checkbox_style(tick_path))
-        elif self._variant is CheckboxVariant.FLAT:
-            self.setStyleSheet(Styles.get_settings_checkbox_style(tick_path))
-        else:
-            self.setStyleSheet(Styles.get_compact_checkbox_style(tick_path))
+        """Publish the variant property; the global matrix owns the styling."""
+        self.setProperty("checkboxVariant", self._variant.value)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def _on_theme_changed(self, *_args) -> None:
         self.refresh_styles()

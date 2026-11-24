@@ -799,6 +799,93 @@ QCheckBox::indicator:checked {{
     image: url('{TICK_PATH}');
 }}
 
+/* Flat/compact checkbox variants (settings rows, dense panels).
+   They drop the pill chrome and use a larger 18 px indicator. */
+QCheckBox[checkboxVariant="flat"],
+QCheckBox[checkboxVariant="compact"] {{
+    background: transparent;
+    border: none;
+    padding: 0px;
+    font-weight: 500;
+    spacing: 8px;
+}}
+
+QCheckBox[checkboxVariant="flat"] {{
+    color: {TEXT_PRIMARY};
+    font-size: 13px;
+}}
+
+QCheckBox[checkboxVariant="compact"] {{
+    color: {TEXT_SECONDARY};
+    font-size: 12px;
+}}
+
+QCheckBox[checkboxVariant="flat"]:hover,
+QCheckBox[checkboxVariant="compact"]:hover {{
+    background: transparent;
+    border: none;
+    color: {TEXT_PRIMARY};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator,
+QCheckBox[checkboxVariant="compact"]::indicator {{
+    width: 18px;
+    height: 18px;
+    border: 1px solid {BORDER_LIGHT};
+    border-radius: 4px;
+    background-color: {SURFACE};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:hover,
+QCheckBox[checkboxVariant="compact"]::indicator:hover {{
+    border-color: {ACCENT};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:checked,
+QCheckBox[checkboxVariant="compact"]::indicator:checked {{
+    background-color: {ACCENT};
+    border-color: {ACCENT};
+    image: url('{TICK_PATH}');
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:checked:hover,
+QCheckBox[checkboxVariant="compact"]::indicator:checked:hover {{
+    background-color: {ACCENT_HOVER};
+    border-color: {ACCENT_HOVER};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:disabled,
+QCheckBox[checkboxVariant="compact"]::indicator:disabled {{
+    border-color: {BORDER};
+    background-color: {SURFACE_LIGHT};
+}}
+
+/* Radio buttons */
+QRadioButton {{
+    color: {TEXT_PRIMARY};
+    font-size: 13px;
+    spacing: 8px;
+    padding: 4px 0;
+    background: transparent;
+}}
+
+QRadioButton::indicator {{
+    width: 18px;
+    height: 18px;
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+    background-color: {SURFACE_LIGHT};
+}}
+
+QRadioButton::indicator:hover {{
+    border-color: {ACCENT};
+}}
+
+QRadioButton::indicator:checked {{
+    background-color: {ACCENT};
+    border-color: {ACCENT};
+}}
+
 /* Scrollbars */
 QScrollBar:vertical {{
     background: {BACKGROUND};
