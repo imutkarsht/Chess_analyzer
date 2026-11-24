@@ -1397,6 +1397,62 @@ QFrame#VariationGraph {{
     border: 1px solid {BORDER};
     border-radius: 8px;
 }}
+
+QPushButton#VariationPill {{
+    background-color: {SURFACE_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0px 4px;
+}}
+QPushButton#VariationPill:hover {{
+    background-color: {ACCENT_SUBTLE};
+}}
+QPushButton#VariationPill[variationActive="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-width: 2px;
+}}
+QPushButton#VariationPill[variationGhost="true"] {{
+    background-color: {SURFACE};
+    border-style: dashed;
+    color: {TEXT_MUTED};
+}}
+QPushButton#VariationPill[variationRoot="true"] {{
+    padding: 0px;
+    font-size: 8px;
+}}
+
+QFrame#BranchChip {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QFrame#BranchChip[variationActive="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-width: 2px;
+}}
+QFrame#BranchChip QLabel {{
+    color: {TEXT_SECONDARY};
+    background: transparent;
+    border: none;
+    font-size: 10px;
+    font-weight: 600;
+}}
+QFrame#BranchChip[variationActive="true"] QLabel {{
+    color: {TEXT_PRIMARY};
+}}
+QFrame#BranchChip QToolButton {{
+    color: {TEXT_MUTED};
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    padding: 0px;
+}}
+QFrame#BranchChip QToolButton:hover {{
+    color: {TEXT_PRIMARY};
+}}
 QFrame#CoachCard {{
     background-color: {SURFACE};
     border: 1px solid {BORDER};
