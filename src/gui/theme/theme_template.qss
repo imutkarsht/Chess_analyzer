@@ -1154,6 +1154,19 @@ QFrame#explorerBookSkeletonRatio {{
     border-radius: 4px;
 }}
 
+QFrame#skeletonDivider {{
+    background-color: {BORDER};
+    margin: 2px 0;
+}}
+QFrame#skeletonBar {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 5px;
+}}
+QFrame#skeletonBar[skeletonRadius="6"] {{
+    border-radius: 6px;
+}}
+
 /* Analysis chrome */
 QWidget#BoardControls {{
     background: transparent;
@@ -1268,6 +1281,13 @@ QListWidget#NavList::item:selected {{
     color: {ACCENT};
     border-left: 2px solid {ACCENT};
     font-weight: 600;
+}}
+
+QLabel#EmptyState {{
+    color: {TEXT_SECONDARY};
+    font-size: 12px;
+    padding: 40px 10px;
+    background: transparent;
 }}
 
 /* Progress bars — matrix scoped to the shared component. Object-named

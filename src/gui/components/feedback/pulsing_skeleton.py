@@ -147,22 +147,18 @@ class PulsingSkeleton(QWidget):
     # ------------------------------------------------------------------
 
     def refresh_styles(self) -> None:
-        """Re-apply palette-derived colours after a theme or accent change."""
-        for divider in self.findChildren(QFrame, "skeletonDivider"):
-            divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
+        """Palette colours come from the global skeleton rules; repolish only."""
+        for frame in self.findChildren(QFrame, "skeletonDivider"):
+            frame.style().unpolish(frame)
+            frame.style().polish(frame)
         for bar in self.findChildren(QFrame, "skeletonBar"):
-            radius = bar.property("radius") or _ROW_RADIUS
-            bar.setStyleSheet(
-                f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-                f"border: 1px solid {Styles.COLOR_BORDER}; "
-                f"border-radius: {radius}px;"
-            )
+            bar.style().unpolish(bar)
+            bar.style().polish(bar)
 
     def _divider(self) -> QFrame:
         divider = QFrame()
         divider.setObjectName("skeletonDivider")
         divider.setFixedHeight(1)
-        divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; margin: 2px 0;")
         return divider
 
     def _row(
@@ -180,13 +176,8 @@ class PulsingSkeleton(QWidget):
 
         bar = QFrame()
         bar.setObjectName("skeletonBar")
-        bar.setProperty("radius", radius)
+        bar.setProperty("skeletonRadius", radius)
         bar.setFixedHeight(height)
-        bar.setStyleSheet(
-            f"background-color: {Styles.COLOR_SURFACE_LIGHT}; "
-            f"border: 1px solid {Styles.COLOR_BORDER}; "
-            f"border-radius: {radius}px;"
-        )
 
         if fixed_width is not None:
             bar.setFixedWidth(fixed_width)
