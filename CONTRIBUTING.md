@@ -1,74 +1,65 @@
 # Contributing to Chess Analyzer Pro
 
-First off, thank you for considering contributing! Every bug report, feature idea, and pull request makes the project better.
+Thank you for helping improve Chess Analyzer Pro. Bug reports, feature ideas,
+and pull requests are welcome.
 
----
+## How to contribute
 
-## 🤝 How Can I Contribute?
+### Report a bug
 
-### Reporting Bugs
+- Search existing issues first.
+- Use a clear title.
+- Describe the exact steps to reproduce the problem, including your operating
+  system, Python version, and Stockfish version.
+- Attach the application log if it helps. Logs live in the OS user-data
+  directory.
 
-- **Search existing issues first** to avoid duplicates.
-- **Use a clear and descriptive title**.
-- **Describe the exact steps to reproduce** the problem, including your OS, Python version, and Stockfish version.
-- Attach the application log if relevant (`~/Library/Application Support/ChessAnalyzerPro/` on macOS, `%APPDATA%\ChessAnalyzerPro\` on Windows).
+### Suggest an enhancement
 
-### Suggesting Enhancements
+- Search existing issues first.
+- Describe the proposed behaviour and why it would help most users.
+- Keep the scope concrete enough to become an issue.
 
-- **Use a clear and descriptive title**.
-- **Provide a step-by-step description** of the suggested enhancement.
-- **Explain why this enhancement would be useful** to most users.
+### Issue-first contributions
 
-### Issue-First Contributions
+Every contribution starts with an issue. This keeps work aligned with the
+project direction and avoids wasted effort.
 
-Every contribution must start with an issue. This keeps work aligned with the
-project's direction and avoids wasted effort on features that won't be merged.
+- Every pull request must close or reference an issue, for example `Closes #123`
+  or `Refs #123`.
+- Open an issue before writing code. A maintainer will verify and scope it.
+- Pull requests without a linked issue are not approved.
 
-- **Every PR must close or target an issue.** Link the issue in the PR
-  description (for example, `Closes #123` or `Refs #123`).
-- **Raise an issue before writing code.** If you think a feature is missing or a
-  bug is unfixed, open an issue first and let a maintainer verify and scope it
-  before you start working on it.
-- **PRs without a linked issue will not be approved.** Unlinked PRs are closed
-  without review, even if the code is good.
+### Pull requests
 
-### Pull Requests
-
-1. Pick an open issue and comment on it so maintainers know you're working on it
-   (and to avoid duplicate effort).
-2. Fork the repository and create your branch from `master`.
+1. Pick an open issue and comment that you are working on it.
+2. Fork the repository and branch from `master`.
 3. Follow the branch naming conventions below.
-4. If you've added code that should be tested, add tests — new behavior needs
-   meaningful tests (see [Test quality expectations](#8-test-quality-expectations)).
-5. Ensure `ruff check .` and the full test suite pass.
-6. Update documentation if you change any functionality.
+4. Add meaningful tests for new behaviour.
+5. Run `ruff check .` and `pytest tests/`.
+6. Update the relevant documentation.
 7. Open the pull request against `master` and reference the issue with
-   `Closes #<number>` so the PR is linked and auto-closed on merge.
+   `Closes #<number>`.
 
----
-
-## ⚖️ Licensing of Contributions
+## Licensing of contributions
 
 Chess Analyzer Pro is licensed under **GPL-3.0-only**, including the section 7
-additional terms recorded in [`LICENSE`](LICENSE).
+additional terms in [`LICENSE`](LICENSE).
 
 - By opening a pull request you agree that your contribution is licensed under
-  the same terms (inbound = outbound). There is no CLA and no copyright
-  assignment.
+  the same terms. There is no CLA and no copyright assignment.
 - Only submit code you have the right to license this way. Do not paste code
-  from projects whose licence is incompatible with GPLv3 — for example
-  AGPL-3.0-only code, or code with no licence at all. If you adapted an
-  algorithm or a snippet, say where it came from in the PR description.
-- New dependencies must be GPL-3.0-compatible. Raise it in the issue before
-  adding one.
+  from projects with an incompatible licence, such as AGPL-3.0-only code or code
+  with no licence. If you adapted an algorithm or snippet, say where it came
+  from in the pull request.
+- New dependencies must be GPL-3.0-compatible. Raise the dependency in the issue
+  before adding it.
 - New Python files start with `# SPDX-License-Identifier: GPL-3.0-only`. Do not
   add headers to existing files.
 
----
+## Development setup
 
-## 💻 Development Setup
-
-### 1. Clone the repo
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/imutkarsht/Chess_analyzer.git
@@ -77,240 +68,116 @@ cd Chess_analyzer
 
 ### 2. Create and activate a virtual environment
 
-```bash
-# Using uv (recommended — faster)
-pip install uv
-uv venv venv
-source venv/bin/activate        # macOS / Linux
-venv\Scripts\activate           # Windows
-
-# Or with standard venv
-python3 -m venv venv
-source venv/bin/activate        # macOS / Linux
-venv\Scripts\activate           # Windows
-```
-
-### 3. Install dependencies
+Use your preferred tool, then install dependencies:
 
 ```bash
-# Using uv (recommended)
-uv pip install -r requirements-dev.txt
-
-# Or with standard pip
 pip install -r requirements-dev.txt
+# or: uv pip install -r requirements-dev.txt
 ```
 
-### 4. Run the app
+### 3. Run the app
 
 ```bash
 python main.py
 ```
 
-### 5. Run linters & code formatting
+### 4. Lint
 
 ```bash
-# Check code style & logic with Ruff
 ruff check .
-
-# Automatically fix lint issues
 ruff check --fix .
-
-# Format code
-ruff format .
 ```
 
-### 6. Run the test suite
+Formatting is optional and is not a gate. Do not reformat unrelated files.
+
+### 5. Test
 
 ```bash
-# All tests (headless Qt)
 pytest tests/ -v
-
-# On Linux without a display
-QT_QPA_PLATFORM=offscreen pytest tests/ -v
-
-# Windows (PowerShell)
-pytest tests/ -v
+QT_QPA_PLATFORM=offscreen pytest tests/ -v    # headless Linux
 ```
 
-> If the suite gets slower, run `pytest tests/ --durations=10` and fix the
-> outliers instead of accepting them.
+If the suite gets slower, run `pytest tests/ --durations=10` and fix the
+outliers.
 
-### 7. Check coverage
+### 6. Check coverage
 
-Backend and utility modules are measured with branch coverage; GUI modules are
-excluded on purpose (they are exercised through a handful of lifecycle tests,
-which would make the number noisy). The build fails if coverage drops below the
-`fail_under` threshold in `pyproject.toml`.
+Backend and utility modules use branch coverage. GUI modules are excluded
+because they are exercised through a smaller number of lifecycle tests.
 
 ```bash
 pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 ```
 
-### 8. Test quality expectations
+The build fails below the `fail_under` threshold in `pyproject.toml`.
 
-- **Cover the behavior, not the line count.** New logic needs tests for its
-  meaningful branches, calculations, and failure fallbacks. Do not add tests
-  just to raise the percentage, and do not lower `fail_under` below 80 to make
-  the gate pass.
-- **No test bloat.** Extend or parameterize an existing test instead of adding a
-  near-duplicate. Delete tests that only smoke-check construction, duplicate
-  another module's coverage, or do not protect app-breaking behavior.
-- **No lengthy tests.** Avoid tests that approach one second without a clear
-  reason. Reuse fixtures and test logic directly instead of booting the full
-  `MainWindow`.
-- **No timeout-based tests.** Never make a test pass by letting a timer expire,
-  and never use `time.sleep()`, `QTest.qWait()`, or real request timeouts to wait
-  for work to finish. Run workers synchronously (`worker.run()`), observe emitted
-  signals, or inject fake clocks so tests are deterministic and instant.
-  `qtbot.waitUntil`/`waitSignal` are only for unavoidable Qt layout or debounce
-  events, with a tight timeout and an immediately-true condition.
-- **Stay offline.** Mock every HTTP client and LLM call. A local `.env` must
-  never turn a unit test into a live request.
-- **Never write to real persistence.** Tests must not touch the user's real
-  database, config, secrets, logs, or backups. Use pytest's
-  `tmp_path`/`tmp_path_factory` and pass explicit temporary paths to caches,
-  repositories, and `SecretStore`; the shared `conftest.py` already redirects
-  `get_user_data_dir()` and disables the OS keychain, so never bypass it.
-- **Pass on every platform.** Tests must pass on Windows, macOS, and Linux. Use
-  `pathlib.Path` instead of hardcoded separators, and do not assert POSIX-only
-  behavior (permission or exec bits, `chmod` results) on Windows — guard those
-  checks with `sys.platform`/`os.name` or mock the platform-specific branch.
+## Test quality expectations
 
----
+- Cover behaviour, calculations, state changes, and failure fallbacks, not line
+  counts.
+- Do not lower `fail_under` below 80 or exclude modules to make the gate pass.
+- Extend or parameterise an existing test instead of adding a near-duplicate.
+  Delete tests that only smoke-check construction or duplicate another module's
+  coverage.
+- Avoid tests that approach one second without a clear reason. Reuse fixtures
+  and test logic directly instead of booting a full `MainWindow`.
+- Never use `time.sleep()`, `QTest.qWait()`, or real request timeouts to wait for
+  work. Run workers synchronously, observe signals, or inject fake clocks.
+  `qtbot.waitUntil` and `qtbot.waitSignal` are only for unavoidable Qt layout or
+  debounce events, with a tight timeout and an immediately-true condition.
+- Mock every HTTP client and LLM call. Tests must pass offline, and local
+  credentials must never turn a unit test into a live request.
+- Use `tmp_path` and `tmp_path_factory`. Never touch real user data,
+  credentials, or backups. The shared `conftest.py` redirects user-data paths
+  and disables the OS keychain; do not bypass those patches.
+- Tests must pass on Windows, macOS, and Linux. Use `pathlib.Path`, and guard
+  POSIX-only checks with `sys.platform` or `os.name`.
 
-## 🌿 Branch Naming
+## Branch naming
 
-| Type             | Pattern                     | Example                     |
-| ---------------- | --------------------------- | --------------------------- |
-| New feature      | `feat/<short-description>`  | `feat/share-analysis-card`  |
-| Bug fix          | `fix/<short-description>`   | `fix/eval-bar-teardown`     |
-| Documentation    | `docs/<short-description>`  | `docs/update-readme-badges` |
-| Refactor / chore | `chore/<short-description>` | `chore/split-requirements`  |
-| Release          | `release/v<version>`        | `release/v2.6.1`            |
+| Type | Pattern | Example |
+| --- | --- | --- |
+| New feature | `feat/<short-description>` | `feat/share-analysis-card` |
+| Bug fix | `fix/<short-description>` | `fix/eval-bar-teardown` |
+| Documentation | `docs/<short-description>` | `docs/update-readme-badges` |
+| Refactor or chore | `chore/<short-description>` | `chore/split-requirements` |
+| Release | `release/v<version>` | `release/v2.6.1` |
 
----
+## Code style
 
-## 📝 Code Style
+- Follow PEP 8.
+- Use Python 3.10+ type hints: `X | None`, `list[T]`, `dict[K, V]`.
+- Use `from src.utils.logger import logger`; never use `print()` for internal
+  messages.
+- Never hardcode colours in widget files. Use `Styles.COLOR_*`.
+- Write meaningful commit messages, loosely following Conventional Commits:
+  `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
 
-- Follow **PEP 8** for Python formatting.
-- All public functions must have **type hints** using modern Python 3.10+ syntax (`X | None`, `list[T]`, `dict[K, V]`).
-- Use `from src.utils.logger import logger` — **never** use `print()` for internal messages.
-- Never hardcode colors in widget files — use `Styles.COLOR_*` constants from `src/gui/styles/`.
-- Write meaningful commit messages (we loosely follow [Conventional Commits](https://www.conventionalcommits.org/)):
-  - `feat:` for new features
-  - `fix:` for bug fixes
-  - `docs:` for documentation
-  - `chore:` for maintenance / CI / tooling
-  - `test:` for test additions or changes
+For components, settings, theming, shared helpers, and naming, see
+[docs/conventions.md](docs/conventions.md).
 
-### UI components
+## Architecture notes
 
-- Import shared widgets from the **facade only**:
-  `from src.gui.components import Button, Input, Select, Tabs, Toast`.
-  Never import from `src.gui.components.controls.*` and friends at a call site.
-- Use the shared control instead of the raw Qt one:
+The system map is [ARCHITECTURE.md](ARCHITECTURE.md). Runtime flows, tactics,
+storage, and GUI details live under [docs/architecture/](docs/architecture/).
 
-  | Use | Instead of |
-  | --- | --- |
-  | `Button` | `QPushButton`, `QToolButton`, local button QSS, `create_button` / `create_icon_button` wrappers |
-  | `Checkbox` | `QCheckBox`, local checkbox QSS |
-  | `Input` / `TextArea` | `QLineEdit`, `QTextEdit` |
-  | `Select` | `QComboBox`, `create_combobox` |
-  | `PathField` | one-off path input + Browse/Clear rows |
-  | `RadioChoice` | raw `QRadioButton` groups |
-  | `SliderCounter` | raw `QSlider` + counter rows |
-  | `ProgressBar` | `QProgressBar`, local progress QSS |
-  | `ListView` | raw `QListWidget` navigation rails |
-  | `Tabs` | ad-hoc `QTabBar` styling |
-  | `DatePicker` | platform date widgets |
-  | `ToastManager` | `QMessageBox` for transient feedback |
-  | `PaginationBar` | hand-rolled prev/next rows |
-  | `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `LegendList` | per-card reimplementations |
+The rules contributors must not break are in [AGENTS.md](AGENTS.md). In
+particular:
 
-  Documented exceptions: board swatches, theme cards, star rating, variation
-  graph nodes, the move-cell variation badge, pixmap `QLabel`s, the toast
-  hairline progress bar, and the domain-specific move table.
+- `src/backend/`, `src/utils/`, and `src/config/` are Qt-free.
+- Long-running work runs in `QThread` workers and is cleaned up on close.
+- Repositories persist; domain services compute.
+- Evaluation scores are White-perspective.
+- The project is GPL-3.0-only.
 
-- Control looks come from a **`Styles.get_*_qss()` generator**. Do not add
-  widget-local QSS or hex colors.
-- **Theme contract:** per-widget stylesheets must be rebuilt on theme/accent
-  change. Capture palette tokens inside a refresh method, not at construction.
-- Dashboard cards must use `MetricCard`'s
-  `new_content()` / `clear_content()` / `show_empty()` lifecycle.
-
-### Shared utilities
-
-Before adding a private helper, check the canonical module:
-
-| Concern | Canonical home |
-| --- | --- |
-| Clock, eval, count, bytes, percent, duration | `src/utils/format_utils.py` |
-| Time-control parsing/formatting/classification | `src/utils/time_control.py` |
-| Display dates and cache ages | `src/utils/date_utils.py` |
-| Error-text detection, initials, country flags | `src/utils/text_utils.py` |
-| FEN keys, canonical FEN, Chess960 detection | `src/backend/analysis/chess_utils.py` |
-| LLM clock-data summaries | `src/backend/analysis/metrics/time_stats.py` |
-| PGN headers and mainline metadata | `src/backend/storage/pgn_metadata.py` |
-| Cache timestamps and TTLs | `src/backend/storage/cache_time.py` |
-| DB connections, read-only access, row counts | `src/backend/storage/db_connection.py` |
-| Tactics summary enrichment | `src/backend/analysis/tactics/enrichment.py` |
-| Streaming downloads and GitHub releases | `src/backend/api/download.py`, `src/backend/api/github_releases.py` |
-| GUI asset/icon paths | `src/gui/utils/assets.py` |
-| External URLs and local paths | `src/gui/utils/links.py` |
-| Result labels and tones | `src/gui/utils/result_ui.py` |
-| Layout clearing | `src/gui/utils/layout.py` |
-| Themed dialogs and dialog launchers | `src/gui/components/dialogs.py` |
-| Motif metadata and classification tones | `src/gui/tactics_meta.py` |
-| Lazy metric sub-view rendering | `src/gui/views/metrics/lazy_view.py` |
-
-- Do not add per-widget formatters or wrapper factories when a canonical helper exists.
-- Add the new function to the canonical module and unit-test its branches there.
-
-### Settings
-
-- Add every setting to `src/config/settings_schema.py` (default, type,
-  validation, `apply="live"` when it should take effect immediately). Do not
-  scatter `config.get("key", default)` fallbacks through call sites.
-- Read settings through typed `ConfigManager` properties (for example,
-  `config_manager.board_theme`). Raw key access belongs in `SettingsBinder`,
-  config migrations, and secret/profile storage.
-- Settings cards live in `src/gui/views/settings/` and use the shared
-  `SettingsForm` / `SettingsBinder` components.
-- Credentials go through `SecretStore` (OS credential store), never plaintext
-  JSON.
-
----
-
-## 🏗️ Architecture Notes
-
-The canonical, file-by-file reference is
-**[docs/architecture.md](docs/architecture.md)**. The rules contributors must
-not break:
-
-- **No Qt in backend**: `src/backend/`, `src/utils/`, and `src/config/` must have
-  zero PyQt6 imports.
-- **Long-running tasks** must run in `QThread` subclasses, communicating via
-  `pyqtSignal`; cancel and clean them up on close.
-- **Domain logic before storage**: repositories persist; domain services compute
-  (tactics, classification, termination). No SQL that implements game rules.
-- **ConfigManager** is a singleton — do not instantiate in tight loops.
-- **Score convention**: evaluation scores are stored relative to White
-  (positive = White better). Convert once, during ingestion.
-- **Invariants**: 10.0% per-move accuracy floor, deterministic `md5(pgn)` game
-  IDs, engine stop in `finally`, thermal-safe defaults (`multi_pv=2`,
-  `threads=1`, `hash=128MB`), and Chess960 castling handling.
-- **DRY**: one column spec per table, model `to_dict`/`from_dict`, one shared
-  component per control, symmetric White/Black logic.
-
----
-
-## 📚 Documentation Expectations
+## Documentation expectations
 
 | Change | Update |
 | --- | --- |
-| New module/package | `docs/architecture.md` file table |
-| New shared component or setting | `docs/architecture.md` + `docs/onboarding_doc.md` |
-| Workflow or standards | `CONTRIBUTING.md` / `AGENTS.md` |
-
-Refinements to work introduced during the unreleased 2.7.0 cycle belong in the
-feature bullet they extend, not as new “Bug Fixes” or “Improvements” entries.
+| System shape or layer edges | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Runtime flow | [docs/architecture/](docs/architecture/) |
+| Code pattern or shared helper | [docs/conventions.md](docs/conventions.md) |
+| Extension recipe | [docs/recipes.md](docs/recipes.md) |
+| Hard rule or command | [AGENTS.md](AGENTS.md) |
+| Contribution process | This file |
+| User-facing feature | [docs/How_to_use.md](docs/How_to_use.md) |

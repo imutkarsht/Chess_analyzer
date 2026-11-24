@@ -1,195 +1,129 @@
-# Chess Analyzer Pro — Agent Guidelines
+# Chess Analyzer Pro — Engineering Rules
 
-## 1. Project Overview
-Chess Analyzer Pro is a local-first desktop application for in-depth chess game analysis. Built for desktop chess players, coaches, and enthusiasts, it provides unlimited offline game analysis using Stockfish (UCI), SQLite persistence, full Chess960 (Fischer Random) support, and optional AI-powered game coaching via OpenAI-compatible LLM endpoints. See [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the canonical [docs/architecture.md](docs/architecture.md).
+Chess Analyzer Pro is a local-first PyQt6 desktop chess analyzer built on
+Stockfish, SQLite, and python-chess. This file holds the rules an agent or
+automation must follow. System map: [ARCHITECTURE.md](ARCHITECTURE.md). Code
+patterns: [docs/conventions.md](docs/conventions.md). Step-by-step changes:
+[docs/recipes.md](docs/recipes.md).
 
----
+## Commands
 
-## 2. Critical Invariants (Must Never Regress)
-- **Offline-First Functionality**: Core analysis, Stockfish engine, PGN parsing, opening books, and history caching must work with 0 internet connection. Network calls are strictly optional (APIs, updater, LLM).
-- **Keep Heavy Compute Off the UI Thread**: All Stockfish analysis, API fetches, and LLM requests must execute in `QThread` subclasses communicating solely via `pyqtSignal`. Never block the Qt event loop.
-- **White-Perspective Scores**: All evaluation scores in `MoveAnalysis` (`eval_before_cp`, `eval_after_cp`, etc.) are White-perspective (positive = White winning). Side-to-move conversion happens strictly during ingestion in `Analyzer._process_analysis_results()`. Never re-flip scores in GUI widgets.
-- **Engine Lifecycle**: Engine must be stopped in a `finally` block (`engine_manager.stop_engine()`). A fresh analysis must restart the engine; do not assume it is running.
-- **Thermal Safety (Issue #5)**: Default `multi_pv=2`, `engine_threads=1`, `engine_hash=128MB`; the UI recommends up to `min(cpu_count, 4)` threads. Multi-PV > 2 multiplies search workload and causes severe thermal throttling on laptops. Keep `threads`/`hash` out of `DEFAULT_CONFIG` so module fallbacks apply.
-- **Deterministic Game Identity**: `game_id = hashlib.md5(pgn_content.encode()).hexdigest()`. Never use random UUIDs; content hashing prevents duplicate history records.
-- **Accuracy Floor (10.0%)**: Accuracy uses Lichess volatility-weighted + harmonic mean. A strict 10.0% accuracy floor per move is required to prevent a single blunder from collapsing game accuracy to zero.
-- **Chess960 Compatibility**: Detect non-standard castling tags. Set `engine.configure({"UCI_Chess960": "true"})` and instantiate boards with `chess.Board(fen, chess960=True)`.
-- **Theme Architecture**: `theme_template.qss` is the single source of truth for static chrome. Widgets publish Qt dynamic properties (`btnVariant`, `inputSize`, `checkboxVariant`, `settingsCard`, `cellState`, `selected`, `compact`, …) and only canvases/data-driven widgets keep `refresh_styles()`. `ThemeMixin.refresh_theme()` must never re-apply the application stylesheet (`ThemeManager.set_mode`/`set_accent`/`set_bundle` already do before emitting); it refreshes canvases and the visible page only, deferring hidden pages. Never use declaration-only `setStyleSheet("background: …")` (it is a wildcard for every descendant) and never a universal `QWidget { background-color: … }`. New themes are `ThemeBundle`s registered with `ThemeManager.register_bundle()`.
-- **Default Board Theme**: New installs use `DEFAULT_BOARD_THEME` (currently `"Brown"`) from `src/constants.py`; keep every fallback wired to that constant, never a literal theme name.
-- **Status Bar Idle Contract**: Idle shows only `● Engine ready`. The separator and status label appear only for real messages (progress, warnings, errors).
-- **AI Explanation Grounding**: Coach explanations must be built from deterministic facts (`tactics/insight.py`, `game_report.py`), validated against them, and have an offline fallback. Never send raw game data to an LLM without the fact sheet, and never render an unvalidated reply.
-- **Licensing**: The project is `GPL-3.0-only`. Dependencies and any vendored code must be GPL-3.0-compatible (no AGPL-only or unlicensed sources). New Python files start with `# SPDX-License-Identifier: GPL-3.0-only`; existing files are not retrofitted. `LICENSE` and `THIRD-PARTY-NOTICES.md` must ship with every distributable artifact.
-
----
-
-## 3. Tech Stack
-- **Language**: Python 3.10+
-- **GUI**: PyQt6 (≥6.4.0), QtAwesome (icons), Matplotlib (embedded charts)
-- **Chess Engine & Logic**: python-chess (≥1.9.0), Stockfish (UCI protocol)
-- **Persistence**: SQLite 3 (`analysis_cache.db`, WAL mode enabled), JSON (`config.json`), OS credential store (`keyring`)
-- **LLM Integration**: `openai` Python SDK (≥1.0.0; compatible with Groq, OpenAI, LM Studio, MiniMax)
-- **Networking**: `requests` with bundled `certifi` CAs (imports, updates, LLM calls)
-- **Tooling & Packaging**: Ruff (lint & format), pytest & pytest-qt (tests), PyInstaller (builds)
-- **Package Manager**: `pip` or `uv`
-
----
-
-## 4. Architecture & Boundaries
-```
-src/
-├── constants.py            # App version, URLs, provider presets, DEFAULT_BOARD_THEME
-├── config/
-│   └── settings_schema.py  # Single-source settings metadata, defaults, validation (Qt-free)
-├── backend/                # Pure Python. Zero Qt imports. Headless & independently testable.
-│   ├── analysis/           # Analyzer, EngineManager, MoveClassifier, MathUtils, books
-│   │   ├── metrics/        # Stats aggregation and coach dossier
-│   │   ├── tactics/        # Motifs, phases, SEE, hanging pieces, move insight
-│   │   └── variation_tree.py
-│   ├── api/                # Chess.com & Lichess REST clients (rate-limited, timeout-protected)
-│   ├── cache/              # API response cache facade
-│   ├── domain/             # Shared domain rules (termination classification)
-│   ├── engine/             # Stockfish downloader & binary validator
-│   ├── models/             # Lightweight cross-layer models (GameInfo)
-│   ├── services/           # GroqService (OpenAI-compatible), feedback service
-│   ├── storage/            # Repos, migrations, models, PGN parser, backup, caches
-│   └── updater/            # GitHub release checker & platform installers
-├── workers/                # Qt worker threads used by the GUI layer
-├── gui/                    # PyQt6 presentation layer. Zero business logic computation.
-│   ├── app/                # Page controllers: analysis, batch, game loading
-│   ├── main_window/        # MainWindow + navigation/theme/tour/update/variation/status mixins
-│   ├── views/              # Pages: analysis, explorer, history, metrics/, settings/
-│   ├── analysis/           # tabs/, coach/, moves/, variation/; analysis panel + shared widgets
-│   ├── board/              # Board (SVG pieces, arrows), BoardPanel, EvalBar
-│   ├── components/         # controls/ display/ feedback/ layout/ lists/ (+ one public facade)
-│   ├── dialogs/            # load_game/, wizard/, feedback, errors, updates
-│   ├── engine_lines/       # Shared live session + engine-lines widget
-│   ├── metrics/            # Drill-down view and chart helpers
-│   ├── theme/ & styles/    # Palettes, tokens, motion, and QSS mixins (Styles.COLOR_*)
-│   └── utils/              # Debounce, shortcuts, smooth scroll, widget factories
-└── utils/                  # logger, config, paths, resources, secrets (Zero Qt)
+```bash
+pip install -r requirements-dev.txt              # dependencies
+python main.py                                   # run
+ruff check .                                     # lint
+pytest tests/                                    # all tests
+QT_QPA_PLATFORM=offscreen pytest tests/          # headless Linux
+pytest tests/backend/test_analyzer.py            # one file
+pytest tests/ --cov=src --cov-branch --cov-report=term-missing  # coverage
+pyinstaller build.spec                           # production build
 ```
 
-**Boundaries**:
-- UI components render state and dispatch user actions; domain logic remains strictly independent of Qt.
-- Shared utilities (`src/utils/`) must never import GUI modules.
-- External network clients must be accessed through explicit backend service interfaces.
-- GUI components are imported from the `src.gui.components` facade, never from a subpackage path, so grouping can change without touching call sites.
-- Analysis panel composition lives in `src/gui/analysis/tabs/`; shared move, board, and variation widgets stay in their feature packages because Explorer and MainWindow reuse them.
-- Window workflows live in `src/gui/app/`; `MainWindow` composes controllers, keeps QWidget drag/drop hooks, and connects controller signals. Do not move workflow state back into window mixins.
-- Settings are added through `src/config/settings_schema.py`; widgets do not invent defaults.
-- Per-widget styles are rebuilt on theme/accent change; no palette colour is captured at construction.
-- **Shared utilities**: extend the canonical modules before adding a private helper:
-  - `src/utils/format_utils.py` — clock, eval, count, bytes, percent, duration
-  - `src/utils/time_control.py` — parse/format/classify time controls
-  - `src/utils/date_utils.py` — display dates and cache ages
-  - `src/utils/text_utils.py` — error-text detection, initials, country flags
-  - `src/backend/analysis/chess_utils.py` — FEN keys, canonical FEN, Chess960
-  - `src/backend/analysis/metrics/time_stats.py` — LLM clock-data summaries
-  - `src/backend/storage/pgn_metadata.py` — PGN headers and mainline metadata
-  - `src/backend/storage/cache_time.py` — cache timestamps and TTLs
-  - `src/backend/storage/db_connection.py` — connections, read-only access, row counts
-  - `src/gui/utils/assets.py`, `links.py`, `result_ui.py` — GUI asset, link, and result helpers
-  - `src/gui/utils/layout.py` — layout clearing
-  - `src/gui/components/dialogs.py` — themed dialogs and dialog launchers
-  - `src/gui/tactics_meta.py` — motif metadata and classification tones
-  - `src/gui/views/metrics/lazy_view.py` — lazy metric sub-view rendering
+## Boundaries
 
----
+**Always**
 
-## 5. Coding Standards
-- **Typing**: Python 3.10+ modern syntax required: use `X | None` (never `Optional[X]`), `list[T]`, `dict[K, V]`.
-- **Logging**: Use `from src.utils.logger import logger`. **Never use `print()`**. Sensitive tokens (`sk-...`, `gsk_...`, Bearer) are automatically redacted.
-- **Styling**: **Never hardcode hex colors** in widget files. Use `Styles.COLOR_*` and generator helpers from `src/gui/styles/`.
-- **Theme styling ownership** (enforced by `tests/architecture/test_theme_guardrails.py`):
-  - Static chrome belongs in `src/gui/theme/theme_template.qss` under an object name (`QFrame#HistoryHeaderBar`) or a dynamic property (`QPushButton[btnVariant="filled"]`, `QWidget[transparent="full"]`, `QScrollArea[transparentScroll="true"]`). A widget file should not carry a stylesheet for static colours.
-  - **Never** use declaration-only stylesheets (`setStyleSheet("background: transparent;")`). They are wildcard rules for the widget and every descendant, so they silently override the app stylesheet for child buttons/inputs. Use `Styles.apply_transparent(widget)` or a selector-scoped block (`QLabel { … }`).
-  - **Never** add `QWidget { background-color: … }`. Only window/dialog/page containers own backgrounds (`QMainWindow`, `QDialog`, `appBackground`, object-name containers).
-  - **Never** style descendant `QWidget`s from an ancestor rule (`#MetricCard QWidget { … }`); it strips buttons/inputs too.
-  - Stateful looks are properties: `setProperty(...)` then `unpolish(self)/polish(self)` on that widget only. Instance-specific values that QSS cannot express (size-derived radius, per-instance accent, think-bar ratio) stay a tiny selector-scoped sheet and must never be a bare declaration.
-  - Data-driven/canvas widgets keep `refresh_styles()`: boards, eval bar, mini boards, Matplotlib, variation graph, score badges, clocks/chips/mini bars, think bars, share renderer, custom-painted date cells, toast, status badges.
-- **Components**: Use the shared components from `src.gui.components` for every control: `Button`, `Checkbox`, `Input`/`TextArea`, `Select`, `PathField`, `RadioChoice`, `SliderCounter`, `ProgressBar`, `Tabs`, `DatePicker`, `ListView`, `Toast`, `PaginationBar`, `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `SegmentedBar`. Construct `Button` directly with a variant/size instead of `QPushButton`/`QToolButton`/`QLineEdit`/`QComboBox`/`QCheckBox`/`QProgressBar` or widget QSS. Do not reintroduce `create_button` / `create_icon_button` wrapper factories. The only exceptions are documented specials: board swatches, theme cards, star rating, variation graph nodes, the move-cell variation badge, pixmap `QLabel`s, the toast hairline progress bar, and the domain-specific move table.
-- **Theming**: Theme changes recompile one global stylesheet; components self-refresh through properties and theme signals. `ThemeMixin.refresh_theme()` calls `_apply_palette()` + `_refresh_canvas_widgets()` + `_refresh_data_widgets()` for the visible page; hidden pages are flushed by `NavigationMixin`/`TourMixin` on navigation. Do not add per-widget cascade calls back into `refresh_theme()`.
-- **New themes**: create `src/gui/theme/bundles/<id>.py` with a `ThemeBundle` (palette, mode, optional classification/termination/board overrides, `extra_qss`) and register it in `src/gui/theme/__init__.py`. The appearance picker and `set_bundle()` discover it automatically. Do not add theme-specific branches to `ThemeManager.set_mode`.
-- **Settings**: Add fields to `src/config/settings_schema.py` with a default, type, validation, and `apply="live"` when appropriate. Add a typed `ConfigManager` property when widgets or backend code read the value directly. Do not scatter `config.get("key", default)` fallbacks through call sites; raw key access belongs in `SettingsBinder`, config migrations, and secret/profile storage. Credentials go through `SecretStore`. Choice settings that accept runtime-registered values must declare them via `register_choice_values(key, values)` (theme bundles do this automatically in `ThemeManager.register_bundle`) so they persist without turning the setting into a free-form string; unknown values still fall back to the default.
-- **Dashboard Cards**: Cards in `src/gui/views/metrics/` must use `MetricCard`'s `new_content()` / `clear_content()` / `show_empty()` lifecycle and the shared `EmptyState`, `StatusBadge`, `SegmentedControl`, `PaginationBar`, `LegendList`, `MiniBar`, and `SegmentedBar` components. Never reimplement empty-state QSS, header pills, segmented chips, chart legends, mini bars, or prev/next bars inside a card.
-- **Paths**: Use `src/utils/path_utils.py` (`get_resource_path`, `get_user_data_dir`). Never hardcode `/` or `\\`. Never propose `cd` in terminal commands.
-- **Config**: `ConfigManager` uses class-level `_shared_config`. Do not instantiate in tight loops; call `config_manager.reload_config()` after external file changes.
-- **Comments**: Explain non-obvious domain rationale (e.g. why a formula requires a 10% floor), not self-evident code syntax.
-- **DRY & Single Source of Truth**:
-  - **Schema & SQL**: Maintain a single column specification tuple/list (`GAME_COLUMNS`, `GAME_CSV_COLUMNS`). Derive DDL, INSERT statements with named parameters (`:col`), and row dicts from it. Never maintain separate out-of-sync column lists.
-  - **Mappers & Serialization**: Model serialization belongs on the models (`MoveAnalysis.to_dict()` and `MoveAnalysis.from_dict()`). Never hand-write ad-hoc dictionary conversions in UI panels or backend repos.
-  - **Connection & Transaction Management**: Centralize DB connections, pragmas, commits, and rollbacks in a context manager (`_connect()`). Do not repeat manual `conn.commit()` / `conn.rollback()` in every query method.
-  - **Symmetric Logic**: Never copy-paste near-identical blocks for White and Black (e.g., phase accuracies, tactics extraction). Iterate over `("white", "black")` or extract unified helper functions.
-  - **Separation of Storage and Domain**: Repositories persist data; domain calculations (tactics, classification, termination detection) must be computed in backend domain services before passing to storage. Avoid circular dependencies or function-level lazy imports to mask design duplication.
+- Run `ruff check .` and `pytest tests/` before finishing.
+- Add tests for new behaviour and meaningful branches.
+- Keep diffs focused; do not mix refactors with fixes.
+- Use `pathlib` for paths and `logger` for diagnostics.
 
----
+**Ask first**
 
-## 6. Commands
-- **Install Dependencies**: `pip install -r requirements-dev.txt` (or `uv pip install -r requirements-dev.txt`)
-- **Start Development**: `python main.py`
-- **Lint**: `ruff check .` (auto-fix: `ruff check --fix .`)
-- **Format**: optional, not a gate. `ruff format .` only when a file is being substantially rewritten; never block or report work on `ruff format --check`.
-- **Run All Tests**: `pytest tests/` (Headless Linux: `QT_QPA_PLATFORM=offscreen pytest tests/`)
-- **Run Single Test**: `pytest tests/backend/test_analyzer.py`
-- **Measure Coverage**: `pytest tests/ --cov=src --cov-branch --cov-report=term-missing` (branch coverage, GUI excluded, 80% floor)
-- **Production Build**: `pyinstaller build.spec`
+- Adding a dependency.
+- Changing the database schema or a migration.
+- Changing the coverage floor or coverage exclusions.
+- Changing the build or release configuration.
+- Any destructive data operation.
 
----
+**Never**
 
-## 7. Testing & Verification
-- All pull requests must maintain a 100% pass rate: `pytest tests/` (1,100+ unit and GUI tests), and the coverage gate must pass.
-- Backend logic changes require headless unit tests in `tests/backend/`.
-- GUI widget changes require tests using `pytest-qt` in `tests/gui/`.
-- Linting must report 0 errors: `ruff check .`
-- **Theme guardrails**: any change touching `theme_template.qss`, widget styling, or `ThemeManager` must keep `pytest tests/architecture/test_theme_guardrails.py tests/architecture/test_theme_tokens.py` green. They forbid declaration-only stylesheets, a universal `QWidget` background, broad descendant `QWidget` rules, and hardcoded colours outside the theme layer.
-- Formatting is **not** verified. Do not run `ruff format --check`, do not reformat unrelated files, and never treat formatting drift as a failure.
+- Commit secrets, credentials, or private tokens.
+- Edit generated artifacts.
+- Add `# noqa` without permission.
+- Run destructive Git commands or force-push.
+- Import PyQt6 or `src.gui` in `src/backend`, `src/utils`, or `src/config`.
+- Construct a raw Qt control where a shared component exists.
+- Trust PGN, FEN, or API input without validation at the backend boundary.
+- Use `print()` for application logging.
 
-### Coverage Requirements
-- **Coverage Is a Floor, Not a Target**: Backend and utility code must keep branch coverage at or above the 80% `fail_under` threshold in `pyproject.toml`. GUI modules are excluded deliberately because they are expensive to instantiate and would make the metric noisy.
-- **Test New Behavior, Not Line Counts**: New logic must ship with tests that assert its meaningful branches, calculations, state mutations, and failure fallbacks. Do not chase 100% or add tests for generated code, trivial delegation, or pure language behavior.
-- **Fix Regressions, Don't Lower the Floor Further**: If coverage drops, add or strengthen a meaningful test. Do not lower `fail_under` below 80 or exclude modules to make the gate pass.
+## Invariants
 
-### Meaningful Testing Guidelines (No Bloat, No Tautologies)
-- **Zero Language Tautologies**: Never write tests that merely verify Python's standard library or language behavior (e.g. asserting that a `@dataclass` assigns fields: `m = Model(x=1); assert m.x == 1`). Tests must assert domain logic, state mutations, calculations, or defensive fallbacks.
-- **Black-Box Over Private Implementation**: Test through public contracts and interfaces. Do not write redundant unit tests for private helper functions whose outputs are already asserted by the public API.
-- **Eliminate Cross-Module Duplication**: If domain behavior is exhaustively tested in a dedicated test file (e.g. `test_move_classifier.py` for classifications and win probabilities), do not copy-paste duplicate tests into other test suites (`test_analyzer.py`).
-- **No Test Bloat**: Extend or parameterize an existing test instead of adding a near-duplicate. Delete tests that only smoke-check construction, duplicate another module's coverage, or do not protect app-breaking behavior.
-- **Heavy GUI Test Conservation**: Instantiating full-app windows (`MainWindow`) is expensive (~2-3s per instance). Never boot multiple full `MainWindow` instances to test simple defensive or config parsing branches. Consolidate save/restore tests into a single lifecycle test, and test defensive methods directly on the instance.
-- **Parameterize Over Duplication**: Use `@pytest.mark.parametrize` for multiple input variants, malformed strings, or platform formats rather than copy-pasting 4-5 near-identical test functions.
-- **Consolidated Metadata Assertions**: Avoid re-reading or re-parsing the same fixture across multiple tests to assert one field at a time. Assert the full record in a single coherent test.
-- **Guard Critical Invariants**: Tests must strictly protect core invariants: Stockfish UCI lifecycle, 10% accuracy floor, White-perspective scores, thermal safety defaults, deterministic MD5 hashing, and Chess960 castling.
+- Offline-first: analysis, PGN import, opening books, and history work with no
+  network.
+- No blocking work on the UI thread. Engine, network, and LLM work runs in
+  `QThread` workers and is cleaned up on close.
+- Scores are White-perspective. Flip only once, in
+  `Analyzer._process_analysis_results()`.
+- Stop the engine in `finally`; restart it for every fresh analysis.
+- Thermal defaults are `multi_pv=2`, `threads=1`, and `hash=128MB`. Keep
+  threads and hash out of `DEFAULT_CONFIG` so module fallbacks apply.
+- `game_id = md5(pgn_content)`. Never use random UUIDs.
+- Per-move accuracy never drops below 10.0%.
+- Chess960: set `UCI_Chess960` and build boards with
+  `chess.Board(fen, chess960=True)`.
+- AI explanations come from deterministic facts, are validated against those
+  facts, and have an offline fallback.
+- The project is GPL-3.0-only. New Python files start with the SPDX header, and
+  dependencies must be licence-compatible.
 
-### Speed & Determinism Rules
-- **No Timeout-Based Tests**: Never make a test pass by letting a timer expire, and never use `time.sleep()`, `QTest.qWait()`, or real network/request timeouts to wait for work to finish. Run workers synchronously (`worker.run()`), observe emitted signals directly, or inject fake clocks so tests are deterministic and instant.
-- **Wait on Conditions, Not Clocks**: `qtbot.waitUntil`/`waitSignal` are acceptable only for unavoidable Qt layout or debounce events, always with a tight timeout and a condition that would be true immediately in a correct implementation.
-- **Keep Tests Fast**: Any single test approaching ~1 second needs justification; find outliers with `pytest --durations=10`. Reuse fixtures/fakes and test logic directly instead of driving the full UI.
-- **No Network in Tests**: Mock every HTTP client and LLM call. Tests must pass offline, and a local `.env` must never turn a unit test into a live request.
-- **Never Write to Real Persistence**: Tests must never write to the user's real database, config, secrets, logs, or backup files. Use pytest's `tmp_path`/`tmp_path_factory`; the shared `tests/conftest.py` already redirects `get_user_data_dir()` and disables the OS keychain. Never bypass those patches or build a store without an explicit temporary path.
-- **Cross-Platform by Default**: Every test must pass on Windows, macOS, and Linux. Build paths with `pathlib.Path`, never hardcoded separators or drive letters. Do not assert POSIX-only behavior (permission bits, exec bits, `chmod`, shell scripts) on Windows — guard it with `sys.platform`/`os.name` or mock the platform branch. Patch platform-specific APIs instead of depending on the host OS, and keep assertions OS-agnostic wherever the behavior is shared.
+## Guardrail tests
 
----
+`tests/architecture/test_boundaries.py` keeps pure packages Qt-free;
+`tests/architecture/test_theme_guardrails.py` and `test_theme_tokens.py` protect
+theming; `tests/gui/test_button.py` and `test_input.py` protect shared controls
+and worker placement.
 
-## 8. Security & Boundaries
-- **Never commit secrets**: No API keys, credentials, or private tokens in commits or test fixtures.
-- **Never edit generated files**: Do not touch `build/`, `dist/`, `installers/*/Output/`, `*.db`, or `*.log`.
-- **Never suppress lint rules**: Maintain 0 errors under `ruff check .` — do not add `# noqa` without permission.
-- **Ask first before adding dependencies**: Protect PyInstaller bundle size. New packages require approval.
-- **Input Validation**: Validate untrusted PGN strings, FEN inputs, and API responses at backend ingestion boundaries.
+## Code rules
 
----
+- Use Python 3.10+ typing: `X | None`, `list[T]`, `dict[K, V]`.
+- Use `from src.utils.logger import logger`; never `print()`.
+- Use `src.gui.components` for every control. Do not use raw Qt widgets or
+  `create_button` / `create_icon_button` factories.
+- Add settings through `src/config/settings_schema.py` and read them through
+  typed `ConfigManager` properties.
+- Static styling belongs in `theme_template.qss` through object names and
+  dynamic properties. No declaration-only stylesheets, universal `QWidget`
+  rules, descendant `QWidget` rules, or hardcoded hex.
+- Keep one source of truth: `GAME_COLUMNS` for SQL, model `to_dict()` /
+  `from_dict()` for serialisation, and one canonical helper per concern.
+- Iterate over `("white", "black")` instead of copying symmetric branches.
+- Comments explain non-obvious domain decisions, not syntax.
 
-## 9. Change Workflow & Git Rules
-1. **Inspect**: Understand existing code and boundaries before proposing edits.
-2. **Plan**: For complex refactors, align on an implementation plan before modifying files.
-3. **Implement**: Keep changes modular and focused. Avoid mixing refactors with bug fixes.
-4. **Verify**: Always run `ruff check .` and `pytest tests/` before considering work complete.
-5. **Git Hygiene**: Never run destructive Git commands (`git reset --hard`, force pushes). Write meaningful Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`).
-6. **Issue-First**: Every PR must close or target an existing issue. If no issue exists for the requested feature or fix, open one and get maintainer verification before implementing. Unlinked PRs are not approved.
+## Testing
 
----
+- Backend tests live in `tests/backend/`; GUI tests use `pytest-qt` in
+  `tests/gui/`; architecture guards live in `tests/architecture/`.
+- No `time.sleep()`, `QTest.qWait()`, or real network calls. Run workers
+  synchronously and observe signals.
+- Use `tmp_path` for persistence. Never touch real user data or credentials.
+- Tests must pass on Windows, macOS, and Linux. Use `pathlib`, and guard
+  POSIX-only assertions.
+- Parameterise instead of duplicating tests. Do not add tautologies or boot
+  extra `MainWindow` instances.
+- Keep branch coverage at or above 80%; GUI modules are excluded. Never lower
+  the floor or exclude modules to pass.
+- Formatting is not a gate. Do not run `ruff format --check`, and do not
+  reformat unrelated files.
+- Guard the critical invariants: UCI lifecycle, accuracy floor,
+  White-perspective scores, thermal defaults, deterministic game IDs, and
+  Chess960 castling.
 
-## 10. Documentation Map
-- **[docs/architecture.md](docs/architecture.md)** — canonical layers, runtime flows, file-by-file reference, patterns, invariants, extension recipes.
-- **[docs/onboarding_doc.md](docs/onboarding_doc.md)** — setup and first-change tutorial.
-- **[docs/How_to_use.md](docs/How_to_use.md)** — user-facing feature guide.
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — process, component/settings rules, test quality.
+## Workflow
+
+1. Open or reference an issue before changing behaviour.
+2. Inspect the existing code and boundaries.
+3. Plan complex refactors before editing.
+4. Implement in focused changes.
+5. Run lint and tests.
+6. Write a Conventional Commit (`feat:`, `fix:`, `docs:`, `refactor:`,
+   `test:`, `chore:`).
+7. Ask before changing the schema, a migration, or a layer boundary. Do not
+   guess at business rules; check the tests and the domain modules.
+
+Docs: [system map](ARCHITECTURE.md) ·
+[topic guides](docs/architecture/) ·
+[conventions](docs/conventions.md) ·
+[recipes](docs/recipes.md) ·
+[onboarding](docs/onboarding_doc.md) ·
+[contribution process](CONTRIBUTING.md).

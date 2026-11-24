@@ -102,11 +102,11 @@ The application automatically creates and manages the following files inside OS-
 
 | File | Purpose |
 | :-- | :-- |
-| **`config.json`** | Stores your saved settings (engine path, usernames, theme preferences, LLM profiles). |
-| **`analysis_cache.db`** | A SQLite database that stores your game history and position analysis cache, making future reviews instant. |
-| **`chess_analyzer.log`** | A text file containing application logs, useful for debugging errors or crashes. |
-| **`analysis_cache.db.pre-restore.db`** | Automatic safety copy written next to the database before a restore. |
-| **Backup files** | `chess-analyzer-backup-<timestamp>.db`, saved wherever you choose (defaults to Documents). |
+| **Settings** | Stores your saved settings (engine path, usernames, theme preferences, LLM profiles). |
+| **Game database** | A SQLite database that stores your game history and position analysis cache, making future reviews instant. |
+| **Application log** | A text file containing application logs, useful for debugging errors or crashes. |
+| **Pre-restore safety copy** | Automatic copy written next to the database before a restore. |
+| **Backup files** | Timestamped backups saved wherever you choose (defaults to Documents). |
 
 Credentials (LLM keys and the Lichess token) are **not** written to these files;
 they live in the OS credential store through `keyring`.
@@ -117,9 +117,9 @@ they live in the OS credential store through `keyring`.
 
 Your privacy is paramount. **We do not collect any personal data.**
 
-- **Local Storage**: All your data, including game history, analysis results (`analysis_cache.db`), and configurations (`config.json`), remains strictly on your local machine in the system user data folder.
+- **Local Storage**: All your data, including game history, analysis results, and configurations, remains strictly on your local machine in the system user data folder.
 - **No Cloud Sync**: We do not send your games or analysis to any remote server (except to LLM/Lichess/Chess.com APIs when you explicitly trigger those features).
-- **API Keys**: Your LLM keys and Lichess tokens are stored in your operating system's credential store (macOS Keychain, Windows Credential Locker, or Linux Secret Service) and are **never** shared with us or written to plaintext `config.json`.
+- **API Keys**: Your LLM keys and Lichess tokens are stored in your operating system's credential store (macOS Keychain, Windows Credential Locker, or Linux Secret Service) and are **never** shared with us or written to plaintext configuration.
 
 ---
 

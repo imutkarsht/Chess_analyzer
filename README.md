@@ -92,12 +92,12 @@ platform.
 git clone https://github.com/imutkarsht/Chess_analyzer.git
 cd Chess_analyzer
 
-uv venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-uv pip install -r requirements.txt
+# Create and activate a virtual environment, then:
+pip install -r requirements.txt
+# or: uv pip install -r requirements.txt
 ```
 
-Pre-built installers (`.dmg`, `.exe`, `.AppImage`) are on the
+Pre-built installers are on the
 [Releases page](https://github.com/imutkarsht/Chess_analyzer/releases).
 
 ## Quick Start
@@ -130,17 +130,21 @@ from [`src/config/settings_schema.py`](src/config/settings_schema.py).
 - **Data** — analysis cache retention, validated backup and restore, and maintenance tools.
 
 API keys and tokens are stored in your OS credential store (macOS Keychain, Windows Credential
-Locker, Linux Secret Service), never in plaintext `config.json`. Games and analysis never leave
+Locker, Linux Secret Service), never in plaintext configuration. Games and analysis never leave
 your machine.
 
 ## Documentation
 
 | Document | Contents |
 | --- | --- |
-| [How to Use](docs/How_to_use.md) | Feature walkthrough, settings reference, data file locations |
-| [Architecture](docs/architecture.md) | Layers, runtime flows, module reference, extension recipes |
+| [How to Use](docs/How_to_use.md) | Feature walkthrough, settings reference, data locations |
+| [Architecture](ARCHITECTURE.md) | System map, layers, package responsibilities, reading paths |
+| [Runtime Flows](docs/architecture/runtime-flows.md) | Analysis, import, batch, coaching, live engine, variations |
+| [Conventions](docs/conventions.md) | Patterns, components, settings, theming, shared helpers |
+| [Recipes](docs/recipes.md) | Step-by-step extension guides |
 | [Onboarding](docs/onboarding_doc.md) | Local setup and your first change |
-| [Contributing](CONTRIBUTING.md) | Development setup, component rules, test quality |
+| [Contributing](CONTRIBUTING.md) | Development setup, process, test quality |
+| [Engineering Rules](AGENTS.md) | Commands, boundaries, invariants, guardrails |
 | [Changelog](CHANGELOG.md) | Release history |
 | [Credits](CREDITS.md) | Third-party assets, licenses, algorithms |
 | [Security](SECURITY.md) | Vulnerability reporting |

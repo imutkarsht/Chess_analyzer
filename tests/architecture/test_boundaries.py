@@ -4,8 +4,11 @@
 import ast
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 FORBIDDEN = ("PyQt6", "src.gui")
+PURE_PACKAGES = ("backend", "utils", "config")
 
 
 def _package_parts(path: Path) -> list[str]:
@@ -38,14 +41,10 @@ def _violations(subpackage: str) -> list[str]:
     return found
 
 
-def test_utils_does_not_import_gui():
-    violations = _violations("utils")
-    assert not violations, "src/utils must stay Qt-free:\n" + "\n".join(violations)
-
-
-def test_backend_does_not_import_gui():
-    violations = _violations("backend")
+@pytest.mark.parametrize("subpackage", PURE_PACKAGES)
+def test_pure_packages_do_not_import_qt_or_gui(subpackage: str):
+    violations = _violations(subpackage)
     assert not violations, (
-        "src/backend must stay Qt-free — move QThread workers to src/workers/:\n"
+        f"src/{subpackage} must stay Qt-free — move QThread workers to src/workers/:\n"
         + "\n".join(violations)
     )
