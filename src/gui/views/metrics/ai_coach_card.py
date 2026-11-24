@@ -204,7 +204,6 @@ class AICoachCard(MetricCard):
             border-radius: 6px;
             padding: 3px 8px;
         """)
-        self.btn_refresh_insights.refresh_styles()
 
         super().refresh_styles()
         if self.current_insights:
@@ -234,7 +233,7 @@ class AICoachCard(MetricCard):
         # Build clean high-density coach dossier
         dossier_text = build_coach_dossier(self.stats)
 
-        if self.worker is not None and self.worker.isRunning():
+        if self._worker_is_running():
             try:
                 self.worker.finished.disconnect()
                 self.worker.error.disconnect()
@@ -249,9 +248,29 @@ class AICoachCard(MetricCard):
         self.worker = worker
         worker.finished.connect(self._on_worker_finished)
         worker.error.connect(self._handle_insight_error)
-        worker.done.connect(lambda w=worker: remove_worker(w))
+        worker.done.connect(lambda w=worker: self._on_worker_done(w))
         register_worker(worker)
         worker.start()
+
+    def _worker_is_running(self) -> bool:
+        """True only while the stored worker exists in C++ and is running.
+
+        A finished worker's C++ object may already be deleted while the Python
+        wrapper is still referenced; touching it raises RuntimeError.
+        """
+        worker = self.worker
+        if worker is None:
+            return False
+        try:
+            return worker.isRunning()
+        except RuntimeError:
+            self.worker = None
+            return False
+
+    def _on_worker_done(self, worker: InsightWorker) -> None:
+        remove_worker(worker)
+        if self.worker is worker:
+            self.worker = None
 
     def _on_worker_finished(self, insight_text: str):
         self._stop_skeleton_anim()

@@ -60,9 +60,13 @@ QFrame#MetricCard, QFrame[metric_card="true"] {{
     border-radius: 12px;
 }}
 
-QFrame#MetricCard QWidget, QFrame[metric_card="true"] QWidget {{
-    background-color: transparent;
+QFrame#MetricCard:hover, QFrame[metric_card="true"]:hover {{
+    border-color: {ACCENT};
 }}
+
+/* No bare "QWidget inside a card" transparency rule: it also strips the
+   background from buttons, inputs, and badges. Children have no background
+   of their own now, so the card surface shows through naturally. */
 
 QFrame#GameCard {{
     background-color: {SURFACE_CARD};
@@ -494,10 +498,12 @@ QGroupBox::title {{
     color: {TEXT_PRIMARY};
 }}
 
-/* Text Fields & Editors
-   Native fallback only: every app field is src/gui/components/input.py, which
-   styles itself via Styles.get_input_qss. These rules keep Qt-internal editors
-   (spin-box line edits, dialogs) visually identical to the component. */
+/* Text Fields & Editors — central matrix for
+   src/gui/components/controls/input.py. The component publishes
+   inputVariant / inputSize / monospace / invalid properties; only an
+   explicit TextArea font-size override stays on a per-widget sheet.
+   Native Qt-internal editors (dialogs, spin-box line edits) match the
+   same bare rules and stay visually identical. */
 QLineEdit {{
     background-color: {SURFACE};
     color: {TEXT_PRIMARY};
@@ -505,10 +511,61 @@ QLineEdit {{
     border-radius: 8px;
     padding: 0 10px;
     font-size: 13px;
+    selection-background-color: {ACCENT};
+    selection-color: {ON_ACCENT};
+}}
+
+QLineEdit:hover {{
+    border-color: {BORDER_LIGHT};
 }}
 
 QLineEdit:focus {{
-    border: 1px solid {ACCENT};
+    border-color: {ACCENT};
+}}
+
+QLineEdit:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border-color: {BORDER};
+}}
+
+QLineEdit[invalid="true"],
+QLineEdit[invalid="true"]:hover,
+QLineEdit[invalid="true"]:focus {{
+    border-color: {DANGER};
+}}
+
+QLineEdit[inputSize="sm"] {{
+    min-height: 28px;
+    max-height: 28px;
+    font-size: 12px;
+    padding: 0 8px;
+}}
+QLineEdit[inputSize="md"] {{
+    min-height: 34px;
+    max-height: 34px;
+    font-size: 13px;
+    padding: 0 10px;
+}}
+QLineEdit[inputSize="lg"] {{
+    min-height: 42px;
+    max-height: 42px;
+    font-size: 13px;
+    padding: 0 12px;
+}}
+
+QLineEdit[inputVariant="default"] {{
+    background-color: {SURFACE};
+}}
+QLineEdit[inputVariant="search"] {{
+    background-color: {SURFACE_LIGHT};
+}}
+QLineEdit[inputVariant="inline"] {{
+    border-radius: 6px;
+}}
+
+QLineEdit[monospace="true"] {{
+    font-family: {MONO_FONT};
 }}
 
 QTextEdit {{
@@ -518,6 +575,38 @@ QTextEdit {{
     border-radius: 8px;
     padding: 12px;
     font-size: 13px;
+    selection-background-color: {ACCENT};
+    selection-color: {ON_ACCENT};
+}}
+
+QTextEdit:hover {{
+    border-color: {BORDER_LIGHT};
+}}
+
+QTextEdit:focus {{
+    border-color: {ACCENT};
+}}
+
+QTextEdit:disabled {{
+    color: {TEXT_MUTED};
+}}
+
+QTextEdit[invalid="true"],
+QTextEdit[invalid="true"]:hover,
+QTextEdit[invalid="true"]:focus {{
+    border-color: {DANGER};
+}}
+
+QTextEdit[textAreaVariant="flat"] {{
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: {TEXT_SECONDARY};
+}}
+
+QTextEdit[textAreaVariant="code"] {{
+    font-family: {MONO_FONT};
+    font-size: 12px;
 }}
 
 /* SpinBoxes */
@@ -527,8 +616,42 @@ QSpinBox, QDoubleSpinBox {{
     border: 1px solid {BORDER};
     border-radius: 8px;
     padding: 0 10px;
-    min-height: 34px;
     font-size: 13px;
+    selection-background-color: {ACCENT};
+    selection-color: {ON_ACCENT};
+}}
+
+QSpinBox:hover, QDoubleSpinBox:hover {{
+    border-color: {BORDER_LIGHT};
+}}
+
+QSpinBox:focus, QDoubleSpinBox:focus {{
+    border-color: {ACCENT};
+}}
+
+QSpinBox:disabled, QDoubleSpinBox:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border-color: {BORDER};
+}}
+
+QSpinBox[inputSize="sm"], QDoubleSpinBox[inputSize="sm"] {{
+    min-height: 28px;
+    max-height: 28px;
+    font-size: 12px;
+    padding: 0 8px;
+}}
+QSpinBox[inputSize="md"], QDoubleSpinBox[inputSize="md"] {{
+    min-height: 34px;
+    max-height: 34px;
+    font-size: 13px;
+    padding: 0 10px;
+}}
+QSpinBox[inputSize="lg"], QDoubleSpinBox[inputSize="lg"] {{
+    min-height: 42px;
+    max-height: 42px;
+    font-size: 13px;
+    padding: 0 12px;
 }}
 
 /* Sliders */
@@ -817,12 +940,8 @@ QFrame#HangingDivider {{
     border: none;
 }}
 
-/* Metric card child transparency (already partially covered; explicit
-   for any widget added after the card is constructed). */
-QFrame#MetricCard > QWidget,
-QFrame[metric_card="true"] > QWidget {{
-    background-color: transparent;
-}}
+/* Metric card chrome is defined above; its children inherit the card
+   surface because they carry no background of their own. */
 
 /* Metric card internal frames */
 QFrame#opening_item,

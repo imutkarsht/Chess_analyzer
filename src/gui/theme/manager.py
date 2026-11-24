@@ -160,6 +160,7 @@ class ThemeManager(QObject):
                 DANGER_HOVER=p.danger_hover,
                 DANGER_PRESSED=p.danger_pressed,
                 ON_ACCENT=Styles.COLOR_ON_ACCENT,
+                MONO_FONT=Styles.MONO_FONT_FAMILY,
                 TICK_PATH=tick_path,
             )
         except Exception as e:

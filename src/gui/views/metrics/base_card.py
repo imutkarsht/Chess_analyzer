@@ -11,7 +11,8 @@ class MetricCard(QFrame):
         self.content_widget: QWidget | None = None
         self.setObjectName("MetricCard")
         self.setProperty("metric_card", "true")
-        self._apply_theme()
+        # Card chrome (surface, border, hover accent) is owned by the global
+        # QSS template; no per-widget sheet is needed here.
 
         if max_height is not None:
             self.setMaximumHeight(max_height)
@@ -31,23 +32,12 @@ class MetricCard(QFrame):
                 header_layout.addWidget(action_widget, alignment=Qt.AlignmentFlag.AlignVCenter)
             self.card_layout.addLayout(header_layout)
 
-    def _apply_theme(self):
-        self.setStyleSheet(f"""
-            QFrame#MetricCard, QFrame[metric_card="true"] {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            QFrame#MetricCard:hover, QFrame[metric_card="true"]:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-            QFrame#MetricCard QWidget, QFrame[metric_card="true"] QWidget {{
-                background-color: transparent;
-            }}
-        """)
-
     def refresh_styles(self):
-        self._apply_theme()
+        """Re-render data-driven content after a theme change.
+
+        Card chrome is owned by the global QSS template, so only charts,
+        mini-boards, and other painted content need an explicit redraw.
+        """
         if getattr(self, "stats", None) and hasattr(self, "_render_view"):
             self._render_view()
 
