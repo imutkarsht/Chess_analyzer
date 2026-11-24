@@ -5,6 +5,7 @@ Keep this module Qt-free so both the backend config store and the GUI can use it
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -53,10 +54,6 @@ class SettingSpec:
     tier: SettingTier = "basic"
     apply: ApplyMode = "save"
     choices: tuple[Choice, ...] = ()
-    # Open choices accept values that are not in ``choices`` (e.g. theme
-    # bundle ids registered at runtime by plugins) while still offering the
-    # listed options in the UI.
-    open_choice: bool = False
     minimum: float | None = None
     maximum: float | None = None
     step: float | None = None
@@ -65,6 +62,30 @@ class SettingSpec:
     persist_default: bool = True
     ui: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+_EXTRA_CHOICE_VALUES: dict[str, set[str]] = {
+    # Built-in theme bundles beyond the system/light/dark schema choices.
+    # Plugin bundles extend this at registration time via register_choice_values.
+    "theme_mode": {"tinted", "dracula", "oled"},
+}
+
+
+def register_choice_values(key: str, values: Iterable[str]) -> None:
+    """Declare additional valid values for an open-ended choice setting.
+
+    Used by the theme registry so registered bundle ids are accepted by
+    ConfigManager validation and survive a restart, without turning the
+    setting into a free-form string.
+    """
+    _EXTRA_CHOICE_VALUES.setdefault(key, set()).update(str(v) for v in values)
+
+
+def allowed_choice_values(spec: SettingSpec) -> set[str]:
+    """Schema choices plus any runtime-registered extras for this setting."""
+    return {choice.value for choice in spec.choices} | _EXTRA_CHOICE_VALUES.get(
+        spec.key, set()
+    )
 
 
 def _specs() -> tuple[SettingSpec, ...]:
@@ -221,7 +242,6 @@ def _specs() -> tuple[SettingSpec, ...]:
             "system",
             apply="live",
             choices=(Choice("system", "System"), Choice("light", "Light"), Choice("dark", "Dark")),
-            open_choice=True,
         ),
         SettingSpec(
             "accent_mode",

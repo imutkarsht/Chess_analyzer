@@ -109,6 +109,10 @@ class ThemeManager(QObject):
     def register_bundle(cls, bundle: "ThemeBundle") -> None:
         """Register a theme bundle. Safe to call at import time from plugins."""
         cls._bundles[bundle.id] = bundle
+        # Make the id a valid, persistable ``theme_mode`` value.
+        from src.config.settings_schema import register_choice_values
+
+        register_choice_values("theme_mode", [bundle.id])
 
     @classmethod
     def registered_bundles(cls) -> dict[str, "ThemeBundle"]:
