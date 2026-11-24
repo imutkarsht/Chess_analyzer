@@ -48,3 +48,48 @@ def test_theme_template_qss_path_exists():
 
     qss_path = os.path.join(os.path.dirname(manager_module.__file__), "theme_template.qss")
     assert os.path.exists(qss_path)
+
+
+def test_registered_bundles_and_set_bundle_state(qapp, qtbot, monkeypatch):
+    """A registered bundle drives palette, mode, class colours, and extra QSS."""
+    from src.gui.theme.bundle import ThemeBundle
+    from src.gui.theme.palette import ThemePalette
+
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+
+    bundle = ThemeBundle(
+        id="test-oled",
+        display_name="Test OLED",
+        palette=ThemePalette(
+            background="#000000",
+            surface="#0A0A0A",
+            surface_light="#141414",
+            surface_card="#101010",
+            border="#262626",
+            border_light="#333333",
+            highlight="#1E1E1E",
+            text_primary="#F2F2F2",
+            text_secondary="#A3A3A3",
+            text_muted="#737373",
+        ),
+        mode="dark",
+        classification_colors={"Blunder": "#FF0000"},
+        extra_qss="QLabel { letter-spacing: 0px; }",
+    )
+    ThemeManager.register_bundle(bundle)
+
+    try:
+        assert "test-oled" in ThemeManager.registered_bundles()
+        with qtbot.waitSignal(ThemeManager.instance().theme_changed, timeout=1000) as blocker:
+            ThemeManager.set_theme_mode("test-oled")
+        assert blocker.args == ["test-oled"]
+        assert ThemeManager.active_bundle_id() == "test-oled"
+        assert ThemeManager.mode() == "dark"
+        assert ThemeManager.palette().background == "#000000"
+        assert ThemeManager.get_class_color("Blunder") == "#FF0000"
+        # Board themes fall back to the built-in defaults for the bundle.
+        assert ThemeManager.get_board_colors("Green")["dark"].startswith("#")
+    finally:
+        ThemeManager._bundles.pop("test-oled", None)
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_mode("dark")

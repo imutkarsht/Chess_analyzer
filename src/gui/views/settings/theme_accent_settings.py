@@ -35,9 +35,13 @@ class ThemeAccentSettings(QGroupBox):
 
     def _add_theme_mode_row(self):
         spec = get_spec("theme_mode")
-        self.theme_mode_choice = RadioChoice(
-            [(choice.value, choice.label) for choice in spec.choices]
-        )
+        choices = [(choice.value, choice.label) for choice in spec.choices]
+        known = {value for value, _label in choices}
+        # Registered bundles (including plugin themes) appear automatically.
+        for bundle_id, bundle in ThemeManager.registered_bundles().items():
+            if bundle_id not in known:
+                choices.append((bundle_id, bundle.display_name))
+        self.theme_mode_choice = RadioChoice(choices)
         self.binder.add(
             "theme_mode",
             self.theme_mode_choice,
