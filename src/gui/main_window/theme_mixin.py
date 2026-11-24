@@ -108,6 +108,28 @@ class ThemeMixin:
         palette.setColor(QPalette.ColorRole.HighlightedText, QColor(Styles.COLOR_ON_ACCENT))
         QApplication.setPalette(palette)
 
+    # ------------------------------------------------------------------
+    # Theme restore at startup
+    # ------------------------------------------------------------------
+    def restore_saved_theme(self) -> None:
+        """Apply the saved theme and accent without breaking signature themes.
+
+        A bundle with ``owns_accent`` (e.g. Dracula) brings its own accent.
+        Restoring the user's stored accent afterwards would overwrite it, so
+        signature bundles keep their accent on every launch; the user's saved
+        accent is still used whenever a non-signature theme is active.
+        """
+        ThemeManager.set_theme_mode(self.config_manager.theme_mode)
+        if ThemeManager.active_bundle_owns_accent():
+            return
+
+        saved_accent = self.config_manager.accent_color
+        saved_accent_mode = self.config_manager.accent_mode
+        if saved_accent_mode == "system":
+            ThemeManager.set_accent_mode("system")
+        elif saved_accent:
+            ThemeManager.set_accent(saved_accent)
+
     def _on_theme_changed(self, mode: str):
         self._refresh_theme_safely()
 

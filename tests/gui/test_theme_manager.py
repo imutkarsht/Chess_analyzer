@@ -71,6 +71,61 @@ def test_dracula_bundle_palette_and_semantics(qapp, monkeypatch):
         ThemeManager.set_theme_mode("dark")
 
 
+def test_restore_saved_theme_preserves_signature_accent(qapp, monkeypatch):
+    """Dracula must stay purple on restart even if a custom accent was saved."""
+    from src.gui.main_window.theme_mixin import ThemeMixin
+
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_accent = ThemeManager.accent()
+    previous_accent_mode = ThemeManager.accent_mode()
+
+    class Cfg:
+        theme_mode = "dracula"
+        accent_color = "#123456"
+        accent_mode = "custom"
+
+    class Host(ThemeMixin):
+        pass
+
+    host = Host()
+    host.config_manager = Cfg()
+    try:
+        host.restore_saved_theme()
+        assert ThemeManager.active_bundle_id() == "dracula"
+        assert ThemeManager.active_bundle_owns_accent() is True
+        assert ThemeManager.palette().accent == "#BD93F9"
+    finally:
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_accent_mode(previous_accent_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_restore_saved_theme_applies_custom_accent_for_regular_themes(qapp, monkeypatch):
+    """Non-signature themes still restore the user's saved custom accent."""
+    from src.gui.main_window.theme_mixin import ThemeMixin
+
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_accent = ThemeManager.accent()
+    previous_accent_mode = ThemeManager.accent_mode()
+
+    class Cfg:
+        theme_mode = "dark"
+        accent_color = "#123456"
+        accent_mode = "custom"
+
+    class Host(ThemeMixin):
+        pass
+
+    host = Host()
+    host.config_manager = Cfg()
+    try:
+        host.restore_saved_theme()
+        assert ThemeManager.palette().accent == "#123456"
+    finally:
+        ThemeManager.set_accent_mode(previous_accent_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
 def test_tinted_bundle_derives_palette_from_accent(qapp, monkeypatch):
     """The Tinted bundle rebuilds its surfaces from the live accent colour."""
     monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))

@@ -125,6 +125,12 @@ class ThemeManager(QObject):
         return cls._active_bundle_id
 
     @classmethod
+    def active_bundle_owns_accent(cls) -> bool:
+        """True when the active bundle provides its own accent colour."""
+        bundle = cls._active_bundle()
+        return bool(bundle and bundle.owns_accent)
+
+    @classmethod
     def _active_bundle(cls) -> "ThemeBundle | None":
         if cls._active_bundle_id is None:
             return None

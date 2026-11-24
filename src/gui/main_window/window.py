@@ -128,15 +128,9 @@ class MainWindow(
         # Initialize ThemeManager
         self._theme_manager = ThemeManager(parent=self)
 
-        saved_theme_mode = self.config_manager.theme_mode
-        ThemeManager.set_theme_mode(saved_theme_mode)
-
-        saved_accent = self.config_manager.accent_color
-        saved_accent_mode = self.config_manager.accent_mode
-        if saved_accent_mode == "system":
-            ThemeManager.set_accent_mode("system")
-        elif saved_accent:
-            ThemeManager.set_accent(saved_accent)
+        # Applies the saved theme + accent; signature bundles (Dracula) keep
+        # their own accent instead of the stored one.
+        self.restore_saved_theme()
 
         self._theme_manager.theme_changed.connect(self._on_theme_changed)
         self._theme_manager.accent_changed.connect(self._on_accent_changed)
