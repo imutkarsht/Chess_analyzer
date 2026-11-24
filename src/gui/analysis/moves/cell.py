@@ -200,7 +200,6 @@ class MoveCellWidget(QWidget):
             f"Explore {self._variation_count} saved variation"
             f"{'s' if self._variation_count != 1 else ''} from this position"
         )
-        self._variation_btn.setStyleSheet(Styles.get_variation_badge_style())
 
     def _apply_san_style(self) -> None:
         if self._classification_name == "Pending":
@@ -256,24 +255,17 @@ class MoveCellWidget(QWidget):
             return
         self._background_key = background_key
         if self._selected:
-            background = Styles.COLOR_ACCENT_SUBTLE
-            left = Styles.COLOR_ACCENT
+            state = "selected"
         elif self._hovered:
-            background = Styles.COLOR_SURFACE_LIGHT
-            left = "transparent"
+            state = "hovered"
         elif self._row_active:
-            background = self._rgba(Styles.COLOR_SURFACE_LIGHT, 0.55)
-            left = "transparent"
+            state = "active"
         else:
-            background = "transparent"
-            left = "transparent"
-
-        self.setStyleSheet(f"""
-            QWidget#MoveCell {{
-                background-color: {background};
-                border-left: 2px solid {left};
-            }}
-        """)
+            state = "normal"
+        self.setProperty("cellState", state)
+        style = self.style()
+        style.unpolish(self)
+        style.polish(self)
 
     def enterEvent(self, event):
         self._hovered = True
@@ -284,11 +276,6 @@ class MoveCellWidget(QWidget):
         self._hovered = False
         self._apply_background()
         super().leaveEvent(event)
-
-    @staticmethod
-    def _rgba(hex_color: str, alpha: float) -> str:
-        color = QColor(hex_color)
-        return f"rgba({color.red()}, {color.green()}, {color.blue()}, {alpha:.2f})"
 
     def _bar_colour(self, ratio: float) -> str:
         """Neutral ramp: length carries the time, colour stays out of the

@@ -18,6 +18,12 @@ class Elevation:
     opacity: int
 
 
+def _rgba(hex_color: str, alpha: float) -> str:
+    """Convert a hex token to a QSS rgba() string for translucent states."""
+    color = QColor(hex_color)
+    return f"rgba({color.red()}, {color.green()}, {color.blue()}, {alpha:.2f})"
+
+
 ELEVATIONS = {
     0: Elevation(0, 0, 0, 0),
     1: Elevation(10, 0, 2, 40),
@@ -161,6 +167,7 @@ class ThemeManager(QObject):
                 DANGER_PRESSED=p.danger_pressed,
                 ON_ACCENT=Styles.COLOR_ON_ACCENT,
                 MONO_FONT=Styles.MONO_FONT_FAMILY,
+                SURFACE_LIGHT_55=_rgba(p.surface_light, 0.55),
                 TICK_PATH=tick_path,
             )
         except Exception as e:

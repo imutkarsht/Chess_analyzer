@@ -1085,7 +1085,7 @@ QFrame#TimeTroubleBanner {{
 
 /* Import Workspace */
 QFrame#ImportActionBar {{
-    background-color: {SURFACE};
+    background-color: transparent;
     border-top: 1px solid {BORDER};
 }}
 QTableView#ImportTable {{
@@ -1274,31 +1274,127 @@ QFrame#CoachCard {{
     border-radius: 12px;
 }}
 
-/* Move List */
+/* Move list */
 QFrame#MoveListCard {{
     background-color: {SURFACE};
     border: 1px solid {BORDER};
-    border-radius: 8px;
+    border-radius: 12px;
 }}
 QTableWidget#MoveListTable {{
-    background-color: {SURFACE};
+    background: transparent;
+    border: none;
+    gridline-color: transparent;
+    font-size: 13px;
+    selection-background-color: transparent;
+}}
+QTableWidget#MoveListTable QWidget#qt_scrollarea_viewport {{
+    background: transparent;
+}}
+QTableWidget#MoveListTable::item {{
+    padding: 0px 0px 0px 10px;
+    border: none;
+    border-bottom: 1px solid {SURFACE_LIGHT};
+}}
+QTableWidget#MoveListTable::item:hover {{
+    background: transparent;
+}}
+QTableWidget#MoveListTable::item:selected {{
+    background: transparent;
     color: {TEXT_PRIMARY};
+}}
+QTableWidget#MoveListTable QHeaderView {{
+    background: transparent;
+}}
+QTableWidget#MoveListTable QHeaderView::section {{
+    background: transparent;
+    color: {TEXT_SECONDARY};
+    padding: 8px 10px 8px 12px;
+    border: none;
+    border-bottom: 1px solid {BORDER};
+    font-weight: 600;
+    font-size: 11px;
+}}
+QTableWidget#MoveListTable QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 4px 2px 4px 0px;
+    border: none;
+}}
+QTableWidget#MoveListTable QScrollBar::handle:vertical {{
+    background: {BORDER};
+    min-height: 20px;
+    border-radius: 4px;
+}}
+QTableWidget#MoveListTable QScrollBar::handle:vertical:hover {{
+    background: {BORDER_LIGHT};
+}}
+QTableWidget#MoveListTable QScrollBar::add-line:vertical,
+QTableWidget#MoveListTable QScrollBar::sub-line:vertical {{
+    height: 0px;
+    background: none;
+}}
+QTableWidget#MoveListTable QScrollBar::add-page:vertical,
+QTableWidget#MoveListTable QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+
+QTableWidget#ExplorerMoveTable {{
+    background-color: {SURFACE};
     border: 1px solid {BORDER};
     border-radius: 8px;
     gridline-color: transparent;
+    font-size: 14px;
 }}
-QWidget#MoveCellWidget[state="selected"] {{
-    background-color: {ACCENT_SUBTLE};
-    border-left: 3px solid {ACCENT};
+QTableWidget#ExplorerMoveTable::item {{
+    padding: 4px 8px;
+    border-bottom: 1px solid {SURFACE_LIGHT};
 }}
-QWidget#MoveCellWidget[state="hovered"] {{
+QTableWidget#ExplorerMoveTable::item:hover {{
     background-color: {SURFACE_LIGHT};
 }}
-QWidget#MoveCellWidget[state="active"] {{
-    background-color: {SURFACE};
+QTableWidget#ExplorerMoveTable::item:selected {{
+    background-color: {HIGHLIGHT};
+    color: {TEXT_PRIMARY};
+    border-left: 3px solid {ACCENT};
 }}
-QWidget#MoveCellWidget[state="normal"] {{
+QTableWidget#ExplorerMoveTable QHeaderView::section {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_SECONDARY};
+    padding: 6px;
+    border: none;
+    border-bottom: 2px solid {ACCENT};
+    font-weight: 600;
+    font-size: 13px;
+}}
+
+QWidget#MoveCell[cellState="selected"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-left: 2px solid {ACCENT};
+}}
+QWidget#MoveCell[cellState="hovered"] {{
+    background-color: {SURFACE_LIGHT};
+    border-left: 2px solid transparent;
+}}
+QWidget#MoveCell[cellState="active"] {{
+    background-color: {SURFACE_LIGHT_55};
+    border-left: 2px solid transparent;
+}}
+QWidget#MoveCell[cellState="normal"] {{
     background-color: transparent;
+    border-left: 2px solid transparent;
+}}
+QWidget#MoveCell QToolButton {{
+    background-color: {ACCENT_SUBTLE};
+    color: {ACCENT};
+    border: 1px solid {ACCENT};
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0px;
+}}
+QWidget#MoveCell QToolButton:hover {{
+    background-color: {ACCENT};
+    color: {ON_ACCENT};
 }}
 
 /* Components */
