@@ -320,3 +320,377 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
     height: 0px;
     background: none;
 }}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 1 — Global chrome migrations
+   These rules centralize styles that were previously rebuilt at
+   runtime in dozens of widgets. They are safe to add before the
+   widgets are migrated because unmatched selectors are simply ignored.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Status Bar */
+QStatusBar {{
+    background-color: {BACKGROUND};
+    border-top: 1px solid {BORDER};
+}}
+QStatusBar QLabel {{
+    background: transparent;
+}}
+
+/* Splitters */
+QSplitter {{
+    background-color: {BACKGROUND};
+}}
+QSplitter::handle {{
+    background-color: {BORDER};
+}}
+
+/* Menus */
+QMenu {{
+    background-color: {SURFACE_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 6px;
+}}
+QMenu::item {{
+    padding: 7px 14px;
+    border-radius: 6px;
+}}
+QMenu::item:selected {{
+    background-color: {SURFACE_LIGHT};
+}}
+QMenu::item:disabled {{
+    color: {TEXT_MUTED};
+}}
+
+/* Header Bars */
+QFrame#AnalysisHeaderBar,
+QFrame#HistoryHeaderBar,
+QFrame#MetricsHeaderBar,
+QFrame#SettingsHeaderBar,
+QFrame#ExplorerHeaderBar,
+QFrame#ImportHeader,
+QFrame#DrillDownHeaderBar {{
+    background-color: {BACKGROUND};
+    border-bottom: 1px solid {BORDER};
+}}
+QFrame#AnalysisHeaderBar QLabel,
+QFrame#HistoryHeaderBar QLabel,
+QFrame#MetricsHeaderBar QLabel,
+QFrame#SettingsHeaderBar QLabel,
+QFrame#ExplorerHeaderBar QLabel,
+QFrame#ImportHeader QLabel,
+QFrame#DrillDownHeaderBar QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#filter_bar {{
+    background-color: {BACKGROUND};
+    border-bottom: 1px solid {BORDER};
+}}
+
+/* Sidebar */
+QFrame#Sidebar {{
+    background-color: {SURFACE};
+    border-right: 1px solid {BORDER};
+}}
+
+/* Welcome / Empty State */
+QFrame#WelcomePanel,
+QFrame#WelcomeCard {{
+    background-color: {BACKGROUND};
+    border: none;
+}}
+QFrame#WelcomePanel QFrame#divider {{
+    background-color: {BORDER};
+    max-height: 1px;
+    border: none;
+}}
+QFrame#EmptyStateCTA {{
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+}}
+QFrame#EmptyStateCTA[dropHighlight="true"] {{
+    border: 1px solid {ACCENT};
+}}
+
+/* Settings Cards */
+QGroupBox[settingsCard="true"] {{
+    background: transparent;
+    border: none;
+    margin-top: 18px;
+    padding: 6px 0 0 0;
+}}
+QGroupBox[settingsCard="true"]::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 0px;
+    padding: 0 0 6px 0;
+}}
+
+QFrame#SettingsDivider,
+QFrame#ReportDivider,
+QFrame#HangingDivider {{
+    background-color: {BORDER};
+    max-height: 1px;
+    border: none;
+}}
+
+/* Metric card child transparency (already partially covered; explicit
+   for any widget added after the card is constructed). */
+QFrame#MetricCard > QWidget,
+QFrame[metric_card="true"] > QWidget {{
+    background-color: transparent;
+}}
+
+/* Metric card internal frames */
+QFrame#opening_item,
+QFrame#brilliancy_row,
+QFrame#HangingPieceRow,
+QFrame#format_row,
+QFrame#TacticsRow {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#opening_item:hover,
+QFrame#brilliancy_row:hover,
+QFrame#HangingPieceRow:hover,
+QFrame#format_row:hover,
+QFrame#TacticsRow:hover {{
+    border-color: {ACCENT};
+}}
+
+QFrame#phase_pillar,
+QFrame#adv_pillar,
+QFrame#comeback_pillar,
+QFrame#conversion_insight_frame,
+QFrame#leak_pillar,
+QFrame#vigilance_pillar,
+QFrame#AccuracyBadge,
+QFrame#MomentumBadge,
+QFrame#TacticsTopPill,
+QFrame#to_pill,
+QFrame#dq_card,
+QFrame#CoachErrorFrame,
+QFrame#DrillDownCard,
+QFrame#ProfilePreview {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+QFrame#PhaseIconTile,
+QFrame#IconTile,
+QFrame#StatPanel,
+QFrame#NoClockBanner,
+QFrame#TimeTroubleBanner {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+/* Import Workspace */
+QFrame#ImportActionBar {{
+    background-color: {SURFACE};
+    border-top: 1px solid {BORDER};
+}}
+QTableView#ImportTable {{
+    background-color: {SURFACE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    gridline-color: transparent;
+}}
+QTableView#ImportTable::item {{
+    padding: 6px;
+    border-bottom: 1px solid {SURFACE_LIGHT};
+}}
+QTableView#ImportTable::item:selected {{
+    background-color: {HIGHLIGHT};
+}}
+
+/* History / Batch */
+QFrame#HistoryFilterPanel {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#BatchSelectionBar {{
+    background-color: {SURFACE};
+    border-bottom: 1px solid {BORDER};
+}}
+QFrame#BatchQueueCard,
+QFrame#BatchCurrentGame {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QListWidget#BatchUpNextList {{
+    background-color: transparent;
+    border: none;
+}}
+QFrame#BatchStatTile {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+/* Explorer */
+QScrollArea#BookScroll {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QWidget#BookRow {{
+    background-color: transparent;
+    border-bottom: 1px solid {SURFACE_LIGHT};
+}}
+QWidget#BookRow:hover {{
+    background-color: {SURFACE_LIGHT};
+}}
+
+QFrame#explorerBookSkeletonRow {{
+    background-color: transparent;
+    border-bottom: 1px solid {BORDER};
+}}
+QFrame#explorerBookSkeletonIcon {{
+    background-color: {SURFACE_LIGHT};
+    border-radius: 4px;
+}}
+QFrame#explorerBookSkeletonBar {{
+    background-color: {SURFACE_LIGHT};
+    border-radius: 4px;
+}}
+QFrame#explorerBookSkeletonRatio {{
+    background-color: {SURFACE_LIGHT};
+    border-radius: 4px;
+}}
+
+/* Analysis chrome */
+QWidget#BoardControls {{
+    background: transparent;
+    border: none;
+    border-top: 1px solid {BORDER};
+}}
+QFrame#BoardGameHeader {{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid {BORDER};
+}}
+QFrame#VariationGraph {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#CoachCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+
+/* Move List */
+QFrame#MoveListCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QTableWidget#MoveListTable {{
+    background-color: {SURFACE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    gridline-color: transparent;
+}}
+QWidget#MoveCellWidget[state="selected"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-left: 3px solid {ACCENT};
+}}
+QWidget#MoveCellWidget[state="hovered"] {{
+    background-color: {SURFACE_LIGHT};
+}}
+QWidget#MoveCellWidget[state="active"] {{
+    background-color: {SURFACE};
+}}
+QWidget#MoveCellWidget[state="normal"] {{
+    background-color: transparent;
+}}
+
+/* Components */
+QFrame#StatCard,
+QFrame#SimpleStatCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+QFrame#StatCard:hover,
+QFrame#SimpleStatCard:hover {{
+    border-color: {ACCENT};
+    background-color: {SURFACE_LIGHT};
+}}
+QFrame#StatCard QLabel,
+QFrame#SimpleStatCard QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#PaginationBar {{
+    background-color: {SURFACE};
+    border-top: 1px solid {BORDER};
+}}
+
+QFrame#FilterChip {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 16px;
+}}
+
+QProgressBar,
+QProgressBar[variant="thin"] {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 4px;
+}}
+QProgressBar::chunk {{
+    background-color: {ACCENT};
+    border-radius: 4px;
+}}
+
+QScrollArea[transparentScroll="true"] {{
+    background: transparent;
+    border: none;
+}}
+
+QLabel#Avatar {{
+    background-color: {ACCENT_SUBTLE};
+    color: {ACCENT};
+    border: 1px solid {BORDER};
+    border-radius: 50%;
+}}
+
+QFrame#GameCard[selected="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    border: 1px solid {ACCENT};
+}}
+QFrame#GameCard[selected="false"] {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+}}
+QFrame#GameCard[selected="false"]:hover {{
+    border-color: {ACCENT};
+    background-color: {SURFACE};
+}}
+
+/* Historic Bar */
+QFrame#HistoricInfoBar {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#HistoricInfoBar[celebration="true"] {{
+    border: 2px solid {ACCENT};
+}}
+
