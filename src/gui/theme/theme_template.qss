@@ -1089,44 +1089,120 @@ QFrame#ImportActionBar {{
     border-top: 1px solid {BORDER};
 }}
 QTableView#ImportTable {{
-    background-color: {SURFACE};
+    background-color: {BACKGROUND};
     color: {TEXT_PRIMARY};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
+    border: none;
     gridline-color: transparent;
+    font-size: 13px;
+    selection-background-color: {ACCENT_SUBTLE};
+    selection-color: {TEXT_PRIMARY};
+}}
+QTableView#ImportTable QWidget#qt_scrollarea_viewport {{
+    background-color: {BACKGROUND};
 }}
 QTableView#ImportTable::item {{
-    padding: 6px;
-    border-bottom: 1px solid {SURFACE_LIGHT};
+    padding: 0 10px;
+    border-bottom: 1px solid {BORDER};
+}}
+QTableView#ImportTable::item:hover {{
+    background-color: {SURFACE_LIGHT};
 }}
 QTableView#ImportTable::item:selected {{
-    background-color: {HIGHLIGHT};
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+}}
+QTableView#ImportTable QHeaderView::section {{
+    background-color: {BACKGROUND};
+    color: {TEXT_SECONDARY};
+    padding: 0 10px;
+    border: none;
+    border-bottom: 1px solid {BORDER};
+    font-weight: 600;
+    font-size: 12px;
+}}
+QTableCornerButton::section {{
+    background-color: {BACKGROUND};
+    border: none;
+}}
+QTableView#ImportTable QScrollBar:vertical {{
+    background: transparent;
+    width: 10px;
+    margin: 0;
+}}
+QTableView#ImportTable QScrollBar::handle:vertical {{
+    background: {BORDER};
+    border-radius: 5px;
+    min-height: 24px;
+}}
+QTableView#ImportTable QScrollBar::handle:vertical:hover {{
+    background: {TEXT_MUTED};
+}}
+QTableView#ImportTable QScrollBar::add-line:vertical,
+QTableView#ImportTable QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+QTableView#ImportTable QScrollBar::add-page:vertical,
+QTableView#ImportTable QScrollBar::sub-page:vertical {{
+    background: transparent;
 }}
 
 /* History / Batch */
 QFrame#HistoryFilterPanel {{
-    background-color: {SURFACE};
+    background-color: {SURFACE_CARD};
     border: 1px solid {BORDER};
-    border-radius: 8px;
+    border-radius: 10px;
+}}
+QFrame#HistoryFilterPanel QLabel {{
+    background: transparent;
+    border: none;
 }}
 QFrame#BatchSelectionBar {{
-    background-color: {SURFACE};
-    border-bottom: 1px solid {BORDER};
-}}
-QFrame#BatchQueueCard,
-QFrame#BatchCurrentGame {{
-    background-color: {SURFACE};
+    background-color: {SURFACE_LIGHT};
     border: 1px solid {BORDER};
-    border-radius: 8px;
+    border-radius: 10px;
+}}
+QFrame#BatchQueueCard {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-left: 3px solid {ACCENT};
+    border-radius: 12px;
+}}
+QFrame#BatchQueueCard QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#BatchCurrentGame {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {ACCENT};
+    border-radius: 10px;
+}}
+QFrame#BatchCurrentGame QLabel {{
+    background: transparent;
+    border: none;
 }}
 QListWidget#BatchUpNextList {{
-    background-color: transparent;
-    border: none;
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    outline: none;
+}}
+QListWidget#BatchUpNextList::item {{
+    background: transparent;
+    border-bottom: 1px solid {BORDER};
+    padding: 0px;
+}}
+QListWidget#BatchUpNextList::item:selected,
+QListWidget#BatchUpNextList::item:hover {{
+    background-color: {SURFACE};
 }}
 QFrame#BatchStatTile {{
     background-color: {SURFACE_LIGHT};
     border: 1px solid {BORDER};
     border-radius: 8px;
+}}
+QFrame#BatchStatTile QLabel {{
+    background: transparent;
+    border: none;
 }}
 
 /* Explorer */
@@ -1137,7 +1213,7 @@ QScrollArea#BookScroll {{
 }}
 QWidget#BookRow {{
     background-color: transparent;
-    border-bottom: 1px solid {SURFACE_LIGHT};
+    border-bottom: 1px solid {BORDER};
 }}
 QWidget#BookRow:hover {{
     background-color: {SURFACE_LIGHT};
@@ -1149,15 +1225,18 @@ QFrame#explorerBookSkeletonRow {{
 }}
 QFrame#explorerBookSkeletonIcon {{
     background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
     border-radius: 4px;
 }}
 QFrame#explorerBookSkeletonBar {{
     background-color: {SURFACE_LIGHT};
-    border-radius: 4px;
+    border: 1px solid {BORDER};
+    border-radius: 5px;
 }}
 QFrame#explorerBookSkeletonRatio {{
     background-color: {SURFACE_LIGHT};
-    border-radius: 4px;
+    border: 1px solid {BORDER};
+    border-radius: 8px;
 }}
 
 QFrame#skeletonDivider {{

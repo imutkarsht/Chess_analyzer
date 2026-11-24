@@ -102,6 +102,7 @@ class GameImportView(QWidget):
         self.proxy.setDynamicSortFilter(True)
 
         self.table = QTableView()
+        self.table.setObjectName("ImportTable")
         self.table.setModel(self.proxy)
         self.header_view = CheckboxHeader(
             Qt.Orientation.Horizontal, self.table
@@ -581,8 +582,5 @@ class GameImportView(QWidget):
         self.table.viewport().update()
 
     def refresh_styles(self, *_args) -> None:
-        Styles.apply_background(self)
-        self.header.refresh_styles()
-        self.toolbar.refresh_styles()
-        self.action_bar.refresh_styles()
-        self.table.setStyleSheet(Styles.get_import_table_style())
+        """Import chrome is global; only data-driven children need a repaint."""
+        self.table.viewport().update()

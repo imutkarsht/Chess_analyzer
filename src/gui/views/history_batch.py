@@ -111,10 +111,9 @@ class BatchSelectionBar(QFrame):
         self.btn_select_page.setEnabled(bool(available))
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_batch_selection_bar_style())
-        self.btn_select_page.refresh_styles()
-        self.btn_clear.refresh_styles()
-        self.btn_exit.refresh_styles()
+        """Selection-bar chrome is global; buttons self-refresh."""
+        self.style().unpolish(self)
+        self.style().polish(self)
 
 
 class _QueueRow(QWidget):
@@ -221,7 +220,8 @@ class _QueueRow(QWidget):
         super().mouseReleaseEvent(event)
 
     def refresh_styles(self) -> None:
-        self.remove_button.refresh_styles()
+        """Row chrome is global; the remove button self-refreshes."""
+        return
 
 
 class _ReorderList(QListWidget):
@@ -527,23 +527,7 @@ class BatchQueueCard(QFrame):
         self.set_up_next([])
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_batch_queue_card_style())
-        self.current_panel.setStyleSheet(Styles.get_batch_current_game_style())
-        self.up_next_list.setStyleSheet(Styles.get_batch_up_next_style())
-        for tile in self.findChildren(QFrame, "BatchStatTile"):
-            tile.setStyleSheet(Styles.get_batch_stat_tile_style())
-        for button in (
-            self.btn_pause,
-            self.btn_resume,
-            self.btn_dismiss,
-            self.btn_collapse,
-            self.btn_cancel,
-        ):
-            button.refresh_styles()
-        for row in range(self.up_next_list.count()):
-            widget = self.up_next_list.itemWidget(self.up_next_list.item(row))
-            if isinstance(widget, _QueueRow):
-                widget.refresh_styles()
+        """Card chrome is global; only the data-driven mini bars need repainting."""
         for bar in (self.overall_bar, self.move_bar):
             bar.set_color(Styles.COLOR_ACCENT)
             bar.set_track_color(Styles.COLOR_BORDER)

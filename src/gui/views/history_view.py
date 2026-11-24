@@ -116,9 +116,9 @@ class HistoryView(QWidget):
         history_page_layout.setContentsMargins(0, 0, 0, 0)
         history_page_layout.setSpacing(0)
 
-        # Header Bar Container
+        # Header Bar Container (chrome owned by the global template)
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
+        self.header_bar.setObjectName("HistoryHeaderBar")
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(24, 12, 24, 12)
         header_layout.setSpacing(8)
@@ -155,7 +155,6 @@ class HistoryView(QWidget):
             "Export", ButtonVariant.FILLED, icon="fa5s.file-export"
         )
         self.export_menu = QMenu(self)
-        self.export_menu.setStyleSheet(Styles.get_menu_style())
         self.export_csv_action = self.export_menu.addAction("Export CSV")
         self.export_csv_action.triggered.connect(self.export_games)
         self.export_pgn_action = self.export_menu.addAction("Export Annotated PGN")
@@ -1203,33 +1202,17 @@ class HistoryView(QWidget):
             ToastManager.error(self, f"Failed to start import: {e}")
 
     def refresh_styles(self):
-        """Re-applies styles to game history view components."""
-        if hasattr(self, "header_bar"):
-            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-        if hasattr(self, "content_widget"):
-            Styles.apply_background(self.content_widget)
+        """Refresh data-driven children; view chrome is owned by global QSS."""
         if hasattr(self, "filter_bar"):
             self.filter_bar.refresh_styles()
-        if hasattr(self, "btn_batch"):
-            self.btn_batch.refresh_styles()
         if hasattr(self, "batch_selection_bar"):
             self.batch_selection_bar.refresh_styles()
         if hasattr(self, "batch_queue_card"):
             self.batch_queue_card.refresh_styles()
         if hasattr(self, "batch_collapsed_bar"):
             self.batch_collapsed_bar.refresh_styles()
-        if hasattr(self, "btn_import"):
-            self.btn_import.refresh_styles()
-        if hasattr(self, "btn_export"):
-            self.btn_export.refresh_styles()
-        if hasattr(self, "export_menu"):
-            self.export_menu.setStyleSheet(Styles.get_menu_style())
         if hasattr(self, "export_csv_action"):
             self._refresh_export_menu_icons()
-        if hasattr(self, "btn_clear"):
-            self.btn_clear.refresh_styles()
-        if hasattr(self, "btn_refresh"):
-            self.btn_refresh.refresh_styles()
         if hasattr(self, "game_list"):
             self.game_list.refresh_styles()
         if hasattr(self, "import_view"):

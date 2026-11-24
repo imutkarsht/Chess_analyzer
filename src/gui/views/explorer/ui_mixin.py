@@ -42,7 +42,6 @@ class ExplorerUiMixin:
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(2)
-        self.splitter.setStyleSheet(Styles.get_splitter_style())
 
         self._build_left_panel()
         self._build_right_panel()
@@ -56,9 +55,7 @@ class ExplorerUiMixin:
 
     def _build_header_bar(self, main_layout: QVBoxLayout) -> None:
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(
-            Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND)
-        )
+        self.header_bar.setObjectName("ExplorerHeaderBar")
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(20, 6, 20, 6)
 
@@ -212,8 +209,8 @@ class ExplorerUiMixin:
         right_layout.addWidget(self.explorer_hint)
 
         self.book_scroll = QScrollArea()
+        self.book_scroll.setObjectName("BookScroll")
         self.book_scroll.setWidgetResizable(True)
-        self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
 
         self.book_container = QWidget()
         Styles.apply_background(self.book_container, "surface")
@@ -278,39 +275,13 @@ class ExplorerUiMixin:
     # ------------------------------------------------------------------
 
     def refresh_styles(self):
-        """Re-applies styles to explorer view components."""
-        self._refresh_header_styles()
-        self._refresh_panel_styles()
-        self._refresh_book_styles()
-        self._refresh_move_styles()
-        for child in self.findChildren(QWidget):
-            child.style().unpolish(child)
-            child.style().polish(child)
-
-    def _refresh_header_styles(self) -> None:
-        self.header_bar.setStyleSheet(
-            Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND)
-        )
-        for button in (self.btn_flip, self.btn_copy_fen, self.btn_copy_pgn):
-            button.refresh_styles()
-
-    def _refresh_panel_styles(self) -> None:
-        self.splitter.setStyleSheet(Styles.get_splitter_style())
-        Styles.apply_background(self.left_panel)
-        Styles.apply_background(self.right_panel)
+        """Refresh data-driven children; view chrome is owned by global QSS."""
         self.captured_white.refresh_styles()
         self.captured_black.refresh_styles()
         self.lines_widget.refresh_styles()
-
-    def _refresh_book_styles(self) -> None:
-        self.book_toggle.refresh_styles()
-        self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
-        Styles.apply_background(self.book_container, "surface")
         self._refresh_attribution_text()
         skeleton = getattr(self, "_book_skeleton", None)
         if skeleton is not None:
             skeleton.refresh_styles()
-
-    def _refresh_move_styles(self) -> None:
         self.move_list_view.refresh_styles()
         self.move_controls.refresh_styles()
