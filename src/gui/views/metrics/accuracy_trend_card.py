@@ -84,18 +84,6 @@ class AccuracyTrendCard(MetricCard):
         def make_badge(label_text: str, value_text: str, tone: TextTone) -> QFrame:
             frame = QFrame()
             frame.setObjectName("AccuracyBadge")
-            frame.setStyleSheet(f"""
-                QFrame#AccuracyBadge {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 6px;
-                    padding: 2px 6px;
-                }}
-                QFrame#AccuracyBadge QLabel {{
-                    background: transparent;
-                    border: none;
-                }}
-            """)
             layout = QHBoxLayout(frame)
             layout.setContentsMargins(6, 2, 6, 2)
             layout.setSpacing(4)
@@ -137,18 +125,6 @@ class AccuracyTrendCard(MetricCard):
 
         mom_frame = QFrame()
         mom_frame.setObjectName("MomentumBadge")
-        mom_frame.setStyleSheet(f"""
-            QFrame#MomentumBadge {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 2px 6px;
-            }}
-            QFrame#MomentumBadge QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """)
         mom_layout = QHBoxLayout(mom_frame)
         mom_layout.setContentsMargins(6, 2, 6, 2)
         mom_layout.setSpacing(4)

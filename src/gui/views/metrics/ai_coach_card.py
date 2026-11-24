@@ -93,16 +93,7 @@ class AICoachCard(MetricCard):
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setStyleSheet(f"""
-            QScrollArea {{ background: transparent; border: none; }}
-            QScrollBar:vertical {{
-                background: transparent; width: 6px; margin: 0;
-            }}
-            QScrollBar::handle:vertical {{
-                background: {Styles.COLOR_BORDER}; border-radius: 3px; min-height: 20px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
-        """)
+        Styles.apply_transparent(self.scroll, borderless=False)
 
         self.insights_container = QWidget()
         Styles.apply_transparent(self.insights_container, borderless=False)
@@ -283,12 +274,7 @@ class AICoachCard(MetricCard):
         clear_layout(self.insights_layout)
 
         err_frame = QFrame()
-        err_frame.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px solid {Styles.COLOR_BLUNDER};
-            border-radius: 8px;
-            padding: 16px;
-        """)
+        err_frame.setObjectName("CoachErrorFrame")
         vbox = QVBoxLayout(err_frame)
         vbox.setSpacing(10)
 

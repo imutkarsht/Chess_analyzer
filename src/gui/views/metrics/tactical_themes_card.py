@@ -137,11 +137,7 @@ class TacticalThemesCard(MetricCard):
         right_box.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         top_pill = QFrame()
-        top_pill.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-        """)
+        top_pill.setObjectName("TacticsTopPill")
         tp_layout = QHBoxLayout(top_pill)
         tp_layout.setContentsMargins(8, 4, 8, 4)
         tp_layout.setSpacing(6)
@@ -217,16 +213,12 @@ class TacticalThemesCard(MetricCard):
             theme_color = getattr(Styles, color_attr, Styles.COLOR_BEST)
 
             row = QWidget()
+            row.setObjectName("TacticsRow")
+            row.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
             row.setCursor(Qt.CursorShape.PointingHandCursor)
             row.mousePressEvent = lambda e, k=key: self.drill_down_requested.emit(
                 "tactical_themes", k
             )
-            row.setStyleSheet(f"""
-                QWidget:hover {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border-radius: 6px;
-                }}
-            """)
             row.setToolTip(
                 f"{name}: {desc}\nExecuted {cnt} times ({pct:.1f}% of arsenal)\nClick to view positions"
             )

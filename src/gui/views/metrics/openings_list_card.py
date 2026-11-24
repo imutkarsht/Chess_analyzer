@@ -234,16 +234,6 @@ class OpeningsListCard(MetricCard):
         card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.setToolTip(f"Click to inspect games played in {name}")
         card.mousePressEvent = lambda e, op_name=name: self._on_opening_clicked(e, op_name)
-        card.setStyleSheet(f"""
-            QFrame#opening_item {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-            QFrame#opening_item:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """)
         card.setObjectName("opening_item")
 
         c_layout = QVBoxLayout(card)

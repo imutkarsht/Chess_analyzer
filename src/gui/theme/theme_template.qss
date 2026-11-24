@@ -1054,18 +1054,99 @@ QFrame#TacticsRow:hover {{
     border-color: {ACCENT};
 }}
 
+QFrame#opening_item {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#opening_item:hover {{
+    border-color: {ACCENT};
+}}
+
+QFrame#brilliancy_row {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#brilliancy_row:hover {{
+    background-color: {SURFACE};
+    border-color: {BRILLIANT};
+}}
+
 QFrame#phase_pillar,
-QFrame#adv_pillar,
-QFrame#comeback_pillar,
-QFrame#conversion_insight_frame,
 QFrame#leak_pillar,
 QFrame#vigilance_pillar,
+QFrame#adv_pillar,
+QFrame#comeback_pillar {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+QFrame#phase_pillar {{
+    border-radius: 10px;
+}}
+
+QFrame#conversion_insight_frame {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    padding: 10px 14px;
+}}
+
 QFrame#AccuracyBadge,
-QFrame#MomentumBadge,
-QFrame#TacticsTopPill,
+QFrame#MomentumBadge {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    padding: 2px 6px;
+}}
+QFrame#AccuracyBadge QLabel,
+QFrame#MomentumBadge QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#TacticsTopPill {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+
+QWidget#TacticsRow:hover {{
+    background-color: {SURFACE_LIGHT};
+    border-radius: 6px;
+}}
+
+QFrame#HangingPieceRow {{
+    background: transparent;
+    border-radius: 4px;
+}}
+QFrame#HangingPieceRow QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#HangingPieceRow:hover {{
+    background-color: {SURFACE};
+}}
+
+QWidget#AdvantageStat {{
+    background: transparent;
+    border-radius: 4px;
+}}
+QWidget#AdvantageStat QLabel {{
+    background: transparent;
+    border: none;
+}}
+
 QFrame#to_pill,
 QFrame#dq_card,
-QFrame#CoachErrorFrame,
+QFrame#CoachErrorFrame {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
 QFrame#DrillDownCard,
 QFrame#ProfilePreview {{
     background-color: {SURFACE_LIGHT};

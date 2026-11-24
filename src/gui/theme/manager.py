@@ -163,6 +163,7 @@ class ThemeManager(QObject):
                 ACCENT_HOVER=p.accent_hover,
                 ACCENT_SUBTLE=p.accent_subtle,
                 DANGER=cls.get_class_color("Blunder"),
+                BRILLIANT=cls.get_class_color("Brilliant"),
                 DANGER_HOVER=p.danger_hover,
                 DANGER_PRESSED=p.danger_pressed,
                 ON_ACCENT=Styles.COLOR_ON_ACCENT,

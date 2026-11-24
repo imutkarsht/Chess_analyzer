@@ -168,17 +168,6 @@ class BrilliancyHallCard(MetricCard):
         row = ClickableFrame()
         row.setObjectName("brilliancy_row")
         row.setCursor(Qt.CursorShape.PointingHandCursor)
-        row.setStyleSheet(f"""
-            QFrame#brilliancy_row {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-            QFrame#brilliancy_row:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BRILLIANT};
-            }}
-        """)
         row.setToolTip(f"{move_str} in {meta_str}\nClick to view move on Analysis Board.")
 
         r_layout = QHBoxLayout(row)

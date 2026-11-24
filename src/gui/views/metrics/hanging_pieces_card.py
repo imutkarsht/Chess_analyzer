@@ -170,13 +170,6 @@ class HangingPiecesCard(MetricCard):
     ) -> QFrame:
         pillar = QFrame()
         pillar.setObjectName(object_name)
-        pillar.setStyleSheet(f"""
-            QFrame#{object_name} {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
         layout = QVBoxLayout(pillar)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(8)
@@ -276,21 +269,9 @@ class HangingPiecesCard(MetricCard):
     ) -> QFrame:
         row = QFrame()
         row.setObjectName("HangingPieceRow")
+        row.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
         row.setCursor(Qt.CursorShape.PointingHandCursor)
         row.setToolTip(tooltip)
-        row.setStyleSheet(f"""
-            QFrame#HangingPieceRow {{
-                background: transparent;
-                border-radius: 4px;
-            }}
-            QFrame#HangingPieceRow QLabel {{
-                background: transparent;
-                border: none;
-            }}
-            QFrame#HangingPieceRow:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-            }}
-        """)
         row.mousePressEvent = lambda _event, key=piece_key: self.drill_down_requested.emit(
             category, key
         )
