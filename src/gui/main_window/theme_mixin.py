@@ -130,39 +130,14 @@ class ThemeMixin:
         if hasattr(self, "btn_load"):
             self.btn_load.refresh_styles()
 
-        # Analysis page header containers
-        if hasattr(self, "analysis_header_bar"):
-            self.analysis_header_bar.setStyleSheet(
-                Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND)
-                + " QFrame QLabel { background: transparent; }"
-            )
-        if hasattr(self, "left_widget"):
-            Styles.apply_background(self.left_widget)
-        if hasattr(self, "center_widget"):
-            Styles.apply_background(self.center_widget)
-        if hasattr(self, "empty_state_cta"):
-            self.empty_state_cta.setStyleSheet(
-                Styles.get_empty_state_cta_style(
-                    getattr(self, "_drop_highlight_active", False)
-                )
-            )
-        if hasattr(self, "_refresh_historic_bar_styles"):
-            self._refresh_historic_bar_styles()
+        # Page containers carry the appBackground property set at construction;
+        # the global QSS re-colours them on every theme apply without help here.
         if hasattr(self, "lbl_hero_hint"):
             self.lbl_hero_hint.set_tone(
                 TextTone.ACCENT
                 if getattr(self, "_drop_highlight_active", False)
                 else TextTone.SECONDARY
             )
-        if hasattr(self, "splitter"):
-            self.splitter.setStyleSheet(f"""
-                QSplitter {{
-                    background-color: {Styles.COLOR_BACKGROUND};
-                }}
-                QSplitter::handle {{
-                    background-color: {Styles.COLOR_BORDER};
-                }}
-            """)
 
         # Update Chess Boards (Graphics / QPainter)
         if hasattr(self, "board_widget"):
@@ -186,19 +161,6 @@ class ThemeMixin:
                 self.metrics_view.refresh_styles()
             else:
                 self.metrics_view.refresh()
-        if hasattr(self, "board_game_header"):
-            self.board_game_header.refresh_styles()
-
-        # Update Menu Styles
-        menu_style = f"QMenu {{ background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; border: 1px solid {Styles.COLOR_BORDER}; }} QMenu::item {{ padding: 5px 20px; }} QMenu::item:selected {{ background-color: {Styles.COLOR_ACCENT}; color: white; }}"
-        if hasattr(self, "load_menu"):
-            self.load_menu.setStyleSheet(menu_style)
-        if hasattr(self, "menu_pgn"):
-            self.menu_pgn.setStyleSheet(menu_style)
-        if hasattr(self, "menu_chesscom"):
-            self.menu_chesscom.setStyleSheet(menu_style)
-        if hasattr(self, "menu_lichess"):
-            self.menu_lichess.setStyleSheet(menu_style)
 
         # Update Captured Pieces
         for cp in ("captured_white", "captured_black"):
@@ -226,20 +188,22 @@ class ThemeMixin:
         if hasattr(self, "tour_overlay"):
             self.tour_overlay.refresh_accent()
 
-        # Update status bar
-        self.statusBar().setStyleSheet(f"""
-            QStatusBar {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-top: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QStatusBar QLabel {{
-                background: transparent;
-            }}
-        """)
-        if hasattr(self, "board_game_header"):
-            self.board_game_header.refresh_styles()
-
         # Force full style re-evaluation for all children
         self.style().unpolish(self)
         self.style().polish(self)
         self.update()
+
+    def _apply_cta_drop_highlight(self, active: bool) -> None:
+        """Toggle the hero CTA drop-target outline via a QSS property.
+
+        The global template owns the actual colours, so this only flips the
+        property and forces this one widget to re-evaluate its style.
+        """
+        cta = getattr(self, "empty_state_cta", None)
+        if cta is None:
+            return
+        cta.setProperty("dropHighlight", bool(active))
+        style = cta.style()
+        style.unpolish(cta)
+        style.polish(cta)
+        cta.update()

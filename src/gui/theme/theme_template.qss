@@ -687,10 +687,24 @@ QFrame#GameCard[selected="false"]:hover {{
 /* Historic Bar */
 QFrame#HistoricInfoBar {{
     background-color: {SURFACE};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
+    border: none;
+    border-top: 1px solid {BORDER};
+    border-radius: 0px;
 }}
-QFrame#HistoricInfoBar[celebration="true"] {{
-    border: 2px solid {ACCENT};
+QFrame#HistoricInfoBar QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#HistoricCelebration {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QFrame#HistoricCelebration QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#HistoricCelebration[solved="true"] {{
+    border: 1px solid {ACCENT};
 }}
 

@@ -8,21 +8,6 @@ from src.gui.theme import ThemeManager
 
 class _PagesMixin:
     @classmethod
-    def get_board_game_header_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QFrame#BoardGameHeader {{
-                background: transparent;
-                border: none;
-                border-bottom: 1px solid {p.border};
-            }}
-            QFrame#BoardGameHeader QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """
-
-    @classmethod
     def get_board_controls_style(cls):
         p = ThemeManager.palette()
         return f"""

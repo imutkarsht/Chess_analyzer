@@ -261,22 +261,6 @@ class _NavigationMixin:
         widget.update()
 
     @classmethod
-    def get_empty_state_cta_style(cls, drag_active: bool = False):
-        """Landing hero CTA bar; borderless by default, accent border appears on drag-over."""
-        p = ThemeManager.palette()
-        # Transparent background so the CTA buttons float above the board without
-        # a card-like box.  A 1-px accent outline appears only when a file is
-        # being dragged over the window (drop-target cue).
-        border = f"1px solid {p.accent}" if drag_active else "none"
-        return f"""
-            QFrame#EmptyStateCTA {{
-                background-color: transparent;
-                border: {border};
-                border-radius: 8px;
-            }}
-        """
-
-    @classmethod
     def get_sidebar_style(cls):
         p = ThemeManager.palette()
         return f"""

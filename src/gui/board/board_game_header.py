@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout
 
 from src.backend.analysis.metrics.filters import resolve_user_side
 from src.gui.components import Label, TextRole, TextTone
-from src.gui.styles import Styles
 from src.gui.utils.result_ui import result_tone
 from src.utils.config import ConfigManager
 
@@ -80,5 +79,10 @@ class BoardGameHeader(QFrame):
         return result_tone(result, side)
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_board_game_header_style())
+        """Recompute the result tone from the saved player's point of view.
+
+        Frame chrome (background, bottom border) is owned by the global QSS
+        template via #BoardGameHeader, so only the semantic tone needs
+        refreshing, and only when the players/result actually change.
+        """
         self.result_label.set_tone(self._result_tone())
