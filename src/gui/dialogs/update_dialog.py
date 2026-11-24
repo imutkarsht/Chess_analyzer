@@ -112,7 +112,7 @@ class UpdateNotificationDialog(QDialog):
 
         # Version string: grey current → accent latest
         ver_widget = QWidget()
-        ver_widget.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(ver_widget, borderless=False)
         ver_lay = QHBoxLayout(ver_widget)
         ver_lay.setContentsMargins(0, 0, 0, 0)
         ver_lay.setSpacing(4)

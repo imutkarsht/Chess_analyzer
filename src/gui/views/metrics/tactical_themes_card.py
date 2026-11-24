@@ -91,7 +91,7 @@ class TacticalThemesCard(MetricCard):
         #  1. HERO SUMMARY STRIP (Clean, Open, Unboxed)
         # ═══════════════════════════════════════════════════════════════
         hero_strip = QWidget()
-        hero_strip.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(hero_strip, borderless=False)
         h_layout = QHBoxLayout(hero_strip)
         h_layout.setContentsMargins(0, 2, 0, 2)
         h_layout.setSpacing(16)
@@ -199,7 +199,7 @@ class TacticalThemesCard(MetricCard):
         # ═══════════════════════════════════════════════════════════════
         list_container = QWidget()
         list_container.setObjectName("tactics_list_container")
-        list_container.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(list_container, borderless=False)
         list_layout = QVBoxLayout(list_container)
         list_layout.setContentsMargins(0, 4, 0, 0)
         list_layout.setSpacing(4)

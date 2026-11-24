@@ -156,6 +156,10 @@ class ThemeManager(QObject):
                 ACCENT=p.accent,
                 ACCENT_HOVER=p.accent_hover,
                 ACCENT_SUBTLE=p.accent_subtle,
+                DANGER=cls.get_class_color("Blunder"),
+                DANGER_HOVER=p.danger_hover,
+                DANGER_PRESSED=p.danger_pressed,
+                ON_ACCENT=Styles.COLOR_ON_ACCENT,
                 TICK_PATH=tick_path,
             )
         except Exception as e:

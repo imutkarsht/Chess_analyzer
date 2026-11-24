@@ -5,6 +5,7 @@ from __future__ import annotations
 from PyQt6.QtWidgets import QStackedWidget, QWidget
 
 from src.gui.components import SegmentedControl
+from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
 from src.gui.views.metrics.time.time_formats_view import FormatsView
 from src.gui.views.metrics.time.time_pace_view import PaceView
@@ -47,7 +48,7 @@ class TimeManagementCard(MetricCard):
         self.btn_trouble = self.segmented_control.button("trouble")
 
         self.stack = QStackedWidget()
-        self.stack.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self.stack, borderless=False)
 
         self.formats_page = FormatsView()
         self.pace_page = PaceView()

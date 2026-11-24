@@ -428,7 +428,7 @@ class BatchQueueCard(QFrame):
 
         # Up next, with drag reorder.
         self.up_next_container = QWidget()
-        self.up_next_container.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self.up_next_container)
         up_next_layout = QVBoxLayout(self.up_next_container)
         up_next_layout.setContentsMargins(0, 0, 0, 0)
         up_next_layout.setSpacing(6)

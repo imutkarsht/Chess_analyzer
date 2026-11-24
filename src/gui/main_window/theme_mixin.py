@@ -121,14 +121,10 @@ class ThemeMixin:
         self._apply_palette()
         ThemeManager.apply_app_stylesheet()
 
-        # Header Buttons
+        # Header Buttons: each Button listens to theme/accent signals itself;
+        # only the destructive state of the analyze button needs re-syncing.
         if hasattr(self, "btn_analyze"):
             self.btn_analyze.set_danger(self.analysis_controller._full_analysis_running)
-            self.btn_analyze.refresh_styles()
-        if hasattr(self, "btn_explore"):
-            self.btn_explore.refresh_styles()
-        if hasattr(self, "btn_load"):
-            self.btn_load.refresh_styles()
 
         # Page containers carry the appBackground property set at construction;
         # the global QSS re-colours them on every theme apply without help here.

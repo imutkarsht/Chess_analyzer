@@ -53,7 +53,7 @@ class PulsingSkeleton(QWidget):
     ):
         super().__init__(parent)
         self.setObjectName("pulsingSkeleton")
-        self.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self, borderless=False)
         self._animation: QSequentialAnimationGroup | None = None
         self._effect: QGraphicsOpacityEffect | None = None
 
@@ -173,7 +173,7 @@ class PulsingSkeleton(QWidget):
         radius: int = _ROW_RADIUS,
     ) -> QWidget:
         row_widget = QWidget()
-        row_widget.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(row_widget, borderless=False)
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.setSpacing(0)
@@ -196,7 +196,7 @@ class PulsingSkeleton(QWidget):
             weight = max(1, int(width_ratio * 100))
             row_layout.addWidget(bar, weight)
             spacer = QWidget()
-            spacer.setStyleSheet("background: transparent;")
+            Styles.apply_transparent(spacer, borderless=False)
             row_layout.addWidget(spacer, max(1, 100 - weight))
         else:
             bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)

@@ -183,15 +183,6 @@ class _SurfaceMixin:
         """
 
     @classmethod
-    def get_transparent_style(cls):
-        return "border: none; background: transparent;"
-
-    @classmethod
-    def get_transparent_background_style(cls):
-        """Transparent fill without stripping a widget's own border."""
-        return "background: transparent;"
-
-    @classmethod
     def get_card_style(cls, border_radius=12):
         p = ThemeManager.palette()
         return f"""

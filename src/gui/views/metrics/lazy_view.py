@@ -5,13 +5,15 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from src.gui.styles import Styles
+
 
 class LazyRenderView(QWidget):
     """A transparent page that renders only when made visible and dirty."""
 
     def __init__(self, parent: QWidget | None = None, *, spacing: int = 12) -> None:
         super().__init__(parent)
-        self.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self, borderless=False)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(spacing)

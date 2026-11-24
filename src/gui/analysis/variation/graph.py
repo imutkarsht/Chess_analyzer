@@ -145,7 +145,7 @@ class _VariationCanvas(QWidget):
         self.tree: VariationTree | None = None
         self.active_branch_id: int | None = None
         self.pills: dict[int, QPushButton] = {}
-        self.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self, borderless=False)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.setToolTip("Drag to pan · scroll vertically · Shift-scroll horizontally")
 
@@ -460,7 +460,7 @@ class VariationGraph(QFrame):
         for btn in (self.btn_best, self.btn_undo, self.btn_reset, self.btn_exit):
             btn.refresh_styles()
         self._apply_action_icons()
-        self.scroll.setStyleSheet("background: transparent; border: none;")
+        Styles.apply_transparent(self.scroll)
         if self.tree is not None:
             node = self.tree.find_node(self.active_node_id or 0)
             if node is not None:

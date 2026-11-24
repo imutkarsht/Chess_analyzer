@@ -211,7 +211,7 @@ class DrillDownView(QWidget):
 
     def _render_empty_state(self) -> None:
         empty_container = QWidget()
-        empty_container.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(empty_container)
         empty_layout = QVBoxLayout(empty_container)
         empty_layout.setContentsMargins(0, 40, 0, 40)
         empty_layout.setSpacing(12)

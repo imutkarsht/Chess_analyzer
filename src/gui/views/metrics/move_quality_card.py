@@ -83,7 +83,7 @@ class MoveQualityCard(MetricCard):
         ax.set_aspect("equal")
 
         canvas = FigureCanvasQTAgg(fig)
-        canvas.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(canvas, borderless=False)
         canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         # Container for Chart + Legend

@@ -175,7 +175,7 @@ class OpeningsListCard(MetricCard):
 
         # 2. Paginated List of Openings
         items_container = QWidget()
-        items_container.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(items_container, borderless=False)
         items_vbox = QVBoxLayout(items_container)
         items_vbox.setContentsMargins(0, 0, 0, 0)
         items_vbox.setSpacing(8)

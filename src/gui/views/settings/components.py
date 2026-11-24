@@ -83,7 +83,7 @@ class SettingsForm(QWidget):
         lbl.setFixedWidth(self._label_width)
 
         wrapper = QWidget()
-        wrapper.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(wrapper)
 
         if width is not None:
             control.setMaximumWidth(width)

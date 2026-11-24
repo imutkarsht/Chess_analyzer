@@ -21,7 +21,7 @@ class RadioChoice(QWidget):
 
     def __init__(self, choices, *, trailing: QWidget | None = None, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self)
         self._values: dict[QRadioButton, object] = {}
 
         layout = QHBoxLayout(self)

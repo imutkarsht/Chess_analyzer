@@ -57,7 +57,7 @@ class MetricCard(QFrame):
         self._render_view()
 
     def set_content(self, widget):
-        widget.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(widget, borderless=False)
         self.card_layout.addWidget(widget, stretch=1)
         self.content_widget = widget
 
@@ -78,7 +78,7 @@ class MetricCard(QFrame):
         """
         self.clear_content()
         widget = QWidget()
-        widget.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(widget, borderless=False)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(spacing)

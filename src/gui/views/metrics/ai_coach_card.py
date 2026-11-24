@@ -60,7 +60,7 @@ class AICoachCard(MetricCard):
 
         # Action widget container in card header
         self.header_action_widget = QWidget()
-        self.header_action_widget.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self.header_action_widget, borderless=False)
         header_act_layout = QHBoxLayout(self.header_action_widget)
         header_act_layout.setContentsMargins(0, 0, 0, 0)
         header_act_layout.setSpacing(8)
@@ -105,7 +105,7 @@ class AICoachCard(MetricCard):
         """)
 
         self.insights_container = QWidget()
-        self.insights_container.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self.insights_container, borderless=False)
         self.insights_container.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )
@@ -158,7 +158,7 @@ class AICoachCard(MetricCard):
 
         intro_container = QWidget()
         intro_container.setObjectName("coach_intro_container")
-        intro_container.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(intro_container, borderless=False)
         vbox = QVBoxLayout(intro_container)
         vbox.setContentsMargins(16, 24, 16, 24)
         vbox.setSpacing(10)
@@ -326,7 +326,7 @@ class AICoachCard(MetricCard):
         if not sections or not any(sections.values()):
             # Fallback for plain text or unexpected formatting
             fallback_widget = QWidget()
-            fallback_widget.setStyleSheet("background: transparent;")
+            Styles.apply_transparent(fallback_widget, borderless=False)
             fb_vbox = QVBoxLayout(fallback_widget)
             fb_vbox.setContentsMargins(6, 6, 6, 6)
             fb_lbl = Label(
@@ -365,7 +365,7 @@ class AICoachCard(MetricCard):
 
             sec_container = QWidget()
             sec_container.setObjectName(f"coach_sec_{sec_key}")
-            sec_container.setStyleSheet("background: transparent;")
+            Styles.apply_transparent(sec_container, borderless=False)
             sec_vbox = QVBoxLayout(sec_container)
             sec_vbox.setContentsMargins(0, 2, 0, 4)
             sec_vbox.setSpacing(10)
@@ -388,7 +388,7 @@ class AICoachCard(MetricCard):
             # Items
             for item_title, item_body in items:
                 item_widget = QWidget()
-                item_widget.setStyleSheet("background: transparent;")
+                Styles.apply_transparent(item_widget, borderless=False)
                 ivbox = QVBoxLayout(item_widget)
                 ivbox.setContentsMargins(0, 0, 0, 0)
                 ivbox.setSpacing(3)

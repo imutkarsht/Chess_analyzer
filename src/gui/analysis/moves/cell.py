@@ -77,7 +77,7 @@ class MoveCellWidget(QWidget):
         # Bottom row: a 2-pixel-tall think-time bar (shown only if time_spent is present)
         self._bar = QFrame(self)
         self._bar.setFixedHeight(2)
-        self._bar.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self._bar)
         self._bar.hide()
         outer.addWidget(self._bar)
 

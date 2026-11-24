@@ -154,7 +154,7 @@ class LichessCard(_ProfileCard):
         )
 
         token_row = QWidget()
-        token_row.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(token_row)
         token_layout = QVBoxLayout(token_row)
         token_layout.setContentsMargins(0, 0, 0, 0)
         token_layout.setSpacing(4)

@@ -21,7 +21,7 @@ class EvaluationTab(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self, borderless=False)
         self.config_manager = ConfigManager()
         self.graph_widget: GraphWidget | None = None
         self._lines_fen: str | None = None

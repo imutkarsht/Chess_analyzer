@@ -7,8 +7,10 @@ used to live in ``styles.py`` getters, helper factories and per-widget QSS:
 * four sizes with optional icon-only and full-width layouts
 * built-in loading state (spinner + input lock) and checkable support
 
-Call sites never ship their own button QSS; the look comes from
-:meth:`Styles.get_button_qss` so theme and accent changes propagate everywhere.
+Call sites never ship their own button QSS; the look comes from the
+central ``theme_template.qss`` matrix via the ``btnVariant`` / ``btnSize`` /
+``btnDanger`` properties, so theme and accent changes propagate everywhere
+without rebuilding per-widget stylesheets.
 """
 
 from __future__ import annotations
@@ -213,20 +215,56 @@ class Button(QPushButton):
             self.setEnabled(self._enabled_before_loading)
 
     def refresh_styles(self) -> None:
-        """Regenerate the stylesheet and re-tint the icon for the current theme."""
-        self.setStyleSheet(
-            Styles.get_button_qss(
-                variant=self._variant.value,
-                size=self._size.value,
-                accent=self._accent,
-                align=self._align,
-                danger=self._danger,
-                text_color=self._text_color,
-                font_size=self._font_size,
-                font_weight=self._font_weight,
+        """Publish style properties for the global QSS matrix and re-tint the icon.
+
+        The central template owns every palette-driven declaration via the
+        ``btnVariant`` / ``btnSize`` / ``btnDanger`` properties, so a theme
+        change costs one property re-publish instead of a stylesheet rebuild
+        per button. Only instance-specific tweaks that the matrix cannot
+        express (alignment, custom fonts/colours, or a per-instance accent)
+        remain on a small per-widget override sheet.
+        """
+        self._publish_style_properties()
+        if self._accent:
+            # A per-instance accent cannot be expressed in the global matrix;
+            # fall back to the legacy generated sheet for this button alone.
+            self.setStyleSheet(
+                Styles.get_button_qss(
+                    variant=self._variant.value,
+                    size=self._size.value,
+                    accent=self._accent,
+                    align=self._align,
+                    danger=self._danger,
+                    text_color=self._text_color,
+                    font_size=self._font_size,
+                    font_weight=self._font_weight,
+                )
             )
-        )
+        else:
+            self._apply_style_overrides()
+        self.style().unpolish(self)
+        self.style().polish(self)
         self._apply_icon()
+
+    def _publish_style_properties(self) -> None:
+        self.setProperty("btnVariant", self._variant.value)
+        self.setProperty("btnSize", self._size.value)
+        self.setProperty("btnDanger", self._danger)
+
+    def _apply_style_overrides(self) -> None:
+        """Minimal per-widget sheet for tweaks the global matrix cannot express."""
+        declarations = []
+        if self._align:
+            declarations.append(f"text-align: {self._align};")
+        if self._font_size is not None:
+            declarations.append(f"font-size: {self._font_size}px;")
+        if self._font_weight is not None:
+            declarations.append(f"font-weight: {self._font_weight};")
+        if self._text_color:
+            declarations.append(f"color: {self._text_color};")
+        self.setStyleSheet(
+            f"QPushButton {{ {' '.join(declarations)} }}" if declarations else ""
+        )
 
     def _on_theme_changed(self, *_args) -> None:
         try:

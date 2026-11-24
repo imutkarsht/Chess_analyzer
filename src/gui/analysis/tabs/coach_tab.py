@@ -25,7 +25,7 @@ class CoachTab(QWidget):
 
     def __init__(self, groq_service: GroqService | None = None) -> None:
         super().__init__()
-        self.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self, borderless=False)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)

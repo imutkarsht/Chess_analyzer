@@ -107,7 +107,7 @@ class HistoryView(QWidget):
         self.layout.setSpacing(0)
 
         self.page_stack = QStackedWidget()
-        self.page_stack.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self.page_stack, borderless=False)
         self.layout.addWidget(self.page_stack)
 
         self.history_page = QWidget()

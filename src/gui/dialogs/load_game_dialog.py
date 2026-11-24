@@ -76,7 +76,7 @@ class LoadGameDialog(QDialog):
         root.addWidget(self._build_tabs())
 
         self.pages = QStackedWidget()
-        self.pages.setStyleSheet("background-color: transparent;")
+        Styles.apply_transparent(self.pages, borderless=False)
 
         self._online_fetch_panel = OnlineFetchPanel(self)
         self._online_fetch_panel.batch_ready.connect(self._on_batch_ready)

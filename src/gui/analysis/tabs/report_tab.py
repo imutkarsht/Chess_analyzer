@@ -41,7 +41,7 @@ class ReportTab(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self, borderless=False)
         self.resource_manager = ResourceManager()
         self.current_game = None
 
@@ -89,7 +89,7 @@ class ReportTab(QWidget):
 
         # 1. Top Section: Hero Outcome Header
         self.hero_card = QFrame()
-        self.hero_card.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self.hero_card)
         hero_layout = QVBoxLayout(self.hero_card)
         hero_layout.setContentsMargins(0, 0, 0, 0)
         hero_layout.setSpacing(2)
@@ -110,7 +110,7 @@ class ReportTab(QWidget):
 
         # 2. Accuracy Gauges (Side by side White & Black)
         self.accuracy_frame = QFrame()
-        self.accuracy_frame.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self.accuracy_frame)
         self.accuracy_layout = QHBoxLayout(self.accuracy_frame)
         self.accuracy_layout.setContentsMargins(0, 4, 0, 4)
         self.accuracy_layout.setSpacing(16)
@@ -130,7 +130,7 @@ class ReportTab(QWidget):
 
         # 3. Move Quality Classification Table
         self.stats_frame = QFrame()
-        self.stats_frame.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self.stats_frame)
         self.stats_layout = QGridLayout(self.stats_frame)
         self.stats_layout.setSpacing(4)
         self.stats_layout.setContentsMargins(0, 4, 0, 4)

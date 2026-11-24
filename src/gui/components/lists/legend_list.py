@@ -10,6 +10,7 @@ from src.gui.components.display.color_label import ColorLabel
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.display.rich_text import RichTextLabel
+from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 
 
@@ -22,7 +23,7 @@ class LegendList(QWidget):
 
     def __init__(self, spacing: int = 6, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self, borderless=False)
         self._layout = QVBoxLayout(self)
         self._layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self._layout.setSpacing(spacing)

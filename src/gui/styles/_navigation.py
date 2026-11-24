@@ -261,6 +261,22 @@ class _NavigationMixin:
         widget.update()
 
     @classmethod
+    def apply_transparent(cls, widget, *, borderless: bool = True) -> None:
+        """Mark a container transparent through the global QSS property rules.
+
+        A declaration-only ``setStyleSheet("background: transparent")`` on a
+        container acts as a wildcard rule for every descendant and overrides
+        the application stylesheet for child buttons and inputs. Property
+        rules only match the widget that carries them, so descendants keep
+        their own styling.
+        """
+        widget.setProperty("transparent", "full" if borderless else "background")
+        style = widget.style()
+        style.unpolish(widget)
+        style.polish(widget)
+        widget.update()
+
+    @classmethod
     def get_sidebar_style(cls):
         p = ThemeManager.palette()
         return f"""

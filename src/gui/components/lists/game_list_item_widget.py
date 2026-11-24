@@ -132,7 +132,7 @@ class GameListItemWidget(QWidget):
 
         players_widget = QWidget()
         players_widget.setFixedWidth(220)
-        players_widget.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(players_widget)
         players_layout = QVBoxLayout(players_widget)
         players_layout.setContentsMargins(0, 0, 0, 0)
         players_layout.setSpacing(2)
@@ -681,7 +681,7 @@ class GameListItemWidget(QWidget):
 
     def _create_meta_item(self, icon, text):
         container = QWidget()
-        container.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(container)
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)

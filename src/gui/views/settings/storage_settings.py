@@ -49,7 +49,7 @@ class StorageSettings(StorageCard):
             btn.setMaximumWidth(180)
 
         folder_row = QWidget()
-        folder_row.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(folder_row)
         row = QHBoxLayout(folder_row)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(8)
