@@ -25,7 +25,6 @@ from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.label import Label
 from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.components.lists.game_list_item_widget import GameListItemWidget
-from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.smooth_scroll import SmoothScroll
 
@@ -62,8 +61,8 @@ class GameListWidget(QWidget):
 
         from src.gui.theme import ThemeManager
 
-        ThemeManager.instance().theme_changed.connect(lambda mode: self.refresh_styles())
-        ThemeManager.instance().accent_changed.connect(lambda acc: self.refresh_styles())
+        ThemeManager.instance().theme_changed.connect(self._on_theme_changed)
+        ThemeManager.instance().accent_changed.connect(self._on_theme_changed)
 
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         root = QVBoxLayout(self)
@@ -72,6 +71,7 @@ class GameListWidget(QWidget):
 
         # ── Header Bar ───────────────────────────────────────────────────────
         self.header_bar_widget = QWidget()
+        self.header_bar_widget.setObjectName("GameListHeaderBar")
         self.header_bar_widget.setFixedHeight(44)
 
         header_bar_layout = QHBoxLayout(self.header_bar_widget)
@@ -117,6 +117,7 @@ class GameListWidget(QWidget):
 
         # ── List ─────────────────────────────────────────────────────────────
         self.list_widget = QListWidget()
+        self.list_widget.setObjectName("GameList")
         self.list_widget.setFrameShape(QFrame.Shape.NoFrame)
         self.list_widget.setSpacing(0)
         self.list_widget.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -562,17 +563,19 @@ class GameListWidget(QWidget):
 
     # ── Style refresh ─────────────────────────────────────────────────────────
 
-    def _apply_title_style(self):
-        if hasattr(self, "header_bar_widget") and self.header_bar_widget:
-            self.header_bar_widget.setStyleSheet(Styles.get_header_bar_style())
+    def _on_theme_changed(self, *_args) -> None:
+        from PyQt6 import sip
 
-    def _apply_list_style(self):
-        self.list_widget.setStyleSheet(Styles.get_list_widget_style())
+        if sip.isdeleted(self):
+            return
+        try:
+            self.refresh_styles()
+        except RuntimeError:
+            # The widget tree can already be gone while the app-wide theme
+            # signal is still in flight.
+            pass
 
     def refresh_styles(self):
-        """Re-applies styles on theme change."""
-        self._apply_title_style()
-        self._apply_list_style()
+        """Rebuild data-driven rows; list/header chrome is owned by global QSS."""
         self._update_view_toggle_styles()
-        self.empty_button.refresh_styles()
         self._rebuild(preserve_scroll=True)

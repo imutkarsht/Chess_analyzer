@@ -80,13 +80,6 @@ class AdvantageConversionCard(MetricCard):
         # Panel 1: Decisive Advantage
         adv_pillar = QFrame()
         adv_pillar.setObjectName("adv_pillar")
-        adv_pillar.setStyleSheet(f"""
-            QFrame#adv_pillar {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
         adv_vbox = QVBoxLayout(adv_pillar)
         adv_vbox.setContentsMargins(14, 12, 14, 12)
         adv_vbox.setSpacing(8)
@@ -180,19 +173,6 @@ class AdvantageConversionCard(MetricCard):
             if subcategory and value > 0:
                 w.setCursor(Qt.CursorShape.PointingHandCursor)
                 w.setToolTip(f"Click to inspect {value} {label.lower()} positions")
-                w.setStyleSheet(f"""
-                    QWidget#AdvantageStat {{
-                        background: transparent;
-                        border-radius: 4px;
-                    }}
-                    QWidget#AdvantageStat QLabel {{
-                        background: transparent;
-                        border: none;
-                    }}
-                    QWidget#AdvantageStat:hover {{
-                        background-color: {Styles.COLOR_SURFACE};
-                    }}
-                """)
                 w.mousePressEvent = lambda e, sc=subcategory: self.drill_down_requested.emit(
                     "advantage", sc
                 )
@@ -245,13 +225,6 @@ class AdvantageConversionCard(MetricCard):
         # Panel 2: Decisive Deficit & Comeback
         comeback_pillar = QFrame()
         comeback_pillar.setObjectName("comeback_pillar")
-        comeback_pillar.setStyleSheet(f"""
-            QFrame#comeback_pillar {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-        """)
         cb_vbox = QVBoxLayout(comeback_pillar)
         cb_vbox.setContentsMargins(14, 12, 14, 12)
         cb_vbox.setSpacing(8)
@@ -347,14 +320,6 @@ class AdvantageConversionCard(MetricCard):
         # ═══════════════════════════════════════════════════════════════
         insight_frame = QFrame()
         insight_frame.setObjectName("conversion_insight_frame")
-        insight_frame.setStyleSheet(f"""
-            QFrame#conversion_insight_frame {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 6px;
-                padding: 10px 14px;
-            }}
-        """)
         ins_layout = QHBoxLayout(insight_frame)
         ins_layout.setContentsMargins(10, 8, 10, 8)
         ins_layout.setSpacing(10)

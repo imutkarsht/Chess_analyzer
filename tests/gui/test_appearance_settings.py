@@ -216,7 +216,9 @@ def test_theme_mode_radio_persists_and_applies_theme(qapp, monkeypatch):
     config = _FakeConfig()
     widget = ThemeAccentSettings(config)
 
-    widget.theme_mode_choice.radios()[2].click()  # Dark
+    widget.theme_mode_select.set_current_index(
+        widget.theme_mode_select.find_value("dark"), emit=True
+    )  # Dark
 
     assert config.config["theme_mode"] == "dark"
     assert applied == ["dark"]

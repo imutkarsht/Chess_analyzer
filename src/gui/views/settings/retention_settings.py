@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import QVBoxLayout
 
 from src.backend.storage.cache import AnalysisCache
 from src.gui.components import SliderCounter
-from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
 from src.gui.views.settings.storage_card import StorageCard
 
@@ -106,6 +105,6 @@ class RetentionSettings(StorageCard):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.analysis_cap_input.refresh_styles()

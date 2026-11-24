@@ -139,9 +139,9 @@ class MetricsWidget(QWidget):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
 
-        # Header Bar Container
+        # Header Bar Container (chrome owned by the global template)
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
+        self.header_bar.setObjectName("MetricsHeaderBar")
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(24, 12, 24, 12)
 
@@ -156,12 +156,9 @@ class MetricsWidget(QWidget):
 
         self.main_layout.addWidget(self.header_bar)
 
-        # Filter Toolbar Container
+        # Filter Toolbar Container (chrome owned by the global template)
         self.filter_bar = QFrame()
         self.filter_bar.setObjectName("filter_bar")
-        self.filter_bar.setStyleSheet(
-            f"QFrame#filter_bar {{ background-color: {Styles.COLOR_BACKGROUND}; border-bottom: 1px solid {Styles.COLOR_BORDER}; }}"
-        )
         filter_layout = QHBoxLayout(self.filter_bar)
         filter_layout.setContentsMargins(24, 8, 24, 8)
         filter_layout.setSpacing(10)
@@ -239,27 +236,7 @@ class MetricsWidget(QWidget):
         self.main_layout.addWidget(self.stacked_widget, 1)
 
     def refresh_styles(self):
-        """Re-applies styles and rebuilds the dashboard using cached stats/insights."""
-        if hasattr(self, "header_bar") and self.header_bar:
-            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-
-        if hasattr(self, "filter_bar") and self.filter_bar:
-            self.filter_bar.setStyleSheet(
-                f"QFrame#filter_bar {{ background-color: {Styles.COLOR_BACKGROUND}; border-bottom: 1px solid {Styles.COLOR_BORDER}; }}"
-            )
-
-        if hasattr(self, "btn_refresh") and self.btn_refresh:
-            self.btn_refresh.refresh_styles()
-
-        if hasattr(self, "btn_reset_filters") and self.btn_reset_filters:
-            self.btn_reset_filters.refresh_styles()
-
-        if hasattr(self, "content_widget") and self.content_widget:
-            Styles.apply_background(self.content_widget)
-
-        if hasattr(self, "scroll_area") and self.scroll_area:
-            self.scroll_area.setStyleSheet(Styles.get_transparent_scroll_area_style())
-
+        """Re-render data-driven children; view chrome is owned by global QSS."""
         if hasattr(self, "drill_down_view") and self.drill_down_view:
             self.drill_down_view.refresh_styles()
 
@@ -491,7 +468,7 @@ class MetricsWidget(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll_area.setStyleSheet(Styles.get_transparent_scroll_area_style())
+        self.scroll_area.setProperty("transparentScroll", True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         dashboard = QWidget()

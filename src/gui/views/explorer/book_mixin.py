@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QLayout
 
 from src.backend.analysis.chess_utils import position_key
 from src.gui.components import IconLabel, Label, TextRole, TextTone
-from src.gui.styles import Styles
 from src.gui.views.explorer.book_row import BookRowWidget
 from src.gui.views.explorer.book_skeleton import ExplorerBookSkeleton
 from src.gui.views.explorer.ratio_bar import RatioBar
@@ -49,7 +48,6 @@ class ExplorerBookMixin:
 
     def _create_book_row_widget(self, san, info_text, piece_symbol=None, stats=None):
         row_widget = BookRowWidget(san, on_click=self.on_book_move_clicked, parent=self)
-        row_widget.setStyleSheet(Styles.get_book_row_style())
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(14, 8, 14, 8)
         row_layout.setSpacing(8)

@@ -16,6 +16,10 @@ class TourMixin:
         if index == 3:
             self._ensure_metrics_view()
         self.stack.setCurrentIndex(index)
+        # Rebuild a page that was hidden during the last theme switch before
+        # its navigation hooks run (analysis has no load hook of its own).
+        if hasattr(self, "_flush_theme_refresh"):
+            self._flush_theme_refresh(index)
         if index == 2 and hasattr(self, "history_view"):
             analyzing_id = (
                 self.current_game.game_id

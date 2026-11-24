@@ -67,7 +67,6 @@ class UpdateNotificationDialog(QDialog):
         self.setWindowTitle("Update Available")
         self.setMinimumSize(540, 480)
         self.resize(560, 520)
-        self.setStyleSheet(f"QDialog {{ background-color: {Styles.COLOR_BACKGROUND}; }}")
 
         self._setup_ui()
 
@@ -87,12 +86,6 @@ class UpdateNotificationDialog(QDialog):
     def _build_header(self) -> QWidget:
         w = QWidget()
         w.setObjectName("updateHeader")
-        w.setStyleSheet(f"""
-            QWidget#updateHeader {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
         layout = QVBoxLayout(w)
         layout.setContentsMargins(24, 18, 24, 14)
         layout.setSpacing(0)
@@ -112,7 +105,7 @@ class UpdateNotificationDialog(QDialog):
 
         # Version string: grey current → accent latest
         ver_widget = QWidget()
-        ver_widget.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(ver_widget, borderless=False)
         ver_lay = QHBoxLayout(ver_widget)
         ver_lay.setContentsMargins(0, 0, 0, 0)
         ver_lay.setSpacing(4)
@@ -191,37 +184,6 @@ class UpdateNotificationDialog(QDialog):
             changelog_text.setHtml(self._format_changelog_html(self.update_info.changelog))
             changelog_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
             changelog_text.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            changelog_text.setStyleSheet(f"""
-                QTextBrowser#changelogText, QTextEdit#changelogText {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    color: {Styles.COLOR_TEXT_SECONDARY};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 8px;
-                    padding: 12px;
-                }}
-                QScrollBar:vertical {{
-                    background: transparent;
-                    width: 8px;
-                    margin: 4px 2px 4px 0;
-                }}
-                QScrollBar::handle:vertical {{
-                    background: {Styles.COLOR_BORDER_LIGHT};
-                    border-radius: 4px;
-                    min-height: 28px;
-                }}
-                QScrollBar::handle:vertical:hover {{
-                    background: {Styles.COLOR_ACCENT};
-                }}
-                QScrollBar::add-line:vertical,
-                QScrollBar::sub-line:vertical {{
-                    height: 0;
-                    background: none;
-                }}
-                QScrollBar::add-page:vertical,
-                QScrollBar::sub-page:vertical {{
-                    background: none;
-                }}
-            """)
             layout.addWidget(changelog_text)
 
         return w
@@ -231,12 +193,6 @@ class UpdateNotificationDialog(QDialog):
     def _build_footer(self) -> QWidget:
         outer = QWidget()
         outer.setObjectName("updateFooter")
-        outer.setStyleSheet(f"""
-            QWidget#updateFooter {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-top: 1px solid {Styles.COLOR_BORDER};
-            }}
-        """)
         outer_layout = QVBoxLayout(outer)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)

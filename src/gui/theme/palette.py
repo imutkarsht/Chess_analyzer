@@ -39,6 +39,11 @@ class ThemePalette:
     board_dim: str = "#000000"
     move_dot_on_dark: str = "rgba(255,255,255,0.90)"
     move_dot_on_light: str = "rgba(0,0,0,0.85)"
+    # Destructive-action shades for the danger button states. The resting
+    # danger colour resolves through the classification palette (Blunder);
+    # these two cover the pressed/hover ramps the QSS matrix needs.
+    danger_hover: str = "#B01020"
+    danger_pressed: str = "#900010"
 
     def with_accent(self, hex_color: str) -> "ThemePalette":
         r = int(hex_color[1:3], 16)
@@ -74,6 +79,8 @@ class ThemePalette:
             board_dim=self.board_dim,
             move_dot_on_dark=self.move_dot_on_dark,
             move_dot_on_light=self.move_dot_on_light,
+            danger_hover=self.danger_hover,
+            danger_pressed=self.danger_pressed,
         )
 
 

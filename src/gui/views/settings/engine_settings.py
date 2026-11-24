@@ -62,7 +62,7 @@ class EngineSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Chess Engine", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -238,7 +238,7 @@ class EngineSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.path_input.refresh_styles()
         self.browse_btn.refresh_styles()

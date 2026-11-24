@@ -35,8 +35,8 @@ from src.gui.views.settings.profile_preview import ProfilePreview
 
 def _divider() -> QFrame:
     line = QFrame()
+    line.setObjectName("SettingsDivider")
     line.setFrameShape(QFrame.Shape.HLine)
-    line.setStyleSheet(Styles.get_divider_style())
     return line
 
 
@@ -106,7 +106,7 @@ class ChessComCard(_ProfileCard):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.username_input.refresh_styles()
         self.preview.refresh_styles()
@@ -154,7 +154,7 @@ class LichessCard(_ProfileCard):
         )
 
         token_row = QWidget()
-        token_row.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(token_row)
         token_layout = QVBoxLayout(token_row)
         token_layout.setContentsMargins(0, 0, 0, 0)
         token_layout.setSpacing(4)
@@ -265,7 +265,7 @@ class LichessCard(_ProfileCard):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.username_input.refresh_styles()
         self.lichess_token_input.refresh_styles()
@@ -281,7 +281,7 @@ class ImportNetworkCard(QGroupBox):
         super().__init__("Import & Network", parent)
         self.config_manager = config_manager
         self._token_provider = token_provider
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self) -> None:
@@ -318,7 +318,7 @@ class ImportNetworkCard(QGroupBox):
         self.register_styles()
 
     def register_styles(self) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
 
     def apply_games_limit(self, value) -> str:
         """Clamp, persist, and sync the import cap; return a warning or ""."""

@@ -143,10 +143,12 @@ class NoClockBanner(QFrame):
         super().__init__(parent)
         self.setStyleSheet(
             f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px dashed {Styles.COLOR_BORDER};
-            border-radius: 8px;
-            padding: 24px;
+            QFrame {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                border: 1px dashed {Styles.COLOR_BORDER};
+                border-radius: 8px;
+                padding: 24px;
+            }}
             """
         )
         layout = QVBoxLayout(self)

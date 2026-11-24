@@ -44,7 +44,7 @@ class BoardPiecesSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Board && Pieces", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.board_buttons: dict[str, QPushButton] = {}
         self.piece_buttons: dict[str, QToolButton] = {}
         self.board_group = QButtonGroup(self)
@@ -76,7 +76,7 @@ class BoardPiecesSettings(QGroupBox):
         gallery_row.setSpacing(20)
 
         self.gallery_container = QWidget()
-        self.gallery_container.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self.gallery_container)
         self.gallery_layout = QGridLayout(self.gallery_container)
         self.gallery_layout.setContentsMargins(0, 0, 0, 0)
         self.gallery_layout.setSpacing(8)
@@ -118,6 +118,7 @@ class BoardPiecesSettings(QGroupBox):
         self.board_buttons = {}
         for name in BOARD_THEMES:
             button = QPushButton()
+            button.setObjectName("BoardSwatch")
             button.setCheckable(True)
             button.setFixedSize(64, 64)
             button.setIconSize(QSize(56, 56))
@@ -141,6 +142,7 @@ class BoardPiecesSettings(QGroupBox):
         board_theme = self.config_manager.board_theme
         for name in get_piece_theme_names():
             button = QToolButton()
+            button.setObjectName("PieceThemeCard")
             button.setCheckable(True)
             button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
             button.setIcon(QIcon(piece_theme_preview(name, board_theme)))
@@ -186,12 +188,10 @@ class BoardPiecesSettings(QGroupBox):
         self._apply_button_styles()
 
     def _apply_button_styles(self) -> None:
-        swatch_style = Styles.get_board_swatch_button_style()
-        for button in self.board_buttons.values():
-            button.setStyleSheet(swatch_style)
-        for button in self.piece_buttons.values():
-            button.setStyleSheet(Styles.get_theme_card_button_style())
-        self.import_theme_btn.refresh_styles()
+        """Swatch/card chrome is global; they repolish when re-shown."""
+        for button in (*self.board_buttons.values(), *self.piece_buttons.values()):
+            button.style().unpolish(button)
+            button.style().polish(button)
 
     def _on_tab_changed(self, _index: int) -> None:
         self._render_gallery()
@@ -294,7 +294,7 @@ class BoardPiecesSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.tabs.refresh_styles()
         self.form.refresh_styles()
         self._apply_button_styles()

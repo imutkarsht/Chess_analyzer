@@ -23,7 +23,6 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 from src.workers import FeedbackWorker
 
@@ -51,14 +50,6 @@ class ReviewPromptDialog(QDialog):
 
     def setup_ui(self):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {Styles.COLOR_BACKGROUND};
-            }}
-            QLabel {{
-                background: transparent;
-            }}
-        """)
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)

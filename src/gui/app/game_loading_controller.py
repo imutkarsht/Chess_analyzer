@@ -11,7 +11,6 @@ from PyQt6.QtWidgets import QApplication, QDialog
 from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
 from src.constants import MAX_PGN_TEXT_CHARS, PAGE_ANALYSIS, PAGE_HISTORY
 from src.gui.dialogs.load_game_dialog import LoadGameDialog
-from src.gui.styles import Styles
 from src.gui.theme.typography import TextTone
 from src.gui.utils.clock import compute_clock_times
 from src.gui.utils.worker_registry import (
@@ -434,8 +433,7 @@ class GameLoadingController(QObject):
     def _set_drop_highlight(self, active: bool):
         """Show the hero card as a drop target while a valid drag is in progress."""
         self.host._drop_highlight_active = active
-        if hasattr(self.host, "empty_state_cta"):
-            self.host.empty_state_cta.setStyleSheet(Styles.get_empty_state_cta_style(active))
+        self.host._apply_cta_drop_highlight(active)
         if hasattr(self.host, "lbl_hero_hint"):
             self.host.lbl_hero_hint.setText(
                 "Drop to load game" if active else self.host._hero_hint_default

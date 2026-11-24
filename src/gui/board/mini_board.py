@@ -159,7 +159,7 @@ class MiniBoardWidget(QFrame):
         self._config = config or MiniBoardConfig()
         self._label = QLabel()
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._label.setStyleSheet("background: transparent; border: none;")
+        Styles.apply_transparent(self._label)
 
         self._layout = QVBoxLayout(self)
         self._layout.setSpacing(0)

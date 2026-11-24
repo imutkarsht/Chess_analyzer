@@ -437,7 +437,6 @@ class _CalendarPopup(QFrame):
         self._refresh()
 
     def refresh_theme(self) -> None:
-        self._panel.setStyleSheet(Styles.get_date_picker_popup_qss())
         self._header_btn.set_text_color(Styles.COLOR_TEXT_PRIMARY)
         for cell in getattr(self, "_cells", []):
             cell.update()

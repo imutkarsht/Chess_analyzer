@@ -9,7 +9,6 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QSizePolicy, QWidget
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
 _UNSET = object()
@@ -115,14 +114,6 @@ class SegmentedControl(QFrame):
         self.refresh_styles()
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(
-            f"""
-            QFrame#SegmentedControl {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border-radius: 6px;
-                border: none;
-            }}
-            """
-        )
-        for button in self._buttons.values():
-            button.refresh_styles()
+        """Segment chrome is global; the chip buttons self-refresh."""
+        self.style().unpolish(self)
+        self.style().polish(self)

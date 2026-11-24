@@ -25,7 +25,6 @@ from src.gui.components.dialogs import open_feedback_dialog
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.feedback.status_badge import StatusBadge
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.assets import app_logo_path
@@ -141,6 +140,7 @@ class WelcomePanel(QFrame):
 
         # ── Divider ───────────────────────────────────────────────────────
         self.divider = QFrame()
+        self.divider.setObjectName("WelcomeDivider")
         self.divider.setFrameShape(QFrame.Shape.HLine)
         self.divider.setFrameShadow(QFrame.Shadow.Plain)
         self.divider.setFixedHeight(1)
@@ -223,15 +223,13 @@ class WelcomePanel(QFrame):
         root_layout.addStretch(1)
 
     def refresh_styles(self) -> None:
-        """Re-apply theme tokens when the active theme or accent changes."""
-        bg = Styles.COLOR_BACKGROUND
-        self.setStyleSheet(f"QFrame#WelcomePanel {{ background-color: {bg}; border: none; }}")
-        self.card.setStyleSheet(f"QWidget#WelcomeCard {{ background-color: {bg}; }}")
-
-        self.divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
-
-        for btn in self._all_buttons:
-            btn.refresh_styles()
+        """Panel chrome is global; buttons self-refresh on theme signals."""
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.card.style().unpolish(self.card)
+        self.card.style().polish(self.card)
+        self.divider.style().unpolish(self.divider)
+        self.divider.style().polish(self.divider)
 
     # ── Action callbacks ──────────────────────────────────────────────────
     def _open_github(self) -> None:

@@ -60,7 +60,7 @@ class AICoachCard(MetricCard):
 
         # Action widget container in card header
         self.header_action_widget = QWidget()
-        self.header_action_widget.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self.header_action_widget, borderless=False)
         header_act_layout = QHBoxLayout(self.header_action_widget)
         header_act_layout.setContentsMargins(0, 0, 0, 0)
         header_act_layout.setSpacing(8)
@@ -93,19 +93,10 @@ class AICoachCard(MetricCard):
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setStyleSheet(f"""
-            QScrollArea {{ background: transparent; border: none; }}
-            QScrollBar:vertical {{
-                background: transparent; width: 6px; margin: 0;
-            }}
-            QScrollBar::handle:vertical {{
-                background: {Styles.COLOR_BORDER}; border-radius: 3px; min-height: 20px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
-        """)
+        Styles.apply_transparent(self.scroll, borderless=False)
 
         self.insights_container = QWidget()
-        self.insights_container.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self.insights_container, borderless=False)
         self.insights_container.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )
@@ -158,7 +149,7 @@ class AICoachCard(MetricCard):
 
         intro_container = QWidget()
         intro_container.setObjectName("coach_intro_container")
-        intro_container.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(intro_container, borderless=False)
         vbox = QVBoxLayout(intro_container)
         vbox.setContentsMargins(16, 24, 16, 24)
         vbox.setSpacing(10)
@@ -195,16 +186,19 @@ class AICoachCard(MetricCard):
         self.insights_layout.addWidget(intro_container)
 
     def refresh_styles(self):
-        self.provider_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
-        self.btn_refresh_insights.refresh_styles()
+        self.provider_badge.setStyleSheet(
+            f"""
+            QLabel {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 11px;
+                font-weight: 600;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 3px 8px;
+            }}
+            """
+        )
 
         super().refresh_styles()
         if self.current_insights:
@@ -234,7 +228,7 @@ class AICoachCard(MetricCard):
         # Build clean high-density coach dossier
         dossier_text = build_coach_dossier(self.stats)
 
-        if self.worker is not None and self.worker.isRunning():
+        if self._worker_is_running():
             try:
                 self.worker.finished.disconnect()
                 self.worker.error.disconnect()
@@ -249,9 +243,29 @@ class AICoachCard(MetricCard):
         self.worker = worker
         worker.finished.connect(self._on_worker_finished)
         worker.error.connect(self._handle_insight_error)
-        worker.done.connect(lambda w=worker: remove_worker(w))
+        worker.done.connect(lambda w=worker: self._on_worker_done(w))
         register_worker(worker)
         worker.start()
+
+    def _worker_is_running(self) -> bool:
+        """True only while the stored worker exists in C++ and is running.
+
+        A finished worker's C++ object may already be deleted while the Python
+        wrapper is still referenced; touching it raises RuntimeError.
+        """
+        worker = self.worker
+        if worker is None:
+            return False
+        try:
+            return worker.isRunning()
+        except RuntimeError:
+            self.worker = None
+            return False
+
+    def _on_worker_done(self, worker: InsightWorker) -> None:
+        remove_worker(worker)
+        if self.worker is worker:
+            self.worker = None
 
     def _on_worker_finished(self, insight_text: str):
         self._stop_skeleton_anim()
@@ -264,12 +278,7 @@ class AICoachCard(MetricCard):
         clear_layout(self.insights_layout)
 
         err_frame = QFrame()
-        err_frame.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            border: 1px solid {Styles.COLOR_BLUNDER};
-            border-radius: 8px;
-            padding: 16px;
-        """)
+        err_frame.setObjectName("CoachErrorFrame")
         vbox = QVBoxLayout(err_frame)
         vbox.setSpacing(10)
 
@@ -326,7 +335,7 @@ class AICoachCard(MetricCard):
         if not sections or not any(sections.values()):
             # Fallback for plain text or unexpected formatting
             fallback_widget = QWidget()
-            fallback_widget.setStyleSheet("background: transparent;")
+            Styles.apply_transparent(fallback_widget, borderless=False)
             fb_vbox = QVBoxLayout(fallback_widget)
             fb_vbox.setContentsMargins(6, 6, 6, 6)
             fb_lbl = Label(
@@ -365,7 +374,7 @@ class AICoachCard(MetricCard):
 
             sec_container = QWidget()
             sec_container.setObjectName(f"coach_sec_{sec_key}")
-            sec_container.setStyleSheet("background: transparent;")
+            Styles.apply_transparent(sec_container, borderless=False)
             sec_vbox = QVBoxLayout(sec_container)
             sec_vbox.setContentsMargins(0, 2, 0, 4)
             sec_vbox.setSpacing(10)
@@ -388,7 +397,7 @@ class AICoachCard(MetricCard):
             # Items
             for item_title, item_body in items:
                 item_widget = QWidget()
-                item_widget.setStyleSheet("background: transparent;")
+                Styles.apply_transparent(item_widget, borderless=False)
                 ivbox = QVBoxLayout(item_widget)
                 ivbox.setContentsMargins(0, 0, 0, 0)
                 ivbox.setSpacing(3)

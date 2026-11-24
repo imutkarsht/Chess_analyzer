@@ -43,7 +43,7 @@ class IconLabel(QLabel):
         else:
             self.resize(size, size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setStyleSheet("background: transparent; border: none;")
+        Styles.apply_transparent(self)
         self._icon = icon
         self._icon_size = icon_size or size
         self._color = color

@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.constants import SHORTCUT_PRESET_LABELS
 from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
-from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
 
 
@@ -18,7 +17,7 @@ class ShortcutSettings(QGroupBox):
         super().__init__("Keyboard Shortcuts", parent)
         self.config_manager = config_manager
         self._bindings: list[dict] = []
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -68,7 +67,7 @@ class ShortcutSettings(QGroupBox):
         pass
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.help_btn.refresh_styles()
 

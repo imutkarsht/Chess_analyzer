@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.gui.styles import Styles
 from src.gui.theme.motion import Motion, MotionDuration, MotionEasing
 
 
@@ -75,31 +74,10 @@ class ExplorerBookSkeleton(QWidget):
         return row
 
     def refresh_styles(self) -> None:
-        """Rebuild row QSS from the live palette after a theme switch."""
-        self.setStyleSheet(
-            f"""
-            QFrame#explorerBookSkeletonRow {{
-                border: none;
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-                background: transparent;
-            }}
-            QFrame#explorerBookSkeletonIcon {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 4px;
-            }}
-            QFrame#explorerBookSkeletonBar {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 5px;
-            }}
-            QFrame#explorerBookSkeletonRatio {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-            """
-        )
+        """Skeleton chrome is global; repolish keeps the frames coherent."""
+        for frame in self.findChildren(QFrame):
+            frame.style().unpolish(frame)
+            frame.style().polish(frame)
 
     # ------------------------------------------------------------------
     # Animation

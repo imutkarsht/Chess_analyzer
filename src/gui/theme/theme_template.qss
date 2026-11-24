@@ -1,7 +1,10 @@
 /* Central Application QSS Template */
 
+/* Base widget defaults. Deliberately NO background-color here: a universal
+   rule paints a rectangle behind every child widget, which forces every
+   container to fight it with transparency. Window-level containers below
+   own the backgrounds; pages opt in through QWidget[appBackground="..."]. */
 QWidget {{
-    background-color: {BACKGROUND};
     color: {TEXT_PRIMARY};
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }}
@@ -25,6 +28,20 @@ QWidget[appBackground="surface"] {{
     border: none;
 }}
 
+/* Transparent containers are marked with a property, never a
+   declaration-only stylesheet: a bare setStyleSheet("background: ...")
+   acts as a wildcard rule for every descendant and would override the
+   application stylesheet for child buttons, inputs, and labels.
+   "full" also strips the border; "background" keeps it. */
+QWidget[transparent="full"] {{
+    background: transparent;
+    border: none;
+}}
+
+QWidget[transparent="background"] {{
+    background: transparent;
+}}
+
 /* Main Window & Dialog Containers */
 QMainWindow, QDialog {{
     background-color: {BACKGROUND};
@@ -43,21 +60,34 @@ QFrame#MetricCard, QFrame[metric_card="true"] {{
     border-radius: 12px;
 }}
 
-QFrame#MetricCard QWidget, QFrame[metric_card="true"] QWidget {{
-    background-color: transparent;
+QFrame#MetricCard:hover, QFrame[metric_card="true"]:hover {{
+    border-color: {ACCENT};
 }}
+
+/* No bare "QWidget inside a card" transparency rule: it also strips the
+   background from buttons, inputs, and badges. Children have no background
+   of their own now, so the card surface shows through naturally. */
 
 QFrame#GameCard {{
     background-color: {SURFACE_CARD};
     border: 1px solid {BORDER};
-    border-radius: 8px;
+    border-radius: 10px;
+    padding: 8px 14px;
 }}
-
 QFrame#GameCard:hover {{
     border-color: {ACCENT};
+}}
+QFrame#GameCard[compact="true"] {{
+    border-radius: 6px;
+    padding: 10px 14px;
+}}
+QFrame#GameCard[compact="true"]:hover {{
     background-color: {SURFACE};
 }}
-
+QFrame#GameCard[selected="true"] {{
+    background-color: {SURFACE_LIGHT};
+    border-color: {ACCENT};
+}}
 QFrame#GameCard QLabel {{
     background: transparent;
     border: none;
@@ -88,14 +118,375 @@ QPushButton:pressed {{
     background-color: {HIGHLIGHT};
 }}
 
-QPushButton[primary="true"] {{
-    background-color: {ACCENT};
-    color: #FFFFFF;
-    border: none;
+/* Central Button matrix for src/gui/components/controls/button.py.
+   The component publishes btnVariant / btnSize / btnDanger properties and
+   the global template owns every palette-driven declaration. Instance
+   specific tweaks (align, custom fonts/colours) stay on a tiny per-widget
+   override sheet; custom-accent buttons fall back to Styles.get_button_qss.
+   The bare QPushButton rules above remain the fallback for raw buttons. */
+
+/* Sizes */
+QPushButton[btnSize="xs"] {{
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}}
+QPushButton[btnSize="sm"] {{
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}}
+QPushButton[btnSize="md"] {{
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}}
+QPushButton[btnSize="lg"] {{
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
 }}
 
-QPushButton[primary="true"]:hover {{
+/* Primary */
+QPushButton[btnVariant="primary"] {{
+    background-color: {ACCENT};
+    color: {ON_ACCENT};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="primary"]:hover {{
     background-color: {ACCENT_HOVER};
+    color: {ON_ACCENT};
+    border: 1px solid {ACCENT_HOVER};
+}}
+QPushButton[btnVariant="primary"]:pressed {{
+    background-color: {ACCENT};
+    color: {ON_ACCENT};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="primary"]:checked {{
+    background-color: {ACCENT_HOVER};
+    color: {ON_ACCENT};
+    border: 1px solid {ACCENT_HOVER};
+}}
+QPushButton[btnVariant="primary"]:disabled {{
+    background-color: {BORDER};
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+/* Filled */
+QPushButton[btnVariant="filled"] {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+}}
+QPushButton[btnVariant="filled"]:hover {{
+    background-color: {SURFACE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="filled"]:pressed {{
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="filled"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="filled"]:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border: 1px solid {BORDER};
+}}
+
+/* Outlined */
+QPushButton[btnVariant="outlined"] {{
+    background-color: transparent;
+    color: {ACCENT};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="outlined"]:hover,
+QPushButton[btnVariant="outlined"]:pressed,
+QPushButton[btnVariant="outlined"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {ACCENT};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="outlined"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+/* Tonal */
+QPushButton[btnVariant="tonal"] {{
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT_SUBTLE};
+}}
+QPushButton[btnVariant="tonal"]:hover {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="tonal"]:pressed,
+QPushButton[btnVariant="tonal"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="tonal"]:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+/* Hollow */
+QPushButton[btnVariant="hollow"] {{
+    background-color: transparent;
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+}}
+QPushButton[btnVariant="hollow"]:hover {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="hollow"]:pressed,
+QPushButton[btnVariant="hollow"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {ACCENT};
+}}
+QPushButton[btnVariant="hollow"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid {BORDER};
+}}
+
+/* Ghost */
+QPushButton[btnVariant="ghost"] {{
+    background-color: transparent;
+    color: {TEXT_SECONDARY};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="ghost"]:hover {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="ghost"]:pressed,
+QPushButton[btnVariant="ghost"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="ghost"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+/* Danger (outlined destructive look) */
+QPushButton[btnVariant="danger"] {{
+    background-color: {SURFACE_LIGHT};
+    color: {DANGER};
+    border: 1px solid {BORDER};
+}}
+QPushButton[btnVariant="danger"]:hover {{
+    background-color: {SURFACE};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="danger"]:pressed,
+QPushButton[btnVariant="danger"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="danger"]:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+/* Segment (chips inside SegmentedControl) */
+QPushButton[btnVariant="segment"] {{
+    background-color: transparent;
+    color: {TEXT_SECONDARY};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="segment"]:hover,
+QPushButton[btnVariant="segment"]:pressed {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="segment"]:checked {{
+    background-color: {SURFACE_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+}}
+QPushButton[btnVariant="segment"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+/* Link */
+QPushButton[btnVariant="link"] {{
+    background-color: transparent;
+    color: {TEXT_SECONDARY};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="link"]:hover,
+QPushButton[btnVariant="link"]:pressed,
+QPushButton[btnVariant="link"]:checked {{
+    background-color: transparent;
+    color: {ACCENT};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="link"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+/* Danger flag overrides — must follow the variant blocks so equal
+   specificity ties resolve to the destructive look. */
+QPushButton[btnVariant="primary"][btnDanger="true"] {{
+    background-color: {DANGER};
+    color: {ON_ACCENT};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="primary"][btnDanger="true"]:hover,
+QPushButton[btnVariant="primary"][btnDanger="true"]:checked {{
+    background-color: {DANGER_HOVER};
+    color: {ON_ACCENT};
+    border: 1px solid {DANGER_HOVER};
+}}
+QPushButton[btnVariant="primary"][btnDanger="true"]:pressed {{
+    background-color: {DANGER_PRESSED};
+    color: {ON_ACCENT};
+    border: 1px solid {DANGER_PRESSED};
+}}
+QPushButton[btnVariant="primary"][btnDanger="true"]:disabled {{
+    background-color: {BORDER};
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+QPushButton[btnVariant="filled"][btnDanger="true"] {{
+    background-color: {SURFACE_LIGHT};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="filled"][btnDanger="true"]:hover {{
+    background-color: {SURFACE};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="filled"][btnDanger="true"]:pressed,
+QPushButton[btnVariant="filled"][btnDanger="true"]:checked {{
+    background-color: {SURFACE_LIGHT};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="filled"][btnDanger="true"]:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border: 1px solid {BORDER};
+}}
+
+QPushButton[btnVariant="tonal"][btnDanger="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="tonal"][btnDanger="true"]:hover {{
+    background-color: {SURFACE};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="tonal"][btnDanger="true"]:pressed,
+QPushButton[btnVariant="tonal"][btnDanger="true"]:checked {{
+    background-color: {SURFACE_LIGHT};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="tonal"][btnDanger="true"]:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+QPushButton[btnVariant="hollow"][btnDanger="true"],
+QPushButton[btnVariant="outlined"][btnDanger="true"],
+QPushButton[btnVariant="segment"][btnDanger="true"] {{
+    background-color: transparent;
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="hollow"][btnDanger="true"]:hover,
+QPushButton[btnVariant="outlined"][btnDanger="true"]:hover,
+QPushButton[btnVariant="segment"][btnDanger="true"]:hover {{
+    background-color: {SURFACE_LIGHT};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="hollow"][btnDanger="true"]:pressed,
+QPushButton[btnVariant="hollow"][btnDanger="true"]:checked,
+QPushButton[btnVariant="outlined"][btnDanger="true"]:pressed,
+QPushButton[btnVariant="outlined"][btnDanger="true"]:checked,
+QPushButton[btnVariant="segment"][btnDanger="true"]:pressed,
+QPushButton[btnVariant="segment"][btnDanger="true"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {DANGER};
+    border: 1px solid {DANGER};
+}}
+QPushButton[btnVariant="hollow"][btnDanger="true"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid {BORDER};
+}}
+QPushButton[btnVariant="outlined"][btnDanger="true"]:disabled,
+QPushButton[btnVariant="segment"][btnDanger="true"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
+}}
+
+QPushButton[btnVariant="ghost"][btnDanger="true"],
+QPushButton[btnVariant="link"][btnDanger="true"] {{
+    background-color: transparent;
+    color: {DANGER};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="ghost"][btnDanger="true"]:hover,
+QPushButton[btnVariant="link"][btnDanger="true"]:hover {{
+    background-color: {SURFACE_LIGHT};
+    color: {DANGER};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="ghost"][btnDanger="true"]:pressed,
+QPushButton[btnVariant="ghost"][btnDanger="true"]:checked,
+QPushButton[btnVariant="link"][btnDanger="true"]:pressed,
+QPushButton[btnVariant="link"][btnDanger="true"]:checked {{
+    background-color: {ACCENT_SUBTLE};
+    color: {DANGER};
+    border: 1px solid transparent;
+}}
+QPushButton[btnVariant="ghost"][btnDanger="true"]:disabled,
+QPushButton[btnVariant="link"][btnDanger="true"]:disabled {{
+    background-color: transparent;
+    color: {TEXT_MUTED};
+    border: 1px solid transparent;
 }}
 
 /* Group Boxes */
@@ -116,10 +507,12 @@ QGroupBox::title {{
     color: {TEXT_PRIMARY};
 }}
 
-/* Text Fields & Editors
-   Native fallback only: every app field is src/gui/components/input.py, which
-   styles itself via Styles.get_input_qss. These rules keep Qt-internal editors
-   (spin-box line edits, dialogs) visually identical to the component. */
+/* Text Fields & Editors — central matrix for
+   src/gui/components/controls/input.py. The component publishes
+   inputVariant / inputSize / monospace / invalid properties; only an
+   explicit TextArea font-size override stays on a per-widget sheet.
+   Native Qt-internal editors (dialogs, spin-box line edits) match the
+   same bare rules and stay visually identical. */
 QLineEdit {{
     background-color: {SURFACE};
     color: {TEXT_PRIMARY};
@@ -127,10 +520,61 @@ QLineEdit {{
     border-radius: 8px;
     padding: 0 10px;
     font-size: 13px;
+    selection-background-color: {ACCENT};
+    selection-color: {ON_ACCENT};
+}}
+
+QLineEdit:hover {{
+    border-color: {BORDER_LIGHT};
 }}
 
 QLineEdit:focus {{
-    border: 1px solid {ACCENT};
+    border-color: {ACCENT};
+}}
+
+QLineEdit:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border-color: {BORDER};
+}}
+
+QLineEdit[invalid="true"],
+QLineEdit[invalid="true"]:hover,
+QLineEdit[invalid="true"]:focus {{
+    border-color: {DANGER};
+}}
+
+QLineEdit[inputSize="sm"] {{
+    min-height: 28px;
+    max-height: 28px;
+    font-size: 12px;
+    padding: 0 8px;
+}}
+QLineEdit[inputSize="md"] {{
+    min-height: 34px;
+    max-height: 34px;
+    font-size: 13px;
+    padding: 0 10px;
+}}
+QLineEdit[inputSize="lg"] {{
+    min-height: 42px;
+    max-height: 42px;
+    font-size: 13px;
+    padding: 0 12px;
+}}
+
+QLineEdit[inputVariant="default"] {{
+    background-color: {SURFACE};
+}}
+QLineEdit[inputVariant="search"] {{
+    background-color: {SURFACE_LIGHT};
+}}
+QLineEdit[inputVariant="inline"] {{
+    border-radius: 6px;
+}}
+
+QLineEdit[monospace="true"] {{
+    font-family: {MONO_FONT};
 }}
 
 QTextEdit {{
@@ -140,6 +584,38 @@ QTextEdit {{
     border-radius: 8px;
     padding: 12px;
     font-size: 13px;
+    selection-background-color: {ACCENT};
+    selection-color: {ON_ACCENT};
+}}
+
+QTextEdit:hover {{
+    border-color: {BORDER_LIGHT};
+}}
+
+QTextEdit:focus {{
+    border-color: {ACCENT};
+}}
+
+QTextEdit:disabled {{
+    color: {TEXT_MUTED};
+}}
+
+QTextEdit[invalid="true"],
+QTextEdit[invalid="true"]:hover,
+QTextEdit[invalid="true"]:focus {{
+    border-color: {DANGER};
+}}
+
+QTextEdit[textAreaVariant="flat"] {{
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: {TEXT_SECONDARY};
+}}
+
+QTextEdit[textAreaVariant="code"] {{
+    font-family: {MONO_FONT};
+    font-size: 12px;
 }}
 
 /* SpinBoxes */
@@ -149,8 +625,42 @@ QSpinBox, QDoubleSpinBox {{
     border: 1px solid {BORDER};
     border-radius: 8px;
     padding: 0 10px;
-    min-height: 34px;
     font-size: 13px;
+    selection-background-color: {ACCENT};
+    selection-color: {ON_ACCENT};
+}}
+
+QSpinBox:hover, QDoubleSpinBox:hover {{
+    border-color: {BORDER_LIGHT};
+}}
+
+QSpinBox:focus, QDoubleSpinBox:focus {{
+    border-color: {ACCENT};
+}}
+
+QSpinBox:disabled, QDoubleSpinBox:disabled {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_MUTED};
+    border-color: {BORDER};
+}}
+
+QSpinBox[inputSize="sm"], QDoubleSpinBox[inputSize="sm"] {{
+    min-height: 28px;
+    max-height: 28px;
+    font-size: 12px;
+    padding: 0 8px;
+}}
+QSpinBox[inputSize="md"], QDoubleSpinBox[inputSize="md"] {{
+    min-height: 34px;
+    max-height: 34px;
+    font-size: 13px;
+    padding: 0 10px;
+}}
+QSpinBox[inputSize="lg"], QDoubleSpinBox[inputSize="lg"] {{
+    min-height: 42px;
+    max-height: 42px;
+    font-size: 13px;
+    padding: 0 12px;
 }}
 
 /* Sliders */
@@ -298,6 +808,93 @@ QCheckBox::indicator:checked {{
     image: url('{TICK_PATH}');
 }}
 
+/* Flat/compact checkbox variants (settings rows, dense panels).
+   They drop the pill chrome and use a larger 18 px indicator. */
+QCheckBox[checkboxVariant="flat"],
+QCheckBox[checkboxVariant="compact"] {{
+    background: transparent;
+    border: none;
+    padding: 0px;
+    font-weight: 500;
+    spacing: 8px;
+}}
+
+QCheckBox[checkboxVariant="flat"] {{
+    color: {TEXT_PRIMARY};
+    font-size: 13px;
+}}
+
+QCheckBox[checkboxVariant="compact"] {{
+    color: {TEXT_SECONDARY};
+    font-size: 12px;
+}}
+
+QCheckBox[checkboxVariant="flat"]:hover,
+QCheckBox[checkboxVariant="compact"]:hover {{
+    background: transparent;
+    border: none;
+    color: {TEXT_PRIMARY};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator,
+QCheckBox[checkboxVariant="compact"]::indicator {{
+    width: 18px;
+    height: 18px;
+    border: 1px solid {BORDER_LIGHT};
+    border-radius: 4px;
+    background-color: {SURFACE};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:hover,
+QCheckBox[checkboxVariant="compact"]::indicator:hover {{
+    border-color: {ACCENT};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:checked,
+QCheckBox[checkboxVariant="compact"]::indicator:checked {{
+    background-color: {ACCENT};
+    border-color: {ACCENT};
+    image: url('{TICK_PATH}');
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:checked:hover,
+QCheckBox[checkboxVariant="compact"]::indicator:checked:hover {{
+    background-color: {ACCENT_HOVER};
+    border-color: {ACCENT_HOVER};
+}}
+
+QCheckBox[checkboxVariant="flat"]::indicator:disabled,
+QCheckBox[checkboxVariant="compact"]::indicator:disabled {{
+    border-color: {BORDER};
+    background-color: {SURFACE_LIGHT};
+}}
+
+/* Radio buttons */
+QRadioButton {{
+    color: {TEXT_PRIMARY};
+    font-size: 13px;
+    spacing: 8px;
+    padding: 4px 0;
+    background: transparent;
+}}
+
+QRadioButton::indicator {{
+    width: 18px;
+    height: 18px;
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+    background-color: {SURFACE_LIGHT};
+}}
+
+QRadioButton::indicator:hover {{
+    border-color: {ACCENT};
+}}
+
+QRadioButton::indicator:checked {{
+    background-color: {ACCENT};
+    border-color: {ACCENT};
+}}
+
 /* Scrollbars */
 QScrollBar:vertical {{
     background: {BACKGROUND};
@@ -320,3 +917,1026 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
     height: 0px;
     background: none;
 }}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 1 — Global chrome migrations
+   These rules centralize styles that were previously rebuilt at
+   runtime in dozens of widgets. They are safe to add before the
+   widgets are migrated because unmatched selectors are simply ignored.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Status Bar */
+QStatusBar {{
+    background-color: {BACKGROUND};
+    border-top: 1px solid {BORDER};
+}}
+QStatusBar QLabel {{
+    background: transparent;
+}}
+
+/* Splitters */
+QSplitter {{
+    background-color: {BACKGROUND};
+}}
+QSplitter::handle {{
+    background-color: {BORDER};
+}}
+
+/* Menus */
+QMenu {{
+    background-color: {SURFACE_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 6px;
+}}
+QMenu::item {{
+    padding: 7px 14px;
+    border-radius: 6px;
+}}
+QMenu::item:selected {{
+    background-color: {SURFACE_LIGHT};
+}}
+QMenu::item:disabled {{
+    color: {TEXT_MUTED};
+}}
+
+/* Header Bars */
+QFrame#AnalysisHeaderBar,
+QFrame#HistoryHeaderBar,
+QFrame#MetricsHeaderBar,
+QFrame#SettingsHeaderBar,
+QFrame#ExplorerHeaderBar,
+QFrame#ImportHeader,
+QFrame#DrillDownHeader {{
+    background-color: {BACKGROUND};
+    border-bottom: 1px solid {BORDER};
+}}
+QFrame#AnalysisHeaderBar QLabel,
+QFrame#HistoryHeaderBar QLabel,
+QFrame#MetricsHeaderBar QLabel,
+QFrame#SettingsHeaderBar QLabel,
+QFrame#ExplorerHeaderBar QLabel,
+QFrame#ImportHeader QLabel,
+QFrame#DrillDownHeader QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#filter_bar {{
+    background-color: {BACKGROUND};
+    border-bottom: 1px solid {BORDER};
+}}
+
+/* Sidebar */
+QFrame#Sidebar {{
+    background-color: {SURFACE};
+    border-right: 1px solid {BORDER};
+}}
+
+/* Welcome / Empty State */
+QFrame#WelcomePanel,
+QFrame#WelcomeCard {{
+    background-color: {BACKGROUND};
+    border: none;
+}}
+QFrame#WelcomePanel QFrame#divider,
+QFrame#WelcomeDivider {{
+    background-color: {BORDER};
+    max-height: 1px;
+    border: none;
+}}
+QFrame#EmptyStateCTA {{
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+}}
+QFrame#EmptyStateCTA[dropHighlight="true"] {{
+    border: 1px solid {ACCENT};
+}}
+
+/* Settings Cards */
+QGroupBox[settingsCard="true"] {{
+    background: transparent;
+    border: none;
+    margin-top: 18px;
+    padding: 6px 0 0 0;
+}}
+QGroupBox[settingsCard="true"]::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 0px;
+    padding: 0 0 6px 0;
+}}
+
+QFrame#SettingsDivider,
+QFrame#ReportDivider,
+QFrame#HangingDivider {{
+    background-color: {BORDER};
+    max-height: 1px;
+    border: none;
+}}
+
+QFrame#SettingsPanel {{
+    background-color: {SURFACE};
+    border: none;
+    border-radius: 0px;
+}}
+
+QPushButton#BoardSwatch {{
+    background: transparent;
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 2px;
+}}
+QPushButton#BoardSwatch:hover {{
+    border-color: {TEXT_MUTED};
+}}
+QPushButton#BoardSwatch:checked {{
+    border: 2px solid {ACCENT};
+}}
+
+QToolButton#PieceThemeCard {{
+    background-color: {SURFACE_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+    padding: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}}
+QToolButton#PieceThemeCard:hover {{
+    border-color: {TEXT_MUTED};
+}}
+QToolButton#PieceThemeCard:checked {{
+    border: 2px solid {ACCENT};
+}}
+
+/* Metric card chrome is defined above; its children inherit the card
+   surface because they carry no background of their own. */
+
+/* Metric card internal frames */
+QFrame#opening_item,
+QFrame#brilliancy_row,
+QFrame#HangingPieceRow,
+QFrame#format_row,
+QFrame#TacticsRow {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#opening_item:hover,
+QFrame#brilliancy_row:hover,
+QFrame#HangingPieceRow:hover,
+QFrame#format_row:hover,
+QFrame#TacticsRow:hover {{
+    border-color: {ACCENT};
+}}
+
+QFrame#opening_item {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#opening_item:hover {{
+    border-color: {ACCENT};
+}}
+
+QFrame#brilliancy_row {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#brilliancy_row:hover {{
+    background-color: {SURFACE};
+    border-color: {BRILLIANT};
+}}
+
+QFrame#phase_pillar,
+QFrame#leak_pillar,
+QFrame#vigilance_pillar,
+QFrame#adv_pillar,
+QFrame#comeback_pillar {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+QFrame#phase_pillar {{
+    border-radius: 10px;
+}}
+
+QFrame#conversion_insight_frame {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    padding: 10px 14px;
+}}
+
+QFrame#AccuracyBadge,
+QFrame#MomentumBadge {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    padding: 2px 6px;
+}}
+QFrame#AccuracyBadge QLabel,
+QFrame#MomentumBadge QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#TacticsTopPill {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+
+QFrame#TacticRow {{
+    background: transparent;
+    border: 1px solid transparent;
+    border-left: 2px solid transparent;
+    border-radius: 6px;
+}}
+QFrame#TacticRow:hover {{
+    background-color: {SURFACE_LIGHT};
+}}
+QFrame#TacticRow[active="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-left: 2px solid {ACCENT};
+}}
+QFrame#TacticRow:focus {{
+    border: 1px solid {ACCENT};
+    border-left: 2px solid {ACCENT};
+}}
+
+QWidget#TacticsRow:hover {{
+    background-color: {SURFACE_LIGHT};
+    border-radius: 6px;
+}}
+
+QFrame#HangingPieceRow {{
+    background: transparent;
+    border-radius: 4px;
+}}
+QFrame#HangingPieceRow QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#HangingPieceRow:hover {{
+    background-color: {SURFACE};
+}}
+
+QWidget#AdvantageStat {{
+    background: transparent;
+    border-radius: 4px;
+}}
+QWidget#AdvantageStat QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#to_pill {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QFrame#dq_card {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 10px 12px;
+}}
+QFrame#CoachErrorFrame {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+QFrame#DrillDownCard {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}}
+QFrame#DrillDownCard:hover {{
+    background-color: {SURFACE};
+    border-color: {ACCENT};
+}}
+QFrame#DrillDownSeparator {{
+    background-color: {BORDER};
+    border: none;
+}}
+
+QFrame#ProfilePreview {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}}
+QFrame#ProfilePreview QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#PhaseIconTile,
+QFrame#IconTile,
+QFrame#StatPanel,
+QFrame#NoClockBanner {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#TimeTroubleBanner {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 10px 12px;
+}}
+
+/* Import Workspace */
+QFrame#ImportActionBar {{
+    background-color: transparent;
+    border-top: 1px solid {BORDER};
+}}
+QTableView#ImportTable {{
+    background-color: {BACKGROUND};
+    color: {TEXT_PRIMARY};
+    border: none;
+    gridline-color: transparent;
+    font-size: 13px;
+    selection-background-color: {ACCENT_SUBTLE};
+    selection-color: {TEXT_PRIMARY};
+}}
+QTableView#ImportTable QWidget#qt_scrollarea_viewport {{
+    background-color: {BACKGROUND};
+}}
+QTableView#ImportTable::item {{
+    padding: 0 10px;
+    border-bottom: 1px solid {BORDER};
+}}
+QTableView#ImportTable::item:hover {{
+    background-color: {SURFACE_LIGHT};
+}}
+QTableView#ImportTable::item:selected {{
+    background-color: {ACCENT_SUBTLE};
+    color: {TEXT_PRIMARY};
+}}
+QTableView#ImportTable QHeaderView::section {{
+    background-color: {BACKGROUND};
+    color: {TEXT_SECONDARY};
+    padding: 0 10px;
+    border: none;
+    border-bottom: 1px solid {BORDER};
+    font-weight: 600;
+    font-size: 12px;
+}}
+QTableCornerButton::section {{
+    background-color: {BACKGROUND};
+    border: none;
+}}
+QTableView#ImportTable QScrollBar:vertical {{
+    background: transparent;
+    width: 10px;
+    margin: 0;
+}}
+QTableView#ImportTable QScrollBar::handle:vertical {{
+    background: {BORDER};
+    border-radius: 5px;
+    min-height: 24px;
+}}
+QTableView#ImportTable QScrollBar::handle:vertical:hover {{
+    background: {TEXT_MUTED};
+}}
+QTableView#ImportTable QScrollBar::add-line:vertical,
+QTableView#ImportTable QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+QTableView#ImportTable QScrollBar::add-page:vertical,
+QTableView#ImportTable QScrollBar::sub-page:vertical {{
+    background: transparent;
+}}
+
+/* History / Batch */
+QFrame#HistoryFilterPanel {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}}
+QFrame#HistoryFilterPanel QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#BatchSelectionBar {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}}
+QFrame#BatchQueueCard {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-left: 3px solid {ACCENT};
+    border-radius: 12px;
+}}
+QFrame#BatchQueueCard QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#BatchCurrentGame {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {ACCENT};
+    border-radius: 10px;
+}}
+QFrame#BatchCurrentGame QLabel {{
+    background: transparent;
+    border: none;
+}}
+QListWidget#BatchUpNextList {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    outline: none;
+}}
+QListWidget#BatchUpNextList::item {{
+    background: transparent;
+    border-bottom: 1px solid {BORDER};
+    padding: 0px;
+}}
+QListWidget#BatchUpNextList::item:selected,
+QListWidget#BatchUpNextList::item:hover {{
+    background-color: {SURFACE};
+}}
+QFrame#BatchStatTile {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#BatchStatTile QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+/* Explorer */
+QScrollArea#BookScroll {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QWidget#BookRow {{
+    background-color: transparent;
+    border-bottom: 1px solid {BORDER};
+}}
+QWidget#BookRow:hover {{
+    background-color: {SURFACE_LIGHT};
+}}
+
+QFrame#explorerBookSkeletonRow {{
+    background-color: transparent;
+    border-bottom: 1px solid {BORDER};
+}}
+QFrame#explorerBookSkeletonIcon {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 4px;
+}}
+QFrame#explorerBookSkeletonBar {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 5px;
+}}
+QFrame#explorerBookSkeletonRatio {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+QFrame#skeletonDivider {{
+    background-color: {BORDER};
+    margin: 2px 0;
+}}
+QFrame#skeletonBar {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 5px;
+}}
+QFrame#skeletonBar[skeletonRadius="6"] {{
+    border-radius: 6px;
+}}
+
+/* Analysis chrome */
+QWidget#BoardControls {{
+    background: transparent;
+    border: none;
+    border-top: 1px solid {BORDER};
+}}
+QFrame#BoardGameHeader {{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid {BORDER};
+}}
+QFrame#VariationGraph {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+
+QPushButton#VariationPill {{
+    background-color: {SURFACE_CARD};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0px 4px;
+}}
+QPushButton#VariationPill:hover {{
+    background-color: {ACCENT_SUBTLE};
+}}
+QPushButton#VariationPill[variationActive="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-width: 2px;
+}}
+QPushButton#VariationPill[variationGhost="true"] {{
+    background-color: {SURFACE};
+    border-style: dashed;
+    color: {TEXT_MUTED};
+}}
+QPushButton#VariationPill[variationRoot="true"] {{
+    padding: 0px;
+    font-size: 8px;
+}}
+
+QFrame#BranchChip {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QFrame#BranchChip[variationActive="true"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-width: 2px;
+}}
+QFrame#BranchChip QLabel {{
+    color: {TEXT_SECONDARY};
+    background: transparent;
+    border: none;
+    font-size: 10px;
+    font-weight: 600;
+}}
+QFrame#BranchChip[variationActive="true"] QLabel {{
+    color: {TEXT_PRIMARY};
+}}
+QFrame#BranchChip QToolButton {{
+    color: {TEXT_MUTED};
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    padding: 0px;
+}}
+QFrame#BranchChip QToolButton:hover {{
+    color: {TEXT_PRIMARY};
+}}
+QFrame#CoachCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+
+QFrame#EngineLinesPanel {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}}
+QWidget#EngineLineRow {{
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+}}
+QWidget#EngineLineRow:hover {{
+    background-color: {SURFACE_LIGHT};
+}}
+QWidget#EngineLineRow QLabel {{
+    border: none;
+    background: transparent;
+}}
+QLabel#EngineLinesEmpty {{
+    color: {TEXT_MUTED};
+    font-size: 12px;
+}}
+
+/* Move list */
+QFrame#MoveListCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+QTableWidget#MoveListTable {{
+    background: transparent;
+    border: none;
+    gridline-color: transparent;
+    font-size: 13px;
+    selection-background-color: transparent;
+}}
+QTableWidget#MoveListTable QWidget#qt_scrollarea_viewport {{
+    background: transparent;
+}}
+QTableWidget#MoveListTable::item {{
+    padding: 0px 0px 0px 10px;
+    border: none;
+    border-bottom: 1px solid {SURFACE_LIGHT};
+}}
+QTableWidget#MoveListTable::item:hover {{
+    background: transparent;
+}}
+QTableWidget#MoveListTable::item:selected {{
+    background: transparent;
+    color: {TEXT_PRIMARY};
+}}
+QTableWidget#MoveListTable QHeaderView {{
+    background: transparent;
+}}
+QTableWidget#MoveListTable QHeaderView::section {{
+    background: transparent;
+    color: {TEXT_SECONDARY};
+    padding: 8px 10px 8px 12px;
+    border: none;
+    border-bottom: 1px solid {BORDER};
+    font-weight: 600;
+    font-size: 11px;
+}}
+QTableWidget#MoveListTable QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 4px 2px 4px 0px;
+    border: none;
+}}
+QTableWidget#MoveListTable QScrollBar::handle:vertical {{
+    background: {BORDER};
+    min-height: 20px;
+    border-radius: 4px;
+}}
+QTableWidget#MoveListTable QScrollBar::handle:vertical:hover {{
+    background: {BORDER_LIGHT};
+}}
+QTableWidget#MoveListTable QScrollBar::add-line:vertical,
+QTableWidget#MoveListTable QScrollBar::sub-line:vertical {{
+    height: 0px;
+    background: none;
+}}
+QTableWidget#MoveListTable QScrollBar::add-page:vertical,
+QTableWidget#MoveListTable QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+
+QTableWidget#ExplorerMoveTable {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    gridline-color: transparent;
+    font-size: 14px;
+}}
+QTableWidget#ExplorerMoveTable::item {{
+    padding: 4px 8px;
+    border-bottom: 1px solid {SURFACE_LIGHT};
+}}
+QTableWidget#ExplorerMoveTable::item:hover {{
+    background-color: {SURFACE_LIGHT};
+}}
+QTableWidget#ExplorerMoveTable::item:selected {{
+    background-color: {HIGHLIGHT};
+    color: {TEXT_PRIMARY};
+    border-left: 3px solid {ACCENT};
+}}
+QTableWidget#ExplorerMoveTable QHeaderView::section {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_SECONDARY};
+    padding: 6px;
+    border: none;
+    border-bottom: 2px solid {ACCENT};
+    font-weight: 600;
+    font-size: 13px;
+}}
+
+QWidget#MoveCell[cellState="selected"] {{
+    background-color: {ACCENT_SUBTLE};
+    border-left: 2px solid {ACCENT};
+}}
+QWidget#MoveCell[cellState="hovered"] {{
+    background-color: {SURFACE_LIGHT};
+    border-left: 2px solid transparent;
+}}
+QWidget#MoveCell[cellState="active"] {{
+    background-color: {SURFACE_LIGHT_55};
+    border-left: 2px solid transparent;
+}}
+QWidget#MoveCell[cellState="normal"] {{
+    background-color: transparent;
+    border-left: 2px solid transparent;
+}}
+QWidget#MoveCell QToolButton {{
+    background-color: {ACCENT_SUBTLE};
+    color: {ACCENT};
+    border: 1px solid {ACCENT};
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0px;
+}}
+QWidget#MoveCell QToolButton:hover {{
+    background-color: {ACCENT};
+    color: {ON_ACCENT};
+}}
+
+/* Components */
+QFrame#StatCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+QFrame#StatCard:hover {{
+    border-color: {ACCENT};
+    background-color: {SURFACE_LIGHT};
+}}
+QFrame#StatCard QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#SimpleStatCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 10px;
+}}
+QFrame#SimpleStatCard QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QWidget#PaginationBar {{
+    background-color: {SURFACE};
+    border-top: 1px solid {BORDER};
+}}
+QWidget#PaginationBar[transparentFrame="true"] {{
+    background: transparent;
+    border: none;
+}}
+
+QFrame#FilterChip {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+}}
+QFrame#FilterChip:hover {{
+    background-color: {SURFACE};
+    border-color: {ACCENT};
+}}
+
+QFrame#SegmentedControl {{
+    background-color: {SURFACE_LIGHT};
+    border-radius: 6px;
+    border: none;
+}}
+
+QListWidget#NavList {{
+    background: transparent;
+    border: none;
+    outline: none;
+}}
+QListWidget#NavList::item {{
+    padding: 11px 14px;
+    margin: 1px 0;
+    border-radius: 8px;
+    color: {TEXT_SECONDARY};
+    font-size: 15px;
+    font-weight: 500;
+}}
+QListWidget#NavList::item:hover {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_PRIMARY};
+}}
+QListWidget#NavList::item:selected {{
+    background-color: {SURFACE_LIGHT};
+    color: {ACCENT};
+    border-left: 2px solid {ACCENT};
+    font-weight: 600;
+}}
+
+QWidget#GameListHeaderBar {{
+    background-color: {SURFACE};
+    border-bottom: 1px solid {BORDER};
+}}
+QWidget#GameListHeaderBar QLabel {{
+    background: transparent;
+    border: none;
+}}
+
+QListWidget#GameList {{
+    background-color: {BACKGROUND};
+    border: none;
+    outline: none;
+}}
+QListWidget#GameList::item {{
+    background-color: {BACKGROUND};
+    border: none;
+    border-bottom: 1px solid {SURFACE_LIGHT};
+    padding: 0px;
+    margin: 0px;
+}}
+QListWidget#GameList::item:hover {{
+    background-color: {SURFACE};
+}}
+
+QLabel#EmptyState {{
+    color: {TEXT_SECONDARY};
+    font-size: 12px;
+    padding: 40px 10px;
+    background: transparent;
+}}
+
+/* Select popup chrome (panel and rows are custom-painted by the component). */
+QFrame#SelectPopup QScrollArea {{
+    background: transparent;
+    border: none;
+}}
+QFrame#SelectPopup QWidget#SelectPopupContent {{
+    background: transparent;
+}}
+QFrame#SelectPopup QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 2px;
+    border-radius: 4px;
+}}
+QFrame#SelectPopup QScrollBar::handle:vertical {{
+    background-color: {BORDER_LIGHT};
+    min-height: 24px;
+    border-radius: 4px;
+}}
+QFrame#SelectPopup QScrollBar::handle:vertical:hover {{
+    background-color: {TEXT_MUTED};
+}}
+QFrame#SelectPopup QScrollBar::add-line:vertical,
+QFrame#SelectPopup QScrollBar::sub-line:vertical {{
+    height: 0px;
+}}
+QFrame#SelectPopup QScrollBar::add-page:vertical,
+QFrame#SelectPopup QScrollBar::sub-page:vertical {{
+    background: transparent;
+}}
+
+/* Progress bars — matrix scoped to the shared component. Object-named
+   custom bars (e.g. the toast hairline #ToastProgress) keep their own
+   rules and must not inherit this geometry. */
+QProgressBar[progressVariant="default"] {{
+    border: 2px solid {BORDER};
+    border-radius: 5px;
+    background-color: {SURFACE};
+    text-align: center;
+    color: {TEXT_PRIMARY};
+    font-size: 12px;
+    font-weight: bold;
+    min-height: 22px;
+}}
+QProgressBar[progressVariant="default"]::chunk {{
+    background-color: {ACCENT};
+    border-radius: 3px;
+}}
+QProgressBar[progressVariant="thin"] {{
+    border: none;
+    border-radius: 3px;
+    background-color: {SURFACE_LIGHT};
+}}
+QProgressBar[progressVariant="thin"]::chunk {{
+    background-color: {ACCENT};
+    border-radius: 3px;
+}}
+
+QScrollArea[transparentScroll="true"] {{
+    background: transparent;
+    border: none;
+}}
+
+QLabel#Avatar {{
+    background-color: {ACCENT_SUBTLE};
+    color: {ACCENT};
+    border: 1px solid {BORDER};
+    border-radius: 50%;
+}}
+
+/* === Dialog chrome === */
+QDialog#ConfirmDialog {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+
+QWidget#WizardNavBar {{
+    background-color: {SURFACE};
+    border-top: 1px solid {BORDER};
+}}
+
+SetupWizard, QWidget#wizardPage, QStackedWidget#wizardStack {{
+    background-color: {BACKGROUND};
+}}
+QFrame#profileCard,
+QFrame#appearanceCard,
+QFrame#stockfishCard,
+QFrame#llmCard,
+QFrame#summaryCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}}
+
+QWidget#updateHeader,
+QWidget#FeedbackHeader {{
+    background-color: {SURFACE};
+    border-bottom: 1px solid {BORDER};
+}}
+QWidget#updateHeader QLabel,
+QWidget#FeedbackHeader QLabel {{
+    background: transparent;
+    border: none;
+}}
+QWidget#updateFooter,
+QWidget#LoadGameFooter {{
+    background-color: {SURFACE};
+    border-top: 1px solid {BORDER};
+}}
+QWidget#LoadGameTabsBar {{
+    border-bottom: 1px solid {BORDER};
+    background: transparent;
+}}
+QFrame#FetchCard {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+}}
+QFrame#InlineState {{
+    background: transparent;
+    border: none;
+}}
+QFrame#DatePickerPopup {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 14px;
+}}
+QLabel#DatePickerWeekday {{
+    color: {TEXT_MUTED};
+    background: transparent;
+    font-size: 11px;
+    font-weight: 600;
+}}
+QLabel#DatePickerYear {{
+    color: {TEXT_PRIMARY};
+    background: transparent;
+    font-size: 16px;
+    font-weight: 600;
+}}
+QTextBrowser#changelogText,
+QTextEdit#changelogText {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_SECONDARY};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 12px;
+}}
+QFrame#ShortcutRow {{
+    background-color: {SURFACE};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QFrame#ShortcutRow:hover {{
+    border-color: {ACCENT};
+}}
+QFrame#TourBubble {{
+    background-color: {SURFACE};
+    border: 2px solid {ACCENT};
+    border-radius: 14px;
+}}
+QFrame#TourBubble QLabel {{
+    background: transparent;
+}}
+
+/* === Historic Bar === */
+QFrame#HistoricInfoBar {{
+    background-color: {SURFACE};
+    border: none;
+    border-top: 1px solid {BORDER};
+    border-radius: 0px;
+}}
+QFrame#HistoricInfoBar QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#HistoricCelebration {{
+    background-color: {SURFACE_LIGHT};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+QFrame#HistoricCelebration QLabel {{
+    background: transparent;
+    border: none;
+}}
+QFrame#HistoricCelebration[solved="true"] {{
+    border: 1px solid {ACCENT};
+}}
+

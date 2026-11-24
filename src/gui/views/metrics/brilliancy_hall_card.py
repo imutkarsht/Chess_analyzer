@@ -110,7 +110,7 @@ class BrilliancyHallCard(MetricCard):
 
         # List container for the current page items
         list_container = QWidget()
-        list_container.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(list_container, borderless=False)
         list_vbox = QVBoxLayout(list_container)
         list_vbox.setContentsMargins(0, 0, 0, 0)
         list_vbox.setSpacing(8)
@@ -168,17 +168,6 @@ class BrilliancyHallCard(MetricCard):
         row = ClickableFrame()
         row.setObjectName("brilliancy_row")
         row.setCursor(Qt.CursorShape.PointingHandCursor)
-        row.setStyleSheet(f"""
-            QFrame#brilliancy_row {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-            }}
-            QFrame#brilliancy_row:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BRILLIANT};
-            }}
-        """)
         row.setToolTip(f"{move_str} in {meta_str}\nClick to view move on Analysis Board.")
 
         r_layout = QHBoxLayout(row)
@@ -197,7 +186,7 @@ class BrilliancyHallCard(MetricCard):
 
         # 2. Text Stack (Line 1: Move notation, Line 2: Opponent • Opening • Date)
         text_container = QWidget()
-        text_container.setStyleSheet("background: transparent; border: none;")
+        Styles.apply_transparent(text_container)
         text_layout = QVBoxLayout(text_container)
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(2)

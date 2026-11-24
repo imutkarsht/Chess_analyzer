@@ -17,7 +17,6 @@ from PyQt6.QtWidgets import (
 from src.constants import PAGE_SETTINGS
 from src.gui.components.controls.button import Button, ButtonVariant
 from src.gui.components.display.label import Label
-from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.utils.logger import logger
 
@@ -35,13 +34,7 @@ def confirm_dialog(
     dialog.setWindowTitle(title)
     dialog.setModal(True)
     dialog.setMinimumWidth(360)
-    dialog.setStyleSheet(f"""
-        QDialog {{
-            background-color: {Styles.COLOR_SURFACE};
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 12px;
-        }}
-    """)
+    dialog.setObjectName("ConfirmDialog")
 
     root = QVBoxLayout(dialog)
     root.setContentsMargins(24, 20, 24, 20)

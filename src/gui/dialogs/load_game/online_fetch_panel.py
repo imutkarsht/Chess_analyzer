@@ -33,7 +33,6 @@ from src.gui.components import (
     ToastManager,
 )
 from src.gui.import_workspace import GameBatch
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.utils.assets import asset_path
 from src.gui.utils.worker_registry import register_worker, remove_worker
@@ -231,15 +230,6 @@ class OnlineFetchPanel(QWidget):
         self.form_card = QFrame()
         self.form_card.setObjectName("FetchCard")
         self.form_card.setFixedWidth(520)
-        self.form_card.setStyleSheet(
-            f"""
-            QFrame#FetchCard {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
-        )
         card = QVBoxLayout(self.form_card)
         card.setContentsMargins(20, 20, 20, 20)
         card.setSpacing(16)
@@ -337,7 +327,6 @@ class OnlineFetchPanel(QWidget):
     def _build_error_state(self) -> QWidget:
         page = QFrame()
         page.setObjectName("InlineState")
-        page.setStyleSheet(self._inline_state_qss())
         self._error_page = page
         layout = QVBoxLayout(page)
         layout.setContentsMargins(20, 18, 20, 18)
@@ -381,7 +370,6 @@ class OnlineFetchPanel(QWidget):
     def _build_empty_state(self) -> QWidget:
         page = QFrame()
         page.setObjectName("InlineState")
-        page.setStyleSheet(self._inline_state_qss())
         self._empty_page = page
         layout = QVBoxLayout(page)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -433,45 +421,13 @@ class OnlineFetchPanel(QWidget):
         layout.addStretch(1)
         return page
 
-    @staticmethod
-    def _inline_state_qss() -> str:
-        return "QFrame#InlineState { background: transparent; border: none; }"
-
     def _on_theme_changed(self, *_args) -> None:
         self.refresh_styles()
 
     def refresh_styles(self) -> None:
-        self.form_card.setStyleSheet(
-            f"""
-            QFrame#FetchCard {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
-        )
-        for page in (self._error_page, self._empty_page):
-            page.setStyleSheet(self._inline_state_qss())
-        self._error_title.setStyleSheet(
-            f"font-size: 14px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent;"
-        )
-        self._error_message.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent;"
-        )
-        self._empty_title.setStyleSheet(
-            f"font-size: 15px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
-            " background: transparent;"
-        )
-        self._empty_description.setStyleSheet(
-            f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY};"
-            " background: transparent;"
-        )
+        """Chrome and label typography are global; re-tint the state icons."""
         self._error_icon.set_icon("fa5s.exclamation-circle")
         self._empty_icon.set_icon("fa5s.search")
-        self.platform_selector.refresh_styles()
-        self.mode_selector.refresh_styles()
 
     # ------------------------------------------------------------------
     # Form state

@@ -159,16 +159,7 @@ class Sidebar(QFrame):
         return btn
 
     def apply_style(self, *_args):
-        p = ThemeManager.palette()
-        self.setStyleSheet(f"""
-            #Sidebar {{
-                background-color: {p.surface};
-                border-right: 1px solid {p.border};
-            }}
-        """)
-        for btn in (*self._nav_buttons, self.btn_help, self.btn_exit, self.btn_collapse):
-            btn.refresh_styles()
-
+        """Re-tint navigation icons; the frame chrome is owned by the global QSS."""
         nav_specs = [
             ("Analyze", "analyze.png", 0),
             ("Explorer", "explorer.png", 1),

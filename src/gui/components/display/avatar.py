@@ -8,6 +8,7 @@ from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel, QWidget
 
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 
 
 class Avatar(QLabel):
@@ -21,6 +22,13 @@ class Avatar(QLabel):
         self.setFixedSize(size, size)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.hide()
+
+        # The initials fallback embeds a size-derived corner radius, so it
+        # stays a tiny per-widget sheet; listening to theme changes keeps its
+        # accent/border colours from going stale.
+        manager = ThemeManager.instance()
+        manager.theme_changed.connect(self.refresh_styles)
+        manager.accent_changed.connect(self.refresh_styles)
 
     def set_content(self, pixmap: QPixmap | None, initials: str = "") -> None:
         self._pixmap = pixmap if pixmap is not None and not pixmap.isNull() else None

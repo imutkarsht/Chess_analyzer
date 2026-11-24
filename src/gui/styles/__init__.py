@@ -9,14 +9,12 @@ from __future__ import annotations
 
 from src.gui.styles._base import _StylesMeta
 from src.gui.styles._buttons import _ButtonMixin
-from src.gui.styles._controls import _ControlsMixin
 from src.gui.styles._feedback import _FeedbackMixin
 from src.gui.styles._inputs import _InputMixin
 from src.gui.styles._navigation import _NavigationMixin
 from src.gui.styles._pages import _PagesMixin
 from src.gui.styles._progress import _ProgressMixin
 from src.gui.styles._surfaces import _SurfaceMixin
-from src.gui.styles._tables import _TableMixin
 from src.gui.styles._tokens import _TokensMixin
 from src.gui.styles._typography import _TypographyMixin
 
@@ -27,9 +25,7 @@ class Styles(
     _ButtonMixin,
     _InputMixin,
     _SurfaceMixin,
-    _TableMixin,
     _NavigationMixin,
-    _ControlsMixin,
     _ProgressMixin,
     _FeedbackMixin,
     _PagesMixin,

@@ -6,7 +6,6 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QAbstractItemView, QFrame, QListWidget, QWidget
 
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
 
@@ -15,6 +14,7 @@ class ListView(QListWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setObjectName("NavList")
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setSpacing(2)
@@ -26,7 +26,9 @@ class ListView(QListWidget):
         self.refresh_styles()
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_nav_list_style())
+        """Nav-list chrome is global; repolish keeps the widget coherent."""
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def _on_theme_changed(self, *_args) -> None:
         self.refresh_styles()

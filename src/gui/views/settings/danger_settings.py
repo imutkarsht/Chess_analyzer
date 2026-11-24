@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import QVBoxLayout
 
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components import Button, ButtonVariant, confirm_dialog
-from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsForm
 from src.gui.views.settings.storage_actions import (
     close_analyzer_cache,
@@ -75,6 +74,6 @@ class DangerSettings(StorageCard):
         self.setVisible(True)
 
     def refresh_styles(self, *args, **kwargs) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.clear_data_btn.refresh_styles()

@@ -14,7 +14,6 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.styles import Styles
 
 
 class ImportActionBar(QFrame):
@@ -109,7 +108,6 @@ class ImportActionBar(QFrame):
         self._import_progress.setVisible(False)
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_import_action_bar_style())
-        self.btn_open.refresh_styles()
-        self.btn_add.refresh_styles()
-        self._import_progress.refresh_styles()
+        """Action-bar chrome is global; buttons and progress self-refresh."""
+        self.style().unpolish(self)
+        self.style().polish(self)

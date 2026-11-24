@@ -79,6 +79,7 @@ class MoveListView(QWidget):
         layout.setSpacing(0)
 
         self.table = self._build_table()
+        self.table.setObjectName("MoveListTable" if self._rich else "ExplorerMoveTable")
         self.card: QFrame | None = None
         if self._rich:
             self.card = QFrame()
@@ -540,10 +541,6 @@ class MoveListView(QWidget):
 
     def refresh_styles(self) -> None:
         if self._rich:
-            Styles.apply_background(self)
-            if self.card is not None:
-                self.card.setStyleSheet(Styles.get_move_list_card_style())
-            self.table.setStyleSheet(Styles.get_move_list_table_style())
             self._setup_header()
             secondary = QColor(Styles.COLOR_TEXT_SECONDARY)
             for row in range(self.table.rowCount()):
@@ -555,7 +552,6 @@ class MoveListView(QWidget):
             self._apply_selection()
             return
 
-        self.table.setStyleSheet(Styles.get_explorer_table_style())
         self._render_plain()
         self._apply_selection()
 

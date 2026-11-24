@@ -14,7 +14,6 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.styles import Styles
 
 
 class ImportHeader(QFrame):
@@ -87,7 +86,6 @@ class ImportHeader(QFrame):
         self.badge_saved.setText("0 in history")
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(
-            Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND)
-        )
-        self.btn_back.refresh_styles()
+        """Header chrome is global; buttons self-refresh."""
+        self.style().unpolish(self)
+        self.style().polish(self)

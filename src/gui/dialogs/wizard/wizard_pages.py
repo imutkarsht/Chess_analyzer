@@ -636,7 +636,7 @@ def build_done_page(wizard) -> QWidget:
                 text = item.strip()
 
             row = QWidget()
-            row.setStyleSheet("background: transparent;")
+            Styles.apply_transparent(row, borderless=False)
             row_layout = QHBoxLayout(row)
             row_layout.setContentsMargins(0, 8, 0, 8)
             row_layout.setSpacing(12)
@@ -663,7 +663,7 @@ def build_done_page(wizard) -> QWidget:
             if i < len(valid_items) - 1:
                 divider = QWidget()
                 divider.setFixedHeight(1)
-                divider.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
+                divider.setObjectName("ReportDivider")
                 wizard._done_card_layout.addWidget(divider)
 
     wizard._on_done_show = _on_done_show

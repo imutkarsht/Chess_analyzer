@@ -733,7 +733,10 @@ every helper. Package `__init__.py` files are re-export facades unless noted.
 | File | Purpose | Key symbols |
 | --- | --- | --- |
 | `theme/palette.py` | Light/dark palettes, classification colours, board themes | `LIGHT`, `DARK`, `BOARD_THEMES` |
-| `theme/manager.py` | Active mode/accent, signals, stylesheet application | `ThemeManager` |
+| `theme/bundle.py` | Complete theme definition (palette, mode, semantic colours, board themes, extra QSS) | `ThemeBundle` |
+| `theme/bundles/` | Built-in theme bundles (dark, light, tinted, dracula, OLED sample) registered at import | `DARK_BUNDLE`, `LIGHT_BUNDLE`, `TINTED_BUNDLE`, `DRACULA_BUNDLE`, `OLED_BUNDLE` |
+| `theme/theme_template.qss` | Single source of truth for static chrome (object names + dynamic properties) | — |
+| `theme/manager.py` | Active mode/accent/bundle, signals, one-shot stylesheet application | `ThemeManager` |
 | `theme/tokens.py` | Spacing, radius and type scale | `Spacing`, `Radius`, `TypeScale` |
 | `theme/motion.py` | Durations, easings, animation helpers | `Motion`, `MotionDuration` |
 | `theme/system.py` | OS theme/accent detection | `OSThemeWatcher` |
@@ -857,7 +860,8 @@ create per-widget formatters or wrapper factories.
 | Thermal safety | Default `multi_pv=2`, `threads=1`, `hash=128MB`; recommend `min(cpu_count, 4)` | Higher values throttle laptops |
 | Chess960 | Detect variant tags, set `UCI_Chess960`, build `chess.Board(fen, chess960=True)` | Illegal castling and engine mismatches |
 | Offline-first | Analysis, PGN, books and history work with no network | Core product promise |
-| Theme contract | Every widget restyles on theme/accent change | Invisible text on light/dark switches |
+| Theme contract | Static chrome lives in `theme_template.qss`; widgets publish properties; only canvases/data widgets keep `refresh_styles()`; guardrails in `tests/architecture/test_theme_guardrails.py` | Wildcard stylesheets override child widgets; duplicate stylesheet applies freeze the UI |
+| New theme | One `ThemeBundle` file + `ThemeManager.register_bundle()`; the picker discovers it | No per-file editing or `set_mode` branches |
 | Default board | New installs use `DEFAULT_BOARD_THEME` (Brown) | Consistent first-run look |
 | Status bar idle | Idle shows only `● Engine ready` | Avoids redundant “Ready” noise |
 

@@ -6,7 +6,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout
 
 from src.gui.components import Button, ButtonVariant, Label, TextRole, TextTone
-from src.gui.styles import Styles
 
 
 class LlmNotConfiguredDialog(QDialog):
@@ -14,12 +13,6 @@ class LlmNotConfiguredDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("LLM Not Configured")
         self.setFixedSize(440, 220)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                color: {Styles.COLOR_TEXT_PRIMARY};
-            }}
-        """)
 
         self._configured = False
 

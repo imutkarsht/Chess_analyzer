@@ -128,15 +128,9 @@ class MainWindow(
         # Initialize ThemeManager
         self._theme_manager = ThemeManager(parent=self)
 
-        saved_theme_mode = self.config_manager.theme_mode
-        ThemeManager.set_theme_mode(saved_theme_mode)
-
-        saved_accent = self.config_manager.accent_color
-        saved_accent_mode = self.config_manager.accent_mode
-        if saved_accent_mode == "system":
-            ThemeManager.set_accent_mode("system")
-        elif saved_accent:
-            ThemeManager.set_accent(saved_accent)
+        # Applies the saved theme + accent; signature bundles (Dracula) keep
+        # their own accent instead of the stored one.
+        self.restore_saved_theme()
 
         self._theme_manager.theme_changed.connect(self._on_theme_changed)
         self._theme_manager.accent_changed.connect(self._on_accent_changed)
@@ -157,15 +151,7 @@ class MainWindow(
         self.tour_overlay.hide()
 
         # Style the status bar itself
-        self.statusBar().setStyleSheet(f"""
-            QStatusBar {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-top: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QStatusBar QLabel {{
-                background: transparent;
-            }}
-        """)
+        # (chrome owned by the global QSS template via QStatusBar)
 
         self._engine_pill = Label("", role=TextRole.CAPTION, weight=600)
         self._engine_pill.setContentsMargins(6, 0, 6, 0)
@@ -536,18 +522,9 @@ class MainWindow(
         main_layout.setSpacing(0)
 
         # Header Bar Container for Chess Analysis
+        # (chrome owned by the global QSS template via #AnalysisHeaderBar)
         self.analysis_header_bar = QFrame()
         self.analysis_header_bar.setObjectName("AnalysisHeaderBar")
-        self.analysis_header_bar.setStyleSheet(f"""
-            QFrame#AnalysisHeaderBar {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QFrame#AnalysisHeaderBar QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """)
         header_layout = QHBoxLayout(self.analysis_header_bar)
         header_layout.setContentsMargins(40, 12, 40, 12)
 
@@ -588,17 +565,10 @@ class MainWindow(
         main_layout.addWidget(self.analysis_header_bar)
 
         # Splitter
+        # (chrome owned by the global QSS template via QSplitter)
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter = splitter
         splitter.setHandleWidth(2)
-        splitter.setStyleSheet(f"""
-            QSplitter {{
-                background-color: {Styles.COLOR_BACKGROUND};
-            }}
-            QSplitter::handle {{
-                background-color: {Styles.COLOR_BORDER};
-            }}
-        """)
         main_layout.addWidget(splitter, 1)
 
         # Left: Move List
@@ -638,9 +608,10 @@ class MainWindow(
         )
 
         # Hero empty-state CTA card placed prominently above the board
+        # (chrome owned by the global QSS template via #EmptyStateCTA and
+        # the dropHighlight property)
         self.empty_state_cta = QFrame()
         self.empty_state_cta.setObjectName("EmptyStateCTA")
-        self.empty_state_cta.setStyleSheet(Styles.get_empty_state_cta_style())
         cta_layout = QVBoxLayout(self.empty_state_cta)
         cta_layout.setContentsMargins(14, 6, 14, 6)
         cta_layout.setSpacing(8)
@@ -794,9 +765,9 @@ class MainWindow(
         cel_layout.addWidget(self._hib_cel_text, 1)
         hib_outer.addWidget(self._hib_celebration)
 
-        # Per-widget styles live outside the global QSS, so build them from the
-        # live palette here and rebuild them on every theme change.
-        self._refresh_historic_bar_styles()
+        # (both frames are owned by the global QSS template; the solved
+        # property starts false and flips when the famous move is found)
+        self._set_celebration_solved(False)
 
         center_layout.addWidget(self.historic_info_bar)
 
@@ -863,37 +834,19 @@ class MainWindow(
 
     # ── Historic landing board helpers ────────────────────────────────────
 
-    def _refresh_historic_bar_styles(self):
-        """Rebuild the landing puzzle chrome from the live palette.
+    def _set_celebration_solved(self, solved: bool) -> None:
+        """Flip the celebration frame's accent border via a QSS property.
 
-        These labels use per-widget styles instead of the global QSS, so a
-        theme or accent switch must re-apply them or the text keeps the old
-        palette's ink and can vanish against the new surface.
+        The global template owns the actual colours; this only toggles the
+        property and forces this one frame to re-evaluate its style.
         """
-        if hasattr(self, "historic_info_bar"):
-            self.historic_info_bar.setStyleSheet(f"""
-                QFrame#HistoricInfoBar {{
-                    background-color: {Styles.COLOR_SURFACE};
-                    border: none;
-                    border-top: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 0px;
-                }}
-                QLabel {{ background: transparent; border: none; }}
-            """)
-        if hasattr(self, "_hib_celebration"):
-            border = (
-                Styles.COLOR_ACCENT
-                if getattr(self, "_historic_move_found", False)
-                else Styles.COLOR_BORDER
-            )
-            self._hib_celebration.setStyleSheet(f"""
-                QFrame#HistoricCelebration {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 1px solid {border};
-                    border-radius: 6px;
-                }}
-                QLabel {{ background: transparent; border: none; }}
-            """)
+        if not hasattr(self, "_hib_celebration"):
+            return
+        self._hib_celebration.setProperty("solved", bool(solved))
+        style = self._hib_celebration.style()
+        style.unpolish(self._hib_celebration)
+        style.polish(self._hib_celebration)
+        self._hib_celebration.update()
 
     def _load_random_historic_position(self):
         """Pick a random position from the curated historic collection and load it onto the board."""
@@ -905,6 +858,7 @@ class MainWindow(
 
         self._current_historic = pos
         self._historic_move_found = False
+        self._set_celebration_solved(False)
 
         if hasattr(self, "board_widget"):
             self.board_widget.load_fen(pos.fen, pos.flipped)
@@ -987,7 +941,7 @@ class MainWindow(
             self.btn_hib_reveal.hide()
         if hasattr(self, "btn_hib_explore"):
             self.btn_hib_explore.show()
-        self._refresh_historic_bar_styles()
+        self._set_celebration_solved(True)
         self._hib_celebration.setVisible(True)
 
     def resizeEvent(self, event):

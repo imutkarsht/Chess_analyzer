@@ -80,17 +80,6 @@ class FormatsView(LazyRenderView):
 
         row = QFrame()
         row.setObjectName("format_row")
-        row.setStyleSheet(f"""
-            QFrame#format_row {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 8px 12px;
-            }}
-            QFrame#format_row:hover {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-            }}
-        """)
         row_layout = QVBoxLayout(row)
         row_layout.setContentsMargins(4, 4, 4, 4)
         row_layout.setSpacing(6)

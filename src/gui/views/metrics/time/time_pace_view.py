@@ -78,14 +78,6 @@ class PaceView(LazyRenderView):
 
         card = QFrame()
         card.setObjectName("dq_card")
-        card.setStyleSheet(f"""
-            QFrame#dq_card {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 10px 12px;
-            }}
-        """)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(8)

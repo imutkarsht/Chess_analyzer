@@ -4,7 +4,6 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from src.gui.components import Button, ButtonSize, ButtonVariant
-from src.gui.styles import Styles
 from src.gui.utils.icons import HAS_QTAWESOME
 
 try:
@@ -204,11 +203,7 @@ class MoveControls(QWidget):
         self.btn_follow.blockSignals(False)
 
     def refresh_styles(self) -> None:
-        if self.variant == "analysis":
-            self.setStyleSheet(Styles.get_board_controls_style())
-        buttons = [self.btn_first, self.btn_prev, self.btn_next, self.btn_last]
-        for button in (self.btn_play, self.btn_follow, self.btn_flip):
-            if button is not None:
-                buttons.append(button)
-        for button in buttons:
-            button.refresh_styles()
+        """Board-controls chrome is global; buttons self-refresh."""
+        self.style().unpolish(self)
+        self.style().polish(self)
+

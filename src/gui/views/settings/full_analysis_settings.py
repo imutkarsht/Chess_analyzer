@@ -3,7 +3,6 @@
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.components import SliderCounter
-from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
 
 # The engine also receives a depth limit, so "No cap" means depth-only.
@@ -24,7 +23,7 @@ class FullAnalysisSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Full Analysis", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -71,6 +70,6 @@ class FullAnalysisSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.multi_pv_input.refresh_styles()

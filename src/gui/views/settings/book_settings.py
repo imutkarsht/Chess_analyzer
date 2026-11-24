@@ -5,7 +5,6 @@ import os
 from PyQt6.QtWidgets import QFileDialog, QGroupBox, QVBoxLayout
 
 from src.gui.components import Label, PathField, TextRole, TextTone
-from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
 
 
@@ -13,7 +12,7 @@ class BookSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Opening Book", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -113,7 +112,7 @@ class BookSettings(QGroupBox):
         self.setVisible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         if hasattr(self, "polyglot_path_input"):
             self.polyglot_path_input.refresh_styles()

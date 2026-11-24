@@ -3,7 +3,6 @@
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.components import SliderCounter
-from src.gui.styles import Styles
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
 
 
@@ -13,7 +12,7 @@ class LiveAnalysisSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Live Analysis", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -56,7 +55,7 @@ class LiveAnalysisSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.live_time_input.refresh_styles()
         self.live_multi_pv_input.refresh_styles()

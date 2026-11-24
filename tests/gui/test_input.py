@@ -86,6 +86,8 @@ def test_textarea_variants_pick_the_right_surface(qtbot):
     qtbot.addWidget(code)
     qtbot.addWidget(flat)
 
-    assert "monospace" in code.styleSheet()
-    assert "background-color: transparent" in flat.styleSheet()
+    # Variant styling lives in the global QSS matrix; the widget publishes
+    # the property that selects it.
+    assert code.property("textAreaVariant") == "code"
+    assert flat.property("textAreaVariant") == "flat"
     assert flat.isReadOnly()

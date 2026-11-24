@@ -60,13 +60,6 @@ class LoadGameDialog(QDialog):
     # ------------------------------------------------------------------
     def _setup_ui(self) -> None:
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet(
-            f"""
-            QDialog {{
-                background-color: {Styles.COLOR_BACKGROUND};
-            }}
-            """
-        )
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -76,7 +69,7 @@ class LoadGameDialog(QDialog):
         root.addWidget(self._build_tabs())
 
         self.pages = QStackedWidget()
-        self.pages.setStyleSheet("background-color: transparent;")
+        Styles.apply_transparent(self.pages, borderless=False)
 
         self._online_fetch_panel = OnlineFetchPanel(self)
         self._online_fetch_panel.batch_ready.connect(self._on_batch_ready)
@@ -107,9 +100,7 @@ class LoadGameDialog(QDialog):
 
     def _build_tabs(self) -> QWidget:
         bar = QWidget()
-        bar.setStyleSheet(
-            f"border-bottom: 1px solid {Styles.COLOR_BORDER}; background: transparent;"
-        )
+        bar.setObjectName("LoadGameTabsBar")
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(24, 0, 24, 0)
         layout.setSpacing(12)
@@ -160,11 +151,8 @@ class LoadGameDialog(QDialog):
 
     def _build_footer(self) -> QWidget:
         footer = QWidget()
+        footer.setObjectName("LoadGameFooter")
         footer.setFixedHeight(64)
-        footer.setStyleSheet(
-            f"background-color: {Styles.COLOR_SURFACE};"
-            f"border-top: 1px solid {Styles.COLOR_BORDER};"
-        )
         layout = QHBoxLayout(footer)
         layout.setContentsMargins(24, 0, 24, 0)
         layout.setSpacing(8)

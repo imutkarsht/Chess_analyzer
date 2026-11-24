@@ -137,105 +137,6 @@ class _NavigationMixin:
         """
 
     @classmethod
-    def get_header_bar_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QWidget {{
-                background-color: {p.surface};
-                border-bottom: 1px solid {p.border};
-            }}
-            QWidget QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """
-
-    @classmethod
-    def get_header_bar_ext_style(cls, bg_color=None):
-        p = ThemeManager.palette()
-        bg = bg_color or p.surface
-        return f"""
-            QFrame {{
-                background-color: {bg};
-                border-bottom: 1px solid {p.border};
-            }}
-            QFrame QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """
-
-    @classmethod
-    def get_pagination_bar_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QWidget#PaginationBar {{
-                background-color: {p.surface};
-                border-top: 1px solid {p.border};
-            }}
-        """
-
-    @classmethod
-    def get_scroll_area_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QScrollArea {{
-                background-color: {p.surface};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-            }}
-            QScrollBar:vertical {{
-                background-color: {p.background};
-                width: 10px;
-                margin: 0px 0px 0px 0px;
-                border-radius: 5px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: {p.border_light};
-                min-height: 20px;
-                border-radius: 5px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-        """
-
-    @classmethod
-    def get_transparent_scroll_area_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QScrollArea {{
-                background-color: transparent;
-                border: none;
-            }}
-            QScrollBar:vertical {{
-                background-color: transparent;
-                width: 8px;
-                margin: 0px;
-                border-radius: 4px;
-            }}
-            QScrollBar::handle:vertical {{
-                background-color: {p.border};
-                min-height: 24px;
-                border-radius: 4px;
-            }}
-            QScrollBar::handle:vertical:hover {{
-                background-color: {p.border_light};
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-                height: 0px;
-            }}
-        """
-
-    @classmethod
-    def get_splitter_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QSplitter {{ background-color: {p.background}; }}
-            QSplitter::handle {{ background-color: {p.border}; }}
-        """
-
-    @classmethod
     def get_divider_style(cls):
         p = ThemeManager.palette()
         return f"""
@@ -261,96 +162,18 @@ class _NavigationMixin:
         widget.update()
 
     @classmethod
-    def get_empty_state_cta_style(cls, drag_active: bool = False):
-        """Landing hero CTA bar; borderless by default, accent border appears on drag-over."""
-        p = ThemeManager.palette()
-        # Transparent background so the CTA buttons float above the board without
-        # a card-like box.  A 1-px accent outline appears only when a file is
-        # being dragged over the window (drop-target cue).
-        border = f"1px solid {p.accent}" if drag_active else "none"
-        return f"""
-            QFrame#EmptyStateCTA {{
-                background-color: transparent;
-                border: {border};
-                border-radius: 8px;
-            }}
-        """
+    def apply_transparent(cls, widget, *, borderless: bool = True) -> None:
+        """Mark a container transparent through the global QSS property rules.
 
-    @classmethod
-    def get_sidebar_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            #Sidebar {{
-                background-color: {p.surface};
-                border-right: 1px solid {p.border};
-            }}
-            QPushButton {{
-                background-color: transparent;
-                border: none;
-                border-radius: 10px;
-                padding: 12px 16px;
-                text-align: left;
-                font-size: 14px;
-                font-weight: 500;
-                color: {p.text_secondary};
-            }}
-            QPushButton:hover {{
-                background-color: {p.surface_light};
-                color: {p.text_primary};
-            }}
-            QPushButton:checked {{
-                background-color: {p.accent_subtle};
-                color: {p.text_primary};
-                border-left: 3px solid {p.accent};
-                border-radius: 0px 10px 10px 0px;
-                padding-left: 13px;
-                font-weight: 600;
-            }}
+        A declaration-only ``setStyleSheet("background: transparent")`` on a
+        container acts as a wildcard rule for every descendant and overrides
+        the application stylesheet for child buttons and inputs. Property
+        rules only match the widget that carries them, so descendants keep
+        their own styling.
         """
+        widget.setProperty("transparent", "full" if borderless else "background")
+        style = widget.style()
+        style.unpolish(widget)
+        style.polish(widget)
+        widget.update()
 
-    @classmethod
-    def get_menu_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QMenu {{
-                background-color: {p.surface_card};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-                padding: 6px;
-                font-size: 12px;
-            }}
-            QMenu::item {{
-                padding: 7px 14px;
-                border-radius: 6px;
-                color: {p.text_primary};
-                font-size: 12px;
-                font-weight: 500;
-            }}
-            QMenu::item:selected {{
-                background-color: {p.surface_light};
-            }}
-            QMenu::item:disabled {{
-                color: {p.text_muted};
-            }}
-        """
-
-    @classmethod
-    def get_list_widget_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QListWidget {{
-                background-color: {p.background};
-                border: none;
-                outline: none;
-            }}
-            QListWidget::item {{
-                background-color: {p.background};
-                border: none;
-                border-bottom: 1px solid {p.surface_light};
-                padding: 0px;
-                margin: 0px;
-            }}
-            QListWidget::item:hover {{
-                background-color: {p.surface};
-            }}
-        """

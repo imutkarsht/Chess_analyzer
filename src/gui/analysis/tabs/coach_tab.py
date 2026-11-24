@@ -25,7 +25,7 @@ class CoachTab(QWidget):
 
     def __init__(self, groq_service: GroqService | None = None) -> None:
         super().__init__()
-        self.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self, borderless=False)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
@@ -39,8 +39,8 @@ class CoachTab(QWidget):
         # this answers "how did the whole game go?". It takes the rest of the
         # tab, so its action sits at the bottom.
         self.div_summary = QFrame()
+        self.div_summary.setObjectName("ReportDivider")
         self.div_summary.setFrameShape(QFrame.Shape.HLine)
-        self.div_summary.setStyleSheet(Styles.get_divider_style())
         layout.addWidget(self.div_summary)
 
         self.summary_panel = SummaryPanel(groq_service)
@@ -79,8 +79,8 @@ class CoachTab(QWidget):
         self.summary_panel.set_llm_service(service)
 
     def refresh_styles(self) -> None:
+        """Refresh child panels; the tab chrome/divider is global."""
         self.coach_panel.refresh_styles()
-        self.div_summary.setStyleSheet(Styles.get_divider_style())
         self.summary_panel.refresh_styles()
 
     def shutdown(self) -> None:

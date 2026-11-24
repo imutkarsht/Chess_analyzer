@@ -47,16 +47,6 @@ class TourOverlay(QWidget):
         # so it sits above the overlay and receives mouse events normally.
         self.bubble = QFrame(parent)
         self.bubble.setObjectName("TourBubble")
-        self.bubble.setStyleSheet(f"""
-            QFrame#TourBubble {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 2px solid {Styles.COLOR_ACCENT};
-                border-radius: 14px;
-            }}
-            QFrame#TourBubble QLabel {{
-                background: transparent;
-            }}
-        """)
         self.bubble.setFixedWidth(360)
 
         # Drop-shadow so the bubble visually "floats" without needing a dim
@@ -126,16 +116,6 @@ class TourOverlay(QWidget):
         self._show_step()
 
     def refresh_accent(self):
-        self.bubble.setStyleSheet(f"""
-            QFrame#TourBubble {{
-                background-color: {Styles.COLOR_SURFACE};
-                border: 2px solid {Styles.COLOR_ACCENT};
-                border-radius: 14px;
-            }}
-            QFrame#TourBubble QLabel {{
-                background: transparent;
-            }}
-        """)
         self.next_btn.refresh_styles()
         self.prev_btn.refresh_styles()
         self.close_btn.refresh_styles()

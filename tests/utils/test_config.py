@@ -164,6 +164,27 @@ class TestConfigManager:
             assert state is not None
             assert state == {"x": None, "y": None, "width": None, "height": None}
 
+    def test_theme_bundle_id_persists_and_reloads(self, tmp_path):
+        """Registered theme ids (tinted/dracula/…) must survive set + reload.
+
+        Config validation used to reject any value outside the static
+        system/light/dark choices, so a chosen bundle silently reverted to
+        "system" (light) on the next launch.
+        """
+        with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):
+            from src.utils.config import ConfigManager
+            manager = ConfigManager()
+            manager.set("theme_mode", "dracula")
+
+            assert manager.theme_mode == "dracula"
+            assert manager.get("theme_mode") == "dracula"
+
+            manager.reload_config()
+            assert manager.theme_mode == "dracula"
+
+            reloaded = ConfigManager()
+            assert reloaded.theme_mode == "dracula"
+
     def test_reload_config_in_place(self, tmp_path):
         """test reload_config updates shared config dict in-place so all instances see updates."""
         with patch('src.utils.config.get_user_data_dir', return_value=str(tmp_path)):

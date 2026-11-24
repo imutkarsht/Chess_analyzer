@@ -4,7 +4,6 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QVBoxLayout
 
 from src.gui.components import Button, ButtonVariant, SortableItem, SortableItemList
-from src.gui.styles import Styles
 from src.gui.views.metrics.card_registry import (
     DEFAULT_CARD_ORDER,
     SORTABLE_BY_KEY,
@@ -20,7 +19,7 @@ class DashboardLayoutSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Dashboard Layout", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self._order = normalise_card_order(
             self.config_manager.metrics_card_order
         )
@@ -98,6 +97,6 @@ class DashboardLayoutSettings(QGroupBox):
         pass
 
     def refresh_styles(self, *args, **kwargs) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.reset_btn.refresh_styles()
         self.sortable_list.viewport().update()

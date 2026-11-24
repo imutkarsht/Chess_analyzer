@@ -2,9 +2,11 @@
 
 One module owns every text entry surface: :class:`Input` (single line),
 :class:`TextArea` (multi line), and the numeric :class:`NumberInput` /
-:class:`DecimalInput`. Call sites never ship their own field QSS; the look comes
-from :meth:`Styles.get_input_qss` / :meth:`Styles.get_textarea_qss`, so theme and
-accent changes repaint every field in the app automatically.
+:class:`DecimalInput`. Call sites never ship their own field QSS; the look
+comes from the central ``theme_template.qss`` matrix via the
+``inputVariant`` / ``inputSize`` / ``monospace`` / ``textAreaVariant``
+properties, so theme and accent changes repaint every field in the app
+without rebuilding per-widget stylesheets.
 
 The visual language follows the app's shadcn-inspired forms: a filled resting
 surface, one hairline border, an accent border on focus, a muted placeholder,
@@ -72,8 +74,9 @@ _INPUT_SIZE_SPECS: dict[InputSize, dict[str, int]] = {
     InputSize.MD: {"height": 34, "font": 13, "padding": 10},
     InputSize.LG: {"height": 42, "font": 13, "padding": 12},
 }
-
-_INLINE_RADIUS = 6
+# Heights/fonts/padding for every size live in the global QSS matrix
+# (QLineEdit[inputSize=...] / QSpinBox[inputSize=...]); the specs above are
+# kept for callers that need the raw values (e.g. dialogs sizing fields).
 
 
 class Input(QLineEdit):
@@ -173,19 +176,12 @@ class Input(QLineEdit):
     # Styling
     # ------------------------------------------------------------------
     def refresh_styles(self) -> None:
-        spec = _INPUT_SIZE_SPECS[self._size]
-        self.setStyleSheet(
-            Styles.get_input_qss(
-                variant=self._variant.value,
-                height=spec["height"],
-                font_size=spec["font"],
-                padding_h=spec["padding"],
-                radius=_INLINE_RADIUS
-                if self._variant is InputVariant.INLINE
-                else 8,
-                monospace=self._monospace,
-            )
-        )
+        """Publish style properties for the global input matrix."""
+        self.setProperty("inputVariant", self._variant.value)
+        self.setProperty("inputSize", self._size.value)
+        self.setProperty("monospace", self._monospace)
+        self.style().unpolish(self)
+        self.style().polish(self)
         self._apply_placeholder_color()
         self._rebuild_actions()
 
@@ -301,6 +297,7 @@ class TextArea(QTextEdit):
     ) -> None:
         super().__init__(parent)
         self._variant = TextAreaVariant(variant)
+        self._font_size_explicit = font_size is not None
         self._font_size = font_size or (
             12 if self._variant is TextAreaVariant.CODE else 13
         )
@@ -349,12 +346,14 @@ class TextArea(QTextEdit):
         self.set_invalid(False)
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(
-            Styles.get_textarea_qss(
-                variant=self._variant.value,
-                font_size=self._font_size,
-            )
-        )
+        """Publish the textarea variant; only an explicit font size stays local."""
+        self.setProperty("textAreaVariant", self._variant.value)
+        if self._font_size_explicit:
+            self.setStyleSheet(f"QTextEdit {{ font-size: {self._font_size}px; }}")
+        else:
+            self.setStyleSheet("")
+        self.style().unpolish(self)
+        self.style().polish(self)
         self._apply_placeholder_color()
 
     def _on_theme_changed(self, *_args) -> None:
@@ -383,16 +382,9 @@ class _NumericInputMixin:
         self.refresh_styles()
 
     def refresh_styles(self) -> None:
-        spec = _INPUT_SIZE_SPECS[self._size]
-        selector = "QDoubleSpinBox" if isinstance(self, QDoubleSpinBox) else "QSpinBox"
-        self.setStyleSheet(
-            Styles.get_input_qss(
-                selector=selector,
-                height=spec["height"],
-                font_size=spec["font"],
-                padding_h=spec["padding"],
-            )
-        )
+        self.setProperty("inputSize", self._size.value)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
 
 class NumberInput(_NumericInputMixin, QSpinBox):

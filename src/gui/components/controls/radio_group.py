@@ -21,7 +21,7 @@ class RadioChoice(QWidget):
 
     def __init__(self, choices, *, trailing: QWidget | None = None, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(self)
         self._values: dict[QRadioButton, object] = {}
 
         layout = QHBoxLayout(self)
@@ -72,9 +72,10 @@ class RadioChoice(QWidget):
         self.setValue(value)
 
     def refresh_styles(self) -> None:
-        style = Styles.get_radio_group_style()
+        """Radio chrome is global; repolish keeps the widgets coherent."""
         for radio in self._values:
-            radio.setStyleSheet(style)
+            radio.style().unpolish(radio)
+            radio.style().polish(radio)
 
 
 __all__ = ["RadioChoice"]

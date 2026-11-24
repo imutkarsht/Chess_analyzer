@@ -21,7 +21,7 @@ class EvaluationTab(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self, borderless=False)
         self.config_manager = ConfigManager()
         self.graph_widget: GraphWidget | None = None
         self._lines_fen: str | None = None
@@ -91,10 +91,9 @@ class EvaluationTab(QWidget):
         self.variation_requested.emit(self._lines_fen, uci)
 
     def refresh_styles(self) -> None:
+        """Refresh canvas/data children; chrome is owned by global QSS."""
         if self.graph_widget is not None:
             self.graph_widget.refresh_styles()
-        self.toggle_checkbox.refresh_styles()
-        self.cache_checkbox.refresh_styles()
         self.lines_widget.refresh_styles()
 
 

@@ -11,6 +11,8 @@ GUI = ROOT / "src" / "gui"
 ALLOWED = {
     "src/gui/theme/palette.py",
     "src/gui/theme/system.py",
+    "src/gui/theme/bundles/oled.py",
+    "src/gui/theme/bundles/dracula.py",
 }
 HEX = re.compile(r"#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b")
 RGBA = re.compile(r"rgba?\(\s*\d")

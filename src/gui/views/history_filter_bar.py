@@ -597,17 +597,9 @@ class HistoryFilterBar(QWidget):
     # Styling
     # ------------------------------------------------------------------
     def refresh_styles(self, *_args) -> None:
-        self.panel.setStyleSheet(Styles.get_history_filter_panel_style())
-        self.search_input.refresh_styles()
-        self.btn_filters.refresh_styles()
-        self.sort_dropdown.refresh_styles()
-        self.result_filter.refresh_styles()
-        self.type_filter.refresh_styles()
-        self.source_filter.refresh_styles()
-        self.analysis_filter.refresh_styles()
-        self.ownership_filter.refresh_styles()
-        self.btn_reset.refresh_styles()
-        self.btn_done.refresh_styles()
+        """Panel chrome is global; only the semantic chip dots need a rebuild."""
+        self.style().unpolish(self)
+        self.style().polish(self)
         # Dot colours come from semantic palette roles, so rebuild the chips
         # when light/dark or the accent changes.
         self._sync_summary()

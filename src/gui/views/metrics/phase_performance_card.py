@@ -80,13 +80,6 @@ class PhasePerformanceCard(MetricCard):
 
             pillar = QFrame()
             pillar.setObjectName("phase_pillar")
-            pillar.setStyleSheet(f"""
-                QFrame#phase_pillar {{
-                    background-color: {Styles.COLOR_SURFACE_LIGHT};
-                    border: 1px solid {Styles.COLOR_BORDER};
-                    border-radius: 10px;
-                }}
-            """)
             p_layout = QVBoxLayout(pillar)
             p_layout.setContentsMargins(14, 14, 14, 14)
             p_layout.setSpacing(8)
@@ -96,12 +89,8 @@ class PhasePerformanceCard(MetricCard):
             top_line.setContentsMargins(0, 0, 0, 0)
 
             tile = QFrame()
+            tile.setObjectName("PhaseIconTile")
             tile.setFixedSize(30, 30)
-            tile.setStyleSheet(f"""
-                background-color: {Styles.COLOR_SURFACE};
-                border-radius: 6px;
-                border: 1px solid {Styles.COLOR_BORDER};
-            """)
             t_layout = QVBoxLayout(tile)
             t_layout.setContentsMargins(0, 0, 0, 0)
             t_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)

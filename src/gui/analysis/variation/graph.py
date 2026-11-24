@@ -89,7 +89,11 @@ class _BranchChip(QFrame):
         self.btn_delete.clicked.connect(lambda: self.delete_requested.emit(self.branch_id))
         layout.addWidget(self.btn_delete, 0)
 
-        self.setStyleSheet(Styles.get_variation_branch_chip_style(color, active))
+        self.setObjectName("BranchChip")
+        self.setProperty("variationActive", bool(active))
+        # Static chrome lives in the global template; only the branch colour
+        # is instance data.
+        self.setStyleSheet(f"QFrame#BranchChip {{ border-color: {color}; }}")
 
     def enterEvent(self, event):
         self.btn_delete.show()
@@ -145,7 +149,7 @@ class _VariationCanvas(QWidget):
         self.tree: VariationTree | None = None
         self.active_branch_id: int | None = None
         self.pills: dict[int, QPushButton] = {}
-        self.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self, borderless=False)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.setToolTip("Drag to pan · scroll vertically · Shift-scroll horizontally")
 
@@ -455,12 +459,9 @@ class VariationGraph(QFrame):
         self.canvas.update()
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_variation_graph_style())
+        """Frame chrome is global; re-tint actions and re-render branch colours."""
         self.lbl_icon.set_icon("fa5s.code-branch" if HAS_QTAWESOME else None)
-        for btn in (self.btn_best, self.btn_undo, self.btn_reset, self.btn_exit):
-            btn.refresh_styles()
         self._apply_action_icons()
-        self.scroll.setStyleSheet("background: transparent; border: none;")
         if self.tree is not None:
             node = self.tree.find_node(self.active_node_id or 0)
             if node is not None:
@@ -511,9 +512,9 @@ class VariationGraph(QFrame):
             active=root.node_id == self.active_node_id,
         )
         root_pill.setToolTip("Game position")
-        root_pill.setStyleSheet(
-            root_pill.styleSheet() + "QPushButton { padding: 0px; font-size: 8px; }"
-        )
+        root_pill.setProperty("variationRoot", True)
+        root_pill.style().unpolish(root_pill)
+        root_pill.style().polish(root_pill)
         self._node_names[root.node_id] = "Game"
         pills[root.node_id] = root_pill
 
@@ -572,10 +573,15 @@ class VariationGraph(QFrame):
 
     def _make_pill(self, text: str, color: str, node_id: int, active: bool) -> QPushButton:
         pill = QPushButton(text, self.canvas)
+        pill.setObjectName("VariationPill")
+        pill.setProperty("variationActive", bool(active))
+        pill.setProperty("variationGhost", False)
         pill.setFixedHeight(NODE_H)
         pill.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         pill.setCursor(Qt.CursorShape.PointingHandCursor)
-        pill.setStyleSheet(Styles.get_variation_node_style(color, active=active))
+        # Static chrome lives in the global template; only the branch colour
+        # is instance data.
+        pill.setStyleSheet(f"QPushButton#VariationPill {{ border-color: {color}; }}")
         pill.clicked.connect(lambda _checked=False, nid=node_id: self.node_clicked.emit(nid))
         pill.installEventFilter(self.canvas)
         pill.show()
@@ -639,6 +645,8 @@ class VariationGraph(QFrame):
         self._set_active_eval_visible(False)
         if getattr(self, "_ghost", None) is None:
             self._ghost = QPushButton(self.canvas)
+            self._ghost.setObjectName("VariationPill")
+            self._ghost.setProperty("variationGhost", True)
             self._ghost.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self._ghost.setCursor(Qt.CursorShape.PointingHandCursor)
             self._ghost.clicked.connect(lambda: self.ghost_clicked.emit())
@@ -657,7 +665,10 @@ class VariationGraph(QFrame):
         self._ghost.setFixedHeight(NODE_H)
         width = min(64, max(42, 14 + 7 * len(self._ghost_san)))
         self._ghost.setFixedWidth(width)
-        self._ghost.setStyleSheet(Styles.get_variation_node_style(color, ghost=True))
+        self._ghost.setProperty("variationGhost", True)
+        self._ghost.setStyleSheet(
+            f"QPushButton#VariationPill {{ border-color: {color}; }}"
+        )
         center_x = PAD_X + (node.ply + 1) * COL_W + COL_W // 2
         center_y = PAD_Y + node.lane * LANE_H + LANE_H // 2
         self._ghost.move(center_x - width // 2, center_y - NODE_H // 2)

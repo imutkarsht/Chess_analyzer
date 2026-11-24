@@ -154,31 +154,10 @@ class TacticRow(QFrame):
         self.style().polish(self)
 
     def refresh_styles(self) -> None:
+        """Row states are global; only the motif tint is instance data."""
         color = _row_color(self.entry)
         self.setStyleSheet(
-            f"""
-            QFrame#TacticRow {{
-                background: transparent;
-                border: 1px solid transparent;
-                border-left: 2px solid transparent;
-                border-radius: 6px;
-            }}
-            QFrame#TacticRow:hover {{
-                background-color: {Styles.COLOR_SURFACE_LIGHT};
-            }}
-            QFrame#TacticRow[active="true"] {{
-                background-color: {Styles.COLOR_ACCENT_SUBTLE};
-                border-left: 2px solid {Styles.COLOR_ACCENT};
-            }}
-            QFrame#TacticRow:focus {{
-                border: 1px solid {Styles.COLOR_ACCENT};
-                border-left: 2px solid {Styles.COLOR_ACCENT};
-            }}
-            QFrame#TacticIcon {{
-                background-color: {color}15;
-                border-radius: 6px;
-            }}
-            """
+            f"QFrame#TacticIcon {{ background-color: {color}15; border-radius: 6px; }}"
         )
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
@@ -266,12 +245,10 @@ class TacticsTab(QWidget):
         self.scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-        )
+        Styles.apply_transparent(self.scroll, borderless=False)
 
         self.content = QWidget()
-        self.content.setStyleSheet(Styles.get_transparent_background_style())
+        Styles.apply_transparent(self.content, borderless=False)
         self.content_layout = QVBoxLayout(self.content)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(8)
@@ -310,9 +287,7 @@ class TacticsTab(QWidget):
         self.content_layout.addWidget(EmptyState(message), 1)
 
     def refresh_styles(self) -> None:
-        self.scroll.setStyleSheet(
-            "QScrollArea { background: transparent; border: none; }"
-        )
+        """Re-render tactic rows for their data-driven colours."""
         if self._reports:
             self._render_current()
         else:

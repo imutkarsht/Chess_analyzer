@@ -743,7 +743,7 @@ class _ToastHost(QWidget):
         self._max_visible = 3
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAutoFillBackground(False)
-        self.setStyleSheet("background: transparent;")
+        Styles.apply_transparent(self, borderless=False)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(_STACK_SPACING)

@@ -3,7 +3,6 @@
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
 from src.gui.components import Label, TextRole, TextTone
-from src.gui.styles import Styles
 from src.gui.views.settings.components import (
     CONTROL_NARROW,
     SettingsBinder,
@@ -22,7 +21,7 @@ class CoachSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
         super().__init__("Move Explanations", parent)
         self.config_manager = config_manager
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.setup_ui()
 
     def setup_ui(self):
@@ -71,7 +70,7 @@ class CoachSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs) -> None:
-        self.setStyleSheet(Styles.get_group_box_style())
+        self.setProperty("settingsCard", True)
         self.form.refresh_styles()
         self.temperature_input.refresh_styles()
         self.max_tokens_input.refresh_styles()

@@ -68,17 +68,6 @@ class DrillDownItemWidget(QFrame):
                 self.move_index = 0
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setStyleSheet(f"""
-            QFrame#DrillDownCard {{
-                background-color: {Styles.COLOR_SURFACE_CARD};
-                border: 1px solid {Styles.COLOR_BORDER};
-                border-radius: 10px;
-            }}
-            QFrame#DrillDownCard:hover {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-color: {Styles.COLOR_ACCENT};
-            }}
-        """)
 
         self._build_ui()
 

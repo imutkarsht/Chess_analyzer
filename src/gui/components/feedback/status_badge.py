@@ -120,13 +120,15 @@ class StatusBadge(QLabel):
             )
         self.setStyleSheet(
             f"""
-            background-color: {background};
-            color: {foreground};
-            {family}
-            font-size: {self._font_size}px;
-            font-weight: {self._weight};
-            border: 1px solid {border};
-            border-radius: {self._radius}px;
-            padding: {self._padding};
+            QLabel {{
+                background-color: {background};
+                color: {foreground};
+                {family}
+                font-size: {self._font_size}px;
+                font-weight: {self._weight};
+                border: 1px solid {border};
+                border-radius: {self._radius}px;
+                padding: {self._padding};
+            }}
             """
         )

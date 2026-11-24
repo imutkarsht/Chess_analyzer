@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QSlider, QWidget
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.label import Label
-from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole
 
 
@@ -132,9 +131,8 @@ class SliderCounter(QWidget):
         self.setValue(val_str)
 
     def refresh_styles(self):
-        self.slider.setStyleSheet(Styles.get_slider_style())
-        self.minus_btn.refresh_styles()
-        self.plus_btn.refresh_styles()
+        """Inputs self-refresh via theme signals; nothing to rebuild here."""
+        return
 
 
 __all__ = ["SliderCounter"]

@@ -71,16 +71,6 @@ class DrillDownView(QWidget):
         # 1. Top Navigation Header Bar
         self.header_bar = QFrame()
         self.header_bar.setObjectName("DrillDownHeader")
-        self.header_bar.setStyleSheet(f"""
-            QFrame#DrillDownHeader {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QFrame#DrillDownHeader QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """)
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(24, 14, 24, 14)
         header_layout.setSpacing(14)
@@ -98,7 +88,7 @@ class DrillDownView(QWidget):
         self.sep = QFrame()
         self.sep.setFrameShape(QFrame.Shape.VLine)
         self.sep.setFrameShadow(QFrame.Shadow.Plain)
-        self.sep.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
+        self.sep.setObjectName("DrillDownSeparator")
         self.sep.setFixedWidth(1)
         self.sep.setFixedHeight(24)
         header_layout.addWidget(self.sep)
@@ -141,7 +131,7 @@ class DrillDownView(QWidget):
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll_area.setStyleSheet(Styles.get_transparent_scroll_area_style())
+        self.scroll_area.setProperty("transparentScroll", True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.list_container = QWidget()
@@ -211,7 +201,7 @@ class DrillDownView(QWidget):
 
     def _render_empty_state(self) -> None:
         empty_container = QWidget()
-        empty_container.setStyleSheet(Styles.get_transparent_style())
+        Styles.apply_transparent(empty_container)
         empty_layout = QVBoxLayout(empty_container)
         empty_layout.setContentsMargins(0, 40, 0, 40)
         empty_layout.setSpacing(12)
@@ -246,20 +236,5 @@ class DrillDownView(QWidget):
         self.list_layout.addWidget(empty_container)
 
     def refresh_styles(self) -> None:
-        """Re-applies styles when theme changes."""
-        Styles.apply_background(self)
-        self.header_bar.setStyleSheet(f"""
-            QFrame#DrillDownHeader {{
-                background-color: {Styles.COLOR_BACKGROUND};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QFrame#DrillDownHeader QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """)
-        self.sep.setStyleSheet(f"background-color: {Styles.COLOR_BORDER}; border: none;")
-        self.btn_back.refresh_styles()
-        self.pagination.refresh_styles()
-        Styles.apply_background(self.list_container)
+        """Chrome is global; re-render the data-driven position cards."""
         self._render_page()

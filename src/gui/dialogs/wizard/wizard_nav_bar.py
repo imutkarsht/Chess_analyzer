@@ -2,7 +2,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from src.gui.components import Button, ButtonVariant, Label, StatusBadge, TextRole
-from src.gui.theme import ThemeManager
 
 
 class WizardNavBar(QWidget):
@@ -70,18 +69,13 @@ class WizardNavBar(QWidget):
         self.refresh_theme()
 
     def refresh_theme(self):
-        p = ThemeManager.palette()
-        self.setStyleSheet(f"""
-            QWidget#WizardNavBar {{
-                background-color: {p.surface};
-                border-top: 1px solid {p.border};
-            }}
-        """)
-        self.skip_btn.refresh_styles()
-        self.refresh_accent()
+        """Nav-bar chrome is global; buttons self-refresh on theme signals."""
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def refresh_accent(self):
-        self.next_btn.refresh_styles()
+        """Buttons self-refresh on accent signals."""
+        return
         self.back_btn.refresh_styles()
 
     def update(self, index: int, total: int = 7):

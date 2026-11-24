@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from src.config.settings_schema import (
     SECRET_PROFILE_PREFIX,
+    allowed_choice_values,
     default_config,
     get_spec,
 )
@@ -559,7 +560,7 @@ class ConfigManager:
     def get_choice(self, key: str, default: str = "") -> str:
         spec = get_spec(key)
         value = str(self.get(key, default))
-        if spec and spec.choices and value not in {c.value for c in spec.choices}:
+        if spec and spec.choices and value not in allowed_choice_values(spec):
             return default
         return value
 
@@ -605,8 +606,13 @@ class ConfigManager:
                     number = min(float(spec.maximum), number)
                 return number
             if spec.kind == "choice":
-                if spec.choices and value not in {c.value for c in spec.choices}:
-                    raise ValueError(f"expected one of {[c.value for c in spec.choices]}")
+                if (
+                    spec.choices
+                    and value not in allowed_choice_values(spec)
+                ):
+                    raise ValueError(
+                        f"expected one of {sorted(allowed_choice_values(spec))}"
+                    )
                 return value
             if spec.kind in {"text", "path", "secret", "json"}:
                 return value

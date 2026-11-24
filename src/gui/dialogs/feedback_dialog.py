@@ -28,7 +28,6 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
-from src.gui.styles import Styles
 from src.utils.config import ConfigManager
 from src.workers import FeedbackWorker
 
@@ -68,14 +67,6 @@ class FeedbackDialog(QDialog):
 
     def setup_ui(self):
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {Styles.COLOR_BACKGROUND};
-            }}
-            QLabel {{
-                background: transparent;
-            }}
-        """)
 
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -85,16 +76,6 @@ class FeedbackDialog(QDialog):
         header_bar = QWidget()
         header_bar.setObjectName("FeedbackHeader")
         header_bar.setFixedHeight(58)
-        header_bar.setStyleSheet(f"""
-            QWidget#FeedbackHeader {{
-                background-color: {Styles.COLOR_SURFACE};
-                border-bottom: 1px solid {Styles.COLOR_BORDER};
-            }}
-            QWidget#FeedbackHeader QLabel {{
-                background: transparent;
-                border: none;
-            }}
-        """)
         header_layout = QHBoxLayout(header_bar)
         header_layout.setContentsMargins(24, 0, 24, 0)
         header_layout.setSpacing(12)

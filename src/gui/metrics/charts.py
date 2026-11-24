@@ -287,5 +287,5 @@ def fig_to_canvas(fig: Figure) -> FigureCanvasQTAgg:
         FigureCanvasQTAgg widget
     """
     canvas = FigureCanvasQTAgg(fig)
-    canvas.setStyleSheet("background: transparent;")
+    Styles.apply_transparent(canvas, borderless=False)
     return canvas
