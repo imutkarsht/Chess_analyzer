@@ -217,13 +217,12 @@ def test_popup_placement_flips_and_clamps():
 def test_theme_change_restyles_field_and_popup(picker, monkeypatch):
     picker.open_calendar()
     popup = picker._popup
-    dark_sheet = popup._panel.styleSheet()
+    # Popup chrome lives in the global template, not a per-widget sheet.
+    assert popup._panel.styleSheet() == ""
 
     monkeypatch.setattr(ThemeManager, "palette", classmethod(lambda cls: LIGHT))
     picker._on_theme_changed()
 
-    assert popup._panel.styleSheet() != dark_sheet
-    assert LIGHT.surface in popup._panel.styleSheet()
     assert LIGHT.text_primary in picker._edit.styleSheet()
     assert picker._label_widget is not None
     assert "color:" in picker._label_widget.styleSheet()

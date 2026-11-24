@@ -7,7 +7,12 @@ from PyQt6.QtWidgets import QColorDialog, QGroupBox, QVBoxLayout
 from src.config.settings_schema import get_spec
 from src.gui.components import Button, ButtonVariant, RadioChoice, ToastManager
 from src.gui.theme import ThemeManager
-from src.gui.views.settings.components import SettingsBinder, SettingsForm
+from src.gui.views.settings.components import (
+    CONTROL_DEFAULT,
+    SettingsBinder,
+    SettingsForm,
+    make_select,
+)
 
 
 class ThemeAccentSettings(QGroupBox):
@@ -37,14 +42,16 @@ class ThemeAccentSettings(QGroupBox):
         spec = get_spec("theme_mode")
         choices = [(choice.value, choice.label) for choice in spec.choices]
         known = {value for value, _label in choices}
-        # Registered bundles (including plugin themes) appear automatically.
+        # Registered bundles (including plugin themes) appear automatically,
+        # so the picker never needs editing when a theme ships.
         for bundle_id, bundle in ThemeManager.registered_bundles().items():
             if bundle_id not in known:
                 choices.append((bundle_id, bundle.display_name))
-        self.theme_mode_choice = RadioChoice(choices)
+        self.theme_mode_select = make_select(CONTROL_DEFAULT)
         self.binder.add(
             "theme_mode",
-            self.theme_mode_choice,
+            self.theme_mode_select,
+            choices=choices,
             hint="",
             width=None,
             on_change=self._on_theme_mode_changed,
@@ -122,8 +129,8 @@ class ThemeAccentSettings(QGroupBox):
         self.binder.set_advanced_visible(visible)
 
     def refresh_styles(self, *args, **kwargs):
-        self.setProperty("settingsCard", True)
+        self.style().unpolish(self)
+        self.style().polish(self)
         self.form.refresh_styles()
-        self.color_btn.refresh_styles()
-        self.theme_mode_choice.refresh_styles()
+        self.theme_mode_select.refresh_styles()
         self.accent_choice.refresh_styles()

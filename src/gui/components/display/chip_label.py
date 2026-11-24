@@ -50,12 +50,14 @@ class ChipLabel(QLabel):
         )
         self.setStyleSheet(
             f"""
-            color: {self._foreground};
-            background-color: {self._background};
-            font-size: {self._font_size}px;
-            font-weight: {self._weight};
-            padding: {self._padding};
-            border-radius: {self._radius}px;
-            {margin}
+            QLabel {{
+                color: {self._foreground};
+                background-color: {self._background};
+                font-size: {self._font_size}px;
+                font-weight: {self._weight};
+                padding: {self._padding};
+                border-radius: {self._radius}px;
+                {margin}
+            }}
             """
         )

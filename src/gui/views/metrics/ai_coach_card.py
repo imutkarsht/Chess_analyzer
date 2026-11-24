@@ -186,15 +186,19 @@ class AICoachCard(MetricCard):
         self.insights_layout.addWidget(intro_container)
 
     def refresh_styles(self):
-        self.provider_badge.setStyleSheet(f"""
-            background-color: {Styles.COLOR_SURFACE_LIGHT};
-            color: {Styles.COLOR_TEXT_SECONDARY};
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid {Styles.COLOR_BORDER};
-            border-radius: 6px;
-            padding: 3px 8px;
-        """)
+        self.provider_badge.setStyleSheet(
+            f"""
+            QLabel {{
+                background-color: {Styles.COLOR_SURFACE_LIGHT};
+                color: {Styles.COLOR_TEXT_SECONDARY};
+                font-size: 11px;
+                font-weight: 600;
+                border: 1px solid {Styles.COLOR_BORDER};
+                border-radius: 6px;
+                padding: 3px 8px;
+            }}
+            """
+        )
 
         super().refresh_styles()
         if self.current_insights:

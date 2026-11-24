@@ -131,19 +131,23 @@ class StarRatingWidget(QWidget):
             label_idx = active_stars
             self._desc_label.setText(STAR_LABELS.get(label_idx, ""))
             if label_idx > 0:
-                self._desc_label.setStyleSheet(f"""
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: {Styles.COLOR_ACCENT if label_idx >= 4 else Styles.COLOR_TEXT_PRIMARY};
-                    background: transparent;
-                """)
+                self._desc_label.setStyleSheet(
+                    "QLabel {"
+                    " font-size: 13px;"
+                    " font-weight: 600;"
+                    f" color: {Styles.COLOR_ACCENT if label_idx >= 4 else Styles.COLOR_TEXT_PRIMARY};"
+                    " background: transparent;"
+                    " }"
+                )
             else:
-                self._desc_label.setStyleSheet(f"""
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: {Styles.COLOR_TEXT_SECONDARY};
-                    background: transparent;
-                """)
+                self._desc_label.setStyleSheet(
+                    "QLabel {"
+                    " font-size: 13px;"
+                    " font-weight: 600;"
+                    f" color: {Styles.COLOR_TEXT_SECONDARY};"
+                    " background: transparent;"
+                    " }"
+                )
 
     def set_rating(self, rating: int):
         self._rating = max(0, min(5, int(rating)))
