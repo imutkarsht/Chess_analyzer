@@ -136,21 +136,6 @@ class _TableMixin:
         """
 
     @classmethod
-    def get_filter_chip_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QFrame#FilterChip {{
-                background-color: {p.surface_light};
-                border: 1px solid {p.border};
-                border-radius: 8px;
-            }}
-            QFrame#FilterChip:hover {{
-                background-color: {p.surface};
-                border-color: {p.accent};
-            }}
-        """
-
-    @classmethod
     def get_history_filter_panel_style(cls):
         p = ThemeManager.palette()
         return f"""

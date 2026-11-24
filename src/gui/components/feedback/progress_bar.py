@@ -12,7 +12,6 @@ from enum import StrEnum
 
 from PyQt6.QtWidgets import QProgressBar, QWidget
 
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
 
@@ -57,10 +56,10 @@ class ProgressBar(QProgressBar):
         return self._variant
 
     def refresh_styles(self) -> None:
-        if self._variant is ProgressBarVariant.DEFAULT:
-            self.setStyleSheet(Styles.get_progress_bar_style())
-        else:
-            self.setStyleSheet(Styles.get_thin_progress_bar_style())
+        """Publish the variant property; the global matrix owns the styling."""
+        self.setProperty("progressVariant", self._variant.value)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def _on_theme_changed(self, *_args) -> None:
         self.refresh_styles()

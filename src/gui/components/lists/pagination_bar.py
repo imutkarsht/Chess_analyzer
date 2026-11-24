@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.label import Label
-from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
 
@@ -397,8 +396,7 @@ class PaginationBar(QWidget):
         self.refresh_styles()
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(
-            Styles.get_pagination_bar_style() if self._framed else "background: transparent;"
-        )
-        self.prev_btn.refresh_styles()
-        self.next_btn.refresh_styles()
+        """Publish the framed state; chrome and buttons style themselves."""
+        self.setProperty("transparentFrame", not self._framed)
+        self.style().unpolish(self)
+        self.style().polish(self)

@@ -7,7 +7,6 @@ from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QWidget
 
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
-from src.gui.styles import Styles
 
 
 def _dot_icon(color: str) -> QIcon:
@@ -77,6 +76,6 @@ class FilterChip(QFrame):
         self.refresh_styles()
 
     def refresh_styles(self) -> None:
-        self.setStyleSheet(Styles.get_filter_chip_style())
-        self.body.refresh_styles()
-        self.close_button.refresh_styles()
+        """Chip chrome is global; the body and close buttons self-refresh."""
+        self.style().unpolish(self)
+        self.style().polish(self)

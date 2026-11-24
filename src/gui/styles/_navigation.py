@@ -166,16 +166,6 @@ class _NavigationMixin:
         """
 
     @classmethod
-    def get_pagination_bar_style(cls):
-        p = ThemeManager.palette()
-        return f"""
-            QWidget#PaginationBar {{
-                background-color: {p.surface};
-                border-top: 1px solid {p.border};
-            }}
-        """
-
-    @classmethod
     def get_scroll_area_style(cls):
         p = ThemeManager.palette()
         return f"""

@@ -1221,26 +1221,80 @@ QFrame#SimpleStatCard QLabel {{
     border: none;
 }}
 
-QFrame#PaginationBar {{
+QWidget#PaginationBar {{
     background-color: {SURFACE};
     border-top: 1px solid {BORDER};
+}}
+QWidget#PaginationBar[transparentFrame="true"] {{
+    background: transparent;
+    border: none;
 }}
 
 QFrame#FilterChip {{
     background-color: {SURFACE_LIGHT};
     border: 1px solid {BORDER};
-    border-radius: 16px;
+    border-radius: 8px;
+}}
+QFrame#FilterChip:hover {{
+    background-color: {SURFACE};
+    border-color: {ACCENT};
 }}
 
-QProgressBar,
-QProgressBar[variant="thin"] {{
+QFrame#SegmentedControl {{
     background-color: {SURFACE_LIGHT};
-    border: 1px solid {BORDER};
-    border-radius: 4px;
+    border-radius: 6px;
+    border: none;
 }}
-QProgressBar::chunk {{
+
+QListWidget#NavList {{
+    background: transparent;
+    border: none;
+    outline: none;
+}}
+QListWidget#NavList::item {{
+    padding: 11px 14px;
+    margin: 1px 0;
+    border-radius: 8px;
+    color: {TEXT_SECONDARY};
+    font-size: 15px;
+    font-weight: 500;
+}}
+QListWidget#NavList::item:hover {{
+    background-color: {SURFACE_LIGHT};
+    color: {TEXT_PRIMARY};
+}}
+QListWidget#NavList::item:selected {{
+    background-color: {SURFACE_LIGHT};
+    color: {ACCENT};
+    border-left: 2px solid {ACCENT};
+    font-weight: 600;
+}}
+
+/* Progress bars — matrix scoped to the shared component. Object-named
+   custom bars (e.g. the toast hairline #ToastProgress) keep their own
+   rules and must not inherit this geometry. */
+QProgressBar[progressVariant="default"] {{
+    border: 2px solid {BORDER};
+    border-radius: 5px;
+    background-color: {SURFACE};
+    text-align: center;
+    color: {TEXT_PRIMARY};
+    font-size: 12px;
+    font-weight: bold;
+    min-height: 22px;
+}}
+QProgressBar[progressVariant="default"]::chunk {{
     background-color: {ACCENT};
-    border-radius: 4px;
+    border-radius: 3px;
+}}
+QProgressBar[progressVariant="thin"] {{
+    border: none;
+    border-radius: 3px;
+    background-color: {SURFACE_LIGHT};
+}}
+QProgressBar[progressVariant="thin"]::chunk {{
+    background-color: {ACCENT};
+    border-radius: 3px;
 }}
 
 QScrollArea[transparentScroll="true"] {{
