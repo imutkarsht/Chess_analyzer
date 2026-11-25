@@ -34,7 +34,14 @@ class DashboardLayoutSettings(QGroupBox):
         self.sortable_list.order_changed.connect(self._on_order_changed)
         outer.addWidget(self.sortable_list)
 
-        self.reset_btn = Button('Reset order', ButtonVariant.FILLED, icon='fa5s.undo', on_click=self.reset_order, parent=self)
+        self.reset_btn = Button(
+            "Reset order",
+            ButtonVariant.FILLED,
+            icon="fa5s.undo",
+            tooltip="Restore the default dashboard card order",
+            on_click=self.reset_order,
+            parent=self,
+        )
         row = QHBoxLayout()
         row.addWidget(self.reset_btn)
         row.addStretch(1)

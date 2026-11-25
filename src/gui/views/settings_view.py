@@ -550,6 +550,7 @@ class SettingsView(QWidget):
             "Save Settings",
             ButtonVariant.PRIMARY,
             icon="fa5s.save",
+            tooltip="Save all settings and validate the engine path",
             on_click=self.save_all_settings,
         )
         return btn
@@ -569,6 +570,11 @@ class SettingsView(QWidget):
         b.setText("Advanced Settings" if self._mode == "basic" else "Basic Settings")
         icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
         b.set_icon_spec(icon_name)
+        b.setToolTip(
+            "Reveal advanced engine, AI, storage, and maintenance options"
+            if self._mode == "basic"
+            else "Hide advanced options and keep only essential settings"
+        )
 
     def _toggle_mode(self):
         self._mode = "advanced" if self._mode == "basic" else "basic"

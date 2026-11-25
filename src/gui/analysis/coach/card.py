@@ -140,6 +140,7 @@ class CoachCardWidget(QFrame):
             ButtonVariant.TONAL,
             size=ButtonSize.SM,
             icon="fa5s.magic",
+            tooltip="Generate an AI explanation for this move",
             on_click=self.ask_requested.emit,
             parent=self,
         )
@@ -239,6 +240,7 @@ class CoachCardWidget(QFrame):
         self._set_body(format_move_insight_offline(insight))
 
         self.btn_ask.setText("Ask Coach")
+        self.btn_ask.setToolTip("Generate an AI explanation for this move")
         self.btn_best.setToolTip(self.best_move_label())
         self._layout_rows()
 

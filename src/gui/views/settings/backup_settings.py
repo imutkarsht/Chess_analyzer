@@ -37,7 +37,14 @@ class BackupSettings(StorageCard):
         self.form = SettingsForm(self)
         outer.addWidget(self.form)
 
-        self.backup_btn = Button('Back Up Now...', ButtonVariant.FILLED, icon='fa5s.save', on_click=self.backup_now, parent=self)
+        self.backup_btn = Button(
+            "Back Up Now...",
+            ButtonVariant.FILLED,
+            icon="fa5s.save",
+            tooltip="Create a backup of games and settings",
+            on_click=self.backup_now,
+            parent=self,
+        )
         self.form.add_row(
             "Backup",
             self.backup_btn,
@@ -45,7 +52,14 @@ class BackupSettings(StorageCard):
             width=None,
         )
 
-        self.restore_btn = Button('Restore From Backup...', ButtonVariant.DANGER, icon='fa5s.upload', on_click=self.restore_from_backup, parent=self)
+        self.restore_btn = Button(
+            "Restore From Backup...",
+            ButtonVariant.DANGER,
+            icon="fa5s.upload",
+            tooltip="Replace local data with a selected backup",
+            on_click=self.restore_from_backup,
+            parent=self,
+        )
         self.form.add_row(
             "Restore",
             self.restore_btn,

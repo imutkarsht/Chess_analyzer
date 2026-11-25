@@ -43,8 +43,22 @@ class StorageSettings(StorageCard):
             self.stat_labels[key] = value
             self.form.add_row(label, value, hint="", width=None)
 
-        self.refresh_btn = Button('Refresh', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=self.refresh_stats, parent=self)
-        self.open_folder_btn = Button('Open Data Folder', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=self.open_data_folder, parent=self)
+        self.refresh_btn = Button(
+            "Refresh",
+            ButtonVariant.FILLED,
+            icon="fa5s.sync-alt",
+            tooltip="Recalculate storage usage",
+            on_click=self.refresh_stats,
+            parent=self,
+        )
+        self.open_folder_btn = Button(
+            "Open Data Folder",
+            ButtonVariant.FILLED,
+            icon="fa5s.folder-open",
+            tooltip="Open the local data folder in your file manager",
+            on_click=self.open_data_folder,
+            parent=self,
+        )
         for btn in (self.refresh_btn, self.open_folder_btn):
             btn.setMaximumWidth(180)
 

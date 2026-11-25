@@ -27,7 +27,14 @@ class DangerSettings(StorageCard):
         self.form = SettingsForm(self)
         outer.addWidget(self.form)
 
-        self.clear_data_btn = Button('Reset All Data', ButtonVariant.DANGER, icon='fa5s.trash-alt', on_click=self.reset_all_data, parent=self)
+        self.clear_data_btn = Button(
+            "Reset All Data",
+            ButtonVariant.DANGER,
+            icon="fa5s.trash-alt",
+            tooltip="Permanently delete games, analyses, and caches",
+            on_click=self.reset_all_data,
+            parent=self,
+        )
         self.clear_data_btn.setMaximumWidth(200)
         self.form.add_row(
             "All local data",

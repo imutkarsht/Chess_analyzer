@@ -551,6 +551,7 @@ class MainWindow(
         # Explore Button
         self.btn_explore = Button('Explore from here', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self.explore_current_position)
         self.btn_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_explore.setToolTip("Open this position in the Opening Explorer")
         header_layout.addWidget(self.btn_explore)
 
         # Load Game Button

@@ -263,7 +263,6 @@ class AnalysisController(QObject):
             self.host.btn_analyze.setEnabled(False)
             return
 
-        self.host.btn_analyze.setToolTip("")
         try:
             self.host.btn_analyze.clicked.disconnect()
         except (TypeError, RuntimeError):
@@ -271,6 +270,7 @@ class AnalysisController(QObject):
 
         if running:
             self.host.btn_analyze.setText("Stop Analysis")
+            self.host.btn_analyze.setToolTip("Stop the running analysis")
             self.host.btn_analyze.set_danger(True)
             self.host.btn_analyze.set_icon_spec("fa5s.stop")
             self.host.btn_analyze.clicked.connect(self.stop_analysis)
@@ -287,16 +287,19 @@ class AnalysisController(QObject):
                     getattr(self.host.current_game, "moves", [])
                 )
                 self.host.btn_analyze.setText(f"Resume ({analyzed}/{total})")
+                self.host.btn_analyze.setToolTip("Resume the paused analysis")
                 self.host.btn_analyze.set_danger(False)
                 self.host.btn_analyze.set_icon_spec("fa5s.play")
                 self.host.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=True))
             elif game_status == "completed":
                 self.host.btn_analyze.setText("Reanalyze Game")
+                self.host.btn_analyze.setToolTip("Run the analysis again")
                 self.host.btn_analyze.set_danger(False)
                 self.host.btn_analyze.set_icon_spec("fa5s.sync-alt")
                 self.host.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))
             else:
                 self.host.btn_analyze.setText("Analyze Game")
+                self.host.btn_analyze.setToolTip("Analyze this game with Stockfish")
                 self.host.btn_analyze.set_danger(False)
                 self.host.btn_analyze.set_icon_spec("fa5s.play")
                 self.host.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))

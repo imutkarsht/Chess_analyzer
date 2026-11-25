@@ -48,7 +48,14 @@ class MaintenanceSettings(StorageCard):
         self.form = SettingsForm(self)
         outer.addWidget(self.form)
 
-        self.clear_cache_btn = Button('Clear Cache', ButtonVariant.FILLED, icon='fa5s.broom', on_click=self.clear_cache, parent=self)
+        self.clear_cache_btn = Button(
+            "Clear Cache",
+            ButtonVariant.FILLED,
+            icon="fa5s.broom",
+            tooltip="Delete cached engine evaluations",
+            on_click=self.clear_cache,
+            parent=self,
+        )
         self.form.add_row(
             "Analysis cache",
             self.clear_cache_btn,
@@ -56,7 +63,14 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.clear_explanations_btn = Button('Clear Explanations', ButtonVariant.FILLED, icon='fa5s.comment-slash', on_click=self.clear_explanations, parent=self)
+        self.clear_explanations_btn = Button(
+            "Clear Explanations",
+            ButtonVariant.FILLED,
+            icon="fa5s.comment-slash",
+            tooltip="Delete cached AI move explanations",
+            on_click=self.clear_explanations,
+            parent=self,
+        )
         self.form.add_row(
             "Explanation cache",
             self.clear_explanations_btn,
@@ -64,7 +78,14 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.clear_api_cache_btn = Button('Clear API Cache', ButtonVariant.FILLED, icon='fa5s.cloud-download-alt', on_click=self.clear_api_cache, parent=self)
+        self.clear_api_cache_btn = Button(
+            "Clear API Cache",
+            ButtonVariant.FILLED,
+            icon="fa5s.cloud-download-alt",
+            tooltip="Delete cached Chess.com and Lichess game lists",
+            on_click=self.clear_api_cache,
+            parent=self,
+        )
         self.form.add_row(
             "API cache",
             self.clear_api_cache_btn,
@@ -72,7 +93,14 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.clear_explorer_cache_btn = Button('Clear Explorer Cache', ButtonVariant.FILLED, icon='fa5s.globe', on_click=self.clear_explorer_cache, parent=self)
+        self.clear_explorer_cache_btn = Button(
+            "Clear Explorer Cache",
+            ButtonVariant.FILLED,
+            icon="fa5s.globe",
+            tooltip="Delete cached opening-explorer responses",
+            on_click=self.clear_explorer_cache,
+            parent=self,
+        )
         self.form.add_row(
             "Explorer cache",
             self.clear_explorer_cache_btn,
@@ -80,7 +108,14 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.optimize_db_btn = Button('Optimize DB', ButtonVariant.FILLED, icon='fa5s.tools', on_click=self.optimize_db, parent=self)
+        self.optimize_db_btn = Button(
+            "Optimize DB",
+            ButtonVariant.FILLED,
+            icon="fa5s.tools",
+            tooltip="Compact the history database and checkpoint WAL files",
+            on_click=self.optimize_db,
+            parent=self,
+        )
         self.form.add_row(
             "Database",
             self.optimize_db_btn,
@@ -88,7 +123,14 @@ class MaintenanceSettings(StorageCard):
             width=None,
         )
 
-        self.rebuild_index_btn = Button('Rebuild Index', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=self.rebuild_index, parent=self)
+        self.rebuild_index_btn = Button(
+            "Rebuild Index",
+            ButtonVariant.FILLED,
+            icon="fa5s.sync-alt",
+            tooltip="Regenerate the opening index from bundled data",
+            on_click=self.rebuild_index,
+            parent=self,
+        )
         self.form.add_row(
             "Opening index",
             self.rebuild_index_btn,

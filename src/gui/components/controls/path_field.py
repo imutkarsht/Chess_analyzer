@@ -36,6 +36,7 @@ class PathField(QWidget):
             "Browse",
             ButtonVariant.FILLED,
             icon="fa5s.folder-open",
+            tooltip="Choose a file",
             on_click=browse_callback,
             parent=self,
         )
@@ -49,6 +50,7 @@ class PathField(QWidget):
                 "Clear",
                 ButtonVariant.FILLED,
                 icon="fa5s.times",
+                tooltip="Clear the path",
                 on_click=clear_callback,
                 parent=self,
             )

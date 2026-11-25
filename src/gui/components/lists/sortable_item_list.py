@@ -190,6 +190,7 @@ class SortableItemList(QListWidget):
             row.setData(_KEY_ROLE, item.key)
             row.setData(_TITLE_ROLE, item.title)
             row.setData(_DESCRIPTION_ROLE, item.description)
+            row.setData(Qt.ItemDataRole.ToolTipRole, "Drag to reorder")
             row.setData(_ICON_ROLE, item.icon)
             row.setFlags(
                 Qt.ItemFlag.ItemIsEnabled
