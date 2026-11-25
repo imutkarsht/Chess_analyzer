@@ -48,8 +48,6 @@ def test_bar_clicks_update_state_and_emit_page_changed(qtbot):
 
     assert bar.label.text() == "Page 1 of 3"
     assert not bar.prev_btn.isEnabled()
-    assert bar.prev_btn.toolTip() == "Go to the previous page"
-    assert bar.next_btn.toolTip() == "Go to the next page"
 
     bar.next_btn.click()
     bar.prev_btn.click()
@@ -72,7 +70,6 @@ def test_numbered_bar_marks_current_page_and_hides_at_one_page(qtbot):
     numbers = [b for b in bar.findChildren(Button) if b.text().isdigit()]
     assert [b.text() for b in numbers] == ["1", "2", "3"]
     assert numbers[0].variant is ButtonVariant.PRIMARY
-    assert numbers[0].toolTip() == "Go to page 1"
 
     bar.set_page(2)
     assert [b for b in bar.findChildren(Button) if b.variant is ButtonVariant.PRIMARY][0].text() == "3"

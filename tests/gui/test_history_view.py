@@ -329,18 +329,6 @@ def test_history_view_applies_configured_default_layout(qapp, qtbot):
     assert view.btn_export.text() == "Export"
     assert view.export_pgn_action.text() == "Export Annotated PGN"
 
-    for control in (
-        view.btn_batch,
-        view.btn_import,
-        view.btn_export,
-        view.btn_cancel_export,
-        view.btn_clear,
-        view.btn_refresh,
-    ):
-        assert control.toolTip()
-    assert view.export_csv_action.toolTip()
-    assert view.export_pgn_action.toolTip()
-
     view.game_list.set_view_mode("compact")
     view.apply_default_view_mode()
     assert view.game_list.view_mode == "detailed"

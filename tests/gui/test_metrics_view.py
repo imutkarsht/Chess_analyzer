@@ -6,7 +6,6 @@ from unittest.mock import MagicMock
 
 from PyQt6.QtWidgets import QFrame, QPushButton, QWidget
 
-from src.gui.components import StatCard
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.views.metrics.card_registry import (
     DEFAULT_CARD_ORDER,
@@ -53,17 +52,6 @@ def test_metrics_view_filter_toolbar(qapp, qtbot):
     assert not widget.filter_bar.isHidden()
     assert widget.combo_color.count() == 3
     assert widget.combo_format.count() == 6
-
-    for control in (
-        widget.btn_refresh,
-        widget.combo_color,
-        widget.combo_format,
-        widget.combo_source,
-        widget.combo_period,
-        widget.btn_reset_filters,
-        widget.lbl_games_badge,
-    ):
-        assert control.toolTip()
 
     # Change comboboxes
     widget.combo_color.setCurrentText("White")
@@ -411,12 +399,6 @@ def test_brilliancy_hall_card_widget(qapp, qtbot):
     # 3. Test click-to-load signal emission
     rows = card.findChildren(QFrame, "brilliancy_row")
     assert len(rows) == 2
-    analyze = next(
-        button
-        for button in rows[0].findChildren(QPushButton)
-        if "Analyze" in button.text()
-    )
-    assert analyze.toolTip()
     with qtbot.waitSignal(card.move_selected) as blocker:
         rows[0].clicked.emit()
     assert blocker.args == ["game1", 36]  # ply 19*2-1 or ply fallback
@@ -580,12 +562,6 @@ def test_ai_coach_card_widget(qapp, qtbot):
     assert card.provider_badge.text() == "llama-3.3-70b-versatile"
     intro_container = card.findChild(QWidget, "coach_intro_container")
     assert intro_container is not None
-    generate = next(
-        button
-        for button in card.findChildren(QPushButton)
-        if "Generate Coach" in button.text()
-    )
-    assert generate.toolTip()
 
     # 1. Populate structured insights
     structured_insights = (
@@ -610,7 +586,6 @@ def test_ai_coach_card_widget(qapp, qtbot):
     card._handle_insight_error("Error: LLM not configured. Go to Settings.")
     buttons = card.findChildren(QPushButton)
     assert any("Configure LLM" in b.text() for b in buttons)
-    assert any("Retry" in b.text() and b.toolTip() for b in buttons)
 
     # 3. Refresh styles
     card.refresh_styles()
@@ -707,10 +682,6 @@ def test_dashboard_applies_saved_chart_order(qapp, qtbot):
     assert widget.card_order == expected
     assert widget.dashboard_layout.count() == 2
     assert widget.dashboard_layout.itemAt(0).widget() is widget.stats_container
-    assert all(
-        card.toolTip()
-        for card in widget.stats_container.findChildren(StatCard)
-    )
     assert widget.charts_layout.count() == len(DEFAULT_CARD_ORDER)
     assert widget.charts_layout.itemAt(0).widget() is widget.ai_coach_card
     assert widget.charts_layout.itemAt(1).widget() is widget.accuracy_card

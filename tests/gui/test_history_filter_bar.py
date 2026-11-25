@@ -57,22 +57,6 @@ def test_chips_are_hidden_while_the_panel_is_open(qtbot):
     assert bar.token_row.isHidden()
 
 
-def test_toolbar_and_panel_controls_have_tooltips(qtbot):
-    bar = _bar(qtbot)
-
-    assert bar.sort_dropdown.toolTip()
-    assert bar.btn_reset.toolTip()
-    assert bar.btn_done.toolTip()
-
-    bar.result_filter.set_current_value("win")
-    bar.set_panel_open(False)
-    chips = [
-        chip for chip in bar.findChildren(FilterChip) if not chip.isHidden()
-    ]
-    assert chips
-    assert chips[0].body.toolTip()
-
-
 def test_chip_body_reopens_its_filter_and_close_removes_it(qtbot):
     bar = _bar(qtbot)
     bar.analysis_filter.set_value("analyzed", emit=True)

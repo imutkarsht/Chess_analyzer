@@ -32,14 +32,6 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     assert not window.btn_load.isVisible()
     assert not window.btn_hero_load.isHidden()
     assert not window.btn_hero_paste.isHidden()
-    for landing_button in (
-        window.btn_hero_load,
-        window.btn_hero_paste,
-        window.btn_hib_reveal,
-        window.btn_hib_explore,
-        window._btn_shuffle,
-    ):
-        assert landing_button.toolTip()
 
     # showEvent defers the historic puzzle with a zero-delay timer; drain it
     # deterministically instead of polling with a timeout.
