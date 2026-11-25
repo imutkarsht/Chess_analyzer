@@ -711,7 +711,7 @@ class MainWindow(
             "",
             role=TextRole.SUBHEADING,
             size=15,
-            weight=700,
+            weight=600,
         )
         self._hib_title.setWordWrap(False)
         hib_top.addWidget(self._hib_title)
@@ -720,7 +720,7 @@ class MainWindow(
         hib_top.insertWidget(1, self._hib_turn)
 
         hib_top.addStretch()
-        self.btn_hib_reveal = Button('Reveal', ButtonVariant.GHOST, icon='fa5s.eye', on_click=self._reveal_historic_move)
+        self.btn_hib_reveal = Button('Reveal', ButtonVariant.TONAL, icon='fa5s.eye', on_click=self._reveal_historic_move)
         self.btn_hib_reveal.setFixedHeight(30)
         self.btn_hib_reveal.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hib_reveal.setToolTip("Play the famous move on the board")
@@ -864,7 +864,7 @@ class MainWindow(
             self.board_widget.load_fen(pos.fen, pos.flipped)
 
         if hasattr(self, "_hib_title"):
-            self._hib_title.setText(f"\u2736  {pos.title}  \u00b7  {pos.year}")
+            self._hib_title.setText(f"{pos.title}  ·  {pos.year}")
         if hasattr(self, "_hib_meta"):
             self._hib_meta.setText(f"{pos.white}  vs  {pos.black}   \u00b7   {pos.event}")
         if hasattr(self, "_hib_hint"):

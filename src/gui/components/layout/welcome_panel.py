@@ -24,7 +24,6 @@ from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.dialogs import open_feedback_dialog
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
-from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.assets import app_logo_path
@@ -95,35 +94,15 @@ class WelcomePanel(QFrame):
         card_layout.addWidget(self.title_label)
         card_layout.addSpacing(6)
 
-        # ── Badges (both neutral — no accent on badges) ────────────────────
-        badges_layout = QHBoxLayout()
-        badges_layout.setSpacing(6)
-        badges_layout.addStretch(1)
-
-        self.version_badge = StatusBadge(
-            f"v{APP_VERSION}",
-            "neutral",
-            font_size=11,
+        # ── Metadata line ─────────────────────────────────────────────────
+        self.meta_label = Label(
+            f"v{APP_VERSION}  ·  Open Source",
+            role=TextRole.MICRO,
             weight=500,
-            padding="2px 10px",
-            radius=10,
+            tone=TextTone.SECONDARY,
         )
-        self.version_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badges_layout.addWidget(self.version_badge)
-
-        self.oss_badge = StatusBadge(
-            "Open Source",
-            "neutral",
-            font_size=11,
-            weight=500,
-            padding="2px 10px",
-            radius=10,
-        )
-        self.oss_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badges_layout.addWidget(self.oss_badge)
-
-        badges_layout.addStretch(1)
-        card_layout.addLayout(badges_layout)
+        self.meta_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        card_layout.addWidget(self.meta_label)
         card_layout.addSpacing(16)
 
         # ── Description ───────────────────────────────────────────────────

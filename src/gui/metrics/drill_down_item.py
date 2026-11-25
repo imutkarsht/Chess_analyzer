@@ -29,7 +29,6 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
-from src.gui.utils.result_ui import result_tone
 from src.utils.format_utils import format_eval
 
 
@@ -101,7 +100,9 @@ class DrillDownItemWidget(QFrame):
         opp_name = self.item.get("opponent", "Opponent")
         opp_elo = self.item.get("opponent_elo", "")
         elo_str = (
-            f" <span style='color: {Styles.COLOR_TEXT_MUTED}'>({opp_elo})</span>" if opp_elo else ""
+            f" <span style='color: {Styles.COLOR_TEXT_SECONDARY}'>({opp_elo})</span>"
+            if opp_elo
+            else ""
         )
         user_color = self.item.get("user_color", "white").capitalize()
 
@@ -112,27 +113,22 @@ class DrillDownItemWidget(QFrame):
         )
         row1.addWidget(match_lbl)
 
-        # Result badge (Win/Loss/Draw)
+        # Result
         result = self.item.get("result", "*")
-        res_tone = result_tone(result, user_color.lower())
-        res_lbl = StatusBadge(
+        res_lbl = Label(
             result,
-            res_tone,
-            font_size=11,
-            padding="2px 8px",
-            radius=4,
+            role=TextRole.CAPTION_STRONG,
+            weight=600,
         )
         row1.addWidget(res_lbl)
 
-        # Speed category badge
+        # Speed category
         speed = self.item.get("speed_category", "")
         if speed:
-            speed_lbl = StatusBadge(
+            speed_lbl = Label(
                 speed,
-                "neutral",
-                font_size=11,
-                padding="2px 7px",
-                radius=4,
+                role=TextRole.CAPTION,
+                tone=TextTone.SECONDARY,
             )
             row1.addWidget(speed_lbl)
 
@@ -153,18 +149,14 @@ class DrillDownItemWidget(QFrame):
                 f"{move_prefix} {san}".strip() if san else f"Ply {self.item.get('ply', 1)}"
             )
 
-        move_badge = StatusBadge(
+        move_badge = Label(
             move_display,
-            "neutral",
-            mono=True,
-            font_size=13,
-            weight=700,
-            padding="3px 8px",
-            radius=6,
+            role=TextRole.MONO,
+            weight=600,
         )
         row2.addWidget(move_badge)
 
-        # Classification / Motif Badge
+        # Classification / Motif
         classification = self.item.get("classification") or ""
         if classification:
             if classification in ("Clean Game", "Clean"):
@@ -179,9 +171,6 @@ class DrillDownItemWidget(QFrame):
             class_badge = StatusBadge(
                 classification,
                 class_tone,
-                font_size=11,
-                padding="3px 8px",
-                radius=4,
             )
             row2.addWidget(class_badge)
 
@@ -204,7 +193,7 @@ class DrillDownItemWidget(QFrame):
             op_lbl = Label(
                 opening,
                 role=TextRole.MICRO,
-                tone=TextTone.MUTED,
+                tone=TextTone.SECONDARY,
             )
             op_lbl.setToolTip(opening)
             content_layout.addWidget(op_lbl)
@@ -222,7 +211,7 @@ class DrillDownItemWidget(QFrame):
             date_lbl = Label(
                 date_str,
                 role=TextRole.MICRO,
-                tone=TextTone.MUTED,
+                tone=TextTone.SECONDARY,
             )
             date_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
             right_layout.addWidget(date_lbl)

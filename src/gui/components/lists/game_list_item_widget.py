@@ -29,7 +29,6 @@ from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.assets import asset_path, icon_path
 from src.gui.utils.icons import HAS_QTAWESOME
-from src.gui.utils.result_ui import result_tone as tone_for_result
 from src.utils.logger import logger
 from src.utils.time_control import classify_time_control, format_time_control
 
@@ -186,16 +185,11 @@ class GameListItemWidget(QWidget):
         op_lbl.setMinimumWidth(50)
         card_layout.addWidget(op_lbl, stretch=1)
 
-        # 4. Result Badge
-        result_tone = tone_for_result(
-            result_text, self._user_color(game.metadata, usernames)
-        )
-        result_label = StatusBadge(
+        # 4. Result
+        result_label = Label(
             result_text,
-            result_tone,
-            font_size=12,
-            padding="2px 8px",
-            radius=4,
+            role=TextRole.CAPTION_STRONG,
+            weight=600,
         )
         card_layout.addWidget(result_label)
 
@@ -222,7 +216,7 @@ class GameListItemWidget(QWidget):
             date_lbl = Label(
                 game.metadata.date,
                 role=TextRole.MICRO,
-                tone=TextTone.MUTED,
+                tone=TextTone.SECONDARY,
             )
             card_layout.addWidget(date_lbl)
 
@@ -231,7 +225,7 @@ class GameListItemWidget(QWidget):
             moves_lbl = Label(
                 f"{move_count}m",
                 role=TextRole.MICRO,
-                tone=TextTone.MUTED,
+                tone=TextTone.SECONDARY,
             )
             card_layout.addWidget(moves_lbl)
 
@@ -306,16 +300,11 @@ class GameListItemWidget(QWidget):
 
         header_layout.addStretch()
 
-        # Result badge
-        result_tone = tone_for_result(
-            result_text, self._user_color(game.metadata, usernames)
-        )
-        result_label = StatusBadge(
+        # Result
+        result_label = Label(
             result_text,
-            result_tone,
-            font_size=13,
-            padding="3px 10px",
-            radius=6,
+            role=TextRole.BODY_STRONG,
+            weight=600,
         )
         header_layout.addWidget(result_label)
 
@@ -444,8 +433,6 @@ class GameListItemWidget(QWidget):
     # ===== HELPER METHODS =====
     def _create_status_and_action_widgets(self, btn_size: int = 22):
         status = getattr(self._game, "status", "not_started")
-        badge_font_size = 11 if btn_size == 22 else 12
-        badge_padding = "2px 6px" if btn_size == 22 else "3px 8px"
 
         action_btn = Button(
             variant=ButtonVariant.GHOST,
@@ -459,9 +446,6 @@ class GameListItemWidget(QWidget):
             status_lbl = StatusBadge(
                 "Analyzing...",
                 TextTone.ENGINE_BUSY,
-                font_size=badge_font_size,
-                padding=badge_padding,
-                radius=4,
             )
             action_btn.setToolTip("View ongoing analysis")
             self._set_icon(action_btn, "fa5s.arrow-right", Styles.COLOR_ENGINE_BUSY)
@@ -475,9 +459,6 @@ class GameListItemWidget(QWidget):
             status_lbl = StatusBadge(
                 "Analyzed",
                 TextTone.ENGINE_READY,
-                font_size=badge_font_size,
-                padding=badge_padding,
-                radius=4,
             )
             action_btn.setToolTip("Reanalyze game")
             self._set_icon(action_btn, "fa5s.sync-alt", Styles.COLOR_TEXT_SECONDARY)
@@ -490,9 +471,6 @@ class GameListItemWidget(QWidget):
             status_lbl = StatusBadge(
                 f"Paused ({analyzed}/{total})",
                 TextTone.ENGINE_BUSY,
-                font_size=badge_font_size,
-                padding=badge_padding,
-                radius=4,
             )
             action_btn.setToolTip(f"Resume analysis ({analyzed}/{total})")
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_ENGINE_BUSY)
@@ -501,9 +479,6 @@ class GameListItemWidget(QWidget):
             status_lbl = StatusBadge(
                 "Unanalyzed",
                 TextTone.MUTED,
-                font_size=badge_font_size,
-                padding=badge_padding,
-                radius=4,
             )
             action_btn.setToolTip("Analyze game")
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_TEXT_SECONDARY)
@@ -699,7 +674,7 @@ class GameListItemWidget(QWidget):
 
         layout.addWidget(icon_lbl)
 
-        text_lbl = Label(str(text), role=TextRole.CAPTION, tone=TextTone.MUTED)
+        text_lbl = Label(str(text), role=TextRole.CAPTION, tone=TextTone.SECONDARY)
         layout.addWidget(text_lbl)
 
         return container

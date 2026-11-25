@@ -45,6 +45,21 @@ class _TypographyMixin:
         return colors[tone]
 
     @classmethod
+    def get_tone_surface(cls, tone: TextTone | str, alpha: float | None = None) -> str:
+        """Return a subtle tinted surface for a semantic tone.
+
+        Used by tonal status and classification chips. The value stays in the
+        styles layer so widget files never hardcode ``rgba`` values.
+        """
+        if alpha is None:
+            alpha = 0.16 if ThemeManager.mode() == "light" else 0.12
+        color = cls.get_tone_color(tone).lstrip("#")
+        if len(color) != 6:
+            return cls.COLOR_SURFACE_LIGHT
+        red, green, blue = (int(color[index : index + 2], 16) for index in (0, 2, 4))
+        return f"rgba({red}, {green}, {blue}, {alpha:.2f})"
+
+    @classmethod
     def get_tone_for_color(cls, color: str) -> TextTone:
         """Resolve a palette colour back to its semantic text tone."""
         for tone in TextTone:
