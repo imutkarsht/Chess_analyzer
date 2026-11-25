@@ -68,6 +68,9 @@ A new theme is one `ThemeBundle` in `src/gui/theme/bundles/`, registered in
 `src/gui/theme/__init__.py`. The appearance picker discovers it automatically.
 Do not add theme-specific branches to `ThemeManager.set_mode()`.
 
+Accent tint is a modifier, not a bundle: `tint_enabled` rebuilds the active
+Light or Dark palette from the live accent in `bundles/tinted.py`.
+
 ## Board and live engine
 
 - `Board` is the single configurable board used across Analysis, Explorer, and

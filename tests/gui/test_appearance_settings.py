@@ -17,6 +17,7 @@ class _FakeConfig:
             "board_theme": "Green",
             "piece_theme": "Standard",
             "accent_mode": "system",
+            "tint_enabled": False,
             "board_show_coordinates": True,
             "board_show_classification": True,
             "board_show_best_move_arrow": True,
@@ -237,6 +238,42 @@ def test_custom_accent_mode_reveals_colour_picker(qapp, monkeypatch):
 
     assert config.config["accent_mode"] == "custom"
     assert widget.color_btn.isHidden() is False
+    widget.deleteLater()
+
+
+def test_tint_row_is_visible_only_for_light_and_dark(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    monkeypatch.setattr(ThemeManager, "set_theme_mode", lambda mode: None)
+    config = _FakeConfig({"theme_mode": "system"})
+    widget = ThemeAccentSettings(config)
+    assert widget.tint_row.isHidden() is True
+
+    widget.theme_mode_select.set_current_index(
+        widget.theme_mode_select.find_value("dark"), emit=True
+    )
+    assert widget.tint_row.isHidden() is False
+
+    widget.theme_mode_select.set_current_index(
+        widget.theme_mode_select.find_value("dracula"), emit=True
+    )
+    assert widget.tint_row.isHidden() is True
+    widget.deleteLater()
+
+
+def test_tint_checkbox_persists_and_applies(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    applied = []
+    monkeypatch.setattr(ThemeManager, "set_tint_enabled", lambda enabled: applied.append(enabled))
+    config = _FakeConfig({"theme_mode": "dark"})
+    widget = ThemeAccentSettings(config)
+
+    assert widget.tint_row.isHidden() is False
+    widget.tint_checkbox.setChecked(True)
+
+    assert config.config["tint_enabled"] is True
+    assert applied == [True]
     widget.deleteLater()
 
 

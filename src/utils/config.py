@@ -67,6 +67,7 @@ class ConfigManager:
                 changed = True
 
         changed = self._migrate_legacy_llm(data) or changed
+        changed = self._migrate_tinted_theme(data) or changed
         changed = self._migrate_secrets(data) or changed
         if "schema_version" not in data:
             data["schema_version"] = self.SCHEMA_VERSION
@@ -112,6 +113,14 @@ class ConfigManager:
         )
         for key in legacy:
             data.pop(key, None)
+        return True
+
+    def _migrate_tinted_theme(self, data: dict) -> bool:
+        """Move the retired standalone Tinted theme to Dark plus tint."""
+        if data.get("theme_mode") != "tinted":
+            return False
+        data["theme_mode"] = "dark"
+        data["tint_enabled"] = True
         return True
 
     def _migrate_secrets(self, data: dict) -> bool:
@@ -222,6 +231,12 @@ class ConfigManager:
     @property
     def theme_mode(self) -> str:
         return self.get_choice("theme_mode", str(self._setting_default("theme_mode")))
+
+    @property
+    def tint_enabled(self) -> bool:
+        return self.get_bool(
+            "tint_enabled", bool(self._setting_default("tint_enabled"))
+        )
 
     @property
     def accent_color(self) -> str:

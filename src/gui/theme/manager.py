@@ -6,6 +6,10 @@ from PyQt6.QtWidgets import QGraphicsDropShadowEffect
 
 from src.constants import DEFAULT_ACCENT, DEFAULT_BOARD_THEME
 from src.gui.theme.bundle import ThemeBundle
+from src.gui.theme.bundles.tinted import (
+    build_tinted_dark_palette,
+    build_tinted_light_palette,
+)
 from src.gui.theme.palette import BOARD_THEMES, CLASSIFICATION_COLORS, DARK, LIGHT, ThemePalette
 from src.gui.theme.system import OSThemeWatcher, get_system_accent
 from src.gui.utils.assets import tick_icon_path
@@ -44,6 +48,7 @@ class ThemeManager(QObject):
     _palette: ThemePalette = DARK
     _accent: str = DEFAULT_ACCENT
     _accent_mode: str = "system"  # "system" | "manual"
+    _tint_enabled: bool = False
     _style_revision: int = 0
     _os_watcher: OSThemeWatcher | None = None
 
@@ -92,6 +97,50 @@ class ThemeManager(QObject):
     @classmethod
     def accent_mode(cls) -> str:
         return cls._accent_mode
+
+    @classmethod
+    def tint_enabled(cls) -> bool:
+        return cls._tint_enabled
+
+    @classmethod
+    def supports_tint(cls) -> bool:
+        """True when the active theme is the built-in Light or Dark theme."""
+        return cls._theme_mode in {"light", "dark"} and cls._active_bundle_id in {
+            None,
+            "light",
+            "dark",
+        }
+
+    @classmethod
+    def _base_palette(cls) -> ThemePalette:
+        bundle = cls._active_bundle()
+        if bundle is not None:
+            return cls._palette_for_bundle(bundle, cls._accent)
+        return (DARK if cls._current_mode == "dark" else LIGHT).with_accent(
+            cls._accent
+        )
+
+    @classmethod
+    def _apply_tint(cls, palette: ThemePalette) -> ThemePalette:
+        if not cls._tint_enabled or not cls.supports_tint():
+            return palette
+        if cls._current_mode == "light":
+            return build_tinted_light_palette(palette.accent)
+        return build_tinted_dark_palette(palette.accent)
+
+    @classmethod
+    def set_tint_enabled(cls, enabled: bool, *, apply: bool = True) -> None:
+        """Enable or disable accent-tinted surfaces for the current theme."""
+        enabled = bool(enabled)
+        if cls._tint_enabled == enabled:
+            return
+        cls._tint_enabled = enabled
+        if not apply:
+            return
+        cls._palette = cls._apply_tint(cls._base_palette())
+        cls._bump_style_revision()
+        cls.apply_app_stylesheet()
+        cls.instance().theme_changed.emit(cls._current_mode)
 
     @classmethod
     def style_revision(cls) -> int:
@@ -160,7 +209,7 @@ class ThemeManager(QObject):
         cls._current_mode = bundle.mode
         if bundle.owns_accent:
             cls._accent = bundle.palette.accent
-        cls._palette = cls._palette_for_bundle(bundle, cls._accent)
+        cls._palette = cls._apply_tint(cls._palette_for_bundle(bundle, cls._accent))
         cls._bump_style_revision()
         cls.apply_app_stylesheet()
         cls.instance().theme_changed.emit(bundle_id)
@@ -267,10 +316,14 @@ class ThemeManager(QObject):
         bundle = cls._bundles.get(mode)
         if bundle is not None:
             cls._active_bundle_id = mode
-            cls._palette = cls._palette_for_bundle(bundle, cls._accent)
+            cls._palette = cls._apply_tint(
+                cls._palette_for_bundle(bundle, cls._accent)
+            )
         else:
             cls._active_bundle_id = None
-            cls._palette = (DARK if mode == "dark" else LIGHT).with_accent(cls._accent)
+            cls._palette = cls._apply_tint(
+                (DARK if mode == "dark" else LIGHT).with_accent(cls._accent)
+            )
         cls._bump_style_revision()
         cls.apply_app_stylesheet()
         instance = cls.instance()
@@ -298,9 +351,11 @@ class ThemeManager(QObject):
         cls._accent = hex_color
         bundle = cls._active_bundle()
         if bundle is not None:
-            cls._palette = cls._palette_for_bundle(bundle, hex_color)
+            cls._palette = cls._apply_tint(
+                cls._palette_for_bundle(bundle, hex_color)
+            )
         else:
-            cls._palette = cls._palette.with_accent(hex_color)
+            cls._palette = cls._apply_tint(cls._palette.with_accent(hex_color))
         cls._bump_style_revision()
         cls.apply_app_stylesheet()
         instance = cls.instance()
