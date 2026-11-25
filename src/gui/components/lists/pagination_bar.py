@@ -177,12 +177,22 @@ class PaginationBar(QWidget):
         )
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.prev_btn = Button(prev_text, ButtonVariant.FILLED, ButtonSize.SM)
+        self.prev_btn = Button(
+            prev_text,
+            ButtonVariant.FILLED,
+            ButtonSize.SM,
+            tooltip="Go to the previous page",
+        )
         self.prev_btn.setFixedHeight(self._button_height)
         self.prev_btn.setAccessibleName("Previous page")
         self.prev_btn.clicked.connect(self._on_prev_clicked)
 
-        self.next_btn = Button(next_text, ButtonVariant.FILLED, ButtonSize.SM)
+        self.next_btn = Button(
+            next_text,
+            ButtonVariant.FILLED,
+            ButtonSize.SM,
+            tooltip="Go to the next page",
+        )
         self.next_btn.setFixedHeight(self._button_height)
         self.next_btn.setAccessibleName("Next page")
         self.next_btn.clicked.connect(self._on_next_clicked)
@@ -371,6 +381,7 @@ class PaginationBar(QWidget):
             str(page + 1),
             ButtonVariant.PRIMARY if page == self.state.page else ButtonVariant.FILLED,
             ButtonSize.SM,
+            tooltip=f"Go to page {page + 1}",
             on_click=lambda _checked=False, p=page: self._go_to_page(p),
         )
         button.setFixedSize(self._button_height, self._button_height)

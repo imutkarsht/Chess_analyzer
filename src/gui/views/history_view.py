@@ -147,17 +147,25 @@ class HistoryView(QWidget):
             "Import",
             ButtonVariant.FILLED,
             icon="fa5s.file-import",
+            tooltip="Import games from a CSV file",
             on_click=self.import_games,
         )
         header_layout.addWidget(self.btn_import)
 
         self.btn_export = Button(
-            "Export", ButtonVariant.FILLED, icon="fa5s.file-export"
+            "Export",
+            ButtonVariant.FILLED,
+            icon="fa5s.file-export",
+            tooltip="Export the filtered games as CSV or annotated PGN",
         )
         self.export_menu = QMenu(self)
         self.export_csv_action = self.export_menu.addAction("Export CSV")
+        self.export_csv_action.setToolTip("Save the filtered games as a spreadsheet")
         self.export_csv_action.triggered.connect(self.export_games)
         self.export_pgn_action = self.export_menu.addAction("Export Annotated PGN")
+        self.export_pgn_action.setToolTip(
+            "Save with move quality, evaluations, and variations"
+        )
         self.export_pgn_action.triggered.connect(self.export_annotated_pgn)
         self._refresh_export_menu_icons()
         self.btn_export.setMenu(self.export_menu)
@@ -166,6 +174,7 @@ class HistoryView(QWidget):
         self.btn_cancel_export = Button(
             "Cancel export",
             ButtonVariant.OUTLINED,
+            tooltip="Stop the annotated PGN export",
             on_click=self._cancel_annotated_pgn_export,
         )
         self.btn_cancel_export.setVisible(False)
@@ -175,11 +184,18 @@ class HistoryView(QWidget):
             "Delete all games",
             ButtonVariant.DANGER,
             icon="fa5s.trash-alt",
+            tooltip="Permanently delete every saved game",
             on_click=self.clear_history,
         )
         header_layout.addWidget(self.btn_clear)
 
-        self.btn_refresh = Button('Refresh', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=self.load_history)
+        self.btn_refresh = Button(
+            "Refresh",
+            ButtonVariant.FILLED,
+            icon="fa5s.sync-alt",
+            tooltip="Reload the game list from storage",
+            on_click=self.load_history,
+        )
         header_layout.addWidget(self.btn_refresh)
 
         history_page_layout.addWidget(self.header_bar)

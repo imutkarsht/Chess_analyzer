@@ -58,6 +58,7 @@ class FilterChip(QFrame):
         self.body.setAccessibleName(
             f"{accessible_label}. Open filter." if accessible_label else text
         )
+        self.body.setToolTip("Change this filter")
         layout.addWidget(self.body)
 
         self.close_button = Button(

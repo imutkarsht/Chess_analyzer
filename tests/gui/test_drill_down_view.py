@@ -85,6 +85,7 @@ def test_drill_down_view_empty_state(qapp, qtbot):
     assert view.lbl_subtitle.text() == "Positions where a Queen was lost"
     assert view.badge_count.text() == "0 Occurrences"
     assert view.pagination_bar.isHidden()
+    assert view.btn_back.toolTip()
 
 
 def test_drill_down_view_pagination(qapp, qtbot):

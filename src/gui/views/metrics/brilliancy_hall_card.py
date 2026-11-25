@@ -211,6 +211,7 @@ class BrilliancyHallCard(MetricCard):
             ButtonVariant.OUTLINED,
             ButtonSize.SM,
             accent=Styles.COLOR_BRILLIANT,
+            tooltip="Open this move on the Analysis board",
         )
         btn_analyze.setFixedHeight(24)
         r_layout.addWidget(btn_analyze)

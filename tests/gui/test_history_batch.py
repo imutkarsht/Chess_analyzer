@@ -16,7 +16,11 @@ from src.backend.models.analysis_batch import (
 )
 from src.backend.storage.game_history import GameHistoryManager
 from src.gui.components.feedback.toast import ToastManager
-from src.gui.views.history_batch import BatchQueueCard, UpNextEntry
+from src.gui.views.history_batch import (
+    BatchQueueCard,
+    BatchSelectionBar,
+    UpNextEntry,
+)
 from src.gui.views.history_view import HistoryView
 
 
@@ -200,6 +204,25 @@ def test_select_page_confirmation_counts_and_delete_guards(
     view._on_game_delete_requested("fresh")
     assert manager.game_exists("fresh") is False
     assert manager.get_analysis_batch().item("fresh") is None
+
+
+def test_batch_controls_have_tooltips(qtbot):
+    selection = BatchSelectionBar()
+    qtbot.addWidget(selection)
+    card = BatchQueueCard()
+    qtbot.addWidget(card)
+
+    for control in (
+        selection.btn_select_page,
+        selection.btn_clear,
+        selection.btn_exit,
+        card.btn_pause,
+        card.btn_resume,
+        card.btn_dismiss,
+        card.btn_collapse,
+        card.btn_cancel,
+    ):
+        assert control.toolTip()
 
 
 def test_batch_queue_card_renders_running_paused_and_summary_states(qtbot, qapp):
