@@ -4,6 +4,7 @@
 from PyQt6.QtCore import QEvent, QPoint, QRect, Qt
 from PyQt6.QtGui import QGuiApplication, QHelpEvent
 from PyQt6.QtWidgets import (
+    QComboBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -12,6 +13,7 @@ from PyQt6.QtWidgets import (
 
 import src.gui.components.feedback.tooltip as tooltip_module
 from src.gui.components import (
+    Button,
     Tooltip,
     TooltipKind,
     TooltipManager,
@@ -106,6 +108,54 @@ def test_manager_uses_the_custom_popup_for_plain_tooltips(qtbot, qapp):
         assert manager.popup.current_text == "Legacy tooltip"
 
         manager.hide()
+        assert manager.popup.isVisible() is False
+    finally:
+        manager.shutdown()
+
+
+def test_manager_shows_tooltips_on_shared_buttons(qtbot, qapp):
+    window = QWidget()
+    qtbot.addWidget(window)
+    window.resize(600, 400)
+    window.show()
+
+    button = Button("Load Game", tooltip="Open a local PGN or import a game")
+    button.setParent(window)
+    button.setGeometry(40, 40, 140, 32)
+    button.show()
+    qapp.processEvents()
+
+    manager = TooltipManager.instance(qapp).install()
+    try:
+        event = QHelpEvent(
+            QEvent.Type.ToolTip,
+            button.rect().center(),
+            button.mapToGlobal(button.rect().center()),
+        )
+        qapp.sendEvent(button, event)
+
+        assert manager.popup.isVisible()
+        assert manager.popup.current_text == "Open a local PGN or import a game"
+    finally:
+        manager.shutdown()
+
+
+def test_manager_ignores_item_views_created_by_qt(qtbot, qapp):
+    combo = QComboBox()
+    qtbot.addWidget(combo)
+    combo.addItems(["One", "Two"])
+    view = combo.view()
+    assert view is not None
+
+    manager = TooltipManager.instance(qapp).install()
+    try:
+        event = QHelpEvent(
+            QEvent.Type.ToolTip,
+            view.rect().center(),
+            view.mapToGlobal(view.rect().center()),
+        )
+        qapp.sendEvent(view, event)
+
         assert manager.popup.isVisible() is False
     finally:
         manager.shutdown()

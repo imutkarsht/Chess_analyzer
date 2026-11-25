@@ -22,6 +22,7 @@ import weakref
 from dataclasses import dataclass
 from enum import StrEnum
 
+from PyQt6 import sip
 from PyQt6.QtCore import (
     QEvent,
     QObject,
@@ -629,11 +630,19 @@ class TooltipManager(QObject):
     @staticmethod
     def _item_view_for(obj: QWidget) -> QAbstractItemView | None:
         if isinstance(obj, QAbstractItemView):
-            return obj
-        parent = obj.parentWidget()
-        if isinstance(parent, QAbstractItemView) and obj is parent.viewport():
-            return parent
-        return None
+            view = obj
+        else:
+            parent = obj.parentWidget()
+            if isinstance(parent, QAbstractItemView) and obj is parent.viewport():
+                view = parent
+            else:
+                return None
+        # Qt creates the popup views of combo boxes and other internal
+        # controls in C++. PyQt refuses protected calls such as indexAt() on
+        # those wrappers, so resolve only views the application created.
+        if not sip.ispycreated(view):
+            return None
+        return view
 
     @staticmethod
     def _resolve_item_view(
