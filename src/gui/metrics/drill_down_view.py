@@ -80,6 +80,7 @@ class DrillDownView(QWidget):
             "Back to Dashboard",
             ButtonVariant.FILLED,
             icon="fa5s.arrow-left",
+            tooltip="Return to the performance dashboard",
             on_click=self.back_requested.emit,
         )
         header_layout.addWidget(self.btn_back)

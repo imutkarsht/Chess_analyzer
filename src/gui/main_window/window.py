@@ -37,6 +37,7 @@ from src.gui.components import (
     TextRole,
     TextTone,
     ToastManager,
+    TooltipManager,
     TourManager,
     TourOverlay,
     WelcomePanel,
@@ -108,6 +109,7 @@ class MainWindow(
         self._replay_advancing = False
         self.config_manager = ConfigManager()
         ToastManager.configure(position=self.config_manager.toast_position)
+        TooltipManager.set_enabled(self.config_manager.tooltips_enabled)
         resolved = resolve_engine_path(self.config_manager)
         self.engine_path = resolved or self.config_manager.engine_path
         self.analyzer = Analyzer(
@@ -551,11 +553,13 @@ class MainWindow(
         # Explore Button
         self.btn_explore = Button('Explore from here', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self.explore_current_position)
         self.btn_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_explore.setToolTip("Open this position in the Opening Explorer")
         header_layout.addWidget(self.btn_explore)
 
         # Load Game Button
         self.btn_load = Button('Load Game', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_load.setToolTip("Open a local PGN or import a game from Chess.com or Lichess")
         header_layout.addWidget(self.btn_load)
 
         # Analyze Game Button
@@ -623,12 +627,13 @@ class MainWindow(
         self.btn_hero_load = Button('Load Game', ButtonVariant.PRIMARY, icon='fa5s.folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
         self.btn_hero_load.setFixedSize(140, 38)
         self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_hero_load.setToolTip("Open a local PGN or import a game from Chess.com or Lichess")
         hero_actions.addWidget(self.btn_hero_load)
 
         self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='fa5s.paste', on_click=self.game_loading_controller.paste_pgn_from_clipboard)
         self.btn_hero_paste.setFixedSize(130, 38)
         self.btn_hero_paste.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_hero_paste.setToolTip("Load PGN text from the clipboard")
+        self.btn_hero_paste.setToolTip("Paste a PGN from the clipboard")
         hero_actions.addWidget(self.btn_hero_paste)
 
         hero_actions.addStretch(1)
@@ -734,6 +739,7 @@ class MainWindow(
         self._btn_shuffle = Button('Next Gem', ButtonVariant.FILLED, icon='fa5s.random', on_click=self._load_random_historic_position)
         self._btn_shuffle.setFixedHeight(30)
         self._btn_shuffle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._btn_shuffle.setToolTip("Load another historic position")
         hib_top.addWidget(self._btn_shuffle)
         hib_outer.addLayout(hib_top)
 

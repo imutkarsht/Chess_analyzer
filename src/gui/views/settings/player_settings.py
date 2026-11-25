@@ -143,7 +143,7 @@ class LichessCard(_ProfileCard):
 
         self.validate_token_btn = Button('Validate', ButtonVariant.FILLED, icon='fa5s.key', on_click=self._validate_token, parent=self)
         self.validate_token_btn.setToolTip(
-            "Check the token against your Lichess account."
+            "Check the token against your Lichess account"
         )
 
         self.token_status_label = Label(

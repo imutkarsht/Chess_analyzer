@@ -218,7 +218,7 @@ class Input(QLineEdit):
             self._clear_action = self._make_action(
                 "fa5s.times",
                 QLineEdit.ActionPosition.TrailingPosition,
-                tooltip="Clear",
+                tooltip="Clear text",
                 on_trigger=self.clear,
             )
             if self._clear_action is not None:
@@ -244,7 +244,9 @@ class Input(QLineEdit):
         icon = spec if isinstance(spec, QIcon) else qta.icon(
             spec, color=Styles.COLOR_TEXT_MUTED
         )
-        action = QAction(icon, "", self)
+        # The text doubles as the action button's accessible name; QLineEdit
+        # still renders only the icon.
+        action = QAction(icon, tooltip, self)
         if tooltip:
             action.setToolTip(tooltip)
         if on_trigger is not None:

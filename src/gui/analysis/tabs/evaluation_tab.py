@@ -44,6 +44,9 @@ class EvaluationTab(QWidget):
 
         self.cache_checkbox = Checkbox("Use Cache")
         self.cache_checkbox.setChecked(self.config_manager.use_cache)
+        self.cache_checkbox.setToolTip(
+            "Reuse cached engine evaluations for this game"
+        )
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
         toggles_layout.addWidget(self.cache_checkbox)
         toggles_layout.addStretch()

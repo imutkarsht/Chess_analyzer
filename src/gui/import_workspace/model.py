@@ -198,9 +198,9 @@ class GameImportTableModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.ToolTipRole:
             if column == COL_STATUS:
                 return (
-                    "This game is already in your history."
+                    "This game is already in your history"
                     if candidate.in_history
-                    else "Not in your history yet."
+                    else "Not in your history yet"
                 )
             if column == COL_WHITE:
                 return self._player_tooltip(

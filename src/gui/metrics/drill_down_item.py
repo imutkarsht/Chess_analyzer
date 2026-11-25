@@ -22,6 +22,7 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    ElidedLabel,
     Label,
     RichTextLabel,
     StatusBadge,
@@ -190,12 +191,11 @@ class DrillDownItemWidget(QFrame):
         # Row 3: Opening Name
         opening = self.item.get("opening", "")
         if opening:
-            op_lbl = Label(
+            op_lbl = ElidedLabel(
                 opening,
                 role=TextRole.MICRO,
                 tone=TextTone.SECONDARY,
             )
-            op_lbl.setToolTip(opening)
             content_layout.addWidget(op_lbl)
 
         main_layout.addLayout(content_layout, 1)

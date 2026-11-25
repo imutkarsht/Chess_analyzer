@@ -110,8 +110,8 @@ class CoachCardWidget(QFrame):
             tone=TextTone.SECONDARY,
         )
         self.eval_label.setToolTip(
-            "Engine evaluation from White's perspective (positive = White is better). "
-            "The explanation's win chance is from your perspective."
+            "White-perspective evaluation (positive = White is better)\n"
+            "Win chance is from your perspective"
         )
         self.phase_label = StatusBadge("", "neutral")
 
@@ -140,6 +140,7 @@ class CoachCardWidget(QFrame):
             ButtonVariant.TONAL,
             size=ButtonSize.SM,
             icon="fa5s.magic",
+            tooltip="Generate an AI explanation for this move",
             on_click=self.ask_requested.emit,
             parent=self,
         )
@@ -158,7 +159,7 @@ class CoachCardWidget(QFrame):
             "Play line",
             ButtonVariant.FILLED,
             size=ButtonSize.SM,
-            tooltip="Autoplay the stored main line",
+            tooltip="Play the stored main line",
             on_click=self._emit_line,
             parent=self,
         )
@@ -239,6 +240,7 @@ class CoachCardWidget(QFrame):
         self._set_body(format_move_insight_offline(insight))
 
         self.btn_ask.setText("Ask Coach")
+        self.btn_ask.setToolTip("Generate an AI explanation for this move")
         self.btn_best.setToolTip(self.best_move_label())
         self._layout_rows()
 

@@ -9,6 +9,7 @@ class BookRowWidget(QWidget):
         self.san = san
         self.on_click = on_click
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip(f"Play {san}")
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.on_click:

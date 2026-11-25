@@ -128,6 +128,7 @@ class HistoryFilterBar(QWidget):
             accessible_name="Sort games",
             on_change=lambda _value: self.sort_changed.emit(),
         )
+        self.sort_dropdown.setToolTip("Choose the game list order")
         layout.addWidget(self.sort_dropdown)
 
     def _build_tokens(self) -> None:
@@ -175,6 +176,7 @@ class HistoryFilterBar(QWidget):
             "Clear filters",
             ButtonVariant.LINK,
             ButtonSize.SM,
+            tooltip="Clear the search and all filters",
             on_click=lambda: self.reset_filters(),
         )
         self.btn_reset.setAccessibleName("Clear all filters")
@@ -292,6 +294,7 @@ class HistoryFilterBar(QWidget):
             "Done",
             ButtonVariant.PRIMARY,
             ButtonSize.MD,
+            tooltip="Close the filter panel",
             on_click=self._close_panel,
         )
         self.btn_done.setAccessibleName("Close filters")
@@ -545,6 +548,7 @@ class HistoryFilterBar(QWidget):
             "Clear filters",
             ButtonVariant.LINK,
             ButtonSize.SM,
+            tooltip="Clear the search and all filters",
             on_click=lambda: self.reset_filters(),
         )
         clear.setAccessibleName("Clear all filters")

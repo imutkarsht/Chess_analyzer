@@ -52,6 +52,7 @@ class PgnTextPanel(QWidget):
             ButtonVariant.GHOST,
             ButtonSize.XS,
             icon="fa5s.paste",
+            tooltip="Paste PGN from the clipboard",
             on_click=self._paste_clipboard,
         )
         header.addWidget(label)
@@ -70,6 +71,7 @@ class PgnTextPanel(QWidget):
             ButtonVariant.PRIMARY,
             ButtonSize.MD,
             icon="fa5s.check",
+            tooltip="Parse the pasted PGN and list its games",
             on_click=self._parse,
         )
         parse_row = QHBoxLayout()
@@ -91,6 +93,7 @@ class PgnTextPanel(QWidget):
             "Cancel",
             ButtonVariant.GHOST,
             ButtonSize.SM,
+            tooltip="Stop parsing this PGN",
             on_click=self._cancel_index,
         )
         loading_layout.addWidget(self._loading_label)

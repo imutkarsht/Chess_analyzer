@@ -23,6 +23,7 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    ElidedLabel,
     IconLabel,
     Label,
     StatusBadge,
@@ -60,6 +61,7 @@ class _BranchChip(QFrame):
         self._color = color
         self._active = active
         self.setObjectName("BranchChip")
+        self.setAccessibleName(f"Branch {name}")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_menu)
@@ -85,6 +87,7 @@ class _BranchChip(QFrame):
         self.btn_delete.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.setToolTip("Delete this branch")
+        self.btn_delete.setAccessibleName("Delete this branch")
         self.btn_delete.hide()
         self.btn_delete.clicked.connect(lambda: self.delete_requested.emit(self.branch_id))
         layout.addWidget(self.btn_delete, 0)
@@ -151,7 +154,7 @@ class _VariationCanvas(QWidget):
         self.pills: dict[int, QPushButton] = {}
         Styles.apply_transparent(self, borderless=False)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
-        self.setToolTip("Drag to pan · scroll vertically · Shift-scroll horizontally")
+        self.setToolTip("Drag to pan · Scroll vertically · Shift-scroll horizontally")
 
     def wheelEvent(self, event):
         self._pan_wheel(event)
@@ -309,7 +312,7 @@ class VariationGraph(QFrame):
         self.lbl_title = Label("Variations", role=TextRole.BODY, size=12, weight=700)
         header.addWidget(self.lbl_title)
 
-        self.lbl_context = Label("", role=TextRole.MICRO, tone=TextTone.SECONDARY)
+        self.lbl_context = ElidedLabel("", role=TextRole.MICRO, tone=TextTone.SECONDARY)
         self.lbl_context.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_context.setMinimumWidth(40)
         header.addWidget(self.lbl_context, 1)
@@ -383,7 +386,6 @@ class VariationGraph(QFrame):
     # ------------------------------------------------------------------ public API
     def set_context(self, text: str) -> None:
         self.lbl_context.setText(text)
-        self.lbl_context.setToolTip(text)
 
     def set_state(
         self,
@@ -512,6 +514,7 @@ class VariationGraph(QFrame):
             active=root.node_id == self.active_node_id,
         )
         root_pill.setToolTip("Game position")
+        root_pill.setAccessibleName("Game position")
         root_pill.setProperty("variationRoot", True)
         root_pill.style().unpolish(root_pill)
         root_pill.style().polish(root_pill)
@@ -628,7 +631,7 @@ class VariationGraph(QFrame):
             chip.move(center_x - width // 2, center_y - CHIP_H // 2)
             chip.setToolTip(
                 f"{branch.name} line · {len(self.tree.branch_moves(branch))} moves\n"
-                "Click to jump to the tip · double-click to rename"
+                "Open branch tip · Double-click to rename"
             )
             chip.show()
             self._chips[branch.branch_id] = chip

@@ -89,7 +89,7 @@ class HangingPiecesCard(MetricCard):
                 icon_name="fa5s.shield-alt",
                 icon_color=Styles.COLOR_BLUNDER if total_hung > 0 else Styles.COLOR_BEST,
                 hero_text=f"{total_hung} Dropped",
-                hero_tooltip="Click to inspect all dropped piece positions",
+                hero_tooltip="Show dropped piece positions",
                 hero_color=Styles.COLOR_TEXT_PRIMARY,
                 hero_category="hung_pieces",
                 hero_subtitle=hung_sub,
@@ -98,7 +98,7 @@ class HangingPiecesCard(MetricCard):
                 share_total=total_hung,
                 bar_color=Styles.COLOR_BLUNDER,
                 row_category="hung_pieces",
-                row_tooltip_template="Click to inspect {count} dropped {name} positions",
+                row_tooltip_template="Show {count} dropped {name} positions",
             )
         )
 
@@ -124,7 +124,7 @@ class HangingPiecesCard(MetricCard):
                 hero_text=(
                     f"{cap_rate:.0f}% Capitalized" if total_opp_hanging > 0 else "N/A"
                 ),
-                hero_tooltip="Click to inspect all opponent hanging pieces punished",
+                hero_tooltip="Show punished opponent pieces",
                 hero_color=(
                     bar_pct_color if total_opp_hanging > 0 else Styles.COLOR_TEXT_PRIMARY
                 ),
@@ -136,7 +136,7 @@ class HangingPiecesCard(MetricCard):
                 bar_color=Styles.COLOR_BEST,
                 row_category="opp_captured",
                 row_tooltip_template=(
-                    "Click to inspect {count} punished opponent {name} positions"
+                    "Show {count} punished opponent {name} positions"
                 ),
                 hero_bar=(
                     int(cap_rate),

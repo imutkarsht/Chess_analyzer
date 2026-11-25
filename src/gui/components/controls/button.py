@@ -119,6 +119,11 @@ class Button(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         if tooltip:
             self.setToolTip(tooltip)
+            if icon_position == "only":
+                # The tooltip is the only visible label an icon-only button
+                # has. Mirror it into the accessibility tree by default; call
+                # sites can still override with a more specific name.
+                self.setAccessibleName(tooltip)
         if full_width:
             self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         if icon_position == "only":

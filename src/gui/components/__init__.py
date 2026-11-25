@@ -35,6 +35,7 @@ from src.gui.components.display.chip_label import ChipLabel
 from src.gui.components.display.circular_accuracy import CircularAccuracyWidget
 from src.gui.components.display.clock_label import ClockLabel
 from src.gui.components.display.color_label import ColorLabel
+from src.gui.components.display.elided_label import ElidedLabel
 from src.gui.components.display.graph_widget import GraphWidget
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
@@ -54,6 +55,20 @@ from src.gui.components.feedback.toast import (
     ToastOptions,
     ToastPosition,
     ToastVariant,
+)
+from src.gui.components.feedback.tooltip import (
+    Tooltip,
+    TooltipKind,
+    TooltipManager,
+    attach_tooltip,
+    detach_tooltip,
+    format_action,
+    format_disabled,
+    format_explanation,
+    format_navigation,
+    format_shortcut,
+    format_state,
+    tooltip_for,
 )
 from src.gui.components.layout.masonry_layout import MasonryLayout
 from src.gui.components.layout.sidebar import Sidebar
@@ -102,6 +117,7 @@ __all__ = [
     'ClockLabel',
     'ColorLabel',
     'confirm_dialog',
+    'ElidedLabel',
     'EmptyState',
     'EngineScoreBadge',
     'FadedStackedWidget',
@@ -168,6 +184,18 @@ __all__ = [
     'ToastOptions',
     'ToastPosition',
     'ToastVariant',
+    'Tooltip',
+    'TooltipKind',
+    'TooltipManager',
+    'attach_tooltip',
+    'detach_tooltip',
+    'format_action',
+    'format_disabled',
+    'format_explanation',
+    'format_navigation',
+    'format_shortcut',
+    'format_state',
+    'tooltip_for',
     'TourManager',
     'TourOverlay',
     'TourStep',

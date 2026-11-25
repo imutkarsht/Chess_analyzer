@@ -274,6 +274,7 @@ class OnlineFetchPanel(QWidget):
             ButtonSize.MD,
             icon="fa5s.cloud-download-alt",
             full_width=True,
+            tooltip="Load games matching the selected filters",
             on_click=self._fetch,
         )
         self.fetch_btn.setMinimumHeight(40)
@@ -281,6 +282,7 @@ class OnlineFetchPanel(QWidget):
             "Cancel",
             ButtonVariant.GHOST,
             ButtonSize.MD,
+            tooltip="Stop fetching games",
             on_click=self._cancel_fetch,
         )
         self.cancel_btn.setVisible(False)
@@ -356,6 +358,7 @@ class OnlineFetchPanel(QWidget):
             "Try again",
             ButtonVariant.TONAL,
             ButtonSize.SM,
+            tooltip="Retry the last fetch",
             on_click=self._fetch,
         )
         retry.setMaximumWidth(120)
@@ -400,12 +403,14 @@ class OnlineFetchPanel(QWidget):
             "Change filters",
             ButtonVariant.HOLLOW,
             ButtonSize.SM,
+            tooltip="Return to the import form",
             on_click=self._show_filters,
         )
         settings = Button(
             "Open settings",
             ButtonVariant.LINK,
             ButtonSize.SM,
+            tooltip="Open Integration settings to add a token",
             on_click=self.navigate_to_settings.emit,
         )
         actions.addWidget(change)

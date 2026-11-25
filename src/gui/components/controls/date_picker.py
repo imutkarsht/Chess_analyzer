@@ -291,6 +291,7 @@ class _CalendarPopup(QFrame):
         )
         for button in (self._prev_btn, self._next_btn):
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            button.setAccessibleName(button.toolTip())
             header.addWidget(button)
 
         layout.addLayout(header)
@@ -383,6 +384,9 @@ class _CalendarPopup(QFrame):
             tooltip="Next year",
             on_click=lambda: self._change_year(1),
         )
+        for button in (self._back_btn, self._prev_year_btn, self._next_year_btn):
+            button.setAccessibleName(button.toolTip())
+
         self._year_label = Label("", role=TextRole.SUBHEADING)
         self._year_label.setObjectName("DatePickerYear")
         self._year_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -767,6 +771,7 @@ class DatePicker(QWidget):
             parent=self,
         )
         self._icon.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._icon.setAccessibleName("Choose date")
 
         manager = ThemeManager.instance()
         manager.theme_changed.connect(self._on_theme_changed)

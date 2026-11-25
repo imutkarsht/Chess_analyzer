@@ -21,6 +21,7 @@ from src.backend.analysis.chess_utils import is_chess960_variant, requires_chess
 from src.gui.board import MiniBoardConfig, MiniBoardWidget
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.controls.checkbox import Checkbox, CheckboxVariant
+from src.gui.components.display.elided_label import ElidedLabel
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.display.rich_text import RichTextLabel
@@ -176,12 +177,11 @@ class GameListItemWidget(QWidget):
         opening = game.metadata.opening or ""
         eco = game.metadata.eco or ""
         opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
-        op_lbl = Label(
+        op_lbl = ElidedLabel(
             opening_text if opening_text else "-",
             role=TextRole.MICRO,
             tone=TextTone.SECONDARY,
         )
-        op_lbl.setToolTip(opening_text)
         op_lbl.setMinimumWidth(50)
         card_layout.addWidget(op_lbl, stretch=1)
 
@@ -335,13 +335,12 @@ class GameListItemWidget(QWidget):
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
-            opening_label = Label(
+            opening_label = ElidedLabel(
                 opening_text,
                 role=TextRole.CAPTION,
                 weight=500,
                 tone=TextTone.SECONDARY,
             )
-            opening_label.setToolTip(opening_text)
             opening_layout.addWidget(opening_label, 1)
 
             content_layout.addLayout(opening_layout)
@@ -448,6 +447,7 @@ class GameListItemWidget(QWidget):
                 TextTone.ENGINE_BUSY,
             )
             action_btn.setToolTip("View ongoing analysis")
+            action_btn.setAccessibleName("View ongoing analysis")
             self._set_icon(action_btn, "fa5s.arrow-right", Styles.COLOR_ENGINE_BUSY)
             action_btn.clicked.connect(
                 lambda: self.action_requested.emit(self._game, "view_analysis")
@@ -484,6 +484,7 @@ class GameListItemWidget(QWidget):
             self._set_icon(action_btn, "fa5s.play", Styles.COLOR_TEXT_SECONDARY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "analyze"))
 
+        action_btn.setAccessibleName(action_btn.toolTip())
         self._status_badge = status_lbl
         return status_lbl, action_btn
 
@@ -511,7 +512,7 @@ class GameListItemWidget(QWidget):
             self._action_button.setVisible(not enabled)
         if self._delete_button is not None:
             self._delete_button.setVisible(not enabled)
-        self.setToolTip("Click to select this game" if enabled else "")
+        self.setToolTip("Select this game" if enabled else "")
 
     def set_selected(self, selected: bool) -> None:
         selected = bool(selected)
@@ -566,6 +567,7 @@ class GameListItemWidget(QWidget):
             tooltip="Delete game",
         )
         del_btn.setFixedSize(btn_size, btn_size)
+        del_btn.setAccessibleName("Delete game")
         self._delete_button = del_btn
         game_id = getattr(self._game, "game_id", None)
         del_btn.clicked.connect(lambda: game_id and self.delete_requested.emit(game_id))

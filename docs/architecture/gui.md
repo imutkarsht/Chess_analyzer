@@ -25,10 +25,23 @@ actions; workflows live in controllers, and background work lives in
 Use the shared controls for every UI control: `Button`, `Checkbox`, `Input`,
 `TextArea`, `Select`, `PathField`, `RadioChoice`, `SliderCounter`,
 `ProgressBar`, `Tabs`, `DatePicker`, `ListView`, `Toast`, `PaginationBar`,
-`EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, and `SegmentedBar`.
+`EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `SegmentedBar`,
+and `ElidedLabel`.
 
 Construct `Button` directly with a variant and size. Do not reintroduce
 `create_button` or `create_icon_button` factories.
+
+### Tooltips
+
+`TooltipManager` owns one custom popup for the whole app: inverted surface,
+painted caret, shadow, fade-and-zoom, screen-edge clamping, keyboard focus,
+item-view tooltips, tab tooltips, and disabled reasons. It is installed once
+in `main.py`; existing `setToolTip` calls are routed through it.
+
+Use the semantic `Tooltip` factories from `src.gui.components` for new copy.
+Copy rules live in [conventions.md](../conventions.md#tooltips). Use
+`ElidedLabel` instead of adding a label tooltip by hand, and rely on
+`Button`'s tooltip-to-accessible-name default for icon-only controls.
 
 Documented exceptions are board swatches, theme cards, star rating, variation
 graph nodes, the move-cell variation badge, pixmap labels, the toast hairline

@@ -59,9 +59,16 @@ class ExplorerBookMixin:
         if piece_symbol:
             pixmap = self._get_piece_pixmap(piece_symbol)
             if pixmap:
-                left_layout.addWidget(IconLabel(pixmap, size=18))
+                piece_label = IconLabel(pixmap, size=18)
+                piece_label.setAttribute(
+                    Qt.WidgetAttribute.WA_TransparentForMouseEvents
+                )
+                left_layout.addWidget(piece_label)
 
         lbl_san = Label(san, role=TextRole.SUBHEADING, size=15, weight=700)
+        # The row owns the click and tooltip; child labels must not swallow
+        # the hover before it reaches the row.
+        lbl_san.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         left_layout.addWidget(lbl_san)
 
         row_layout.addLayout(left_layout)
@@ -80,6 +87,7 @@ class ExplorerBookMixin:
                 weight=500,
                 tone=TextTone.MUTED,
             )
+            lbl_count.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             right_layout.addWidget(lbl_count)
 
             ratio_bar = RatioBar(w_pct, d_pct, b_pct, self)
@@ -92,6 +100,7 @@ class ExplorerBookMixin:
                 tone=TextTone.SECONDARY,
             )
             lbl_info.setMinimumWidth(0)
+            lbl_info.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             row_layout.addWidget(lbl_info)
 
         return row_widget
@@ -137,6 +146,11 @@ class ExplorerBookMixin:
 
     def _update_book_toggle(self, suffix: str = "", *, loading: bool = False) -> None:
         arrow = "▼" if self.book_toggle.isChecked() else "▶"
+        self.book_toggle.setToolTip(
+            "Collapse the opening book"
+            if self.book_toggle.isChecked()
+            else "Expand the opening book"
+        )
         if loading:
             self.book_toggle.setText(f"{arrow}  Book Moves  (loading…)")
             self.book_toggle.show()

@@ -118,25 +118,53 @@ class LinksSettings(BackgroundTaskCard):
         layout.addWidget(self._section_title("Links"))
 
         self.website_btn = self._make_link(
-            "Website", "fa5s.globe", self.open_website
+            "Website",
+            "fa5s.globe",
+            self.open_website,
+            "Open the project website",
         )
-        self.docs_btn = self._make_link("Documentation", "fa5s.book", self.open_docs)
+        self.docs_btn = self._make_link(
+            "Documentation",
+            "fa5s.book",
+            self.open_docs,
+            "Open the user documentation",
+        )
         self.github_btn = self._make_link(
-            "GitHub", "fa5b.github", self.open_github
+            "GitHub",
+            "fa5b.github",
+            self.open_github,
+            "Open the GitHub repository",
         )
         self.releases_btn = self._make_link(
-            "Releases", "fa5s.download", self.open_releases
+            "Releases",
+            "fa5s.download",
+            self.open_releases,
+            "Open the release history",
         )
         self.feedback_btn = self._make_link(
-            "Report Issue", "fa5s.bug", self.open_feedback
+            "Report Issue",
+            "fa5s.bug",
+            self.open_feedback,
+            "Open the bug report form",
         )
         self.suggest_btn = self._make_link(
-            "Suggest Feature", "fa5s.lightbulb", self.open_suggest_feature
+            "Suggest Feature",
+            "fa5s.lightbulb",
+            self.open_suggest_feature,
+            "Open the feature request form",
         )
         self.update_btn = self._make_link(
-            "Check for Updates", "fa5s.sync-alt", self.check_for_updates
+            "Check for Updates",
+            "fa5s.sync-alt",
+            self.check_for_updates,
+            "Check GitHub for a newer release",
         )
-        self.rate_btn = self._make_link("Rate App", "fa5s.star", self.open_review)
+        self.rate_btn = self._make_link(
+            "Rate App",
+            "fa5s.star",
+            self.open_review,
+            "Open the in-app rating form",
+        )
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
@@ -176,10 +204,16 @@ class LinksSettings(BackgroundTaskCard):
         )
         creator_row.addWidget(self.creator_label)
         self.author_linkedin_btn = self._make_link(
-            "LinkedIn", "fa5b.linkedin", self.open_author_linkedin
+            "LinkedIn",
+            "fa5b.linkedin",
+            self.open_author_linkedin,
+            "Open the author's LinkedIn profile",
         )
         self.author_email_btn = self._make_link(
-            "Contact", "fa5s.envelope", self.open_author_email
+            "Contact",
+            "fa5s.envelope",
+            self.open_author_email,
+            "Open your email app to contact the author",
         )
         creator_row.addWidget(self.author_linkedin_btn)
         creator_row.addWidget(self.author_email_btn)
@@ -197,9 +231,17 @@ class LinksSettings(BackgroundTaskCard):
         license_row.setContentsMargins(0, 0, 0, 0)
         license_row.setSpacing(10)
         license_row.addWidget(self.license_note)
-        self.license_btn = self._make_link("Licence", "fa5s.file-alt", self.open_license)
+        self.license_btn = self._make_link(
+            "Licence",
+            "fa5s.file-alt",
+            self.open_license,
+            "Open the GPL-3.0 licence",
+        )
         self.notices_btn = self._make_link(
-            "Third-party notices", "fa5s.list", self.open_notices
+            "Third-party notices",
+            "fa5s.list",
+            self.open_notices,
+            "Open the third-party licence notices",
         )
         license_row.addWidget(self.license_btn)
         license_row.addWidget(self.notices_btn)
@@ -207,12 +249,15 @@ class LinksSettings(BackgroundTaskCard):
         layout.addLayout(license_row)
         return footer
 
-    def _make_link(self, text: str, icon_name: str, callback) -> QWidget:
+    def _make_link(
+        self, text: str, icon_name: str, callback, tooltip: str
+    ) -> QWidget:
         button = Button(
             text,
             ButtonVariant.LINK,
             icon=icon_name,
             align="left",
+            tooltip=tooltip,
             on_click=callback,
             parent=self,
         )

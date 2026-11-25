@@ -60,6 +60,14 @@ def main():
 
         ThemeManager.apply_app_stylesheet()
 
+        # One tooltip surface for the whole app. Existing setToolTip() call
+        # sites keep emitting Qt's ToolTip event; the manager replaces the
+        # native chrome and owns dismissal, keyboard focus, and placement.
+        from src.gui.components import TooltipManager
+
+        tooltip_manager = TooltipManager.instance(app).install()
+        app.aboutToQuit.connect(tooltip_manager.shutdown)
+
         # One wheel router for the whole app: every page, dialog and popup
         # inherits eased, pixel-precise scrolling without per-view wiring.
         from src.gui.utils.smooth_scroll import install_smooth_scrolling

@@ -151,8 +151,10 @@ class Sidebar(QFrame):
             on_click=on_click,
         )
         btn.setFixedHeight(48)
-        # Tooltips keep the icon-only (collapsed) sidebar discoverable.
-        btn.setToolTip(text)
+        btn.setAccessibleName(text)
+        # Tooltips are only needed while the labels are hidden.
+        if self._collapsed:
+            btn.setToolTip(text)
 
         self._apply_icon(btn, icon_name)
 
@@ -179,11 +181,20 @@ class Sidebar(QFrame):
         for btn, txt in zip(self._nav_buttons, nav_texts, strict=False):
             btn.setText(txt if not self._collapsed else "")
             btn.set_align(align)
-        self.btn_help.setText("Help (F1)" if not self._collapsed else "")
-        self.btn_help.set_align(align)
-        self.btn_exit.setText("Exit" if not self._collapsed else "")
-        self.btn_exit.set_align(align)
+            btn.setAccessibleName(txt)
+            btn.setToolTip(txt if self._collapsed else "")
+        for btn, txt in ((self.btn_help, "Help (F1)"), (self.btn_exit, "Exit")):
+            btn.setText(txt if not self._collapsed else "")
+            btn.set_align(align)
+            btn.setAccessibleName(txt)
+            btn.setToolTip(txt if self._collapsed else "")
         self.btn_collapse.set_align(align)
+        self.btn_collapse.setAccessibleName(
+            "Expand sidebar" if self._collapsed else "Collapse sidebar"
+        )
+        self.btn_collapse.setToolTip(
+            "Expand sidebar" if self._collapsed else "Collapse sidebar"
+        )
         self._labels_visible = not self._collapsed
         self._update_collapse_icon()
 

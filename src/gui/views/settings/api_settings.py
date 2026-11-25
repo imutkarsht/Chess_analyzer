@@ -166,7 +166,7 @@ class ApiSettings(QGroupBox):
 
         self.llm_set_active_btn = Button('Set active', ButtonVariant.FILLED, icon='fa5s.star', on_click=self._on_set_active, parent=self)
         self.llm_set_active_btn.setToolTip(
-            "Use this profile for AI Coach and game reports."
+            "Use this profile for AI Coach and game reports"
         )
         self.llm_set_active_btn.setAccessibleName("Set active LLM profile")
 
@@ -216,6 +216,7 @@ class ApiSettings(QGroupBox):
         self.llm_help_btn = Button(
             "Get API key ↗",
             ButtonVariant.LINK,
+            tooltip="Open the provider's API key page in your browser",
             on_click=self._open_provider_help,
             parent=self,
         )
@@ -264,7 +265,14 @@ class ApiSettings(QGroupBox):
 
         # --- Test connection ---
         act_row = QHBoxLayout()
-        self.llm_test_btn = Button('Test connection', ButtonVariant.FILLED, icon='fa5s.plug', on_click=self._test_llm_profile, parent=self)
+        self.llm_test_btn = Button(
+            "Test connection",
+            ButtonVariant.FILLED,
+            icon="fa5s.plug",
+            tooltip="Send a test request to the selected provider",
+            on_click=self._test_llm_profile,
+            parent=self,
+        )
         self.llm_test_btn.setAccessibleName("Test LLM connection")
         act_row.addWidget(self.llm_test_btn)
         act_row.addStretch()

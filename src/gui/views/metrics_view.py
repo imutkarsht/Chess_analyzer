@@ -151,7 +151,13 @@ class MetricsWidget(QWidget):
 
         header_layout.addStretch()
 
-        self.btn_refresh = Button('Refresh', ButtonVariant.FILLED, icon='fa5s.sync-alt', on_click=lambda: self.refresh(force=True))
+        self.btn_refresh = Button(
+            "Refresh",
+            ButtonVariant.FILLED,
+            icon="fa5s.sync-alt",
+            tooltip="Recalculate the dashboard from saved games",
+            on_click=lambda: self.refresh(force=True),
+        )
         header_layout.addWidget(self.btn_refresh)
 
         self.main_layout.addWidget(self.header_bar)
@@ -187,6 +193,12 @@ class MetricsWidget(QWidget):
                 135,
             ),
         )
+        filter_tooltips = {
+            "color": "Filter games by the color you played",
+            "format": "Filter games by time control",
+            "source": "Filter games by import source",
+            "period": "Filter games by when they were played",
+        }
         for label_text, key, items, width in filter_specs:
             lbl = Label(label_text, role=TextRole.CAPTION, weight=600)
             filter_layout.addWidget(lbl)
@@ -194,12 +206,19 @@ class MetricsWidget(QWidget):
 
             combo = Select(items, on_change=self.on_filter_changed)
             combo.setFixedWidth(width)
+            combo.setToolTip(filter_tooltips[key])
             filter_layout.addWidget(combo)
             setattr(self, f"combo_{key}", combo)
             filter_layout.addSpacing(10)
 
         # Reset button
-        self.btn_reset_filters = Button('Reset', ButtonVariant.FILLED, icon='fa5s.undo', on_click=self.reset_filters)
+        self.btn_reset_filters = Button(
+            "Reset",
+            ButtonVariant.FILLED,
+            icon="fa5s.undo",
+            tooltip="Clear every dashboard filter",
+            on_click=self.reset_filters,
+        )
         filter_layout.addWidget(self.btn_reset_filters)
 
         filter_layout.addStretch()
@@ -212,6 +231,9 @@ class MetricsWidget(QWidget):
             weight=600,
             padding="4px 12px",
             radius=12,
+        )
+        self.lbl_games_badge.setToolTip(
+            "Analyzed games matching the active filters"
         )
         filter_layout.addWidget(self.lbl_games_badge)
 
@@ -508,21 +530,27 @@ class MetricsWidget(QWidget):
         losses = stats.get("losses", 0)
         win_sub = f"{wins}W • {draws}D • {losses}L"
 
-        self.stats_layout.addWidget(StatCard("Total Games", str(stats["total"]), total_sub))
-        self.stats_layout.addWidget(
-            StatCard(
-                "Win Rate",
-                f"{stats['win_rate']:.1f}%",
-                win_sub,
-            )
+        total_card = StatCard("Total Games", str(stats["total"]), total_sub)
+        total_card.setToolTip("Analyzed games matching the active filters")
+        self.stats_layout.addWidget(total_card)
+
+        win_card = StatCard(
+            "Win Rate",
+            f"{stats['win_rate']:.1f}%",
+            win_sub,
         )
-        self.stats_layout.addWidget(
-            StatCard(
-                "Avg Accuracy",
-                f"{stats['avg_accuracy']:.1f}%",
-                "Weighted harmonic mean",
-            )
+        win_card.setToolTip("Wins as a share of the filtered games")
+        self.stats_layout.addWidget(win_card)
+
+        accuracy_card = StatCard(
+            "Avg Accuracy",
+            f"{stats['avg_accuracy']:.1f}%",
+            "Weighted harmonic mean",
         )
+        accuracy_card.setToolTip(
+            "Weighted harmonic mean of per-game accuracy"
+        )
+        self.stats_layout.addWidget(accuracy_card)
 
         total_games = stats.get("total", 0)
         total_blunders = stats.get("detailed_quality_counts", {}).get(
@@ -532,7 +560,7 @@ class MetricsWidget(QWidget):
         blunders_card = StatCard(
             "Blunders / Game", f"{bpg:.1f}", "Average tactical errors", clickable=True
         )
-        blunders_card.setToolTip("Click to inspect all blunder positions")
+        blunders_card.setToolTip("Show blunder positions")
         blunders_card.clicked.connect(lambda: self._trigger_drill_down("blunders"))
         self.stats_layout.addWidget(blunders_card)
 
@@ -544,7 +572,7 @@ class MetricsWidget(QWidget):
             f"{clean_cnt} zero-blunder matches",
             clickable=True,
         )
-        clean_card.setToolTip("Click to inspect all clean games without blunders")
+        clean_card.setToolTip("Show clean games without blunders")
         clean_card.clicked.connect(lambda: self._trigger_drill_down("clean_games"))
         self.stats_layout.addWidget(clean_card)
 

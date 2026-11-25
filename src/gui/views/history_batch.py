@@ -32,6 +32,7 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    ElidedLabel,
     IconLabel,
     Label,
     MiniBar,
@@ -76,6 +77,7 @@ class BatchSelectionBar(QFrame):
             "Select page",
             ButtonVariant.HOLLOW,
             ButtonSize.SM,
+            tooltip="Select every game on this page",
             on_click=lambda: self.select_page_requested.emit(),
         )
         self.btn_select_page.setAccessibleName("Select games on this page")
@@ -85,6 +87,7 @@ class BatchSelectionBar(QFrame):
             "Clear selection",
             ButtonVariant.LINK,
             ButtonSize.SM,
+            tooltip="Clear all selected games",
             on_click=lambda: self.clear_requested.emit(),
         )
         self.btn_clear.setAccessibleName("Clear batch selection")
@@ -94,6 +97,7 @@ class BatchSelectionBar(QFrame):
             "Exit selection",
             ButtonVariant.LINK,
             ButtonSize.SM,
+            tooltip="Exit batch selection mode",
             on_click=lambda: self.exit_requested.emit(),
         )
         self.btn_exit.setAccessibleName("Exit batch selection mode")
@@ -138,9 +142,8 @@ class _QueueRow(QWidget):
         self.number_label.setFixedWidth(18)
         layout.addWidget(self.number_label)
 
-        name = Label(entry.label, role=TextRole.BODY, weight=600)
+        name = ElidedLabel(entry.label, role=TextRole.BODY, weight=600)
         name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        name.setToolTip(entry.label)
         layout.addWidget(name, 1)
 
         moves = Label(
@@ -318,6 +321,7 @@ class BatchQueueCard(QFrame):
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
             icon="fa5s.pause",
+            tooltip="Pause the batch queue",
             on_click=lambda: self.pause_requested.emit(),
         )
         self.btn_pause.setAccessibleName("Pause batch analysis")
@@ -328,6 +332,7 @@ class BatchQueueCard(QFrame):
             ButtonVariant.PRIMARY,
             ButtonSize.MD,
             icon="fa5s.play",
+            tooltip="Continue the paused batch queue",
             on_click=lambda: self.resume_requested.emit(),
         )
         self.btn_resume.setAccessibleName("Resume batch analysis")
@@ -337,6 +342,7 @@ class BatchQueueCard(QFrame):
             "Dismiss",
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
+            tooltip="Hide the batch summary",
             on_click=lambda: self.dismiss_requested.emit(),
         )
         self.btn_dismiss.setAccessibleName("Dismiss batch summary")
@@ -399,7 +405,7 @@ class BatchQueueCard(QFrame):
 
         current_head = QHBoxLayout()
         current_head.setSpacing(8)
-        self.game_title = Label("", role=TextRole.BODY_LARGE, weight=700)
+        self.game_title = ElidedLabel("", role=TextRole.BODY_LARGE, weight=700)
         self.game_title.setSizePolicy(
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
         )
@@ -656,7 +662,6 @@ class BatchQueueCard(QFrame):
         self._update_stats()
         self._update_overall(summary)
         self.game_title.setText(self._active_label or "Preparing the next game…")
-        self.game_title.setToolTip(self._active_label)
         self.game_position.setText(f"Game {position or summary.processed + 1} of {summary.total}")
         self._update_current_panel()
         self.current_panel.setVisible(True)
@@ -674,7 +679,6 @@ class BatchQueueCard(QFrame):
         self._update_stats()
         self._update_overall(summary)
         self.game_title.setText(self._active_label or "Ready to resume")
-        self.game_title.setToolTip(self._active_label)
         self.game_position.setText(
             f"Game {position or summary.processed + 1} of {summary.total}"
         )

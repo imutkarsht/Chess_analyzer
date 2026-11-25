@@ -18,6 +18,9 @@ class GraphWidget(QWidget):
 
         self.figure = Figure(figsize=(5, 2.2), dpi=100)
         self.canvas = FigureCanvas(self.figure)
+        self.canvas.setToolTip(
+            "Hover for move details · Click to jump to that move"
+        )
         self.layout.addWidget(self.canvas)
         self.ax = self.figure.add_subplot(111)
         self._last_hover_draw = 0.0

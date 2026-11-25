@@ -46,7 +46,14 @@ class ShortcutSettings(QGroupBox):
         )
         layout.addWidget(self.form)
 
-        self.help_btn = Button('View All Shortcuts', ButtonVariant.FILLED, icon='fa5s.keyboard', on_click=self._open_help, parent=self)
+        self.help_btn = Button(
+            "View All Shortcuts",
+            ButtonVariant.FILLED,
+            icon="fa5s.keyboard",
+            tooltip="Show every keyboard shortcut (F1)",
+            on_click=self._open_help,
+            parent=self,
+        )
         self.help_btn.setMaximumWidth(200)
         layout.addWidget(self.help_btn)
         layout.addStretch(1)

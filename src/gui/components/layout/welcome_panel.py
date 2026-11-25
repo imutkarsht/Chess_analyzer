@@ -132,6 +132,7 @@ class WelcomePanel(QFrame):
             ButtonVariant.OUTLINED,
             icon="fa5b.github",
             full_width=True,
+            tooltip="Open the GitHub repository in your browser",
             on_click=self._open_github,
         )
         self.btn_github.setFixedHeight(self.CTA_HEIGHT)
@@ -145,6 +146,7 @@ class WelcomePanel(QFrame):
             ButtonVariant.HOLLOW,
             icon="fa5s.star",
             full_width=True,
+            tooltip="Open the in-app rating form",
             on_click=self._open_review,
         )
         self.btn_review.setFixedHeight(self.TONAL_HEIGHT)
@@ -161,23 +163,36 @@ class WelcomePanel(QFrame):
             (
                 "Report Issue",
                 "fa5s.bug",
+                "Open the bug report form",
                 lambda: open_feedback_dialog(self, initial_tab="bug"),
             ),
             (
                 "Suggest Feature",
                 "fa5s.lightbulb",
+                "Open the feature request form",
                 lambda: open_feedback_dialog(self, initial_tab="feature"),
             ),
-            ("About", "fa5s.info-circle", self._open_about),
-            ("Website", "fa5s.globe", self._open_website),
+            (
+                "About",
+                "fa5s.info-circle",
+                "Open the about page in your browser",
+                self._open_about,
+            ),
+            (
+                "Website",
+                "fa5s.globe",
+                "Open the Chess Analyzer Pro website",
+                self._open_website,
+            ),
         ]
         util_buttons = []
-        for label, icon, cb in util_specs:
+        for label, icon, tooltip, cb in util_specs:
             btn = Button(
                 label,
                 ButtonVariant.LINK,
                 icon=icon,
                 size=ButtonSize.SM,
+                tooltip=tooltip,
                 on_click=cb,
             )
             btn.setFixedHeight(self.UTIL_HEIGHT)

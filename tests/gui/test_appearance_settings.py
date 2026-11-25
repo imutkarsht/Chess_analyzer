@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.gui.components import TooltipManager
 from src.gui.views.settings.board_pieces_settings import BoardPiecesSettings
 from src.gui.views.settings.sound_settings import SoundSettings
 from src.gui.views.settings.theme_accent_settings import ThemeAccentSettings
@@ -27,6 +28,7 @@ class _FakeConfig:
             "sidebar_start_collapsed": False,
             "history_view_mode": "compact",
             "remember_window_geometry": True,
+            "tooltips_enabled": True,
             "sound_enabled": True,
             "sound_volume": 50,
         }
@@ -180,6 +182,24 @@ def test_remember_window_geometry_toggle_persists(qapp):
 
     assert config.config["remember_window_geometry"] is False
     widget.deleteLater()
+
+
+def test_tooltips_toggle_persists_and_updates_the_manager(qapp):
+    manager = TooltipManager.instance(qapp)
+    manager.set_enabled(True)
+    config = _FakeConfig()
+    widget = WindowLayoutSettings(config)
+
+    assert widget.tooltips_checkbox.isChecked() is True
+
+    widget.tooltips_checkbox.setChecked(False)
+
+    assert config.config["tooltips_enabled"] is False
+    assert manager.enabled is False
+
+    widget.deleteLater()
+    manager.set_enabled(True)
+    manager.shutdown()
 
 
 def test_board_theme_change_persists_and_requests_repaint(qapp):

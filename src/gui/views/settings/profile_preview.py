@@ -255,6 +255,7 @@ class ProfilePreview(QFrame):
             "Retry",
             ButtonVariant.HOLLOW,
             ButtonSize.SM,
+            tooltip="Try loading the profile again",
             on_click=self.refresh,
             parent=self,
         )
@@ -301,6 +302,7 @@ class ProfilePreview(QFrame):
             on_click=self.refresh,
             parent=self,
         )
+        self.refresh_btn.setAccessibleName("Refresh profile")
         name_row.addWidget(self.refresh_btn)
 
         self.link_label = LinkLabel()

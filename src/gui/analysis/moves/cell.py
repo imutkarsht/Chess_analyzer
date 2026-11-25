@@ -149,7 +149,7 @@ class MoveCellWidget(QWidget):
             self._bar.setStyleSheet(Styles.get_think_time_bar_style(colour, track, ratio))
             self._bar.show()
             self.setToolTip(
-                f"{self._tooltip_prefix()}{entry.san}  —  Think time: {time_str}"
+                f"{self._tooltip_prefix()}{entry.san} · Think time: {time_str}"
             )
         else:
             self._time_label.setText("")

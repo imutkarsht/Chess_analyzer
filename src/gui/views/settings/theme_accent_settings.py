@@ -85,6 +85,7 @@ class ThemeAccentSettings(QGroupBox):
         self.color_btn = Button(
             "Choose Color",
             ButtonVariant.FILLED,
+            tooltip="Pick a custom accent color",
             on_click=self.change_accent_color,
         )
         self.color_btn.setMaximumWidth(150)

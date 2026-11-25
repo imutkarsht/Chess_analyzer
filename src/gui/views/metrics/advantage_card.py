@@ -172,7 +172,7 @@ class AdvantageConversionCard(MetricCard):
             """)
             if subcategory and value > 0:
                 w.setCursor(Qt.CursorShape.PointingHandCursor)
-                w.setToolTip(f"Click to inspect {value} {label.lower()} positions")
+                w.setToolTip(f"Show {value} {label.lower()} positions")
                 w.mousePressEvent = lambda e, sc=subcategory: self.drill_down_requested.emit(
                     "advantage", sc
                 )

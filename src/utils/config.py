@@ -268,6 +268,13 @@ class ConfigManager:
         )
 
     @property
+    def tooltips_enabled(self) -> bool:
+        return self.get_bool(
+            "tooltips_enabled",
+            bool(self._setting_default("tooltips_enabled")),
+        )
+
+    @property
     def window_state(self) -> dict:
         value = self.get("window_state", self._setting_default("window_state") or {})
         return deepcopy(value) if isinstance(value, dict) else {}

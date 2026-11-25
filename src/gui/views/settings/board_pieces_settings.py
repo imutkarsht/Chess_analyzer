@@ -99,7 +99,14 @@ class BoardPiecesSettings(QGroupBox):
         outer.addWidget(self.form)
         self._add_board_display_rows()
 
-        self.import_theme_btn = Button('Import Theme...', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=self.import_theme, parent=self)
+        self.import_theme_btn = Button(
+            "Import Theme...",
+            ButtonVariant.FILLED,
+            icon="fa5s.folder-open",
+            tooltip="Import a custom piece theme folder",
+            on_click=self.import_theme,
+            parent=self,
+        )
         self.import_theme_btn.setMaximumWidth(170)
 
         self._build_board_buttons()
@@ -123,7 +130,7 @@ class BoardPiecesSettings(QGroupBox):
             button.setFixedSize(64, 64)
             button.setIconSize(QSize(56, 56))
             button.setIcon(QIcon(board_swatch(name, 56)))
-            button.setToolTip(name)
+            button.setToolTip(f"Switch to the {name} board")
             button.setAccessibleName(f"{name} board theme")
             button.clicked.connect(lambda _checked=False, n=name: self._select_board(n))
             self.board_group.addButton(button)
@@ -149,7 +156,7 @@ class BoardPiecesSettings(QGroupBox):
             button.setIconSize(QSize(84, 84))
             button.setText(name)
             button.setFixedSize(150, 126)
-            button.setToolTip(name)
+            button.setToolTip(f"Switch to the {name} piece set")
             button.setAccessibleName(f"{name} piece theme")
             button.clicked.connect(
                 lambda _checked=False, n=name: self._select_piece(n)

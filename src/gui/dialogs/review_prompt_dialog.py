@@ -152,18 +152,26 @@ class ReviewPromptDialog(QDialog):
         self.btn_skip = Button(
             "No, Thanks",
             ButtonVariant.LINK,
+            tooltip="Close without leaving a review",
             on_click=self._on_no_thanks,
         )
         btn_layout.addWidget(self.btn_skip)
 
         btn_layout.addStretch()
 
-        self.btn_remind = Button("Remind Later", ButtonVariant.FILLED)
+        self.btn_remind = Button(
+            "Remind Later",
+            ButtonVariant.FILLED,
+            tooltip="Ask again the next time the review prompt is due",
+        )
         self.btn_remind.clicked.connect(self._on_remind_later)
         btn_layout.addWidget(self.btn_remind)
 
         self.btn_submit = Button(
-            "Submit Review", ButtonVariant.PRIMARY, icon="fa5s.paper-plane"
+            "Submit Review",
+            ButtonVariant.PRIMARY,
+            icon="fa5s.paper-plane",
+            tooltip="Send this rating and review",
         )
         self.btn_submit.clicked.connect(self._on_submit_review)
         btn_layout.addWidget(self.btn_submit)
@@ -199,7 +207,11 @@ class ReviewPromptDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_close = Button("Keep Analyzing", ButtonVariant.PRIMARY)
+        btn_close = Button(
+            "Keep Analyzing",
+            ButtonVariant.PRIMARY,
+            tooltip="Close this dialog and return to analysis",
+        )
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignCenter)
 

@@ -168,7 +168,7 @@ class BrilliancyHallCard(MetricCard):
         row = ClickableFrame()
         row.setObjectName("brilliancy_row")
         row.setCursor(Qt.CursorShape.PointingHandCursor)
-        row.setToolTip(f"{move_str} in {meta_str}\nClick to view move on Analysis Board.")
+        row.setToolTip(f"{move_str} in {meta_str}\nOpen move on the Analysis Board")
 
         r_layout = QHBoxLayout(row)
         r_layout.setContentsMargins(12, 8, 12, 8)
@@ -211,6 +211,7 @@ class BrilliancyHallCard(MetricCard):
             ButtonVariant.OUTLINED,
             ButtonSize.SM,
             accent=Styles.COLOR_BRILLIANT,
+            tooltip="Open this move on the Analysis board",
         )
         btn_analyze.setFixedHeight(24)
         r_layout.addWidget(btn_analyze)

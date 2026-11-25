@@ -75,10 +75,11 @@ class AICoachCard(MetricCard):
             size=ButtonSize.SM,
             icon="fa5s.sync-alt",
             icon_position="only",
-            tooltip="Generate / Refresh AI Coaching",
+            tooltip="Generate or refresh AI coaching",
             on_click=self._generate_insights,
         )
         self.btn_refresh_insights.setFixedSize(28, 28)
+        self.btn_refresh_insights.setAccessibleName("Generate or refresh AI coaching")
         header_act_layout.addWidget(self.btn_refresh_insights)
 
         super().__init__(
@@ -177,7 +178,17 @@ class AICoachCard(MetricCard):
 
         vbox.addSpacing(10)
 
-        btn_analyze = Button('Generate Coach Insights', ButtonVariant.PRIMARY, icon='fa5s.robot', on_click=self._generate_insights)
+        btn_analyze = Button(
+            "Generate Coach Insights",
+            ButtonVariant.PRIMARY,
+            icon="fa5s.robot",
+            tooltip=(
+                "Create coaching insights for the filtered games"
+                if total > 0
+                else "Analyze games to enable coaching insights"
+            ),
+            on_click=self._generate_insights,
+        )
         btn_analyze.setFixedWidth(220)
         btn_analyze.setFixedHeight(38)
         btn_analyze.setEnabled(total > 0)
@@ -306,6 +317,7 @@ class AICoachCard(MetricCard):
             btn_cfg = Button(
                 "Configure LLM in Settings",
                 ButtonVariant.PRIMARY,
+                tooltip="Open the AI provider settings",
                 on_click=lambda: open_llm_settings(self),
             )
             btn_row.addWidget(btn_cfg)
@@ -318,7 +330,10 @@ class AICoachCard(MetricCard):
             )
 
         btn_retry = Button(
-            "Retry Analysis", ButtonVariant.FILLED, on_click=self._generate_insights
+            "Retry Analysis",
+            ButtonVariant.FILLED,
+            tooltip="Try generating the insights again",
+            on_click=self._generate_insights,
         )
         btn_row.addWidget(btn_retry)
         btn_row.addStretch()
