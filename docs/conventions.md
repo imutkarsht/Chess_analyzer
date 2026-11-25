@@ -83,6 +83,9 @@ One manager renders every tooltip. `TooltipManager` is installed once in
 - Icon-only `Button`s mirror their tooltip into the accessible name by
   default. Pass a more specific accessible name when the tooltip is not the
   best screen-reader label.
+- Settings → Appearance → Window & Layout → Tooltips turns the surface off
+  app-wide. Keep using `setToolTip` / `attach_tooltip`; the manager gates
+  display in one place and still swallows Qt's native event.
 - Tooltip colours come from the `tooltip_*` palette properties; never paint
   them with literals in a component.
 

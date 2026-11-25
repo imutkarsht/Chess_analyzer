@@ -350,6 +350,7 @@ class TooltipManager(QObject):
     """
 
     _instance: TooltipManager | None = None
+    _default_enabled = True
 
     def __init__(self, app: QApplication | None = None) -> None:
         super().__init__(app)
@@ -357,6 +358,7 @@ class TooltipManager(QObject):
         if self._app is None:
             raise RuntimeError("TooltipManager requires a QApplication")
         self._installed = False
+        self._enabled = TooltipManager._default_enabled
         self._owner: QWidget | None = None
         self._anchor = QRect()
         self._focus_candidate: QWidget | None = None
@@ -387,6 +389,30 @@ class TooltipManager(QObject):
         if cls._instance is None:
             cls._instance = cls(app)
         return cls._instance
+
+    @classmethod
+    def set_enabled(cls, enabled: bool) -> None:
+        """Turn app-wide tooltips on or off.
+
+        Safe before the manager is installed, so the saved preference can be
+        applied at startup. Disabling hides any visible tooltip; the event
+        filter still swallows ``ToolTip`` events so Qt does not fall back to
+        its native popup.
+        """
+        cls._default_enabled = bool(enabled)
+        if cls._instance is not None:
+            cls._instance._apply_enabled(bool(enabled))
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    def _apply_enabled(self, enabled: bool) -> None:
+        if self._enabled == enabled:
+            return
+        self._enabled = enabled
+        if not enabled:
+            self._hide_now()
 
     @property
     def popup(self) -> _TooltipPopup:
@@ -447,6 +473,10 @@ class TooltipManager(QObject):
             return False
 
         event_type = event.type()
+        if not self._enabled:
+            # Swallow ToolTip events so Qt cannot fall back to its native
+            # popup when the user has turned tooltips off.
+            return event_type == QEvent.Type.ToolTip
         if event_type == QEvent.Type.ToolTip:
             if not isinstance(event, QHelpEvent):
                 return False

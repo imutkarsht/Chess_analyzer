@@ -112,6 +112,54 @@ def test_manager_uses_the_custom_popup_for_plain_tooltips(qtbot, qapp):
         manager.shutdown()
 
 
+def test_disabling_tooltips_hides_the_popup_and_swallows_events(qtbot, qapp):
+    window = QWidget()
+    qtbot.addWidget(window)
+    window.resize(600, 400)
+    window.show()
+
+    target = QWidget(window)
+    target.setGeometry(40, 40, 140, 32)
+    target.setToolTip("Legacy tooltip")
+    target.show()
+    qapp.processEvents()
+
+    manager = TooltipManager.instance(qapp).install()
+    try:
+        manager.show_for(target, Tooltip.for_action("Delete game"))
+        assert manager.popup.isVisible()
+
+        manager.set_enabled(False)
+
+        assert manager.enabled is False
+        assert manager.popup.isVisible() is False
+
+        position = target.rect().center()
+        event = QHelpEvent(
+            QEvent.Type.ToolTip,
+            position,
+            target.mapToGlobal(position),
+        )
+        # The filter must consume the event, not merely show nothing, or Qt
+        # falls back to its native tooltip chrome.
+        assert manager.eventFilter(target, event) is True
+        assert manager.popup.isVisible() is False
+
+        manager.set_enabled(True)
+        qapp.sendEvent(
+            target,
+            QHelpEvent(
+                QEvent.Type.ToolTip,
+                position,
+                target.mapToGlobal(position),
+            ),
+        )
+        assert manager.popup.isVisible()
+    finally:
+        manager.set_enabled(True)
+        manager.shutdown()
+
+
 def test_manager_ignores_item_views_created_by_qt(qtbot, qapp):
     combo = QComboBox()
     qtbot.addWidget(combo)

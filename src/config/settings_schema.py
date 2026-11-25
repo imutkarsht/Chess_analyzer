@@ -396,6 +396,16 @@ def _specs() -> tuple[SettingSpec, ...]:
             apply="save",
         ),
         SettingSpec(
+            "tooltips_enabled",
+            "Appearance",
+            "Window & Layout",
+            "Tooltips",
+            "Show short explanations when hovering over controls.",
+            "bool",
+            True,
+            apply="live",
+        ),
+        SettingSpec(
             "sound_enabled",
             "Appearance",
             "Sound & Feedback",

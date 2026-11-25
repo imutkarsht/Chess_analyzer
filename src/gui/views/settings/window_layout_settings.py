@@ -3,7 +3,7 @@
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QVBoxLayout
 
-from src.gui.components import RadioChoice
+from src.gui.components import RadioChoice, TooltipManager
 from src.gui.views.settings.components import SettingsBinder, SettingsForm, make_select
 
 
@@ -35,6 +35,10 @@ class WindowLayoutSettings(QGroupBox):
             on_change=lambda _value: self.history_view_changed.emit(),
         )
         self.remember_window_checkbox = self.binder.add("remember_window_geometry")
+        self.tooltips_checkbox = self.binder.add(
+            "tooltips_enabled",
+            on_change=TooltipManager.set_enabled,
+        )
 
     def _add_sidebar_row(self):
         self.sidebar_choice = RadioChoice([(False, "Expanded"), (True, "Collapsed")])

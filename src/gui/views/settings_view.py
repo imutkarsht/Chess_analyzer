@@ -393,7 +393,7 @@ class SettingsView(QWidget):
             "Analysis": "engine stockfish depth multipv opening book polyglot",
             "Appearance": (
                 "theme accent colour color board pieces sidebar sound layout "
-                "dashboard cards order metrics"
+                "dashboard cards order metrics tooltip tooltips hints"
             ),
             "AI Coach": (
                 "api key provider model llm profile coach explanation cache "

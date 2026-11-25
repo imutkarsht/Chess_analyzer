@@ -37,6 +37,7 @@ from src.gui.components import (
     TextRole,
     TextTone,
     ToastManager,
+    TooltipManager,
     TourManager,
     TourOverlay,
     WelcomePanel,
@@ -108,6 +109,7 @@ class MainWindow(
         self._replay_advancing = False
         self.config_manager = ConfigManager()
         ToastManager.configure(position=self.config_manager.toast_position)
+        TooltipManager.set_enabled(self.config_manager.tooltips_enabled)
         resolved = resolve_engine_path(self.config_manager)
         self.engine_path = resolved or self.config_manager.engine_path
         self.analyzer = Analyzer(
