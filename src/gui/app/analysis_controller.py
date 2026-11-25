@@ -251,12 +251,12 @@ class AnalysisController(QObject):
                 )
                 self.host.btn_analyze.setToolTip(
                     "This game is being analyzed in the batch "
-                    f"({coordinator.active_position}/{coordinator.batch_total})."
+                    f"({coordinator.active_position}/{coordinator.batch_total})"
                 )
             else:
                 self.host.btn_analyze.setText("Batch analysis running")
                 self.host.btn_analyze.setToolTip(
-                    "Pause or cancel the batch from History before analyzing another game."
+                    "Pause or cancel the batch from History before analyzing another game"
                 )
             self.host.btn_analyze.set_danger(False)
             self.host.btn_analyze.set_icon_spec("fa5s.lock")

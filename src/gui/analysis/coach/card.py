@@ -110,8 +110,8 @@ class CoachCardWidget(QFrame):
             tone=TextTone.SECONDARY,
         )
         self.eval_label.setToolTip(
-            "Engine evaluation from White's perspective (positive = White is better). "
-            "The explanation's win chance is from your perspective."
+            "White-perspective evaluation (positive = White is better)\n"
+            "Win chance is from your perspective"
         )
         self.phase_label = StatusBadge("", "neutral")
 
@@ -158,7 +158,7 @@ class CoachCardWidget(QFrame):
             "Play line",
             ButtonVariant.FILLED,
             size=ButtonSize.SM,
-            tooltip="Autoplay the stored main line",
+            tooltip="Play the stored main line",
             on_click=self._emit_line,
             parent=self,
         )

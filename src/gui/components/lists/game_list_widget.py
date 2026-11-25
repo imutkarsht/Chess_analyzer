@@ -95,10 +95,11 @@ class GameListWidget(QWidget):
             icon="fa5s.th-large",
             icon_position="only",
             checkable=True,
-            tooltip="Detailed Cards View",
+            tooltip="Switch to detailed cards",
             on_click=lambda: self.set_view_mode("detailed"),
         )
         self.btn_detailed.setFixedSize(30, 26)
+        self.btn_detailed.setAccessibleName("Switch to detailed cards")
 
         self.btn_compact = Button(
             variant=ButtonVariant.FILLED,
@@ -106,10 +107,11 @@ class GameListWidget(QWidget):
             icon="fa5s.list",
             icon_position="only",
             checkable=True,
-            tooltip="Compact Table View",
+            tooltip="Switch to compact table",
             on_click=lambda: self.set_view_mode("compact"),
         )
         self.btn_compact.setFixedSize(30, 26)
+        self.btn_compact.setAccessibleName("Switch to compact table")
 
         header_bar_layout.addWidget(self.btn_detailed)
         header_bar_layout.addWidget(self.btn_compact)

@@ -232,7 +232,7 @@ class OpeningsListCard(MetricCard):
 
         card = QFrame()
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.setToolTip(f"Click to inspect games played in {name}")
+        card.setToolTip(f"Show games played in {name}")
         card.mousePressEvent = lambda e, op_name=name: self._on_opening_clicked(e, op_name)
         card.setObjectName("opening_item")
 
@@ -259,7 +259,7 @@ class OpeningsListCard(MetricCard):
 
         name_lbl = Label(name, role=TextRole.BODY, weight=700)
         name_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
-        name_lbl.setToolTip(f"Click to inspect games played in {name}")
+        name_lbl.setToolTip(f"Show games played in {name}")
         line1.addWidget(name_lbl)
 
         # Subtle Side Badge (if in All view)

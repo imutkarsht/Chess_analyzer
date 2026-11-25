@@ -25,7 +25,7 @@ from src.utils.logger import logger
 
 # Tabs that only make sense once the game has analysis results.
 _TABS_REQUIRING_ANALYSIS = (1, 2, 3)
-_TAB_LOCK_HINT = "Analyze this game to unlock this tab."
+_TAB_LOCK_HINT = "Analyze this game to unlock this tab"
 
 
 class AnalysisPanel(QWidget):

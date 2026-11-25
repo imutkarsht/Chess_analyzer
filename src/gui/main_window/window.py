@@ -628,7 +628,7 @@ class MainWindow(
         self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='fa5s.paste', on_click=self.game_loading_controller.paste_pgn_from_clipboard)
         self.btn_hero_paste.setFixedSize(130, 38)
         self.btn_hero_paste.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.btn_hero_paste.setToolTip("Load PGN text from the clipboard")
+        self.btn_hero_paste.setToolTip("Paste PGN from the clipboard")
         hero_actions.addWidget(self.btn_hero_paste)
 
         hero_actions.addStretch(1)

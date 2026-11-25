@@ -32,6 +32,7 @@ from src.gui.components import (
     Button,
     ButtonSize,
     ButtonVariant,
+    ElidedLabel,
     IconLabel,
     Label,
     MiniBar,
@@ -138,9 +139,8 @@ class _QueueRow(QWidget):
         self.number_label.setFixedWidth(18)
         layout.addWidget(self.number_label)
 
-        name = Label(entry.label, role=TextRole.BODY, weight=600)
+        name = ElidedLabel(entry.label, role=TextRole.BODY, weight=600)
         name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        name.setToolTip(entry.label)
         layout.addWidget(name, 1)
 
         moves = Label(
@@ -399,7 +399,7 @@ class BatchQueueCard(QFrame):
 
         current_head = QHBoxLayout()
         current_head.setSpacing(8)
-        self.game_title = Label("", role=TextRole.BODY_LARGE, weight=700)
+        self.game_title = ElidedLabel("", role=TextRole.BODY_LARGE, weight=700)
         self.game_title.setSizePolicy(
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
         )
@@ -656,7 +656,6 @@ class BatchQueueCard(QFrame):
         self._update_stats()
         self._update_overall(summary)
         self.game_title.setText(self._active_label or "Preparing the next game…")
-        self.game_title.setToolTip(self._active_label)
         self.game_position.setText(f"Game {position or summary.processed + 1} of {summary.total}")
         self._update_current_panel()
         self.current_panel.setVisible(True)
@@ -674,7 +673,6 @@ class BatchQueueCard(QFrame):
         self._update_stats()
         self._update_overall(summary)
         self.game_title.setText(self._active_label or "Ready to resume")
-        self.game_title.setToolTip(self._active_label)
         self.game_position.setText(
             f"Game {position or summary.processed + 1} of {summary.total}"
         )

@@ -166,7 +166,7 @@ class ApiSettings(QGroupBox):
 
         self.llm_set_active_btn = Button('Set active', ButtonVariant.FILLED, icon='fa5s.star', on_click=self._on_set_active, parent=self)
         self.llm_set_active_btn.setToolTip(
-            "Use this profile for AI Coach and game reports."
+            "Use this profile for AI Coach and game reports"
         )
         self.llm_set_active_btn.setAccessibleName("Set active LLM profile")
 

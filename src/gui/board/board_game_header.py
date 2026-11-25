@@ -53,7 +53,10 @@ class BoardGameHeader(QFrame):
         self.white_label.setText(f"{white} ({white_elo})")
         self.black_label.setText(f"{black} ({black_elo})")
         self.result_label.setText(self._result)
-        self.setToolTip(f"{white} ({white_elo}) vs {black} ({black_elo})  [{self._result}]")
+        matchup = f"{white} ({white_elo}) vs {black} ({black_elo})"
+        if self._result:
+            matchup = f"{matchup} · {self._result}"
+        self.setToolTip(matchup)
         self.refresh_styles()
 
     def _saved_usernames(self) -> set[str]:

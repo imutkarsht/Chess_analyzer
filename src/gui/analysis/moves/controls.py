@@ -75,7 +75,7 @@ class MoveControls(QWidget):
             "fa5s.angle-double-right", "⏭", "Last move (End)", self.last_clicked
         )
         self.btn_play = self._make_analysis_button(
-            "fa5s.play", "▶", "Play / pause auto-replay (Space)", self.replay_toggled
+            "fa5s.play", "▶", "Play or pause auto-replay (Space)", self.replay_toggled
         )
         self.btn_follow = self._make_follow_button()
         self.btn_flip = self._make_analysis_button(
@@ -134,7 +134,7 @@ class MoveControls(QWidget):
         return button
 
     def _make_follow_button(self) -> Button:
-        tooltip = "Keep the board on the move currently being analysed"
+        tooltip = "Keep the board on the move being analyzed"
         button = Button(
             icon="fa5s.crosshairs" if HAS_QTAWESOME else None,
             icon_position="only" if HAS_QTAWESOME else "left",
@@ -185,7 +185,7 @@ class MoveControls(QWidget):
         tooltip = (
             "Pause auto-replay (Space)"
             if self._replay_active
-            else "Play / pause auto-replay (Space)"
+            else "Play or pause auto-replay (Space)"
         )
         self.btn_play.set_icon_spec(icon)
         self.btn_play.setToolTip(tooltip)

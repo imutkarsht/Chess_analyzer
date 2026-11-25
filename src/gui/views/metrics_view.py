@@ -532,7 +532,7 @@ class MetricsWidget(QWidget):
         blunders_card = StatCard(
             "Blunders / Game", f"{bpg:.1f}", "Average tactical errors", clickable=True
         )
-        blunders_card.setToolTip("Click to inspect all blunder positions")
+        blunders_card.setToolTip("Show blunder positions")
         blunders_card.clicked.connect(lambda: self._trigger_drill_down("blunders"))
         self.stats_layout.addWidget(blunders_card)
 
@@ -544,7 +544,7 @@ class MetricsWidget(QWidget):
             f"{clean_cnt} zero-blunder matches",
             clickable=True,
         )
-        clean_card.setToolTip("Click to inspect all clean games without blunders")
+        clean_card.setToolTip("Show clean games without blunders")
         clean_card.clicked.connect(lambda: self._trigger_drill_down("clean_games"))
         self.stats_layout.addWidget(clean_card)
 

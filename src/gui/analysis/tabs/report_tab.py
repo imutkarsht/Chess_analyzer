@@ -67,7 +67,7 @@ class ReportTab(QWidget):
             size="md",
             icon="fa5s.file-export",
             icon_position="only",
-            tooltip="Analyze this game before exporting an annotated PGN.",
+            tooltip="Analyze this game before exporting an annotated PGN",
         )
         self.btn_export_pgn.setAccessibleName("Export Annotated PGN")
         self.btn_export_pgn.setEnabled(False)
@@ -79,7 +79,7 @@ class ReportTab(QWidget):
             size="md",
             icon="fa5s.share-alt",
             icon_position="only",
-            tooltip="Analyze this game before sharing a report.",
+            tooltip="Analyze this game before sharing a report",
         )
         self.share_report_button.setAccessibleName("Share Report")
         self.share_report_button.setEnabled(False)
@@ -157,16 +157,16 @@ class ReportTab(QWidget):
         if not game:
             self.btn_export_pgn.setEnabled(False)
             self.btn_export_pgn.setToolTip(
-                "Load and analyze a game before exporting an annotated PGN."
+                "Load and analyze a game before exporting an annotated PGN"
             )
             return
 
         has_annotations = self._has_move_analysis()
         self.btn_export_pgn.setEnabled(has_annotations)
         self.btn_export_pgn.setToolTip(
-            "Export analyzed moves and engine variations."
+            "Export analyzed moves and engine variations"
             if has_annotations
-            else "Analyze this game before exporting an annotated PGN."
+            else "Analyze this game before exporting an annotated PGN"
         )
 
         self.update_summary(game.summary)
@@ -333,9 +333,9 @@ class ReportTab(QWidget):
         can_share = ShareReportRenderer.can_render(self.current_game)
         self.share_report_button.setEnabled(can_share)
         self.share_report_button.setToolTip(
-            "Open the shareable game report."
+            "Open the shareable game report"
             if can_share
-            else "Analyze this game before sharing a report."
+            else "Analyze this game before sharing a report"
         )
 
     def _has_move_analysis(self) -> bool:

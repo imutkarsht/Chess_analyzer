@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 
 from src.backend.analysis.tactics.report import GameTacticEntry, GameTacticsReport
 from src.gui.components import (
+    ElidedLabel,
     EmptyState,
     IconLabel,
     Label,
@@ -43,36 +44,6 @@ _PIECE_ICONS: dict[str, str] = {
     "queen": "fa5s.chess-queen",
     "king": "fa5s.chess-king",
 }
-
-
-class _ElidedLabel(Label):
-    """Semantic label that ellipsizes instead of forcing the row wider."""
-
-    def __init__(self, text: str = "", **kwargs) -> None:
-        self._full_text = text
-        super().__init__("", **kwargs)
-        self.setText(text)
-
-    def setText(self, text: str) -> None:  # noqa: N802 - Qt override
-        self._full_text = text
-        self._update_elide()
-
-    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
-        super().resizeEvent(event)
-        self._update_elide()
-
-    def _update_elide(self) -> None:
-        if not hasattr(self, "_full_text"):
-            return
-        width = self.width()
-        if width <= 0:
-            super().setText(self._full_text)
-            return
-        super().setText(
-            self.fontMetrics().elidedText(
-                self._full_text, Qt.TextElideMode.ElideRight, width
-            )
-        )
 
 
 class TacticRow(QFrame):
@@ -116,13 +87,12 @@ class TacticRow(QFrame):
         text_layout.addWidget(primary)
 
         secondary_text = _secondary_text(self.entry)
-        secondary = _ElidedLabel(
+        secondary = ElidedLabel(
             secondary_text, role=TextRole.MICRO, tone=TextTone.SECONDARY
         )
         secondary.setSizePolicy(
             QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred
         )
-        secondary.setToolTip(secondary_text)
         text_layout.addWidget(secondary)
         layout.addLayout(text_layout, 1)
 
@@ -191,7 +161,7 @@ class TacticRow(QFrame):
         lines.extend(self.entry.details)
         if self.entry.eval_text:
             lines.append(f"Eval: {self.entry.eval_text}")
-        lines.append("Click to jump to this move.")
+        lines.append("Open this move")
         return "\n".join(lines)
 
 
@@ -379,7 +349,6 @@ class TacticsTab(QWidget):
             parts.append(self._result)
         text = " · ".join(parts)
         self.side_label.setText(text)
-        self.side_label.setToolTip(text)
 
     def _clear_content(self) -> None:
         clear_layout(self.content_layout)

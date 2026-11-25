@@ -96,7 +96,7 @@ class _SelectRow(QWidget):
         font = QFont(self.font())
         font.setPixelSize(font_size)
         self.setFont(font)
-        self.setToolTip(option.label)
+        self._sync_tooltip()
 
     @property
     def index(self) -> int:
@@ -109,11 +109,30 @@ class _SelectRow(QWidget):
         if self._selected != selected:
             self._selected = selected
             self.update()
+        self._sync_tooltip()
 
     def set_highlighted(self, highlighted: bool) -> None:
         if self._highlighted != highlighted:
             self._highlighted = highlighted
             self.update()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._sync_tooltip()
+
+    def _sync_tooltip(self) -> None:
+        """Show the full label only when the painted row has to elide it."""
+        label = self._option.label
+        if not label:
+            self.setToolTip("")
+            return
+        rect = QRectF(self.rect()).adjusted(2, 1, -2, -1)
+        right_pad = 34 if self._selected else 12
+        available = int(max(0.0, rect.width() - 12 - right_pad))
+        elided = QFontMetrics(self.font()).elidedText(
+            label, Qt.TextElideMode.ElideRight, available
+        )
+        self.setToolTip(label if elided != label else "")
 
     def enterEvent(self, event) -> None:
         self._hover = True

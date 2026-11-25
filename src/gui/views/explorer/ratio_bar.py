@@ -21,7 +21,7 @@ class RatioBar(QWidget):
             (b_pct, Styles.COLOR_RESULT_LOSS),
         )
         self.setToolTip(
-            f"White Wins: {w_pct}%  |  Draws: {d_pct}%  |  Black Wins: {b_pct}%"
+            f"White {w_pct}% · Draws {d_pct}% · Black {b_pct}%"
         )
 
     def paintEvent(self, event) -> None:  # noqa: N802 - Qt override

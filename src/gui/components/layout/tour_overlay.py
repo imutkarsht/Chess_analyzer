@@ -97,7 +97,7 @@ class TourOverlay(QWidget):
         self.close_btn = Button(
             "✕",
             ButtonVariant.GHOST,
-            tooltip="Close tour  (Esc)",
+            tooltip="Close tour (Esc)",
             on_click=self._on_close,
         )
         nav.addWidget(self.close_btn)

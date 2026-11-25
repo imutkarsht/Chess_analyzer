@@ -136,7 +136,7 @@ class HistoryView(QWidget):
             ButtonVariant.PRIMARY,
             icon="fa5s.play-circle",
             on_click=self._on_batch_button_clicked,
-            tooltip="Analyze selected History games one by one",
+            tooltip="Analyze selected games one by one",
         )
         self.btn_batch.setAccessibleName("Batch analyze History games")
         self.btn_batch.setVisible(False)

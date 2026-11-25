@@ -111,7 +111,7 @@ class TacticalThemesCard(MetricCard):
             weight=800,
         )
         lbl_tot_val.setCursor(Qt.CursorShape.PointingHandCursor)
-        lbl_tot_val.setToolTip("Click to inspect all executed tactics positions")
+        lbl_tot_val.setToolTip("Show executed tactics positions")
         lbl_tot_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
             "tactical_themes", "all"
         )
@@ -220,7 +220,7 @@ class TacticalThemesCard(MetricCard):
                 "tactical_themes", k
             )
             row.setToolTip(
-                f"{name}: {desc}\nExecuted {cnt} times ({pct:.1f}% of arsenal)\nClick to view positions"
+                f"{name}: {desc}\nExecuted {cnt} times ({pct:.1f}% of arsenal)\nShow positions"
             )
             row_l = QHBoxLayout(row)
             row_l.setContentsMargins(6, 4, 8, 4)

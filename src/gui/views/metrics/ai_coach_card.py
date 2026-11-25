@@ -75,10 +75,11 @@ class AICoachCard(MetricCard):
             size=ButtonSize.SM,
             icon="fa5s.sync-alt",
             icon_position="only",
-            tooltip="Generate / Refresh AI Coaching",
+            tooltip="Generate or refresh AI coaching",
             on_click=self._generate_insights,
         )
         self.btn_refresh_insights.setFixedSize(28, 28)
+        self.btn_refresh_insights.setAccessibleName("Generate or refresh AI coaching")
         header_act_layout.addWidget(self.btn_refresh_insights)
 
         super().__init__(
