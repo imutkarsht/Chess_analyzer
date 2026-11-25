@@ -11,6 +11,27 @@ from src.gui.theme.manager import ThemeManager
 from src.gui.theme.palette import DARK, LIGHT
 
 
+def test_accent_is_adjusted_for_readability(qapp, monkeypatch):
+    """Light-on-light and dark-on-dark accents get a readable UI variant."""
+    from src.gui.styles import Styles
+
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_accent = ThemeManager.accent()
+    previous_mode = ThemeManager.theme_mode()
+
+    try:
+        for mode, accent in (("light", "#FFF59D"), ("dark", "#001122")):
+            ThemeManager.set_theme_mode(mode)
+            ThemeManager.set_accent(accent)
+            palette = ThemeManager.palette()
+            assert palette.accent == accent
+            assert Styles.contrast_ratio(palette.ui_accent, palette.surface) >= 4.5
+            assert Styles.contrast_ratio(palette.on_accent, palette.ui_accent) >= 4.5
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
 @pytest.fixture(autouse=True)
 def _reset_tint():
     """Prevent tint state leaking between theme tests."""

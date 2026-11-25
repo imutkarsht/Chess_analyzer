@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GUI = ROOT / "src" / "gui"
 ALLOWED = {
     "src/gui/theme/palette.py",
+    "src/gui/theme/color_math.py",
     "src/gui/theme/system.py",
     "src/gui/theme/bundles/oled.py",
     "src/gui/theme/bundles/dracula.py",

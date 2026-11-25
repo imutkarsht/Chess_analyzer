@@ -32,7 +32,7 @@ except ImportError:
 
 
 class ButtonVariant(StrEnum):
-    """Visual variants; ``danger`` is the outlined destructive look."""
+    """Visual variants; ``danger`` is the soft destructive action."""
 
     PRIMARY = "primary"
     FILLED = "filled"
@@ -288,9 +288,11 @@ class Button(QPushButton):
             # Destructive primaries keep the white label/icon for contrast.
             return Styles.COLOR_ON_ACCENT
         if self._danger or v is ButtonVariant.DANGER:
-            return Styles.COLOR_BLUNDER
+            return Styles.COLOR_DANGER_TEXT
         if v is ButtonVariant.OUTLINED or v is ButtonVariant.TONAL:
-            return self._accent or Styles.COLOR_ACCENT
+            if self._accent:
+                return Styles.readable_color(self._accent, Styles.COLOR_SURFACE)
+            return Styles.COLOR_ACCENT
         return Styles.COLOR_TEXT_SECONDARY
 
     def _apply_icon(self) -> None:

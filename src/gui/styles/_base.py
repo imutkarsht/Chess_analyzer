@@ -3,13 +3,42 @@
 
 from __future__ import annotations
 
-from src.gui.theme import ThemeManager
+from src.gui.theme import ThemeManager, color_math
 from src.gui.theme.palette import BOARD_THEMES
 
 ON_ACCENT = "#FFFFFF"
 
 
 class _StylesMeta(type):
+    # ═══════════════════════════════════════════════════════════════
+    #  COLOUR MATH
+    # ═══════════════════════════════════════════════════════════════
+    @staticmethod
+    def rgba(color: str, alpha: float) -> str:
+        """Return a QSS ``rgba()`` string for an opaque hex colour."""
+        return color_math.rgba(color, alpha)
+
+    @staticmethod
+    def blend_hex(color_a: str, color_b: str, ratio: float) -> str:
+        """Linear blend between two hex colours (ratio 0..1)."""
+        return color_math.blend_hex(color_a, color_b, ratio)
+
+    @staticmethod
+    def contrast_ratio(foreground: str, background: str) -> float:
+        return color_math.contrast_ratio(foreground, background)
+
+    @classmethod
+    def readable_color(
+        cls, color: str, background: str, minimum: float = 4.5
+    ) -> str:
+        """Blend ``color`` toward the opposite end of the surface until readable."""
+        return color_math.readable_color(color, background, minimum)
+
+    @staticmethod
+    def on_accent_for(color: str) -> str:
+        """Pick black or white ink for text placed on ``color``."""
+        return color_math.on_color(color)
+
     # ═══════════════════════════════════════════════════════════════
     #  CORE PALETTE
     # ═══════════════════════════════════════════════════════════════
@@ -43,7 +72,7 @@ class _StylesMeta(type):
 
     @property
     def COLOR_ACCENT(cls):
-        return ThemeManager.palette().accent
+        return ThemeManager.palette().ui_accent
 
     @property
     def COLOR_ACCENT_HOVER(cls):
@@ -55,7 +84,7 @@ class _StylesMeta(type):
 
     @property
     def COLOR_ON_ACCENT(cls):
-        return ON_ACCENT
+        return ThemeManager.palette().on_accent
 
     @property
     def COLOR_BORDER(cls):
@@ -159,6 +188,19 @@ class _StylesMeta(type):
     @property
     def COLOR_RESULT_LOSS(cls):
         return "#2F3640"
+
+    @property
+    def COLOR_DANGER_TEXT(cls):
+        """Destructive text tint that stays readable on the current surface."""
+        return cls.readable_color(cls.COLOR_BLUNDER, cls.COLOR_SURFACE)
+
+    @property
+    def COLOR_DANGER_FILL(cls):
+        """Solid destructive fill that keeps white text readable."""
+        color = cls.COLOR_BLUNDER
+        if cls.contrast_ratio(ON_ACCENT, color) >= 4.5:
+            return color
+        return cls.readable_color(color, ON_ACCENT, 4.5)
 
     @property
     def COLOR_ENGINE_READY(cls):

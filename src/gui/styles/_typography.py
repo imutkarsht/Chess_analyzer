@@ -25,7 +25,7 @@ class _TypographyMixin:
             TextTone.PRIMARY: p.text_primary,
             TextTone.SECONDARY: p.text_secondary,
             TextTone.MUTED: p.text_muted,
-            TextTone.ACCENT: p.accent,
+            TextTone.ACCENT: p.ui_accent,
             TextTone.BRILLIANT: cls.COLOR_BRILLIANT,
             TextTone.GREAT: cls.COLOR_GREAT,
             TextTone.BEST: cls.COLOR_BEST,

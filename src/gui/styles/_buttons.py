@@ -35,9 +35,13 @@ class _ButtonMixin:
         ``danger`` variant is the outlined red look on its own.
         """
         p = ThemeManager.palette()
-        acc = accent or p.accent
-        danger_color = cls.COLOR_BLUNDER
-        on_acc = cls.COLOR_ON_ACCENT
+        acc = cls.readable_color(accent, p.surface) if accent else p.ui_accent
+        danger_fill = cls.COLOR_DANGER_FILL
+        danger_text = cls.COLOR_DANGER_TEXT
+        danger_subtle = cls.rgba(danger_text, 0.12)
+        danger_subtle_hover = cls.rgba(danger_text, 0.18)
+        danger_subtle_pressed = cls.rgba(danger_text, 0.24)
+        on_acc = cls.on_accent_for(acc)
         spec = cls._BUTTON_SIZES.get(size, cls._BUTTON_SIZES["md"])
 
         if variant == "primary":
@@ -82,12 +86,13 @@ class _ButtonMixin:
             checked = (p.accent_subtle, p.text_primary, "transparent")
             disabled_bg = "transparent"
         elif variant == "danger":
-            # Neutral resting surface keeps destructive actions from shouting;
-            # the red label/icon carries the intent and the border reddens on hover.
-            bg, fg, border = p.surface_light, danger_color, p.border
-            hover = (p.surface, danger_color, danger_color)
-            pressed = (p.accent_subtle, danger_color, danger_color)
-            checked = (p.accent_subtle, danger_color, danger_color)
+            # Soft destructive action: a red wash carries the intent without
+            # pretending to be a neutral field. Solid red is reserved for the
+            # final confirmation (primary + danger).
+            bg, fg, border = danger_subtle, danger_text, "transparent"
+            hover = (danger_subtle_hover, danger_text, "transparent")
+            pressed = (danger_subtle_pressed, danger_text, "transparent")
+            checked = (danger_subtle_pressed, danger_text, "transparent")
             disabled_bg = p.surface_light
         elif variant == "segment":
             # Compact chip used inside SegmentedControl. The checked state is a
@@ -105,28 +110,32 @@ class _ButtonMixin:
             disabled_bg = "transparent"
 
         if danger and variant != "danger":
-            fg = danger_color
-            border = danger_color
+            fg = danger_text
+            border = danger_text
             if variant == "primary":
                 # Solid destructive button: white label/icon on the red fill.
-                bg = danger_color
+                bg = danger_fill
                 fg = on_acc
-                hover = ("#B01020", on_acc, "#B01020")
-                pressed = ("#900010", on_acc, "#900010")
-                checked = ("#B01020", on_acc, "#B01020")
+                border = danger_fill
+                hover = (p.danger_hover, on_acc, p.danger_hover)
+                pressed = (p.danger_pressed, on_acc, p.danger_pressed)
+                checked = (p.danger_hover, on_acc, p.danger_hover)
             elif variant in ("filled", "tonal"):
-                hover = (p.surface, danger_color, danger_color)
-                pressed = (p.surface_light, danger_color, danger_color)
-                checked = (p.surface_light, danger_color, danger_color)
+                bg = danger_subtle
+                border = "transparent"
+                hover = (danger_subtle_hover, danger_text, "transparent")
+                pressed = (danger_subtle_pressed, danger_text, "transparent")
+                checked = (danger_subtle_pressed, danger_text, "transparent")
             elif variant in ("ghost", "link"):
                 border = "transparent"
-                hover = (p.surface_light, danger_color, "transparent")
-                pressed = (p.accent_subtle, danger_color, "transparent")
-                checked = (p.accent_subtle, danger_color, "transparent")
+                hover = (danger_subtle, danger_text, "transparent")
+                pressed = (danger_subtle_hover, danger_text, "transparent")
+                checked = (danger_subtle_hover, danger_text, "transparent")
             else:  # outlined / hollow
-                hover = (p.surface_light, danger_color, danger_color)
-                pressed = (p.accent_subtle, danger_color, danger_color)
-                checked = (p.accent_subtle, danger_color, danger_color)
+                bg = "transparent"
+                hover = (danger_subtle, danger_text, danger_text)
+                pressed = (danger_subtle_hover, danger_text, danger_text)
+                checked = (danger_subtle_hover, danger_text, danger_text)
 
         align_rule = f"text-align: {align};" if align else ""
         if text_color:

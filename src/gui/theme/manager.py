@@ -271,6 +271,8 @@ class ThemeManager(QObject):
 
             p = cls._palette
             tick_path = tick_icon_path()
+            danger_fill = Styles.COLOR_DANGER_FILL
+            danger_text = Styles.COLOR_DANGER_TEXT
 
             template_qss = template.format(
                 BACKGROUND=p.background,
@@ -283,14 +285,18 @@ class ThemeManager(QObject):
                 TEXT_PRIMARY=p.text_primary,
                 TEXT_SECONDARY=p.text_secondary,
                 TEXT_MUTED=p.text_muted,
-                ACCENT=p.accent,
+                ACCENT=p.ui_accent,
                 ACCENT_HOVER=p.accent_hover,
                 ACCENT_SUBTLE=p.accent_subtle,
-                DANGER=cls.get_class_color("Blunder"),
+                DANGER=danger_fill,
+                DANGER_TEXT=danger_text,
+                DANGER_SUBTLE=Styles.rgba(danger_text, 0.12),
+                DANGER_SUBTLE_HOVER=Styles.rgba(danger_text, 0.18),
+                DANGER_SUBTLE_PRESSED=Styles.rgba(danger_text, 0.24),
                 BRILLIANT=cls.get_class_color("Brilliant"),
                 DANGER_HOVER=p.danger_hover,
                 DANGER_PRESSED=p.danger_pressed,
-                ON_ACCENT=Styles.COLOR_ON_ACCENT,
+                ON_ACCENT=p.on_accent,
                 MONO_FONT=Styles.MONO_FONT_FAMILY,
                 SURFACE_LIGHT_55=_rgba(p.surface_light, 0.55),
                 TICK_PATH=tick_path,

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from src.gui.styles._base import ON_ACCENT
 from src.gui.theme import ThemeManager
 
 
@@ -104,7 +103,7 @@ class _NavigationMixin:
         if active_style == "accent":
             selected_background = accent or p.accent
             selected_border = selected_background
-            selected_text = ON_ACCENT
+            selected_text = cls.on_accent_for(selected_background)
         return f"""
             {track_rule}
             #TabTrack QTabBar {{
