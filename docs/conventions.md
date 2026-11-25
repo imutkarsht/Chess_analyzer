@@ -60,6 +60,32 @@ Patterns and rules for changing the codebase. For layer edges, see
 - Runtime-registered choice values must be declared with
   `register_choice_values(key, values)`. Theme bundles do this automatically.
 
+## Tooltips
+
+One manager renders every tooltip. `TooltipManager` is installed once in
+`main.py`; do not build per-widget popup chrome or show `QToolTip` directly.
+
+- Existing `setToolTip(...)` calls keep working. The manager intercepts the
+  normal `ToolTip` event, item-view `ToolTipRole`, tab-bar tooltips, menu
+  actions, and keyboard focus.
+- New copy uses `Tooltip.for_action`, `for_navigation`, `for_state`,
+  `for_shortcut`, `for_explanation`, or `for_disabled`, attached with
+  `attach_tooltip`.
+- Copy is sentence case and verb-first. Do not use "Click to", "Press here",
+  or "This button"; do not end short tooltips with a period; do not repeat a
+  visible label; no emoji or markup. Explanations stay within 160 characters.
+- Shortcuts are appended in native notation, for example
+  `Play next move (⌘→)`.
+- Disabled copy states the precondition, for example
+  `Analyze the game before exporting PGN`.
+- Label-only tooltips use `ElidedLabel`, which shows the full text only while
+  the label is actually elided.
+- Icon-only `Button`s mirror their tooltip into the accessible name by
+  default. Pass a more specific accessible name when the tooltip is not the
+  best screen-reader label.
+- Tooltip colours come from the `tooltip_*` palette properties; never paint
+  them with literals in a component.
+
 Theme rules and guardrails live in
 [architecture/gui.md](architecture/gui.md#theming).
 
