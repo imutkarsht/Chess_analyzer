@@ -153,6 +153,7 @@ jobs:
             libegl1 libgl1 libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 \
             libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
             libxcb-xfixes0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3 \
+            libva2 libva-drm2 libva-x11-2 libva-wayland2 \
             fuse libfuse2 desktop-file-utils
 
       - name: Install Python Dependencies

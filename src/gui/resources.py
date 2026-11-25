@@ -2,10 +2,17 @@ import os
 
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QIcon
-from PyQt6.QtMultimedia import QSoundEffect
 
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
+
+try:
+    from PyQt6.QtMultimedia import QSoundEffect
+
+    _SOUND_AVAILABLE = True
+except ImportError:
+    QSoundEffect = None
+    _SOUND_AVAILABLE = False
 
 CLASSIFICATION_ICONS = {
     "Brilliant": "brilliant.svg",
@@ -81,6 +88,9 @@ class ResourceManager:
 
     def _preload_sounds(self):
         """Pre-load each sound into a pool of QSoundEffect instances."""
+        if not _SOUND_AVAILABLE:
+            logger.warning("QtMultimedia is unavailable; sound effects are disabled.")
+            return
         for name, filename in self.sound_map.items():
             path = os.path.join(self.sounds_path, filename)
             if not os.path.exists(path):
@@ -124,6 +134,9 @@ class ResourceManager:
         event (common while stepping through a game) do not collide with
         a still-playing instance of the same sound.
         """
+        if not _SOUND_AVAILABLE:
+            return
+
         from src.utils.config import ConfigManager
         config = ConfigManager()
         if not config.sound_enabled:
