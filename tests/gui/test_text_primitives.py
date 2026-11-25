@@ -74,11 +74,14 @@ def test_status_badge_variants_and_mono(qtbot):
     for badge in (soft, outline, solid, quiet, mono):
         qtbot.addWidget(badge)
 
-    assert Styles.COLOR_SURFACE_LIGHT in soft.styleSheet()
+    assert "rgba(" in soft.styleSheet()
+    assert Styles.COLOR_TEXT_PRIMARY in soft.styleSheet()
+    assert "border: none" in soft.styleSheet()
     assert "background-color: transparent" in outline.styleSheet()
+    assert "border: 1px solid" in outline.styleSheet()
     assert Styles.COLOR_ON_ACCENT in solid.styleSheet()
-    assert Styles.COLOR_SURFACE in quiet.styleSheet()
-    assert Styles.COLOR_BORDER in quiet.styleSheet()
+    assert "background-color: transparent" in quiet.styleSheet()
+    assert "border: none" in quiet.styleSheet()
     assert "monospace" in mono.styleSheet()
 
     outline.set_tone(TextTone.BEST)

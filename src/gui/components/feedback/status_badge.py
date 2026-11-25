@@ -15,20 +15,32 @@ _TONES = {"neutral", *(tone.value for tone in TextTone)}
 
 
 class BadgeVariant(StrEnum):
-    SOFT = "soft"
+    TONAL = "tonal"
+    SOFT = "soft"  # legacy alias for tonal
     OUTLINE = "outline"
     SOLID = "solid"
     QUIET = "quiet"
+
+
+class BadgeSize(StrEnum):
+    SM = "sm"
+    MD = "md"
+
+
+_SIZE_SPECS = {
+    BadgeSize.SM: {"font_size": 11, "weight": 500, "padding": "2px 6px", "radius": 4},
+    BadgeSize.MD: {"font_size": 12, "weight": 500, "padding": "3px 8px", "radius": 4},
+}
 
 
 class StatusBadge(QLabel):
     """Small semantic pill used for status, results, classifications and counts.
 
     Variants:
-    - ``soft``: tinted surface with a semantic border (default)
-    - ``outline``: transparent surface with a semantic border
-    - ``solid``: filled semantic surface with contrasting text
-    - ``quiet``: surface fill with the neutral palette border
+    - ``tonal``: subtle tone wash, no border (default)
+    - ``outline``: transparent surface with a semantic border (keycaps)
+    - ``solid``: filled semantic surface with contrasting text (active steps)
+    - ``quiet``: text only, no surface or border
     """
 
     def __init__(
@@ -36,24 +48,26 @@ class StatusBadge(QLabel):
         text: str = "",
         tone: str = "neutral",
         *,
-        variant: BadgeVariant | str = BadgeVariant.SOFT,
+        variant: BadgeVariant | str = BadgeVariant.TONAL,
+        size: BadgeSize | str = BadgeSize.SM,
         mono: bool = False,
-        font_size: int = 11,
-        weight: int = 600,
-        padding: str = "3px 8px",
-        radius: int = 6,
+        font_size: int | None = None,
+        weight: int | None = None,
+        padding: str | None = None,
+        radius: int | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(text, parent)
         if tone not in _TONES:
             raise ValueError(f"tone must be one of {sorted(_TONES)}")
+        spec = _SIZE_SPECS[BadgeSize(size)]
         self._tone = tone
         self._variant = BadgeVariant(variant)
         self._mono = mono
-        self._font_size = font_size
-        self._weight = weight
-        self._padding = padding
-        self._radius = radius
+        self._font_size = spec["font_size"] if font_size is None else font_size
+        self._weight = spec["weight"] if weight is None else weight
+        self._padding = spec["padding"] if padding is None else padding
+        self._radius = spec["radius"] if radius is None else radius
 
         theme_manager = ThemeManager.instance()
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -99,16 +113,25 @@ class StatusBadge(QLabel):
             return Styles.COLOR_TEXT_SECONDARY
         return Styles.get_tone_color(self._tone)
 
-    def _tone_colors(self) -> tuple[str, str, str]:
+    def _tone_colors(self) -> tuple[str, str | None, str]:
         """Return ``(foreground, border, background)`` for the active tone."""
+        if self._tone == "neutral":
+            if self._variant in (BadgeVariant.TONAL, BadgeVariant.SOFT):
+                return Styles.COLOR_TEXT_SECONDARY, None, Styles.COLOR_SURFACE_LIGHT
+            if self._variant is BadgeVariant.OUTLINE:
+                return Styles.COLOR_TEXT_SECONDARY, Styles.COLOR_BORDER, "transparent"
+            if self._variant is BadgeVariant.SOLID:
+                return Styles.COLOR_TEXT_PRIMARY, None, Styles.COLOR_SURFACE_LIGHT
+            return Styles.COLOR_TEXT_SECONDARY, None, "transparent"
+
         color = self._tone_color()
+        if self._variant in (BadgeVariant.TONAL, BadgeVariant.SOFT):
+            return Styles.COLOR_TEXT_PRIMARY, None, Styles.get_tone_surface(self._tone)
         if self._variant is BadgeVariant.OUTLINE:
             return color, color, "transparent"
         if self._variant is BadgeVariant.SOLID:
-            return Styles.COLOR_ON_ACCENT, color, color
-        if self._variant is BadgeVariant.QUIET:
-            return color, Styles.COLOR_BORDER, Styles.COLOR_SURFACE
-        return color, color, Styles.COLOR_SURFACE_LIGHT
+            return Styles.COLOR_ON_ACCENT, None, color
+        return color, None, "transparent"
 
     def refresh_styles(self) -> None:
         foreground, border, background = self._tone_colors()
@@ -118,6 +141,9 @@ class StatusBadge(QLabel):
                 'font-family: "SFMono-Regular", "Menlo", "Consolas", '
                 '"Liberation Mono", monospace;'
             )
+        border_rule = (
+            f"border: 1px solid {border};" if border is not None else "border: none;"
+        )
         self.setStyleSheet(
             f"""
             QLabel {{
@@ -126,7 +152,7 @@ class StatusBadge(QLabel):
                 {family}
                 font-size: {self._font_size}px;
                 font-weight: {self._weight};
-                border: 1px solid {border};
+                {border_rule}
                 border-radius: {self._radius}px;
                 padding: {self._padding};
             }}

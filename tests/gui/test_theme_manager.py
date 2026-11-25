@@ -5,8 +5,40 @@ seconds per call, so the state-machine test stubs that out. One dedicated test
 still exercises the real compilation.
 """
 
+import pytest
+
 from src.gui.theme.manager import ThemeManager
 from src.gui.theme.palette import DARK, LIGHT
+
+
+def test_accent_is_adjusted_for_readability(qapp, monkeypatch):
+    """Light-on-light and dark-on-dark accents get a readable UI variant."""
+    from src.gui.styles import Styles
+
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_accent = ThemeManager.accent()
+    previous_mode = ThemeManager.theme_mode()
+
+    try:
+        for mode, accent in (("light", "#FFF59D"), ("dark", "#001122")):
+            ThemeManager.set_theme_mode(mode)
+            ThemeManager.set_accent(accent)
+            palette = ThemeManager.palette()
+            assert palette.accent == accent
+            assert Styles.contrast_ratio(palette.ui_accent, palette.surface) >= 4.5
+            assert Styles.contrast_ratio(palette.on_accent, palette.ui_accent) >= 4.5
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+@pytest.fixture(autouse=True)
+def _reset_tint():
+    """Prevent tint state leaking between theme tests."""
+    previous = ThemeManager.tint_enabled()
+    ThemeManager.set_tint_enabled(False, apply=False)
+    yield
+    ThemeManager.set_tint_enabled(previous, apply=False)
 
 
 def test_mode_and_accent_update_state_and_signals(qapp, qtbot, monkeypatch):
@@ -126,23 +158,37 @@ def test_restore_saved_theme_applies_custom_accent_for_regular_themes(qapp, monk
         ThemeManager.set_accent(previous_accent)
 
 
-def test_tinted_bundle_derives_palette_from_accent(qapp, monkeypatch):
-    """The Tinted bundle rebuilds its surfaces from the live accent colour."""
+def test_tint_toggle_derives_light_and_dark_palettes(qapp, monkeypatch):
+    """The tint setting rebuilds Light and Dark surfaces from the live accent."""
     monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
     previous_accent = ThemeManager.accent()
+    previous_tint = ThemeManager.tint_enabled()
 
     try:
-        ThemeManager.set_theme_mode("tinted")
-        first_bg = ThemeManager.palette().background
-        assert first_bg != DARK.background
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_tint_enabled(True)
+        assert ThemeManager.supports_tint() is True
+        dark_bg = ThemeManager.palette().background
+        assert dark_bg != DARK.background
 
         ThemeManager.set_accent("#E11D48")
-        second_bg = ThemeManager.palette().background
-        assert second_bg != first_bg
+        assert ThemeManager.palette().background != dark_bg
         assert ThemeManager.palette().accent == "#E11D48"
+
+        ThemeManager.set_theme_mode("light")
+        light_bg = ThemeManager.palette().background
+        assert light_bg != LIGHT.background
+        assert ThemeManager.palette().surface != LIGHT.surface
+        assert ThemeManager.palette().surface_card != LIGHT.surface_card
+
+        ThemeManager.set_tint_enabled(False)
+        assert ThemeManager.palette().background == LIGHT.background
+        assert ThemeManager.tint_enabled() is False
     finally:
+        ThemeManager.set_tint_enabled(False, apply=False)
         ThemeManager.set_theme_mode("dark")
         ThemeManager.set_accent(previous_accent)
+        ThemeManager.set_tint_enabled(previous_tint)
 
     assert ThemeManager.palette().background == DARK.background
 

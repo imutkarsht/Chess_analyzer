@@ -35,6 +35,7 @@ class ThemeAccentSettings(QGroupBox):
         outer.addWidget(self.form)
 
         self._add_theme_mode_row()
+        self._add_tint_row()
         self._add_accent_row()
         self._add_toast_position_row()
 
@@ -57,8 +58,28 @@ class ThemeAccentSettings(QGroupBox):
             on_change=self._on_theme_mode_changed,
         )
 
+    def _add_tint_row(self):
+        self.tint_checkbox = self.binder.add(
+            "tint_enabled",
+            hint="Mix the accent colour into window and card surfaces.",
+            width=None,
+            on_change=self._on_tint_changed,
+        )
+        self.tint_row = self.tint_checkbox.parentWidget()
+        self._update_tint_visibility()
+
     def _on_theme_mode_changed(self, mode):
         ThemeManager.set_theme_mode(mode)
+        self._update_tint_visibility(mode)
+
+    def _on_tint_changed(self, enabled):
+        ThemeManager.set_tint_enabled(bool(enabled))
+        self.theme_refreshed.emit()
+
+    def _update_tint_visibility(self, mode: str | None = None):
+        mode = mode or self.config_manager.get("theme_mode", "system")
+        visible = mode in {"light", "dark"}
+        self.form.set_row_visible(self.tint_checkbox, visible)
 
     def _add_accent_row(self):
         self.color_btn = Button(
@@ -124,6 +145,7 @@ class ThemeAccentSettings(QGroupBox):
     def reload_from_config(self):
         self.binder.load()
         self._update_accent_btn_visibility()
+        self._update_tint_visibility()
 
     def set_advanced_visible(self, visible):
         self.binder.set_advanced_visible(visible)

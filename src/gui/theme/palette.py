@@ -1,5 +1,13 @@
 from dataclasses import dataclass
 
+from src.gui.theme.color_math import (
+    blend_hex,
+    on_color,
+    readable_color,
+    relative_luminance,
+    rgba,
+)
+
 
 @dataclass
 class ThemePalette:
@@ -46,10 +54,8 @@ class ThemePalette:
     danger_pressed: str = "#900010"
 
     def with_accent(self, hex_color: str) -> "ThemePalette":
-        r = int(hex_color[1:3], 16)
-        g = int(hex_color[3:5], 16)
-        b = int(hex_color[5:7], 16)
-        subtle = f"rgba({r}, {g}, {b}, 0.15)"
+        ui_accent = readable_color(hex_color, self.surface)
+        hover_target = "#FFFFFF" if relative_luminance(self.surface) < 0.5 else "#000000"
         return ThemePalette(
             background=self.background,
             surface=self.surface,
@@ -62,8 +68,8 @@ class ThemePalette:
             text_secondary=self.text_secondary,
             text_muted=self.text_muted,
             accent=hex_color,
-            accent_hover=hex_color,
-            accent_subtle=subtle,
+            accent_hover=blend_hex(ui_accent, hover_target, 0.12),
+            accent_subtle=rgba(ui_accent, 0.15),
             piece_white=self.piece_white,
             piece_black=self.piece_black,
             board_highlight=self.board_highlight,
@@ -82,6 +88,16 @@ class ThemePalette:
             danger_hover=self.danger_hover,
             danger_pressed=self.danger_pressed,
         )
+
+    @property
+    def ui_accent(self) -> str:
+        """Accent adjusted for readable text, icons, and borders."""
+        return readable_color(self.accent, self.surface)
+
+    @property
+    def on_accent(self) -> str:
+        """Black or white ink for text placed on the adjusted accent."""
+        return on_color(self.ui_accent)
 
 
 DARK = ThemePalette(
@@ -105,19 +121,19 @@ DARK = ThemePalette(
 )
 
 LIGHT = ThemePalette(
-    background="#F5F5F7",
+    background="#EAEAEF",
     surface="#FFFFFF",
-    surface_light="#EBEBED",
-    surface_card="#F0F0F2",
-    border="#C7C7CC",
-    border_light="#B0B0B5",
-    highlight="#DCDCE0",
+    surface_light="#F0F0F4",
+    surface_card="#FFFFFF",
+    border="#C9C9D1",
+    border_light="#B4B4BE",
+    highlight="#E2E2E8",
     text_primary="#1D1D1F",
-    text_secondary="#6E6E73",
-    text_muted="#8E8E93",
+    text_secondary="#55555C",
+    text_muted="#66666C",
     accent="#FF9500",
     accent_hover="#E08600",
-    accent_subtle="rgba(255, 149, 0, 0.15)",
+    accent_subtle="rgba(255, 149, 0, 0.18)",
     piece_white="#F0F0F0",
     piece_black="#111111",
     board_highlight="#F7EC74",

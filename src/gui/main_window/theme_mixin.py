@@ -119,6 +119,10 @@ class ThemeMixin:
         signature bundles keep their accent on every launch; the user's saved
         accent is still used whenever a non-signature theme is active.
         """
+        ThemeManager.set_tint_enabled(
+            bool(getattr(self.config_manager, "tint_enabled", False)),
+            apply=False,
+        )
         ThemeManager.set_theme_mode(self.config_manager.theme_mode)
         if ThemeManager.active_bundle_owns_accent():
             return

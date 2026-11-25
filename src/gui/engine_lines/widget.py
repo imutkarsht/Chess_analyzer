@@ -118,6 +118,10 @@ class EngineLineRow(QWidget):
 
     def refresh_styles(self) -> None:
         self._apply_styles()
+        style = self.style()
+        style.unpolish(self)
+        style.polish(self)
+        self.update()
         if self._line is not None:
             self.set_line(self._line, force=True)
 
@@ -206,6 +210,7 @@ class EngineLinesWidget(QFrame):
         self._lines: list[EngineLine] = []
 
         self.setObjectName("EngineLinesPanel")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setFrameShape(QFrame.Shape.NoFrame)
         self._build_ui()
         self._apply_styles()
@@ -221,6 +226,9 @@ class EngineLinesWidget(QFrame):
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
         Styles.apply_transparent(self._scroll, borderless=False)
+        viewport = self._scroll.viewport()
+        viewport.setAutoFillBackground(False)
+        Styles.apply_transparent(viewport)
         self._scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
@@ -229,6 +237,7 @@ class EngineLinesWidget(QFrame):
         )
 
         self._body = QWidget()
+        Styles.apply_transparent(self._body)
         self._rows_layout = QVBoxLayout(self._body)
         self._rows_layout.setContentsMargins(0, 0, 0, 0)
         self._rows_layout.setSpacing(self.config.row_spacing)
@@ -297,6 +306,11 @@ class EngineLinesWidget(QFrame):
 
     def refresh_styles(self) -> None:
         self._apply_styles()
+        for widget in (self, self._scroll, self._scroll.viewport(), self._body):
+            style = widget.style()
+            style.unpolish(widget)
+            style.polish(widget)
+            widget.update()
         for index, row in enumerate(self._rows):
             if index < len(self._lines):
                 row.set_line(self._lines[index], force=True)

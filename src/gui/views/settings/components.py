@@ -119,6 +119,16 @@ class SettingsForm(QWidget):
             self._advanced_rows.append((lbl, wrapper))
         return wrapper
 
+    def set_row_visible(self, control: QWidget, visible: bool) -> None:
+        """Show or hide a form row, including its label."""
+        wrapper = control.parentWidget()
+        if wrapper is None:
+            return
+        label = self.form.labelForField(wrapper)
+        if isinstance(label, QWidget):
+            label.setVisible(visible)
+        wrapper.setVisible(visible)
+
     def set_advanced_visible(self, visible: bool) -> None:
         self._advanced_visible = visible
         self._apply_advanced_visibility()

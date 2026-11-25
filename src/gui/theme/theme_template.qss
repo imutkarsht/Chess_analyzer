@@ -293,22 +293,22 @@ QPushButton[btnVariant="ghost"]:disabled {{
     border: 1px solid transparent;
 }}
 
-/* Danger (outlined destructive look) */
+/* Danger (soft destructive action) */
 QPushButton[btnVariant="danger"] {{
-    background-color: {SURFACE_LIGHT};
-    color: {DANGER};
-    border: 1px solid {BORDER};
+    background-color: {DANGER_SUBTLE};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="danger"]:hover {{
-    background-color: {SURFACE};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE_HOVER};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="danger"]:pressed,
 QPushButton[btnVariant="danger"]:checked {{
-    background-color: {ACCENT_SUBTLE};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE_PRESSED};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="danger"]:disabled {{
     background-color: {SURFACE_LIGHT};
@@ -383,42 +383,42 @@ QPushButton[btnVariant="primary"][btnDanger="true"]:disabled {{
 }}
 
 QPushButton[btnVariant="filled"][btnDanger="true"] {{
-    background-color: {SURFACE_LIGHT};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="filled"][btnDanger="true"]:hover {{
-    background-color: {SURFACE};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE_HOVER};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="filled"][btnDanger="true"]:pressed,
 QPushButton[btnVariant="filled"][btnDanger="true"]:checked {{
-    background-color: {SURFACE_LIGHT};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE_PRESSED};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="filled"][btnDanger="true"]:disabled {{
     background-color: {SURFACE_LIGHT};
     color: {TEXT_MUTED};
-    border: 1px solid {BORDER};
+    border: 1px solid transparent;
 }}
 
 QPushButton[btnVariant="tonal"][btnDanger="true"] {{
-    background-color: {ACCENT_SUBTLE};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="tonal"][btnDanger="true"]:hover {{
-    background-color: {SURFACE};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE_HOVER};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="tonal"][btnDanger="true"]:pressed,
 QPushButton[btnVariant="tonal"][btnDanger="true"]:checked {{
-    background-color: {SURFACE_LIGHT};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE_PRESSED};
+    color: {DANGER_TEXT};
+    border: 1px solid transparent;
 }}
 QPushButton[btnVariant="tonal"][btnDanger="true"]:disabled {{
     background-color: {SURFACE_LIGHT};
@@ -430,15 +430,15 @@ QPushButton[btnVariant="hollow"][btnDanger="true"],
 QPushButton[btnVariant="outlined"][btnDanger="true"],
 QPushButton[btnVariant="segment"][btnDanger="true"] {{
     background-color: transparent;
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    color: {DANGER_TEXT};
+    border: 1px solid {DANGER_TEXT};
 }}
 QPushButton[btnVariant="hollow"][btnDanger="true"]:hover,
 QPushButton[btnVariant="outlined"][btnDanger="true"]:hover,
 QPushButton[btnVariant="segment"][btnDanger="true"]:hover {{
-    background-color: {SURFACE_LIGHT};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE};
+    color: {DANGER_TEXT};
+    border: 1px solid {DANGER_TEXT};
 }}
 QPushButton[btnVariant="hollow"][btnDanger="true"]:pressed,
 QPushButton[btnVariant="hollow"][btnDanger="true"]:checked,
@@ -446,9 +446,9 @@ QPushButton[btnVariant="outlined"][btnDanger="true"]:pressed,
 QPushButton[btnVariant="outlined"][btnDanger="true"]:checked,
 QPushButton[btnVariant="segment"][btnDanger="true"]:pressed,
 QPushButton[btnVariant="segment"][btnDanger="true"]:checked {{
-    background-color: {ACCENT_SUBTLE};
-    color: {DANGER};
-    border: 1px solid {DANGER};
+    background-color: {DANGER_SUBTLE_HOVER};
+    color: {DANGER_TEXT};
+    border: 1px solid {DANGER_TEXT};
 }}
 QPushButton[btnVariant="hollow"][btnDanger="true"]:disabled {{
     background-color: transparent;
@@ -465,21 +465,21 @@ QPushButton[btnVariant="segment"][btnDanger="true"]:disabled {{
 QPushButton[btnVariant="ghost"][btnDanger="true"],
 QPushButton[btnVariant="link"][btnDanger="true"] {{
     background-color: transparent;
-    color: {DANGER};
+    color: {DANGER_TEXT};
     border: 1px solid transparent;
 }}
 QPushButton[btnVariant="ghost"][btnDanger="true"]:hover,
 QPushButton[btnVariant="link"][btnDanger="true"]:hover {{
-    background-color: {SURFACE_LIGHT};
-    color: {DANGER};
+    background-color: {DANGER_SUBTLE};
+    color: {DANGER_TEXT};
     border: 1px solid transparent;
 }}
 QPushButton[btnVariant="ghost"][btnDanger="true"]:pressed,
 QPushButton[btnVariant="ghost"][btnDanger="true"]:checked,
 QPushButton[btnVariant="link"][btnDanger="true"]:pressed,
 QPushButton[btnVariant="link"][btnDanger="true"]:checked {{
-    background-color: {ACCENT_SUBTLE};
-    color: {DANGER};
+    background-color: {DANGER_SUBTLE_HOVER};
+    color: {DANGER_TEXT};
     border: 1px solid transparent;
 }}
 QPushButton[btnVariant="ghost"][btnDanger="true"]:disabled,

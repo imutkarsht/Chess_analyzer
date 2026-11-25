@@ -35,10 +35,9 @@ class RatioBar(QWidget):
         painter.setClipPath(clip)
 
         font = QFont(self.font())
-        font.setPixelSize(9)
+        font.setPixelSize(10)
         font.setBold(True)
         painter.setFont(font)
-        painter.setPen(QColor(Styles.COLOR_ON_ACCENT))
 
         x = bounds.left()
         for pct, color in self._segments:
@@ -48,6 +47,7 @@ class RatioBar(QWidget):
             segment = QRectF(x, bounds.top(), width, bounds.height())
             painter.fillRect(segment, QColor(color))
             if pct >= 12:
+                painter.setPen(QColor(Styles.on_accent_for(color)))
                 painter.drawText(
                     segment,
                     Qt.AlignmentFlag.AlignCenter,

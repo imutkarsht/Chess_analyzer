@@ -102,9 +102,13 @@ class CoachCardWidget(QFrame):
         # --- header: classification pill, move badge, eval swing, phase chip ---
         self._header_rows = self._add_row_containers(layout)
 
-        self.class_pill = StatusBadge("-", "neutral")
-        self.san_label = StatusBadge("-", "neutral", mono=True)
-        self.eval_label = StatusBadge("", TextTone.ACCENT, mono=True)
+        self.class_pill = StatusBadge("-", "neutral", weight=600)
+        self.san_label = Label("-", role=TextRole.MONO, weight=600)
+        self.eval_label = Label(
+            "",
+            role=TextRole.MONO,
+            tone=TextTone.SECONDARY,
+        )
         self.eval_label.setToolTip(
             "Engine evaluation from White's perspective (positive = White is better). "
             "The explanation's win chance is from your perspective."

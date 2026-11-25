@@ -137,6 +137,13 @@ def _button(qtbot, text="", **kwargs):
     return button
 
 
+def test_danger_text_is_readable_on_the_active_surface(qapp):
+    """Soft destructive buttons use a text tint that passes small-text contrast."""
+    from src.gui.styles import Styles
+
+    assert Styles.contrast_ratio(Styles.COLOR_DANGER_TEXT, Styles.COLOR_SURFACE) >= 4.5
+
+
 def test_click_runs_the_handler(qtbot):
     calls = []
     button = _button(qtbot, "Run", on_click=lambda: calls.append(True))

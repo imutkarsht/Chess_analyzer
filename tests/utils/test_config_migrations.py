@@ -50,6 +50,19 @@ def test_legacy_flat_llm_config_becomes_a_profile(config_dir):
     assert "groq_api_key" not in saved
 
 
+def test_retired_tinted_theme_migrates_to_dark_with_tint(config_dir):
+    config_file = config_dir / "config.json"
+    _write_config(config_file, {"theme_mode": "tinted"})
+
+    manager = ConfigManager()
+
+    assert manager.theme_mode == "dark"
+    assert manager.tint_enabled is True
+    saved = _saved_config(config_file)
+    assert saved["theme_mode"] == "dark"
+    assert saved["tint_enabled"] is True
+
+
 def test_profile_list_is_not_migrated_twice(config_dir):
     config_file = config_dir / "config.json"
     _write_config(

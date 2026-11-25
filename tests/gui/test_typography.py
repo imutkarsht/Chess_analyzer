@@ -68,7 +68,7 @@ def test_typography_qss_follows_the_live_palette(monkeypatch):
     qss = Styles.get_typography_qss()
 
     assert (
-        f'QLabel[tone="{TextTone.ACCENT.value}"] {{ color: {palette.accent}; '
+        f'QLabel[tone="{TextTone.ACCENT.value}"] {{ color: {palette.ui_accent}; '
         "background: transparent; border: none; }"
     ) in qss
     assert (

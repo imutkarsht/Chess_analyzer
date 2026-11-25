@@ -67,7 +67,7 @@ class SettingSpec:
 _EXTRA_CHOICE_VALUES: dict[str, set[str]] = {
     # Built-in theme bundles beyond the system/light/dark schema choices.
     # Plugin bundles extend this at registration time via register_choice_values.
-    "theme_mode": {"tinted", "dracula", "oled"},
+    "theme_mode": {"dracula", "oled"},
 }
 
 
@@ -242,6 +242,16 @@ def _specs() -> tuple[SettingSpec, ...]:
             "system",
             apply="live",
             choices=(Choice("system", "System"), Choice("light", "Light"), Choice("dark", "Dark")),
+        ),
+        SettingSpec(
+            "tint_enabled",
+            "Appearance",
+            "Theme & Accent",
+            "Accent tint",
+            "Mix the accent colour into window and card surfaces. Available for Light and Dark themes.",
+            "bool",
+            False,
+            apply="live",
         ),
         SettingSpec(
             "accent_mode",
