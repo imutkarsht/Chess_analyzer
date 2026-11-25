@@ -41,6 +41,7 @@ class PgnFilePanel(QWidget):
         root.setSpacing(12)
 
         self._drop_zone = DropZone()
+        self._drop_zone.setToolTip("Open a PGN file")
         self._drop_zone.setMinimumHeight(190)
         self._drop_zone.setMaximumHeight(240)
         self._drop_zone.file_dropped.connect(self._load_file)
@@ -52,6 +53,7 @@ class PgnFilePanel(QWidget):
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
             icon="fa5s.folder-open",
+            tooltip="Choose a PGN file",
             on_click=self._browse,
         )
         self._browse_btn.setMaximumWidth(180)
@@ -74,6 +76,7 @@ class PgnFilePanel(QWidget):
             "Cancel",
             ButtonVariant.GHOST,
             ButtonSize.SM,
+            tooltip="Stop reading this PGN file",
             on_click=self._cancel_index,
         )
         loading_layout.addWidget(self._loading_label)

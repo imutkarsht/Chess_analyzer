@@ -118,6 +118,8 @@ class LoadGameDialog(QDialog):
             "PGN",
             icon=QIcon(asset_path("assets/icons/file.png")),
         )
+        self.tabs.set_tab_tooltip(0, "Import games from Chess.com or Lichess")
+        self.tabs.set_tab_tooltip(1, "Open a PGN file or paste PGN text")
         self.tabs.current_changed.connect(self._on_tab_index_changed)
         self.tabs.setFixedHeight(44)
         layout.addWidget(self.tabs, 1)
@@ -132,6 +134,8 @@ class LoadGameDialog(QDialog):
         self.pgn_mode = SegmentedControl(
             [("File", "file"), ("Text", "text")], value="file"
         )
+        self.pgn_mode.button("file").setToolTip("Load a .pgn file")
+        self.pgn_mode.button("text").setToolTip("Paste PGN text")
         self.pgn_mode.valueChanged.connect(self._on_pgn_mode_changed)
         mode_row = QHBoxLayout()
         mode_row.setContentsMargins(0, 0, 0, 0)
@@ -162,6 +166,7 @@ class LoadGameDialog(QDialog):
             "Cancel",
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
+            tooltip="Close without loading a game",
             on_click=self.reject,
         )
         cancel.setMinimumWidth(92)

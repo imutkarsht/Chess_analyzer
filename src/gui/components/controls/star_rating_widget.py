@@ -66,6 +66,8 @@ class StarRatingWidget(QWidget):
                 }}
             """)
             btn.setProperty("star_index", i)
+            btn.setToolTip(f"Rate {i} out of 5")
+            btn.setAccessibleName(f"Rate {i} out of 5")
             btn.clicked.connect(lambda checked, idx=i: self._on_star_clicked(idx))
 
             # Install hover tracking

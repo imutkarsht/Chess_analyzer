@@ -152,13 +152,21 @@ class FeedbackDialog(QDialog):
         btn_layout.setContentsMargins(0, 4, 0, 0)
         btn_layout.setSpacing(12)
 
-        self.btn_cancel = Button("Cancel", ButtonVariant.FILLED)
+        self.btn_cancel = Button(
+            "Cancel",
+            ButtonVariant.FILLED,
+            tooltip="Close without sending feedback",
+        )
         self.btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
         btn_layout.addStretch()
 
-        self.btn_submit = Button("Submit", ButtonVariant.PRIMARY)
+        self.btn_submit = Button(
+            "Submit",
+            ButtonVariant.PRIMARY,
+            tooltip="Send this feedback",
+        )
         self.btn_submit.clicked.connect(self._on_submit)
         btn_layout.addWidget(self.btn_submit)
 
@@ -188,14 +196,17 @@ class FeedbackDialog(QDialog):
         if tab_id == "bug":
             self.stacked_widget.setCurrentIndex(0)
             self.btn_submit.setText("Submit Bug Report")
+            self.btn_submit.setToolTip("Send this bug report")
             submit_icon = "fa5s.paper-plane"
         elif tab_id == "feature":
             self.stacked_widget.setCurrentIndex(1)
             self.btn_submit.setText("Submit Feature Request")
+            self.btn_submit.setToolTip("Send this feature request")
             submit_icon = "fa5s.paper-plane"
         else:
             self.stacked_widget.setCurrentIndex(2)
             self.btn_submit.setText("Submit Review")
+            self.btn_submit.setToolTip("Send this rating and review")
             submit_icon = "fa5s.star"
 
         self.btn_submit.set_icon_spec(submit_icon)
@@ -276,6 +287,7 @@ class FeedbackDialog(QDialog):
             "Preview Log",
             ButtonVariant.LINK,
             size=ButtonSize.SM,
+            tooltip="Show the diagnostic log excerpt",
             on_click=self._toggle_log_preview,
         )
         log_header_layout.addWidget(self.btn_toggle_log)
@@ -298,9 +310,11 @@ class FeedbackDialog(QDialog):
         if self.log_preview_box.isVisible():
             self.log_preview_box.hide()
             self.btn_toggle_log.setText("Preview Log")
+            self.btn_toggle_log.setToolTip("Show the diagnostic log excerpt")
         else:
             self.log_preview_box.show()
             self.btn_toggle_log.setText("Hide Log")
+            self.btn_toggle_log.setToolTip("Hide the diagnostic log excerpt")
 
     def _setup_feature_page(self, page: QWidget):
         layout = QVBoxLayout(page)
@@ -418,7 +432,11 @@ class FeedbackDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_done = Button("Done", ButtonVariant.PRIMARY)
+        btn_done = Button(
+            "Done",
+            ButtonVariant.PRIMARY,
+            tooltip="Close this dialog",
+        )
         btn_done.clicked.connect(self.accept)
         layout.addWidget(btn_done, alignment=Qt.AlignmentFlag.AlignCenter)
 
