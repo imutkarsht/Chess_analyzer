@@ -195,6 +195,7 @@ def test_icon_only_button_is_square_and_hides_text(qtbot):
     assert button.text() == ""
     assert button.width() == button.height() == 28
     assert button.toolTip() == "Delete"
+    assert button.accessibleName() == "Delete"
 
 
 def test_checkable_button_toggles(qtbot):

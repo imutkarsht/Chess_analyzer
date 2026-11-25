@@ -16,6 +16,18 @@ QLabel {{
     border: none;
 }}
 
+/* Native fallback for any Qt-internal surface the custom manager cannot
+   intercept. It mirrors the custom popup's inverted tokens so a stray native
+   tooltip never flashes the old light surface. */
+QToolTip {{
+    background-color: {TOOLTIP_SURFACE};
+    color: {TOOLTIP_TEXT};
+    border: 1px solid {TOOLTIP_BORDER};
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+}}
+
 /* Page/container backgrounds are applied through a property so they do not
    cascade into child labels and paint rectangles behind text. */
 QWidget[appBackground="background"] {{

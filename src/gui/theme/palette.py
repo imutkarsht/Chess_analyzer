@@ -99,6 +99,35 @@ class ThemePalette:
         """Black or white ink for text placed on the adjusted accent."""
         return on_color(self.ui_accent)
 
+    # ------------------------------------------------------------------
+    # Tooltip surface
+    # ------------------------------------------------------------------
+    # Tooltips invert the interface: a near-black bubble on light themes and
+    # a near-white bubble on dark themes. Deriving both from ``text_primary``
+    # keeps custom bundles consistent without adding per-theme constants.
+    @property
+    def tooltip_surface(self) -> str:
+        return self.text_primary
+
+    @property
+    def tooltip_text(self) -> str:
+        return on_color(self.text_primary)
+
+    @property
+    def tooltip_border(self) -> str:
+        """Hairline that keeps the inverted bubble legible on any surface."""
+        return rgba(self.tooltip_text, 0.12)
+
+    @property
+    def tooltip_shadow(self) -> str:
+        """Shadow ink; alpha is resolved by ``tooltip_shadow_alpha``."""
+        return self.piece_black
+
+    @property
+    def tooltip_shadow_alpha(self) -> float:
+        """Stronger shadow on dark surfaces where contrast is scarce."""
+        return 0.30 if relative_luminance(self.background) > 0.5 else 0.58
+
 
 DARK = ThemePalette(
     background="#1A1A1D",
