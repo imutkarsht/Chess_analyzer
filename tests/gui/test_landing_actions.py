@@ -3,6 +3,7 @@
 from PyQt6.QtWidgets import QApplication
 
 from src.gui.app.game_loading_controller import GameLoadingController
+from src.gui.components import Button, WelcomePanel
 
 
 class _PasteStub:
@@ -34,6 +35,15 @@ def _with_clipboard(text: str, action):
         return action()
     finally:
         clipboard.setText(original)
+
+
+def test_welcome_panel_actions_all_have_tooltips(qtbot):
+    panel = WelcomePanel()
+    qtbot.addWidget(panel)
+
+    buttons = panel.findChildren(Button)
+    assert len(buttons) == 6
+    assert all(button.toolTip() for button in buttons)
 
 
 def test_paste_quick_action_loads_clipboard_pgn(qapp):

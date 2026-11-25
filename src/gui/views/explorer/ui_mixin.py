@@ -76,17 +76,29 @@ class ExplorerUiMixin:
         header_layout.addStretch()
 
         self.btn_flip = Button(
-            "Flip Board", ButtonVariant.HOLLOW, ButtonSize.SM, on_click=self._flip_board
+            "Flip Board",
+            ButtonVariant.HOLLOW,
+            ButtonSize.SM,
+            tooltip="Flip the board orientation (F)",
+            on_click=self._flip_board,
         )
         header_layout.addWidget(self.btn_flip)
 
         self.btn_copy_fen = Button(
-            "Copy FEN", ButtonVariant.HOLLOW, ButtonSize.SM, on_click=self._copy_fen
+            "Copy FEN",
+            ButtonVariant.HOLLOW,
+            ButtonSize.SM,
+            tooltip="Copy the current position as FEN",
+            on_click=self._copy_fen,
         )
         header_layout.addWidget(self.btn_copy_fen)
 
         self.btn_copy_pgn = Button(
-            "Copy PGN", ButtonVariant.HOLLOW, ButtonSize.SM, on_click=self._copy_pgn
+            "Copy PGN",
+            ButtonVariant.HOLLOW,
+            ButtonSize.SM,
+            tooltip="Copy the explored moves as PGN",
+            on_click=self._copy_pgn,
         )
         header_layout.addWidget(self.btn_copy_pgn)
 
@@ -161,18 +173,22 @@ class ExplorerUiMixin:
 
         self.chk_classify = Checkbox("Classify Moves", CheckboxVariant.COMPACT)
         self.chk_classify.setChecked(self.classify_enabled)
+        self.chk_classify.setToolTip("Label explored moves with their engine quality")
         self.chk_classify.toggled.connect(self.on_classify_toggled)
 
         self.chk_legal = Checkbox("Legal Moves", CheckboxVariant.COMPACT)
         self.chk_legal.setChecked(True)
+        self.chk_legal.setToolTip("Show legal move markers on the board")
         self.chk_legal.toggled.connect(self.on_legal_moves_toggled)
 
         self.chk_engine = Checkbox("Engine Lines", CheckboxVariant.COMPACT)
         self.chk_engine.setChecked(False)
+        self.chk_engine.setToolTip("Show Stockfish candidate lines for this position")
         self.chk_engine.toggled.connect(self.on_engine_toggled)
 
         self.chk_cache = Checkbox("Use Cache", CheckboxVariant.COMPACT)
         self.chk_cache.setChecked(True)
+        self.chk_cache.setToolTip("Reuse cached Lichess results for explored positions")
 
         for chk in (self.chk_classify, self.chk_legal, self.chk_engine, self.chk_cache):
             toggles_layout.addWidget(chk)
@@ -193,6 +209,7 @@ class ExplorerUiMixin:
             ButtonVariant.GHOST,
             checkable=True,
             align="left",
+            tooltip="Collapse the opening book",
             on_click=None,
         )
         self.book_toggle.setChecked(True)
@@ -231,6 +248,7 @@ class ExplorerUiMixin:
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
         self.lichess_attribution.setOpenExternalLinks(True)
+        self.lichess_attribution.setToolTip("Open lichess.org in your browser")
         self.lichess_attribution.setVisible(False)
         right_layout.addWidget(self.lichess_attribution)
         self._refresh_attribution_text()

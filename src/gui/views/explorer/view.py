@@ -115,8 +115,14 @@ class ExplorerView(
         self._analysis_locked = bool(locked)
         self.chk_engine.setEnabled(not locked)
         if locked:
+            self.chk_engine.setToolTip(
+                "Pause the batch analysis to use engine lines"
+            )
             self.session.pause()
             return
+        self.chk_engine.setToolTip(
+            "Show Stockfish candidate lines for this position"
+        )
         if self.chk_engine.isChecked():
             self.session.resume()
 

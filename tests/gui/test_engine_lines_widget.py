@@ -49,6 +49,14 @@ def test_panel_grows_to_the_lines_it_shows_and_scrolls_beyond_the_cap(qtbot):
     assert len(widget.lines) == 3
 
 
+def test_line_rows_expose_their_full_pv_in_a_tooltip(qtbot):
+    widget = _widget(qtbot)
+    widget.set_lines([_line()])
+
+    row = widget.findChildren(EngineLineRow)[0]
+    assert "Qb3 a5" in row.toolTip()
+
+
 def test_click_emits_the_first_move_of_the_row(qtbot):
     widget = _widget(qtbot)
     widget.set_lines([_line(), _line(2, 57, ("e1g1",), "12. O-O")])

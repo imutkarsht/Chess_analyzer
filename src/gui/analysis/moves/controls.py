@@ -108,10 +108,18 @@ class MoveControls(QWidget):
         layout.setContentsMargins(0, 4, 0, 0)
         layout.setSpacing(10)
 
-        self.btn_first = self._make_explorer_button("⏮", self.first_clicked)
-        self.btn_prev = self._make_explorer_button("◀", self.prev_clicked)
-        self.btn_next = self._make_explorer_button("▶", self.next_clicked)
-        self.btn_last = self._make_explorer_button("⏭", self.last_clicked)
+        self.btn_first = self._make_explorer_button(
+            "⏮", self.first_clicked, "Go to the starting position (Home)"
+        )
+        self.btn_prev = self._make_explorer_button(
+            "◀", self.prev_clicked, "Go back one move (←)"
+        )
+        self.btn_next = self._make_explorer_button(
+            "▶", self.next_clicked, "Go forward one move (→)"
+        )
+        self.btn_last = self._make_explorer_button(
+            "⏭", self.last_clicked, "Go to the latest move (End)"
+        )
 
         for button in (self.btn_first, self.btn_prev, self.btn_next, self.btn_last):
             layout.addWidget(button)
@@ -152,13 +160,16 @@ class MoveControls(QWidget):
         button.toggled.connect(self.follow_toggled.emit)
         return button
 
-    def _make_explorer_button(self, text, signal):
+    def _make_explorer_button(self, text, signal, tooltip):
         button = Button(
             text,
             ButtonVariant.FILLED,
             ButtonSize.LG,
+            tooltip=tooltip,
             on_click=lambda: signal.emit(),
         )
+        # The visible glyph is not a usable screen-reader label.
+        button.setAccessibleName(tooltip)
         button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         return button
 
