@@ -12,7 +12,7 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
-from PyQt6.QtCore import QEasingCurve, QObject, QPropertyAnimation, QVariantAnimation
+from PyQt6.QtCore import QEasingCurve, QObject, QPropertyAnimation, Qt, QVariantAnimation
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import QScrollBar
 
@@ -70,6 +70,23 @@ class Motion:
             return False
         app = QGuiApplication.instance()
         return not (app is not None and app.platformName() == "offscreen")
+
+    @classmethod
+    def prefers_reduced_motion(cls) -> bool:
+        """True when the OS accessibility settings ask for reduced motion.
+
+        Qt exposes the platform preference through ``QStyleHints`` on 6.10+.
+        The project supports older PyQt6 releases, so the lookup is optional:
+        older runtimes simply keep the normal animation path.
+        """
+        app = QGuiApplication.instance()
+        if app is None:
+            return False
+        try:
+            hints = app.styleHints().accessibility()
+            return hints.motionPreference() != Qt.MotionPreference.NoPreference
+        except (AttributeError, RuntimeError):
+            return False
 
     # -- one-shot property tweens ------------------------------------------
 

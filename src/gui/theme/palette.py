@@ -105,6 +105,19 @@ class ThemePalette:
     # Tooltips invert the interface: a near-black bubble on light themes and
     # a near-white bubble on dark themes. Deriving both from ``text_primary``
     # keeps custom bundles consistent without adding per-theme constants.
+    # ------------------------------------------------------------------
+    # In-window overlay scrim
+    # ------------------------------------------------------------------
+    @property
+    def overlay_scrim(self) -> str:
+        """Colour painted over the frozen window behind an overlay dialog."""
+        return "#000000"
+
+    @property
+    def overlay_scrim_alpha(self) -> float:
+        """Scrim strength; dark surfaces need more separation than light ones."""
+        return 0.50 if relative_luminance(self.background) < 0.5 else 0.42
+
     @property
     def tooltip_surface(self) -> str:
         return self.text_primary

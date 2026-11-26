@@ -1869,6 +1869,25 @@ QLabel#Avatar {{
     border-radius: 50%;
 }}
 
+/* === In-window overlay dialogs === */
+QFrame#OverlayCard {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 14px;
+}}
+
+QWidget#OverlayHeader,
+QWidget#OverlayBody,
+QWidget#OverlayFooter {{
+    background: transparent;
+    border: none;
+}}
+
+QScrollArea#OverlayBodyScroll {{
+    background: transparent;
+    border: none;
+}}
+
 /* === Dialog chrome === */
 QDialog#ConfirmDialog {{
     background-color: {SURFACE};

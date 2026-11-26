@@ -47,6 +47,9 @@ from src.gui.components.display.stat_card import SimpleStatCard, StatCard
 from src.gui.components.feedback.empty_state import EmptyState
 from src.gui.components.feedback.engine_score_badge import EngineScoreBadge
 from src.gui.components.feedback.loading_widget import LoadingOverlay
+from src.gui.components.feedback.overlay_card import OverlayCard, OverlayResult
+from src.gui.components.feedback.overlay_host import OverlayHost
+from src.gui.components.feedback.overlay_manager import OverlayManager
 from src.gui.components.feedback.progress_bar import ProgressBar, ProgressBarVariant
 from src.gui.components.feedback.pulsing_skeleton import PulsingSkeleton
 from src.gui.components.feedback.status_badge import BadgeVariant, StatusBadge
@@ -150,6 +153,10 @@ __all__ = [
     'ListView',
     'LoadingOverlay',
     'MiniBar',
+    'OverlayCard',
+    'OverlayHost',
+    'OverlayManager',
+    'OverlayResult',
     'open_feedback_dialog',
     'open_llm_settings',
     'PaginationBar',
