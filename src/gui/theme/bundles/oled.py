@@ -34,6 +34,7 @@ OLED_BUNDLE = ThemeBundle(
     display_name="OLED Black",
     palette=OLED_PALETTE,
     mode="dark",
+    description="Pure-black theme for OLED displays.",
 )
 
 __all__ = ["OLED_BUNDLE"]

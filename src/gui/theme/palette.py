@@ -194,6 +194,36 @@ TERMINATION_COLORS = {
 }
 TERMINATION_FALLBACK_COLOR = "#888888"
 
+@dataclass(frozen=True)
+class AccentPreset:
+    """One accent family with mode-specific seeds.
+
+    The darker saturated seeds read well on light surfaces; dark surfaces get
+    a softer variant so the five chips do not look like harsh neon dots.
+    """
+
+    name: str
+    light: str
+    dark: str
+
+    def color(self, mode: str) -> str:
+        return self.dark if mode == "dark" else self.light
+
+    def matches(self, hex_color: str) -> bool:
+        value = hex_color.upper()
+        return value in {self.light.upper(), self.dark.upper()}
+
+
+# Curated accent choices shown in Appearance settings. These are seeds: the
+# palette adjusts them for readable text and icons on each theme's surface.
+ACCENT_PRESETS = (
+    AccentPreset("Blue", "#3B82F6", "#6F9BD8"),
+    AccentPreset("Green", "#10B981", "#5FB894"),
+    AccentPreset("Orange", "#FF9500", "#D9A15E"),
+    AccentPreset("Red", "#EF4444", "#D47A7A"),
+    AccentPreset("Purple", "#A855F7", "#A882CC"),
+)
+
 BOARD_THEMES = {
     "Green": {"dark": "#769656", "light": "#EEEED2"},
     "Blue": {"dark": "#4B7399", "light": "#E0E0E0"},

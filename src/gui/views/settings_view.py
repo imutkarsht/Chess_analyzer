@@ -3,6 +3,7 @@ Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
 from PyQt6.QtCore import QPoint, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QFrame,
     QGroupBox,
@@ -236,6 +237,7 @@ class SettingsView(QWidget):
             page_layout.addStretch(1)
             self.pages.addWidget(page)
 
+        self._apply_settings_card_fonts()
         self._search_index = self._build_search_index()
         self._populate_categories()
         self.category_list.currentRowChanged.connect(self._on_category_row_changed)
@@ -308,7 +310,7 @@ class SettingsView(QWidget):
         self.remember_window_checkbox = (
             self.window_layout_settings.remember_window_checkbox
         )
-        self.color_btn = self.theme_accent_settings.color_btn
+        self.color_btn = self.theme_accent_settings.custom_accent_btn
 
         self.clear_cache_btn = self.maintenance_settings.clear_cache_btn
         self.clear_data_btn = self.danger_settings.clear_data_btn
@@ -344,6 +346,19 @@ class SettingsView(QWidget):
         self.shortcut_settings.reload_from_config()
         self.retention_settings.reload_from_config()
         self.storage_settings.refresh_stats()
+
+    def _apply_settings_card_fonts(self) -> None:
+        """Give every settings card the same title weight and size.
+
+        Setting the font on the QGroupBox does not leak into role-styled
+        labels, unlike a QSS font-size rule on the group box.
+        """
+        title_font = self.font()
+        title_font.setPixelSize(20)
+        title_font.setWeight(QFont.Weight.Bold)
+        for card in self.findChildren(QGroupBox):
+            if card.property("settingsCard"):
+                card.setFont(title_font)
 
     @staticmethod
     def _section_divider() -> QFrame:

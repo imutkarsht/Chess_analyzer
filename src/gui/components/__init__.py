@@ -1,6 +1,7 @@
 """
 Shared GUI components module.
 """
+from src.gui.components.controls.accent_swatch import AccentSwatch
 from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.controls.checkbox import Checkbox, CheckboxVariant
 from src.gui.components.controls.date_picker import DatePicker
@@ -24,6 +25,7 @@ from src.gui.components.controls.select import Select, SelectOption, SelectSize
 from src.gui.components.controls.slider_counter import SliderCounter
 from src.gui.components.controls.star_rating_widget import StarRatingWidget
 from src.gui.components.controls.tabs import TabAppearance, Tabs, TabVariant
+from src.gui.components.controls.theme_card import ThemeCard
 from src.gui.components.dialogs import (
     confirm_dialog,
     open_feedback_dialog,
@@ -106,6 +108,7 @@ def __getattr__(name: str):
 
 
 __all__ = [
+    'AccentSwatch',
     'Avatar',
     'Button',
     'ButtonSize',
@@ -178,6 +181,7 @@ __all__ = [
     'TabAppearance',
     'TabVariant',
     'Tabs',
+    'ThemeCard',
     'Toast',
     'ToastHandle',
     'ToastManager',

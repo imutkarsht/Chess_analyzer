@@ -193,6 +193,68 @@ def test_tint_toggle_derives_light_and_dark_palettes(qapp, monkeypatch):
     assert ThemeManager.palette().background == DARK.background
 
 
+def test_preview_palette_resolves_without_activating(qapp, monkeypatch):
+    """Previews use each theme's effective accent without changing the app."""
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_accent("#3B82F6")
+
+        light_preview = ThemeManager.preview_palette("light")
+        assert light_preview is not None
+        assert light_preview.background == LIGHT.background
+        assert light_preview.accent == "#3B82F6"
+
+        # Signature themes preview their own accent when they are not active.
+        dracula_preview = ThemeManager.preview_palette("dracula")
+        assert dracula_preview is not None
+        assert dracula_preview.accent == "#BD93F9"
+
+        assert ThemeManager.theme_mode() == "dark"
+        assert ThemeManager.accent() == "#3B82F6"
+        assert ThemeManager.preview_palette("missing") is None
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_preview_palette_applies_tint_only_to_base_themes(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_accent("#E11D48")
+        ThemeManager.set_tint_enabled(True)
+
+        assert ThemeManager.preview_palette("light").background != LIGHT.background
+        assert ThemeManager.preview_palette("dark").background != DARK.background
+        assert ThemeManager.preview_palette("oled").background == "#000000"
+    finally:
+        ThemeManager.set_tint_enabled(False, apply=False)
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_preview_palette_tracks_live_signature_accent_override(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_bundle("dracula")
+        assert ThemeManager.preview_palette("dracula").accent == "#BD93F9"
+        ThemeManager.set_accent("#123456")
+        assert ThemeManager.preview_palette("dracula").accent == "#123456"
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
 def test_registered_bundles_and_set_bundle_state(qapp, qtbot, monkeypatch):
     """A registered bundle drives palette, mode, class colours, and extra QSS."""
     from src.gui.theme.bundle import ThemeBundle

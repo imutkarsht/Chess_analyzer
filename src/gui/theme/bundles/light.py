@@ -9,6 +9,7 @@ LIGHT_BUNDLE = ThemeBundle(
     display_name="Light",
     palette=LIGHT,
     mode="light",
+    description="Light interface that uses your selected accent colour.",
 )
 
 __all__ = ["LIGHT_BUNDLE"]

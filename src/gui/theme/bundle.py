@@ -46,6 +46,11 @@ class ThemeBundle:
     # "dark" or "light"; selects the system rendering mode for native parts.
     mode: str = "dark"
 
+    # Optional card copy. The appearance gallery falls back to sensible
+    # defaults when a third-party bundle leaves these empty.
+    description: str = ""
+    mode_label: str = ""
+
     # Optional accent-aware palette builder. When set, the manager calls it
     # with the live accent colour on every activation/accent change instead of
     # using ``palette.with_accent()``. This is what accent-tinted themes use.
