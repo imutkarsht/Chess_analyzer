@@ -19,7 +19,15 @@ _SYSTEM_THEME = "system"
 _BASE_THEME_IDS = ("light", "dark")
 # Built-in order for the Themes section. Future bundles slot in here without
 # touching the gallery, and third-party bundles follow alphabetically.
-_THEME_ORDER = ("dracula", "oled", "parchment", "nord", "high_contrast")
+_THEME_ORDER = (
+    "dracula",
+    "oled",
+    "parchment",
+    "nord",
+    "sage",
+    "ember",
+    "high_contrast",
+)
 _CARD_WIDTH = 200
 _CARD_SPACING = 16
 _MAX_COLUMNS = 5

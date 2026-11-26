@@ -1,10 +1,13 @@
 from src.gui.theme.bundle import ThemeBundle
 from src.gui.theme.bundles.dark import DARK_BUNDLE
 from src.gui.theme.bundles.dracula import DRACULA_BUNDLE
+from src.gui.theme.bundles.ember import EMBER_BUNDLE
+from src.gui.theme.bundles.high_contrast import HIGH_CONTRAST_BUNDLE
 from src.gui.theme.bundles.light import LIGHT_BUNDLE
 from src.gui.theme.bundles.nord import NORD_BUNDLE
 from src.gui.theme.bundles.oled import OLED_BUNDLE
 from src.gui.theme.bundles.parchment import PARCHMENT_BUNDLE
+from src.gui.theme.bundles.sage import SAGE_BUNDLE
 from src.gui.theme.manager import ELEVATIONS, Elevation, ThemeManager
 from src.gui.theme.motion import Motion, MotionDuration, MotionEasing
 from src.gui.theme.palette import (
@@ -35,6 +38,9 @@ for _bundle in (
     OLED_BUNDLE,
     PARCHMENT_BUNDLE,
     NORD_BUNDLE,
+    SAGE_BUNDLE,
+    EMBER_BUNDLE,
+    HIGH_CONTRAST_BUNDLE,
 ):
     ThemeManager.register_bundle(_bundle)
 

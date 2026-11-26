@@ -35,6 +35,9 @@ def test_gallery_groups_and_order(qapp):
         "oled",
         "parchment",
         "nord",
+        "sage",
+        "ember",
+        "high_contrast",
     ]
     assert gallery.selected_mode == "system"
     gallery.deleteLater()
