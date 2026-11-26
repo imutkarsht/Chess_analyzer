@@ -67,7 +67,7 @@ class SettingSpec:
 _EXTRA_CHOICE_VALUES: dict[str, set[str]] = {
     # Built-in theme bundles beyond the system/light/dark schema choices.
     # Plugin bundles extend this at registration time via register_choice_values.
-    "theme_mode": {"dracula", "oled"},
+    "theme_mode": {"dracula", "oled", "parchment", "nord"},
 }
 
 

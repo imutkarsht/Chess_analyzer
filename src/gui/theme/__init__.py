@@ -2,7 +2,9 @@ from src.gui.theme.bundle import ThemeBundle
 from src.gui.theme.bundles.dark import DARK_BUNDLE
 from src.gui.theme.bundles.dracula import DRACULA_BUNDLE
 from src.gui.theme.bundles.light import LIGHT_BUNDLE
+from src.gui.theme.bundles.nord import NORD_BUNDLE
 from src.gui.theme.bundles.oled import OLED_BUNDLE
+from src.gui.theme.bundles.parchment import PARCHMENT_BUNDLE
 from src.gui.theme.manager import ELEVATIONS, Elevation, ThemeManager
 from src.gui.theme.motion import Motion, MotionDuration, MotionEasing
 from src.gui.theme.palette import (
@@ -26,7 +28,14 @@ from src.gui.theme.typography import (
     TextTone,
 )
 
-for _bundle in (DARK_BUNDLE, LIGHT_BUNDLE, DRACULA_BUNDLE, OLED_BUNDLE):
+for _bundle in (
+    DARK_BUNDLE,
+    LIGHT_BUNDLE,
+    DRACULA_BUNDLE,
+    OLED_BUNDLE,
+    PARCHMENT_BUNDLE,
+    NORD_BUNDLE,
+):
     ThemeManager.register_bundle(_bundle)
 
 __all__ = [

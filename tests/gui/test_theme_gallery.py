@@ -33,6 +33,8 @@ def test_gallery_groups_and_order(qapp):
     assert [card.value for card in gallery.sections["Themes"].cards] == [
         "dracula",
         "oled",
+        "parchment",
+        "nord",
     ]
     assert gallery.selected_mode == "system"
     gallery.deleteLater()
