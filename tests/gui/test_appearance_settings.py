@@ -1,6 +1,8 @@
 """Appearance cards: board display, layout, theme, and sound controls."""
 
 import pytest
+from PyQt6.QtGui import QColor
+from PyQt6.QtWidgets import QColorDialog
 
 from src.gui.components import TooltipManager
 from src.gui.views.settings.board_pieces_settings import BoardPiecesSettings
@@ -18,7 +20,9 @@ class _FakeConfig:
             "board_theme": "Green",
             "piece_theme": "Standard",
             "accent_mode": "system",
+            "accent_color": "#FF9500",
             "tint_enabled": False,
+            "toast_position": "top_right",
             "board_show_coordinates": True,
             "board_show_classification": True,
             "board_show_best_move_arrow": True,
@@ -229,7 +233,7 @@ def test_piece_theme_change_persists_and_requests_repaint(qapp):
     widget.deleteLater()
 
 
-def test_theme_mode_radio_persists_and_applies_theme(qapp, monkeypatch):
+def test_theme_card_selection_persists_and_applies_theme(qapp, monkeypatch):
     from src.gui.theme import ThemeManager
 
     applied = []
@@ -237,27 +241,11 @@ def test_theme_mode_radio_persists_and_applies_theme(qapp, monkeypatch):
     config = _FakeConfig()
     widget = ThemeAccentSettings(config)
 
-    widget.theme_mode_select.set_current_index(
-        widget.theme_mode_select.find_value("dark"), emit=True
-    )  # Dark
+    widget.gallery.cards["dark"].click()
 
     assert config.config["theme_mode"] == "dark"
     assert applied == ["dark"]
-    widget.deleteLater()
-
-
-def test_custom_accent_mode_reveals_colour_picker(qapp, monkeypatch):
-    from src.gui.theme import ThemeManager
-
-    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
-    config = _FakeConfig()
-    widget = ThemeAccentSettings(config)
-    assert widget.color_btn.isHidden() is True
-
-    widget.accent_mode_custom.click()
-
-    assert config.config["accent_mode"] == "custom"
-    assert widget.color_btn.isHidden() is False
+    assert widget.gallery.cards["dark"].isChecked() is True
     widget.deleteLater()
 
 
@@ -269,14 +257,10 @@ def test_tint_row_is_visible_only_for_light_and_dark(qapp, monkeypatch):
     widget = ThemeAccentSettings(config)
     assert widget.tint_row.isHidden() is True
 
-    widget.theme_mode_select.set_current_index(
-        widget.theme_mode_select.find_value("dark"), emit=True
-    )
+    widget.gallery.cards["dark"].click()
     assert widget.tint_row.isHidden() is False
 
-    widget.theme_mode_select.set_current_index(
-        widget.theme_mode_select.find_value("dracula"), emit=True
-    )
+    widget.gallery.cards["dracula"].click()
     assert widget.tint_row.isHidden() is True
     widget.deleteLater()
 
@@ -297,13 +281,176 @@ def test_tint_checkbox_persists_and_applies(qapp, monkeypatch):
     widget.deleteLater()
 
 
-def test_stored_custom_accent_mode_shows_picker_on_first_render(qapp, monkeypatch):
+def test_accent_preset_writes_config_and_applies(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    applied = []
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
+    monkeypatch.setattr(ThemeManager, "set_accent", lambda color: applied.append(color))
+    monkeypatch.setattr(ThemeManager, "mode", classmethod(lambda cls: "light"))
+    config = _FakeConfig()
+    widget = ThemeAccentSettings(config)
+
+    widget.accent_buttons["Blue"].click()
+
+    assert config.config["accent_color"] == "#3B82F6"
+    assert config.config["accent_mode"] == "custom"
+    assert applied == ["#3B82F6"]
+    assert widget.accent_buttons["Blue"].isChecked() is True
+    assert widget.custom_accent_btn.isChecked() is False
+    widget.deleteLater()
+
+
+def test_dark_mode_accent_presets_are_softer(qapp, monkeypatch):
     from src.gui.theme import ThemeManager
 
     monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
-    widget = ThemeAccentSettings(_FakeConfig({"accent_mode": "custom"}))
+    monkeypatch.setattr(ThemeManager, "mode", classmethod(lambda cls: "dark"))
+    widget = ThemeAccentSettings(_FakeConfig())
 
-    assert widget.color_btn.isHidden() is False
+    assert widget.accent_buttons["Blue"].color == "#6F9BD8"
+    assert widget.accent_buttons["Green"].color == "#5FB894"
+    assert widget.accent_buttons["Orange"].color == "#D9A15E"
+
+    monkeypatch.setattr(ThemeManager, "mode", classmethod(lambda cls: "light"))
+    widget._refresh_accent_presets()
+
+    assert widget.accent_buttons["Blue"].color == "#3B82F6"
+    widget.deleteLater()
+
+
+def test_preset_accent_remaps_when_theme_mode_changes(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    applied = []
+    mode = {"value": "dark"}
+    monkeypatch.setattr(ThemeManager, "mode", classmethod(lambda cls: mode["value"]))
+    monkeypatch.setattr(
+        ThemeManager,
+        "active_bundle_owns_accent",
+        classmethod(lambda cls: False),
+    )
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda _mode: None)
+    monkeypatch.setattr(ThemeManager, "set_accent", lambda color: applied.append(color))
+    config = _FakeConfig(
+        {"theme_mode": "dark", "accent_mode": "custom", "accent_color": "#6F9BD8"}
+    )
+    widget = ThemeAccentSettings(config)
+    assert widget.accent_buttons["Blue"].isChecked() is True
+
+    mode["value"] = "light"
+    widget._refresh_accent_presets()
+    assert config.config["accent_color"] == "#3B82F6"
+    assert applied == ["#3B82F6"]
+    assert widget.accent_buttons["Blue"].isChecked() is True
+
+    mode["value"] = "dark"
+    widget._refresh_accent_presets()
+    assert config.config["accent_color"] == "#6F9BD8"
+    assert applied == ["#3B82F6", "#6F9BD8"]
+    widget.deleteLater()
+
+
+@pytest.mark.parametrize(
+    ("accent_mode", "accent_color"),
+    [("system", "#6F9BD8"), ("custom", "#123456")],
+)
+def test_non_preset_accents_do_not_remap_on_theme_change(
+    qapp, monkeypatch, accent_mode, accent_color
+):
+    from src.gui.theme import ThemeManager
+
+    applied = []
+    mode = {"value": "dark"}
+    monkeypatch.setattr(ThemeManager, "mode", classmethod(lambda cls: mode["value"]))
+    monkeypatch.setattr(
+        ThemeManager,
+        "active_bundle_owns_accent",
+        classmethod(lambda cls: False),
+    )
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda _mode: None)
+    monkeypatch.setattr(ThemeManager, "set_accent", lambda color: applied.append(color))
+    config = _FakeConfig(
+        {
+            "theme_mode": "dark",
+            "accent_mode": accent_mode,
+            "accent_color": accent_color,
+        }
+    )
+    widget = ThemeAccentSettings(config)
+
+    mode["value"] = "light"
+    widget._refresh_accent_presets()
+
+    assert config.config["accent_color"] == accent_color
+    assert applied == []
+    widget.deleteLater()
+
+
+def test_system_accent_action_restores_system_mode(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    applied = []
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: applied.append(mode))
+    monkeypatch.setattr(ThemeManager, "set_accent", lambda color: None)
+    config = _FakeConfig({"accent_mode": "custom", "accent_color": "#3B82F6"})
+    widget = ThemeAccentSettings(config)
+
+    widget.system_accent_btn.click()
+
+    assert config.config["accent_mode"] == "system"
+    assert applied == ["system"]
+    assert widget.system_accent_btn.isChecked() is True
+    assert all(not swatch.isChecked() for swatch in widget.accent_buttons.values())
+    widget.deleteLater()
+
+
+def test_custom_accent_dialog_persists_colour(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    applied = []
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
+    monkeypatch.setattr(ThemeManager, "set_accent", lambda color: applied.append(color))
+    monkeypatch.setattr(
+        QColorDialog,
+        "getColor",
+        lambda *args, **kwargs: QColor("#123456"),
+    )
+    config = _FakeConfig()
+    widget = ThemeAccentSettings(config)
+
+    widget.custom_accent_btn.click()
+
+    assert config.config["accent_color"] == "#123456"
+    assert config.config["accent_mode"] == "custom"
+    assert applied == ["#123456"]
+    assert widget.custom_accent_btn.isChecked() is True
+    widget.deleteLater()
+
+
+def test_stored_custom_accent_selects_matching_preset(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
+    widget = ThemeAccentSettings(
+        _FakeConfig({"accent_mode": "custom", "accent_color": "#3B82F6"})
+    )
+
+    assert widget.accent_buttons["Blue"].isChecked() is True
+    assert widget.custom_accent_btn.isChecked() is False
+    widget.deleteLater()
+
+
+def test_stored_custom_accent_without_preset_marks_custom(qapp, monkeypatch):
+    from src.gui.theme import ThemeManager
+
+    monkeypatch.setattr(ThemeManager, "set_accent_mode", lambda mode: None)
+    widget = ThemeAccentSettings(
+        _FakeConfig({"accent_mode": "custom", "accent_color": "#123456"})
+    )
+
+    assert widget.custom_accent_btn.isChecked() is True
+    assert all(not swatch.isChecked() for swatch in widget.accent_buttons.values())
     widget.deleteLater()
 
 

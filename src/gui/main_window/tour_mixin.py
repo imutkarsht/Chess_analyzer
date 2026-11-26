@@ -610,8 +610,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=app,
-                        title="Theme & Accent",
-                        text="Theme & Accent: Switch between Dark & Light themes and pick a system or custom accent colour.",
+                        title="Appearance",
+                        text="Appearance: Pick a theme card and preview its background, surface, and accent. Tint is available for Light and Dark, and accent presets sit below the gallery.",
                         position="below",
                         page_index=4,
                     )

@@ -225,10 +225,15 @@ class ThemeMixin:
             else:
                 dirty.add(PAGE_EXPLORER)
 
-        if hasattr(self, "history_view") and current != PAGE_HISTORY:
-            # Navigation to History always calls load_history(), which
-            # rebuilds the cards with the live palette.
-            dirty.add(PAGE_HISTORY)
+        if hasattr(self, "history_view"):
+            if current == PAGE_HISTORY:
+                # Rows bake result/termination colours when they are built, so
+                # a visible list must be rebuilt on every accent/theme change.
+                self.history_view.refresh_styles()
+            else:
+                # Navigation to History always calls load_history(), which
+                # rebuilds the cards with the live palette.
+                dirty.add(PAGE_HISTORY)
 
         if self.metrics_view is not None:
             if current == PAGE_METRICS:

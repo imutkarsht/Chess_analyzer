@@ -9,6 +9,7 @@ DARK_BUNDLE = ThemeBundle(
     display_name="Dark",
     palette=DARK,
     mode="dark",
+    description="Dark interface that uses your selected accent colour.",
 )
 
 __all__ = ["DARK_BUNDLE"]

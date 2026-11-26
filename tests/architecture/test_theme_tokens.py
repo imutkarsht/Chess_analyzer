@@ -14,6 +14,11 @@ ALLOWED = {
     "src/gui/theme/system.py",
     "src/gui/theme/bundles/oled.py",
     "src/gui/theme/bundles/dracula.py",
+    "src/gui/theme/bundles/parchment.py",
+    "src/gui/theme/bundles/nord.py",
+    "src/gui/theme/bundles/sage.py",
+    "src/gui/theme/bundles/ember.py",
+    "src/gui/theme/bundles/high_contrast.py",
 }
 HEX = re.compile(r"#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b")
 RGBA = re.compile(r"rgba?\(\s*\d")

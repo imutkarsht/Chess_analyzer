@@ -196,6 +196,29 @@ class ThemeManager(QObject):
         return bundle.palette.with_accent(accent)
 
     @classmethod
+    def preview_palette(cls, bundle_id: str) -> ThemePalette | None:
+        """Resolve how a bundle would look without activating it.
+
+        The appearance gallery uses this to paint accurate background,
+        surface, and accent swatches. It must never mutate the active theme.
+        """
+        bundle = cls._bundles.get(bundle_id)
+        if bundle is None:
+            return None
+
+        accent = cls._accent
+        if bundle.owns_accent and cls._active_bundle_id != bundle_id:
+            # Activating a signature theme adopts its own accent, so preview
+            # it that way unless the user has already overridden it live.
+            accent = bundle.palette.accent
+
+        if cls._tint_enabled and bundle_id in {"light", "dark"}:
+            if bundle_id == "light":
+                return build_tinted_light_palette(accent)
+            return build_tinted_dark_palette(accent)
+        return cls._palette_for_bundle(bundle, accent)
+
+    @classmethod
     def set_bundle(cls, bundle_id: str) -> None:
         """Activate a registered bundle by id and emit ``theme_changed``."""
         bundle = cls._bundles.get(bundle_id)

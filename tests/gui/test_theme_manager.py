@@ -193,6 +193,189 @@ def test_tint_toggle_derives_light_and_dark_palettes(qapp, monkeypatch):
     assert ThemeManager.palette().background == DARK.background
 
 
+def test_preview_palette_resolves_without_activating(qapp, monkeypatch):
+    """Previews use each theme's effective accent without changing the app."""
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_accent("#3B82F6")
+
+        light_preview = ThemeManager.preview_palette("light")
+        assert light_preview is not None
+        assert light_preview.background == LIGHT.background
+        assert light_preview.accent == "#3B82F6"
+
+        # Signature themes preview their own accent when they are not active.
+        dracula_preview = ThemeManager.preview_palette("dracula")
+        assert dracula_preview is not None
+        assert dracula_preview.accent == "#BD93F9"
+
+        assert ThemeManager.theme_mode() == "dark"
+        assert ThemeManager.accent() == "#3B82F6"
+        assert ThemeManager.preview_palette("missing") is None
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_preview_palette_applies_tint_only_to_base_themes(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_theme_mode("dark")
+        ThemeManager.set_accent("#E11D48")
+        ThemeManager.set_tint_enabled(True)
+
+        assert ThemeManager.preview_palette("light").background != LIGHT.background
+        assert ThemeManager.preview_palette("dark").background != DARK.background
+        assert ThemeManager.preview_palette("oled").background == "#000000"
+    finally:
+        ThemeManager.set_tint_enabled(False, apply=False)
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_preview_palette_tracks_live_signature_accent_override(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_bundle("dracula")
+        assert ThemeManager.preview_palette("dracula").accent == "#BD93F9"
+        ThemeManager.set_accent("#123456")
+        assert ThemeManager.preview_palette("dracula").accent == "#123456"
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_parchment_bundle_palette_and_semantics(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_bundle("parchment")
+        palette = ThemeManager.palette()
+        assert palette.background == "#E8DCC6"
+        assert palette.surface == "#F7F0E1"
+        assert palette.text_primary == "#2A241B"
+        assert palette.accent == "#B4441F"
+        assert ThemeManager.mode() == "light"
+        assert ThemeManager.active_bundle_owns_accent() is True
+        assert ThemeManager.get_class_color("Brilliant") == "#006F5D"
+        assert ThemeManager.get_class_color("Blunder") == "#B42318"
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_nord_bundle_palette_and_semantics(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_bundle("nord")
+        palette = ThemeManager.palette()
+        assert palette.background == "#2E3440"
+        assert palette.surface == "#3B4252"
+        assert palette.text_primary == "#ECEFF4"
+        assert palette.accent == "#88C0D0"
+        assert ThemeManager.mode() == "dark"
+        assert ThemeManager.active_bundle_owns_accent() is True
+        assert ThemeManager.get_class_color("Blunder") == "#F0A1A8"
+        assert ThemeManager.get_class_color("Best") == "#A3BE8C"
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_sage_bundle_palette_and_semantics(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_bundle("sage")
+        palette = ThemeManager.palette()
+        assert palette.background == "#DCE3D8"
+        assert palette.surface == "#EEF2EA"
+        assert palette.text_primary == "#1F2A22"
+        assert palette.accent == "#4F7A4A"
+        assert ThemeManager.mode() == "light"
+        assert ThemeManager.active_bundle_owns_accent() is True
+        assert ThemeManager.get_class_color("Brilliant") == "#006F5D"
+        assert ThemeManager.get_class_color("Blunder") == "#B42318"
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_ember_bundle_palette_and_semantics(qapp, monkeypatch):
+    monkeypatch.setattr(ThemeManager, "apply_app_stylesheet", classmethod(lambda cls: None))
+    previous_mode = ThemeManager.theme_mode()
+    previous_accent = ThemeManager.accent()
+
+    try:
+        ThemeManager.set_bundle("ember")
+        palette = ThemeManager.palette()
+        assert palette.background == "#1C1816"
+        assert palette.surface == "#2A2420"
+        assert palette.text_primary == "#F0E6DC"
+        assert palette.accent == "#D97745"
+        assert ThemeManager.mode() == "dark"
+        assert ThemeManager.active_bundle_owns_accent() is True
+        assert ThemeManager.get_class_color("Blunder") == "#F0A1A8"
+        assert ThemeManager.get_class_color("Best") == "#B5C98A"
+    finally:
+        ThemeManager.set_theme_mode(previous_mode)
+        ThemeManager.set_accent(previous_accent)
+
+
+def test_new_themes_are_registered_and_persistable():
+    from src.config.settings_schema import allowed_choice_values, get_spec
+
+    new_themes = {"parchment", "nord", "sage", "ember"}
+    assert new_themes <= set(ThemeManager.registered_bundles())
+    assert new_themes <= allowed_choice_values(get_spec("theme_mode"))
+
+
+def test_all_bundles_have_readable_text_and_accent_contrast(qapp):
+    from src.gui.styles import Styles
+
+    for bundle_id in ThemeManager.registered_bundles():
+        palette = ThemeManager.preview_palette(bundle_id)
+        assert palette is not None
+        assert Styles.contrast_ratio(palette.text_secondary, palette.surface) >= 4.5
+        assert Styles.contrast_ratio(palette.ui_accent, palette.surface) >= 4.5
+        assert Styles.contrast_ratio(palette.on_accent, palette.ui_accent) >= 4.5
+
+
+@pytest.mark.parametrize("bundle_id", ["parchment", "nord", "sage", "ember"])
+def test_new_bundle_classification_and_termination_contrast(qapp, bundle_id):
+    from src.gui.styles import Styles
+
+    bundle = ThemeManager.registered_bundles()[bundle_id]
+    palette = ThemeManager.preview_palette(bundle_id)
+    assert palette is not None
+
+    assert Styles.contrast_ratio(palette.text_primary, palette.background) >= 7.0
+    assert Styles.contrast_ratio(palette.text_primary, palette.surface) >= 7.0
+    assert Styles.contrast_ratio(palette.border_light, palette.surface) >= 1.5
+
+    for color in bundle.classification_colors.values():
+        assert Styles.contrast_ratio(color, palette.surface) >= 4.5
+    for color in bundle.termination_colors.values():
+        assert Styles.contrast_ratio(color, palette.surface) >= 4.5
+
+
 def test_registered_bundles_and_set_bundle_state(qapp, qtbot, monkeypatch):
     """A registered bundle drives palette, mode, class colours, and extra QSS."""
     from src.gui.theme.bundle import ThemeBundle

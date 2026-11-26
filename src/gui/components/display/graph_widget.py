@@ -89,18 +89,39 @@ class GraphWidget(QWidget):
         """Render the plot with the given data arrays."""
         accent = Styles.COLOR_ACCENT
 
-        self.ax.plot(move_nums, evals, color=accent, linewidth=1.5, zorder=1)
+        self.eval_line = self.ax.plot(
+            move_nums, evals, color=accent, linewidth=1.5, zorder=1
+        )[0]
 
+        self.eval_fill_pos = None
+        self.eval_fill_neg = None
         if len(evals) > 1:
-            self.ax.fill_between(move_nums, evals, 0, where=[e >= 0 for e in evals],
-                                 facecolor=accent, alpha=0.15, interpolate=True, zorder=0)
-            self.ax.fill_between(move_nums, evals, 0, where=[e < 0 for e in evals],
-                                 facecolor=accent, alpha=0.30, interpolate=True, zorder=0)
+            self.eval_fill_pos = self.ax.fill_between(
+                move_nums,
+                evals,
+                0,
+                where=[e >= 0 for e in evals],
+                facecolor=accent,
+                alpha=0.15,
+                interpolate=True,
+                zorder=0,
+            )
+            self.eval_fill_neg = self.ax.fill_between(
+                move_nums,
+                evals,
+                0,
+                where=[e < 0 for e in evals],
+                facecolor=accent,
+                alpha=0.30,
+                interpolate=True,
+                zorder=0,
+            )
 
         special_moves = ["Brilliant", "Great", "Miss", "Mistake", "Blunder"]
         scatter_x = []
         scatter_y = []
         scatter_colors = []
+        scatter_classes = []
 
         for i, move in enumerate(all_moves):
             if i < len(evals) - 1 and move.classification and move.classification in special_moves:
@@ -109,10 +130,20 @@ class GraphWidget(QWidget):
                     scatter_x.append(i + 1)
                     scatter_y.append(evals[i + 1])
                     scatter_colors.append(color)
+                    scatter_classes.append(move.classification)
 
+        self.scatter = None
+        self._scatter_classifications = scatter_classes
         if scatter_x:
-            self.ax.scatter(scatter_x, scatter_y, c=scatter_colors, s=40, zorder=3,
-                            edgecolors='white', linewidths=1)
+            self.scatter = self.ax.scatter(
+                scatter_x,
+                scatter_y,
+                c=scatter_colors,
+                s=40,
+                zorder=3,
+                edgecolors="white",
+                linewidths=1,
+            )
 
         zero_line = self.ax.axhline(0, color=Styles.COLOR_BORDER, linestyle='--', linewidth=1, zorder=0)
         zero_line._is_zero_line = True
@@ -252,6 +283,7 @@ class GraphWidget(QWidget):
         self.move_clicked.emit(move_index)
 
     def refresh_styles(self):
+        accent = Styles.COLOR_ACCENT
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
         self.figure.patch.set_facecolor(Styles.COLOR_SURFACE)
         self.ax.spines['top'].set_visible(False)
@@ -261,6 +293,28 @@ class GraphWidget(QWidget):
         self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
         self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
         self.ax.title.set_color(Styles.COLOR_TEXT_PRIMARY)
+        self.ax.grid(
+            True,
+            color=Styles.COLOR_GRAPH_GRID,
+            linestyle=":",
+            alpha=0.3,
+        )
+
+        if getattr(self, "eval_line", None) is not None:
+            self.eval_line.set_color(accent)
+        if getattr(self, "eval_fill_pos", None) is not None:
+            self.eval_fill_pos.set_facecolor(accent)
+            self.eval_fill_pos.set_alpha(0.15)
+        if getattr(self, "eval_fill_neg", None) is not None:
+            self.eval_fill_neg.set_facecolor(accent)
+            self.eval_fill_neg.set_alpha(0.30)
+        if getattr(self, "scatter", None) is not None:
+            colors = [
+                Styles.get_class_color(classification)
+                for classification in self._scatter_classifications
+            ]
+            self.scatter.set_facecolors(colors)
+
         for line in self.ax.lines:
             if getattr(line, '_is_zero_line', False):
                 line.set_color(Styles.COLOR_BORDER)
@@ -270,6 +324,8 @@ class GraphWidget(QWidget):
             self.annot.get_bbox_patch().set_facecolor(Styles.COLOR_SURFACE_LIGHT)
             self.annot.get_bbox_patch().set_edgecolor(Styles.COLOR_BORDER)
             self.annot.set_color(Styles.COLOR_TEXT_PRIMARY)
+            if self.annot.arrow_patch is not None:
+                self.annot.arrow_patch.set_color(Styles.COLOR_TEXT_SECONDARY)
         self.canvas.draw_idle()
 
     def clear(self):
@@ -283,4 +339,9 @@ class GraphWidget(QWidget):
         self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
         self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
         self.current_move_line = None
+        self.eval_line = None
+        self.eval_fill_pos = None
+        self.eval_fill_neg = None
+        self.scatter = None
+        self._scatter_classifications = []
         self.canvas.draw()

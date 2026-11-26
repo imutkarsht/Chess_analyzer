@@ -1032,13 +1032,14 @@ QGroupBox[settingsCard="true"] {{
     background: transparent;
     border: none;
     margin-top: 18px;
-    padding: 6px 0 0 0;
+    padding: 18px 0 0 0;
+    font-weight: 700;
 }}
 QGroupBox[settingsCard="true"]::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
     left: 0px;
-    padding: 0 0 6px 0;
+    padding: 0 0 28px 0;
 }}
 
 QFrame#SettingsDivider,
@@ -1082,6 +1083,41 @@ QToolButton#PieceThemeCard:hover {{
 }}
 QToolButton#PieceThemeCard:checked {{
     border: 2px solid {ACCENT};
+}}
+
+/* Appearance theme gallery. The preview strip, check badge, and label text are
+   painted/owned by ThemeCard; only the card chrome lives here. */
+QPushButton#ThemeCard {{
+    background-color: {SURFACE_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+    padding: 0px;
+    text-align: left;
+}}
+QPushButton#ThemeCard:hover {{
+    background-color: {SURFACE_LIGHT};
+    border-color: {BORDER_LIGHT};
+}}
+QPushButton#ThemeCard:pressed {{
+    background-color: {HIGHLIGHT};
+}}
+QPushButton#ThemeCard:checked {{
+    border: 2px solid {ACCENT};
+}}
+QPushButton#ThemeCard:checked:hover {{
+    border-color: {ACCENT_HOVER};
+}}
+/* Focus uses the strongest text ink so it cannot be mistaken for selection,
+   which owns the accent border and the check badge. */
+QPushButton#ThemeCard:focus {{
+    border: 2px solid {TEXT_PRIMARY};
+}}
+QPushButton#ThemeCard:checked:focus {{
+    border: 2px solid {ACCENT};
+}}
+QPushButton#ThemeCard:disabled {{
+    background-color: {SURFACE_CARD};
+    border-color: {BORDER};
 }}
 
 /* Metric card chrome is defined above; its children inherit the card

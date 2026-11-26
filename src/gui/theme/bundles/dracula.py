@@ -87,6 +87,7 @@ DRACULA_BUNDLE = ThemeBundle(
     display_name="Dracula",
     palette=DRACULA_PALETTE,
     mode="dark",
+    description="Dark purple-on-charcoal theme with vivid move-quality colours.",
     owns_accent=True,
     classification_colors=DRACULA_CLASSIFICATION_COLORS,
     termination_colors=DRACULA_TERMINATION_COLORS,
