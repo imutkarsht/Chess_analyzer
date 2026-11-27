@@ -113,13 +113,14 @@ class _ButtonMixin:
             fg = danger_text
             border = danger_text
             if variant == "primary":
-                # Solid destructive button: white label/icon on the red fill.
+                # Solid destructive button: high-contrast ink on the red fill.
+                on_danger = cls.on_accent_for(danger_fill)
                 bg = danger_fill
-                fg = on_acc
+                fg = on_danger
                 border = danger_fill
-                hover = (p.danger_hover, on_acc, p.danger_hover)
-                pressed = (p.danger_pressed, on_acc, p.danger_pressed)
-                checked = (p.danger_hover, on_acc, p.danger_hover)
+                hover = (p.danger_hover, on_danger, p.danger_hover)
+                pressed = (p.danger_pressed, on_danger, p.danger_pressed)
+                checked = (p.danger_hover, on_danger, p.danger_hover)
             elif variant in ("filled", "tonal"):
                 bg = danger_subtle
                 border = "transparent"

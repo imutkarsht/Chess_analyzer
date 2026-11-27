@@ -320,6 +320,14 @@ class MainWindow(
             if batch_running:
                 self.batch_controller._stop_batch_for_exit()
 
+        # Stop any open in-window overlays and their panel workers
+        overlay_manager = getattr(self, "_overlay_manager", None)
+        if overlay_manager is not None:
+            try:
+                overlay_manager.shutdown()
+            except Exception as e:
+                logger.error(f"Failed to stop overlay manager: {e}")
+
         # Stop the shared live-engine sessions cleanly
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "session"):
             try:

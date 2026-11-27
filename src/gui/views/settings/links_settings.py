@@ -303,19 +303,19 @@ class LinksSettings(BackgroundTaskCard):
         self._open(f"mailto:{AUTHOR_EMAIL}")
 
     def open_feedback(self):
-        from src.gui.dialogs.feedback_dialog import FeedbackDialog
+        from src.gui.components import open_feedback_dialog
 
-        FeedbackDialog(self, initial_tab="bug").exec()
+        open_feedback_dialog(self, initial_tab="bug")
 
     def open_suggest_feature(self):
-        from src.gui.dialogs.feedback_dialog import FeedbackDialog
+        from src.gui.components import open_feedback_dialog
 
-        FeedbackDialog(self, initial_tab="feature").exec()
+        open_feedback_dialog(self, initial_tab="feature")
 
     def open_review(self):
-        from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
+        from src.gui.dialogs.review_prompt_dialog import open_review_prompt
 
-        ReviewPromptDialog(self, games_count=0).exec()
+        open_review_prompt(self, games_count=0)
 
     def check_for_updates(self):
         """Manually check for updates without blocking the UI thread."""
@@ -332,9 +332,9 @@ class LinksSettings(BackgroundTaskCard):
     def _on_update_checked(self, update_info, app_version: str) -> None:
         self._reset_update_button()
         if update_info.available:
-            from src.gui.dialogs import UpdateNotificationDialog
+            from src.gui.dialogs import open_update_overlay
 
-            UpdateNotificationDialog(update_info, self).exec()
+            open_update_overlay(update_info, self)
         else:
             self._toast(f"You're up to date (v{app_version}).")
 

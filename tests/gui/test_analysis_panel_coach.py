@@ -15,7 +15,6 @@ import chess
 import chess.pgn
 import pytest
 from PyQt6.QtCore import QThread, pyqtSignal
-from PyQt6.QtWidgets import QDialog
 
 from src.backend.storage.cache import AnalysisCache
 from src.backend.storage.models import GameAnalysis, GameMetadata, MoveAnalysis
@@ -147,9 +146,10 @@ class TestAskGate:
         assert _StubWorker.created == []  # debounce holds the request back
 
     def test_unconfigured_provider_shows_the_settings_prompt(self, panel, monkeypatch):
+        prompted = []
         monkeypatch.setattr(
-            "src.gui.dialogs.llm_error_dialog.LlmNotConfiguredDialog.exec",
-            lambda self: QDialog.DialogCode.Rejected,
+            "src.gui.dialogs.llm_error_dialog.open_llm_not_configured",
+            lambda _parent: prompted.append(True) or False,
         )
         coach = panel.coach_tab.coach_panel
         panel.coach_tab.set_llm_service(_StubService())
@@ -158,6 +158,7 @@ class TestAskGate:
 
         coach.coach_card.btn_ask.click()
 
+        assert prompted == [True]
         assert coach._coach_debounce.isActive() is False
         assert _StubWorker.created == []
 

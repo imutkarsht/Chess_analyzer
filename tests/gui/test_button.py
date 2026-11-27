@@ -144,6 +144,22 @@ def test_danger_text_is_readable_on_the_active_surface(qapp):
     assert Styles.contrast_ratio(Styles.COLOR_DANGER_TEXT, Styles.COLOR_SURFACE) >= 4.5
 
 
+def test_solid_danger_button_keeps_white_ink_under_bright_accent(qapp):
+    """Solid danger primary buttons stay readable even when ON_ACCENT is black."""
+    from src.gui.styles import Styles
+    from src.gui.theme import ThemeManager
+
+    previous_accent = ThemeManager.accent()
+    try:
+        ThemeManager.set_accent("#FF9500")
+        assert Styles.COLOR_ON_ACCENT == "#000000"
+        assert Styles.contrast_ratio(Styles.COLOR_ON_DANGER, Styles.COLOR_DANGER_FILL) >= 4.5
+        btn = Button("Delete", ButtonVariant.PRIMARY, danger=True)
+        assert btn._icon_color() == Styles.COLOR_ON_DANGER
+    finally:
+        ThemeManager.set_accent(previous_accent)
+
+
 def test_click_runs_the_handler(qtbot):
     calls = []
     button = _button(qtbot, "Run", on_click=lambda: calls.append(True))

@@ -7,11 +7,9 @@ import traceback
 
 from PyQt6.QtCore import QObject, Qt
 from PyQt6.QtWidgets import (
-    QDialog,
-    QHBoxLayout,
     QLabel,
     QMessageBox,
-    QVBoxLayout,
+    QWidget,
 )
 
 from src.constants import PAGE_SETTINGS
@@ -29,7 +27,50 @@ def confirm_dialog(
     cancel_label: str = "Cancel",
     danger: bool = True,
 ) -> bool:
-    """Show a lightweight, themed Yes/No confirmation dialog."""
+    """Show a themed in-window confirmation overlay.
+
+    Falls back to the legacy QDialog path when no windowed parent is available.
+    """
+    # Resolve a widget so we can reach OverlayManager.
+    widget: QWidget | None = None
+    if isinstance(parent, QWidget):
+        widget = parent
+
+    if widget is not None:
+        try:
+            from src.gui.components.feedback.overlay_card import OverlayResult
+            from src.gui.components.feedback.overlay_manager import OverlayManager
+
+            manager = OverlayManager.for_window(widget)
+            card = manager.create_card(
+                title=title,
+                description=message,
+                max_width=460,
+                dismiss_on_escape=not danger,
+                dismiss_on_backdrop=not danger,
+                show_close=not danger,
+                destructive=danger,
+            )
+
+            cancel_btn = Button(cancel_label, ButtonVariant.HOLLOW, on_click=card.reject)
+            confirm_btn = Button(
+                confirm_label,
+                ButtonVariant.PRIMARY,
+                danger=danger,
+                on_click=card.accept,
+            )
+            card.add_action(cancel_btn)
+            card.add_action(confirm_btn, primary=True)
+            card.set_initial_focus(cancel_btn if danger else confirm_btn)
+
+            result = manager.open_blocking(card)
+            return result is OverlayResult.ACCEPTED
+        except Exception:
+            logger.warning("confirm_dialog overlay failed, falling back", exc_info=True)
+
+    # Fallback: plain QDialog for windows that have no overlay host yet.
+    from PyQt6.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout
+
     dialog = QDialog(parent)
     dialog.setWindowTitle(title)
     dialog.setModal(True)
@@ -135,20 +176,33 @@ def show_error_dialog(
 
 
 def open_llm_settings(parent) -> None:
-    """Offer the LLM setup dialog, then open Settings when accepted."""
-    from src.gui.dialogs.llm_error_dialog import LlmNotConfiguredDialog
+    """Offer the LLM setup dialog as an in-window overlay, then open Settings."""
+    from src.gui.dialogs.llm_error_dialog import open_llm_not_configured
 
-    dialog = LlmNotConfiguredDialog(parent)
-    if dialog.exec() != QDialog.DialogCode.Accepted or not dialog.wants_configure():
+    wants_configure = open_llm_not_configured(parent)
+    if not wants_configure:
         return
-    window = parent.window()
-    if hasattr(window, "sidebar") and hasattr(window, "switch_page"):
+    window = parent.window() if isinstance(parent, QWidget) else None
+    if window is not None and hasattr(window, "sidebar") and hasattr(window, "switch_page"):
         window.sidebar.set_active(PAGE_SETTINGS)
         window.switch_page(PAGE_SETTINGS)
 
 
-def open_feedback_dialog(parent, *, initial_tab: str = "bug") -> None:
-    """Open the unified feedback dialog on the requested tab."""
-    from src.gui.dialogs.feedback_dialog import FeedbackDialog
+def open_feedback_dialog(
+    parent,
+    *,
+    initial_tab: str = "bug",
+    initial_title: str = "",
+    initial_message: str = "",
+    initial_logs: str = "",
+) -> None:
+    """Open the unified feedback dialog as an in-window overlay."""
+    from src.gui.dialogs.feedback_dialog import open_feedback_overlay
 
-    FeedbackDialog(parent, initial_tab=initial_tab).exec()
+    open_feedback_overlay(
+        parent,
+        initial_tab=initial_tab,
+        initial_title=initial_title,
+        initial_message=initial_message,
+        initial_logs=initial_logs,
+    )

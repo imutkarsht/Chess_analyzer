@@ -1,22 +1,25 @@
-"""
-Update Notification Dialog — shows when a new version is available.
+# SPDX-License-Identifier: GPL-3.0-only
+"""Update Notification panel, dialog wrapper, and overlay launcher.
 
 States
 ------
-IDLE        → shows "Download Update" + "Remind Later"
-DOWNLOADING → shows progress bar + "Cancel" (buttons replaced by QStackedWidget)
-DONE        → platform-specific finish panel:
-               Windows : "Installing…  App will restart automatically."
-               macOS   : "Saved to ~/Downloads  →  Open in Finder" button
-               Linux   : "Applying update…  App will relaunch automatically."
-ERROR       → shows error text + "Open in Browser" fallback
+IDLE        -> shows "Download Update" + "Remind Later"
+DOWNLOADING -> shows progress bar + "Cancel" (buttons replaced by QStackedWidget)
+DONE        -> platform-specific finish panel:
+               Windows : "Installing...  App will restart automatically."
+               macOS   : "Saved to ~/Downloads  ->  Open DMG" button
+               Linux   : "Applying update...  App will relaunch automatically."
+ERROR       -> shows error text + "Open in Browser" fallback
 """
+
+from __future__ import annotations
 
 import os
 import re
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
+    QApplication,
     QDialog,
     QHBoxLayout,
     QStackedWidget,
@@ -35,6 +38,7 @@ from src.gui.components import (
     ButtonVariant,
     IconLabel,
     Label,
+    OverlayManager,
     ProgressBar,
     ProgressBarVariant,
     RichTextLabel,
@@ -43,190 +47,152 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 from src.gui.utils.links import open_path, open_url
-from src.utils.logger import logger  # src/gui/dialogs/ → src/utils/
+from src.utils.logger import logger
 from src.workers import DownloadWorker
 
-# ---------------------------------------------------------------------------
-# Footer page indices inside QStackedWidget
-# ---------------------------------------------------------------------------
-_PAGE_BUTTONS    = 0   # default: Remind Later + Download
-_PAGE_PROGRESS   = 1   # downloading: progress bar + Cancel
-_PAGE_DONE       = 2   # done / installing
-_PAGE_ERROR      = 3   # download failed
+_PAGE_BUTTONS = 0
+_PAGE_PROGRESS = 1
+_PAGE_DONE = 2
+_PAGE_ERROR = 3
 
 
-class UpdateNotificationDialog(QDialog):
-    """Dialog to notify user of an available update and manage the download."""
+class UpdateNotificationPanel(QWidget):
+    """Version delta, formatted changelog, and self-contained download state machine."""
 
-    def __init__(self, update_info, parent=None):
+    accepted = pyqtSignal()
+    rejected = pyqtSignal()
+    download_active_changed = pyqtSignal(bool)
+
+    def __init__(self, update_info, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.update_info  = update_info
+        self.update_info = update_info
         self._worker: DownloadWorker | None = None
+        self._dest_path = ""
+        self._pending_install_path = ""
+        self._changelog_browser: QTextBrowser | None = None
+        self._install_timer = QTimer(self)
+        self._install_timer.setSingleShot(True)
+        self._install_timer.timeout.connect(self._on_install_timeout)
+        ThemeManager.instance().theme_changed.connect(self._refresh_changelog_theme)
+        self._build_ui()
 
-        self.setWindowTitle("Update Available")
-        self.setMinimumSize(540, 480)
-        self.resize(560, 520)
-
-        self._setup_ui()
-
-    # ------------------------------------------------------------------ UI --
-
-    def _setup_ui(self):
+    def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
+        root.setSpacing(14)
 
-        root.addWidget(self._build_header())
-        root.addWidget(self._build_changelog(), stretch=1)
+        root.addLayout(self._build_version_row())
+        if self.update_info.changelog:
+            root.addWidget(self._build_changelog(), 1)
         root.addWidget(self._build_footer())
 
-    # ── Header ──────────────────────────────────────────────────────────────
-
-    def _build_header(self) -> QWidget:
-        w = QWidget()
-        w.setObjectName("updateHeader")
-        layout = QVBoxLayout(w)
-        layout.setContentsMargins(24, 18, 24, 14)
-        layout.setSpacing(0)
-
-        # ── Single header row ──────────────────────────────────────────────
-        # Left:  [↑ icon]  Update Available
-        # Right: v2.0.1 → v9.9.9   [.exe pill]
-        title_row = QHBoxLayout()
-        title_row.setSpacing(10)
-
-        ic = IconLabel("fa5s.arrow-circle-up", size=24, tone=TextTone.ACCENT)
-        title_row.addWidget(ic)
-
-        title = Label("Update Available", role=TextRole.DIALOG_TITLE, weight=700)
-        title_row.addWidget(title)
-        title_row.addStretch()
-
-        # Version string: grey current → accent latest
-        ver_widget = QWidget()
-        Styles.apply_transparent(ver_widget, borderless=False)
-        ver_lay = QHBoxLayout(ver_widget)
-        ver_lay.setContentsMargins(0, 0, 0, 0)
-        ver_lay.setSpacing(4)
-
-        lbl_cur = Label(
-            f"v{self.update_info.current}",
-            role=TextRole.BODY,
-            weight=500,
-            tone=TextTone.MUTED,
+    def _build_version_row(self) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(
+            Label(f"v{self.update_info.current}", role=TextRole.BODY, tone=TextTone.MUTED)
         )
-        ver_lay.addWidget(lbl_cur)
-
-        arr = Label("→", role=TextRole.BODY, tone=TextTone.MUTED)
-        ver_lay.addWidget(arr)
-
-        lbl_new = Label(
-            f"v{self.update_info.latest}",
-            role=TextRole.BODY,
-            weight=700,
-            tone=TextTone.ACCENT,
+        row.addWidget(Label("→", role=TextRole.BODY, tone=TextTone.MUTED))
+        row.addWidget(
+            Label(
+                f"v{self.update_info.latest}",
+                role=TextRole.BODY,
+                weight=700,
+                tone=TextTone.ACCENT,
+            )
         )
-        ver_lay.addWidget(lbl_new)
-        title_row.addWidget(ver_widget)
+        row.addStretch()
 
-        # Short format badge: ".exe" / ".dmg" / ".AppImage"
-        _short = {
-            "win32":  ".exe",
+        short_fmt = {
+            "win32": ".exe",
             "darwin": ".dmg",
-            "linux":  ".AppImage",
+            "linux": ".AppImage",
         }.get(PLATFORM, ".pkg")
-
-        fmt_badge = StatusBadge(
-            _short,
-            TextTone.ACCENT,
-            variant="outline",
-            font_size=11,
-            weight=700,
-            padding="2px 8px",
-            radius=8,
+        row.addWidget(
+            StatusBadge(
+                short_fmt,
+                TextTone.ACCENT,
+                variant="outline",
+                font_size=11,
+                weight=700,
+                padding="2px 8px",
+                radius=8,
+            )
         )
-        title_row.addWidget(fmt_badge)
-
-        layout.addLayout(title_row)
-
-        return w
-
-
-    # ── Changelog ───────────────────────────────────────────────────────────
+        return row
 
     def _build_changelog(self) -> QWidget:
-        w = QWidget()
+        w = QWidget(self)
         layout = QVBoxLayout(w)
-        layout.setContentsMargins(24, 14, 24, 14)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        if self.update_info.changelog:
-            top_row = QHBoxLayout()
-            lbl = Label("What's New", role=TextRole.BODY, weight=600)
-            top_row.addWidget(lbl)
-            top_row.addStretch()
-
-            if self.update_info.html_url:
-                btn_gh = Button(
+        top_row = QHBoxLayout()
+        top_row.addWidget(Label("What's New", role=TextRole.BODY, weight=600))
+        top_row.addStretch()
+        if self.update_info.html_url:
+            top_row.addWidget(
+                Button(
                     "View on GitHub ↗",
                     ButtonVariant.LINK,
                     on_click=self._open_github_release,
                 )
-                top_row.addWidget(btn_gh)
+            )
+        layout.addLayout(top_row)
 
-            layout.addLayout(top_row)
-
-            changelog_text = QTextBrowser()
-            changelog_text.setObjectName("changelogText")
-            changelog_text.setReadOnly(True)
-            changelog_text.setOpenExternalLinks(True)
-            changelog_text.setHtml(self._format_changelog_html(self.update_info.changelog))
-            changelog_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-            changelog_text.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-            layout.addWidget(changelog_text)
-
+        changelog_text = QTextBrowser()
+        changelog_text.setObjectName("changelogText")
+        changelog_text.setReadOnly(True)
+        changelog_text.setOpenExternalLinks(True)
+        changelog_text.setMinimumHeight(180)
+        changelog_text.setHtml(self.format_changelog_html(self.update_info.changelog))
+        changelog_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        changelog_text.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._changelog_browser = changelog_text
+        layout.addWidget(changelog_text, 1)
         return w
 
-    # ── Footer (stacked) ────────────────────────────────────────────────────
+    def _refresh_changelog_theme(self, *_args) -> None:
+        if self._changelog_browser is not None and self.update_info.changelog:
+            self._changelog_browser.setHtml(
+                self.format_changelog_html(self.update_info.changelog)
+            )
 
     def _build_footer(self) -> QWidget:
-        outer = QWidget()
-        outer.setObjectName("updateFooter")
+        outer = QWidget(self)
         outer_layout = QVBoxLayout(outer)
-        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setContentsMargins(0, 4, 0, 0)
         outer_layout.setSpacing(0)
 
-        self._footer_stack = QStackedWidget()
-        self._footer_stack.addWidget(self._page_buttons())   # 0
-        self._footer_stack.addWidget(self._page_progress())  # 1
-        self._footer_stack.addWidget(self._page_done())      # 2
-        self._footer_stack.addWidget(self._page_error())     # 3
+        self._footer_stack = QStackedWidget(outer)
+        self._footer_stack.addWidget(self._page_buttons())
+        self._footer_stack.addWidget(self._page_progress())
+        self._footer_stack.addWidget(self._page_done())
+        self._footer_stack.addWidget(self._page_error())
         self._footer_stack.setCurrentIndex(_PAGE_BUTTONS)
 
         outer_layout.addWidget(self._footer_stack)
         return outer
 
-    # -- Page 0: buttons
     def _page_buttons(self) -> QWidget:
-        w = QWidget()
+        w = QWidget(self._footer_stack)
         layout = QHBoxLayout(w)
-        layout.setContentsMargins(24, 16, 24, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-
-        btn_later = Button(
-            "Remind Later",
-            ButtonVariant.FILLED,
-            icon="fa5s.clock",
-            on_click=self.reject,
-        )
-        btn_later.setFixedHeight(40)
-        layout.addWidget(btn_later, 0, Qt.AlignmentFlag.AlignVCenter)
 
         layout.addStretch()
 
-        # Download button + hint (stacked vertically)
+        btn_later = Button(
+            "Remind Later",
+            ButtonVariant.HOLLOW,
+            icon="fa5s.clock",
+            on_click=self.rejected.emit,
+        )
+        layout.addWidget(btn_later, 0, Qt.AlignmentFlag.AlignVCenter)
+
         dl_col = QVBoxLayout()
         dl_col.setSpacing(4)
 
@@ -236,7 +202,6 @@ class UpdateNotificationDialog(QDialog):
             icon="fa5s.download",
             on_click=self._start_download,
         )
-        self._btn_download.setFixedHeight(40)
         dl_col.addWidget(self._btn_download)
 
         if self.update_info.install_hint:
@@ -252,14 +217,12 @@ class UpdateNotificationDialog(QDialog):
         layout.addLayout(dl_col)
         return w
 
-    # -- Page 1: progress
     def _page_progress(self) -> QWidget:
-        w = QWidget()
+        w = QWidget(self._footer_stack)
         layout = QVBoxLayout(w)
-        layout.setContentsMargins(24, 14, 24, 14)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
-        # Status label + percentage
         top_row = QHBoxLayout()
         self._lbl_status = Label("Downloading…", role=TextRole.BODY, weight=600)
         top_row.addWidget(self._lbl_status)
@@ -272,33 +235,27 @@ class UpdateNotificationDialog(QDialog):
         self._progress_bar.setValue(0)
         layout.addWidget(self._progress_bar)
 
-        btn_cancel = Button("Cancel", ButtonVariant.FILLED, on_click=self._cancel_download)
-        btn_cancel.setFixedWidth(90)
+        btn_cancel = Button("Cancel", ButtonVariant.HOLLOW, on_click=self.cancel_download)
         cancel_row = QHBoxLayout()
         cancel_row.addStretch()
         cancel_row.addWidget(btn_cancel)
         layout.addLayout(cancel_row)
-
         return w
 
-    # -- Page 2: done
     def _page_done(self) -> QWidget:
-        w = QWidget()
+        w = QWidget(self._footer_stack)
         layout = QVBoxLayout(w)
-        layout.setContentsMargins(24, 16, 24, 16)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
         row = QHBoxLayout()
         row.setSpacing(10)
-
-        ic = IconLabel("fa5s.check-circle", size=22, tone=TextTone.BEST)
-        row.addWidget(ic)
+        row.addWidget(IconLabel("fa5s.check-circle", size=22, tone=TextTone.BEST))
 
         self._lbl_done_title = Label("", role=TextRole.BODY, weight=600)
         row.addWidget(self._lbl_done_title)
         row.addStretch()
 
-        # macOS only: "Open in Finder" button (hidden on other platforms)
         self._btn_open_finder = Button(
             "Open in Finder",
             ButtonVariant.PRIMARY,
@@ -307,50 +264,41 @@ class UpdateNotificationDialog(QDialog):
         )
         self._btn_open_finder.hide()
         row.addWidget(self._btn_open_finder)
-
         layout.addLayout(row)
 
-        self._lbl_done_sub = Label(
-            "", role=TextRole.MICRO, tone=TextTone.MUTED, wrap=True
-        )
+        self._lbl_done_sub = Label("", role=TextRole.MICRO, tone=TextTone.MUTED, wrap=True)
         layout.addWidget(self._lbl_done_sub)
-
         return w
 
-    # -- Page 3: error
     def _page_error(self) -> QWidget:
-        w = QWidget()
+        w = QWidget(self._footer_stack)
         layout = QHBoxLayout(w)
-        layout.setContentsMargins(24, 16, 24, 16)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
 
         err_col = QVBoxLayout()
         err_col.setSpacing(4)
-
         self._lbl_error = Label("Download failed.", role=TextRole.BODY, weight=600)
         err_col.addWidget(self._lbl_error)
-
         self._lbl_error_detail = Label(
             "", role=TextRole.MICRO, tone=TextTone.MUTED, wrap=True
         )
         err_col.addWidget(self._lbl_error_detail)
 
-        layout.addLayout(err_col)
-        layout.addStretch()
-
-        btn_browser = Button(
-            "Open in Browser",
-            ButtonVariant.PRIMARY,
-            icon="fa5s.external-link-alt",
-            on_click=self._open_in_browser,
+        layout.addLayout(err_col, 1)
+        layout.addWidget(
+            Button(
+                "Open in Browser",
+                ButtonVariant.PRIMARY,
+                icon="fa5s.external-link-alt",
+                on_click=self._open_in_browser,
+            )
         )
-        layout.addWidget(btn_browser)
-
         return w
 
     # ---------------------------------------------------------------- Slots --
 
-    def _start_download(self):
+    def _start_download(self) -> None:
         url = self.update_info.download_url
         if not url:
             self._open_in_browser()
@@ -363,6 +311,7 @@ class UpdateNotificationDialog(QDialog):
         self._progress_bar.setValue(0)
         self._lbl_status.setText("Downloading…")
         self._lbl_pct.setText("0 %")
+        self.download_active_changed.emit(True)
 
         self._worker = DownloadWorker(url, dest, parent=self)
         self._worker.progress.connect(self._on_progress)
@@ -370,34 +319,37 @@ class UpdateNotificationDialog(QDialog):
         self._worker.error.connect(self._on_download_error)
         self._worker.start()
 
-    def _cancel_download(self):
-        if self._worker:
-            self._worker.cancel()
-            self._worker.wait(2000)
-            self._worker = None
+    def cancel_download(self) -> None:
+        self._install_timer.stop()
+        self._pending_install_path = ""
+        worker = self._worker
+        self._worker = None
+        if worker is not None:
+            worker.cancel()
+            worker.wait(2000)
+        self.download_active_changed.emit(False)
         self._footer_stack.setCurrentIndex(_PAGE_BUTTONS)
 
-    def _on_progress(self, pct: int):
+    def _on_progress(self, pct: int) -> None:
         self._progress_bar.setValue(pct)
         self._lbl_pct.setText(f"{pct} %")
 
-    def _on_download_finished(self, local_path: str):
+    def _on_download_finished(self, local_path: str) -> None:
         self._worker = None
+        self.download_active_changed.emit(False)
         self._footer_stack.setCurrentIndex(_PAGE_DONE)
         self._configure_done_page(local_path)
 
-        if PLATFORM == "win32":
-            # Delay slightly so the user sees "Installing…" before the app quits
-            QTimer.singleShot(1500, lambda: self._do_install(local_path))
-        elif PLATFORM == "darwin":
-            # macOS: open the DMG; user drags manually — we quit after opening
-            QTimer.singleShot(1500, lambda: self._do_install(local_path))
-        else:
-            # Linux: swap script runs after we quit
-            QTimer.singleShot(1200, lambda: self._do_install(local_path))
+        delay = 1500 if PLATFORM in ("win32", "darwin") else 1200
+        self._pending_install_path = local_path
+        self._install_timer.start(delay)
 
-    def _do_install(self, local_path: str):
-        from PyQt6.QtWidgets import QApplication
+    def _on_install_timeout(self) -> None:
+        path = self._pending_install_path
+        if path:
+            self._do_install(path)
+
+    def _do_install(self, local_path: str) -> None:
         try:
             install_and_quit(local_path, QApplication.instance().quit)
         except Exception as exc:
@@ -407,27 +359,26 @@ class UpdateNotificationDialog(QDialog):
                 f"{exc}\n\nYou can install manually from the browser.",
             )
 
-    def _on_download_error(self, msg: str):
+    def _on_download_error(self, msg: str) -> None:
         self._worker = None
+        self.download_active_changed.emit(False)
         if "cancelled" in msg.lower():
             self._footer_stack.setCurrentIndex(_PAGE_BUTTONS)
             return
         self._show_error_page("Download failed.", msg)
 
-    def _show_error_page(self, title: str, detail: str):
+    def _show_error_page(self, title: str, detail: str) -> None:
         self._lbl_error.setText(title)
         self._lbl_error_detail.setText(detail)
         self._footer_stack.setCurrentIndex(_PAGE_ERROR)
 
-    def _configure_done_page(self, local_path: str):
-        """Set the done-page labels and buttons depending on platform."""
+    def _configure_done_page(self, local_path: str) -> None:
         if PLATFORM == "win32":
             self._lbl_done_title.setText("Installing update…")
             self._lbl_done_sub.setText(
                 "The installer is running. Chess Analyzer Pro will restart automatically."
             )
             self._btn_open_finder.hide()
-
         elif PLATFORM == "darwin":
             filename = os.path.basename(local_path)
             self._lbl_done_title.setText("Saved to ~/Downloads")
@@ -436,37 +387,39 @@ class UpdateNotificationDialog(QDialog):
             )
             self._btn_open_finder.show()
             self._btn_open_finder.setText("Open DMG")
-            self._dest_path = local_path   # used by _open_in_finder
-
-        else:  # Linux
+            self._dest_path = local_path
+        else:
             self._lbl_done_title.setText("Applying update…")
             self._lbl_done_sub.setText(
                 "The new AppImage will launch automatically after this window closes."
             )
             self._btn_open_finder.hide()
 
-    def _open_in_finder(self):
-        """macOS: reveal the DMG in Finder (used by the 'Open DMG' button)."""
+    def _open_in_finder(self) -> None:
         import subprocess
+
         try:
             subprocess.Popen(["open", "-R", self._dest_path])
         except Exception:
             open_path(os.path.dirname(self._dest_path))
 
-    def _open_in_browser(self):
+    def _open_in_browser(self) -> None:
         url = self.update_info.html_url or self.update_info.download_url
         if url:
             open_url(url)
-        self.accept()
+        self.accepted.emit()
 
-    def _open_github_release(self):
-        url = self.update_info.html_url or "https://github.com/imutkarsht/chess-analyzer/releases"
+    def _open_github_release(self) -> None:
+        url = (
+            self.update_info.html_url
+            or "https://github.com/imutkarsht/chess-analyzer/releases"
+        )
         open_url(url)
 
     # ------------------------------------------------------------- Helpers --
 
     @classmethod
-    def _format_changelog_html(cls, raw_md: str) -> str:
+    def format_changelog_html(cls, raw_md: str) -> str:
         """Format GitHub release notes markdown into clean, well-styled HTML."""
         if not raw_md or not raw_md.strip():
             return f"<p style='color: {Styles.COLOR_TEXT_MUTED}; font-style: italic;'>No release notes provided.</p>"
@@ -484,7 +437,6 @@ class UpdateNotificationDialog(QDialog):
                     in_list = False
                 continue
 
-            # Markdown headings
             if stripped.startswith("### "):
                 if in_list:
                     html_parts.append("</ul>")
@@ -513,9 +465,7 @@ class UpdateNotificationDialog(QDialog):
                 )
                 continue
 
-            # List items (- or * or •)
-            is_bullet = stripped.startswith(("- ", "* ", "• "))
-            if is_bullet:
+            if stripped.startswith(("- ", "* ", "• ")):
                 if not in_list:
                     html_parts.append(
                         "<ul style='margin: 4px 0 8px 0; padding-left: 18px; list-style-type: disc;'>"
@@ -531,7 +481,6 @@ class UpdateNotificationDialog(QDialog):
                 html_parts.append("</ul>")
                 in_list = False
 
-            # Regular paragraph
             content = cls._inline_format(stripped)
             html_parts.append(
                 f"<p style='color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; line-height: 1.55; margin: 4px 0 6px 0;'>{content}</p>"
@@ -549,29 +498,23 @@ class UpdateNotificationDialog(QDialog):
 
     @classmethod
     def _inline_format(cls, text: str) -> str:
-        # Convert `code`
         text = re.sub(
             r"`([^`]+)`",
             rf"<code style='background-color: {Styles.COLOR_SURFACE}; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 1px 4px; border-radius: 3px; font-family: monospace;'>\1</code>",
             text,
         )
-        # Convert **bold**
         text = re.sub(
             r"\*\*([^*]+)\*\*",
             rf"<strong style='color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600;'>\1</strong>",
             text,
         )
-        # Convert *italic*
         text = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", text)
-
-        # Convert markdown links: [label](url)
         text = re.sub(
             r"\[([^\]]+)\]\((https?://[^\)]+)\)",
             rf'<a href="\2" style="color: {Styles.COLOR_ACCENT}; text-decoration: underline;">\1</a>',
             text,
         )
 
-        # Convert plain URLs to clickable links: https://... or http://...
         def _replace_url(match: re.Match) -> str:
             url = match.group(0)
             trailing = ""
@@ -583,17 +526,87 @@ class UpdateNotificationDialog(QDialog):
                 f' text-decoration: underline;">{url}</a>{trailing}'
             )
 
-        text = re.sub(r'(?<!href=["\'])(?<![">])(https?://[^\s<"]+)', _replace_url, text)
-        return text
+        return re.sub(
+            r'(?<!href=["\'])(?<![">])(https?://[^\s<"]+)', _replace_url, text
+        )
 
-    @staticmethod
-    def _clean_markdown(text: str) -> str:
-        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-        text = re.sub(r'\*(.+?)\*',     r'\1', text)
-        text = re.sub(r'^###\s+(.+)$',  r'\n\1:', text, flags=re.MULTILINE)
-        text = re.sub(r'^##\s+(.+)$',   r'\n\1:', text, flags=re.MULTILINE)
-        text = re.sub(r'^#\s+(.+)$',    r'\n\1:', text, flags=re.MULTILINE)
-        text = re.sub(r'^\*\s+',        '• ',     text, flags=re.MULTILINE)
-        text = re.sub(r'^-\s+',         '• ',     text, flags=re.MULTILINE)
-        text = re.sub(r'\n{3,}',        '\n\n',   text)
-        return text.strip()
+
+class UpdateNotificationDialog(QDialog):
+    """Native QDialog wrapper around ``UpdateNotificationPanel``."""
+
+    def __init__(self, update_info, parent=None):
+        super().__init__(parent)
+        self.update_info = update_info
+        self.setWindowTitle("Update Available")
+        self.setMinimumSize(540, 480)
+        self.resize(560, 520)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(24, 20, 24, 20)
+        root.setSpacing(14)
+
+        title_row = QHBoxLayout()
+        title_row.setSpacing(10)
+        title_row.addWidget(
+            IconLabel("fa5s.arrow-circle-up", size=24, tone=TextTone.ACCENT)
+        )
+        title_row.addWidget(
+            Label("Update Available", role=TextRole.DIALOG_TITLE, weight=600)
+        )
+        title_row.addStretch()
+        root.addLayout(title_row)
+
+        self.panel = UpdateNotificationPanel(update_info, self)
+        self.panel.accepted.connect(self.accept)
+        self.panel.rejected.connect(self.reject)
+        root.addWidget(self.panel, 1)
+
+    def reject(self) -> None:
+        self.panel.cancel_download()
+        super().reject()
+
+    def closeEvent(self, event) -> None:
+        self.panel.cancel_download()
+        super().closeEvent(event)
+
+    @classmethod
+    def _format_changelog_html(cls, raw_md: str) -> str:
+        return UpdateNotificationPanel.format_changelog_html(raw_md)
+
+    @classmethod
+    def _inline_format(cls, text: str) -> str:
+        return UpdateNotificationPanel._inline_format(text)
+
+
+def open_update_overlay(update_info, parent) -> None:
+    """Open the update notification panel as an in-window overlay."""
+    if isinstance(parent, QWidget):
+        try:
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="Update Available",
+                description=f"Version v{update_info.latest} is ready to download.",
+                max_width=600,
+                minimum_width=420,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=True,
+            )
+            panel = UpdateNotificationPanel(update_info, card)
+            card.set_content(panel)
+
+            def on_download_active(active: bool) -> None:
+                card.dismiss_on_backdrop = not active
+                card.dismiss_on_escape = not active
+                card.close_button.setVisible(not active)
+
+            panel.download_active_changed.connect(on_download_active)
+            panel.accepted.connect(card.accept)
+            panel.rejected.connect(card.reject)
+
+            card.add_cleanup(panel.cancel_download)
+            manager.open(card)
+            return
+        except Exception:
+            logger.warning("open_update_overlay failed, falling back", exc_info=True)
+
+    UpdateNotificationDialog(update_info, parent).exec()

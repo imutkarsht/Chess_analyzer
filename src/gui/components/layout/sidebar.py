@@ -271,6 +271,5 @@ class Sidebar(QFrame):
             anim.deleteLater()
 
     def show_help(self):
-        from src.gui.dialogs import ShortcutHelpDialog
-        dialog = ShortcutHelpDialog(self)
-        dialog.exec()
+        from src.gui.dialogs.shortcut_help_dialog import open_shortcut_help_overlay
+        open_shortcut_help_overlay(self)

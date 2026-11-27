@@ -53,6 +53,7 @@ class ShortcutManager(QObject):
         self._overrides: dict[str, list[str]] = {}
         self.preset = DEFAULT_SHORTCUT_PRESET
         self._typing = False
+        self._suspended = False
         app = QApplication.instance()
         if app is not None:
             app.focusChanged.connect(self._on_focus_changed)
@@ -133,6 +134,38 @@ class ShortcutManager(QObject):
         """Run an action's callback directly (used by tests)."""
         self._require(action_id).callback()
 
+    @property
+    def suspended(self) -> bool:
+        return self._suspended
+
+    def set_suspended(self, suspended: bool) -> None:
+        """Disable every window shortcut while a modal overlay owns the UI.
+
+        Focus changes inside the overlay must not re-enable typing-sensitive
+        bindings, so ``_on_focus_changed`` honours this flag too.
+        """
+        suspended = bool(suspended)
+        if suspended == self._suspended:
+            return
+        self._suspended = suspended
+        for action in self._actions.values():
+            for shortcut in action.shortcuts:
+                if sip.isdeleted(shortcut):
+                    continue
+                shortcut.setEnabled(
+                    not suspended
+                    and not (self._typing and self._types_text(shortcut.key()))
+                )
+
+    def owned_shortcuts(self) -> list[QShortcut]:
+        """Shortcuts controlled by this manager (excluding other window ones)."""
+        return [
+            shortcut
+            for action in self._actions.values()
+            for shortcut in action.shortcuts
+            if not sip.isdeleted(shortcut)
+        ]
+
     def _require(self, action_id: str) -> ShortcutAction:
         try:
             return self._actions[action_id]
@@ -151,7 +184,9 @@ class ShortcutManager(QObject):
                 continue
             shortcut = QShortcut(seq, self._window)
             shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
-            shortcut.setEnabled(not (self._typing and self._types_text(seq)))
+            shortcut.setEnabled(
+                not self._suspended and not (self._typing and self._types_text(seq))
+            )
             shortcut.activated.connect(action.callback)
             action.shortcuts.append(shortcut)
 
@@ -168,6 +203,8 @@ class ShortcutManager(QObject):
         if typing == self._typing:
             return
         self._typing = typing
+        if self._suspended:
+            return
         for action in self._actions.values():
             for shortcut in action.shortcuts:
                 if not sip.isdeleted(shortcut) and self._types_text(shortcut.key()):
