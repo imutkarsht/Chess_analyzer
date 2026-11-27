@@ -1,8 +1,9 @@
-"""
-Unified Feedback, Bug Report, and Feature Suggestion Dialog.
-Clean, modern design matching Chess Analyzer Pro standards.
-"""
-from PyQt6.QtCore import Qt
+# SPDX-License-Identifier: GPL-3.0-only
+"""Unified Feedback, Bug Report, and Feature Suggestion panel and dialog."""
+
+from __future__ import annotations
+
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -21,6 +22,7 @@ from src.gui.components import (
     IconLabel,
     Input,
     Label,
+    OverlayManager,
     StarRatingWidget,
     Tabs,
     TabVariant,
@@ -32,75 +34,46 @@ from src.utils.config import ConfigManager
 from src.workers import FeedbackWorker
 
 
-class FeedbackDialog(QDialog):
+class FeedbackPanel(QWidget):
+    """Content panel for bug reports, feature suggestions, and reviews.
+
+    Embeds cleanly in ``OverlayCard`` (which supplies the header, close button,
+    and footer actions) or inside the legacy ``FeedbackDialog`` shell.
     """
-    Unified dialog with 3 modes:
-      1. Bug Report (POST /api/feedback, type="bug")
-      2. Feature Suggestion (POST /api/feedback, type="feature")
-      3. Review (POST /api/reviews)
-    """
+
+    done_requested = pyqtSignal()
+    tab_changed = pyqtSignal(str)
+    submitting_changed = pyqtSignal(bool)
+    submitted = pyqtSignal()
+    content_resized = pyqtSignal()
+
+    _TAB_IDS = ("bug", "feature", "review")
 
     def __init__(
         self,
-        parent=None,
+        *,
         initial_tab: str = "bug",
         initial_title: str = "",
         initial_message: str = "",
         initial_logs: str = "",
-    ):
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Feedback & Support")
-        self.setModal(True)
-        self.resize(600, 600)
-        self.setMinimumSize(540, 560)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
-
         self.config_manager = ConfigManager()
-        self._worker = None
+        self._worker: FeedbackWorker | None = None
         self._current_tab = initial_tab
         self._initial_title = initial_title
         self._initial_message = initial_message
         self._initial_logs = initial_logs or get_recent_logs(max_chars=1000)
 
-        self.setup_ui()
+        self._build_ui()
         self._select_tab(self._current_tab)
 
-    def setup_ui(self):
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-
-        root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 0, 0, 0)
-        root_layout.setSpacing(0)
-
-        # ── Header Bar ──────────────────────────────────────────────────────
-        header_bar = QWidget()
-        header_bar.setObjectName("FeedbackHeader")
-        header_bar.setFixedHeight(58)
-        header_layout = QHBoxLayout(header_bar)
-        header_layout.setContentsMargins(24, 0, 24, 0)
-        header_layout.setSpacing(12)
-
-        icon_lbl = IconLabel(
-            "fa5s.comment-dots",
-            size=22,
-            tone=TextTone.ACCENT,
-            fallback="💬",
-        )
-        header_layout.addWidget(icon_lbl)
-
-        title_lbl = Label("Feedback & Support", role=TextRole.DIALOG_TITLE, weight=700)
-        header_layout.addWidget(title_lbl)
-        header_layout.addStretch()
-
-        root_layout.addWidget(header_bar)
-
-        # ── Body Content ────────────────────────────────────────────────────
-        body_widget = QWidget()
-        body_layout = QVBoxLayout(body_widget)
-        body_layout.setContentsMargins(24, 20, 24, 20)
+    def _build_ui(self) -> None:
+        body_layout = QVBoxLayout(self)
+        body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(16)
 
-        # Tab selector: the shared accent-filled segmented control.
         self.tabs = Tabs(
             TabVariant.SEGMENTED,
             active_style="accent",
@@ -115,164 +88,113 @@ class FeedbackDialog(QDialog):
         self.tabs.current_changed.connect(self._on_tab_index_changed)
         body_layout.addWidget(self.tabs)
 
-        # Stacked Pages
         self.stacked_widget = QStackedWidget(self)
 
-        # Page 0: Bug Report
-        self.page_bug = QWidget()
+        self.page_bug = QWidget(self.stacked_widget)
         self._setup_bug_page(self.page_bug)
         self.stacked_widget.addWidget(self.page_bug)
 
-        # Page 1: Feature Request
-        self.page_feature = QWidget()
+        self.page_feature = QWidget(self.stacked_widget)
         self._setup_feature_page(self.page_feature)
         self.stacked_widget.addWidget(self.page_feature)
 
-        # Page 2: Review
-        self.page_review = QWidget()
+        self.page_review = QWidget(self.stacked_widget)
         self._setup_review_page(self.page_review)
         self.stacked_widget.addWidget(self.page_review)
 
-        # Page 3: Success Confirmation
-        self.page_success = QWidget()
+        self.page_success = QWidget(self.stacked_widget)
         self._setup_success_page(self.page_success)
         self.stacked_widget.addWidget(self.page_success)
 
         body_layout.addWidget(self.stacked_widget, 1)
 
-        # Status / Error Label
         self.status_lbl = Label("", role=TextRole.CAPTION, tone=TextTone.BLUNDER)
         self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_lbl.hide()
         body_layout.addWidget(self.status_lbl)
-
-        # Bottom Action Buttons
-        self.bottom_bar = QWidget()
-        btn_layout = QHBoxLayout(self.bottom_bar)
-        btn_layout.setContentsMargins(0, 4, 0, 0)
-        btn_layout.setSpacing(12)
-
-        self.btn_cancel = Button(
-            "Cancel",
-            ButtonVariant.FILLED,
-            tooltip="Close without sending feedback",
-        )
-        self.btn_cancel.clicked.connect(self.reject)
-        btn_layout.addWidget(self.btn_cancel)
-
-        btn_layout.addStretch()
-
-        self.btn_submit = Button(
-            "Submit",
-            ButtonVariant.PRIMARY,
-            tooltip="Send this feedback",
-        )
-        self.btn_submit.clicked.connect(self._on_submit)
-        btn_layout.addWidget(self.btn_submit)
-
-        body_layout.addWidget(self.bottom_bar)
-        root_layout.addWidget(body_widget)
-
-    _TAB_IDS = ("bug", "feature", "review")
 
     def _on_tab_index_changed(self, index: int) -> None:
         if 0 <= index < len(self._TAB_IDS):
             self._switch_tab(self._TAB_IDS[index])
 
     def _select_tab(self, tab_id: str) -> None:
-        """Show ``tab_id`` programmatically, keeping the tab bar in sync."""
         if tab_id not in self._TAB_IDS:
-            return
+            tab_id = "bug"
         index = self._TAB_IDS.index(tab_id)
         if self.tabs.current_index() == index:
             self._switch_tab(tab_id)
         else:
             self.tabs.set_current_index(index)
 
-    def _switch_tab(self, tab_id: str):
+    def _switch_tab(self, tab_id: str) -> None:
         self._current_tab = tab_id
         self.status_lbl.hide()
+        index = self._TAB_IDS.index(tab_id)
+        self.stacked_widget.setCurrentIndex(index)
+        self.tab_changed.emit(tab_id)
+        self.content_resized.emit()
 
-        if tab_id == "bug":
-            self.stacked_widget.setCurrentIndex(0)
-            self.btn_submit.setText("Submit Bug Report")
-            self.btn_submit.setToolTip("Send this bug report")
-            submit_icon = "fa5s.paper-plane"
-        elif tab_id == "feature":
-            self.stacked_widget.setCurrentIndex(1)
-            self.btn_submit.setText("Submit Feature Request")
-            self.btn_submit.setToolTip("Send this feature request")
-            submit_icon = "fa5s.paper-plane"
-        else:
-            self.stacked_widget.setCurrentIndex(2)
-            self.btn_submit.setText("Submit Review")
-            self.btn_submit.setToolTip("Send this rating and review")
-            submit_icon = "fa5s.star"
+    def submit_meta(self) -> tuple[str, str, str]:
+        """Return ``(button_text, tooltip, icon_spec)`` for the active tab."""
+        if self._current_tab == "bug":
+            return ("Submit Bug Report", "Send this bug report", "fa5s.paper-plane")
+        if self._current_tab == "feature":
+            return (
+                "Submit Feature Request",
+                "Send this feature request",
+                "fa5s.paper-plane",
+            )
+        return ("Submit Review", "Send this rating and review", "fa5s.star")
 
-        self.btn_submit.set_icon_spec(submit_icon)
+    @staticmethod
+    def _field_group(label_text: str, field: QWidget, *, caption: bool = False) -> QVBoxLayout:
+        group = QVBoxLayout()
+        group.setContentsMargins(0, 0, 0, 0)
+        group.setSpacing(6)
+        group.addWidget(
+            Label(
+                label_text,
+                role=TextRole.CAPTION if caption else TextRole.BODY,
+                weight=600,
+                tone=TextTone.SECONDARY if caption else TextTone.PRIMARY,
+            )
+        )
+        group.addWidget(field)
+        return group
 
-        self.bottom_bar.show()
-
-    def _setup_bug_page(self, page: QWidget):
+    def _setup_bug_page(self, page: QWidget) -> None:
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 6, 0, 0)
-        layout.setSpacing(10)
-
-        # Title
-        lbl_title = Label("Bug Summary:", role=TextRole.BODY, weight=600)
-        layout.addWidget(lbl_title)
+        layout.setContentsMargins(0, 4, 0, 0)
+        layout.setSpacing(14)
 
         self.bug_title_input = Input(
             self._initial_title,
             "e.g. Engine stopped responding on move 42",
         )
-        layout.addWidget(self.bug_title_input)
-
-        # Description
-        lbl_desc = Label("What happened?", role=TextRole.BODY, weight=600)
-        layout.addWidget(lbl_desc)
+        layout.addLayout(self._field_group("Bug Summary", self.bug_title_input))
 
         self.bug_desc_input = TextArea(
             self._initial_message,
             "Please describe what you were doing when the issue occurred...",
-            min_height=85,
+            min_height=96,
         )
-        layout.addWidget(self.bug_desc_input)
+        layout.addLayout(self._field_group("What happened?", self.bug_desc_input))
 
-        # Email & Name row
         meta_layout = QHBoxLayout()
         meta_layout.setSpacing(12)
-
-        v1 = QVBoxLayout()
-        v1.setSpacing(4)
-        lbl_email = Label(
-            "Your Email:",
-            role=TextRole.CAPTION,
-            weight=600,
-            tone=TextTone.SECONDARY,
-        )
-        v1.addWidget(lbl_email)
         self.bug_email_input = Input(placeholder="To get notified when resolved")
-        v1.addWidget(self.bug_email_input)
-        meta_layout.addLayout(v1)
-
-        v2 = QVBoxLayout()
-        v2.setSpacing(4)
-        lbl_name = Label(
-            "Your Name:",
-            role=TextRole.CAPTION,
-            weight=600,
-            tone=TextTone.SECONDARY,
+        meta_layout.addLayout(
+            self._field_group("Your Email", self.bug_email_input, caption=True), 1
         )
-        v2.addWidget(lbl_name)
-        default_user = self.config_manager.chesscom_username or self.config_manager.lichess_username
+        default_user = (
+            self.config_manager.chesscom_username or self.config_manager.lichess_username
+        )
         self.bug_name_input = Input(default_user, "Player handle or name")
-        v2.addWidget(self.bug_name_input)
-        meta_layout.addLayout(v2)
-
+        meta_layout.addLayout(
+            self._field_group("Your Name", self.bug_name_input, caption=True), 1
+        )
         layout.addLayout(meta_layout)
 
-        # Diagnostic logs row
         log_header_layout = QHBoxLayout()
         self.cb_include_logs = Checkbox(
             "Attach diagnostic log excerpt (recommended)",
@@ -280,7 +202,6 @@ class FeedbackDialog(QDialog):
         )
         self.cb_include_logs.setChecked(True)
         log_header_layout.addWidget(self.cb_include_logs)
-
         log_header_layout.addStretch()
 
         self.btn_toggle_log = Button(
@@ -293,20 +214,18 @@ class FeedbackDialog(QDialog):
         log_header_layout.addWidget(self.btn_toggle_log)
         layout.addLayout(log_header_layout)
 
-        # Log preview text box (initially collapsed)
         self.log_preview_box = TextArea(
-            (self._initial_logs or "(No recent log entries)"),
+            self._initial_logs or "(No recent log entries)",
             variant="code",
-            min_height=75,
+            min_height=80,
             font_size=11,
             readonly=True,
         )
         self.log_preview_box.hide()
         layout.addWidget(self.log_preview_box)
-
         layout.addStretch()
 
-    def _toggle_log_preview(self):
+    def _toggle_log_preview(self) -> None:
         if self.log_preview_box.isVisible():
             self.log_preview_box.hide()
             self.btn_toggle_log.setText("Preview Log")
@@ -315,108 +234,77 @@ class FeedbackDialog(QDialog):
             self.log_preview_box.show()
             self.btn_toggle_log.setText("Hide Log")
             self.btn_toggle_log.setToolTip("Hide the diagnostic log excerpt")
+        self.content_resized.emit()
 
-    def _setup_feature_page(self, page: QWidget):
+    def _setup_feature_page(self, page: QWidget) -> None:
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 6, 0, 0)
-        layout.setSpacing(12)
-
-        # Feature Title
-        lbl_title = Label("Feature Title:", role=TextRole.BODY, weight=600)
-        layout.addWidget(lbl_title)
+        layout.setContentsMargins(0, 4, 0, 0)
+        layout.setSpacing(14)
 
         self.feat_title_input = Input(
             placeholder="e.g. Opening book explorer support for ECO codes",
         )
-        layout.addWidget(self.feat_title_input)
-
-        # Description
-        lbl_desc = Label("Describe your idea:", role=TextRole.BODY, weight=600)
-        layout.addWidget(lbl_desc)
+        layout.addLayout(self._field_group("Feature Title", self.feat_title_input))
 
         self.feat_desc_input = TextArea(
             placeholder="Explain how this feature would work and why it would be helpful...",
-            min_height=110,
+            min_height=115,
         )
-        layout.addWidget(self.feat_desc_input)
+        layout.addLayout(self._field_group("Describe your idea", self.feat_desc_input))
 
-        # Email & Name row
         meta_layout = QHBoxLayout()
         meta_layout.setSpacing(12)
-
-        v1 = QVBoxLayout()
-        v1.setSpacing(4)
-        lbl_email = Label(
-            "Your Email:",
-            role=TextRole.CAPTION,
-            weight=600,
-            tone=TextTone.SECONDARY,
-        )
-        v1.addWidget(lbl_email)
         self.feat_email_input = Input(placeholder="Email address")
-        v1.addWidget(self.feat_email_input)
-        meta_layout.addLayout(v1)
-
-        v2 = QVBoxLayout()
-        v2.setSpacing(4)
-        lbl_name = Label(
-            "Your Name:",
-            role=TextRole.CAPTION,
-            weight=600,
-            tone=TextTone.SECONDARY,
+        meta_layout.addLayout(
+            self._field_group("Your Email", self.feat_email_input, caption=True), 1
         )
-        v2.addWidget(lbl_name)
-        default_user = self.config_manager.chesscom_username or self.config_manager.lichess_username
+        default_user = (
+            self.config_manager.chesscom_username or self.config_manager.lichess_username
+        )
         self.feat_name_input = Input(default_user, "Player handle or name")
-        v2.addWidget(self.feat_name_input)
-        meta_layout.addLayout(v2)
-
+        meta_layout.addLayout(
+            self._field_group("Your Name", self.feat_name_input, caption=True), 1
+        )
         layout.addLayout(meta_layout)
         layout.addStretch()
 
-    def _setup_review_page(self, page: QWidget):
+    def _setup_review_page(self, page: QWidget) -> None:
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 6, 0, 0)
+        layout.setContentsMargins(0, 4, 0, 0)
         layout.setSpacing(14)
 
-        # Star Rating
-        self.review_star_widget = StarRatingWidget(self, initial_rating=5, star_size=32, show_label=True)
+        self.review_star_widget = StarRatingWidget(
+            self, initial_rating=5, star_size=32, show_label=True
+        )
         layout.addWidget(self.review_star_widget)
 
-        # Name
-        lbl_name = Label("Your Name:", role=TextRole.BODY, weight=600)
-        layout.addWidget(lbl_name)
-
-        default_user = self.config_manager.chesscom_username or self.config_manager.lichess_username
+        default_user = (
+            self.config_manager.chesscom_username or self.config_manager.lichess_username
+        )
         self.review_name_input = Input(default_user, "e.g. Grandmaster99")
-        layout.addWidget(self.review_name_input)
-
-        # Comment
-        lbl_comment = Label("Your Review:", role=TextRole.BODY, weight=600)
-        layout.addWidget(lbl_comment)
+        layout.addLayout(self._field_group("Your Name", self.review_name_input))
 
         self.review_comment_input = TextArea(
             placeholder="Share your experience with Chess Analyzer Pro...",
-            min_height=90,
+            min_height=96,
         )
-        layout.addWidget(self.review_comment_input)
-
+        layout.addLayout(self._field_group("Your Review", self.review_comment_input))
         layout.addStretch()
 
-    def _setup_success_page(self, page: QWidget):
+    def _setup_success_page(self, page: QWidget) -> None:
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 40, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(16, 28, 16, 16)
+        layout.setSpacing(14)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = Label("✅", role=TextRole.STAT, size=48)
+        icon_lbl = IconLabel("fa5s.check-circle", size=44, tone=TextTone.BEST, fallback="✓")
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_lbl)
 
         self.success_title = Label(
             "Submission Received!",
             role=TextRole.DIALOG_TITLE,
-            weight=700,
+            weight=600,
         )
         self.success_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.success_title)
@@ -430,17 +318,17 @@ class FeedbackDialog(QDialog):
         self.success_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.success_desc)
 
-        layout.addSpacing(16)
+        layout.addSpacing(12)
 
         btn_done = Button(
             "Done",
             ButtonVariant.PRIMARY,
             tooltip="Close this dialog",
+            on_click=self.done_requested.emit,
         )
-        btn_done.clicked.connect(self.accept)
         layout.addWidget(btn_done, alignment=Qt.AlignmentFlag.AlignCenter)
 
-    def _on_submit(self):
+    def submit(self) -> None:
         self.status_lbl.hide()
 
         if self._current_tab == "bug":
@@ -457,18 +345,15 @@ class FeedbackDialog(QDialog):
                 return
 
             logs = self._initial_logs if self.cb_include_logs.isChecked() else ""
-
-            self._set_submitting(True)
-            self._worker = FeedbackWorker(
+            self._start_worker(
                 FeedbackService.submit_bug_report,
+                "Bug report submitted!",
                 title=title,
                 message=message,
                 name=name,
                 email=email,
                 logs=logs,
             )
-            self._worker.finished.connect(lambda s, m, d: self._on_submission_finished(s, m, d, "Bug report submitted!"))
-            self._worker.start()
 
         elif self._current_tab == "feature":
             title = self.feat_title_input.text().strip()
@@ -483,16 +368,14 @@ class FeedbackDialog(QDialog):
                 self._show_error("Please describe your feature idea.")
                 return
 
-            self._set_submitting(True)
-            self._worker = FeedbackWorker(
+            self._start_worker(
                 FeedbackService.submit_feature_request,
+                "Feature request submitted!",
                 title=title,
                 message=message,
                 name=name,
                 email=email,
             )
-            self._worker.finished.connect(lambda s, m, d: self._on_submission_finished(s, m, d, "Feature request submitted!"))
-            self._worker.start()
 
         elif self._current_tab == "review":
             rating = self.review_star_widget.get_rating()
@@ -502,35 +385,242 @@ class FeedbackDialog(QDialog):
 
             name = self.review_name_input.text().strip()
             comment = self.review_comment_input.toPlainText().strip()
-
-            self._set_submitting(True)
-            self._worker = FeedbackWorker(
+            self._start_worker(
                 FeedbackService.submit_review,
+                "Review submitted!",
                 rating=rating,
                 comment=comment,
                 username=name,
             )
-            self._worker.finished.connect(lambda s, m, d: self._on_submission_finished(s, m, d, "Review submitted!"))
-            self._worker.start()
 
-    def _set_submitting(self, submitting: bool):
-        self.btn_submit.setEnabled(not submitting)
-        self.btn_submit.setText("Submitting..." if submitting else "Submit")
+    def _start_worker(self, fn, success_title: str, **kwargs) -> None:
+        self.submitting_changed.emit(True)
+        worker = FeedbackWorker(fn, **kwargs)
+        worker.finished.connect(
+            lambda s, m, d: self._on_submission_finished(s, m, d, success_title)
+        )
+        self._worker = worker
+        worker.start()
 
-    def _show_error(self, message: str):
+    def _show_error(self, message: str) -> None:
         self.status_lbl.setText(message)
         self.status_lbl.set_tone(TextTone.BLUNDER)
         self.status_lbl.show()
+        self.content_resized.emit()
 
-    def _on_submission_finished(self, success: bool, message: str, data: dict, custom_success_title: str):
-        self._set_submitting(False)
+    def _on_submission_finished(
+        self, success: bool, message: str, _data: dict, custom_success_title: str
+    ) -> None:
+        self._worker = None
+        self.submitting_changed.emit(False)
 
         if success:
             if self._current_tab == "review":
                 self.config_manager.set("review_submitted", True)
             self.success_title.setText(custom_success_title)
             self.success_desc.setText(message)
-            self.bottom_bar.hide()
+            self.tabs.hide()
             self.stacked_widget.setCurrentIndex(3)
+            self.submitted.emit()
+            self.content_resized.emit()
         else:
             self._show_error(message)
+
+    def shutdown(self) -> None:
+        worker = self._worker
+        self._worker = None
+        if worker is not None and worker.isRunning():
+            worker.quit()
+            worker.wait(1000)
+
+
+class FeedbackDialog(QDialog):
+    """Native QDialog wrapper around ``FeedbackPanel``."""
+
+    def __init__(
+        self,
+        parent=None,
+        initial_tab: str = "bug",
+        initial_title: str = "",
+        initial_message: str = "",
+        initial_logs: str = "",
+    ):
+        super().__init__(parent)
+        self.setWindowTitle("Feedback & Support")
+        self.setModal(True)
+        self.resize(600, 600)
+        self.setMinimumSize(540, 560)
+        self.setWindowFlags(
+            self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
+        self.panel = FeedbackPanel(
+            initial_tab=initial_tab,
+            initial_title=initial_title,
+            initial_message=initial_message,
+            initial_logs=initial_logs,
+            parent=self,
+        )
+        self._setup_ui()
+        self._sync_submit_button()
+
+    def _setup_ui(self) -> None:
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        header_bar = QWidget()
+        header_bar.setObjectName("FeedbackHeader")
+        header_bar.setFixedHeight(58)
+        header_layout = QHBoxLayout(header_bar)
+        header_layout.setContentsMargins(24, 0, 24, 0)
+        header_layout.setSpacing(12)
+        header_layout.addWidget(
+            IconLabel("fa5s.comment-dots", size=22, tone=TextTone.ACCENT, fallback="💬")
+        )
+        header_layout.addWidget(
+            Label("Feedback & Support", role=TextRole.DIALOG_TITLE, weight=600)
+        )
+        header_layout.addStretch()
+        root_layout.addWidget(header_bar)
+
+        body_widget = QWidget()
+        body_layout = QVBoxLayout(body_widget)
+        body_layout.setContentsMargins(24, 20, 24, 20)
+        body_layout.setSpacing(16)
+        body_layout.addWidget(self.panel, 1)
+
+        self.bottom_bar = QWidget()
+        btn_layout = QHBoxLayout(self.bottom_bar)
+        btn_layout.setContentsMargins(0, 4, 0, 0)
+        btn_layout.setSpacing(12)
+
+        self.btn_cancel = Button(
+            "Cancel",
+            ButtonVariant.HOLLOW,
+            tooltip="Close without sending feedback",
+            on_click=self.reject,
+        )
+        btn_layout.addWidget(self.btn_cancel)
+        btn_layout.addStretch()
+
+        self.btn_submit = Button(
+            "Submit",
+            ButtonVariant.PRIMARY,
+            tooltip="Send this feedback",
+            on_click=self.panel.submit,
+        )
+        btn_layout.addWidget(self.btn_submit)
+        body_layout.addWidget(self.bottom_bar)
+        root_layout.addWidget(body_widget)
+
+        self.panel.tab_changed.connect(lambda _tab: self._sync_submit_button())
+        self.panel.submitting_changed.connect(self._on_submitting_changed)
+        self.panel.submitted.connect(self.bottom_bar.hide)
+        self.panel.done_requested.connect(self.accept)
+
+    def _sync_submit_button(self) -> None:
+        text, tooltip, icon = self.panel.submit_meta()
+        self.btn_submit.setText(text)
+        self.btn_submit.setToolTip(tooltip)
+        self.btn_submit.set_icon_spec(icon)
+
+    def _on_submitting_changed(self, submitting: bool) -> None:
+        self.btn_submit.setEnabled(not submitting)
+        self.btn_submit.setText("Submitting..." if submitting else self.panel.submit_meta()[0])
+
+    def reject(self) -> None:
+        self.panel.shutdown()
+        super().reject()
+
+    def closeEvent(self, event) -> None:
+        self.panel.shutdown()
+        super().closeEvent(event)
+
+
+def open_feedback_overlay(
+    parent,
+    *,
+    initial_tab: str = "bug",
+    initial_title: str = "",
+    initial_message: str = "",
+    initial_logs: str = "",
+) -> None:
+    """Open the Feedback panel as an in-window overlay."""
+    if not isinstance(parent, QWidget):
+        FeedbackDialog(
+            parent,
+            initial_tab=initial_tab,
+            initial_title=initial_title,
+            initial_message=initial_message,
+            initial_logs=initial_logs,
+        ).exec()
+        return
+
+    try:
+        manager = OverlayManager.for_window(parent)
+        card = manager.create_card(
+            title="Feedback & Support",
+            description="Send a bug report, suggest a feature, or leave a review.",
+            max_width=600,
+            minimum_width=400,
+            dismiss_on_escape=True,
+            dismiss_on_backdrop=False,
+        )
+        panel = FeedbackPanel(
+            initial_tab=initial_tab,
+            initial_title=initial_title,
+            initial_message=initial_message,
+            initial_logs=initial_logs,
+            parent=card,
+        )
+        card.set_content(panel)
+
+        cancel_btn = Button(
+            "Cancel",
+            ButtonVariant.HOLLOW,
+            tooltip="Close without sending feedback",
+            on_click=card.reject,
+        )
+        text, tooltip, icon = panel.submit_meta()
+        submit_btn = Button(
+            text,
+            ButtonVariant.PRIMARY,
+            icon=icon,
+            tooltip=tooltip,
+            on_click=panel.submit,
+        )
+        card.add_action(cancel_btn)
+        card.add_action(submit_btn, primary=True)
+
+        def sync_submit(_tab: str = "") -> None:
+            t, tip, ic = panel.submit_meta()
+            submit_btn.setText(t)
+            submit_btn.setToolTip(tip)
+            submit_btn.set_icon_spec(ic)
+
+        def on_submitting(submitting: bool) -> None:
+            submit_btn.set_loading(submitting)
+            cancel_btn.setEnabled(not submitting)
+
+        def on_submitted() -> None:
+            card.footer.hide()
+            card.notify_content_changed()
+
+        panel.tab_changed.connect(sync_submit)
+        panel.submitting_changed.connect(on_submitting)
+        panel.submitted.connect(on_submitted)
+        panel.done_requested.connect(card.accept)
+        panel.content_resized.connect(card.notify_content_changed)
+
+        card.add_cleanup(panel.shutdown)
+        manager.open(card)
+    except Exception:
+        FeedbackDialog(
+            parent,
+            initial_tab=initial_tab,
+            initial_title=initial_title,
+            initial_message=initial_message,
+            initial_logs=initial_logs,
+        ).exec()

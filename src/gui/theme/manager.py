@@ -296,6 +296,7 @@ class ThemeManager(QObject):
             tick_path = tick_icon_path()
             danger_fill = Styles.COLOR_DANGER_FILL
             danger_text = Styles.COLOR_DANGER_TEXT
+            on_danger = Styles.COLOR_ON_DANGER
 
             template_qss = template.format(
                 BACKGROUND=p.background,
@@ -323,6 +324,7 @@ class ThemeManager(QObject):
                 DANGER_HOVER=p.danger_hover,
                 DANGER_PRESSED=p.danger_pressed,
                 ON_ACCENT=p.on_accent,
+                ON_DANGER=on_danger,
                 MONO_FONT=Styles.MONO_FONT_FAMILY,
                 SURFACE_LIGHT_55=_rgba(p.surface_light, 0.55),
                 TICK_PATH=tick_path,

@@ -290,7 +290,8 @@ class Button(QPushButton):
         if self._text_color:
             return self._text_color
         if v is ButtonVariant.PRIMARY:
-            # Destructive primaries keep the white label/icon for contrast.
+            if self._danger:
+                return Styles.COLOR_ON_DANGER
             return Styles.COLOR_ON_ACCENT
         if self._danger or v is ButtonVariant.DANGER:
             return Styles.COLOR_DANGER_TEXT

@@ -71,6 +71,11 @@ class OverlayManager(QObject):
     def top_card(self) -> OverlayCard | None:
         return self._stack[-1].card if self._stack else None
 
+    def create_card(self, **kwargs) -> OverlayCard:
+        """Create an ``OverlayCard`` bound to this window's overlay host."""
+        kwargs.setdefault("parent", self._host)
+        return OverlayCard(**kwargs)
+
     def open(
         self,
         card: OverlayCard,
@@ -86,6 +91,11 @@ class OverlayManager(QObject):
         popup = QApplication.activePopupWidget()
         if popup is not None:
             popup.close()
+
+        from src.gui.components.feedback.tooltip import TooltipManager
+
+        if TooltipManager._instance is not None:
+            TooltipManager._instance.hide()
 
         focus_before = self._focus_widget()
 
@@ -185,6 +195,11 @@ class OverlayManager(QObject):
             animate=not self._shutting_down,
             on_finished=None,
         )
+
+        try:
+            entry.card.run_cleanup()
+        except Exception:
+            logger.error("Overlay cleanup callback failed", exc_info=True)
 
         restore_target = self._restore_target_for(entry)
         if (is_top or not self._stack) and restore_target is not None:
@@ -358,7 +373,7 @@ class OverlayManager(QObject):
                 and focus.window() is self._window
                 and not self._inside_card(card, focus)
             ):
-                QTimer.singleShot(0, self._focus_top_card)
+                QTimer.singleShot(0, self._focus_if_outside)
         return False
 
     def _focus_if_outside(self) -> None:

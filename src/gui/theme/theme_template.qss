@@ -374,18 +374,18 @@ QPushButton[btnVariant="link"]:disabled {{
    specificity ties resolve to the destructive look. */
 QPushButton[btnVariant="primary"][btnDanger="true"] {{
     background-color: {DANGER};
-    color: {ON_ACCENT};
+    color: {ON_DANGER};
     border: 1px solid {DANGER};
 }}
 QPushButton[btnVariant="primary"][btnDanger="true"]:hover,
 QPushButton[btnVariant="primary"][btnDanger="true"]:checked {{
     background-color: {DANGER_HOVER};
-    color: {ON_ACCENT};
+    color: {ON_DANGER};
     border: 1px solid {DANGER_HOVER};
 }}
 QPushButton[btnVariant="primary"][btnDanger="true"]:pressed {{
     background-color: {DANGER_PRESSED};
-    color: {ON_ACCENT};
+    color: {ON_DANGER};
     border: 1px solid {DANGER_PRESSED};
 }}
 QPushButton[btnVariant="primary"][btnDanger="true"]:disabled {{
@@ -1886,6 +1886,16 @@ QWidget#OverlayFooter {{
 QScrollArea#OverlayBodyScroll {{
     background: transparent;
     border: none;
+}}
+
+/* Close button – quiet until hovered */
+QPushButton#OverlayCloseBtn {{
+    color: {TEXT_MUTED};
+    border-radius: 6px;
+}}
+QPushButton#OverlayCloseBtn:hover {{
+    color: {TEXT_PRIMARY};
+    background-color: {SURFACE_LIGHT};
 }}
 
 /* === Dialog chrome === */

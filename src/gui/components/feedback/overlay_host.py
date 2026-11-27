@@ -13,6 +13,7 @@ from collections.abc import Callable
 from PyQt6.QtCore import (
     QEvent,
     QParallelAnimationGroup,
+    QPoint,
     QPropertyAnimation,
     QRect,
     QRectF,
@@ -65,11 +66,11 @@ class _CardLayer(QWidget):
         bounds = QRectF(self._card_bounds())
         ink = QColor(ThemeManager.palette().piece_black)
         # Draw from the outer, faint edge inward. The opaque card covers the
-        # centre, leaving a soft falloff around the border.
+        # centre, leaving a soft elevation falloff around the border.
         for index in range(20, 0, -1):
             spread = index * 1.25
-            alpha = 2 + int((20 - index) * 0.5)
-            ink.setAlpha(min(alpha, 14))
+            alpha = 2 + int((20 - index) * 0.9)
+            ink.setAlpha(min(alpha, 22))
             painter.setPen(QPen(ink, 2.0))
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawRoundedRect(
@@ -77,7 +78,7 @@ class _CardLayer(QWidget):
                     -spread,
                     -spread + 5,
                     spread,
-                    spread + 7,
+                    spread + 8,
                 ),
                 14 + spread,
                 14 + spread,
@@ -146,12 +147,12 @@ class OverlayHost(QWidget):
             lambda layer=layer: self._schedule_layout(layer)
         )
         self._layers.append(layer)
+        self.setGeometry(self._window.rect())
+        if len(self._layers) == 1:
+            self._capture_background()
         layer.show()
         self._layout_layer(layer)
 
-        if len(self._layers) == 1:
-            self._capture_background()
-        self.setGeometry(self._window.rect())
         self.show()
         self.raise_()
         layer.raise_()
@@ -261,7 +262,7 @@ class OverlayHost(QWidget):
         layer.setGraphicsEffect(effect)
         layer._animating = True
 
-        start = target.adjusted(14, 14, -14, -14)
+        start = target.translated(0, 10)
         layer.setGeometry(start)
 
         group = QParallelAnimationGroup(layer)
@@ -305,7 +306,7 @@ class OverlayHost(QWidget):
         layer._animating = True
 
         start = layer.geometry()
-        end = start.adjusted(10, 10, -10, -10)
+        end = start.translated(0, 8)
 
         group = QParallelAnimationGroup(layer)
         geometry = QPropertyAnimation(layer, b"geometry", group)
@@ -430,17 +431,34 @@ class OverlayHost(QWidget):
     # Input blocking
     # ------------------------------------------------------------------
 
+    def _point_inside_top_card(self, pos: QPoint) -> bool:
+        card = self.top_card
+        if card is None or not card.isVisible():
+            return False
+        top_left = card.mapTo(self, QPoint(0, 0))
+        return QRect(top_left, card.size()).contains(pos)
+
     def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._press_pos = event.position().toPoint()
+        pos = event.position().toPoint()
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and not self._point_inside_top_card(pos)
+        ):
+            self._press_pos = pos
+        else:
+            self._press_pos = None
         event.accept()
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and self._press_pos is not None:
-            release_pos = event.position().toPoint()
-            if (release_pos - self._press_pos).manhattanLength() <= 6:
-                self.backdrop_clicked.emit()
-            self._press_pos = None
+        pos = event.position().toPoint()
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._press_pos is not None
+            and not self._point_inside_top_card(pos)
+            and (pos - self._press_pos).manhattanLength() <= 6
+        ):
+            self.backdrop_clicked.emit()
+        self._press_pos = None
         event.accept()
 
     def mouseDoubleClickEvent(self, event):

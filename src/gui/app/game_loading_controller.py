@@ -6,11 +6,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
-from PyQt6.QtWidgets import QApplication, QDialog
+from PyQt6.QtWidgets import QApplication
 
 from src.backend.storage.pgn_parser import PGNParser, looks_like_pgn
 from src.constants import MAX_PGN_TEXT_CHARS, PAGE_ANALYSIS, PAGE_HISTORY
-from src.gui.dialogs.load_game_dialog import LoadGameDialog
+from src.gui.dialogs.load_game_dialog import open_load_game_overlay
 from src.gui.theme.typography import TextTone
 from src.gui.utils.clock import compute_clock_times
 from src.gui.utils.worker_registry import (
@@ -364,24 +364,18 @@ class GameLoadingController(QObject):
                 md.source = "lichess"
 
     def open_load_dialog(self, initial_source: int = 0, initial_text: str = None):
-        """Open the unified Load Game dialog."""
-        from src.constants import SRC_PGN_TEXT
+        """Open the unified Load Game overlay."""
+        def go_settings() -> None:
+            self.host.sidebar.set_active(4)
+            QTimer.singleShot(0, lambda: self.host.switch_page(4))
 
-        dialog = LoadGameDialog(self.host, initial_source=initial_source)
-        try:
-            if initial_text and initial_source == SRC_PGN_TEXT:
-                panel = dialog._pgn_text_panel
-                if panel.load_initial_text(initial_text):
-                    panel._parse()
-
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                if dialog._navigate_to_settings:
-                    self.host.sidebar.set_active(4)
-                    QTimer.singleShot(0, lambda: self.host.switch_page(4))
-                elif getattr(dialog, "_pending_batch", None):
-                    self._open_import_batch(dialog._pending_batch)
-        finally:
-            dialog.deleteLater()
+        open_load_game_overlay(
+            self.host,
+            initial_source=initial_source,
+            initial_text=initial_text,
+            on_batch=self._open_import_batch,
+            on_settings=go_settings,
+        )
 
     def _open_import_batch(self, batch) -> None:
         """Single game goes to Analysis; a multi-game batch opens History import."""

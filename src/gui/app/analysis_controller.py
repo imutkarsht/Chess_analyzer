@@ -6,15 +6,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
-from PyQt6.QtWidgets import QDialog
 
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, invalidate_engine_cache, resolve_engine_path
 from src.constants import ANALYSIS_UI_FLUSH_MS
-from src.gui.components import ToastManager, show_error_dialog
-from src.gui.dialogs.engine_error_dialog import EngineNotFoundDialog
-from src.gui.dialogs.feedback_dialog import FeedbackDialog
-from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
+from src.gui.components import ToastManager, open_feedback_dialog, show_error_dialog
+from src.gui.dialogs.engine_error_dialog import open_engine_not_found
+from src.gui.dialogs.review_prompt_dialog import open_review_prompt
 from src.utils.logger import logger
 from src.workers.analysis import AnalysisWorker
 
@@ -189,26 +187,22 @@ class AnalysisController(QObject):
             return True
 
         logger.warning(f"Engine not found (configured: {self.host.engine_path})")
-        dialog = EngineNotFoundDialog(self.host)
-        if hasattr(self.host, "config_manager"):
-            dialog.config_manager = lambda: self.host.config_manager
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            new_path = dialog.engine_path()
-            if new_path:
-                self.host.config_manager.config["engine_path"] = new_path
-                self.host.config_manager.save_config()
-                self.host.engine_path = new_path
-                self.host.analyzer = Analyzer(
-                    EngineManager(self.host.engine_path, config_manager=self.host.config_manager)
-                )
-                invalidate_engine_cache()
-                logger.info(f"Engine path set to {new_path} via error dialog")
-                self.host._refresh_engine_status()
-                return True
-        else:
-            # Cancel navigates to Settings (index 4) where the engine can be configured
-            self.host.sidebar.set_active(4)
-            self.host.switch_page(4)
+        cfg = getattr(self.host, "config_manager", None)
+        new_path = open_engine_not_found(self.host, config_manager=cfg)
+        if new_path:
+            self.host.config_manager.config["engine_path"] = new_path
+            self.host.config_manager.save_config()
+            self.host.engine_path = new_path
+            self.host.analyzer = Analyzer(
+                EngineManager(self.host.engine_path, config_manager=self.host.config_manager)
+            )
+            invalidate_engine_cache()
+            logger.info(f"Engine path set to {new_path} via error dialog")
+            self.host._refresh_engine_status()
+            return True
+        # Cancel navigates to Settings (index 4) where the engine can be configured
+        self.host.sidebar.set_active(4)
+        self.host.switch_page(4)
         return False
 
     def stop_analysis(self):
@@ -587,8 +581,7 @@ class AnalysisController(QObject):
     def _prompt_review_if_active(self, count: int):
         """Display the review prompt if the main window is active."""
         if self.host.isVisible() and not getattr(self, "_full_analysis_running", False):
-            dialog = ReviewPromptDialog(self.host, games_count=count)
-            dialog.exec()
+            open_review_prompt(self.host, games_count=count)
 
     def on_analysis_error(self, error_msg):
         coordinator = getattr(self.host, "analysis_coordinator", None)
@@ -612,13 +605,12 @@ class AnalysisController(QObject):
             self.host.history_view.load_history()
 
         def report_issue() -> None:
-            dialog = FeedbackDialog(
+            open_feedback_dialog(
                 self.host,
                 initial_tab="bug",
                 initial_title="Analysis Engine Error",
                 initial_message=f"Analysis failed with error:\n{error_msg}",
             )
-            dialog.exec()
 
         show_error_dialog(
             self.host,

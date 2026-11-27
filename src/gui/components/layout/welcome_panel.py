@@ -230,10 +230,9 @@ class WelcomePanel(QFrame):
         open_url(GITHUB_REPO_URL)
 
     def _open_review(self) -> None:
-        from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
+        from src.gui.dialogs.review_prompt_dialog import open_review_prompt
 
-        dialog = ReviewPromptDialog(self, games_count=0)
-        dialog.exec()
+        open_review_prompt(self, games_count=0)
 
     def _open_about(self) -> None:
         open_url(ABOUT_URL)

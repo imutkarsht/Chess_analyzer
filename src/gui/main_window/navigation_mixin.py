@@ -14,7 +14,6 @@ from src.constants import (
     REPLAY_INTERVAL_MS,
 )
 from src.gui.components import TEXT_INPUT_TYPES, Select
-from src.gui.dialogs import ShortcutHelpDialog
 from src.gui.utils.clock import compute_clock_times
 from src.gui.utils.shortcut_manager import ShortcutManager
 
@@ -497,6 +496,6 @@ class NavigationMixin:
         super().keyPressEvent(event)
 
     def show_shortcuts_help(self):
-        """Show the keyboard shortcuts help dialog."""
-        dialog = ShortcutHelpDialog(self)
-        dialog.exec()
+        """Show the keyboard shortcuts help as an in-window overlay."""
+        from src.gui.dialogs.shortcut_help_dialog import open_shortcut_help_overlay
+        open_shortcut_help_overlay(self)

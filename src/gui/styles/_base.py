@@ -203,6 +203,11 @@ class _StylesMeta(type):
         return cls.readable_color(color, ON_ACCENT, 4.5)
 
     @property
+    def COLOR_ON_DANGER(cls):
+        """High-contrast ink for text/icons placed on ``COLOR_DANGER_FILL``."""
+        return cls.on_accent_for(cls.COLOR_DANGER_FILL)
+
+    @property
     def COLOR_ENGINE_READY(cls):
         return "#27ae60"
 

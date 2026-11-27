@@ -2,7 +2,7 @@ from datetime import datetime
 
 from PyQt6.QtCore import QTimer
 
-from src.gui.dialogs import UpdateNotificationDialog
+from src.gui.dialogs import open_update_overlay
 from src.workers import UpdateCheckerWorker
 
 
@@ -34,5 +34,4 @@ class UpdateMixin:
     def on_update_checked(self, update_info):
         """Handle update check result."""
         if update_info.available:
-            dialog = UpdateNotificationDialog(update_info, self)
-            dialog.exec()
+            open_update_overlay(update_info, self)
