@@ -26,7 +26,9 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
+from src.utils.logger import logger
 from src.workers import FeedbackWorker
 
 
@@ -44,6 +46,7 @@ class ReviewPromptPanel(QWidget):
         self.config_manager = ConfigManager()
         self.games_count = games_count
         self._worker: FeedbackWorker | None = None
+        self._shutting_down = False
 
         self._build_ui()
 
@@ -148,6 +151,7 @@ class ReviewPromptPanel(QWidget):
             self.content_resized.emit()
             return
 
+        self._shutting_down = False
         self.submitting_changed.emit(True)
         self.status_lbl.hide()
 
@@ -160,12 +164,16 @@ class ReviewPromptPanel(QWidget):
             comment=comment,
             username=username,
         )
+        register_worker(worker)
+        worker.finished.connect(lambda *_args, w=worker: remove_worker(w))
         worker.finished.connect(self._on_submission_finished)
         self._worker = worker
         worker.start()
 
     def _on_submission_finished(self, success: bool, message: str, _data: dict) -> None:
         self._worker = None
+        if self._shutting_down:
+            return
         self.submitting_changed.emit(False)
 
         if success:
@@ -191,11 +199,13 @@ class ReviewPromptPanel(QWidget):
         self.dismiss_requested.emit()
 
     def shutdown(self) -> None:
-        worker = self._worker
-        self._worker = None
-        if worker is not None and worker.isRunning():
-            worker.quit()
-            worker.wait(1000)
+        self._shutting_down = True
+        worker, self._worker = self._worker, None
+        if worker is not None:
+            try:
+                worker.finished.disconnect(self._on_submission_finished)
+            except (TypeError, RuntimeError):
+                pass
 
 
 class ReviewPromptDialog(QDialog):
@@ -306,62 +316,64 @@ def _subtitle_for(games_count: int) -> str:
 
 def open_review_prompt(parent, *, games_count: int = 3) -> None:
     """Open the review prompt panel as an in-window overlay."""
-    if not isinstance(parent, QWidget):
-        ReviewPromptDialog(parent, games_count=games_count).exec()
-        return
+    if isinstance(parent, QWidget):
+        try:
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="Enjoying Chess Analyzer Pro?",
+                description=_subtitle_for(games_count),
+                max_width=500,
+                minimum_width=380,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=False,
+            )
+            panel = ReviewPromptPanel(games_count=games_count, parent=card)
+            card.set_content(panel)
 
-    try:
-        manager = OverlayManager.for_window(parent)
-        card = manager.create_card(
-            title="Enjoying Chess Analyzer Pro?",
-            description=_subtitle_for(games_count),
-            max_width=500,
-            minimum_width=380,
-            dismiss_on_escape=True,
-            dismiss_on_backdrop=False,
-        )
-        panel = ReviewPromptPanel(games_count=games_count, parent=card)
-        card.set_content(panel)
+            skip_btn = Button(
+                "No, Thanks",
+                ButtonVariant.LINK,
+                tooltip="Close without leaving a review",
+                on_click=panel.no_thanks,
+            )
+            remind_btn = Button(
+                "Remind Later",
+                ButtonVariant.HOLLOW,
+                tooltip="Ask again the next time the review prompt is due",
+                on_click=panel.remind_later,
+            )
+            submit_btn = Button(
+                "Submit Review",
+                ButtonVariant.PRIMARY,
+                icon="fa5s.paper-plane",
+                tooltip="Send this rating and review",
+                on_click=panel.submit_review,
+            )
+            card.add_action(skip_btn)
+            card.add_action(remind_btn)
+            card.add_action(submit_btn, primary=True)
 
-        skip_btn = Button(
-            "No, Thanks",
-            ButtonVariant.LINK,
-            tooltip="Close without leaving a review",
-            on_click=panel.no_thanks,
-        )
-        remind_btn = Button(
-            "Remind Later",
-            ButtonVariant.HOLLOW,
-            tooltip="Ask again the next time the review prompt is due",
-            on_click=panel.remind_later,
-        )
-        submit_btn = Button(
-            "Submit Review",
-            ButtonVariant.PRIMARY,
-            icon="fa5s.paper-plane",
-            tooltip="Send this rating and review",
-            on_click=panel.submit_review,
-        )
-        card.add_action(skip_btn)
-        card.add_action(remind_btn)
-        card.add_action(submit_btn, primary=True)
+            def on_submitting(submitting: bool) -> None:
+                submit_btn.set_loading(submitting)
+                remind_btn.setEnabled(not submitting)
+                skip_btn.setEnabled(not submitting)
+                card.dismiss_on_escape = not submitting
+                card.close_button.setVisible(not submitting)
 
-        def on_submitting(submitting: bool) -> None:
-            submit_btn.set_loading(submitting)
-            remind_btn.setEnabled(not submitting)
-            skip_btn.setEnabled(not submitting)
+            def on_submitted() -> None:
+                card.footer.hide()
+                card.notify_content_changed()
 
-        def on_submitted() -> None:
-            card.footer.hide()
-            card.notify_content_changed()
+            panel.submitting_changed.connect(on_submitting)
+            panel.submitted.connect(on_submitted)
+            panel.done_requested.connect(card.accept)
+            panel.dismiss_requested.connect(card.reject)
+            panel.content_resized.connect(card.notify_content_changed)
 
-        panel.submitting_changed.connect(on_submitting)
-        panel.submitted.connect(on_submitted)
-        panel.done_requested.connect(card.accept)
-        panel.dismiss_requested.connect(card.reject)
-        panel.content_resized.connect(card.notify_content_changed)
+            card.add_cleanup(panel.shutdown)
+            manager.open(card)
+            return
+        except Exception:
+            logger.warning("open_review_prompt overlay failed, falling back", exc_info=True)
 
-        card.add_cleanup(panel.shutdown)
-        manager.open(card)
-    except Exception:
-        ReviewPromptDialog(parent, games_count=games_count).exec()
+    ReviewPromptDialog(parent, games_count=games_count).exec()

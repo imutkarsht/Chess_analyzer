@@ -172,6 +172,7 @@ class OverlayCard(QFrame):
         # ── Body ──────────────────────────────────────────────────────
         self.body_scroll = _BodyScrollArea(self)
         self.body_scroll.setObjectName("OverlayBodyScroll")
+        self.body_scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.body_scroll.setWidgetResizable(True)
         self.body_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.body_scroll.setHorizontalScrollBarPolicy(
@@ -231,7 +232,11 @@ class OverlayCard(QFrame):
         widget.setParent(self.body)
         self.body_layout.addWidget(widget, 1)
         widget.installEventFilter(self)
-        has_body = widget.layout() is None or widget.layout().count() > 0 or bool(widget.children())
+        has_body = (
+            widget.layout() is None
+            or widget.layout().count() > 0
+            or bool(widget.findChildren(QWidget))
+        )
         self.body_scroll.setVisible(has_body)
         self.notify_content_changed()
 

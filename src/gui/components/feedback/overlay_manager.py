@@ -262,7 +262,7 @@ class OverlayManager(QObject):
     def _focusables(self, card: OverlayCard) -> list[QWidget]:
         found: list[QWidget] = []
         for widget in card.findChildren(QWidget):
-            if isinstance(widget, QScrollBar):
+            if isinstance(widget, QScrollBar) or widget.focusProxy() is not None:
                 continue
             if not widget.isVisibleTo(card) or not widget.isEnabled():
                 continue

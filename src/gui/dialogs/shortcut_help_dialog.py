@@ -25,6 +25,7 @@ from src.gui.components import (
     open_feedback_dialog,
 )
 from src.gui.styles import Styles
+from src.utils.logger import logger
 
 
 class ShortcutHelpPanel(QWidget):
@@ -228,37 +229,37 @@ class ShortcutHelpDialog(QDialog):
 
 def open_shortcut_help_overlay(parent, bindings: list[dict] | None = None) -> None:
     """Open the shortcut help panel as an in-window overlay."""
-    if not isinstance(parent, QWidget):
-        ShortcutHelpDialog(parent, bindings=bindings).exec()
-        return
+    if isinstance(parent, QWidget):
+        try:
+            resolved = (
+                bindings if bindings is not None else ShortcutHelpPanel.lookup_bindings(parent)
+            )
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="Keyboard Shortcuts",
+                description="Master these shortcuts to navigate and analyze games faster.",
+                max_width=760,
+                minimum_width=460,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=True,
+            )
+            panel = ShortcutHelpPanel(resolved, card)
+            card.set_content(panel)
 
-    try:
-        resolved = (
-            bindings if bindings is not None else ShortcutHelpPanel.lookup_bindings(parent)
-        )
-        manager = OverlayManager.for_window(parent)
-        card = manager.create_card(
-            title="Keyboard Shortcuts",
-            description="Master these shortcuts to navigate and analyze games faster.",
-            max_width=760,
-            minimum_width=460,
-            dismiss_on_escape=True,
-            dismiss_on_backdrop=True,
-        )
-        panel = ShortcutHelpPanel(resolved, card)
-        card.set_content(panel)
+            feedback_btn = Button(
+                "Report Bug / Feedback",
+                ButtonVariant.LINK,
+                icon="fa5s.comment-dots",
+                on_click=lambda: open_feedback_dialog(parent, initial_tab="bug"),
+            )
+            done_btn = Button("Got it", ButtonVariant.PRIMARY, on_click=card.accept)
+            card.add_action(feedback_btn)
+            card.add_action(done_btn, primary=True)
+            card.set_initial_focus(done_btn)
 
-        feedback_btn = Button(
-            "Report Bug / Feedback",
-            ButtonVariant.LINK,
-            icon="fa5s.comment-dots",
-            on_click=lambda: open_feedback_dialog(parent, initial_tab="bug"),
-        )
-        done_btn = Button("Got it", ButtonVariant.PRIMARY, on_click=card.accept)
-        card.add_action(feedback_btn)
-        card.add_action(done_btn, primary=True)
-        card.set_initial_focus(done_btn)
+            manager.open(card)
+            return
+        except Exception:
+            logger.warning("open_shortcut_help_overlay failed, falling back", exc_info=True)
 
-        manager.open(card)
-    except Exception:
-        ShortcutHelpDialog(parent, bindings=bindings).exec()
+    ShortcutHelpDialog(parent, bindings=bindings).exec()

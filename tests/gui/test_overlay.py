@@ -522,3 +522,98 @@ def test_overlay_card_construction_never_shows_top_level_children(qapp, overlay_
         assert top_level_shows == []
     finally:
         qapp.removeEventFilter(spy)
+
+
+def test_closing_during_enter_animation_stops_prior_animation(qapp, overlay_window, mocker):
+    from src.gui.theme.motion import Motion
+
+    _window, manager, _trigger = overlay_window
+    mocker.patch.object(Motion, "enabled", return_value=True)
+    mocker.patch.object(Motion, "prefers_reduced_motion", return_value=False)
+
+    card = make_card(title="Quick Cancel")
+    manager.open(card)
+    layer = manager._stack[-1].layer
+    assert layer._active_animation is not None
+
+    # Dismissing immediately while enter animation is running must stop enter
+    # cleanly instead of letting two opacity effects collide.
+    card.reject()
+    qapp.processEvents()
+    assert manager.is_open is False
+
+
+def test_focusables_skip_focus_proxy_wrappers(qapp, overlay_window):
+    window, manager, _trigger = overlay_window
+    card = manager.create_card(title="Focus Proxy")
+    body = QWidget(card)
+    layout = QVBoxLayout(body)
+    prev_btn = Button("Before", ButtonVariant.HOLLOW, parent=body)
+
+    wrapper = QWidget(body)
+    wrapper_layout = QVBoxLayout(wrapper)
+    proxy_edit = Input(placeholder="Inner")
+    wrapper_layout.addWidget(proxy_edit)
+    wrapper.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+    wrapper.setFocusProxy(proxy_edit)
+
+    layout.addWidget(prev_btn)
+    layout.addWidget(wrapper)
+    card.set_content(body)
+    manager.open(card)
+    qapp.processEvents()
+
+    proxy_edit.setFocus()
+    qapp.processEvents()
+    assert window.focusWidget() is proxy_edit
+
+    QTest.keyClick(proxy_edit, Qt.Key.Key_Backtab)
+    qapp.processEvents()
+    assert window.focusWidget() is prev_btn
+
+
+def test_dialog_timers_cancel_on_close(qapp, overlay_window, mocker):
+    from types import SimpleNamespace
+
+    from src.gui.dialogs import EngineNotFoundPanel, UpdateNotificationPanel
+
+    _window, manager, trigger = overlay_window
+
+    # EngineNotFoundPanel: pending accept timer stops cleanly on cancel_download().
+    engine_panel = EngineNotFoundPanel()
+    engine_panel._on_download_finished("/tmp/stockfish")
+    assert engine_panel._accept_timer.isActive() is True
+    engine_panel.cancel_download()
+    assert engine_panel._accept_timer.isActive() is False
+
+    # UpdateNotificationPanel: pending install timer stops cleanly when closed.
+    fake_update = SimpleNamespace(
+        current="2.5.0",
+        latest="2.6.0",
+        changelog="- Fix",
+        html_url="https://example.com",
+        download_url="https://example.com/app.dmg",
+        install_hint="",
+    )
+    install_calls: list[str] = []
+    mocker.patch("src.gui.dialogs.update_dialog.install_and_quit", side_effect=lambda p, _: install_calls.append(p))
+    update_panel = UpdateNotificationPanel(fake_update)
+    update_panel._on_download_finished("/tmp/update.dmg")
+    assert update_panel._install_timer.isActive() is True
+    update_panel.cancel_download()
+    assert update_panel._install_timer.isActive() is False
+    assert install_calls == []
+
+
+def test_feedback_shutdown_ignores_late_worker_without_blocking(qapp, overlay_window):
+    from src.gui.dialogs import FeedbackPanel
+
+    _window, _manager, _trigger = overlay_window
+    panel = FeedbackPanel()
+    submitted: list[bool] = []
+    panel.submitted.connect(lambda: submitted.append(True))
+
+    panel.shutdown()
+    assert panel._shutting_down is True
+    panel._on_submission_finished(True, "Sent", {})
+    assert submitted == []

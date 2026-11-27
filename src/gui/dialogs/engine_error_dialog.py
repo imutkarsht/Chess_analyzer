@@ -8,7 +8,6 @@ import shutil
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QApplication,
     QDialog,
     QFileDialog,
     QHBoxLayout,
@@ -28,6 +27,7 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
 from src.workers import EngineDownloadWorker
 
@@ -44,6 +44,12 @@ class EngineNotFoundPanel(QWidget):
         self._config_manager = config_manager
         self._engine_path: str | None = None
         self._download_worker: EngineDownloadWorker | None = None
+        self._scan_timer = QTimer(self)
+        self._scan_timer.setSingleShot(True)
+        self._scan_timer.timeout.connect(self._run_auto_detect)
+        self._accept_timer = QTimer(self)
+        self._accept_timer.setSingleShot(True)
+        self._accept_timer.timeout.connect(self.accepted.emit)
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -106,8 +112,9 @@ class EngineNotFoundPanel(QWidget):
         self._status.setText("Scanning for Stockfish...")
         self._status.set_tone(TextTone.SECONDARY)
         self._status.setVisible(True)
-        QApplication.processEvents()
+        self._scan_timer.start(0)
 
+    def _run_auto_detect(self) -> None:
         cfg = self._config_manager() if callable(self._config_manager) else self._config_manager
         path = resolve_engine_path(cfg) if cfg is not None else None
         if not path:
@@ -117,7 +124,7 @@ class EngineNotFoundPanel(QWidget):
             self._status.setText(f"Found: {path}")
             self._status.set_tone(TextTone.BEST)
             self._engine_path = path
-            QTimer.singleShot(800, self.accepted.emit)
+            self._accept_timer.start(800)
         else:
             self._status.setText("No Stockfish found on your system.")
             self._status.set_tone(TextTone.BLUNDER)
@@ -163,7 +170,7 @@ class EngineNotFoundPanel(QWidget):
         self._status.set_tone(TextTone.BEST)
         self._release_worker()
         self._set_actions_enabled(True)
-        QTimer.singleShot(600, self.accepted.emit)
+        self._accept_timer.start(600)
 
     def _on_download_error(self, message: str) -> None:
         self._status.setText(f"Download failed: {message}")
@@ -179,6 +186,8 @@ class EngineNotFoundPanel(QWidget):
             worker.deleteLater()
 
     def cancel_download(self) -> None:
+        self._scan_timer.stop()
+        self._accept_timer.stop()
         worker = self._download_worker
         if worker is not None and worker.isRunning():
             worker.cancel()
@@ -266,46 +275,41 @@ def open_engine_not_found(parent, *, config_manager=None) -> str | None:
 
     Returns the chosen engine path if accepted, or ``None`` if cancelled.
     """
-    if not isinstance(parent, QWidget):
-        dialog = EngineNotFoundDialog(parent)
-        if config_manager is not None:
-            dialog.config_manager = lambda: config_manager
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            return dialog.engine_path()
-        return None
+    if isinstance(parent, QWidget):
+        try:
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="Stockfish Engine Not Found",
+                description=(
+                    "No working Stockfish engine was found. Analysis requires a "
+                    "Stockfish chess engine binary on your system."
+                ),
+                max_width=500,
+                minimum_width=380,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=True,
+            )
+            panel = EngineNotFoundPanel(config_manager=config_manager, parent=card)
+            card.set_content(panel)
 
-    try:
-        manager = OverlayManager.for_window(parent)
-        card = manager.create_card(
-            title="Stockfish Engine Not Found",
-            description=(
-                "No working Stockfish engine was found. Analysis requires a "
-                "Stockfish chess engine binary on your system."
-            ),
-            max_width=500,
-            minimum_width=380,
-            dismiss_on_escape=True,
-            dismiss_on_backdrop=True,
-        )
-        panel = EngineNotFoundPanel(config_manager=config_manager, parent=card)
-        card.set_content(panel)
+            cancel_btn = Button("Cancel", ButtonVariant.HOLLOW, on_click=card.reject)
+            card.add_action(cancel_btn)
+            card.set_initial_focus(panel._auto_btn)
 
-        cancel_btn = Button("Cancel", ButtonVariant.HOLLOW, on_click=card.reject)
-        card.add_action(cancel_btn)
-        card.set_initial_focus(panel._auto_btn)
+            panel.accepted.connect(card.accept)
+            panel.rejected.connect(card.reject)
 
-        panel.accepted.connect(card.accept)
-        panel.rejected.connect(card.reject)
+            card.add_cleanup(panel.cancel_download)
+            result = manager.open_blocking(card)
+            if result is OverlayResult.ACCEPTED:
+                return panel.engine_path()
+            return None
+        except Exception:
+            logger.warning("open_engine_not_found overlay failed, falling back", exc_info=True)
 
-        card.add_cleanup(panel.cancel_download)
-        result = manager.open_blocking(card)
-        if result is OverlayResult.ACCEPTED:
-            return panel.engine_path()
-        return None
-    except Exception:
-        dialog = EngineNotFoundDialog(parent)
-        if config_manager is not None:
-            dialog.config_manager = lambda: config_manager
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            return dialog.engine_path()
-        return None
+    dialog = EngineNotFoundDialog(parent)
+    if config_manager is not None:
+        dialog.config_manager = lambda: config_manager
+    if dialog.exec() == QDialog.DialogCode.Accepted:
+        return dialog.engine_path()
+    return None

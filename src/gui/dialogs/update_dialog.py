@@ -47,6 +47,7 @@ from src.gui.components import (
     TextTone,
 )
 from src.gui.styles import Styles
+from src.gui.theme import ThemeManager
 from src.gui.utils.links import open_path, open_url
 from src.utils.logger import logger
 from src.workers import DownloadWorker
@@ -69,6 +70,12 @@ class UpdateNotificationPanel(QWidget):
         self.update_info = update_info
         self._worker: DownloadWorker | None = None
         self._dest_path = ""
+        self._pending_install_path = ""
+        self._changelog_browser: QTextBrowser | None = None
+        self._install_timer = QTimer(self)
+        self._install_timer.setSingleShot(True)
+        self._install_timer.timeout.connect(self._on_install_timeout)
+        ThemeManager.instance().theme_changed.connect(self._refresh_changelog_theme)
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -143,8 +150,15 @@ class UpdateNotificationPanel(QWidget):
         changelog_text.setHtml(self.format_changelog_html(self.update_info.changelog))
         changelog_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         changelog_text.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._changelog_browser = changelog_text
         layout.addWidget(changelog_text, 1)
         return w
+
+    def _refresh_changelog_theme(self, *_args) -> None:
+        if self._changelog_browser is not None and self.update_info.changelog:
+            self._changelog_browser.setHtml(
+                self.format_changelog_html(self.update_info.changelog)
+            )
 
     def _build_footer(self) -> QWidget:
         outer = QWidget(self)
@@ -306,6 +320,8 @@ class UpdateNotificationPanel(QWidget):
         self._worker.start()
 
     def cancel_download(self) -> None:
+        self._install_timer.stop()
+        self._pending_install_path = ""
         worker = self._worker
         self._worker = None
         if worker is not None:
@@ -325,7 +341,13 @@ class UpdateNotificationPanel(QWidget):
         self._configure_done_page(local_path)
 
         delay = 1500 if PLATFORM in ("win32", "darwin") else 1200
-        QTimer.singleShot(delay, lambda: self._do_install(local_path))
+        self._pending_install_path = local_path
+        self._install_timer.start(delay)
+
+    def _on_install_timeout(self) -> None:
+        path = self._pending_install_path
+        if path:
+            self._do_install(path)
 
     def _do_install(self, local_path: str) -> None:
         try:
@@ -558,33 +580,33 @@ class UpdateNotificationDialog(QDialog):
 
 def open_update_overlay(update_info, parent) -> None:
     """Open the update notification panel as an in-window overlay."""
-    if not isinstance(parent, QWidget):
-        UpdateNotificationDialog(update_info, parent).exec()
-        return
+    if isinstance(parent, QWidget):
+        try:
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="Update Available",
+                description=f"Version v{update_info.latest} is ready to download.",
+                max_width=600,
+                minimum_width=420,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=True,
+            )
+            panel = UpdateNotificationPanel(update_info, card)
+            card.set_content(panel)
 
-    try:
-        manager = OverlayManager.for_window(parent)
-        card = manager.create_card(
-            title="Update Available",
-            description=f"Version v{update_info.latest} is ready to download.",
-            max_width=600,
-            minimum_width=420,
-            dismiss_on_escape=True,
-            dismiss_on_backdrop=True,
-        )
-        panel = UpdateNotificationPanel(update_info, card)
-        card.set_content(panel)
+            def on_download_active(active: bool) -> None:
+                card.dismiss_on_backdrop = not active
+                card.dismiss_on_escape = not active
+                card.close_button.setVisible(not active)
 
-        def on_download_active(active: bool) -> None:
-            card.dismiss_on_backdrop = not active
-            card.dismiss_on_escape = not active
-            card.close_button.setVisible(not active)
+            panel.download_active_changed.connect(on_download_active)
+            panel.accepted.connect(card.accept)
+            panel.rejected.connect(card.reject)
 
-        panel.download_active_changed.connect(on_download_active)
-        panel.accepted.connect(card.accept)
-        panel.rejected.connect(card.reject)
+            card.add_cleanup(panel.cancel_download)
+            manager.open(card)
+            return
+        except Exception:
+            logger.warning("open_update_overlay failed, falling back", exc_info=True)
 
-        card.add_cleanup(panel.cancel_download)
-        manager.open(card)
-    except Exception:
-        UpdateNotificationDialog(update_info, parent).exec()
+    UpdateNotificationDialog(update_info, parent).exec()

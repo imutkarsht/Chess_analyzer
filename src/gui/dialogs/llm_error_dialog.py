@@ -20,6 +20,7 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.utils.logger import logger
 
 
 def open_llm_not_configured(parent) -> bool:
@@ -28,42 +29,36 @@ def open_llm_not_configured(parent) -> bool:
     Returns ``True`` when the user chose *Configure Now*, ``False`` otherwise.
     Falls back to a plain QDialog when no overlay host is available.
     """
-    if not isinstance(parent, QWidget):
-        dialog = LlmNotConfiguredDialog(parent)
-        return (
-            dialog.exec() == QDialog.DialogCode.Accepted
-            and dialog.wants_configure()
-        )
+    if isinstance(parent, QWidget):
+        try:
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="AI Features Require Configuration",
+                description=(
+                    "AI-powered analysis — summaries, coach insights, and move "
+                    "explanations — needs an LLM provider API key. "
+                    "You can configure one in Settings."
+                ),
+                max_width=480,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=True,
+            )
 
-    try:
-        manager = OverlayManager.for_window(parent)
-        card = manager.create_card(
-            title="AI Features Require Configuration",
-            description=(
-                "AI-powered analysis — summaries, coach insights, and move "
-                "explanations — needs an LLM provider API key. "
-                "You can configure one in Settings."
-            ),
-            max_width=480,
-            dismiss_on_escape=True,
-            dismiss_on_backdrop=True,
-        )
+            skip_btn = Button("Skip", ButtonVariant.HOLLOW, on_click=card.reject)
+            configure_btn = Button(
+                "Configure Now",
+                ButtonVariant.PRIMARY,
+                icon="fa5s.cog",
+                on_click=card.accept,
+            )
+            card.add_action(skip_btn)
+            card.add_action(configure_btn, primary=True)
+            card.set_initial_focus(configure_btn)
 
-        skip_btn = Button("Skip", ButtonVariant.HOLLOW, on_click=card.reject)
-        configure_btn = Button(
-            "Configure Now",
-            ButtonVariant.PRIMARY,
-            icon="fa5s.cog",
-            on_click=card.accept,
-        )
-        card.add_action(skip_btn)
-        card.add_action(configure_btn, primary=True)
-        card.set_initial_focus(configure_btn)
-
-        result = manager.open_blocking(card)
-        return result is OverlayResult.ACCEPTED
-    except Exception:
-        pass
+            result = manager.open_blocking(card)
+            return result is OverlayResult.ACCEPTED
+        except Exception:
+            logger.warning("open_llm_not_configured overlay failed, falling back", exc_info=True)
 
     dialog = LlmNotConfiguredDialog(parent)
     return (

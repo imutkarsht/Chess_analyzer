@@ -42,9 +42,21 @@ class _CardLayer(QWidget):
         super().__init__(parent)
         self.card = card
         self._animating = False
+        self._active_animation: QParallelAnimationGroup | None = None
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         card.setParent(self)
         card.show()
+
+    def stop_animation(self) -> None:
+        anim, self._active_animation = self._active_animation, None
+        self._animating = False
+        if anim is not None:
+            try:
+                anim.finished.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            anim.stop()
+            anim.deleteLater()
 
     def resizeEvent(self, event):
         bounds = self._card_bounds()
@@ -252,6 +264,7 @@ class OverlayHost(QWidget):
         return Motion.enabled() and not Motion.prefers_reduced_motion()
 
     def _animate_in(self, layer: _CardLayer) -> None:
+        layer.stop_animation()
         target = self._target_geometry(layer)
         if not self._motion_enabled():
             layer.setGeometry(target)
@@ -266,6 +279,7 @@ class OverlayHost(QWidget):
         layer.setGeometry(start)
 
         group = QParallelAnimationGroup(layer)
+        layer._active_animation = group
         geometry = QPropertyAnimation(layer, b"geometry", group)
         geometry.setDuration(MotionDuration.BASE)
         geometry.setEasingCurve(MotionEasing.ENTER)
@@ -282,6 +296,8 @@ class OverlayHost(QWidget):
         group.addAnimation(fade)
 
         def finish() -> None:
+            if layer._active_animation is group:
+                layer._active_animation = None
             layer.setGraphicsEffect(None)
             layer._animating = False
             if layer in self._layers:
@@ -292,7 +308,9 @@ class OverlayHost(QWidget):
         group.start()
 
     def _animate_out(self, layer: _CardLayer, *, animate: bool) -> None:
+        layer.stop_animation()
         if not animate or not self._motion_enabled():
+            layer.setGraphicsEffect(None)
             layer.hide()
             layer.deleteLater()
             if not self._layers:
@@ -309,6 +327,7 @@ class OverlayHost(QWidget):
         end = start.translated(0, 8)
 
         group = QParallelAnimationGroup(layer)
+        layer._active_animation = group
         geometry = QPropertyAnimation(layer, b"geometry", group)
         geometry.setDuration(MotionDuration.FAST)
         geometry.setEasingCurve(MotionEasing.EXIT)
@@ -325,6 +344,10 @@ class OverlayHost(QWidget):
         group.addAnimation(fade)
 
         def finish() -> None:
+            if layer._active_animation is group:
+                layer._active_animation = None
+            layer.setGraphicsEffect(None)
+            layer._animating = False
             layer.hide()
             layer.deleteLater()
             group.deleteLater()
@@ -360,6 +383,12 @@ class OverlayHost(QWidget):
         if source is None or source.width() <= 0 or source.height() <= 0:
             self._background = None
             return
+        # When OverlayHost is hosted on a plain QWidget/QDialog instead of a
+        # QMainWindow, self.grab() on self._window would include the visible
+        # host/card itself during resize/theme refreshes; hide momentarily.
+        was_visible = source is self._window and self.isVisible()
+        if was_visible:
+            self.hide()
         try:
             snapshot = source.grab()
             if snapshot.isNull():
@@ -370,6 +399,9 @@ class OverlayHost(QWidget):
             )
         except RuntimeError:
             self._background = None
+        finally:
+            if was_visible:
+                self.show()
 
     def _snapshot_source(self) -> QWidget | None:
         if isinstance(self._window, QMainWindow):

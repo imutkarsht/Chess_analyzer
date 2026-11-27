@@ -30,7 +30,9 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
+from src.utils.logger import logger
 from src.workers import FeedbackWorker
 
 
@@ -61,6 +63,8 @@ class FeedbackPanel(QWidget):
         super().__init__(parent)
         self.config_manager = ConfigManager()
         self._worker: FeedbackWorker | None = None
+        self._shutting_down = False
+        self._pending_success_title = ""
         self._current_tab = initial_tab
         self._initial_title = initial_title
         self._initial_message = initial_message
@@ -146,6 +150,9 @@ class FeedbackPanel(QWidget):
             )
         return ("Submit Review", "Send this rating and review", "fa5s.star")
 
+    def _default_username(self) -> str:
+        return self.config_manager.chesscom_username or self.config_manager.lichess_username
+
     @staticmethod
     def _field_group(label_text: str, field: QWidget, *, caption: bool = False) -> QVBoxLayout:
         group = QVBoxLayout()
@@ -186,10 +193,7 @@ class FeedbackPanel(QWidget):
         meta_layout.addLayout(
             self._field_group("Your Email", self.bug_email_input, caption=True), 1
         )
-        default_user = (
-            self.config_manager.chesscom_username or self.config_manager.lichess_username
-        )
-        self.bug_name_input = Input(default_user, "Player handle or name")
+        self.bug_name_input = Input(self._default_username(), "Player handle or name")
         meta_layout.addLayout(
             self._field_group("Your Name", self.bug_name_input, caption=True), 1
         )
@@ -258,10 +262,7 @@ class FeedbackPanel(QWidget):
         meta_layout.addLayout(
             self._field_group("Your Email", self.feat_email_input, caption=True), 1
         )
-        default_user = (
-            self.config_manager.chesscom_username or self.config_manager.lichess_username
-        )
-        self.feat_name_input = Input(default_user, "Player handle or name")
+        self.feat_name_input = Input(self._default_username(), "Player handle or name")
         meta_layout.addLayout(
             self._field_group("Your Name", self.feat_name_input, caption=True), 1
         )
@@ -278,10 +279,7 @@ class FeedbackPanel(QWidget):
         )
         layout.addWidget(self.review_star_widget)
 
-        default_user = (
-            self.config_manager.chesscom_username or self.config_manager.lichess_username
-        )
-        self.review_name_input = Input(default_user, "e.g. Grandmaster99")
+        self.review_name_input = Input(self._default_username(), "e.g. Grandmaster99")
         layout.addLayout(self._field_group("Your Name", self.review_name_input))
 
         self.review_comment_input = TextArea(
@@ -394,11 +392,13 @@ class FeedbackPanel(QWidget):
             )
 
     def _start_worker(self, fn, success_title: str, **kwargs) -> None:
+        self._shutting_down = False
+        self._pending_success_title = success_title
         self.submitting_changed.emit(True)
         worker = FeedbackWorker(fn, **kwargs)
-        worker.finished.connect(
-            lambda s, m, d: self._on_submission_finished(s, m, d, success_title)
-        )
+        register_worker(worker)
+        worker.finished.connect(lambda *_args, w=worker: remove_worker(w))
+        worker.finished.connect(self._on_submission_finished)
         self._worker = worker
         worker.start()
 
@@ -408,16 +408,16 @@ class FeedbackPanel(QWidget):
         self.status_lbl.show()
         self.content_resized.emit()
 
-    def _on_submission_finished(
-        self, success: bool, message: str, _data: dict, custom_success_title: str
-    ) -> None:
+    def _on_submission_finished(self, success: bool, message: str, _data: dict) -> None:
         self._worker = None
+        if self._shutting_down:
+            return
         self.submitting_changed.emit(False)
 
         if success:
             if self._current_tab == "review":
                 self.config_manager.set("review_submitted", True)
-            self.success_title.setText(custom_success_title)
+            self.success_title.setText(self._pending_success_title)
             self.success_desc.setText(message)
             self.tabs.hide()
             self.stacked_widget.setCurrentIndex(3)
@@ -427,11 +427,13 @@ class FeedbackPanel(QWidget):
             self._show_error(message)
 
     def shutdown(self) -> None:
-        worker = self._worker
-        self._worker = None
-        if worker is not None and worker.isRunning():
-            worker.quit()
-            worker.wait(1000)
+        self._shutting_down = True
+        worker, self._worker = self._worker, None
+        if worker is not None:
+            try:
+                worker.finished.disconnect(self._on_submission_finished)
+            except (TypeError, RuntimeError):
+                pass
 
 
 class FeedbackDialog(QDialog):
@@ -548,79 +550,75 @@ def open_feedback_overlay(
     initial_logs: str = "",
 ) -> None:
     """Open the Feedback panel as an in-window overlay."""
-    if not isinstance(parent, QWidget):
-        FeedbackDialog(
-            parent,
-            initial_tab=initial_tab,
-            initial_title=initial_title,
-            initial_message=initial_message,
-            initial_logs=initial_logs,
-        ).exec()
-        return
+    if isinstance(parent, QWidget):
+        try:
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="Feedback & Support",
+                description="Send a bug report, suggest a feature, or leave a review.",
+                max_width=600,
+                minimum_width=400,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=False,
+            )
+            panel = FeedbackPanel(
+                initial_tab=initial_tab,
+                initial_title=initial_title,
+                initial_message=initial_message,
+                initial_logs=initial_logs,
+                parent=card,
+            )
+            card.set_content(panel)
 
-    try:
-        manager = OverlayManager.for_window(parent)
-        card = manager.create_card(
-            title="Feedback & Support",
-            description="Send a bug report, suggest a feature, or leave a review.",
-            max_width=600,
-            minimum_width=400,
-            dismiss_on_escape=True,
-            dismiss_on_backdrop=False,
-        )
-        panel = FeedbackPanel(
-            initial_tab=initial_tab,
-            initial_title=initial_title,
-            initial_message=initial_message,
-            initial_logs=initial_logs,
-            parent=card,
-        )
-        card.set_content(panel)
+            cancel_btn = Button(
+                "Cancel",
+                ButtonVariant.HOLLOW,
+                tooltip="Close without sending feedback",
+                on_click=card.reject,
+            )
+            text, tooltip, icon = panel.submit_meta()
+            submit_btn = Button(
+                text,
+                ButtonVariant.PRIMARY,
+                icon=icon,
+                tooltip=tooltip,
+                on_click=panel.submit,
+            )
+            card.add_action(cancel_btn)
+            card.add_action(submit_btn, primary=True)
 
-        cancel_btn = Button(
-            "Cancel",
-            ButtonVariant.HOLLOW,
-            tooltip="Close without sending feedback",
-            on_click=card.reject,
-        )
-        text, tooltip, icon = panel.submit_meta()
-        submit_btn = Button(
-            text,
-            ButtonVariant.PRIMARY,
-            icon=icon,
-            tooltip=tooltip,
-            on_click=panel.submit,
-        )
-        card.add_action(cancel_btn)
-        card.add_action(submit_btn, primary=True)
+            def sync_submit(_tab: str = "") -> None:
+                t, tip, ic = panel.submit_meta()
+                submit_btn.setText(t)
+                submit_btn.setToolTip(tip)
+                submit_btn.set_icon_spec(ic)
 
-        def sync_submit(_tab: str = "") -> None:
-            t, tip, ic = panel.submit_meta()
-            submit_btn.setText(t)
-            submit_btn.setToolTip(tip)
-            submit_btn.set_icon_spec(ic)
+            def on_submitting(submitting: bool) -> None:
+                submit_btn.set_loading(submitting)
+                cancel_btn.setEnabled(not submitting)
+                card.dismiss_on_escape = not submitting
+                card.close_button.setVisible(not submitting)
 
-        def on_submitting(submitting: bool) -> None:
-            submit_btn.set_loading(submitting)
-            cancel_btn.setEnabled(not submitting)
+            def on_submitted() -> None:
+                card.footer.hide()
+                card.notify_content_changed()
 
-        def on_submitted() -> None:
-            card.footer.hide()
-            card.notify_content_changed()
+            panel.tab_changed.connect(sync_submit)
+            panel.submitting_changed.connect(on_submitting)
+            panel.submitted.connect(on_submitted)
+            panel.done_requested.connect(card.accept)
+            panel.content_resized.connect(card.notify_content_changed)
 
-        panel.tab_changed.connect(sync_submit)
-        panel.submitting_changed.connect(on_submitting)
-        panel.submitted.connect(on_submitted)
-        panel.done_requested.connect(card.accept)
-        panel.content_resized.connect(card.notify_content_changed)
+            card.add_cleanup(panel.shutdown)
+            manager.open(card)
+            return
+        except Exception:
+            logger.warning("open_feedback_overlay failed, falling back", exc_info=True)
 
-        card.add_cleanup(panel.shutdown)
-        manager.open(card)
-    except Exception:
-        FeedbackDialog(
-            parent,
-            initial_tab=initial_tab,
-            initial_title=initial_title,
-            initial_message=initial_message,
-            initial_logs=initial_logs,
-        ).exec()
+    FeedbackDialog(
+        parent,
+        initial_tab=initial_tab,
+        initial_title=initial_title,
+        initial_message=initial_message,
+        initial_logs=initial_logs,
+    ).exec()

@@ -32,6 +32,7 @@ from src.gui.components import (
 from src.gui.dialogs.load_game import OnlineFetchPanel, PgnFilePanel, PgnTextPanel
 from src.gui.styles import Styles
 from src.gui.utils.assets import asset_path
+from src.utils.logger import logger
 
 __all__ = [
     "LoadGameDialog",
@@ -295,86 +296,76 @@ def open_load_game_overlay(
     on_settings: Callable[[], None] | None = None,
 ) -> None:
     """Open Load Game as an in-window overlay, invoking callbacks asynchronously."""
-    if not isinstance(parent, QWidget):
-        dialog = LoadGameDialog(parent, initial_source=initial_source)
+    if isinstance(parent, QWidget):
         try:
-            if initial_text and initial_source == SRC_PGN_TEXT:
-                dialog.panel.load_initial_text(initial_text)
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                if dialog._navigate_to_settings and on_settings is not None:
-                    on_settings()
-                elif dialog._pending_batch is not None and on_batch is not None:
-                    on_batch(dialog._pending_batch)
-        finally:
-            dialog.deleteLater()
-        return
+            manager = OverlayManager.for_window(parent)
+            card = manager.create_card(
+                title="Import game",
+                description="Fetch a game from Chess.com or Lichess, or load a PGN file.",
+                max_width=680,
+                minimum_width=460,
+                dismiss_on_escape=True,
+                dismiss_on_backdrop=True,
+            )
+            panel = LoadGamePanel(card, initial_source=initial_source)
+            panel.setMinimumHeight(410)
+            card.set_content(panel)
 
+            if initial_text and initial_source == SRC_PGN_TEXT:
+                panel.load_initial_text(initial_text)
+
+            cancel_btn = Button(
+                "Cancel",
+                ButtonVariant.HOLLOW,
+                ButtonSize.MD,
+                tooltip="Close without loading a game",
+                on_click=card.reject,
+            )
+            cancel_btn.setMinimumWidth(92)
+            card.add_action(cancel_btn)
+
+            state: dict[str, object] = {"batch": None, "settings": False, "done": False}
+
+            def on_panel_batch(batch) -> None:
+                if state["done"]:
+                    return
+                state["done"] = True
+                state["batch"] = batch
+                card.accept()
+
+            def on_panel_settings() -> None:
+                if state["done"]:
+                    return
+                state["done"] = True
+                state["settings"] = True
+                card.accept()
+
+            panel.batch_ready.connect(on_panel_batch)
+            panel.navigate_to_settings.connect(on_panel_settings)
+
+            card.add_cleanup(panel.shutdown)
+
+            def on_result(result: OverlayResult) -> None:
+                if result is not OverlayResult.ACCEPTED:
+                    return
+                if state["settings"] and on_settings is not None:
+                    on_settings()
+                elif state["batch"] is not None and on_batch is not None:
+                    on_batch(state["batch"])
+
+            manager.open(card, on_result=on_result)
+            return
+        except Exception:
+            logger.warning("open_load_game_overlay failed, falling back", exc_info=True)
+
+    dialog = LoadGameDialog(parent, initial_source=initial_source)
     try:
-        manager = OverlayManager.for_window(parent)
-        card = manager.create_card(
-            title="Import game",
-            description="Fetch a game from Chess.com or Lichess, or load a PGN file.",
-            max_width=680,
-            minimum_width=460,
-            dismiss_on_escape=True,
-            dismiss_on_backdrop=True,
-        )
-        panel = LoadGamePanel(card, initial_source=initial_source)
-        panel.setMinimumHeight(410)
-        card.set_content(panel)
-
         if initial_text and initial_source == SRC_PGN_TEXT:
-            panel.load_initial_text(initial_text)
-
-        cancel_btn = Button(
-            "Cancel",
-            ButtonVariant.HOLLOW,
-            ButtonSize.MD,
-            tooltip="Close without loading a game",
-            on_click=card.reject,
-        )
-        cancel_btn.setMinimumWidth(92)
-        card.add_action(cancel_btn)
-
-        state: dict[str, object] = {"batch": None, "settings": False, "done": False}
-
-        def on_panel_batch(batch) -> None:
-            if state["done"]:
-                return
-            state["done"] = True
-            state["batch"] = batch
-            card.accept()
-
-        def on_panel_settings() -> None:
-            if state["done"]:
-                return
-            state["done"] = True
-            state["settings"] = True
-            card.accept()
-
-        panel.batch_ready.connect(on_panel_batch)
-        panel.navigate_to_settings.connect(on_panel_settings)
-
-        card.add_cleanup(panel.shutdown)
-
-        def on_result(result: OverlayResult) -> None:
-            if result is not OverlayResult.ACCEPTED:
-                return
-            if state["settings"] and on_settings is not None:
+            dialog.panel.load_initial_text(initial_text)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            if dialog._navigate_to_settings and on_settings is not None:
                 on_settings()
-            elif state["batch"] is not None and on_batch is not None:
-                on_batch(state["batch"])
-
-        manager.open(card, on_result=on_result)
-    except Exception:
-        dialog = LoadGameDialog(parent, initial_source=initial_source)
-        try:
-            if initial_text and initial_source == SRC_PGN_TEXT:
-                dialog.panel.load_initial_text(initial_text)
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                if dialog._navigate_to_settings and on_settings is not None:
-                    on_settings()
-                elif dialog._pending_batch is not None and on_batch is not None:
-                    on_batch(dialog._pending_batch)
-        finally:
-            dialog.deleteLater()
+            elif dialog._pending_batch is not None and on_batch is not None:
+                on_batch(dialog._pending_batch)
+    finally:
+        dialog.deleteLater()
