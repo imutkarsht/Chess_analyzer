@@ -14,6 +14,8 @@ python main.py                                   # run
 ruff check .                                     # lint
 pytest tests/                                    # all tests
 QT_QPA_PLATFORM=offscreen pytest tests/          # headless Linux
+pytest tests/architecture -q                     # architecture guardrails
+python scripts/check_changed_hygiene.py --base origin/master  # changed-line rules
 pytest tests/backend/test_analyzer.py            # one file
 pytest tests/ --cov=src --cov-branch --cov-report=term-missing  # coverage
 pyinstaller build.spec                           # production build
@@ -27,6 +29,8 @@ pyinstaller build.spec                           # production build
 - Add tests for new behaviour and meaningful branches.
 - Keep diffs focused; do not mix refactors with fixes.
 - Use `pathlib` for paths and `logger` for diagnostics.
+- Include a code and reason in new `# noqa` comments
+  (`# noqa: CODE - reason`).
 
 **Ask first**
 
@@ -70,10 +74,12 @@ pyinstaller build.spec                           # production build
 ## Guardrail tests
 
 `tests/architecture/test_boundaries.py` keeps pure packages Qt-free;
+`tests/architecture/test_source_hygiene.py` keeps `print()` out of `src/`;
 `tests/architecture/test_theme_guardrails.py` and `test_theme_tokens.py` protect
 theming; `tests/architecture/test_icon_guardrails.py` protects the central icon
 layer; `tests/gui/test_button.py` and `test_input.py` protect shared controls
-and worker placement.
+and worker placement. `scripts/check_changed_hygiene.py` enforces SPDX, reasoned
+`# noqa`, and changed-line icon/control rules.
 
 ## Code rules
 

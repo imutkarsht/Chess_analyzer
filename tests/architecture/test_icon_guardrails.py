@@ -4,39 +4,18 @@
 from __future__ import annotations
 
 import ast
-import re
 from pathlib import Path
 
+from scripts.hygiene_rules import (
+    RAW_FONT_ALLOWLIST,
+    RAW_FONT_ICON,
+    RAW_QICON_ALLOWLIST,
+    SETICON_ALLOWLIST,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
-GUI = ROOT / "src" / "gui"
-ICON_PACKAGE = GUI / "icons"
-RAW_FONT_ICON = re.compile(r"fa[0-9]*[sbrlbd]\.[a-z0-9-]+")
-
-# Content artwork and app identity assets may still construct QIcons directly.
-RAW_QICON_ALLOWLIST = {
-    "src/gui/analysis/moves/cell.py",
-    "src/gui/analysis/moves/view.py",
-    "src/gui/board/promotion_dialog.py",
-    "src/gui/main_window/window.py",
-    "src/gui/resources.py",
-    "src/gui/views/settings/board_pieces_settings.py",
-}
-
-# Brand glyphs and a few Font Awesome 6-only legend glyphs remain explicit
-# until they have pack-independent equivalents.
-RAW_FONT_ALLOWLIST = {
-    "src/gui/components/layout/welcome_panel.py",
-    "src/gui/views/metrics/ending_distribution_card.py",
-    "src/gui/views/settings/links_settings.py",
-}
-
-SETICON_ALLOWLIST = {
-    "src/gui/analysis/moves/cell.py",
-    "src/gui/analysis/moves/view.py",
-    "src/gui/main_window/window.py",
-    "src/gui/views/history_view.py",
-    "src/gui/views/settings/board_pieces_settings.py",
-}
+SRC = ROOT / "src"
+ICON_PACKAGE = SRC / "gui" / "icons"
 
 
 def _relative(path: Path) -> str:
@@ -45,7 +24,7 @@ def _relative(path: Path) -> str:
 
 def test_only_the_icon_layer_imports_qtawesome() -> None:
     offenders: list[str] = []
-    for path in GUI.rglob("*.py"):
+    for path in SRC.rglob("*.py"):
         if ICON_PACKAGE in path.parents:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -64,7 +43,7 @@ def test_only_the_icon_layer_imports_qtawesome() -> None:
 
 def test_raw_font_icon_names_stay_in_the_icon_layer_or_brand_allowlist() -> None:
     offenders: list[str] = []
-    for path in GUI.rglob("*.py"):
+    for path in SRC.rglob("*.py"):
         relative = _relative(path)
         if ICON_PACKAGE in path.parents or relative in RAW_FONT_ALLOWLIST:
             continue
@@ -82,7 +61,7 @@ def test_raw_font_icon_names_stay_in_the_icon_layer_or_brand_allowlist() -> None
 
 def test_seticon_calls_stay_in_the_icon_layer_or_content_allowlist() -> None:
     offenders: list[str] = []
-    for path in GUI.rglob("*.py"):
+    for path in SRC.rglob("*.py"):
         relative = _relative(path)
         if (
             ICON_PACKAGE in path.parents
@@ -101,7 +80,7 @@ def test_seticon_calls_stay_in_the_icon_layer_or_content_allowlist() -> None:
 
 def test_qicon_construction_stays_in_the_icon_layer_or_content_allowlist() -> None:
     offenders: list[str] = []
-    for path in GUI.rglob("*.py"):
+    for path in SRC.rglob("*.py"):
         relative = _relative(path)
         if (
             ICON_PACKAGE in path.parents

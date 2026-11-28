@@ -1,0 +1,144 @@
+name: Code Hygiene
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - 'release/**'
+  pull_request:
+    branches:
+      - master
+      - main
+      - 'release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QT_QPA_PLATFORM: offscreen
+  PYTHONPATH: .
+
+jobs:
+  architecture:
+    name: architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-dev.txt'
+
+      - name: Install Linux System Dependencies (Qt6 / XCB / OpenGL / Multimedia)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 \
+            libgl1 \
+            libxcb-cursor0 \
+            libxcb-xinerama0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-sync1 \
+            libxcb-xfixes0 \
+            libxkbcommon-x11-0 \
+            libfontconfig1 \
+            libdbus-1-3 \
+            libpulse0 \
+            libva2 \
+            libva-drm2 \
+            libva-x11-2 \
+            libva-wayland2
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff Check
+        run: ruff check .
+
+      - name: Architecture Guardrails
+        run: pytest tests/architecture -q
+
+      - name: Shared Control Guardrails
+        run: |
+          pytest tests/gui/test_button.py tests/gui/test_input.py tests/gui/test_component_imports.py -q
+
+      - name: Changed-file Hygiene
+        env:
+          HYGIENE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python scripts/check_changed_hygiene.py
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'requirements-dev.txt'
+
+      - name: Install Linux System Dependencies (Qt6 / XCB / OpenGL / Multimedia)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 \
+            libgl1 \
+            libxcb-cursor0 \
+            libxcb-xinerama0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-sync1 \
+            libxcb-xfixes0 \
+            libxkbcommon-x11-0 \
+            libfontconfig1 \
+            libdbus-1-3 \
+            libpulse0 \
+            libva2 \
+            libva-drm2 \
+            libva-x11-2 \
+            libva-wayland2
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Coverage Gate (80% branch)
+        run: |
+          pytest tests/ --cov=src --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=80
+
+      - name: Upload Coverage Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+          if-no-files-found: ignore
+          retention-days: 7

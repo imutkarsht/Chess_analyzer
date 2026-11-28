@@ -6,68 +6,51 @@ from pathlib import Path
 import pytest
 from PyQt6.QtGui import QIcon
 
+from scripts.hygiene_rules import (
+    BUTTON_COMPONENT,
+    RAW_BUTTON_ALLOWLIST,
+    RAW_FORM_CONTROLS,
+    RAW_PUSH_TOOL_CLASSES,
+)
 from src.gui.components import Button, ButtonSize, ButtonVariant
 
-# Purpose-built widgets that are not buttons (swatches, star rating, graph nodes).
-RAW_BUTTON_ALLOWLIST = {
-    "src/gui/analysis/moves/cell.py",
-    "src/gui/analysis/variation/graph.py",
-    "src/gui/components/controls/star_rating_widget.py",
-    "src/gui/views/settings/board_pieces_settings.py",
-}
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src"
+GUI = SRC / "gui"
 
 
 def test_no_raw_push_or_tool_buttons_outside_the_central_component():
-    repo_root = Path(__file__).resolve().parents[2]
-    gui_root = repo_root / "src" / "gui"
     offenders = []
-    for path in gui_root.rglob("*.py"):
-        relative = path.relative_to(repo_root).as_posix()
-        if relative == "src/gui/components/controls/button.py" or relative in RAW_BUTTON_ALLOWLIST:
+    for path in SRC.rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
+        if relative == BUTTON_COMPONENT or relative in RAW_BUTTON_ALLOWLIST:
             continue
         text = path.read_text(encoding="utf-8")
-        if "QPushButton(" in text or "QToolButton(" in text:
+        if any(f"{name}(" in text for name in RAW_PUSH_TOOL_CLASSES):
             offenders.append(relative)
 
     assert offenders == []
 
 
-RAW_FORM_CONTROLS = (
-    "QCheckBox(",
-    "QProgressBar(",
-    "QRadioButton(",
-    "QSlider(",
-    "QListWidget(",
-    "QComboBox(",
-    "QLineEdit(",
-    "QSpinBox(",
-    "QDoubleSpinBox(",
-    "QDateEdit(",
-    "QTabWidget(",
-)
-
-
 def test_no_raw_form_controls_outside_the_central_components():
-    repo_root = Path(__file__).resolve().parents[2]
-    gui_root = repo_root / "src" / "gui"
     offenders = []
-    for path in gui_root.rglob("*.py"):
-        relative = path.relative_to(repo_root).as_posix()
+    for path in SRC.rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
         if relative.startswith("src/gui/components/"):
             continue
         text = path.read_text(encoding="utf-8")
         for constructor in RAW_FORM_CONTROLS:
-            if constructor in text:
-                offenders.append(f"{relative}: {constructor[:-1]}")
+            if f"{constructor}(" in text:
+                offenders.append(f"{relative}: {constructor}")
     assert offenders == []
 
 
 def test_no_qthread_subclasses_outside_the_workers_package():
-    repo_root = Path(__file__).resolve().parents[2]
-    gui_root = repo_root / "src" / "gui"
     offenders = []
-    for path in gui_root.rglob("*.py"):
-        relative = path.relative_to(repo_root).as_posix()
+    for path in SRC.rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
+        if relative.startswith("src/workers/"):
+            continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef):
@@ -78,11 +61,9 @@ def test_no_qthread_subclasses_outside_the_workers_package():
 
 
 def test_no_raw_message_boxes_outside_the_shared_dialogs():
-    repo_root = Path(__file__).resolve().parents[2]
-    gui_root = repo_root / "src" / "gui"
     offenders = []
-    for path in gui_root.rglob("*.py"):
-        relative = path.relative_to(repo_root).as_posix()
+    for path in SRC.rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
         if relative == "src/gui/components/dialogs.py":
             continue
         if "QMessageBox" in path.read_text(encoding="utf-8"):
@@ -92,14 +73,12 @@ def test_no_raw_message_boxes_outside_the_shared_dialogs():
 
 def test_central_buttons_are_not_restyled_or_reiconed_manually():
     """Button owns its QSS/icon; callers must use refresh_styles/set_icon_spec."""
-    repo_root = Path(__file__).resolve().parents[2]
-    gui_root = repo_root / "src" / "gui"
     factories = {"Button"}
     overrides = {"setStyleSheet", "setIcon", "setIconSize"}
     offenders = []
 
-    for path in gui_root.rglob("*.py"):
-        relative = path.relative_to(repo_root).as_posix()
+    for path in GUI.rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
         if relative == "src/gui/components/controls/button.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
