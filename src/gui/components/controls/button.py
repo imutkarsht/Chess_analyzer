@@ -21,9 +21,9 @@ from PyQt6.QtCore import QRectF, QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
+from src.gui.icons import IconSpec, IconStyleManager, icon_qicon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.utils.icons import IconSpec, IconStyleManager, icon_qicon
 
 
 class ButtonVariant(StrEnum):
@@ -315,7 +315,7 @@ class Button(QPushButton):
                     color = Styles.get_tone_color(spec.tone)
                 except ValueError:
                     pass
-            icon = icon_qicon(spec.name, color, side)
+            icon = icon_qicon(spec.name, color, side, spec.variant)
         elif isinstance(spec, str):
             icon = icon_qicon(spec, self._icon_color(), side)
         elif isinstance(spec, QIcon):

@@ -39,6 +39,7 @@ from src.gui.components.display.clock_label import ClockLabel
 from src.gui.components.display.color_label import ColorLabel
 from src.gui.components.display.elided_label import ElidedLabel
 from src.gui.components.display.graph_widget import GraphWidget
+from src.gui.components.display.icon import Icon
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.display.mini_bar import MiniBar
@@ -91,6 +92,7 @@ from src.gui.components.lists.pagination_bar import (
     PaginationStyle,
 )
 from src.gui.components.lists.sortable_item_list import SortableItem, SortableItemList
+from src.gui.icons import IconSpec, IconVariant
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.smooth_scroll import SmoothScroll, install_smooth_scrolling
 
@@ -132,7 +134,10 @@ __all__ = [
     'GameListItemWidget',
     'GameListWidget',
     'GraphWidget',
+    'Icon',
     'IconLabel',
+    'IconSpec',
+    'IconVariant',
     'Input',
     'Label',
     'LinkLabel',

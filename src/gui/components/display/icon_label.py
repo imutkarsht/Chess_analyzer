@@ -7,10 +7,15 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import QLabel, QWidget
 
+from src.gui.icons import (
+    IconSpec,
+    IconStyleManager,
+    IconVariant,
+    icon_pixmap,
+)
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextTone
-from src.gui.utils.icons import IconSpec, IconStyleManager, icon_pixmap
 
 
 class IconLabel(QLabel):
@@ -31,6 +36,7 @@ class IconLabel(QLabel):
         icon_size: int | None = None,
         color: str | None = None,
         tone: TextTone | str | None = None,
+        variant: IconVariant | str | None = None,
         fallback: str = "",
         fallback_size: int | None = None,
         fixed_size: bool = True,
@@ -43,6 +49,7 @@ class IconLabel(QLabel):
             icon_size = icon.size or icon_size
             color = icon.color or color
             tone = icon.tone or tone
+            variant = icon.variant or variant
             fallback = icon.fallback or fallback
             icon = icon.name
         if fixed_size:
@@ -55,6 +62,7 @@ class IconLabel(QLabel):
         self._icon_size = icon_size or size
         self._color = color
         self._tone = TextTone(tone) if tone is not None else None
+        self._variant = IconVariant(variant) if variant is not None else None
         self._fallback = fallback
         self._fallback_size = fallback_size
         self._fixed_size = fixed_size
@@ -78,6 +86,8 @@ class IconLabel(QLabel):
                 self._color = icon.color
             if icon.tone is not None:
                 self._tone = TextTone(icon.tone)
+            if icon.variant is not None:
+                self._variant = IconVariant(icon.variant)
             if icon.fallback:
                 self._fallback = icon.fallback
             icon = icon.name
@@ -92,6 +102,10 @@ class IconLabel(QLabel):
 
     def set_tone(self, tone: TextTone | str | None) -> None:
         self._tone = TextTone(tone) if tone is not None else None
+        self._apply_icon()
+
+    def set_variant(self, variant: IconVariant | str | None) -> None:
+        self._variant = IconVariant(variant) if variant is not None else None
         self._apply_icon()
 
     def set_color(self, color: str | None) -> None:
@@ -147,7 +161,9 @@ class IconLabel(QLabel):
             return
         if isinstance(icon, str) and icon:
             target = max(1, self.width(), self.height()) if self._scaled else self._icon_size
-            pixmap = icon_pixmap(icon, self._resolved_color(), target)
+            pixmap = icon_pixmap(
+                icon, self._resolved_color(), target, self._variant
+            )
             if pixmap is not None and not pixmap.isNull():
                 self.setPixmap(pixmap)
                 return
