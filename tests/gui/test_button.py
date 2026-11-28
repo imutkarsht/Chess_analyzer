@@ -10,6 +10,7 @@ from scripts.hygiene_rules import (
     BUTTON_COMPONENT,
     RAW_BUTTON_ALLOWLIST,
     RAW_FORM_CONTROLS,
+    RAW_LABEL_ALLOWLIST,
     RAW_PUSH_TOOL_CLASSES,
 )
 from src.gui.components import Button, ButtonSize, ButtonVariant
@@ -42,6 +43,27 @@ def test_no_raw_form_controls_outside_the_central_components():
         for constructor in RAW_FORM_CONTROLS:
             if f"{constructor}(" in text:
                 offenders.append(f"{relative}: {constructor}")
+    assert offenders == []
+
+
+def test_no_raw_labels_outside_shared_components_or_pixmap_allowlist():
+    offenders = []
+    for path in SRC.rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
+        if (
+            relative.startswith("src/gui/components/")
+            or relative in RAW_LABEL_ALLOWLIST
+        ):
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "QLabel"
+            ):
+                offenders.append(f"{relative}:{node.lineno} constructs QLabel")
+
     assert offenders == []
 
 

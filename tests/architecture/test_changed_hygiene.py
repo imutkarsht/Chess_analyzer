@@ -121,6 +121,9 @@ def test_print_only_flags_added_lines() -> None:
         ("src/gui/analysis/moves/cell.py", "widget = QToolButton()\n", False),
         ("src/gui/views/foo.py", "widget = QComboBox()\n", True),
         ("src/gui/components/controls/foo.py", "widget = QComboBox()\n", False),
+        ("src/gui/views/foo.py", "label = QLabel()\n", True),
+        ("src/gui/components/controls/foo.py", "label = QLabel()\n", False),
+        ("src/gui/board/mini_board.py", "label = QLabel()\n", False),
         ("src/gui/analysis/variation/graph.py", "field = QLineEdit()\n", False),
         (
             "src/gui/analysis/variation/graph.py",

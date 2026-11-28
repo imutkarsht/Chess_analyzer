@@ -38,6 +38,8 @@ if __package__:
         RAW_FORM_CONTROLS,
         RAW_INPUT_ALLOWLIST,
         RAW_INPUT_CLASSES,
+        RAW_LABEL_ALLOWLIST,
+        RAW_LABEL_CLASSES,
         RAW_PUSH_TOOL_CLASSES,
         SPDX_HEADER,
     )
@@ -51,6 +53,8 @@ else:
         RAW_FORM_CONTROLS,
         RAW_INPUT_ALLOWLIST,
         RAW_INPUT_CLASSES,
+        RAW_LABEL_ALLOWLIST,
+        RAW_LABEL_CLASSES,
         RAW_PUSH_TOOL_CLASSES,
         SPDX_HEADER,
     )
@@ -224,6 +228,11 @@ def _call_name(node: ast.Call) -> str:
 def _control_allowed(relative: str, class_name: str) -> bool:
     if class_name in RAW_PUSH_TOOL_CLASSES:
         return relative == BUTTON_COMPONENT or relative in RAW_BUTTON_ALLOWLIST
+    if class_name in RAW_LABEL_CLASSES:
+        return (
+            relative.startswith("src/gui/components/")
+            or relative in RAW_LABEL_ALLOWLIST
+        )
     if class_name in RAW_FORM_CONTROLS:
         return relative.startswith("src/gui/components/")
     if class_name in RAW_INPUT_CLASSES:

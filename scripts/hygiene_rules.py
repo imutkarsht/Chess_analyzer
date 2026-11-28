@@ -58,6 +58,18 @@ RAW_BUTTON_ALLOWLIST = frozenset(
 
 RAW_PUSH_TOOL_CLASSES = frozenset({"QPushButton", "QToolButton"})
 
+# Pixmap-only labels. MiniBoardWidget is imported by shared components, so
+# importing IconLabel through the component facade here would create a cycle.
+# The share preview keeps an explicitly scaled pixmap for its rendered report.
+RAW_LABEL_ALLOWLIST = frozenset(
+    {
+        "src/gui/board/mini_board.py",
+        "src/gui/share/share_report_dialog.py",
+    }
+)
+
+RAW_LABEL_CLASSES = frozenset({"QLabel"})
+
 # Form controls with no page-specific exceptions: only shared components may
 # construct them directly.
 RAW_FORM_CONTROLS = frozenset(
@@ -89,4 +101,6 @@ RAW_INPUT_CLASSES = frozenset(
     {"QLineEdit", "QTextEdit", "QPlainTextEdit", "QSpinBox", "QDoubleSpinBox"}
 )
 
-RAW_CONTROL_CLASSES = RAW_PUSH_TOOL_CLASSES | RAW_FORM_CONTROLS | RAW_INPUT_CLASSES
+RAW_CONTROL_CLASSES = (
+    RAW_PUSH_TOOL_CLASSES | RAW_FORM_CONTROLS | RAW_INPUT_CLASSES | RAW_LABEL_CLASSES
+)
