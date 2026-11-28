@@ -239,6 +239,18 @@ class ConfigManager:
         )
 
     @property
+    def icon_style(self) -> str:
+        return self.get_choice(
+            "icon_style", str(self._setting_default("icon_style"))
+        )
+
+    @property
+    def icon_variant(self) -> str:
+        return self.get_choice(
+            "icon_variant", str(self._setting_default("icon_variant"))
+        )
+
+    @property
     def accent_color(self) -> str:
         value = self.get("accent_color", self._setting_default("accent_color"))
         return str(value or "")

@@ -95,7 +95,7 @@ class LoadGamePanel(QWidget):
             font_size=13,
             icon_size=16,
         )
-        self.tabs.add_tab("Online", icon="fa5s.globe")
+        self.tabs.add_tab("Online", icon="globe")
         self.tabs.add_tab(
             "PGN",
             icon="assets/icons/file.png",

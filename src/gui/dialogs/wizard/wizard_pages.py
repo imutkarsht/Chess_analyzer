@@ -1,7 +1,6 @@
 import os
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -25,9 +24,9 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.gui.icons import HAS_QTAWESOME
 from src.gui.styles import Styles
 from src.gui.utils.assets import app_logo_path
-from src.gui.utils.icons import HAS_QTAWESOME
 
 
 def build_gatekeeper_page(wizard) -> QWidget:
@@ -65,7 +64,7 @@ def build_welcome_page(wizard) -> QWidget:
 
     logo_path = app_logo_path()
     if os.path.exists(logo_path):
-        logo_label = IconLabel(QIcon(logo_path), size=110)
+        logo_label = IconLabel(logo_path, size=110)
         layout.addWidget(logo_label, 0, Qt.AlignmentFlag.AlignCenter)
 
     title = Label("Chess Analyzer Pro", role=TextRole.PAGE_TITLE)
@@ -626,13 +625,13 @@ def build_done_page(wizard) -> QWidget:
             is_check = item.startswith("✓")
 
             if is_warning:
-                icon_name = "fa5s.exclamation-triangle"
+                icon_name = "exclamation-triangle"
                 text = item[1:].strip()
             elif is_check:
-                icon_name = "fa5s.check-circle"
+                icon_name = "check-circle"
                 text = item[1:].strip()
             else:
-                icon_name = "fa5s.info-circle"
+                icon_name = "info-circle"
                 text = item.strip()
 
             row = QWidget()

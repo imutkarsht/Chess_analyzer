@@ -6,9 +6,9 @@ from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 
 from src.gui.components.display.label import Label
+from src.gui.icons import IconStyleManager, icon_qicon
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
-from src.gui.utils.icons import IconStyleManager, icon_qicon
 
 STAR_LABELS = {
     0: "Select a rating",

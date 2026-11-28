@@ -32,9 +32,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.icons import HAS_QTAWESOME, icon_qicon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.utils.icons import HAS_QTAWESOME, icon_qicon
 
 # Widget classes that accept typed text; used by shortcut/navigation guards so
 # they do not each re-declare the tuple.
@@ -112,7 +112,7 @@ class Input(QLineEdit):
         self._password_action: QAction | None = None
         self._icon_spec = icon
         if icon is None and self._variant is InputVariant.SEARCH:
-            self._icon_spec = "fa5s.search"
+            self._icon_spec = "search"
 
         self.setPlaceholderText(placeholder)
         if full_width:
@@ -210,7 +210,7 @@ class Input(QLineEdit):
             )
         if self._clearable:
             self._clear_action = self._make_action(
-                "fa5s.times",
+                "times",
                 QLineEdit.ActionPosition.TrailingPosition,
                 tooltip="Clear text",
                 on_trigger=self.clear,
@@ -271,7 +271,7 @@ class Input(QLineEdit):
 
     def _reveal_icon(self) -> str:
         # "eye-slash" means "hide what is visible", matching the drawn glyph.
-        return "fa5s.eye-slash" if self._password_visible else "fa5s.eye"
+        return "eye-slash" if self._password_visible else "eye"
 
     def _reveal_tooltip(self) -> str:
         return "Hide password" if self._password_visible else "Show password"

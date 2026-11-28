@@ -10,21 +10,21 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QFrame, QVBoxLayout
 
 from src.gui.components.controls.button import Button, ButtonVariant
+from src.gui.icons import IconStyleManager, icon_qicon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
 from src.gui.utils.assets import icon_path
-from src.gui.utils.icons import IconStyleManager, icon_qicon
 from src.utils.config import ConfigManager
 
 QTAWESOME_ICONS = {
-    "help.png": "fa5s.question-circle",
-    "exit.png": "fa5s.sign-out-alt",
-    "analyze.png": "fa5s.chess-board",
-    "explorer.png": "fa5s.compass",
-    "history.png": "fa5s.history",
-    "stats.png": "fa5s.chart-bar",
-    "settings.png": "fa5s.cog",
+    "help.png": "question-circle",
+    "exit.png": "sign-out-alt",
+    "analyze.png": "chess-board",
+    "explorer.png": "compass",
+    "history.png": "history",
+    "stats.png": "chart-bar",
+    "settings.png": "cog",
 }
 
 COLLAPSED_WIDTH = 60
@@ -201,7 +201,7 @@ class Sidebar(QFrame):
     def _update_collapse_icon(self):
         icon_char = "\u00ab" if not self._collapsed else "\u00bb"
         self.btn_collapse.setText(icon_char)
-        icon_name = "fa5s.chevron-left" if not self._collapsed else "fa5s.chevron-right"
+        icon_name = "chevron-left" if not self._collapsed else "chevron-right"
         self.btn_collapse.set_icon_spec(icon_name)
 
     def handle_click(self, index):

@@ -30,8 +30,8 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.gui.icons import HAS_QTAWESOME, IconSpec
 from src.gui.styles import Styles
-from src.gui.utils.icons import HAS_QTAWESOME, IconSpec
 from src.utils.format_utils import format_eval
 
 COL_W = 58

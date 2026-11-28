@@ -31,8 +31,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.gui.icons import IconStyleManager, icon_qicon
 from src.gui.styles import Styles
-from src.gui.utils.icons import IconStyleManager, icon_qicon
 
 _ACTIVE_STYLES = ("underline", "accent", "filled", "outline")
 _MIXED_PAGE_MODES = (

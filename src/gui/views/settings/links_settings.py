@@ -3,7 +3,6 @@
 import os
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -74,7 +73,7 @@ class LinksSettings(BackgroundTaskCard):
         self.logo_label = IconLabel(size=64)
         logo_path = app_logo_path()
         if os.path.exists(logo_path):
-            self.logo_label.set_icon(QIcon(logo_path))
+            self.logo_label.set_icon(logo_path)
         brand_layout.addWidget(self.logo_label, 0, Qt.AlignmentFlag.AlignTop)
 
         text_col = QVBoxLayout()
@@ -119,13 +118,13 @@ class LinksSettings(BackgroundTaskCard):
 
         self.website_btn = self._make_link(
             "Website",
-            "fa5s.globe",
+            "globe",
             self.open_website,
             "Open the project website",
         )
         self.docs_btn = self._make_link(
             "Documentation",
-            "fa5s.book",
+            "book",
             self.open_docs,
             "Open the user documentation",
         )
@@ -137,31 +136,31 @@ class LinksSettings(BackgroundTaskCard):
         )
         self.releases_btn = self._make_link(
             "Releases",
-            "fa5s.download",
+            "download",
             self.open_releases,
             "Open the release history",
         )
         self.feedback_btn = self._make_link(
             "Report Issue",
-            "fa5s.bug",
+            "bug",
             self.open_feedback,
             "Open the bug report form",
         )
         self.suggest_btn = self._make_link(
             "Suggest Feature",
-            "fa5s.lightbulb",
+            "lightbulb",
             self.open_suggest_feature,
             "Open the feature request form",
         )
         self.update_btn = self._make_link(
             "Check for Updates",
-            "fa5s.sync-alt",
+            "sync-alt",
             self.check_for_updates,
             "Check GitHub for a newer release",
         )
         self.rate_btn = self._make_link(
             "Rate App",
-            "fa5s.star",
+            "star",
             self.open_review,
             "Open the in-app rating form",
         )
@@ -211,7 +210,7 @@ class LinksSettings(BackgroundTaskCard):
         )
         self.author_email_btn = self._make_link(
             "Contact",
-            "fa5s.envelope",
+            "envelope",
             self.open_author_email,
             "Open your email app to contact the author",
         )
@@ -233,13 +232,13 @@ class LinksSettings(BackgroundTaskCard):
         license_row.addWidget(self.license_note)
         self.license_btn = self._make_link(
             "Licence",
-            "fa5s.file-alt",
+            "file-alt",
             self.open_license,
             "Open the GPL-3.0 licence",
         )
         self.notices_btn = self._make_link(
             "Third-party notices",
-            "fa5s.list",
+            "list",
             self.open_notices,
             "Open the third-party licence notices",
         )

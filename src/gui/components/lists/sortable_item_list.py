@@ -20,9 +20,9 @@ from PyQt6.QtWidgets import (
     QStyleOptionViewItem,
 )
 
+from src.gui.icons import icon_pixmap
 from src.gui.styles import Styles
 from src.gui.theme.motion import Motion
-from src.gui.utils.icons import icon_pixmap
 from src.gui.utils.smooth_scroll import SmoothScroll
 
 _KEY_ROLE = Qt.ItemDataRole.UserRole

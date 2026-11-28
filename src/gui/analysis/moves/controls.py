@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from src.gui.components import Button, ButtonSize, ButtonVariant
-from src.gui.utils.icons import HAS_QTAWESOME
+from src.gui.icons import HAS_QTAWESOME
 
 
 class MoveControls(QWidget):
@@ -58,23 +58,23 @@ class MoveControls(QWidget):
         toolbar_layout.setSpacing(2)
 
         self.btn_first = self._make_analysis_button(
-            "fa5s.angle-double-left", "⏮", "First move (Home)", self.first_clicked
+            "angle-double-left", "⏮", "First move (Home)", self.first_clicked
         )
         self.btn_prev = self._make_analysis_button(
-            "fa5s.angle-left", "◀", "Previous move (←)", self.prev_clicked
+            "angle-left", "◀", "Previous move (←)", self.prev_clicked
         )
         self.btn_next = self._make_analysis_button(
-            "fa5s.angle-right", "▶", "Next move (→)", self.next_clicked
+            "angle-right", "▶", "Next move (→)", self.next_clicked
         )
         self.btn_last = self._make_analysis_button(
-            "fa5s.angle-double-right", "⏭", "Last move (End)", self.last_clicked
+            "angle-double-right", "⏭", "Last move (End)", self.last_clicked
         )
         self.btn_play = self._make_analysis_button(
-            "fa5s.play", "▶", "Play or pause auto-replay (Space)", self.replay_toggled
+            "play", "▶", "Play or pause auto-replay (Space)", self.replay_toggled
         )
         self.btn_follow = self._make_follow_button()
         self.btn_flip = self._make_analysis_button(
-            "fa5s.exchange-alt", "⇄", "Flip board (F)", self.flip_clicked
+            "exchange-alt", "⇄", "Flip board (F)", self.flip_clicked
         )
 
         # Media controls: play/pause sits at the centre of the step group.
@@ -187,7 +187,7 @@ class MoveControls(QWidget):
         if self.btn_play is None:
             return
         self._replay_active = bool(active)
-        icon = "fa5s.pause" if self._replay_active else "fa5s.play"
+        icon = "pause" if self._replay_active else "play"
         tooltip = (
             "Pause auto-replay (Space)"
             if self._replay_active

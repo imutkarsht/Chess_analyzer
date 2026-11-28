@@ -196,9 +196,9 @@ class OnlineFetchPanel(QWidget):
         )
         self.mode_selector = SegmentedSelector(
             [
-                ("recent", "Recent", "fa5s.history"),
-                ("date", "By Date", "fa5s.calendar-alt"),
-                ("url", "By URL", "fa5s.link"),
+                ("recent", "Recent", "history"),
+                ("date", "By Date", "calendar-alt"),
+                ("url", "By URL", "link"),
             ],
             "recent",
         )
@@ -263,7 +263,7 @@ class OnlineFetchPanel(QWidget):
             "Fetch games",
             ButtonVariant.PRIMARY,
             ButtonSize.MD,
-            icon="fa5s.cloud-download-alt",
+            icon="cloud-download-alt",
             full_width=True,
             tooltip="Load games matching the selected filters",
             on_click=self._fetch,
@@ -422,8 +422,8 @@ class OnlineFetchPanel(QWidget):
 
     def refresh_styles(self) -> None:
         """Chrome and label typography are global; re-tint the state icons."""
-        self._error_icon.set_icon("fa5s.exclamation-circle")
-        self._empty_icon.set_icon("fa5s.search")
+        self._error_icon.set_icon("exclamation-circle")
+        self._empty_icon.set_icon("search")
 
     # ------------------------------------------------------------------
     # Form state

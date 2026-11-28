@@ -29,10 +29,10 @@ from src.gui.components import (
     ToastManager,
     confirm_dialog,
 )
+from src.gui.icons import IconStyleManager, icon_qicon
 from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
-from src.gui.utils.icons import IconStyleManager, icon_qicon
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.history_batch import (
     BatchQueueCard,
@@ -134,7 +134,7 @@ class HistoryView(QWidget):
         self.btn_batch = Button(
             "Batch analyze",
             ButtonVariant.PRIMARY,
-            icon="fa5s.play-circle",
+            icon="play-circle",
             on_click=self._on_batch_button_clicked,
             tooltip="Analyze selected games one by one",
         )
@@ -146,7 +146,7 @@ class HistoryView(QWidget):
         self.btn_import = Button(
             "Import",
             ButtonVariant.FILLED,
-            icon="fa5s.file-import",
+            icon="file-import",
             tooltip="Import games from a CSV file",
             on_click=self.import_games,
         )
@@ -155,7 +155,7 @@ class HistoryView(QWidget):
         self.btn_export = Button(
             "Export",
             ButtonVariant.FILLED,
-            icon="fa5s.file-export",
+            icon="file-export",
             tooltip="Export the filtered games as CSV or annotated PGN",
         )
         self.export_menu = QMenu(self)
@@ -183,7 +183,7 @@ class HistoryView(QWidget):
         self.btn_clear = Button(
             "Delete all games",
             ButtonVariant.DANGER,
-            icon="fa5s.trash-alt",
+            icon="trash-alt",
             tooltip="Permanently delete every saved game",
             on_click=self.clear_history,
         )
@@ -192,7 +192,7 @@ class HistoryView(QWidget):
         self.btn_refresh = Button(
             "Refresh",
             ButtonVariant.FILLED,
-            icon="fa5s.sync-alt",
+            icon="sync-alt",
             tooltip="Reload the game list from storage",
             on_click=self.load_history,
         )
@@ -225,7 +225,7 @@ class HistoryView(QWidget):
             "",
             ButtonVariant.HOLLOW,
             ButtonSize.SM,
-            icon="fa5s.chevron-down",
+            icon="chevron-down",
             on_click=self._expand_batch,
             tooltip="Show batch details",
         )

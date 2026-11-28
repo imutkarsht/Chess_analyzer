@@ -7,8 +7,8 @@ from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QVBoxLayout, QWidget
 
 from src.gui.components import IconLabel, Label, TextRole, TextTone
+from src.gui.icons import icon_qicon
 from src.gui.styles import Styles
-from src.gui.utils.icons import icon_qicon
 from src.utils.format_utils import format_duration
 
 # Every classified move keeps its badge. Only decisive/problem moves get colour

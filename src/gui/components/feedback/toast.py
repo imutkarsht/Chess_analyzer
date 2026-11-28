@@ -40,11 +40,11 @@ from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.feedback.toast_icons import toast_icon
+from src.gui.icons import icon_qicon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
 from src.gui.theme.typography import ALLOWED_SIZES, TextRole
-from src.gui.utils.icons import icon_qicon
 
 
 class ToastVariant(StrEnum):
@@ -304,7 +304,7 @@ class Toast(QWidget):
         self._close_button = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.XS,
-            icon="fa5s.times",
+            icon="times",
             icon_position="only",
             icon_size=13,
             tooltip="Dismiss notification",
