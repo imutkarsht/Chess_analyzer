@@ -103,6 +103,20 @@ def test_dracula_bundle_palette_and_semantics(qapp, monkeypatch):
         ThemeManager.set_theme_mode("dark")
 
 
+def test_eval_bar_white_side_stays_lighter(qapp):
+    """Theme bundles must not invert the eval bar's white and black sides."""
+    from src.gui.theme import ThemeManager as Theme
+    from src.gui.theme.color_math import relative_luminance
+
+    bundles = Theme.registered_bundles()
+    assert bundles
+    for bundle_id, bundle in bundles.items():
+        palette = bundle.palette
+        assert relative_luminance(
+            palette.eval_bar_foreground
+        ) > relative_luminance(palette.eval_bar_background), bundle_id
+
+
 def test_restore_saved_theme_preserves_signature_accent(qapp, monkeypatch):
     """Dracula must stay purple on restart even if a custom accent was saved."""
     from src.gui.main_window.theme_mixin import ThemeMixin

@@ -787,6 +787,9 @@ class Board(QWidget):
     def refresh_settings(self):
         """Re-read appearance settings and redraw, clearing any now-hidden overlay."""
         self.update_board()
+        # The eval bar paints from theme tokens rather than QSS; repaint it
+        # explicitly so a theme switch does not keep the previous colours.
+        self.eval_bar.update()
         if self.interactive:
             self.draw_interactive_overlays()
         else:

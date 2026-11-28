@@ -338,6 +338,7 @@ class VariationGraph(QFrame):
         outer.addLayout(header)
 
         self.scroll = QScrollArea()
+        self.scroll.setObjectName("VariationScroll")
         self.scroll.setWidgetResizable(False)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -346,6 +347,9 @@ class VariationGraph(QFrame):
         self.canvas = _VariationCanvas(self.scroll)
         self.canvas.setMinimumSize(120, LANE_H + PAD_Y * 2)
         self.scroll.setWidget(self.canvas)
+        # The viewport otherwise keeps its startup palette and paints the
+        # previous theme behind the transparent canvas.
+        self.scroll.viewport().setObjectName("VariationViewport")
         outer.addWidget(self.scroll, 1)
 
         self.refresh_styles()

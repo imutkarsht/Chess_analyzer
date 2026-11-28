@@ -118,7 +118,12 @@ def test_mode_controls_visibility_and_button_copy(dialog):
     panel._on_mode_changed("url")
     assert panel.date_field.isVisible() is False
     assert panel.url_field.isVisible() is True
+    assert panel.username_field.isVisible() is True
     assert panel.fetch_btn.text() == "Fetch game"
+
+    panel.platform_selector.setValue("lichess")
+    panel._on_platform_changed("lichess")
+    assert panel.username_field.isVisible() is False
 
 
 def test_url_platform_detection(dialog):
@@ -127,6 +132,26 @@ def test_url_platform_detection(dialog):
     assert panel._platform_for_url("https://lichess.org/abcd1234") == "lichess"
     assert panel._platform_for_url("https://www.chess.com/game/live/123") == "chesscom"
     assert panel._platform_for_url("https://example.com/game") is None
+
+
+def test_chesscom_url_fetch_requires_a_username(dialog, monkeypatch):
+    panel = dialog._online_fetch_panel
+    panel.mode_selector.setValue("url")
+    panel._on_mode_changed("url")
+    panel.username_input.setText("")
+    panel.url_input.setText("https://www.chess.com/game/live/123456")
+
+    warnings = []
+    monkeypatch.setattr(
+        "src.gui.dialogs.load_game.online_fetch_panel.ToastManager.warning",
+        lambda *args, **kwargs: warnings.append(args),
+    )
+
+    panel._fetch()
+
+    assert warnings
+    assert panel._worker is None
+    assert panel.state_stack.currentIndex() == _STATE_FORM
 
 
 def test_empty_and_error_states_have_recovery_paths(dialog):

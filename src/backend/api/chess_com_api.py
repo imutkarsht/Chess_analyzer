@@ -97,46 +97,18 @@ class ChessComAPI(BaseChessAPI):
             return []
 
     @staticmethod
-    def get_game_by_id(
-        game_id: str, url: str | None = None, username: str | None = None
-    ) -> dict | None:
-        """
-        Fetches a specific game by its ID using ONLY Chess.com Public API.
-        Requires the player's username to search their archives.
-        """
-        if username:
-            game = ChessComAPI._find_game_in_archives(username, game_id)
-            if game:
-                return game
+    def get_game_by_id(game_id: str, username: str | None = None) -> dict | None:
+        """Fetches a game from the player's public monthly archives.
 
-        if not url:
+        The PubAPI has no game-id lookup endpoint, so the player's username is
+        required. Chess.com permits the documented PubAPI, not website
+        scraping, so this method never fetches the game URL directly.
+        """
+        clean_game_id = str(game_id or "").strip()
+        clean_username = (username or "").strip()
+        if not clean_game_id or not clean_username:
             return None
-
-        # Fallback scraping of HTML to find the username if it was somehow not passed
-        try:
-            response = requests.get(url, headers=ChessComAPI.HEADERS, timeout=30)
-            response.raise_for_status()
-            html = response.text
-
-            user_match = re.search(r'"username":"([^"]+)"', html)
-            extracted_username = None
-            if user_match:
-                extracted_username = user_match.group(1)
-
-            if not extracted_username:
-                desc_match = re.search(r'<meta name="description" content="([^"]+)"', html)
-                if desc_match:
-                    content = desc_match.group(1)
-                    parts = content.split(" vs ")
-                    if len(parts) > 0:
-                        extracted_username = parts[0].split(" (")[0].strip()
-
-            if extracted_username:
-                return ChessComAPI._find_game_in_archives(extracted_username, game_id)
-        except Exception as e:
-            logger.error(f"Error scraping HTML fallback for game {game_id}: {e}")
-
-        return None
+        return ChessComAPI._find_game_in_archives(clean_username, clean_game_id)
 
     @staticmethod
     def _find_game_in_archives(username: str, game_id: str) -> dict | None:

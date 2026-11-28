@@ -11,17 +11,9 @@ from src.backend.api.import_limits import (
 )
 
 
-@pytest.mark.parametrize(
-    ("token", "expected"),
-    [
-        (None, MAX_GAMES_ANONYMOUS),
-        ("", MAX_GAMES_ANONYMOUS),
-        ("   ", MAX_GAMES_ANONYMOUS),
-        ("lip_token", MAX_GAMES_WITH_TOKEN),
-    ],
-)
-def test_max_games_limit_depends_on_token_presence(token, expected):
-    assert max_games_limit(token) == expected
+@pytest.mark.parametrize("token", [None, "", "   ", "lip_token"])
+def test_max_games_limit_is_50_for_every_request(token):
+    assert max_games_limit(token) == 50
 
 
 @pytest.mark.parametrize(

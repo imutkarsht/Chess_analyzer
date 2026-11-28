@@ -173,8 +173,8 @@ class LichessCard(_ProfileCard):
             container=token_row,
             width=None,
             hint=(
-                "Optional. Raises the import cap from 20 to 30 games, unlocks "
-                "private archives, and enables the online opening explorer."
+                "Optional. Unlocks private archive downloads and enables the "
+                "online opening explorer."
             ),
         )
         self.lichess_token_input.editingFinished.connect(self._on_token_committed)
@@ -302,10 +302,7 @@ class ImportNetworkCard(QGroupBox):
         self.binder.add(
             "api_games_limit",
             self.games_limit_input,
-            hint=(
-                "Recent games fetched per import. The cap is 20 anonymously "
-                "and 30 with a Lichess API token."
-            ),
+            hint="Recent games fetched per import (up to 50).",
             width=CONTROL_WIDE,
             on_change=self._on_games_limit_changed,
         )
@@ -333,15 +330,7 @@ class ImportNetworkCard(QGroupBox):
 
         if limit == requested:
             return ""
-        if max_games_limit(self._token_provider()) == 30:
-            return (
-                "Games limit capped at 30 (the maximum allowed when a "
-                "Lichess API token is configured)."
-            )
-        return (
-            "Games limit capped at 20. Add a Lichess API token in the Lichess "
-            "card to raise the cap to 30 games."
-        )
+        return f"Games limit capped at {limit} (the maximum allowed)."
 
     def _on_games_limit_changed(self, value) -> None:
         self.apply_games_limit(value)

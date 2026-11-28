@@ -110,7 +110,7 @@ class SegmentedSelector(QWidget):
         self.tabs.refresh_styles()
 
 
-def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date: datetime.date, url: str, game_id: str, limit: int) -> list[GameInfo]:
+def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date: datetime.date, game_id: str, limit: int) -> list[GameInfo]:
     if mode == "recent":
         if platform == "lichess":
             from src.backend.api.lichess_api import LichessAPI
@@ -152,7 +152,7 @@ def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date
             from src.backend.api.chess_com_api import ChessComAPI
 
             def func_url_cc():
-                return ChessComAPI.get_game_by_id(game_id, url, username)
+                return ChessComAPI.get_game_by_id(game_id, username)
             func = func_url_cc
         result = cache.get_by_id(platform, game_id, func)
         return [result] if result else []
@@ -457,7 +457,11 @@ class OnlineFetchPanel(QWidget):
         date_mode = mode == "date"
         url_mode = mode == "url"
 
-        show_username = recent_mode or date_mode
+        # Chess.com has no game-id endpoint, so URL imports search the
+        # player's public archive and need the username.
+        show_username = recent_mode or date_mode or (
+            url_mode and platform == "chesscom"
+        )
         self.username_field.setVisible(show_username)
         self.date_field.setVisible(date_mode)
         self.url_field.setVisible(url_mode)
@@ -488,6 +492,11 @@ class OnlineFetchPanel(QWidget):
         elif mode == "date":
             self.username_field.set_description(
                 "Fetches every game played on the selected day."
+            )
+        elif platform == "chesscom":
+            self.username_field.set_description(
+                "Required for Chess.com links: the game is found in this "
+                "player's public archive."
             )
         else:
             self.username_field.set_description(
@@ -562,6 +571,15 @@ class OnlineFetchPanel(QWidget):
                 ToastManager.error(self, "Could not read a game ID from that URL.")
                 return
 
+            if platform == "chesscom" and not username:
+                ToastManager.warning(
+                    self,
+                    "Enter your Chess.com username so the game can be found "
+                    "in your public archive.",
+                )
+                self.username_input.setFocus()
+                return
+
         self._last_query = {
             "platform": platform,
             "mode": mode,
@@ -587,7 +605,6 @@ class OnlineFetchPanel(QWidget):
             platform,
             username,
             date,
-            url,
             game_id,
             limit,
         )
@@ -670,6 +687,9 @@ class OnlineFetchPanel(QWidget):
         platform = "Lichess" if query.get("platform") == "lichess" else "Chess.com"
         mode = query.get("mode")
         if mode == "url":
+            username = query.get("username")
+            if platform == "Chess.com" and username:
+                return f"{platform} · {username} · game link"
             return f"{platform} · game link"
         username = query.get("username") or "saved username"
         if mode == "date":

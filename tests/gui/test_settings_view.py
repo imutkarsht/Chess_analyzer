@@ -11,7 +11,7 @@ def isolated_config(tmp_path, monkeypatch):
     return tmp_path / "config.json"
 
 def test_settings_view_clamping_without_token(qapp, qtbot, isolated_config):
-    """Without Lichess API Token, game limit should be capped at 20."""
+    """The recent-game limit is capped at 50 without a Lichess token."""
     from src.gui.views.settings_view import SettingsView
 
     with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
@@ -22,7 +22,7 @@ def test_settings_view_clamping_without_token(qapp, qtbot, isolated_config):
         view.chesscom_input.setText("TestUserChessCom")
         view.lichess_input.setText("TestUserLichess")
         view.lichess_token_input.setText("")  # No token
-        view.games_limit_input.setText("25")  # Exceeds max 20 without token
+        view.games_limit_input.setText("75")  # Exceeds max 50
 
         # Toast replaces QMessageBox — mock the manager call
         with patch("src.gui.components.feedback.toast.ToastManager.warning") as mock_toast:
@@ -30,18 +30,18 @@ def test_settings_view_clamping_without_token(qapp, qtbot, isolated_config):
             mock_toast.assert_called_once()
 
         # Verify clamped value is written to config and UI input
-        assert view.config_manager.get("api_games_limit") == 20
-        assert view.games_limit_input.text() == "20"
+        assert view.config_manager.get("api_games_limit") == 50
+        assert view.games_limit_input.text() == "50"
 
 def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
-    """With Lichess API Token, game limit up to 30 is accepted and above 30 is capped."""
+    """A Lichess token no longer changes the 50-game public cap."""
     from src.gui.views.settings_view import SettingsView
 
     with patch("src.utils.config.get_user_data_dir", return_value=str(isolated_config.parent)):
         view = SettingsView()
         qtbot.addWidget(view)
 
-        # 1. Test accepting value <= 30 (e.g. 25) with token
+        # 1. Test accepting a value below the cap with a token
         view.lichess_token_input.setText("test_token")
         view.games_limit_input.setText("25")
 
@@ -50,15 +50,15 @@ def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
         assert view.config_manager.get("api_games_limit") == 25
         assert view.games_limit_input.text() == "25"
 
-        # 2. Test clamping value > 30 (e.g. 35) with token
-        view.games_limit_input.setText("35")
+        # 2. Test clamping a value above the 50-game cap with a token
+        view.games_limit_input.setText("75")
 
         with patch("src.gui.components.feedback.toast.ToastManager.warning") as mock_toast:
             view.save_usernames()
             mock_toast.assert_called_once()
 
-        assert view.config_manager.get("api_games_limit") == 30
-        assert view.games_limit_input.text() == "30"
+        assert view.config_manager.get("api_games_limit") == 50
+        assert view.games_limit_input.text() == "50"
 
 def test_save_all_settings_flow(qapp, qtbot, isolated_config):
     """Test the consolidated save_all_settings flow."""

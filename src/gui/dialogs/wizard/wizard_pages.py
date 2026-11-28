@@ -161,8 +161,8 @@ def build_profile_page(wizard) -> QWidget:
     card_layout.addWidget(wizard.lichess_token_input)
 
     hint = Label(
-        "Optional. Raises the import limit from 20 to 30 games, unlocks "
-        "private archive downloads, and enables the online opening explorer.",
+        "Optional. Unlocks private archive downloads and enables the online "
+        "opening explorer.",
         role=TextRole.MICRO,
         tone=TextTone.MUTED,
         wrap=True,

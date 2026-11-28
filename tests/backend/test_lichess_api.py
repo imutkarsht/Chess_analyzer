@@ -192,7 +192,7 @@ class TestPublicProfileAndToken:
 
     @pytest.mark.parametrize(
         ("token", "requested", "expected_max"),
-        [("", 50, 20), ("lip_secret", 50, 30), ("", 5, 5)],
+        [("", 50, 50), ("lip_secret", 50, 50), ("", 5, 5)],
     )
     def test_fetch_time_import_clamp(
         self, mock_requests, monkeypatch, token, requested, expected_max

@@ -1485,6 +1485,14 @@ QFrame#VariationGraph {{
     border: 1px solid {BORDER};
     border-radius: 8px;
 }}
+QScrollArea#VariationScroll {{
+    background: transparent;
+    border: none;
+}}
+QWidget#VariationViewport {{
+    background: transparent;
+    border: none;
+}}
 
 QPushButton#VariationPill {{
     background-color: {SURFACE_CARD};

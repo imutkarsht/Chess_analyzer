@@ -33,6 +33,26 @@ def _mode():
     return VariationMode(board, panel, graph), board, panel, graph
 
 
+def test_variation_scroll_viewport_uses_theme_template(qapp):
+    """The scroll viewport must not keep the previous theme's background."""
+    from pathlib import Path
+
+    graph = VariationGraph()
+
+    assert graph.scroll.objectName() == "VariationScroll"
+    assert graph.scroll.viewport().objectName() == "VariationViewport"
+
+    template = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "gui"
+        / "theme"
+        / "theme_template.qss"
+    ).read_text(encoding="utf-8")
+    assert "QScrollArea#VariationScroll" in template
+    assert "QWidget#VariationViewport" in template
+
+
 def test_entry_autoplays_and_engine_updates_ghost_and_cache(qapp):
     mode, board, panel, graph = _mode()
 

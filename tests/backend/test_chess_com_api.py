@@ -199,30 +199,22 @@ def test_get_user_games_by_date_returns_empty_on_network_failure(mock_requests):
     assert ChessComAPI.get_user_games_by_date("alice", datetime.date(2024, 5, 1)) == []
 
 
-def test_get_game_by_id_without_username_or_url_returns_none(mock_requests):
+def test_get_game_by_id_without_username_returns_none(mock_requests):
     assert ChessComAPI.get_game_by_id("123") is None
+    assert ChessComAPI.get_game_by_id("123", "  ") is None
     mock_requests.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "html",
-    [
-        '<script>{"username":"alice"}</script>',
-        '<meta name="description" content="alice (1500) vs bob (1400)">',
-    ],
-)
-def test_get_game_by_id_scrapes_username_from_html(
-    mock_requests, mocker, html
+def test_get_game_by_id_without_username_never_scrapes(
+    mock_requests, mocker
 ):
-    mock_requests.return_value.text = html
     find = mocker.patch.object(
         ChessComAPI, "_find_game_in_archives", return_value={"pgn": "1. e4"}
     )
 
-    game = ChessComAPI.get_game_by_id("123", url="https://example.com/game/123")
-
-    assert game == {"pgn": "1. e4"}
-    find.assert_called_once_with("alice", "123")
+    assert ChessComAPI.get_game_by_id("123") is None
+    find.assert_not_called()
+    mock_requests.assert_not_called()
 
 
 def test_find_game_in_archives_requires_successful_archive_list(mock_requests):
