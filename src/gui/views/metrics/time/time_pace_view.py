@@ -15,9 +15,9 @@ class PaceView(LazyRenderView):
     """Thinking time across phases and decision quality."""
 
     PHASES = (
-        ("Opening", "opening", "fa5s.chess-pawn", "Moves 1–15"),
-        ("Middlegame", "middlegame", "fa5s.chess-knight", "Moves 16–35"),
-        ("Endgame", "endgame", "fa5s.chess-king", "Moves 36+"),
+        ("Opening", "opening", "chess-pawn", "Moves 1–15"),
+        ("Middlegame", "middlegame", "chess-knight", "Moves 16–35"),
+        ("Endgame", "endgame", "chess-king", "Moves 36+"),
     )
 
     def __init__(self, parent: QWidget | None = None) -> None:

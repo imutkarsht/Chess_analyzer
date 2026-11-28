@@ -46,7 +46,7 @@ class StorageSettings(StorageCard):
         self.refresh_btn = Button(
             "Refresh",
             ButtonVariant.FILLED,
-            icon="fa5s.sync-alt",
+            icon="sync-alt",
             tooltip="Recalculate storage usage",
             on_click=self.refresh_stats,
             parent=self,
@@ -54,7 +54,7 @@ class StorageSettings(StorageCard):
         self.open_folder_btn = Button(
             "Open Data Folder",
             ButtonVariant.FILLED,
-            icon="fa5s.folder-open",
+            icon="folder-open",
             tooltip="Open the local data folder in your file manager",
             on_click=self.open_data_folder,
             parent=self,

@@ -49,7 +49,7 @@ class ShortcutSettings(QGroupBox):
         self.help_btn = Button(
             "View All Shortcuts",
             ButtonVariant.FILLED,
-            icon="fa5s.keyboard",
+            icon="keyboard",
             tooltip="Show every keyboard shortcut (F1)",
             on_click=self._open_help,
             parent=self,

@@ -36,11 +36,11 @@ class HangingPiecesCard(MetricCard):
     drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
 
     PIECE_CONFIG: dict[str, tuple[str, str]] = {
-        "pawn": ("fa5s.chess-pawn", "Pawn"),
-        "knight": ("fa5s.chess-knight", "Knight"),
-        "bishop": ("fa5s.chess-bishop", "Bishop"),
-        "rook": ("fa5s.chess-rook", "Rook"),
-        "queen": ("fa5s.chess-queen", "Queen"),
+        "pawn": ("chess-pawn", "Pawn"),
+        "knight": ("chess-knight", "Knight"),
+        "bishop": ("chess-bishop", "Bishop"),
+        "rook": ("chess-rook", "Rook"),
+        "queen": ("chess-queen", "Queen"),
     }
 
     def __init__(self, parent=None):
@@ -86,7 +86,7 @@ class HangingPiecesCard(MetricCard):
             self._build_piece_pillar(
                 object_name="leak_pillar",
                 title="DEFENSIVE LEAKS",
-                icon_name="fa5s.shield-alt",
+                icon_name="shield-alt",
                 icon_color=Styles.COLOR_BLUNDER if total_hung > 0 else Styles.COLOR_BEST,
                 hero_text=f"{total_hung} Dropped",
                 hero_tooltip="Show dropped piece positions",
@@ -119,7 +119,7 @@ class HangingPiecesCard(MetricCard):
             self._build_piece_pillar(
                 object_name="vigilance_pillar",
                 title="TACTICAL VIGILANCE",
-                icon_name="fa5s.crosshairs",
+                icon_name="crosshairs",
                 icon_color=Styles.COLOR_BEST,
                 hero_text=(
                     f"{cap_rate:.0f}% Capitalized" if total_opp_hanging > 0 else "N/A"

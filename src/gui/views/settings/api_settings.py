@@ -145,7 +145,7 @@ class ApiSettings(QGroupBox):
         self.llm_add_btn = Button(
             variant=ButtonVariant.FILLED,
             size=ButtonSize.SM,
-            icon="fa5s.plus",
+            icon="plus",
             icon_position="only",
             tooltip="New profile",
             on_click=self._new_llm_profile,
@@ -156,7 +156,7 @@ class ApiSettings(QGroupBox):
         self.llm_del_btn = Button(
             variant=ButtonVariant.DANGER,
             size=ButtonSize.SM,
-            icon="fa5s.minus",
+            icon="minus",
             icon_position="only",
             tooltip="Delete profile",
             on_click=self._delete_llm_profile,
@@ -164,7 +164,7 @@ class ApiSettings(QGroupBox):
         )
         self.llm_del_btn.setAccessibleName("Delete LLM profile")
 
-        self.llm_set_active_btn = Button('Set active', ButtonVariant.FILLED, icon='fa5s.star', on_click=self._on_set_active, parent=self)
+        self.llm_set_active_btn = Button('Set active', ButtonVariant.FILLED, icon='star', on_click=self._on_set_active, parent=self)
         self.llm_set_active_btn.setToolTip(
             "Use this profile for AI Coach and game reports"
         )
@@ -268,7 +268,7 @@ class ApiSettings(QGroupBox):
         self.llm_test_btn = Button(
             "Test connection",
             ButtonVariant.FILLED,
-            icon="fa5s.plug",
+            icon="plug",
             tooltip="Send a test request to the selected provider",
             on_click=self._test_llm_profile,
             parent=self,

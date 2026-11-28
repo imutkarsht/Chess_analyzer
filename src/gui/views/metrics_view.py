@@ -154,7 +154,7 @@ class MetricsWidget(QWidget):
         self.btn_refresh = Button(
             "Refresh",
             ButtonVariant.FILLED,
-            icon="fa5s.sync-alt",
+            icon="sync-alt",
             tooltip="Recalculate the dashboard from saved games",
             on_click=lambda: self.refresh(force=True),
         )
@@ -215,7 +215,7 @@ class MetricsWidget(QWidget):
         self.btn_reset_filters = Button(
             "Reset",
             ButtonVariant.FILLED,
-            icon="fa5s.undo",
+            icon="undo",
             tooltip="Clear every dashboard filter",
             on_click=self.reset_filters,
         )

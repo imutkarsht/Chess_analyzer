@@ -113,15 +113,15 @@ class AccuracyTrendCard(MetricCard):
         if momentum >= 0.5:
             mom_text = f"+{momentum:.1f}%"
             mom_tone = TextTone.BEST
-            mom_icon_name = "fa5s.arrow-up"
+            mom_icon_name = "arrow-up"
         elif momentum <= -0.5:
             mom_text = f"{momentum:.1f}%"
             mom_tone = TextTone.BLUNDER
-            mom_icon_name = "fa5s.arrow-down"
+            mom_icon_name = "arrow-down"
         else:
             mom_text = "Stable"
             mom_tone = TextTone.SECONDARY
-            mom_icon_name = "fa5s.minus"
+            mom_icon_name = "minus"
 
         mom_frame = QFrame()
         mom_frame.setObjectName("MomentumBadge")

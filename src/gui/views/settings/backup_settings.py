@@ -40,7 +40,7 @@ class BackupSettings(StorageCard):
         self.backup_btn = Button(
             "Back Up Now...",
             ButtonVariant.FILLED,
-            icon="fa5s.save",
+            icon="save",
             tooltip="Create a backup of games and settings",
             on_click=self.backup_now,
             parent=self,
@@ -55,7 +55,7 @@ class BackupSettings(StorageCard):
         self.restore_btn = Button(
             "Restore From Backup...",
             ButtonVariant.DANGER,
-            icon="fa5s.upload",
+            icon="upload",
             tooltip="Replace local data with a selected backup",
             on_click=self.restore_from_backup,
             parent=self,
