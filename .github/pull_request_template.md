@@ -20,7 +20,7 @@ Fixes # (issue number if applicable)
 ## Checklist:
 - [ ] My code follows the style guidelines of this project
 - [ ] New Python files include the SPDX header
-- [ ] I have not added new `print()` calls or unreasoned `# noqa` comments
+- [ ] I have not added new `print()` calls, unreasoned `# noqa` comments, or untyped `# type: ignore` comments
 - [ ] Shared components, Styles, icons, and workers are used where required
 - [ ] Architecture guardrails pass locally
 - [ ] I have performed a self-review of my own code

@@ -101,6 +101,33 @@ def test_noqa_requires_a_code_and_reason() -> None:
     assert [line for _, line, _ in violations] == [3, 5]
 
 
+def test_type_ignore_requires_a_code() -> None:
+    text = (
+        f"{hygiene.SPDX_HEADER}\n"
+        "value = 1  # type: ignore[assignment]\n"
+        "other = 2  # type: ignore\n"
+        'DOC = "# type: ignore"\n'
+    )
+
+    violations = hygiene.check_added_lines("src/example.py", text, {1, 2, 3, 4})
+
+    assert [line for _, line, _ in violations] == [3]
+
+
+def test_os_path_only_flags_added_lines() -> None:
+    text = (
+        "import os\n"
+        "first = os.path.join('a', 'b')\n"
+        "second = os.path.join('c', 'd')\n"
+    )
+
+    violations = hygiene.check_added_lines("src/app.py", text, {3})
+
+    assert violations == [
+        ("src/app.py", 3, "use pathlib instead of os.path")
+    ]
+
+
 def test_print_only_flags_added_lines() -> None:
     text = 'print("legacy")\nprint("new")\n'
 
@@ -188,6 +215,12 @@ def test_clean_new_files_pass(tmp_path: Path) -> None:
         ("src/new.py", "value = 1\n", "SPDX"),
         ("src/new.py", f'{HEADER}print("debug")\n', "print()"),
         ("src/new.py", f"{HEADER}value = 1  # noqa: F401\n", "# noqa"),
+        ("src/new.py", f"{HEADER}value = 1  # type: ignore\n", "type: ignore"),
+        (
+            "src/new.py",
+            f"{HEADER}value = os.path.join('a', 'b')\n",
+            "pathlib",
+        ),
         ("src/new.py", f"{HEADER}widget = QComboBox()\n", "QComboBox"),
         ("src/new.py", f'{HEADER}icon = "fa5s.trash"\n', "fa5s.trash"),
     ],

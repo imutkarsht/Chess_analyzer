@@ -62,6 +62,7 @@ else:
 NOQA_RE = re.compile(
     r"#\s*noqa\s*:\s*[A-Z][A-Z0-9]*(?:\s*,\s*[A-Z][A-Z0-9]*)*\s+-\s+\S"
 )
+TYPE_IGNORE_RE = re.compile(r"#\s*type:\s*ignore\[[A-Za-z0-9_,\s-]+\]")
 HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 ZERO_SHA = re.compile(r"^0+$")
 SPDX_PATHS = ("src/", "tests/")
@@ -240,25 +241,68 @@ def _control_allowed(relative: str, class_name: str) -> bool:
     return True
 
 
-def _noqa_violations(text: str, relative: str, added: set[int]) -> list[Violation]:
+def _os_path_violations(
+    tree: ast.AST, relative: str, added: set[int]
+) -> list[Violation]:
+    violations: list[Violation] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if node.lineno not in added:
+                continue
+            if any(alias.name == "os.path" for alias in node.names):
+                violations.append(
+                    (relative, node.lineno, "use pathlib instead of os.path")
+                )
+        elif isinstance(node, ast.ImportFrom) and node.module == "os":
+            if node.lineno not in added:
+                continue
+            if any(alias.name == "path" for alias in node.names):
+                violations.append(
+                    (relative, node.lineno, "use pathlib instead of os.path")
+                )
+        elif (
+            isinstance(node, ast.Attribute)
+            and node.attr == "path"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "os"
+            and node.lineno in added
+        ):
+            violations.append(
+                (relative, node.lineno, "use pathlib instead of os.path")
+            )
+    return violations
+
+
+def _comment_violations(
+    text: str, relative: str, added: set[int]
+) -> list[Violation]:
     violations: list[Violation] = []
     try:
         tokens = tokenize.generate_tokens(io.StringIO(text).readline)
         for token in tokens:
             if token.type != tokenize.COMMENT or token.start[0] not in added:
                 continue
-            if "noqa" not in token.string:
-                continue
-            if NOQA_RE.search(token.string):
-                continue
-            violations.append(
-                (
-                    relative,
-                    token.start[0],
-                    "new # noqa comments need a code and reason: "
-                    "'# noqa: CODE - reason'",
+            if "noqa" in token.string and not NOQA_RE.search(token.string):
+                violations.append(
+                    (
+                        relative,
+                        token.start[0],
+                        "new # noqa comments need a code and reason: "
+                        "'# noqa: CODE - reason'",
+                    )
                 )
-            )
+            if (
+                "type: ignore" in token.string
+                and not TYPE_IGNORE_RE.search(token.string)
+            ):
+                violations.append(
+                    (
+                        relative,
+                        token.start[0],
+                        "new # type: ignore comments need a code: "
+                        "'# type: ignore[code]'",
+                    )
+                )
     except (IndentationError, SyntaxError, tokenize.TokenError) as error:
         violations.append(
             (relative, 1, f"could not tokenize changed file: {error}")
@@ -270,7 +314,7 @@ def check_added_lines(
     relative: str, text: str, added: set[int]
 ) -> list[Violation]:
     """Check one changed Python file at the supplied added line numbers."""
-    violations = _noqa_violations(text, relative, added)
+    violations = _comment_violations(text, relative, added)
     if not relative.startswith("src/"):
         return violations
 
@@ -283,6 +327,7 @@ def check_added_lines(
         tree = None
 
     if tree is not None:
+        violations.extend(_os_path_violations(tree, relative, added))
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue

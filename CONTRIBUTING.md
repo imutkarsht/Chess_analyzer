@@ -124,8 +124,9 @@ python scripts/check_changed_hygiene.py --base origin/master
 
 `check_changed_hygiene.py` checks only lines added relative to the base. It
 requires the SPDX header on new `src/` and `tests/` Python files, a reason on
-new `# noqa` comments, and rejects new `print()`, raw font icon names, and raw
-Qt controls outside the documented allowlists.
+new `# noqa` comments, a code on new `# type: ignore[...]` comments, and rejects
+new `print()`, `os.path`, raw font icon names, and raw Qt controls outside the
+documented allowlists.
 
 ## Required CI checks
 

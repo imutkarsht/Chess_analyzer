@@ -31,6 +31,7 @@ pyinstaller build.spec                           # production build
 - Use `pathlib` for paths and `logger` for diagnostics.
 - Include a code and reason in new `# noqa` comments
   (`# noqa: CODE - reason`).
+- Include a code in new `# type: ignore[...]` comments.
 
 **Ask first**
 
@@ -74,12 +75,14 @@ pyinstaller build.spec                           # production build
 ## Guardrail tests
 
 `tests/architecture/test_boundaries.py` keeps pure packages Qt-free;
-`tests/architecture/test_source_hygiene.py` keeps `print()` out of `src/`;
+`tests/architecture/test_source_hygiene.py` keeps `print()` out of `src/` and
+enforces logger, tooltip, and settings ownership; `tests/architecture/test_test_hygiene.py`
+keeps tests free of real sleeps/qWaits and requires skip reasons;
 `tests/architecture/test_theme_guardrails.py` and `test_theme_tokens.py` protect
 theming; `tests/architecture/test_icon_guardrails.py` protects the central icon
 layer; `tests/gui/test_button.py` and `test_input.py` protect shared controls
 and worker placement. `scripts/check_changed_hygiene.py` enforces SPDX, reasoned
-`# noqa`, and changed-line icon/control rules.
+`# noqa`, typed `# type: ignore`, `pathlib`, and changed-line icon/control rules.
 
 ## Code rules
 
