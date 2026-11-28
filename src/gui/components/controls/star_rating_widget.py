@@ -8,12 +8,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QWidget
 from src.gui.components.display.label import Label
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
-from src.gui.utils.icons import HAS_QTAWESOME
-
-try:
-    import qtawesome as qta
-except ImportError:
-    qta = None
+from src.gui.utils.icons import IconStyleManager, icon_qicon
 
 STAR_LABELS = {
     0: "Select a rating",
@@ -90,6 +85,12 @@ class StarRatingWidget(QWidget):
             main_layout.addWidget(self._desc_label)
 
         self.leaveEvent = self._on_leave
+        IconStyleManager.instance().style_changed.connect(
+            self._on_icon_style_changed
+        )
+        self._update_stars()
+
+    def _on_icon_style_changed(self, *_args) -> None:
         self._update_stars()
 
     def _on_star_clicked(self, index: int):
@@ -115,8 +116,9 @@ class StarRatingWidget(QWidget):
                 Styles.COLOR_STAR_ACTIVE if is_lit else Styles.COLOR_STAR_INACTIVE
             )
 
-            if HAS_QTAWESOME:
-                btn.setIcon(qta.icon("fa5s.star", color=color))
+            icon = icon_qicon("star", color, self._star_size)
+            if not icon.isNull():
+                btn.setIcon(icon)
                 btn.setIconSize(QSize(self._star_size, self._star_size))
             else:
                 btn.setText("★" if is_lit else "☆")

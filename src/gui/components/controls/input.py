@@ -34,13 +34,7 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.utils.icons import HAS_QTAWESOME
-
-try:
-    import qtawesome as qta
-except ImportError:
-    qta = None
-
+from src.gui.utils.icons import HAS_QTAWESOME, icon_qicon
 
 # Widget classes that accept typed text; used by shortcut/navigation guards so
 # they do not each re-declare the tuple.
@@ -239,10 +233,12 @@ class Input(QLineEdit):
         tooltip: str = "",
         on_trigger=None,
     ) -> QAction | None:
-        if not HAS_QTAWESOME:
+        if not HAS_QTAWESOME and not isinstance(spec, QIcon):
             return None
-        icon = spec if isinstance(spec, QIcon) else qta.icon(
-            spec, color=Styles.COLOR_TEXT_MUTED
+        icon = (
+            spec
+            if isinstance(spec, QIcon)
+            else icon_qicon(spec, Styles.COLOR_TEXT_MUTED)
         )
         # The text doubles as the action button's accessible name; QLineEdit
         # still renders only the icon.
@@ -269,7 +265,7 @@ class Input(QLineEdit):
         )
         if self._password_action is not None and HAS_QTAWESOME:
             self._password_action.setIcon(
-                qta.icon(self._reveal_icon(), color=Styles.COLOR_TEXT_MUTED)
+                icon_qicon(self._reveal_icon(), Styles.COLOR_TEXT_MUTED)
             )
             self._password_action.setToolTip(self._reveal_tooltip())
 

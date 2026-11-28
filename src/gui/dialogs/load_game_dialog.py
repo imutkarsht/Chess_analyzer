@@ -6,7 +6,6 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -31,7 +30,6 @@ from src.gui.components import (
 )
 from src.gui.dialogs.load_game import OnlineFetchPanel, PgnFilePanel, PgnTextPanel
 from src.gui.styles import Styles
-from src.gui.utils.assets import asset_path
 from src.utils.logger import logger
 
 __all__ = [
@@ -100,7 +98,7 @@ class LoadGamePanel(QWidget):
         self.tabs.add_tab("Online", icon="fa5s.globe")
         self.tabs.add_tab(
             "PGN",
-            icon=QIcon(asset_path("assets/icons/file.png")),
+            icon="assets/icons/file.png",
         )
         self.tabs.set_tab_tooltip(0, "Import games from Chess.com or Lichess")
         self.tabs.set_tab_tooltip(1, "Open a PGN file or paste PGN text")

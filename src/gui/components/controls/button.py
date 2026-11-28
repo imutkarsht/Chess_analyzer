@@ -23,12 +23,7 @@ from PyQt6.QtWidgets import QPushButton, QSizePolicy, QWidget
 
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
-from src.gui.utils.icons import HAS_QTAWESOME
-
-try:
-    import qtawesome as qta
-except ImportError:
-    qta = None
+from src.gui.utils.icons import IconSpec, IconStyleManager, icon_qicon
 
 
 class ButtonVariant(StrEnum):
@@ -77,7 +72,7 @@ class Button(QPushButton):
         variant: ButtonVariant | str = ButtonVariant.PRIMARY,
         size: ButtonSize | str = ButtonSize.MD,
         *,
-        icon: QIcon | str | None = None,
+        icon: QIcon | str | IconSpec | None = None,
         icon_position: str = "left",
         icon_size: int | None = None,
         loading: bool = False,
@@ -138,6 +133,7 @@ class Button(QPushButton):
         theme_manager = ThemeManager.instance()
         theme_manager.theme_changed.connect(self._on_theme_changed)
         theme_manager.accent_changed.connect(self._on_theme_changed)
+        IconStyleManager.instance().style_changed.connect(self._on_theme_changed)
 
         self.refresh_styles()
         if icon is not None:
@@ -196,7 +192,7 @@ class Button(QPushButton):
         self.refresh_styles()
         self._apply_icon()
 
-    def set_icon_spec(self, icon: QIcon | str | None) -> None:
+    def set_icon_spec(self, icon: QIcon | str | IconSpec | None) -> None:
         self._icon_spec = icon
         self._apply_icon()
 
@@ -304,14 +300,26 @@ class Button(QPushButton):
     def _apply_icon(self) -> None:
         if self._loading:
             return
-        side = self._icon_pixel_size()
+        spec = self._icon_spec
+        side = (
+            max(1, int(spec.size))
+            if isinstance(spec, IconSpec) and spec.size
+            else self._icon_pixel_size()
+        )
         gap = 0 if self._icon_position == "only" else max(3, side // 4)
         self.setIconSize(QSize(side + gap, side))
-        spec = self._icon_spec
-        if isinstance(spec, QIcon):
+        if isinstance(spec, IconSpec):
+            color = spec.color or self._icon_color()
+            if spec.tone:
+                try:
+                    color = Styles.get_tone_color(spec.tone)
+                except ValueError:
+                    pass
+            icon = icon_qicon(spec.name, color, side)
+        elif isinstance(spec, str):
+            icon = icon_qicon(spec, self._icon_color(), side)
+        elif isinstance(spec, QIcon):
             icon = spec
-        elif isinstance(spec, str) and HAS_QTAWESOME:
-            icon = qta.icon(spec, color=self._icon_color())
         else:
             icon = QIcon()
         if gap and not icon.isNull():

@@ -29,14 +29,8 @@ from src.gui.components.feedback.status_badge import StatusBadge
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.assets import asset_path, icon_path
-from src.gui.utils.icons import HAS_QTAWESOME
-from src.utils.logger import logger
+from src.gui.utils.icons import HAS_QTAWESOME, IconSpec
 from src.utils.time_control import classify_time_control, format_time_control
-
-try:
-    import qtawesome as qta
-except ImportError:
-    logger.warning("qtawesome not installed. Using text fallbacks for icons.")
 
 
 class GameListItemWidget(QWidget):
@@ -554,8 +548,8 @@ class GameListItemWidget(QWidget):
 
     @staticmethod
     def _set_icon(btn: Button, icon_name: str, color: str) -> None:
-        """Keep the status-specific icon tint; qtawesome icons carry their own color."""
-        btn.set_icon_spec(qta.icon(icon_name, color=color) if HAS_QTAWESOME else icon_name)
+        """Keep the status-specific icon tint through the shared icon spec."""
+        btn.set_icon_spec(IconSpec(icon_name, color=color))
 
     def _create_delete_button(self, btn_size: int = 22):
         del_btn = Button(

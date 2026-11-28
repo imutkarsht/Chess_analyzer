@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import qtawesome as qta
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
@@ -33,6 +32,7 @@ from src.gui.components import (
 from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
+from src.gui.utils.icons import IconStyleManager, icon_qicon
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.gui.views.history_batch import (
     BatchQueueCard,
@@ -278,6 +278,10 @@ class HistoryView(QWidget):
         self.page_stack.addWidget(self.import_view)
         self.page_stack.setCurrentWidget(self.history_page)
 
+        IconStyleManager.instance().style_changed.connect(
+            self._on_icon_style_changed
+        )
+
         # Load initial data
         self.load_history()
 
@@ -310,11 +314,14 @@ class HistoryView(QWidget):
         if inserted:
             self.games_imported.emit(inserted)
 
+    def _on_icon_style_changed(self, *_args) -> None:
+        self._refresh_export_menu_icons()
+
     def _refresh_export_menu_icons(self):
         """Retint the export menu icons from the live palette."""
         color = Styles.COLOR_TEXT_SECONDARY
-        self.export_csv_action.setIcon(qta.icon("fa5s.file-csv", color=color))
-        self.export_pgn_action.setIcon(qta.icon("fa5s.file-code", color=color))
+        self.export_csv_action.setIcon(icon_qicon("file-csv", color, 16))
+        self.export_pgn_action.setIcon(icon_qicon("file-code", color, 16))
 
     def apply_default_view_mode(self):
         """Apply the Appearance default layout without overriding a manual toggle."""

@@ -14,13 +14,8 @@ from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
 from src.gui.utils.assets import icon_path
-from src.gui.utils.icons import HAS_QTAWESOME
+from src.gui.utils.icons import IconStyleManager, icon_qicon
 from src.utils.config import ConfigManager
-
-try:
-    import qtawesome as qta
-except ImportError:
-    qta = None
 
 QTAWESOME_ICONS = {
     "help.png": "fa5s.question-circle",
@@ -96,6 +91,7 @@ class Sidebar(QFrame):
 
         ThemeManager.instance().theme_changed.connect(self.apply_style)
         ThemeManager.instance().accent_changed.connect(self.apply_style)
+        IconStyleManager.instance().style_changed.connect(self.apply_style)
 
         self.apply_style()
 
@@ -128,13 +124,17 @@ class Sidebar(QFrame):
     sidebar_width = pyqtProperty(float, _get_sidebar_width, _set_sidebar_width)
 
     def _apply_icon(self, btn, icon_name):
-        if HAS_QTAWESOME and icon_name in QTAWESOME_ICONS:
-            color_str = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
-            btn.set_icon_spec(qta.icon(QTAWESOME_ICONS[icon_name], color=color_str))
-        else:
-            sidebar_icon = icon_path(icon_name)
-            if os.path.exists(sidebar_icon):
-                btn.set_icon_spec(QIcon(sidebar_icon))
+        if icon_name in QTAWESOME_ICONS:
+            color_str = (
+                Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
+            )
+            icon = icon_qicon(QTAWESOME_ICONS[icon_name], color_str)
+            if not icon.isNull():
+                btn.set_icon_spec(icon)
+                return
+        sidebar_icon = icon_path(icon_name)
+        if os.path.exists(sidebar_icon):
+            btn.set_icon_spec(QIcon(sidebar_icon))
 
     def _make_nav_button(self, text: str, icon_name: str, index: int) -> Button:
         on_click = (

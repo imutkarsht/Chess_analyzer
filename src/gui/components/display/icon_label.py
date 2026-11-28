@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QLabel, QWidget
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextTone
-from src.gui.utils.icons import icon_pixmap
+from src.gui.utils.icons import IconSpec, IconStyleManager, icon_pixmap
 
 
 class IconLabel(QLabel):
@@ -25,7 +25,7 @@ class IconLabel(QLabel):
 
     def __init__(
         self,
-        icon: str | QIcon | QPixmap | None = None,
+        icon: str | QIcon | QPixmap | IconSpec | None = None,
         *,
         size: int = 16,
         icon_size: int | None = None,
@@ -38,6 +38,13 @@ class IconLabel(QLabel):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        if isinstance(icon, IconSpec):
+            size = icon.size or size
+            icon_size = icon.size or icon_size
+            color = icon.color or color
+            tone = icon.tone or tone
+            fallback = icon.fallback or fallback
+            icon = icon.name
         if fixed_size:
             self.setFixedSize(size, size)
         else:
@@ -57,10 +64,23 @@ class IconLabel(QLabel):
         manager = ThemeManager.instance()
         manager.theme_changed.connect(self._on_theme_changed)
         manager.accent_changed.connect(self._on_theme_changed)
+        IconStyleManager.instance().style_changed.connect(self._on_theme_changed)
         if icon is not None:
             self.set_icon(icon)
 
-    def set_icon(self, icon: str | QIcon | QPixmap | None) -> None:
+    def set_icon(self, icon: str | QIcon | QPixmap | IconSpec | None) -> None:
+        if isinstance(icon, IconSpec):
+            if icon.size is not None:
+                self._icon_size = max(1, int(icon.size))
+                if self._fixed_size:
+                    self.setFixedSize(self._icon_size, self._icon_size)
+            if icon.color is not None:
+                self._color = icon.color
+            if icon.tone is not None:
+                self._tone = TextTone(icon.tone)
+            if icon.fallback:
+                self._fallback = icon.fallback
+            icon = icon.name
         self._icon = icon
         self._apply_icon()
 

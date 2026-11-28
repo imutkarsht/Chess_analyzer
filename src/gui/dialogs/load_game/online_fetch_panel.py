@@ -1,7 +1,6 @@
 import datetime
 
 from PyQt6.QtCore import QDate, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -34,15 +33,9 @@ from src.gui.components import (
 )
 from src.gui.import_workspace import GameBatch
 from src.gui.theme import ThemeManager
-from src.gui.utils.assets import asset_path
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
 from src.workers.imports import ApiWorker
-
-try:
-    import qtawesome as qta
-except ImportError:  # pragma: no cover - QtAwesome ships with the app
-    qta = None
 
 
 class SegmentedSelector(QWidget):
@@ -81,9 +74,7 @@ class SegmentedSelector(QWidget):
 
     @staticmethod
     def _icon_spec(icon_name: str):
-        """Asset paths become QIcons; anything else is a themed icon name."""
-        if icon_name.startswith("assets/") or "/" in icon_name:
-            return QIcon(asset_path(icon_name))
+        """The shared resolver accepts asset paths and themed icon names."""
         return icon_name
 
     def _on_tab_changed(self, index: int) -> None:

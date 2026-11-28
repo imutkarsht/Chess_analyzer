@@ -6,11 +6,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QWidget
 from src.gui.components import Button, ButtonSize, ButtonVariant
 from src.gui.utils.icons import HAS_QTAWESOME
 
-try:
-    import qtawesome as qta
-except ImportError:  # pragma: no cover - exercised only on broken installs
-    qta = None
-
 
 class MoveControls(QWidget):
     """First/prev/next/last toolbar with an optional flip button."""
@@ -144,7 +139,7 @@ class MoveControls(QWidget):
     def _make_follow_button(self) -> Button:
         tooltip = "Keep the board on the move being analyzed"
         button = Button(
-            icon="fa5s.crosshairs" if HAS_QTAWESOME else None,
+            icon="crosshairs" if HAS_QTAWESOME else None,
             icon_position="only" if HAS_QTAWESOME else "left",
             variant=ButtonVariant.GHOST,
             size=ButtonSize.SM,

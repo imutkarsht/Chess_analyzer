@@ -8,6 +8,7 @@ from src.gui.components import LegendList, SegmentedControl, StatusBadge, TextTo
 from src.gui.metrics.charts import create_donut_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.utils.assets import resolve_asset
+from src.gui.utils.icons import icon_pixmap
 from src.gui.views.metrics.base_card import MetricCard
 
 
@@ -156,14 +157,11 @@ class EndingDistributionCard(MetricCard):
                             Qt.TransformationMode.SmoothTransformation,
                         )
                 elif k in qta_icon_map:
-                    try:
-                        import qtawesome as qta
-
-                        pixmap = qta.icon(
-                            qta_icon_map[k], color=type_colors.get(k, Styles.COLOR_ON_ACCENT)
-                        ).pixmap(16, 16)
-                    except Exception:
-                        pixmap = None
+                    pixmap = icon_pixmap(
+                        qta_icon_map[k],
+                        type_colors.get(k, Styles.COLOR_ON_ACCENT),
+                        16,
+                    )
 
                 pct = (v / total_endings * 100) if total_endings > 0 else 0
                 legend.add_row(

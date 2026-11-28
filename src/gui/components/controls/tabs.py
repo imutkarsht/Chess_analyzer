@@ -32,12 +32,7 @@ from PyQt6.QtWidgets import (
 )
 
 from src.gui.styles import Styles
-from src.gui.utils.icons import HAS_QTAWESOME
-
-try:
-    import qtawesome as qta
-except ImportError:
-    qta = None
+from src.gui.utils.icons import IconStyleManager, icon_qicon
 
 _ACTIVE_STYLES = ("underline", "accent", "filled", "outline")
 _MIXED_PAGE_MODES = (
@@ -158,6 +153,9 @@ class Tabs(QWidget):
         )
         root.addWidget(self.pages, 1)
 
+        IconStyleManager.instance().style_changed.connect(
+            self._on_icon_style_changed
+        )
         self._sync_layout()
         self.refresh_styles()
         # A bar-only control must not inherit the parent's leftover height; the
@@ -326,8 +324,6 @@ class Tabs(QWidget):
     def _icon(self, index: int) -> QIcon:
         spec = self._icons[index]
         if isinstance(spec, str):
-            if not HAS_QTAWESOME:
-                return QIcon()
             a = self._appearance
             if index != self.bar.currentIndex():
                 color = Styles.COLOR_TEXT_SECONDARY
@@ -339,10 +335,13 @@ class Tabs(QWidget):
                 )
             else:
                 color = Styles.COLOR_TEXT_PRIMARY
-            return qta.icon(spec, color=color)
+            return icon_qicon(spec, color)
         if isinstance(spec, QIcon):
             return spec
         return QIcon()
+
+    def _on_icon_style_changed(self, *_args) -> None:
+        self._refresh_icons()
 
     def _refresh_icons(self) -> None:
         for index in range(self.bar.count()):

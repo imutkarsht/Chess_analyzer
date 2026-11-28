@@ -22,14 +22,8 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.theme.motion import Motion
-from src.gui.utils.icons import HAS_QTAWESOME
+from src.gui.utils.icons import icon_pixmap
 from src.gui.utils.smooth_scroll import SmoothScroll
-
-try:
-    import qtawesome as qta
-except ImportError:
-    qta = None
-
 
 _KEY_ROLE = Qt.ItemDataRole.UserRole
 _TITLE_ROLE = Qt.ItemDataRole.UserRole + 1
@@ -53,7 +47,7 @@ class _SortableItemDelegate(QStyledItemDelegate):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._icon_cache: dict[tuple[str, str], object] = {}
+
 
     def sizeHint(self, option, index):
         return QSize(0, _ROW_HEIGHT)
@@ -101,15 +95,11 @@ class _SortableItemDelegate(QStyledItemDelegate):
                 )
 
     def _draw_icon(self, painter: QPainter, rect, icon_name: str):
-        if not HAS_QTAWESOME or not icon_name:
+        if not icon_name:
             return
-        cache_key = (icon_name, Styles.COLOR_TEXT_SECONDARY)
-        pixmap = self._icon_cache.get(cache_key)
+        pixmap = icon_pixmap(icon_name, Styles.COLOR_TEXT_SECONDARY, 16)
         if pixmap is None:
-            pixmap = qta.icon(
-                icon_name, color=Styles.COLOR_TEXT_SECONDARY
-            ).pixmap(16, 16)
-            self._icon_cache[cache_key] = pixmap
+            return
         y = rect.center().y() - pixmap.height() // 2
         painter.drawPixmap(rect.left() + 44, y, pixmap)
 

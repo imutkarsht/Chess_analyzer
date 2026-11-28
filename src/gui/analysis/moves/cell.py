@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QVBoxLayout, QWidg
 
 from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
+from src.gui.utils.icons import icon_qicon
 from src.utils.format_utils import format_duration
 
 # Every classified move keeps its badge. Only decisive/problem moves get colour
@@ -217,14 +218,9 @@ class MoveCellWidget(QWidget):
             self._san_label.set_weight(500)
 
     def _variation_icon(self) -> bool:
-        try:
-            import qtawesome as qta
-
-            self._variation_btn.setIcon(qta.icon("fa5s.code-branch", color=Styles.COLOR_ACCENT))
-            return True
-        except ImportError:
-            self._variation_btn.setIcon(QIcon())
-            return False
+        icon = icon_qicon("code-branch", Styles.COLOR_ACCENT, 16)
+        self._variation_btn.setIcon(icon)
+        return not icon.isNull()
 
     def refresh_styles(self):
         self._apply_san_style()
