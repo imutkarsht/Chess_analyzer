@@ -41,6 +41,26 @@ def test_resolver_supports_semantic_legacy_and_asset_icons(qapp):
     assert not icon_qicon("assets/icons/chesscom.png", "#FFFFFF").isNull()
 
 
+def test_qtawesome_icons_are_pixmap_backed(qapp):
+    icon = icon_qicon("play", "#FFFFFF", 16)
+
+    assert not icon.isNull()
+    assert icon.availableSizes()
+    assert not icon.pixmap(16, 16).isNull()
+
+
+def test_icon_qicon_cache_clears_on_pack_change(qapp):
+    previous = IconStyleManager.active_pack_id()
+    try:
+        assert IconStyleManager.set_pack("fontawesome") is True
+        solid_key = icon_qicon("play", "#FFFFFF", 16).cacheKey()
+        assert IconStyleManager.set_pack("phosphor") is True
+        outline_key = icon_qicon("play", "#FFFFFF", 16).cacheKey()
+        assert outline_key != solid_key
+    finally:
+        IconStyleManager.set_pack(previous)
+
+
 def test_phosphor_outline_pack_covers_common_keys(qapp):
     previous = IconStyleManager.active_pack_id()
     try:

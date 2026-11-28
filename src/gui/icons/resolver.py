@@ -115,16 +115,47 @@ def icon_pixmap(
     )
 
 
+@lru_cache(maxsize=512)
+def _cached_qtawesome_qicon(
+    glyph: str,
+    color: str,
+    size: int,
+    scale_factor: float,
+) -> QIcon:
+    """Rasterize a qtawesome glyph into a 1x/2x ``QIcon``.
+
+    QtAwesome paints through a Python ``QIconEngine``. Letting Qt invoke that
+    callback during widget paint/event processing can crash on macOS. A
+    pixmap-backed icon keeps the glyph rendering inside this controlled call.
+    """
+    try:
+        source = qta.icon(glyph, color=color, scale_factor=scale_factor)
+    except Exception:
+        return QIcon()
+    if source.isNull():
+        return QIcon()
+
+    icon = QIcon()
+    for dpr in (1.0, 2.0):
+        pixel_size = max(1, int(round(size * dpr)))
+        pixmap = source.pixmap(pixel_size, pixel_size)
+        if pixmap.isNull():
+            continue
+        pixmap.setDevicePixelRatio(dpr)
+        icon.addPixmap(pixmap)
+    return icon
+
+
 def icon_qicon(
     name: str,
     color: str,
     size: int = 16,
     variant: IconVariant | str | None = None,
 ) -> QIcon:
-    """Resolve an icon key or asset path to a vector ``QIcon``.
+    """Resolve an icon key or asset path to a themed ``QIcon``.
 
-    QtAwesome and SVG assets keep their scalable icon engines so Qt can render
-    them at the display's device pixel ratio instead of scaling a small bitmap.
+    Asset and SVG paths keep Qt's vector engine. QtAwesome glyphs are cached
+    pixmap icons so Qt never calls the Python icon engine while painting.
     """
     if isinstance(variant, IconVariant):
         variant_value = variant.value
@@ -135,23 +166,22 @@ def icon_qicon(
     if path is not None:
         return QIcon(str(path))
 
+    size = max(1, int(size))
     scale_factor = IconStyleManager.active_pack().scale_factor
     for glyph in IconStyleManager.resolve_glyphs(name, variant_value):
         glyph_path = _resolve_icon_path(glyph)
         if glyph_path is not None:
             return QIcon(str(glyph_path))
         if HAS_QTAWESOME and qta is not None:
-            try:
-                icon = qta.icon(
-                    glyph, color=color, scale_factor=scale_factor
-                )
-            except Exception:
-                continue
+            icon = _cached_qtawesome_qicon(
+                glyph, color, size, scale_factor
+            )
             if not icon.isNull():
                 return icon
     return QIcon()
 
 
 def clear_icon_cache() -> None:
-    """Clear cached pixmaps when the active pack, variant, or palette changes."""
+    """Clear cached icons when the active pack, variant, or palette changes."""
     _cached_icon_pixmap.cache_clear()
+    _cached_qtawesome_qicon.cache_clear()

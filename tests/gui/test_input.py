@@ -5,24 +5,17 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import QLineEdit
 
+from scripts.hygiene_rules import RAW_INPUT_ALLOWLIST, RAW_INPUT_CLASSES
 from src.gui.components import Input, TextArea
 
-# Widgets that legitimately own a raw editor: the central component itself, the
-# painted date field's inner editor, and the canvas rename overlay.
-RAW_INPUT_ALLOWLIST = {
-    "src/gui/components/controls/input.py",
-    "src/gui/components/controls/date_picker.py",
-    "src/gui/analysis/variation/graph.py",
-}
-
-_RAW_CLASSES = {"QLineEdit", "QTextEdit", "QPlainTextEdit", "QSpinBox", "QDoubleSpinBox"}
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src"
 
 
 def test_no_raw_text_widgets_outside_the_central_component():
-    repo_root = Path(__file__).resolve().parents[2]
     offenders = []
-    for path in (repo_root / "src" / "gui").rglob("*.py"):
-        relative = path.relative_to(repo_root).as_posix()
+    for path in SRC.rglob("*.py"):
+        relative = path.relative_to(ROOT).as_posix()
         if relative in RAW_INPUT_ALLOWLIST:
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -30,7 +23,7 @@ def test_no_raw_text_widgets_outside_the_central_component():
             if (
                 isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Name)
-                and node.func.id in _RAW_CLASSES
+                and node.func.id in RAW_INPUT_CLASSES
             ):
                 offenders.append(f"{relative}:{node.lineno} constructs {node.func.id}")
 

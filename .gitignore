@@ -35,6 +35,7 @@ installers/mac/Output
 .coverage
 .coverage.*
 coverage.json
+coverage.xml
 htmlcov/
 
 .opencode/*

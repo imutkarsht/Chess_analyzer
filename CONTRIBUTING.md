@@ -36,7 +36,7 @@ project direction and avoids wasted effort.
 2. Fork the repository and branch from `master`.
 3. Follow the branch naming conventions below.
 4. Add meaningful tests for new behaviour.
-5. Run `ruff check .` and `pytest tests/`.
+5. Run `ruff check .`, `pytest tests/`, and the architecture guardrails below.
 6. Update the relevant documentation.
 7. Open the pull request against `master` and reference the issue with
    `Closes #<number>`.
@@ -110,6 +110,36 @@ pytest tests/ --cov=src --cov-branch --cov-report=term-missing
 ```
 
 The build fails below the `fail_under` threshold in `pyproject.toml`.
+
+### 7. Check architecture guardrails
+
+Run the fast guardrail suites before opening a pull request:
+
+```bash
+ruff check .
+pytest tests/architecture -q
+pytest tests/gui/test_button.py tests/gui/test_input.py tests/gui/test_component_imports.py -q
+python scripts/check_changed_hygiene.py --base origin/master
+```
+
+`check_changed_hygiene.py` checks only lines added relative to the base. It
+requires the SPDX header on new `src/` and `tests/` Python files, a reason on
+new `# noqa` comments, a code on new `# type: ignore[...]` comments, and rejects
+new `print()`, `os.path`, raw font icon names, and raw Qt controls outside the
+documented allowlists.
+
+## Required CI checks
+
+Branch protection on `master`, `main`, and `release/**` requires:
+
+- `Lint / Ruff Linter`
+- `Code Hygiene / architecture`
+- every `Test Suite` matrix leg
+
+The Linux `Test Suite` leg also enforces branch coverage at the 80% floor
+and uploads `coverage.xml` when it fails. The `Code Hygiene` workflow runs on
+Ubuntu only. Maintainers enable these checks in GitHub branch protection or
+repository rulesets after the workflow has run at least once.
 
 ## Test quality expectations
 

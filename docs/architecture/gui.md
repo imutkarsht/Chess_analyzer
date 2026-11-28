@@ -62,6 +62,9 @@ through the component facade.
 - Variants are pack-defined: `solid` and `outline`. Font Awesome provides the
   solid pack; Phosphor provides the outline pack. The resolver falls back to
   the pack default and then the default pack when a glyph is unavailable.
+- QtAwesome glyphs resolve to cached 1x/2x raster `QIcon`s so Qt never invokes
+  QtAwesome's Python icon engine during a paint event. SVG and asset paths keep
+  Qt's vector icon engine.
 - `IconStyleManager.set_pack()` re-resolves every subscribed icon. The
   `icon_style` Appearance setting selects `Solid (Font Awesome)` or
   `Outline (Phosphor)`.
