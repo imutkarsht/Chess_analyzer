@@ -75,12 +75,6 @@ class ThemeAccentSettings(QGroupBox):
             width=None,
             on_change=self._on_icon_style_changed,
         )
-        self.icon_variant_combo = self.binder.add(
-            "icon_variant",
-            hint="",
-            width=None,
-            on_change=self._on_icon_variant_changed,
-        )
 
         self._last_runtime_mode = ThemeManager.mode()
         ThemeManager.instance().theme_changed.connect(
@@ -301,11 +295,6 @@ class ThemeAccentSettings(QGroupBox):
         value = str(style)
         self.config_manager.set("icon_style", value)
         IconStyleManager.set_pack(value)
-
-    def _on_icon_variant_changed(self, variant) -> None:
-        value = str(variant)
-        self.config_manager.set("icon_variant", value)
-        IconStyleManager.set_variant(value)
 
     @staticmethod
     def _make_divider() -> QFrame:

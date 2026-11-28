@@ -310,24 +310,8 @@ def _specs() -> tuple[SettingSpec, ...]:
             "fontawesome",
             apply="live",
             choices=(
-                Choice("fontawesome", "Font Awesome"),
-                Choice("material", "Material"),
-            ),
-        ),
-        SettingSpec(
-            "icon_variant",
-            "Appearance",
-            "Theme & Accent",
-            "Icon variant",
-            "Preferred icon weight where the selected pack supports it.",
-            "choice",
-            "default",
-            apply="live",
-            choices=(
-                Choice("default", "Default"),
-                Choice("solid", "Solid"),
-                Choice("regular", "Regular"),
-                Choice("outline", "Outline"),
+                Choice("fontawesome", "Solid (Font Awesome)"),
+                Choice("phosphor", "Outline (Phosphor)"),
             ),
         ),
         SettingSpec(

@@ -59,11 +59,12 @@ through the component facade.
 - Use semantic keys (`play`, `history`, `close`) or asset paths. Do not pass
   `fa5s.*` / `fa6s.*` names from call sites.
 - `IconSpec` carries key, variant, size, tone, colour, and fallback.
-- Variants are pack-defined: `default`, `solid`, `regular`, `outline`. The
-  resolver falls back to the pack default and then the default pack when a
-  glyph is unavailable.
-- `IconStyleManager.set_pack()` / `set_variant()` re-resolve every subscribed
-  icon. The `icon_style` and `icon_variant` Appearance settings use these.
+- Variants are pack-defined: `solid` and `outline`. Font Awesome provides the
+  solid pack; Phosphor provides the outline pack. The resolver falls back to
+  the pack default and then the default pack when a glyph is unavailable.
+- `IconStyleManager.set_pack()` re-resolves every subscribed icon. The
+  `icon_style` Appearance setting selects `Solid (Font Awesome)` or
+  `Outline (Phosphor)`.
 - Brand glyphs and content artwork (logos, board pieces, previews, charts) are
   explicit exceptions; they may use asset helpers directly.
 

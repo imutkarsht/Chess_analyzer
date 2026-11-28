@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-only
-"""Active icon pack and variant registry."""
+"""Active icon pack registry and variant-aware resolution."""
 
 from __future__ import annotations
 
@@ -9,25 +9,25 @@ from src.gui.icons.packs import (
     DEFAULT_ICON_PACK_ID,
     FontAwesomePack,
     IconPack,
-    MaterialPack,
+    PhosphorPack,
 )
 from src.gui.icons.spec import IconVariant
 
 
-def _variant(value: IconVariant | str | None) -> IconVariant:
+def _variant(value: IconVariant | str | None) -> IconVariant | None:
     if value is None:
-        return IconVariant.DEFAULT
+        return None
     try:
         return IconVariant(value)
     except ValueError:
-        return IconVariant.DEFAULT
+        return None
 
 
 class IconStyleManager(QObject):
-    """Registry of icon packs plus the active pack and variant.
+    """Registry of icon packs plus the active pack.
 
-    Emits ``style_changed`` for both pack and variant changes. Consumers only
-    need to re-resolve their icons; call sites do not change.
+    Emits ``style_changed`` when the pack changes. Consumers re-resolve their
+    icons; call sites do not change.
     """
 
     style_changed = pyqtSignal(str)
@@ -35,7 +35,6 @@ class IconStyleManager(QObject):
     _instance: IconStyleManager | None = None
     _packs: dict[str, IconPack] = {}
     _active_pack_id: str = DEFAULT_ICON_PACK_ID
-    _active_variant: IconVariant = IconVariant.DEFAULT
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -60,10 +59,6 @@ class IconStyleManager(QObject):
         return cls._active_pack_id
 
     @classmethod
-    def active_variant(cls) -> IconVariant:
-        return cls._active_variant
-
-    @classmethod
     def active_pack(cls) -> IconPack:
         return cls._packs.get(
             cls._active_pack_id, cls._packs[DEFAULT_ICON_PACK_ID]
@@ -76,15 +71,6 @@ class IconStyleManager(QObject):
         if pack_id == cls._active_pack_id:
             return True
         cls._active_pack_id = pack_id
-        cls._changed()
-        return True
-
-    @classmethod
-    def set_variant(cls, variant: IconVariant | str) -> bool:
-        value = _variant(variant)
-        if value == cls._active_variant:
-            return True
-        cls._active_variant = value
         cls._changed()
         return True
 
@@ -106,9 +92,7 @@ class IconStyleManager(QObject):
         from src.gui.icons.resolver import icon_key
 
         selected_id = pack_id or cls._active_pack_id
-        requested_variant = _variant(
-            variant if variant is not None else cls._active_variant
-        )
+        requested_variant = _variant(variant)
         key = icon_key(name)
         candidates: list[str] = []
 
@@ -124,7 +108,12 @@ class IconStyleManager(QObject):
             pack = cls._packs.get(current_id)
             if pack is None:
                 continue
-            for current_variant in (requested_variant, IconVariant.DEFAULT):
+            variants = (
+                [requested_variant, pack.default_variant]
+                if requested_variant is not None
+                else [pack.default_variant]
+            )
+            for current_variant in variants:
                 add(pack.glyph(key, current_variant))
 
         return candidates
@@ -141,4 +130,4 @@ class IconStyleManager(QObject):
 
 
 IconStyleManager.register_pack(FontAwesomePack())
-IconStyleManager.register_pack(MaterialPack())
+IconStyleManager.register_pack(PhosphorPack())

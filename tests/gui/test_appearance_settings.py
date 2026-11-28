@@ -24,7 +24,6 @@ class _FakeConfig:
             "tint_enabled": False,
             "toast_position": "top_right",
             "icon_style": "fontawesome",
-            "icon_variant": "default",
             "board_show_coordinates": True,
             "board_show_classification": True,
             "board_show_best_move_arrow": True,
@@ -283,33 +282,24 @@ def test_tint_checkbox_persists_and_applies(qapp, monkeypatch):
     widget.deleteLater()
 
 
-def test_icon_style_and_variant_persist_and_apply(qapp, monkeypatch):
+def test_icon_style_persists_and_applies(qapp, monkeypatch):
     from src.gui.icons import IconStyleManager
 
     calls = []
     monkeypatch.setattr(
         IconStyleManager,
         "set_pack",
-        classmethod(lambda cls, value: calls.append(("pack", value)) or True),
+        classmethod(lambda cls, value: calls.append(value) or True),
     )
-    monkeypatch.setattr(
-        IconStyleManager,
-        "set_variant",
-        classmethod(lambda cls, value: calls.append(("variant", value)) or True),
-    )
-    config = _FakeConfig({"icon_style": "fontawesome", "icon_variant": "default"})
+    config = _FakeConfig({"icon_style": "fontawesome"})
     widget = ThemeAccentSettings(config)
 
     widget.icon_style_combo.setCurrentIndex(
-        widget.icon_style_combo.findData("material")
-    )
-    widget.icon_variant_combo.setCurrentIndex(
-        widget.icon_variant_combo.findData("regular")
+        widget.icon_style_combo.findData("phosphor")
     )
 
-    assert config.config["icon_style"] == "material"
-    assert config.config["icon_variant"] == "regular"
-    assert calls == [("pack", "material"), ("variant", "regular")]
+    assert config.config["icon_style"] == "phosphor"
+    assert calls == ["phosphor"]
     widget.deleteLater()
 
 

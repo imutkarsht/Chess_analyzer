@@ -6,7 +6,7 @@ from src.gui.icons.packs import (
     DEFAULT_ICON_PACK_ID,
     FontAwesomePack,
     IconPack,
-    MaterialPack,
+    PhosphorPack,
 )
 from src.gui.icons.resolver import (
     HAS_QTAWESOME,
@@ -25,7 +25,7 @@ __all__ = [
     "IconSpec",
     "IconStyleManager",
     "IconVariant",
-    "MaterialPack",
+    "PhosphorPack",
     "clear_icon_cache",
     "icon_key",
     "icon_pixmap",

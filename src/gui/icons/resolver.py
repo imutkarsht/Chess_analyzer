@@ -64,6 +64,7 @@ def _cached_icon_pixmap(
     size: int,
     pack_id: str,
     variant: str,
+    scale_factor: float,
 ) -> QPixmap | None:
     if not name or size <= 0:
         return None
@@ -83,7 +84,9 @@ def _cached_icon_pixmap(
 
         if HAS_QTAWESOME and qta is not None:
             try:
-                pixmap = qta.icon(glyph, color=color).pixmap(size, size)
+                pixmap = qta.icon(
+                    glyph, color=color, scale_factor=scale_factor
+                ).pixmap(size, size)
             except Exception:
                 continue
             if pixmap is not None and not pixmap.isNull():
@@ -98,19 +101,17 @@ def icon_pixmap(
     variant: IconVariant | str | None = None,
 ) -> QPixmap | None:
     """Resolve an icon key or asset path to a themed pixmap."""
-    if variant is None:
-        active_variant = IconStyleManager.active_variant()
+    if isinstance(variant, IconVariant):
+        variant_value = variant.value
     else:
-        try:
-            active_variant = IconVariant(variant)
-        except ValueError:
-            active_variant = IconStyleManager.active_variant()
+        variant_value = str(variant or "")
     return _cached_icon_pixmap(
         name,
         color,
         size,
         IconStyleManager.active_pack_id(),
-        active_variant.value,
+        variant_value,
+        IconStyleManager.active_pack().scale_factor,
     )
 
 
@@ -120,9 +121,35 @@ def icon_qicon(
     size: int = 16,
     variant: IconVariant | str | None = None,
 ) -> QIcon:
-    """Resolve an icon key or asset path to a ``QIcon`` for buttons/actions."""
-    pixmap = icon_pixmap(name, color, size, variant)
-    return QIcon(pixmap) if pixmap is not None and not pixmap.isNull() else QIcon()
+    """Resolve an icon key or asset path to a vector ``QIcon``.
+
+    QtAwesome and SVG assets keep their scalable icon engines so Qt can render
+    them at the display's device pixel ratio instead of scaling a small bitmap.
+    """
+    if isinstance(variant, IconVariant):
+        variant_value = variant.value
+    else:
+        variant_value = str(variant or "")
+
+    path = _resolve_icon_path(name)
+    if path is not None:
+        return QIcon(str(path))
+
+    scale_factor = IconStyleManager.active_pack().scale_factor
+    for glyph in IconStyleManager.resolve_glyphs(name, variant_value):
+        glyph_path = _resolve_icon_path(glyph)
+        if glyph_path is not None:
+            return QIcon(str(glyph_path))
+        if HAS_QTAWESOME and qta is not None:
+            try:
+                icon = qta.icon(
+                    glyph, color=color, scale_factor=scale_factor
+                )
+            except Exception:
+                continue
+            if not icon.isNull():
+                return icon
+    return QIcon()
 
 
 def clear_icon_cache() -> None:

@@ -123,9 +123,6 @@ class ThemeMixin:
         IconStyleManager.set_pack(
             str(getattr(self.config_manager, "icon_style", "fontawesome"))
         )
-        IconStyleManager.set_variant(
-            str(getattr(self.config_manager, "icon_variant", "default"))
-        )
         ThemeManager.set_tint_enabled(
             bool(getattr(self.config_manager, "tint_enabled", False)),
             apply=False,

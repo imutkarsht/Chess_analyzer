@@ -17,11 +17,13 @@ from src.gui.icons import (
 class _HeartPack:
     id = "test-heart"
     display_name = "Test Heart"
+    default_variant = IconVariant.SOLID
+    scale_factor = 1.0
 
     def glyph(self, key: str, variant: IconVariant) -> str | None:
         if key != "star":
             return None
-        if variant is IconVariant.REGULAR:
+        if variant is IconVariant.OUTLINE:
             return "fa5.heart"
         return "fa5s.heart"
 
@@ -37,6 +39,17 @@ def test_resolver_supports_semantic_legacy_and_asset_icons(qapp):
     assert not icon_qicon("play", "#FFFFFF").isNull()
     assert not icon_qicon("fa5s.play", "#FFFFFF").isNull()
     assert not icon_qicon("assets/icons/chesscom.png", "#FFFFFF").isNull()
+
+
+def test_phosphor_outline_pack_covers_common_keys(qapp):
+    previous = IconStyleManager.active_pack_id()
+    try:
+        assert IconStyleManager.set_pack("phosphor") is True
+        assert not icon_qicon("play", "#FFFFFF").isNull()
+        assert not icon_qicon("star", "#FFFFFF").isNull()
+        assert not icon_qicon("history", "#FFFFFF").isNull()
+    finally:
+        IconStyleManager.set_pack(previous)
 
 
 def test_pack_falls_back_to_the_default_glyph():
@@ -58,12 +71,12 @@ def test_variant_is_part_of_glyph_resolution():
 
     assert (
         IconStyleManager.resolve_glyph(
-            "star", IconVariant.REGULAR, "test-heart"
+            "star", IconVariant.OUTLINE, "test-heart"
         )
         == "fa5.heart"
     )
     assert IconStyleManager.resolve_glyphs(
-        "star", IconVariant.REGULAR, "test-heart"
+        "star", IconVariant.OUTLINE, "test-heart"
     )[:2] == ["fa5.heart", "fa5s.heart"]
 
 
@@ -99,17 +112,26 @@ def test_style_switch_re_resolves_labels_and_buttons(qtbot):
         IconStyleManager.set_pack(previous)
 
 
-def test_regular_variant_changes_supported_glyphs_and_falls_back(qapp):
-    solid_star = icon_pixmap("star", "#FFFFFF", 32, IconVariant.SOLID)
-    regular_star = icon_pixmap("star", "#FFFFFF", 32, IconVariant.REGULAR)
-    assert solid_star is not None and regular_star is not None
-    assert solid_star.toImage() != regular_star.toImage()
+def test_style_packs_change_supported_glyphs_and_fall_back(qapp):
+    previous = IconStyleManager.active_pack_id()
+    try:
+        assert IconStyleManager.set_pack("fontawesome") is True
+        solid_star = icon_pixmap("star", "#FFFFFF", 32)
 
-    # Free regular has no ``play`` glyph; the resolver must fall back to solid.
-    solid_play = icon_pixmap("play", "#FFFFFF", 32, IconVariant.SOLID)
-    regular_play = icon_pixmap("play", "#FFFFFF", 32, IconVariant.REGULAR)
-    assert solid_play is not None and regular_play is not None
-    assert solid_play.toImage() == regular_play.toImage()
+        assert IconStyleManager.set_pack("phosphor") is True
+        outline_star = icon_pixmap("star", "#FFFFFF", 32)
+        assert solid_star is not None and outline_star is not None
+        assert solid_star.toImage() != outline_star.toImage()
+
+        # Phosphor has no chess pieces; those fall back to the solid pack.
+        solid_chess = icon_pixmap(
+            "chess-king", "#FFFFFF", 32, IconVariant.SOLID
+        )
+        outline_chess = icon_pixmap("chess-king", "#FFFFFF", 32)
+        assert solid_chess is not None and outline_chess is not None
+        assert solid_chess.toImage() == outline_chess.toImage()
+    finally:
+        IconStyleManager.set_pack(previous)
 
 
 def test_icon_spec_applies_fallback_and_widget_overrides(qtbot):

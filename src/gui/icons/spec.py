@@ -10,9 +10,7 @@ from enum import StrEnum
 class IconVariant(StrEnum):
     """Pack-defined icon weight or style."""
 
-    DEFAULT = "default"
     SOLID = "solid"
-    REGULAR = "regular"
     OUTLINE = "outline"
 
 

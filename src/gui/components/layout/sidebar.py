@@ -1,20 +1,16 @@
-import os
-
 from PyQt6.QtCore import (
     QPropertyAnimation,
     Qt,
     pyqtProperty,
     pyqtSignal,
 )
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QFrame, QVBoxLayout
 
 from src.gui.components.controls.button import Button, ButtonVariant
-from src.gui.icons import IconStyleManager, icon_qicon
+from src.gui.icons import IconSpec, IconStyleManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
-from src.gui.utils.assets import icon_path
 from src.utils.config import ConfigManager
 
 QTAWESOME_ICONS = {
@@ -124,17 +120,10 @@ class Sidebar(QFrame):
     sidebar_width = pyqtProperty(float, _get_sidebar_width, _set_sidebar_width)
 
     def _apply_icon(self, btn, icon_name):
-        if icon_name in QTAWESOME_ICONS:
-            color_str = (
-                Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
-            )
-            icon = icon_qicon(QTAWESOME_ICONS[icon_name], color_str)
-            if not icon.isNull():
-                btn.set_icon_spec(icon)
-                return
-        sidebar_icon = icon_path(icon_name)
-        if os.path.exists(sidebar_icon):
-            btn.set_icon_spec(QIcon(sidebar_icon))
+        if icon_name not in QTAWESOME_ICONS:
+            return
+        color = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
+        btn.set_icon_spec(IconSpec(QTAWESOME_ICONS[icon_name], color=color))
 
     def _make_nav_button(self, text: str, icon_name: str, index: int) -> Button:
         on_click = (

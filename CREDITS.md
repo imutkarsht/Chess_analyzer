@@ -128,7 +128,7 @@ each game ended:
 
 | File | Purpose |
 |------|---------|
-| `winner-crown.svg` | Winner indicator in game list |
+| `winner_crown.svg` | Winner indicator in game list |
 | `tick.svg` | Success indicator in settings view |
 
 ### Application Logo
@@ -203,21 +203,31 @@ project by the project maintainer using generative AI tools. They are licensed u
 
 | File | Purpose |
 |------|---------|
-| `accuracy.png` | Accuracy stat card & AI insights panel |
 | `analyze.png` | Sidebar — Analyze navigation button |
-| `best_win.png` | Best Win stat card |
 | `exit.png` | Sidebar — Exit button |
 | `file.png` | Game list — fallback source icon (local PGN file) |
-| `games.png` | Total Games stat card |
 | `history.png` | Sidebar — History navigation button |
-| `opening_icon.png` | AI insights panel — opening-related insight |
-| `phase_icon.png` | AI insights panel — endgame / game phase insight |
 | `settings.png` | Sidebar — Settings navigation button |
 | `stats.png` | Sidebar — Stats navigation button |
-| `win_rate.png` | Win Rate stat card & AI insights panel |
 
-These assets are original works created for this project and are not derived from any
-third-party icon pack. No third-party copyrighted icon packs were used.
+These PNG assets are original works created for this project and are not derived
+from any third-party icon pack. UI chrome icons are rendered separately through
+the QtAwesome icon fonts listed under [Icon Fonts](#icon-fonts).
+
+---
+
+## Icon Fonts
+
+Icon glyphs are rendered through QtAwesome's bundled font sets. The application
+uses Font Awesome Free for solid icons and Phosphor for outline icons.
+
+- **Font Awesome Free 5.15.4** — icons CC BY 4.0, fonts SIL OFL 1.1, code MIT:
+  <https://fontawesome.com/license/free>
+- **Phosphor Icons 1.3.0** — MIT:
+  <https://github.com/phosphor-icons/phosphor-icons>
+
+The full licence inventory for bundled icon fonts is in
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
 
 ---
 

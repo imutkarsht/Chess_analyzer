@@ -325,33 +325,41 @@ class Button(QPushButton):
         if gap and not icon.isNull():
             # Qt hardcodes a tight icon/text gap; a transparent strip on the
             # icon keeps the label readable without per-widget QSS overrides.
-            pixmap = QPixmap(side + gap, side)
+            # Render at the device pixel ratio so the icon stays crisp on HiDPI.
+            dpr = max(1.0, self.devicePixelRatioF())
+            side_px = max(1, int(round(side * dpr)))
+            gap_px = max(1, int(round(gap * dpr)))
+            pixmap = QPixmap(side_px + gap_px, side_px)
             pixmap.fill(Qt.GlobalColor.transparent)
             painter = QPainter(pixmap)
-            icon.paint(painter, 0, 0, side, side)
+            icon.paint(painter, 0, 0, side_px, side_px)
             painter.end()
+            pixmap.setDevicePixelRatio(dpr)
             icon = QIcon(pixmap)
         self.setIcon(icon)
 
     def _spinner_icon(self) -> QIcon:
         side = self._icon_pixel_size()
-        pixmap = QPixmap(side, side)
+        dpr = max(1.0, self.devicePixelRatioF())
+        px = max(1, int(round(side * dpr)))
+        pixmap = QPixmap(px, px)
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         pen = QPen(QColor(self._icon_color()))
-        pen.setWidthF(max(2.0, side / 8))
+        pen.setWidthF(max(2.0 * dpr, px / 8))
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
-        painter.translate(side / 2, side / 2)
+        painter.translate(px / 2, px / 2)
         painter.rotate(self._spin_angle)
-        inset = max(1.5, side / 8)
+        inset = max(1.5 * dpr, px / 8)
         painter.drawArc(
-            QRectF(-side / 2 + inset, -side / 2 + inset, side - 2 * inset, side - 2 * inset),
+            QRectF(-px / 2 + inset, -px / 2 + inset, px - 2 * inset, px - 2 * inset),
             0,
             270 * 16,
         )
         painter.end()
+        pixmap.setDevicePixelRatio(dpr)
         return QIcon(pixmap)
 
     def _apply_spinner(self) -> None:

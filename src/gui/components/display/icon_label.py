@@ -11,7 +11,7 @@ from src.gui.icons import (
     IconSpec,
     IconStyleManager,
     IconVariant,
-    icon_pixmap,
+    icon_qicon,
 )
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
@@ -135,6 +135,7 @@ class IconLabel(QLabel):
 
     def _apply_icon(self) -> None:
         icon = self._icon
+        dpr = max(1.0, self.devicePixelRatioF())
         if isinstance(icon, QPixmap):
             if icon.isNull():
                 self._show_fallback()
@@ -142,31 +143,36 @@ class IconLabel(QLabel):
             if self._scaled:
                 self.setPixmap(icon)
                 return
-            self.setPixmap(
-                icon.scaled(
-                    self._icon_size,
-                    self._icon_size,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
+            target = max(1, int(round(self._icon_size * dpr)))
+            pixmap = icon.scaled(
+                target,
+                target,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
+            pixmap.setDevicePixelRatio(dpr)
+            self.setPixmap(pixmap)
             return
+        if isinstance(icon, str) and icon:
+            icon = icon_qicon(
+                icon, self._resolved_color(), self._icon_size, self._variant
+            )
         if isinstance(icon, QIcon):
             target = max(1, self.width(), self.height()) if self._scaled else self._icon_size
             pixmap = icon.pixmap(target, target)
             if pixmap.isNull():
                 self._show_fallback()
                 return
+            if pixmap.devicePixelRatio() == 1 and dpr > 1:
+                pixmap = pixmap.scaled(
+                    target * dpr,
+                    target * dpr,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                pixmap.setDevicePixelRatio(dpr)
             self.setPixmap(pixmap)
             return
-        if isinstance(icon, str) and icon:
-            target = max(1, self.width(), self.height()) if self._scaled else self._icon_size
-            pixmap = icon_pixmap(
-                icon, self._resolved_color(), target, self._variant
-            )
-            if pixmap is not None and not pixmap.isNull():
-                self.setPixmap(pixmap)
-                return
         self._show_fallback()
 
     def _show_fallback(self) -> None:
