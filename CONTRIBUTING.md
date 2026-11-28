@@ -134,12 +134,12 @@ Branch protection on `master`, `main`, and `release/**` requires:
 
 - `Lint / Ruff Linter`
 - `Code Hygiene / architecture`
-- `Code Hygiene / coverage`
 - every `Test Suite` matrix leg
 
-The `Code Hygiene` workflow runs on Ubuntu only. Maintainers enable these
-checks in GitHub branch protection or repository rulesets after the workflow
-has run at least once.
+The Linux `Test Suite` leg also enforces branch coverage at the 80% floor
+and uploads `coverage.xml` when it fails. The `Code Hygiene` workflow runs on
+Ubuntu only. Maintainers enable these checks in GitHub branch protection or
+repository rulesets after the workflow has run at least once.
 
 ## Test quality expectations
 
