@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import qtawesome as qta
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QFrame,
@@ -30,6 +29,7 @@ from src.gui.components import (
     ToastManager,
     confirm_dialog,
 )
+from src.gui.icons import IconStyleManager, icon_qicon
 from src.gui.import_workspace import GameBatch, GameImportView
 from src.gui.styles import Styles
 from src.gui.utils.debounce import Debouncer
@@ -134,7 +134,7 @@ class HistoryView(QWidget):
         self.btn_batch = Button(
             "Batch analyze",
             ButtonVariant.PRIMARY,
-            icon="fa5s.play-circle",
+            icon="play-circle",
             on_click=self._on_batch_button_clicked,
             tooltip="Analyze selected games one by one",
         )
@@ -146,7 +146,7 @@ class HistoryView(QWidget):
         self.btn_import = Button(
             "Import",
             ButtonVariant.FILLED,
-            icon="fa5s.file-import",
+            icon="file-import",
             tooltip="Import games from a CSV file",
             on_click=self.import_games,
         )
@@ -155,7 +155,7 @@ class HistoryView(QWidget):
         self.btn_export = Button(
             "Export",
             ButtonVariant.FILLED,
-            icon="fa5s.file-export",
+            icon="file-export",
             tooltip="Export the filtered games as CSV or annotated PGN",
         )
         self.export_menu = QMenu(self)
@@ -183,7 +183,7 @@ class HistoryView(QWidget):
         self.btn_clear = Button(
             "Delete all games",
             ButtonVariant.DANGER,
-            icon="fa5s.trash-alt",
+            icon="trash-alt",
             tooltip="Permanently delete every saved game",
             on_click=self.clear_history,
         )
@@ -192,7 +192,7 @@ class HistoryView(QWidget):
         self.btn_refresh = Button(
             "Refresh",
             ButtonVariant.FILLED,
-            icon="fa5s.sync-alt",
+            icon="sync-alt",
             tooltip="Reload the game list from storage",
             on_click=self.load_history,
         )
@@ -225,7 +225,7 @@ class HistoryView(QWidget):
             "",
             ButtonVariant.HOLLOW,
             ButtonSize.SM,
-            icon="fa5s.chevron-down",
+            icon="chevron-down",
             on_click=self._expand_batch,
             tooltip="Show batch details",
         )
@@ -278,6 +278,10 @@ class HistoryView(QWidget):
         self.page_stack.addWidget(self.import_view)
         self.page_stack.setCurrentWidget(self.history_page)
 
+        IconStyleManager.instance().style_changed.connect(
+            self._on_icon_style_changed
+        )
+
         # Load initial data
         self.load_history()
 
@@ -310,11 +314,14 @@ class HistoryView(QWidget):
         if inserted:
             self.games_imported.emit(inserted)
 
+    def _on_icon_style_changed(self, *_args) -> None:
+        self._refresh_export_menu_icons()
+
     def _refresh_export_menu_icons(self):
         """Retint the export menu icons from the live palette."""
         color = Styles.COLOR_TEXT_SECONDARY
-        self.export_csv_action.setIcon(qta.icon("fa5s.file-csv", color=color))
-        self.export_pgn_action.setIcon(qta.icon("fa5s.file-code", color=color))
+        self.export_csv_action.setIcon(icon_qicon("file-csv", color, 16))
+        self.export_pgn_action.setIcon(icon_qicon("file-code", color, 16))
 
     def apply_default_view_mode(self):
         """Apply the Appearance default layout without overriding a manual toggle."""

@@ -30,6 +30,8 @@ class TestConfigManager:
             assert manager.get("board_show_last_move") is True
             assert manager.get("board_show_eval_bar") is True
             assert manager.get("board_wheel_navigation") is True
+            assert manager.get("icon_style") == "fontawesome"
+            assert manager.icon_style == "fontawesome"
             assert manager.get("remember_window_geometry") is True
             assert manager.tooltips_enabled is True
             assert manager.get("sound_volume") == 50

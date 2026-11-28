@@ -68,7 +68,7 @@ class SummaryPanel(QFrame):
         self.btn_generate_summary = Button(
             _BTN_GENERATE_SUMMARY,
             ButtonVariant.TONAL,
-            icon="fa5s.magic",
+            icon="magic",
             tooltip="Write a full-game report from this analysis",
         )
         self.btn_generate_summary.clicked.connect(self.generate_ai_summary)

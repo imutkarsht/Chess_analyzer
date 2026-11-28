@@ -51,7 +51,7 @@ class MaintenanceSettings(StorageCard):
         self.clear_cache_btn = Button(
             "Clear Cache",
             ButtonVariant.FILLED,
-            icon="fa5s.broom",
+            icon="broom",
             tooltip="Delete cached engine evaluations",
             on_click=self.clear_cache,
             parent=self,
@@ -66,7 +66,7 @@ class MaintenanceSettings(StorageCard):
         self.clear_explanations_btn = Button(
             "Clear Explanations",
             ButtonVariant.FILLED,
-            icon="fa5s.comment-slash",
+            icon="comment-slash",
             tooltip="Delete cached AI move explanations",
             on_click=self.clear_explanations,
             parent=self,
@@ -81,7 +81,7 @@ class MaintenanceSettings(StorageCard):
         self.clear_api_cache_btn = Button(
             "Clear API Cache",
             ButtonVariant.FILLED,
-            icon="fa5s.cloud-download-alt",
+            icon="cloud-download-alt",
             tooltip="Delete cached Chess.com and Lichess game lists",
             on_click=self.clear_api_cache,
             parent=self,
@@ -96,7 +96,7 @@ class MaintenanceSettings(StorageCard):
         self.clear_explorer_cache_btn = Button(
             "Clear Explorer Cache",
             ButtonVariant.FILLED,
-            icon="fa5s.globe",
+            icon="globe",
             tooltip="Delete cached opening-explorer responses",
             on_click=self.clear_explorer_cache,
             parent=self,
@@ -111,7 +111,7 @@ class MaintenanceSettings(StorageCard):
         self.optimize_db_btn = Button(
             "Optimize DB",
             ButtonVariant.FILLED,
-            icon="fa5s.tools",
+            icon="tools",
             tooltip="Compact the history database and checkpoint WAL files",
             on_click=self.optimize_db,
             parent=self,
@@ -126,7 +126,7 @@ class MaintenanceSettings(StorageCard):
         self.rebuild_index_btn = Button(
             "Rebuild Index",
             ButtonVariant.FILLED,
-            icon="fa5s.sync-alt",
+            icon="sync-alt",
             tooltip="Regenerate the opening index from bundled data",
             on_click=self.rebuild_index,
             parent=self,

@@ -45,6 +45,11 @@ Patterns and rules for changing the codebase. For layer edges, see
 ## Components and settings
 
 - Use the shared component facade for every control.
+- Use `Icon` / `Button` / `IconLabel` with pack-independent icon keys. Do not
+  import `qtawesome` outside `src/gui/icons/` or pass raw `fa5s.*` names.
+- Icon packs and variants live in `src/gui/icons/`; `IconStyleManager` owns the
+  active pack/variant and refreshes subscribers. See
+  [architecture/gui.md](architecture/gui.md#icons).
 - Dashboard cards use `MetricCard.new_content()`, `clear_content()`, and
   `show_empty()`, plus the shared `EmptyState`, `StatusBadge`,
   `SegmentedControl`, `PaginationBar`, `LegendList`, `MiniBar`, and
@@ -110,6 +115,7 @@ Extend the canonical module before adding a private helper.
 | Tactics summary enrichment | `src/backend/analysis/tactics/enrichment.py` |
 | Streaming downloads and GitHub releases | `src/backend/api/download.py`, `src/backend/api/github_releases.py` |
 | GUI asset and icon paths | `src/gui/utils/assets.py` |
+| Icon packs, specs, variants, resolution | `src/gui/icons/` |
 | External URLs and local paths | `src/gui/utils/links.py` |
 | Result labels and tones | `src/gui/utils/result_ui.py` |
 | Layout clearing | `src/gui/utils/layout.py` |

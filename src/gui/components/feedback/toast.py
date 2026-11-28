@@ -40,15 +40,11 @@ from src.gui.components.controls.button import Button, ButtonSize, ButtonVariant
 from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.feedback.toast_icons import toast_icon
+from src.gui.icons import icon_qicon
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
 from src.gui.theme.typography import ALLOWED_SIZES, TextRole
-
-try:
-    import qtawesome as qta
-except ImportError:  # pragma: no cover - QtAwesome ships with the app
-    qta = None
 
 
 class ToastVariant(StrEnum):
@@ -308,7 +304,7 @@ class Toast(QWidget):
         self._close_button = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.XS,
-            icon="fa5s.times",
+            icon="times",
             icon_position="only",
             icon_size=13,
             tooltip="Dismiss notification",
@@ -433,10 +429,9 @@ class Toast(QWidget):
         icon = options.icon
         if isinstance(icon, QIcon):
             rendered = icon
-        elif isinstance(icon, str) and qta is not None:
-            try:
-                rendered = qta.icon(icon, color=color)
-            except Exception:  # pragma: no cover - invalid icon name
+        elif isinstance(icon, str):
+            rendered = icon_qicon(icon, color, self._icon_size)
+            if rendered.isNull():  # pragma: no cover - invalid icon name
                 rendered = toast_icon(
                     self._variant.value, color, self._icon_size, self._angle
                 )

@@ -57,7 +57,7 @@ class TroubleView(LazyRenderView):
                 threshold=">15s Bullet, >30s Blitz",
                 value=f"{normal_pct:.1f}%",
                 description=f"{normal_blunders} errors across {normal_moves} moves",
-                icon_name="fa5s.shield-alt",
+                icon_name="shield-alt",
                 icon_color=Styles.COLOR_RESULT_WIN,
                 background=Styles.COLOR_SURFACE_LIGHT,
                 border_color=Styles.COLOR_BORDER,
@@ -78,7 +78,7 @@ class TroubleView(LazyRenderView):
                 description=(
                     f"{trouble_blunders} errors across {trouble_moves} scramble moves"
                 ),
-                icon_name="fa5s.tachometer-alt",
+                icon_name="tachometer-alt",
                 icon_color=Styles.COLOR_BLUNDER,
                 background=Styles.COLOR_SURFACE_LIGHT,
                 border_color=(

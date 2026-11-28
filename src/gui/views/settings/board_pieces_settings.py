@@ -102,7 +102,7 @@ class BoardPiecesSettings(QGroupBox):
         self.import_theme_btn = Button(
             "Import Theme...",
             ButtonVariant.FILLED,
-            icon="fa5s.folder-open",
+            icon="folder-open",
             tooltip="Import a custom piece theme folder",
             on_click=self.import_theme,
             parent=self,

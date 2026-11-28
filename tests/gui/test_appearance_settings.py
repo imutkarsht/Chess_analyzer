@@ -23,6 +23,7 @@ class _FakeConfig:
             "accent_color": "#FF9500",
             "tint_enabled": False,
             "toast_position": "top_right",
+            "icon_style": "fontawesome",
             "board_show_coordinates": True,
             "board_show_classification": True,
             "board_show_best_move_arrow": True,
@@ -278,6 +279,27 @@ def test_tint_checkbox_persists_and_applies(qapp, monkeypatch):
 
     assert config.config["tint_enabled"] is True
     assert applied == [True]
+    widget.deleteLater()
+
+
+def test_icon_style_persists_and_applies(qapp, monkeypatch):
+    from src.gui.icons import IconStyleManager
+
+    calls = []
+    monkeypatch.setattr(
+        IconStyleManager,
+        "set_pack",
+        classmethod(lambda cls, value: calls.append(value) or True),
+    )
+    config = _FakeConfig({"icon_style": "fontawesome"})
+    widget = ThemeAccentSettings(config)
+
+    widget.icon_style_combo.setCurrentIndex(
+        widget.icon_style_combo.findData("phosphor")
+    )
+
+    assert config.config["icon_style"] == "phosphor"
+    assert calls == ["phosphor"]
     widget.deleteLater()
 
 

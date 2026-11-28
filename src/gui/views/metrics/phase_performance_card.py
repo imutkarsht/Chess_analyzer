@@ -51,9 +51,9 @@ class PhasePerformanceCard(MetricCard):
         main_vbox = self.new_content(spacing=12).layout()
 
         phases = [
-            ("Opening", "opening", "fa5s.chess-pawn", "Moves 1–15"),
-            ("Middlegame", "middlegame", "fa5s.chess-knight", "Moves 16–35"),
-            ("Endgame", "endgame", "fa5s.chess-king", "Moves 36+"),
+            ("Opening", "opening", "chess-pawn", "Moves 1–15"),
+            ("Middlegame", "middlegame", "chess-knight", "Moves 16–35"),
+            ("Endgame", "endgame", "chess-king", "Moves 36+"),
         ]
 
         total_games = self.stats.get("total", 0)

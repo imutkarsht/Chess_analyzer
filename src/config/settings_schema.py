@@ -301,6 +301,20 @@ def _specs() -> tuple[SettingSpec, ...]:
             ),
         ),
         SettingSpec(
+            "icon_style",
+            "Appearance",
+            "Theme & Accent",
+            "Icon style",
+            "Icon pack used across buttons, tabs, menus, and navigation.",
+            "choice",
+            "fontawesome",
+            apply="live",
+            choices=(
+                Choice("fontawesome", "Solid (Font Awesome)"),
+                Choice("phosphor", "Outline (Phosphor)"),
+            ),
+        ),
+        SettingSpec(
             "board_theme",
             "Appearance",
             "Board & Pieces",

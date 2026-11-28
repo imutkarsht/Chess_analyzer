@@ -52,7 +52,7 @@ class PgnFilePanel(QWidget):
             "Browse files",
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
-            icon="fa5s.folder-open",
+            icon="folder-open",
             tooltip="Choose a PGN file",
             on_click=self._browse,
         )

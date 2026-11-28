@@ -26,7 +26,7 @@ Use the shared controls for every UI control: `Button`, `Checkbox`, `Input`,
 `TextArea`, `Select`, `PathField`, `RadioChoice`, `SliderCounter`,
 `ProgressBar`, `Tabs`, `DatePicker`, `ListView`, `Toast`, `PaginationBar`,
 `EmptyState`, `StatusBadge`, `SegmentedControl`, `MiniBar`, `SegmentedBar`,
-and `ElidedLabel`.
+`Icon`, `IconLabel`, and `ElidedLabel`.
 
 Construct `Button` directly with a variant and size. Do not reintroduce
 `create_button` or `create_icon_button` factories.
@@ -48,6 +48,29 @@ graph nodes, the move-cell variation badge, pixmap labels, the toast hairline
 progress bar, and the domain-specific move table.
 
 Guardrails: `tests/gui/test_button.py` and `tests/gui/test_input.py`.
+
+### Icons
+
+`src/gui/icons/` is the only module that imports `qtawesome`. It owns
+`IconSpec`, `IconVariant`, icon packs, `IconStyleManager`, and the resolver.
+The `Icon` widget lives in `src/gui/components/display/icon.py` and is exported
+through the component facade.
+
+- Use semantic keys (`play`, `history`, `close`) or asset paths. Do not pass
+  `fa5s.*` / `fa6s.*` names from call sites.
+- `IconSpec` carries key, variant, size, tone, colour, and fallback.
+- Variants are pack-defined: `solid` and `outline`. Font Awesome provides the
+  solid pack; Phosphor provides the outline pack. The resolver falls back to
+  the pack default and then the default pack when a glyph is unavailable.
+- `IconStyleManager.set_pack()` re-resolves every subscribed icon. The
+  `icon_style` Appearance setting selects `Solid (Font Awesome)` or
+  `Outline (Phosphor)`.
+- Brand glyphs and content artwork (logos, board pieces, previews, charts) are
+  explicit exceptions; they may use asset helpers directly.
+
+Guardrail: `tests/architecture/test_icon_guardrails.py` rejects direct
+`qtawesome` imports, raw font names, and raw `QIcon` / `setIcon` use outside
+the allowed content exceptions.
 
 ## Theming
 

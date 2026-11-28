@@ -144,7 +144,7 @@ class WelcomePanel(QFrame):
         self.btn_review = Button(
             "Rate && Review",
             ButtonVariant.HOLLOW,
-            icon="fa5s.star",
+            icon="star",
             full_width=True,
             tooltip="Open the in-app rating form",
             on_click=self._open_review,
@@ -162,25 +162,25 @@ class WelcomePanel(QFrame):
         util_specs = [
             (
                 "Report Issue",
-                "fa5s.bug",
+                "bug",
                 "Open the bug report form",
                 lambda: open_feedback_dialog(self, initial_tab="bug"),
             ),
             (
                 "Suggest Feature",
-                "fa5s.lightbulb",
+                "lightbulb",
                 "Open the feature request form",
                 lambda: open_feedback_dialog(self, initial_tab="feature"),
             ),
             (
                 "About",
-                "fa5s.info-circle",
+                "info-circle",
                 "Open the about page in your browser",
                 self._open_about,
             ),
             (
                 "Website",
-                "fa5s.globe",
+                "globe",
                 "Open the Chess Analyzer Pro website",
                 self._open_website,
             ),

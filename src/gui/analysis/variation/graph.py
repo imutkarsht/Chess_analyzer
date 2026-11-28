@@ -30,14 +30,9 @@ from src.gui.components import (
     TextRole,
     TextTone,
 )
+from src.gui.icons import HAS_QTAWESOME, IconSpec
 from src.gui.styles import Styles
-from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.format_utils import format_eval
-
-try:
-    import qtawesome as qta
-except ImportError:  # pragma: no cover - exercised only on broken installs
-    qta = None
 
 COL_W = 58
 LANE_H = 30
@@ -318,16 +313,16 @@ class VariationGraph(QFrame):
         header.addWidget(self.lbl_context, 1)
 
         self.btn_best = self._action_button(
-            "fa5s.play", "▶", "Play the engine's best move"
+            "play", "▶", "Play the engine's best move"
         )
         self.btn_undo = self._action_button(
-            "fa5s.undo", "↶", "Undo the last variation move (←)"
+            "undo", "↶", "Undo the last variation move (←)"
         )
         self.btn_reset = self._action_button(
-            "fa5s.home", "⌂", "Return to the branch point (Home)"
+            "home", "⌂", "Return to the branch point (Home)"
         )
         self.btn_exit = self._action_button(
-            "fa5s.times", "✕", "Exit Explore and return to the game (Esc)"
+            "times", "✕", "Exit Explore and return to the game (Esc)"
         )
         self.btn_best.clicked.connect(lambda _checked=False: self.play_best_requested.emit())
         self.btn_undo.clicked.connect(lambda _checked=False: self.undo_requested.emit())
@@ -363,17 +358,17 @@ class VariationGraph(QFrame):
             parent=self,
         )
         btn.setFixedSize(24, 24)
-        btn.set_icon_spec(qta.icon(icon_name, color=Styles.COLOR_TEXT_PRIMARY) if HAS_QTAWESOME else None)
+        btn.set_icon_spec(IconSpec(icon_name, color=Styles.COLOR_TEXT_PRIMARY))
         btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         btn.setAccessibleName(tooltip)
         return btn
 
     def _apply_action_icons(self) -> None:
         specs = (
-            (self.btn_best, "fa5s.play", "▶"),
-            (self.btn_undo, "fa5s.undo", "↶"),
-            (self.btn_reset, "fa5s.home", "⌂"),
-            (self.btn_exit, "fa5s.times", "✕"),
+            (self.btn_best, "play", "▶"),
+            (self.btn_undo, "undo", "↶"),
+            (self.btn_reset, "home", "⌂"),
+            (self.btn_exit, "times", "✕"),
         )
         for btn, icon_name, fallback in specs:
             if HAS_QTAWESOME:
@@ -382,7 +377,7 @@ class VariationGraph(QFrame):
                     if btn is self.btn_best
                     else Styles.COLOR_TEXT_PRIMARY
                 )
-                btn.set_icon_spec(qta.icon(icon_name, color=color))
+                btn.set_icon_spec(IconSpec(icon_name, color=color))
             else:
                 btn.set_icon_spec(None)
                 btn.setText(fallback)
@@ -466,7 +461,7 @@ class VariationGraph(QFrame):
 
     def refresh_styles(self) -> None:
         """Frame chrome is global; re-tint actions and re-render branch colours."""
-        self.lbl_icon.set_icon("fa5s.code-branch" if HAS_QTAWESOME else None)
+        self.lbl_icon.set_icon("code-branch" if HAS_QTAWESOME else None)
         self._apply_action_icons()
         if self.tree is not None:
             node = self.tree.find_node(self.active_node_id or 0)

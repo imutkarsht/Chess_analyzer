@@ -37,12 +37,12 @@ from src.gui.tactics_meta import classification_tone, motif_meta
 from src.gui.utils.layout import clear_layout
 
 _PIECE_ICONS: dict[str, str] = {
-    "pawn": "fa5s.chess-pawn",
-    "knight": "fa5s.chess-knight",
-    "bishop": "fa5s.chess-bishop",
-    "rook": "fa5s.chess-rook",
-    "queen": "fa5s.chess-queen",
-    "king": "fa5s.chess-king",
+    "pawn": "chess-pawn",
+    "knight": "chess-knight",
+    "bishop": "chess-bishop",
+    "rook": "chess-rook",
+    "queen": "chess-queen",
+    "king": "chess-king",
 }
 
 
@@ -112,7 +112,7 @@ class TacticRow(QFrame):
             )
             trailing.addWidget(classification)
         trailing.addWidget(
-            IconLabel("fa5s.chevron-right", size=10, tone=TextTone.MUTED)
+            IconLabel("chevron-right", size=10, tone=TextTone.MUTED)
         )
         layout.addLayout(trailing, 0)
 
@@ -356,7 +356,7 @@ class TacticsTab(QWidget):
 
 def _row_icon(entry: GameTacticEntry) -> str:
     if entry.role in ("lost", "won") and entry.target_piece:
-        return _PIECE_ICONS.get(entry.target_piece.lower(), "fa5s.chess")
+        return _PIECE_ICONS.get(entry.target_piece.lower(), "chess")
     return motif_meta(entry.motif).icon
 
 

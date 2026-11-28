@@ -26,17 +26,11 @@ from src.gui.components.display.icon_label import IconLabel
 from src.gui.components.display.label import Label
 from src.gui.components.display.rich_text import RichTextLabel
 from src.gui.components.feedback.status_badge import StatusBadge
+from src.gui.icons import HAS_QTAWESOME, IconSpec
 from src.gui.styles import Styles
 from src.gui.theme.typography import TextRole, TextTone
 from src.gui.utils.assets import asset_path, icon_path
-from src.gui.utils.icons import HAS_QTAWESOME
-from src.utils.logger import logger
 from src.utils.time_control import classify_time_control, format_time_control
-
-try:
-    import qtawesome as qta
-except ImportError:
-    logger.warning("qtawesome not installed. Using text fallbacks for icons.")
 
 
 class GameListItemWidget(QWidget):
@@ -207,7 +201,7 @@ class GameListItemWidget(QWidget):
             )
             if white_acc is not None and black_acc is not None:
                 acc_widget = self._create_meta_item(
-                    "fa5s.bullseye", f"{white_acc:.0f}% / {black_acc:.0f}%"
+                    "bullseye", f"{white_acc:.0f}% / {black_acc:.0f}%"
                 )
                 card_layout.addWidget(acc_widget)
 
@@ -331,7 +325,7 @@ class GameListItemWidget(QWidget):
             if os.path.exists(book_path):
                 book_icon.set_icon(QIcon(book_path))
             elif HAS_QTAWESOME:
-                book_icon.set_icon("fa5s.book-open")
+                book_icon.set_icon("book-open")
             opening_layout.addWidget(book_icon)
 
             opening_text = f"{eco}: {opening}" if eco and opening else (opening or eco)
@@ -369,7 +363,7 @@ class GameListItemWidget(QWidget):
 
         # Date
         if game.metadata.date:
-            date_widget = self._create_meta_item("fa5s.calendar-alt", game.metadata.date)
+            date_widget = self._create_meta_item("calendar-alt", game.metadata.date)
             meta_layout.addWidget(date_widget)
 
         # Chess960 badge
@@ -380,7 +374,7 @@ class GameListItemWidget(QWidget):
         # Move count
         move_count = self._get_move_count(game)
         if move_count:
-            moves_widget = self._create_meta_item("fa5s.chess-pawn", f"{move_count} moves")
+            moves_widget = self._create_meta_item("chess-pawn", f"{move_count} moves")
             meta_layout.addWidget(moves_widget)
 
         # Human-Readable Termination Description
@@ -422,7 +416,7 @@ class GameListItemWidget(QWidget):
             )
             if white_acc is not None and black_acc is not None:
                 acc_text = f"{white_acc:.0f}% / {black_acc:.0f}%"
-                acc_widget = self._create_meta_item("fa5s.bullseye", acc_text)
+                acc_widget = self._create_meta_item("bullseye", acc_text)
                 meta_layout.addWidget(acc_widget)
 
         content_layout.addLayout(meta_layout)
@@ -448,7 +442,7 @@ class GameListItemWidget(QWidget):
             )
             action_btn.setToolTip("View ongoing analysis")
             action_btn.setAccessibleName("View ongoing analysis")
-            self._set_icon(action_btn, "fa5s.arrow-right", Styles.COLOR_ENGINE_BUSY)
+            self._set_icon(action_btn, "arrow-right", Styles.COLOR_ENGINE_BUSY)
             action_btn.clicked.connect(
                 lambda: self.action_requested.emit(self._game, "view_analysis")
             )
@@ -461,7 +455,7 @@ class GameListItemWidget(QWidget):
                 TextTone.ENGINE_READY,
             )
             action_btn.setToolTip("Reanalyze game")
-            self._set_icon(action_btn, "fa5s.sync-alt", Styles.COLOR_TEXT_SECONDARY)
+            self._set_icon(action_btn, "sync-alt", Styles.COLOR_TEXT_SECONDARY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "reanalyze"))
         elif status == "paused":
             analyzed = getattr(self._game, "analyzed_moves_count", 0)
@@ -473,7 +467,7 @@ class GameListItemWidget(QWidget):
                 TextTone.ENGINE_BUSY,
             )
             action_btn.setToolTip(f"Resume analysis ({analyzed}/{total})")
-            self._set_icon(action_btn, "fa5s.play", Styles.COLOR_ENGINE_BUSY)
+            self._set_icon(action_btn, "play", Styles.COLOR_ENGINE_BUSY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "resume"))
         else:
             status_lbl = StatusBadge(
@@ -481,7 +475,7 @@ class GameListItemWidget(QWidget):
                 TextTone.MUTED,
             )
             action_btn.setToolTip("Analyze game")
-            self._set_icon(action_btn, "fa5s.play", Styles.COLOR_TEXT_SECONDARY)
+            self._set_icon(action_btn, "play", Styles.COLOR_TEXT_SECONDARY)
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "analyze"))
 
         action_btn.setAccessibleName(action_btn.toolTip())
@@ -554,14 +548,14 @@ class GameListItemWidget(QWidget):
 
     @staticmethod
     def _set_icon(btn: Button, icon_name: str, color: str) -> None:
-        """Keep the status-specific icon tint; qtawesome icons carry their own color."""
-        btn.set_icon_spec(qta.icon(icon_name, color=color) if HAS_QTAWESOME else icon_name)
+        """Keep the status-specific icon tint through the shared icon spec."""
+        btn.set_icon_spec(IconSpec(icon_name, color=color))
 
     def _create_delete_button(self, btn_size: int = 22):
         del_btn = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.SM,
-            icon="fa5s.trash-alt",
+            icon="trash-alt",
             icon_position="only",
             danger=True,
             tooltip="Delete game",
@@ -628,11 +622,11 @@ class GameListItemWidget(QWidget):
             return lbl
 
         if HAS_QTAWESOME:
-            icon_name = "fa5s.file-alt"
+            icon_name = "file-alt"
             if src_name == "chesscom":
-                icon_name = "fa5s.chess-pawn"
+                icon_name = "chess-pawn"
             elif src_name == "lichess":
-                icon_name = "fa5s.chess-knight"
+                icon_name = "chess-knight"
             lbl.set_icon(icon_name)
             return lbl
 
@@ -647,7 +641,7 @@ class GameListItemWidget(QWidget):
             return lbl
 
         if HAS_QTAWESOME:
-            lbl.set_icon("fa5s.crown")
+            lbl.set_icon("crown")
             lbl.set_color(Styles.COLOR_CROWN)
             return lbl
 
@@ -668,7 +662,7 @@ class GameListItemWidget(QWidget):
             if os.path.exists(meta_icon):
                 icon_lbl.set_icon(QPixmap(meta_icon))
             elif HAS_QTAWESOME:
-                icon_lbl.set_icon("fa5s.clock")
+                icon_lbl.set_icon("clock")
         elif isinstance(icon, str) and HAS_QTAWESOME:
             icon_lbl.set_icon(icon)
         else:
@@ -719,10 +713,10 @@ class GameListItemWidget(QWidget):
         elif "time" in term_lower or "timeout" in term_lower or "forfeit" in term_lower:
             return "assets/images/timeout.svg"
         elif "abandon" in term_lower:
-            return "fa5s.door-open"
+            return "door-open"
         elif "draw" in term_lower or "stalemate" in term_lower or "repetition" in term_lower:
             return "assets/images/draw_black.svg"
-        return "fa5s.circle"
+        return "circle"
 
     def _get_move_count(self, game):
         # List rows carry a denormalised count so pgn is never parsed here.

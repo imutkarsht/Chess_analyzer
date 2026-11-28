@@ -188,7 +188,7 @@ class UpdateNotificationPanel(QWidget):
         btn_later = Button(
             "Remind Later",
             ButtonVariant.HOLLOW,
-            icon="fa5s.clock",
+            icon="clock",
             on_click=self.rejected.emit,
         )
         layout.addWidget(btn_later, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -199,7 +199,7 @@ class UpdateNotificationPanel(QWidget):
         self._btn_download = Button(
             "Download Update",
             ButtonVariant.PRIMARY,
-            icon="fa5s.download",
+            icon="download",
             on_click=self._start_download,
         )
         dl_col.addWidget(self._btn_download)
@@ -250,7 +250,7 @@ class UpdateNotificationPanel(QWidget):
 
         row = QHBoxLayout()
         row.setSpacing(10)
-        row.addWidget(IconLabel("fa5s.check-circle", size=22, tone=TextTone.BEST))
+        row.addWidget(IconLabel("check-circle", size=22, tone=TextTone.BEST))
 
         self._lbl_done_title = Label("", role=TextRole.BODY, weight=600)
         row.addWidget(self._lbl_done_title)
@@ -259,7 +259,7 @@ class UpdateNotificationPanel(QWidget):
         self._btn_open_finder = Button(
             "Open in Finder",
             ButtonVariant.PRIMARY,
-            icon="fa5s.folder-open",
+            icon="folder-open",
             on_click=self._open_in_finder,
         )
         self._btn_open_finder.hide()
@@ -290,7 +290,7 @@ class UpdateNotificationPanel(QWidget):
             Button(
                 "Open in Browser",
                 ButtonVariant.PRIMARY,
-                icon="fa5s.external-link-alt",
+                icon="external-link-alt",
                 on_click=self._open_in_browser,
             )
         )
@@ -548,7 +548,7 @@ class UpdateNotificationDialog(QDialog):
         title_row = QHBoxLayout()
         title_row.setSpacing(10)
         title_row.addWidget(
-            IconLabel("fa5s.arrow-circle-up", size=24, tone=TextTone.ACCENT)
+            IconLabel("arrow-circle-up", size=24, tone=TextTone.ACCENT)
         )
         title_row.addWidget(
             Label("Update Available", role=TextRole.DIALOG_TITLE, weight=600)

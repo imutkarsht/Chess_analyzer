@@ -564,7 +564,7 @@ class SettingsView(QWidget):
         btn = Button(
             "Save Settings",
             ButtonVariant.PRIMARY,
-            icon="fa5s.save",
+            icon="save",
             tooltip="Save all settings and validate the engine path",
             on_click=self.save_all_settings,
         )
@@ -583,7 +583,7 @@ class SettingsView(QWidget):
     def _update_mode_toggle_text(self, btn=None):
         b = btn or self.mode_toggle_btn
         b.setText("Advanced Settings" if self._mode == "basic" else "Basic Settings")
-        icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
+        icon_name = "cog" if self._mode == "basic" else "chevron-left"
         b.set_icon_spec(icon_name)
         b.setToolTip(
             "Reveal advanced engine, AI, storage, and maintenance options"

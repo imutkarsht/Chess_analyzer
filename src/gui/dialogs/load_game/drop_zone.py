@@ -9,11 +9,6 @@ from src.gui.components import IconLabel, Label, TextRole, TextTone
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 
-try:
-    import qtawesome as qta
-except ImportError:  # pragma: no cover - QtAwesome ships with the app
-    qta = None
-
 
 class DropZone(QFrame):
     """Dashed drop target for .pgn files, also clickable and keyboard-focusable."""
@@ -97,7 +92,7 @@ class DropZone(QFrame):
             }}
             """
         )
-        self._icon.set_icon("fa5s.file-upload" if qta is not None else None)
+        self._icon.set_icon("file-upload")
 
     def _on_theme_changed(self, *_args) -> None:
         self.refresh_styles()

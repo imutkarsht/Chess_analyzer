@@ -104,11 +104,13 @@ Bundled font files retain their upstream licences:
 | Codicon | MIT | — | MIT |
 | Elusive Icons 2.0 | — | SIL OFL 1.1 | MIT |
 | Material Design Icons | Apache-2.0 | SIL OFL 1.1 | Apache-2.0 |
+| Phosphor Icons 1.3.0 | MIT | SIL OFL 1.1 | MIT |
 
 Sources: <https://fontawesome.com/license/free>,
 <https://github.com/microsoft/vscode-codicons>,
 <https://github.com/dovy/elusive-icons>,
-<https://github.com/google/material-design-icons>.
+<https://github.com/google/material-design-icons>,
+<https://github.com/phosphor-icons/phosphor-icons>.
 
 ### Fonts — via Matplotlib
 

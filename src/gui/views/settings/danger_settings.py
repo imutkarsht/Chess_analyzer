@@ -30,7 +30,7 @@ class DangerSettings(StorageCard):
         self.clear_data_btn = Button(
             "Reset All Data",
             ButtonVariant.DANGER,
-            icon="fa5s.trash-alt",
+            icon="trash-alt",
             tooltip="Permanently delete games, analyses, and caches",
             on_click=self.reset_all_data,
             parent=self,

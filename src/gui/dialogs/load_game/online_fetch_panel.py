@@ -1,7 +1,6 @@
 import datetime
 
 from PyQt6.QtCore import QDate, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -34,15 +33,9 @@ from src.gui.components import (
 )
 from src.gui.import_workspace import GameBatch
 from src.gui.theme import ThemeManager
-from src.gui.utils.assets import asset_path
 from src.gui.utils.worker_registry import register_worker, remove_worker
 from src.utils.config import ConfigManager
 from src.workers.imports import ApiWorker
-
-try:
-    import qtawesome as qta
-except ImportError:  # pragma: no cover - QtAwesome ships with the app
-    qta = None
 
 
 class SegmentedSelector(QWidget):
@@ -81,9 +74,7 @@ class SegmentedSelector(QWidget):
 
     @staticmethod
     def _icon_spec(icon_name: str):
-        """Asset paths become QIcons; anything else is a themed icon name."""
-        if icon_name.startswith("assets/") or "/" in icon_name:
-            return QIcon(asset_path(icon_name))
+        """The shared resolver accepts asset paths and themed icon names."""
         return icon_name
 
     def _on_tab_changed(self, index: int) -> None:
@@ -205,9 +196,9 @@ class OnlineFetchPanel(QWidget):
         )
         self.mode_selector = SegmentedSelector(
             [
-                ("recent", "Recent", "fa5s.history"),
-                ("date", "By Date", "fa5s.calendar-alt"),
-                ("url", "By URL", "fa5s.link"),
+                ("recent", "Recent", "history"),
+                ("date", "By Date", "calendar-alt"),
+                ("url", "By URL", "link"),
             ],
             "recent",
         )
@@ -272,7 +263,7 @@ class OnlineFetchPanel(QWidget):
             "Fetch games",
             ButtonVariant.PRIMARY,
             ButtonSize.MD,
-            icon="fa5s.cloud-download-alt",
+            icon="cloud-download-alt",
             full_width=True,
             tooltip="Load games matching the selected filters",
             on_click=self._fetch,
@@ -431,8 +422,8 @@ class OnlineFetchPanel(QWidget):
 
     def refresh_styles(self) -> None:
         """Chrome and label typography are global; re-tint the state icons."""
-        self._error_icon.set_icon("fa5s.exclamation-circle")
-        self._empty_icon.set_icon("fa5s.search")
+        self._error_icon.set_icon("exclamation-circle")
+        self._empty_icon.set_icon("search")
 
     # ------------------------------------------------------------------
     # Form state

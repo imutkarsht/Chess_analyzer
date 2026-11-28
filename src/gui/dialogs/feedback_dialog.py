@@ -86,9 +86,9 @@ class FeedbackPanel(QWidget):
             radius=6,
             track_padding=4,
         )
-        self.tabs.add_tab("Report a Bug", icon="fa5s.bug")
-        self.tabs.add_tab("Feature Request", icon="fa5s.lightbulb")
-        self.tabs.add_tab("Write Review", icon="fa5s.star")
+        self.tabs.add_tab("Report a Bug", icon="bug")
+        self.tabs.add_tab("Feature Request", icon="lightbulb")
+        self.tabs.add_tab("Write Review", icon="star")
         self.tabs.current_changed.connect(self._on_tab_index_changed)
         body_layout.addWidget(self.tabs)
 
@@ -141,14 +141,14 @@ class FeedbackPanel(QWidget):
     def submit_meta(self) -> tuple[str, str, str]:
         """Return ``(button_text, tooltip, icon_spec)`` for the active tab."""
         if self._current_tab == "bug":
-            return ("Submit Bug Report", "Send this bug report", "fa5s.paper-plane")
+            return ("Submit Bug Report", "Send this bug report", "paper-plane")
         if self._current_tab == "feature":
             return (
                 "Submit Feature Request",
                 "Send this feature request",
-                "fa5s.paper-plane",
+                "paper-plane",
             )
-        return ("Submit Review", "Send this rating and review", "fa5s.star")
+        return ("Submit Review", "Send this rating and review", "star")
 
     def _default_username(self) -> str:
         return self.config_manager.chesscom_username or self.config_manager.lichess_username
@@ -295,7 +295,7 @@ class FeedbackPanel(QWidget):
         layout.setSpacing(14)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = IconLabel("fa5s.check-circle", size=44, tone=TextTone.BEST, fallback="✓")
+        icon_lbl = IconLabel("check-circle", size=44, tone=TextTone.BEST, fallback="✓")
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_lbl)
 
@@ -479,7 +479,7 @@ class FeedbackDialog(QDialog):
         header_layout.setContentsMargins(24, 0, 24, 0)
         header_layout.setSpacing(12)
         header_layout.addWidget(
-            IconLabel("fa5s.comment-dots", size=22, tone=TextTone.ACCENT, fallback="💬")
+            IconLabel("comment-dots", size=22, tone=TextTone.ACCENT, fallback="💬")
         )
         header_layout.addWidget(
             Label("Feedback & Support", role=TextRole.DIALOG_TITLE, weight=600)

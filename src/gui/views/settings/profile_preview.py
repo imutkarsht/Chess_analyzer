@@ -296,7 +296,7 @@ class ProfilePreview(QFrame):
         self.refresh_btn = Button(
             variant=ButtonVariant.FILLED,
             size=ButtonSize.SM,
-            icon="fa5s.sync-alt",
+            icon="sync-alt",
             icon_position="only",
             tooltip="Refresh profile",
             on_click=self.refresh,

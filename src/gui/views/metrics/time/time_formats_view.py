@@ -22,12 +22,12 @@ class FormatsView(LazyRenderView):
     """Performance breakdown per speed category."""
 
     FORMAT_META: dict[str, tuple[str, str]] = {
-        "Bullet": ("fa5s.bolt", "Fast-paced scrambles (<3m)"),
-        "Blitz": ("fa5s.stopwatch", "Standard fast play (3–5m)"),
-        "Rapid": ("fa5s.hourglass-half", "Tactical calculation (10–30m)"),
-        "Classical": ("fa5s.chess-rook", "Traditional classical (>30m)"),
-        "Chess960": ("fa5s.random", "Fischer Random (Freestyle)"),
-        "UltraBullet": ("fa5s.tachometer-alt", "Hyper-speed play (<30s)"),
+        "Bullet": ("bolt", "Fast-paced scrambles (<3m)"),
+        "Blitz": ("stopwatch", "Standard fast play (3–5m)"),
+        "Rapid": ("hourglass-half", "Tactical calculation (10–30m)"),
+        "Classical": ("chess-rook", "Traditional classical (>30m)"),
+        "Chess960": ("random", "Fischer Random (Freestyle)"),
+        "UltraBullet": ("tachometer-alt", "Hyper-speed play (<30s)"),
     }
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -76,7 +76,7 @@ class FormatsView(LazyRenderView):
         acc = f_data["avg_accuracy"]
         avg_t = f_data.get("avg_move_time", 0.0)
         tl = f_data.get("time_losses", 0)
-        icon_name, _ = self.FORMAT_META.get(sp, ("fa5s.chess-clock", f"{tot} analyzed games"))
+        icon_name, _ = self.FORMAT_META.get(sp, ("chess-clock", f"{tot} analyzed games"))
 
         row = QFrame()
         row.setObjectName("format_row")

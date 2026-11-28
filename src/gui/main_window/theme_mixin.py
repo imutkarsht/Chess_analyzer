@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QApplication
 from src.backend.analysis.analyzer import Analyzer
 from src.backend.analysis.engine import EngineManager, resolve_engine_path
 from src.backend.services.groq_service import GroqService
+from src.gui.icons import IconStyleManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.utils.logger import logger
@@ -119,6 +120,9 @@ class ThemeMixin:
         signature bundles keep their accent on every launch; the user's saved
         accent is still used whenever a non-signature theme is active.
         """
+        IconStyleManager.set_pack(
+            str(getattr(self.config_manager, "icon_style", "fontawesome"))
+        )
         ThemeManager.set_tint_enabled(
             bool(getattr(self.config_manager, "tint_enabled", False)),
             apply=False,

@@ -559,19 +559,19 @@ class MainWindow(
         header_layout.addStretch()
 
         # Explore Button
-        self.btn_explore = Button('Explore from here', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self.explore_current_position)
+        self.btn_explore = Button('Explore from here', ButtonVariant.FILLED, icon='compass', on_click=self.explore_current_position)
         self.btn_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_explore.setToolTip("Open this position in the Opening Explorer")
         header_layout.addWidget(self.btn_explore)
 
         # Load Game Button
-        self.btn_load = Button('Load Game', ButtonVariant.FILLED, icon='fa5s.folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
+        self.btn_load = Button('Load Game', ButtonVariant.FILLED, icon='folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_load.setToolTip("Open a local PGN or import a game from Chess.com or Lichess")
         header_layout.addWidget(self.btn_load)
 
         # Analyze Game Button
-        self.btn_analyze = Button('Analyze Game', ButtonVariant.PRIMARY, icon='fa5s.play', on_click=lambda: self.analysis_controller.start_analysis())
+        self.btn_analyze = Button('Analyze Game', ButtonVariant.PRIMARY, icon='play', on_click=lambda: self.analysis_controller.start_analysis())
         header_layout.addWidget(self.btn_analyze)
 
         main_layout.addWidget(self.analysis_header_bar)
@@ -632,13 +632,13 @@ class MainWindow(
         hero_actions.setSpacing(10)
         hero_actions.addStretch(1)
 
-        self.btn_hero_load = Button('Load Game', ButtonVariant.PRIMARY, icon='fa5s.folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
+        self.btn_hero_load = Button('Load Game', ButtonVariant.PRIMARY, icon='folder-open', on_click=lambda: self.game_loading_controller.open_load_dialog())
         self.btn_hero_load.setFixedSize(140, 38)
         self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hero_load.setToolTip("Open a local PGN or import a game from Chess.com or Lichess")
         hero_actions.addWidget(self.btn_hero_load)
 
-        self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='fa5s.paste', on_click=self.game_loading_controller.paste_pgn_from_clipboard)
+        self.btn_hero_paste = Button('Paste PGN', ButtonVariant.FILLED, icon='paste', on_click=self.game_loading_controller.paste_pgn_from_clipboard)
         self.btn_hero_paste.setFixedSize(130, 38)
         self.btn_hero_paste.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hero_paste.setToolTip("Paste a PGN from the clipboard")
@@ -733,18 +733,18 @@ class MainWindow(
         hib_top.insertWidget(1, self._hib_turn)
 
         hib_top.addStretch()
-        self.btn_hib_reveal = Button('Reveal', ButtonVariant.TONAL, icon='fa5s.eye', on_click=self._reveal_historic_move)
+        self.btn_hib_reveal = Button('Reveal', ButtonVariant.TONAL, icon='eye', on_click=self._reveal_historic_move)
         self.btn_hib_reveal.setFixedHeight(30)
         self.btn_hib_reveal.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hib_reveal.setToolTip("Play the famous move on the board")
         hib_top.addWidget(self.btn_hib_reveal)
-        self.btn_hib_explore = Button('Explore Position', ButtonVariant.FILLED, icon='fa5s.compass', on_click=self._explore_historic_position)
+        self.btn_hib_explore = Button('Explore Position', ButtonVariant.FILLED, icon='compass', on_click=self._explore_historic_position)
         self.btn_hib_explore.setFixedHeight(30)
         self.btn_hib_explore.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_hib_explore.setToolTip("Open this position in the Opening Explorer")
         self.btn_hib_explore.hide()
         hib_top.addWidget(self.btn_hib_explore)
-        self._btn_shuffle = Button('Next Gem', ButtonVariant.FILLED, icon='fa5s.random', on_click=self._load_random_historic_position)
+        self._btn_shuffle = Button('Next Gem', ButtonVariant.FILLED, icon='random', on_click=self._load_random_historic_position)
         self._btn_shuffle.setFixedHeight(30)
         self._btn_shuffle.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._btn_shuffle.setToolTip("Load another historic position")

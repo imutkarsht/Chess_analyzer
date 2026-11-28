@@ -1,35 +1,26 @@
-import os
-
 from PyQt6.QtCore import (
     QPropertyAnimation,
     Qt,
     pyqtProperty,
     pyqtSignal,
 )
-from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication, QFrame, QVBoxLayout
 
 from src.gui.components.controls.button import Button, ButtonVariant
+from src.gui.icons import IconSpec, IconStyleManager
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.motion import MotionDuration, MotionEasing
-from src.gui.utils.assets import icon_path
-from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.config import ConfigManager
 
-try:
-    import qtawesome as qta
-except ImportError:
-    qta = None
-
 QTAWESOME_ICONS = {
-    "help.png": "fa5s.question-circle",
-    "exit.png": "fa5s.sign-out-alt",
-    "analyze.png": "fa5s.chess-board",
-    "explorer.png": "fa5s.compass",
-    "history.png": "fa5s.history",
-    "stats.png": "fa5s.chart-bar",
-    "settings.png": "fa5s.cog",
+    "help.png": "question-circle",
+    "exit.png": "sign-out-alt",
+    "analyze.png": "chess-board",
+    "explorer.png": "compass",
+    "history.png": "history",
+    "stats.png": "chart-bar",
+    "settings.png": "cog",
 }
 
 COLLAPSED_WIDTH = 60
@@ -96,6 +87,7 @@ class Sidebar(QFrame):
 
         ThemeManager.instance().theme_changed.connect(self.apply_style)
         ThemeManager.instance().accent_changed.connect(self.apply_style)
+        IconStyleManager.instance().style_changed.connect(self.apply_style)
 
         self.apply_style()
 
@@ -128,13 +120,10 @@ class Sidebar(QFrame):
     sidebar_width = pyqtProperty(float, _get_sidebar_width, _set_sidebar_width)
 
     def _apply_icon(self, btn, icon_name):
-        if HAS_QTAWESOME and icon_name in QTAWESOME_ICONS:
-            color_str = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
-            btn.set_icon_spec(qta.icon(QTAWESOME_ICONS[icon_name], color=color_str))
-        else:
-            sidebar_icon = icon_path(icon_name)
-            if os.path.exists(sidebar_icon):
-                btn.set_icon_spec(QIcon(sidebar_icon))
+        if icon_name not in QTAWESOME_ICONS:
+            return
+        color = Styles.COLOR_ACCENT if btn.isChecked() else Styles.COLOR_TEXT_SECONDARY
+        btn.set_icon_spec(IconSpec(QTAWESOME_ICONS[icon_name], color=color))
 
     def _make_nav_button(self, text: str, icon_name: str, index: int) -> Button:
         on_click = (
@@ -201,7 +190,7 @@ class Sidebar(QFrame):
     def _update_collapse_icon(self):
         icon_char = "\u00ab" if not self._collapsed else "\u00bb"
         self.btn_collapse.setText(icon_char)
-        icon_name = "fa5s.chevron-left" if not self._collapsed else "fa5s.chevron-right"
+        icon_name = "chevron-left" if not self._collapsed else "chevron-right"
         self.btn_collapse.set_icon_spec(icon_name)
 
     def handle_click(self, index):

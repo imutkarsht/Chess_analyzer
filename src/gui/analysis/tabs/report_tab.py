@@ -65,7 +65,7 @@ class ReportTab(QWidget):
             "",
             variant=ButtonVariant.OUTLINED,
             size="md",
-            icon="fa5s.file-export",
+            icon="file-export",
             icon_position="only",
             tooltip="Analyze this game before exporting an annotated PGN",
         )
@@ -77,7 +77,7 @@ class ReportTab(QWidget):
             "",
             variant=ButtonVariant.OUTLINED,
             size="md",
-            icon="fa5s.share-alt",
+            icon="share-alt",
             icon_position="only",
             tooltip="Analyze this game before sharing a report",
         )

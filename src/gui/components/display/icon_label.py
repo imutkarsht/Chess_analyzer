@@ -7,10 +7,15 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import QLabel, QWidget
 
+from src.gui.icons import (
+    IconSpec,
+    IconStyleManager,
+    IconVariant,
+    icon_qicon,
+)
 from src.gui.styles import Styles
 from src.gui.theme import ThemeManager
 from src.gui.theme.typography import TextTone
-from src.gui.utils.icons import icon_pixmap
 
 
 class IconLabel(QLabel):
@@ -25,12 +30,13 @@ class IconLabel(QLabel):
 
     def __init__(
         self,
-        icon: str | QIcon | QPixmap | None = None,
+        icon: str | QIcon | QPixmap | IconSpec | None = None,
         *,
         size: int = 16,
         icon_size: int | None = None,
         color: str | None = None,
         tone: TextTone | str | None = None,
+        variant: IconVariant | str | None = None,
         fallback: str = "",
         fallback_size: int | None = None,
         fixed_size: bool = True,
@@ -38,6 +44,14 @@ class IconLabel(QLabel):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        if isinstance(icon, IconSpec):
+            size = icon.size or size
+            icon_size = icon.size or icon_size
+            color = icon.color or color
+            tone = icon.tone or tone
+            variant = icon.variant or variant
+            fallback = icon.fallback or fallback
+            icon = icon.name
         if fixed_size:
             self.setFixedSize(size, size)
         else:
@@ -48,6 +62,7 @@ class IconLabel(QLabel):
         self._icon_size = icon_size or size
         self._color = color
         self._tone = TextTone(tone) if tone is not None else None
+        self._variant = IconVariant(variant) if variant is not None else None
         self._fallback = fallback
         self._fallback_size = fallback_size
         self._fixed_size = fixed_size
@@ -57,10 +72,25 @@ class IconLabel(QLabel):
         manager = ThemeManager.instance()
         manager.theme_changed.connect(self._on_theme_changed)
         manager.accent_changed.connect(self._on_theme_changed)
+        IconStyleManager.instance().style_changed.connect(self._on_theme_changed)
         if icon is not None:
             self.set_icon(icon)
 
-    def set_icon(self, icon: str | QIcon | QPixmap | None) -> None:
+    def set_icon(self, icon: str | QIcon | QPixmap | IconSpec | None) -> None:
+        if isinstance(icon, IconSpec):
+            if icon.size is not None:
+                self._icon_size = max(1, int(icon.size))
+                if self._fixed_size:
+                    self.setFixedSize(self._icon_size, self._icon_size)
+            if icon.color is not None:
+                self._color = icon.color
+            if icon.tone is not None:
+                self._tone = TextTone(icon.tone)
+            if icon.variant is not None:
+                self._variant = IconVariant(icon.variant)
+            if icon.fallback:
+                self._fallback = icon.fallback
+            icon = icon.name
         self._icon = icon
         self._apply_icon()
 
@@ -72,6 +102,10 @@ class IconLabel(QLabel):
 
     def set_tone(self, tone: TextTone | str | None) -> None:
         self._tone = TextTone(tone) if tone is not None else None
+        self._apply_icon()
+
+    def set_variant(self, variant: IconVariant | str | None) -> None:
+        self._variant = IconVariant(variant) if variant is not None else None
         self._apply_icon()
 
     def set_color(self, color: str | None) -> None:
@@ -101,6 +135,7 @@ class IconLabel(QLabel):
 
     def _apply_icon(self) -> None:
         icon = self._icon
+        dpr = max(1.0, self.devicePixelRatioF())
         if isinstance(icon, QPixmap):
             if icon.isNull():
                 self._show_fallback()
@@ -108,29 +143,36 @@ class IconLabel(QLabel):
             if self._scaled:
                 self.setPixmap(icon)
                 return
-            self.setPixmap(
-                icon.scaled(
-                    self._icon_size,
-                    self._icon_size,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
+            target = max(1, int(round(self._icon_size * dpr)))
+            pixmap = icon.scaled(
+                target,
+                target,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
+            pixmap.setDevicePixelRatio(dpr)
+            self.setPixmap(pixmap)
             return
+        if isinstance(icon, str) and icon:
+            icon = icon_qicon(
+                icon, self._resolved_color(), self._icon_size, self._variant
+            )
         if isinstance(icon, QIcon):
             target = max(1, self.width(), self.height()) if self._scaled else self._icon_size
             pixmap = icon.pixmap(target, target)
             if pixmap.isNull():
                 self._show_fallback()
                 return
+            if pixmap.devicePixelRatio() == 1 and dpr > 1:
+                pixmap = pixmap.scaled(
+                    target * dpr,
+                    target * dpr,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                pixmap.setDevicePixelRatio(dpr)
             self.setPixmap(pixmap)
             return
-        if isinstance(icon, str) and icon:
-            target = max(1, self.width(), self.height()) if self._scaled else self._icon_size
-            pixmap = icon_pixmap(icon, self._resolved_color(), target)
-            if pixmap is not None and not pixmap.isNull():
-                self.setPixmap(pixmap)
-                return
         self._show_fallback()
 
     def _show_fallback(self) -> None:

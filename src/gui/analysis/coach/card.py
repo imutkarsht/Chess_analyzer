@@ -139,7 +139,7 @@ class CoachCardWidget(QFrame):
             "",
             ButtonVariant.TONAL,
             size=ButtonSize.SM,
-            icon="fa5s.magic",
+            icon="magic",
             tooltip="Generate an AI explanation for this move",
             on_click=self.ask_requested.emit,
             parent=self,

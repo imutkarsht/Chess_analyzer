@@ -73,7 +73,7 @@ class AICoachCard(MetricCard):
         self.btn_refresh_insights = Button(
             variant=ButtonVariant.FILLED,
             size=ButtonSize.SM,
-            icon="fa5s.sync-alt",
+            icon="sync-alt",
             icon_position="only",
             tooltip="Generate or refresh AI coaching",
             on_click=self._generate_insights,
@@ -181,7 +181,7 @@ class AICoachCard(MetricCard):
         btn_analyze = Button(
             "Generate Coach Insights",
             ButtonVariant.PRIMARY,
-            icon="fa5s.robot",
+            icon="robot",
             tooltip=(
                 "Create coaching insights for the filtered games"
                 if total > 0

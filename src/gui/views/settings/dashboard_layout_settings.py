@@ -37,7 +37,7 @@ class DashboardLayoutSettings(QGroupBox):
         self.reset_btn = Button(
             "Reset order",
             ButtonVariant.FILLED,
-            icon="fa5s.undo",
+            icon="undo",
             tooltip="Restore the default dashboard card order",
             on_click=self.reset_order,
             parent=self,

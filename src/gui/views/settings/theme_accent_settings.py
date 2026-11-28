@@ -23,6 +23,7 @@ from src.gui.components import (
     TextRole,
     ToastManager,
 )
+from src.gui.icons import IconStyleManager
 from src.gui.theme import ACCENT_PRESETS, AccentPreset, ThemeManager
 from src.gui.views.settings.components import SettingsBinder, SettingsForm
 from src.gui.views.settings.theme_gallery import ThemeGallery
@@ -67,6 +68,12 @@ class ThemeAccentSettings(QGroupBox):
             hint="",
             width=None,
             on_change=self._on_toast_position_changed,
+        )
+        self.icon_style_combo = self.binder.add(
+            "icon_style",
+            hint="",
+            width=None,
+            on_change=self._on_icon_style_changed,
         )
 
         self._last_runtime_mode = ThemeManager.mode()
@@ -137,7 +144,7 @@ class ThemeAccentSettings(QGroupBox):
             "Custom\u2026",
             ButtonVariant.GHOST,
             ButtonSize.SM,
-            icon="fa5s.palette",
+            icon="palette",
             checkable=True,
             tooltip="Choose a custom accent colour",
             on_click=self.change_accent_color,
@@ -283,6 +290,11 @@ class ThemeAccentSettings(QGroupBox):
 
     def _on_toast_position_changed(self, position):
         ToastManager.configure(position=position)
+
+    def _on_icon_style_changed(self, style) -> None:
+        value = str(style)
+        self.config_manager.set("icon_style", value)
+        IconStyleManager.set_pack(value)
 
     @staticmethod
     def _make_divider() -> QFrame:

@@ -53,7 +53,7 @@ class ImportActionBar(QFrame):
             "Add to history",
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
-            icon="fa5s.database",
+            icon="database",
             on_click=self.add_clicked.emit,
         )
         self.btn_add.setEnabled(False)
@@ -63,7 +63,7 @@ class ImportActionBar(QFrame):
             "Open game",
             ButtonVariant.PRIMARY,
             ButtonSize.MD,
-            icon="fa5s.play",
+            icon="play",
             on_click=self.open_clicked.emit,
         )
         self.btn_open.setEnabled(False)
