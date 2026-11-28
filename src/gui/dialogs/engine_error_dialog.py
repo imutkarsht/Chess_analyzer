@@ -73,7 +73,7 @@ class EngineNotFoundPanel(QWidget):
         self._auto_btn = Button(
             "Auto-detect Stockfish",
             ButtonVariant.FILLED,
-            icon="fa5s.search",
+            icon="search",
             full_width=True,
             align="left",
             on_click=self._auto_detect,
@@ -83,7 +83,7 @@ class EngineNotFoundPanel(QWidget):
         self._download_btn = Button(
             "Download Stockfish",
             ButtonVariant.FILLED,
-            icon="fa5s.download",
+            icon="download",
             full_width=True,
             align="left",
             on_click=self._start_download,
@@ -93,7 +93,7 @@ class EngineNotFoundPanel(QWidget):
         self._browse_btn = Button(
             "Browse for Stockfish...",
             ButtonVariant.FILLED,
-            icon="fa5s.folder-open",
+            icon="folder-open",
             full_width=True,
             align="left",
             on_click=self._browse,
@@ -222,7 +222,7 @@ class EngineNotFoundDialog(QDialog):
         layout.setContentsMargins(28, 28, 28, 20)
         layout.setSpacing(14)
 
-        icon_lbl = IconLabel("fa5s.exclamation-triangle", size=34, tone=TextTone.MISTAKE)
+        icon_lbl = IconLabel("exclamation-triangle", size=34, tone=TextTone.MISTAKE)
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_lbl)
 

@@ -106,7 +106,7 @@ class HistoryFilterBar(QWidget):
             "Filters",
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
-            icon="fa5s.filter",
+            icon="filter",
             checkable=True,
             tooltip="Show game filters",
             on_click=self._toggle_panel,

@@ -36,14 +36,14 @@ class ShortcutHelpPanel(QWidget):
     """
 
     _CAT_ICONS = {
-        "File": "fa5s.folder-open",
-        "Analysis": "fa5s.bolt",
-        "Navigation": "fa5s.arrows-alt",
-        "Board": "fa5s.chess-board",
-        "Variations": "fa5s.code-branch",
-        "Pages": "fa5s.columns",
-        "Help": "fa5s.question-circle",
-        "General": "fa5s.cog",
+        "File": "folder-open",
+        "Analysis": "bolt",
+        "Navigation": "arrows-alt",
+        "Board": "chess-board",
+        "Variations": "code-branch",
+        "Pages": "columns",
+        "Help": "question-circle",
+        "General": "cog",
     }
 
     def __init__(self, bindings: list[dict] | None = None, parent: QWidget | None = None):
@@ -82,7 +82,7 @@ class ShortcutHelpPanel(QWidget):
             hdr_layout.setSpacing(8)
             hdr_layout.addWidget(
                 IconLabel(
-                    self._CAT_ICONS.get(category, "fa5s.circle"),
+                    self._CAT_ICONS.get(category, "circle"),
                     size=13,
                     tone=TextTone.ACCENT,
                 )
@@ -180,7 +180,7 @@ class ShortcutHelpDialog(QDialog):
         header_layout = QHBoxLayout()
         header_layout.setSpacing(12)
         header_layout.addWidget(
-            IconLabel("fa5s.keyboard", size=26, tone=TextTone.ACCENT, fallback="⌨")
+            IconLabel("keyboard", size=26, tone=TextTone.ACCENT, fallback="⌨")
         )
         header_layout.addWidget(
             Label("Keyboard Shortcuts", role=TextRole.DIALOG_TITLE, weight=600)
@@ -207,7 +207,7 @@ class ShortcutHelpDialog(QDialog):
         btn_feedback = Button(
             "Report Bug / Feedback",
             ButtonVariant.FILLED,
-            icon="fa5s.comment-dots",
+            icon="comment-dots",
             on_click=lambda: open_feedback_dialog(self, initial_tab="bug"),
         )
         btn_close = Button("Got it", ButtonVariant.PRIMARY, on_click=self.accept)
@@ -249,7 +249,7 @@ def open_shortcut_help_overlay(parent, bindings: list[dict] | None = None) -> No
             feedback_btn = Button(
                 "Report Bug / Feedback",
                 ButtonVariant.LINK,
-                icon="fa5s.comment-dots",
+                icon="comment-dots",
                 on_click=lambda: open_feedback_dialog(parent, initial_tab="bug"),
             )
             done_btn = Button("Got it", ButtonVariant.PRIMARY, on_click=card.accept)

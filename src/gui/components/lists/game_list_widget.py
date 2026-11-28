@@ -92,7 +92,7 @@ class GameListWidget(QWidget):
         self.btn_detailed = Button(
             variant=ButtonVariant.FILLED,
             size=ButtonSize.SM,
-            icon="fa5s.th-large",
+            icon="th-large",
             icon_position="only",
             checkable=True,
             tooltip="Switch to detailed cards",
@@ -104,7 +104,7 @@ class GameListWidget(QWidget):
         self.btn_compact = Button(
             variant=ButtonVariant.FILLED,
             size=ButtonSize.SM,
-            icon="fa5s.list",
+            icon="list",
             icon_position="only",
             checkable=True,
             tooltip="Switch to compact table",

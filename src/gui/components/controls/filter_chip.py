@@ -64,7 +64,7 @@ class FilterChip(QFrame):
         self.close_button = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.SM,
-            icon="fa5s.times",
+            icon="times",
             icon_position="only",
             tooltip="Remove filter",
             on_click=lambda: self.remove_requested.emit(),

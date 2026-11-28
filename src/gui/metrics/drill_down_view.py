@@ -79,7 +79,7 @@ class DrillDownView(QWidget):
         self.btn_back = Button(
             "Back to Dashboard",
             ButtonVariant.FILLED,
-            icon="fa5s.arrow-left",
+            icon="arrow-left",
             tooltip="Return to the performance dashboard",
             on_click=self.back_requested.emit,
         )
@@ -210,7 +210,7 @@ class DrillDownView(QWidget):
 
         empty_layout.addWidget(
             IconLabel(
-                "fa5s.search",
+                "search",
                 size=48,
                 tone=TextTone.MUTED,
                 fallback="🔍",

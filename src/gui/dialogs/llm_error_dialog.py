@@ -48,7 +48,7 @@ def open_llm_not_configured(parent) -> bool:
             configure_btn = Button(
                 "Configure Now",
                 ButtonVariant.PRIMARY,
-                icon="fa5s.cog",
+                icon="cog",
                 on_click=card.accept,
             )
             card.add_action(skip_btn)

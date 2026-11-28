@@ -23,8 +23,8 @@ from src.gui.dialogs.wizard.wizard_pages import (
     build_stockfish_page,
     build_welcome_page,
 )
+from src.gui.icons import HAS_QTAWESOME
 from src.gui.styles import Styles
-from src.gui.utils.icons import HAS_QTAWESOME
 from src.utils.logger import logger
 from src.utils.path_utils import get_engine_data_dir
 from src.workers import LLMTestWorker, StockfishDownloadWorker
@@ -110,7 +110,7 @@ class SetupWizard(QDialog):
         if not hasattr(self, 'done_icon_label'):
             return
         self.done_icon_label.set_icon(
-            "fa5s.check-circle" if HAS_QTAWESOME else None
+            "check-circle" if HAS_QTAWESOME else None
         )
 
     def _show_page(self, index):
@@ -308,7 +308,7 @@ class SetupWizard(QDialog):
             self.settings["engine_path"] = path
             if HAS_QTAWESOME:
                 self.sf_icon_label.set_tone(TextTone.BEST)
-                self.sf_icon_label.set_icon("fa5s.check-circle")
+                self.sf_icon_label.set_icon("check-circle")
         else:
             self.sf_status.setText("Stockfish Not Detected")
             self.sf_status.set_tone(TextTone.MISTAKE)
@@ -321,7 +321,7 @@ class SetupWizard(QDialog):
             self.sf_progress_desc.setVisible(False)
             if HAS_QTAWESOME:
                 self.sf_icon_label.set_tone(TextTone.MISTAKE)
-                self.sf_icon_label.set_icon("fa5s.exclamation-circle")
+                self.sf_icon_label.set_icon("exclamation-circle")
 
     def _set_custom_stockfish_path(self, path: str):
         if not path or not os.path.exists(path):
@@ -345,7 +345,7 @@ class SetupWizard(QDialog):
         self.sf_progress_desc.setVisible(False)
         if HAS_QTAWESOME:
             self.sf_icon_label.set_tone(TextTone.BEST)
-            self.sf_icon_label.set_icon("fa5s.check-circle")
+            self.sf_icon_label.set_icon("check-circle")
 
     def _download_stockfish(self):
         self.sf_download_btn.setVisible(False)
@@ -399,7 +399,7 @@ class SetupWizard(QDialog):
         self.sf_progress_desc.setVisible(False)
         if HAS_QTAWESOME:
             self.sf_icon_label.set_tone(TextTone.BEST)
-            self.sf_icon_label.set_icon("fa5s.check-circle")
+            self.sf_icon_label.set_icon("check-circle")
         logger.info("SetupWizard: Stockfish downloaded to %s", binary_path)
 
     def _on_download_error(self, err_msg):

@@ -111,7 +111,7 @@ class ReviewPromptPanel(QWidget):
         layout.setSpacing(14)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_lbl = IconLabel("fa5s.check-circle", size=44, tone=TextTone.BEST, fallback="🎉")
+        icon_lbl = IconLabel("check-circle", size=44, tone=TextTone.BEST, fallback="🎉")
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_lbl)
 
@@ -280,7 +280,7 @@ class ReviewPromptDialog(QDialog):
         self.btn_submit = Button(
             "Submit Review",
             ButtonVariant.PRIMARY,
-            icon="fa5s.paper-plane",
+            icon="paper-plane",
             tooltip="Send this rating and review",
             on_click=self.panel.submit_review,
         )
@@ -345,7 +345,7 @@ def open_review_prompt(parent, *, games_count: int = 3) -> None:
             submit_btn = Button(
                 "Submit Review",
                 ButtonVariant.PRIMARY,
-                icon="fa5s.paper-plane",
+                icon="paper-plane",
                 tooltip="Send this rating and review",
                 on_click=panel.submit_review,
             )

@@ -274,7 +274,7 @@ class _CalendarPopup(QFrame):
         self._prev_btn = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.MD,
-            icon="fa5s.chevron-left",
+            icon="chevron-left",
             icon_position="only",
             icon_size=18,
             tooltip="Previous month",
@@ -283,7 +283,7 @@ class _CalendarPopup(QFrame):
         self._next_btn = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.MD,
-            icon="fa5s.chevron-right",
+            icon="chevron-right",
             icon_position="only",
             icon_size=18,
             tooltip="Next month",
@@ -360,7 +360,7 @@ class _CalendarPopup(QFrame):
         self._back_btn = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.MD,
-            icon="fa5s.arrow-left",
+            icon="arrow-left",
             icon_position="only",
             icon_size=16,
             tooltip="Back to calendar",
@@ -369,7 +369,7 @@ class _CalendarPopup(QFrame):
         self._prev_year_btn = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.MD,
-            icon="fa5s.chevron-left",
+            icon="chevron-left",
             icon_position="only",
             icon_size=18,
             tooltip="Previous year",
@@ -378,7 +378,7 @@ class _CalendarPopup(QFrame):
         self._next_year_btn = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.MD,
-            icon="fa5s.chevron-right",
+            icon="chevron-right",
             icon_position="only",
             icon_size=18,
             tooltip="Next year",
@@ -763,7 +763,7 @@ class DatePicker(QWidget):
         self._icon = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.SM,
-            icon="fa5s.calendar-alt",
+            icon="calendar-alt",
             icon_position="only",
             icon_size=18,
             tooltip="Choose date",

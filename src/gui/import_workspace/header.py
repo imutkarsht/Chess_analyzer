@@ -32,7 +32,7 @@ class ImportHeader(QFrame):
             "Back to History",
             ButtonVariant.HOLLOW,
             ButtonSize.SM,
-            icon="fa5s.arrow-left",
+            icon="arrow-left",
             on_click=self.back_requested.emit,
         )
         layout.addWidget(self.btn_back)

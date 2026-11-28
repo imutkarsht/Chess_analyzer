@@ -149,7 +149,7 @@ class OverlayCard(QFrame):
             "",
             ButtonVariant.GHOST,
             ButtonSize.SM,
-            icon="fa5s.times",
+            icon="times",
             icon_position="only",
             tooltip="Close (Esc)",
             on_click=self.close_requested.emit,

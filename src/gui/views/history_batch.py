@@ -167,14 +167,14 @@ class _QueueRow(QWidget):
         layout.addWidget(self.eta_label)
 
         handle = IconLabel(size=16)
-        handle.set_icon("fa5s.grip-vertical")
+        handle.set_icon("grip-vertical")
         handle.setToolTip("Drag to reorder")
         layout.addWidget(handle)
 
         self.remove_button = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.SM,
-            icon="fa5s.times",
+            icon="times",
             icon_position="only",
             tooltip="Remove from this batch",
             on_click=lambda: self.remove_requested.emit(self.entry.game_id),
@@ -320,7 +320,7 @@ class BatchQueueCard(QFrame):
             "Pause",
             ButtonVariant.HOLLOW,
             ButtonSize.MD,
-            icon="fa5s.pause",
+            icon="pause",
             tooltip="Pause the batch queue",
             on_click=lambda: self.pause_requested.emit(),
         )
@@ -331,7 +331,7 @@ class BatchQueueCard(QFrame):
             "Resume",
             ButtonVariant.PRIMARY,
             ButtonSize.MD,
-            icon="fa5s.play",
+            icon="play",
             tooltip="Continue the paused batch queue",
             on_click=lambda: self.resume_requested.emit(),
         )
@@ -351,7 +351,7 @@ class BatchQueueCard(QFrame):
         self.btn_collapse = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.MD,
-            icon="fa5s.chevron-up",
+            icon="chevron-up",
             icon_position="only",
             tooltip="Collapse batch details",
             on_click=lambda: self.collapse_requested.emit(),
@@ -363,7 +363,7 @@ class BatchQueueCard(QFrame):
         self.btn_cancel = Button(
             variant=ButtonVariant.GHOST,
             size=ButtonSize.MD,
-            icon="fa5s.times",
+            icon="times",
             icon_position="only",
             tooltip="Cancel batch analysis",
             on_click=lambda: self.cancel_requested.emit(),

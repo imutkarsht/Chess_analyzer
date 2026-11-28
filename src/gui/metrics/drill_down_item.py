@@ -223,7 +223,7 @@ class DrillDownItemWidget(QFrame):
             "",
             ButtonVariant.OUTLINED,
             ButtonSize.SM,
-            icon="fa5s.arrow-right",
+            icon="arrow-right",
             icon_position="only",
             tooltip="Open this game" if is_game else "Open this position",
             on_click=self._trigger_selection,

@@ -111,7 +111,7 @@ class ImportToolbar(QWidget):
             "Boards",
             ButtonVariant.GHOST,
             ButtonSize.SM,
-            icon="fa5s.chess-board",
+            icon="chess-board",
             checkable=True,
             tooltip="Show board thumbnails",
             on_click=lambda: self.boards_toggled.emit(
